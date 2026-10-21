@@ -185,6 +185,49 @@ test('a caption file shows its first lines as text', async ({ page, diagnostics 
   await expectClean(diagnostics, 'captions stage');
 });
 
+test('an HTML media loads the server render in a sandboxed frame after the press', async ({
+  page,
+  diagnostics,
+}) => {
+  const created = await page.request.post('/api/items', {
+    multipart: {
+      data: JSON.stringify({
+        'o:is_public': true,
+        'dcterms:title': [{ type: 'literal', '@value': 'An embed' }],
+        'o:media': [
+          {
+            'o:ingester': 'html',
+            'o:is_public': true,
+            html: '<p class="embed-body">Hello from the embed</p>',
+          },
+        ],
+      }),
+    },
+  });
+  expect(created.status(), await created.text()).toBe(200);
+  const item: unknown = await created.json();
+  const media = firstMediaId(item, 'html');
+
+  await page.goto(`/#/media/${String(media)}`);
+  const stage = page.locator('.media-stage');
+  await expect(stage.locator('iframe')).toHaveCount(0);
+  await expect(stage).toContainText('HTML that the server renders');
+
+  await stage.getByRole('button', { name: 'Load the embed' }).click();
+
+  const frame = stage.locator('iframe');
+  await expect(frame).toHaveAttribute(
+    'src',
+    new RegExp(`/api/romeka/media/${String(media)}/render$`),
+  );
+  await expect(frame).toHaveAttribute('sandbox', 'allow-scripts allow-presentation');
+  const sandbox = await frame.getAttribute('sandbox');
+  expect(sandbox).not.toContain('allow-same-origin');
+  await expect(frame.contentFrame().locator('.embed-body')).toHaveText('Hello from the embed');
+  await expect(stage.getByRole('button', { name: 'Load the embed' })).toHaveCount(0);
+  await expectClean(diagnostics, 'embed frame stage');
+});
+
 test('an outside player is a card that names its host and loads no frame', async ({
   page,
   diagnostics,

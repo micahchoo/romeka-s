@@ -14,7 +14,7 @@ import type { APIRequestContext } from '@playwright/test';
 import { expect, expectClean, test } from '../fixtures';
 import { isArray, numberField, record } from '../harness/json';
 import { SITE_SLUG } from '../harness/seed';
-import { REPO_ROOT } from '../harness/state';
+import { REPO_ROOT, readHarness } from '../harness/state';
 
 const corpus = (name: string): Buffer =>
   readFileSync(join(REPO_ROOT, 'fixtures', 'media-kinds', name));
@@ -70,15 +70,18 @@ const upload = async (
   return numberField(record(listed[0], 'media'), 'o:id', 'media');
 };
 
-/** One caption import, through the route the admin calls. */
+/** One caption import, through the route the admin calls. The request carries
+ * the harness key: the proxy keys only `/api`, and this spec writes without a
+ * browser session. */
 const caption = async (
   request: APIRequestContext,
   media: number,
   lang: string,
   body: string,
 ): Promise<void> => {
+  const { keyIdentity, keyCredential } = readHarness();
   const answer = await request.post(
-    `/annotations/media/${String(media)}/tracks?lang=${lang}`,
+    `/annotations/media/${String(media)}/tracks?lang=${lang}&key_identity=${keyIdentity}&key_credential=${keyCredential}`,
     { headers: { 'content-type': 'text/vtt' }, data: body },
   );
   expect(answer.status(), await answer.text()).toBe(200);

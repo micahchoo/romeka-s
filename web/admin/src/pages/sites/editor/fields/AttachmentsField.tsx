@@ -227,6 +227,7 @@ export const AttachmentsField = ({
         id={`${id}-picker`}
         label={e('attachments.pick')}
         mode="many"
+        accepts="any"
         picked={picked}
         onChange={(next) => {
           onChange(syncAttachments(attachments, next));

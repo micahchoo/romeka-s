@@ -2299,7 +2299,7 @@ pub(crate) fn media_display_title(row: &MediaRow, messages: &Messages) -> String
 /// media subsystem does not use (owner, class, template, thumbnail, language)
 /// are left at their defaults. `alt_text` is the resolved alt text, which the
 /// caller reads through [`omeka_api::settings::media_alt_text`].
-fn media_core(row: &MediaRow, alt_text: Option<String>) -> Media {
+pub(crate) fn media_core(row: &MediaRow, alt_text: Option<String>) -> Media {
     let mut media = Media::new(
         MediaId::new(row.id().0),
         ItemId::new(row.item_id.0),

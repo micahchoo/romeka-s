@@ -16,13 +16,28 @@ import type { KeyboardEvent, ReactElement } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../../../api/client';
 import type { ClassId, Item, ItemId, ItemSet, ItemSetId } from '../../../../api/types';
+import { KIND_LABEL } from '../../../../app/media';
 import { useAsync } from '../../../../app/useAsync';
 import { useSettled } from '../../../../app/useSettled';
 import { useTranslator } from '../../../../i18n';
 import { common } from '../../../../i18n/namespaces/common';
+import { resources } from '../../../../i18n/namespaces/resources';
 import { sites } from '../../../../i18n/namespaces/sites';
-import type { Filters, ItemPickerProps, Source } from './itemPickerModel';
-import { ALL_ITEMS, NO_FILTERS, classTerm, isFiltered, itemQuery, pickedList, toggled } from './itemPickerModel';
+import type { FieldAccepts } from '../../blockSchema';
+import type { Filters, ItemPickerProps, MediaNarrowing, Source } from './itemPickerModel';
+import {
+  ALL_ITEMS,
+  HAS_CHOICES,
+  NO_FILTERS,
+  NO_NARROWING,
+  classTerm,
+  hasChoiceOf,
+  isFiltered,
+  itemQuery,
+  narrowingFor,
+  pickedList,
+  toggled,
+} from './itemPickerModel';
 import { Peek, ResultRow, SkeletonRows, Sources, Tray } from './ItemPickerParts';
 import { PAGE_SIZE, useItemListing } from './useItemListing';
 import './ItemPicker.css';
@@ -89,18 +104,92 @@ const useKnownItems = (rows: readonly Item[], picked: readonly ItemId[]): Readon
   return seen.current;
 };
 
+/**
+ * The controls that narrow the archive by media: the plain "Has media" test for
+ * a field that names items, "Only items with images" for a field that shows an
+ * image, and a "Has" select for a field that takes any media.
+ */
+const MediaFilter = ({
+  id,
+  accepts,
+  narrowing,
+  onChange,
+}: {
+  readonly id: string;
+  readonly accepts: FieldAccepts | undefined;
+  readonly narrowing: MediaNarrowing;
+  readonly onChange: (narrowing: MediaNarrowing) => void;
+}): ReactElement => {
+  const { t } = useTranslator(common, sites, resources);
+  if (accepts === undefined) {
+    return (
+      <label className="item-picker-media-filter" htmlFor={`${id}-has-media`}>
+        <input
+          id={`${id}-has-media`}
+          type="checkbox"
+          checked={narrowing.kind === 'media'}
+          onChange={(event) => {
+            onChange(event.target.checked ? { kind: 'media' } : NO_NARROWING);
+          }}
+        />
+        {t('itemPicker.hasMedia')}
+      </label>
+    );
+  }
+  if (accepts === 'any') {
+    return (
+      <p>
+        <label htmlFor={`${id}-has`}>{t('itemPicker.has')}</label>
+        <select
+          id={`${id}-has`}
+          value={hasChoiceOf(narrowing).word ?? ''}
+          onChange={(event) => {
+            const choice = HAS_CHOICES.find((entry) => (entry.word ?? '') === event.target.value);
+            onChange(
+              choice === undefined || choice.kinds.length === 0
+                ? NO_NARROWING
+                : { kind: 'kinds', kinds: choice.kinds },
+            );
+          }}
+        >
+          {HAS_CHOICES.map((choice) => (
+            <option key={choice.word ?? 'any'} value={choice.word ?? ''}>
+              {choice.word === null ? t('itemPicker.hasAny') : t(KIND_LABEL[choice.word])}
+            </option>
+          ))}
+        </select>
+      </p>
+    );
+  }
+  return (
+    <label className="item-picker-media-filter" htmlFor={`${id}-only-images`}>
+      <input
+        id={`${id}-only-images`}
+        type="checkbox"
+        checked={narrowing.kind === 'kinds'}
+        onChange={(event) => {
+          onChange(event.target.checked ? narrowingFor(accepts) : NO_NARROWING);
+        }}
+      />
+      {t('itemPicker.onlyImages')}
+    </label>
+  );
+};
+
 export const ItemPicker = (props: ItemPickerProps): ReactElement => {
-  const { id, label } = props;
-  const { t, number } = useTranslator(common, sites);
+  const { id, label, accepts } = props;
+  const { t, number } = useTranslator(common, sites, resources);
   const [term, setTerm] = useState('');
   const [source, setSource] = useState<Source>(ALL_ITEMS);
   const [classId, setClassId] = useState<ClassId | null>(null);
-  const [hasMedia, setHasMedia] = useState(false);
+  const [narrowing, setNarrowing] = useState<MediaNarrowing>(() =>
+    accepts === undefined ? NO_NARROWING : narrowingFor(accepts),
+  );
   const search = useSettled(term.trim(), SEARCH_DELAY_MS);
-  const filters: Filters = { source, search, classId, hasMedia };
+  const filters: Filters = { source, search, classId, narrowing };
   const query = useMemo(
-    () => itemQuery({ source, search, classId, hasMedia }),
-    [source, search, classId, hasMedia],
+    () => itemQuery({ source, search, classId, narrowing }),
+    [source, search, classId, narrowing],
   );
   const { listing, more, retry } = useItemListing(query);
   const slow = useDelayed(listing.status === 'loading', SLOW_MS);
@@ -158,7 +247,7 @@ export const ItemPicker = (props: ItemPickerProps): ReactElement => {
     setTerm('');
     setSource(NO_FILTERS.source);
     setClassId(NO_FILTERS.classId);
-    setHasMedia(NO_FILTERS.hasMedia);
+    setNarrowing(NO_FILTERS.narrowing);
   };
 
   const onRowKey = (event: KeyboardEvent<HTMLLIElement>, index: number, item: Item): void => {
@@ -233,18 +322,15 @@ export const ItemPicker = (props: ItemPickerProps): ReactElement => {
             ))}
           </select>
         </p>
-        <label className="item-picker-media-filter" htmlFor={`${id}-has-media`}>
-          <input
-            id={`${id}-has-media`}
-            type="checkbox"
-            checked={hasMedia}
-            onChange={(event) => {
-              setHasMedia(event.target.checked);
-              setFocus(0);
-            }}
-          />
-          {t('itemPicker.hasMedia')}
-        </label>
+        <MediaFilter
+          id={id}
+          accepts={accepts}
+          narrowing={narrowing}
+          onChange={(next) => {
+            setNarrowing(next);
+            setFocus(0);
+          }}
+        />
       </div>
       <p id={`${id}-help`} className="field-note">
         {t('itemPicker.help')}

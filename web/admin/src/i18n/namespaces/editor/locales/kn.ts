@@ -593,6 +593,13 @@ export const kn: EditorMessages = {
   'mediaRef.fallback': 'ಮಾಧ್ಯಮ {id}',
   'mediaRef.remove': 'ತೆಗೆದುಹಾಕಿ',
   'mediaRef.changeItem': 'ಮತ್ತೊಂದು ಐಟಂ ಅನ್ನು ಆರಿಸಿ',
+  'mediaRef.mediaInItem': 'ಈ ಐಟಂನಲ್ಲಿನ ಮೀಡಿಯಾ:',
+  'mediaRef.notImage': 'ಚಿತ್ರವಲ್ಲ',
+  'mediaRef.notZoomable': 'ಈ ಆರ್ಕೈವ್ ಇದನ್ನು ಜೂಮ್ ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ',
+  'mediaRef.misfit':
+    'ಸಂದರ್ಶಕರು ಇಲ್ಲಿ ಏನನ್ನೂ ನೋಡುವುದಿಲ್ಲ: ಈ ಕ್ಷೇತ್ರವು ಚಿತ್ರಗಳನ್ನು ತೆಗೆದುಕೊಳ್ಳುತ್ತದೆ, ಮತ್ತು {kind} ಅವುಗಳಲ್ಲಿ ಒಂದಲ್ಲ.',
+  'mediaRef.misfitZoom':
+    'ಸಂದರ್ಶಕರು ಇಲ್ಲಿ ಏನನ್ನೂ ನೋಡುವುದಿಲ್ಲ: ಈ ಕ್ಷೇತ್ರವು ಚಿತ್ರವನ್ನು ತೆಗೆದುಕೊಳ್ಳುತ್ತದೆ, ಮತ್ತು {kind} ಅವುಗಳಲ್ಲಿ ಒಂದಲ್ಲ.',
   'focal.noImage': 'ಮೊದಲು ಹಿನ್ನೆಲೆ ಚಿತ್ರವನ್ನು ಆರಿಸಿ.',
   'focal.notAPicture': 'ಈ ಮೀಡಿಯಾದಲ್ಲಿ ಫೋಕಲ್ ಪಾಯಿಂಟ್ ಸೆಟ್ ಮಾಡಲು ಯಾವುದೇ ಚಿತ್ರವಿಲ್ಲ.',
   'focal.frame':

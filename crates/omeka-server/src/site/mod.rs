@@ -18,7 +18,7 @@
 
 mod dispatch;
 mod download;
-mod load;
+pub(crate) mod load;
 mod pages;
 mod preview;
 mod provider;
