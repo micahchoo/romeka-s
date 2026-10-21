@@ -18,7 +18,9 @@
 //! Two departures. An unknown `attachment_link_type` falls back to the item URL
 //! where upstream throws. And the stored `thumbnail_type` (`square` by default)
 //! picks the thumbnail size upstream; the port's provider supplies one
-//! thumbnail per media, so the port places that one.
+//! thumbnail per media, so the port places that one. A media the provider has
+//! no thumbnail for keeps its slot as the kind placeholder, so a thumbnail
+//! display never prints an empty link.
 
 use omeka_core::site::{BlockData, MediaData, SiteBlock};
 
@@ -173,17 +175,27 @@ fn render_attachment(attachment: &Resolved, data: &MediaData, ctx: &RenderContex
     if let Some(media) = &attachment.media {
         if data.media_display.as_deref() == Some("thumbnail") {
             let url = thumbnail_link(media, &attachment.item, ctx);
-            let thumbnail = media
-                .thumbnail
-                .clone()
-                .map(|Thumbnail { url, alt }| {
-                    format!(
-                        "<img src=\"{}\" alt=\"{}\">",
-                        escape_html(&url),
-                        escape_html(&alt)
-                    )
-                })
-                .unwrap_or_default();
+            let thumbnail = match &media.thumbnail {
+                Some(Thumbnail { url, alt }) => format!(
+                    "<img src=\"{}\" alt=\"{}\">",
+                    escape_html(url),
+                    escape_html(alt)
+                ),
+                // A media with no thumbnail keeps the slot rather than leaving
+                // the link empty: the kind placeholder names what the link
+                // opens.
+                None => crate::theme::cards::empty_thumb(
+                    omeka_core::resource::ResourceKind::Media,
+                    if media.title.is_empty() {
+                        crate::theme::cards::kind_label(
+                            omeka_core::resource::ResourceKind::Media,
+                            ctx,
+                        )
+                    } else {
+                        &media.title
+                    },
+                ),
+            };
             out.push_str(&format!(
                 "<a href=\"{}\">{}</a>",
                 escape_html(&url),
@@ -399,6 +411,54 @@ mod tests {
         let resources = TestResources::default();
         let ctx = context(&site, &resources);
         assert_eq!(Media.render(&block("media", json!({})), &ctx), "");
+    }
+
+    /// A media with no thumbnail still gets a thumbnail slot: the kind
+    /// placeholder stands in, so the link is never empty. The block's `file.phtml`
+    /// prints the link around whatever the slot holds.
+    #[test]
+    fn media_thumbnail_mode_without_a_thumbnail_shows_the_kind_placeholder() {
+        let site = site();
+        let mut resources = resources();
+        resources.media.insert(
+            9,
+            MediaRef {
+                url: "/s/main/media/9".to_string(),
+                original_url: None,
+                title: "A file".to_string(),
+                media_type: None,
+                thumbnail: None,
+                embed: None,
+            },
+        );
+        resources.attachments.insert(
+            1,
+            vec![AttachmentRef {
+                item: Some(ItemId::new(4)),
+                media: Some(MediaId::new(9)),
+                caption: String::new(),
+            }],
+        );
+        let ctx = context(&site, &resources);
+        let stored = block(
+            "media",
+            json!({"media_display": "thumbnail", "show_title_option": "no_title"}),
+        );
+        let out = Media.render(&stored, &ctx);
+        assert!(
+            out.contains(
+                "<a href=\"/s/main/item/4\"><span class=\"resource-thumb resource-thumb-empty\" data-kind=\"media\">"
+            ),
+            "{out}"
+        );
+        assert!(
+            out.contains("<span class=\"resource-kind\">A file</span>"),
+            "{out}"
+        );
+        assert!(
+            !out.contains("<a href=\"/s/main/item/4\"></a>"),
+            "an empty thumbnail link: {out}"
+        );
     }
 
     /// `block-layout/file.phtml`: `show_title_option` `no_title` is the third
