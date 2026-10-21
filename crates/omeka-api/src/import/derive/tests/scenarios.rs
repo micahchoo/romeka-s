@@ -630,3 +630,58 @@ fn s19_a_refused_file_a_list_row_names_is_flagged_with_the_row() {
         "the named NEF is left out"
     );
 }
+
+#[test]
+fn s21_a_per_file_row_that_names_no_file_of_the_import_is_no_file_not_unmatched() {
+    let files = [
+        ("X_010a.jpg", JPEG),
+        ("X_010b.jpg", JPEG),
+        ("X_010c.NEF", BINARY),
+    ];
+    let mut catalog = catalog();
+    catalog.files = FileValidation::Allow {
+        media_types: [JPEG.to_string()].into(),
+        extensions: ["jpg".to_string()].into(),
+    };
+    let plan = plan(per_file_sheet);
+    let csv: &[u8] = b"File,Keywords,By\nX_010a.jpg,Front,Dilip\nX_010b.jpg,Back,Ravi\nX_010c.NEF,Side,Ravi\nX_099a.jpg,Lost,Asha\n";
+    let model = derive(
+        &index(&files),
+        &read_sheets(&plan, &[("views", csv)]),
+        &plan,
+        &catalog,
+        &NoTags,
+    );
+    assert!(
+        flags(&model, FlagKind::Unmatched).is_empty(),
+        "a create import has no item in Omeka to change: {:?}",
+        flags(&model, FlagKind::Unmatched)
+    );
+    let no_file = flags(&model, FlagKind::NoFile);
+    assert_eq!(no_file.len(), 1, "{no_file:?}");
+    assert!(
+        matches!(&no_file[0].subject, Subject::Entry(EntryRef::Row(row)) if row.key.as_str() == "X_099a.jpg#1"),
+        "on the row: {:?}",
+        no_file[0].subject
+    );
+    assert_eq!(no_file[0].detail.as_deref(), Some("X_099a.jpg"));
+    let lost = model
+        .entries
+        .iter()
+        .find(|state| matches!(&state.entry, EntryRef::Row(row) if row.key.as_str() == "X_099a.jpg#1"))
+        .expect("the row's entry");
+    assert_eq!(lost.record, None, "no media record for a row with no file");
+    assert_eq!(
+        model
+            .records
+            .iter()
+            .filter(|record| record.kind == RecordKind::Media)
+            .count(),
+        3,
+        "the two views and the refused NEF, which stays left out"
+    );
+    assert_eq!(
+        media_paths(&model, item(&model, "X_010")),
+        ["X_010a.jpg", "X_010b.jpg"]
+    );
+}

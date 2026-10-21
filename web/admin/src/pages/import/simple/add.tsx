@@ -15,7 +15,8 @@ import { useDraft } from '../draft-context';
 import RunScreen from '../run/run-screen';
 import { usePreview } from '../lists/use-preview';
 import { placeHref } from '../screens';
-import { checkFactsOf, fromCode, withSuggestions } from './causes';
+import { UNTITLED, checkFactsOf, fromCode, withSuggestions } from './causes';
+import type { CauseId } from './causes';
 import { readState, withState } from './example-state';
 import { useSimpleText } from './messages';
 import type { SimpleMessageKey } from './messages';
@@ -150,7 +151,7 @@ export const SimpleSummary = ({ check }: { readonly check: Check }): ReactElemen
 const AddThem = (): ReactElement => {
   const { t } = useSimpleText();
   const draft = useDraft();
-  const read = usePreview(['flags', 'histogram', 'listCandidates'], {}, draft.editable);
+  const read = usePreview(['flags', 'check', 'histogram', 'listCandidates'], {}, draft.editable);
   const tried = useRef(false);
   const [settled, setSettled] = useState(!draft.editable);
   useEffect(() => {
@@ -160,7 +161,9 @@ const AddThem = (): ReactElement => {
     tried.current = true;
     if (read.status === 'ready') {
       const { answered } = readState(draft.plan);
-      const open = read.data.flags.filter((flag) => flag.count > 0 && !answered.includes(flag.kind)).map((flag) => flag.kind);
+      const untitled: readonly CauseId[] = read.data.check.itemsWithoutTitle > 0 ? [UNTITLED] : [];
+      const counted: readonly CauseId[] = [...read.data.flags.filter((flag) => flag.count > 0).map((flag) => flag.kind), ...untitled];
+      const open = counted.filter((id) => !answered.includes(id));
       const facts = checkFactsOf(draft.plan, read.data);
       const suggested = withSuggestions(draft.plan, open, facts);
       if (suggested.applied.length > 0) {

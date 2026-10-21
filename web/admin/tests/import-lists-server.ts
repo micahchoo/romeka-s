@@ -143,7 +143,7 @@ export const listsServer = (items: number, options: { readonly strays?: number; 
         const filesQuery = pageOf(query['files']);
         const rows = unpairedRows.filter((row) => rowsQuery.text === undefined || row.row?.key.includes(rowsQuery.text) === true);
         const files = unpairedFiles.filter((file) => filesQuery.text === undefined || file.file?.path.includes(filesQuery.text) === true);
-        answer['unpaired'] = { rows: paged(rows, rowsQuery), files: paged(files, filesQuery) };
+        answer['unpaired'] = { rows: paged(rows, rowsQuery), files: paged(files, filesQuery), items: new Set(unpairedFiles.map((file) => file.record)).size };
       } else if (section === 'sheets') {
         const sheets = sectionOf('preview-sheets.json', 'sheets');
         const first = Array.isArray(sheets) && isRecord(sheets[0]) ? sheets[0] : {};

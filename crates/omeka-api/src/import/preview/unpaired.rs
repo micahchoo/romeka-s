@@ -1,14 +1,20 @@
-//! The `unpaired` section: list rows whose item has no file, and files whose
-//! item no list row joined, each sorted by name and paged, so the person
-//! pairs them by hand (`docs/import-v2.md`, "Unpaired lists"). The server
-//! never proposes a pair: names that look alike are not a fact.
+//! The `unpaired` section: list rows that name no file of the import, and
+//! files whose item has no list row, each sorted by name and paged, so the
+//! person pairs them by hand (`docs/import-v2.md`, "Unpaired lists"). The
+//! server never proposes a pair: names that look alike are not a fact.
+//!
+//! A row that names a file this install refuses names a file, so it is not
+//! unpaired: its `listed-not-media` flag counts it. An item has a row when
+//! a row joined it or one of its media.
+
+use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
 use super::query::{Page, PageQuery, page};
 use crate::import::decisions::{EntryRef, FileRef, RowRef};
-use crate::import::model::{Model, Parent, Record, RecordId};
-use crate::import::plan::{RecordKind, SlotName, Term};
+use crate::import::model::{LeftBy, Model, Origin, Parent, Record, RecordId};
+use crate::import::plan::{FlagKind, RecordKind, SlotName, Term};
 use crate::import::values::fold_title;
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -27,14 +33,16 @@ pub struct Unpaired {
     pub rows: Page<UnpairedRow>,
     /// By file name, then path.
     pub files: Page<UnpairedFile>,
+    /// How many items the unpaired files are in.
+    pub items: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UnpairedRow {
     pub row: RowRef,
-    /// The item the row made.
-    pub record: RecordId,
+    /// The item the row made; none for a row that describes a file.
+    pub record: Option<RecordId>,
     /// The item's first title, as the row gave it.
     pub title: Option<String>,
 }
@@ -47,15 +55,37 @@ pub struct UnpairedFile {
     pub record: RecordId,
 }
 
-/// The list rows whose item has no file, with that item, in entry order.
-pub(super) fn unpaired_rows(model: &Model) -> impl Iterator<Item = (&RowRef, &Record)> {
+/// The list rows that name no file of the import, in entry order: an item
+/// row that joined no group, with the item it made, and a media row
+/// `no-file` took out, with none.
+pub(super) fn unpaired_rows(model: &Model) -> impl Iterator<Item = (&RowRef, Option<&Record>)> {
     model.entries.iter().filter_map(|state| {
         let EntryRef::Row(row) = &state.entry else {
             return None;
         };
-        let record = model.record(state.record?);
-        (record.kind == RecordKind::Item && record.files.is_empty()).then_some((row, record))
+        let Some(id) = state.record else {
+            return (state.left == Some(LeftBy::Flag(FlagKind::NoFile))).then_some((row, None));
+        };
+        let record = model.record(id);
+        (record.kind == RecordKind::Item
+            && record.files.is_empty()
+            && matches!(record.origin, Origin::Row(_)))
+        .then_some((row, Some(record)))
     })
+}
+
+/// The items a row joined, or joined one of their media.
+fn items_with_rows(model: &Model) -> BTreeSet<RecordId> {
+    model
+        .records
+        .iter()
+        .filter(|record| !record.rows.is_empty())
+        .filter_map(|record| match (record.kind, &record.parent) {
+            (RecordKind::Item, _) => Some(record.id),
+            (RecordKind::Media, Some(Parent::Record(item))) => Some(*item),
+            _ => None,
+        })
+        .collect()
 }
 
 pub(super) fn unpaired(model: &Model, query: &UnpairedQuery) -> Unpaired {
@@ -68,10 +98,9 @@ pub(super) fn unpaired(model: &Model, query: &UnpairedQuery) -> Unpaired {
                 fold_title(row.key.as_str()),
                 UnpairedRow {
                     row: row.clone(),
-                    record: record.id,
+                    record: record.map(|record| record.id),
                     title: record
-                        .slots
-                        .get(&title)
+                        .and_then(|record| record.slots.get(&title))
                         .and_then(|values| values.first())
                         .map(|value| value.value.text.clone()),
                 },
@@ -91,6 +120,8 @@ pub(super) fn unpaired(model: &Model, query: &UnpairedQuery) -> Unpaired {
 
     let files_query = query.files.clone().unwrap_or_default();
     let files_text = files_query.text.as_deref().map(fold_title);
+    let with_rows = items_with_rows(model);
+    let mut items: BTreeSet<RecordId> = BTreeSet::new();
     let mut files: Vec<(String, UnpairedFile)> = model
         .entries
         .iter()
@@ -107,7 +138,7 @@ pub(super) fn unpaired(model: &Model, query: &UnpairedQuery) -> Unpaired {
                 .as_str()
                 .rsplit_once('/')
                 .map_or(file.path.as_str(), |(_, name)| name);
-            model.record(item).rows.is_empty().then(|| {
+            (!with_rows.contains(&item)).then(|| {
                 (
                     fold_title(name),
                     UnpairedFile {
@@ -116,6 +147,9 @@ pub(super) fn unpaired(model: &Model, query: &UnpairedQuery) -> Unpaired {
                     },
                 )
             })
+        })
+        .inspect(|(_, file)| {
+            items.insert(file.record);
         })
         .filter(|(_, file)| {
             files_text
@@ -138,5 +172,10 @@ pub(super) fn unpaired(model: &Model, query: &UnpairedQuery) -> Unpaired {
             files_query.per_page,
             |(_, file)| file,
         ),
+        items: items.len(),
     }
 }
+
+#[cfg(test)]
+#[path = "unpaired_tests.rs"]
+mod tests;

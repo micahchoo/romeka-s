@@ -1,7 +1,8 @@
 /**
  * The questions Check asks: one per kind of problem the server counted (a
- * flag kind) and one per anomaly with an answer in the plan (identical
- * files, files the example does not fit, items with no row). Each has a
+ * flag kind), one per anomaly with an answer in the plan (identical files,
+ * files the example does not fit, items with no row), and one for items the
+ * run adds with no title, whatever their item type requires. Each has a
  * suggested answer, which is what the run does when the person gives none:
  * the flag kind's default policy, or the anomaly's default answer
  * (`docs/import-v2.md`, "Flags" and "Answers to anomalies").
@@ -86,7 +87,9 @@ export const checkFactsOf = (plan: ImportPlan, read: { readonly pattern: Pattern
 });
 
 export type AnomalyId = 'identical' | 'unmatchedFiles' | 'itemsWithoutRow';
-export type CauseId = FlagKind | AnomalyId;
+/** Items to add with no title: the server's count, not a flag, so it asks for every item type. */
+export const UNTITLED = 'untitled';
+export type CauseId = FlagKind | AnomalyId | typeof UNTITLED;
 
 export const DEFAULT_ANOMALIES: AnomalyAnswers = { identical: 'keepOne', unmatchedFiles: 'leave', itemsWithoutRow: 'keep' };
 
@@ -99,6 +102,7 @@ export const CAUSE_ORDER: readonly CauseId[] = [
   'unmatchedFiles',
   'exists',
   'date-form',
+  UNTITLED,
   'empty-required',
   'unknown-type',
   ...FLAG_KINDS.filter((kind) => !['cells-count', 'no-file', 'exists', 'date-form', 'empty-required', 'unknown-type'].includes(kind)),
@@ -173,16 +177,6 @@ const FLAG_WORDS: Readonly<Partial<Record<FlagKind, CauseWords>>> = {
     ],
   },
   'date-form': { say: 'guided.check.date', sayOne: 'guided.check.dateOne', why: 'guided.check.dateWhy', options: keepLeave('guided.check.dateKeep', 'guided.check.dateLeave') },
-  'empty-required': {
-    say: 'guided.check.noTitle',
-    sayOne: 'guided.check.noTitleOne',
-    why: null,
-    options: [
-      { value: 'keep', label: 'guided.check.noTitleKeep' },
-      { value: 'identifier', label: 'guided.check.noTitleCode' },
-      { value: 'filename', label: 'guided.check.noTitleName' },
-    ],
-  },
   // Shown only when Advanced turned the trim off, so the trim must be on offer again.
   'space-at-ends': {
     say: 'guided.check.other',
@@ -194,6 +188,20 @@ const FLAG_WORDS: Readonly<Partial<Record<FlagKind, CauseWords>>> = {
 };
 
 /** A kind with no words of its own: its default first, so the suggestion leads. */
+const UNTITLED_WORDS: CauseWords = {
+  say: 'guided.check.untitled',
+  sayOne: 'guided.check.untitledOne',
+  why: null,
+  options: [
+    { value: 'keep', label: 'guided.check.noTitleKeep' },
+    { value: 'identifier', label: 'guided.check.noTitleCode' },
+    { value: 'filename', label: 'guided.check.noTitleName' },
+  ],
+};
+
+/** Every list describes files: a row that names no file of the import makes nothing, so leaving it out is the only answer. */
+const rowsDescribeFiles = (plan: ImportPlan): boolean => plan.sheets.length > 0 && plan.sheets.every((sheet) => sheet.rowKind === 'media');
+
 const generic = (kind: FlagKind): CauseWords => ({
   say: 'guided.check.other',
   sayOne: 'guided.check.otherOne',
@@ -217,16 +225,29 @@ export const wordsOf = (id: CauseId, plan: ImportPlan, facts: CheckFacts): Cause
   if (id === 'duplicate-row' && facts.fileRows !== null) {
     return { ...generic(id), why: 'guided.check.fileRowsWhy', options: [FILE_ROWS, KEEP, LEAVE] };
   }
+  if (id === UNTITLED) {
+    return UNTITLED_WORDS;
+  }
+  if (id === 'no-file' && rowsDescribeFiles(plan)) {
+    return { ...(FLAG_WORDS[id] ?? generic(id)), options: [LEAVE] };
+  }
   return isAnomaly(id) ? ANOMALY_WORDS[id] : (FLAG_WORDS[id] ?? generic(id));
 };
 
 const TITLE = 'dcterms:title';
+
+/** An empty title the item type requires: the untitled question asks it, so no card of its own. */
+export const titleFlag = (flag: { readonly kind: FlagKind; readonly slot: string | null }): boolean => flag.kind === 'empty-required' && flag.slot === TITLE;
 const fromName = (rule: SlotRule | undefined): boolean => rule?.sources.some((source) => source.from === 'file' && source.fact === 'name') === true;
 const isCode = (source: SlotRule['sources'][number]): boolean => source.from === 'group' && source.name === 'identifier';
 export const fromCode = (rule: SlotRule | undefined): boolean => rule?.sources.some(isCode) === true;
 
-const defaultPolicyOf = (plan: ImportPlan, kind: FlagKind): FlagPolicy =>
-  kind === 'unmatched' ? (plan.action.unmatched === 'create' ? 'keep' : 'leave') : DEFAULT_POLICY[kind];
+const defaultPolicyOf = (plan: ImportPlan, kind: FlagKind): FlagPolicy => {
+  if (kind === 'unmatched') {
+    return plan.action.unmatched === 'create' ? 'keep' : 'leave';
+  }
+  return kind === 'no-file' && rowsDescribeFiles(plan) ? 'leave' : DEFAULT_POLICY[kind];
+};
 
 /**
  * The answer the plan holds now; the suggested one when the person gave none.
@@ -237,7 +258,7 @@ export const answerOf = (plan: ImportPlan, id: CauseId, facts: CheckFacts): stri
   if (isAnomaly(id)) {
     return (plan.anomalies ?? DEFAULT_ANOMALIES)[id];
   }
-  if (id === 'empty-required') {
+  if (id === UNTITLED) {
     const rule = plan.slots.item[TITLE];
     if (fromName(rule)) {
       return 'filename';
@@ -249,6 +270,9 @@ export const answerOf = (plan: ImportPlan, id: CauseId, facts: CheckFacts): stri
   }
   if (id === 'duplicate-row' && facts.fileRows !== null && plan.flags[id] === undefined) {
     return FILE_ROWS.value;
+  }
+  if (id === 'no-file' && rowsDescribeFiles(plan)) {
+    return 'leave';
   }
   return plan.flags[id] ?? defaultPolicyOf(plan, id);
 };
@@ -264,7 +288,7 @@ export const suggestedOf = (plan: ImportPlan, id: CauseId, facts: CheckFacts): s
   if (isAnomaly(id)) {
     return DEFAULT_ANOMALIES[id];
   }
-  if (id === 'empty-required') {
+  if (id === UNTITLED) {
     return facts.itemCodeFits ? 'identifier' : 'keep';
   }
   if (id === 'duplicate-row' && facts.fileRows !== null) {
@@ -289,7 +313,7 @@ export const withAnswer = (plan: ImportPlan, id: CauseId, value: string, facts?:
           : { ...answers, itemsWithoutRow: value === 'leave' ? 'leave' : 'keep' };
     return { ...plan, anomalies: next };
   }
-  if (id === 'empty-required') {
+  if (id === UNTITLED) {
     // The item code or the file name is the title rule's last source: it applies where the list gives no title.
     const rule = plan.slots.item[TITLE] ?? { sources: [], combine: 'first' as const };
     const sources = rule.sources.filter((source) => !isCode(source) && !(source.from === 'file' && source.fact === 'name'));
@@ -302,7 +326,7 @@ export const withAnswer = (plan: ImportPlan, id: CauseId, value: string, facts?:
 };
 
 /** Causes whose suggested answer is a plan edit: the run follows it only once it is written. */
-const PLAN_EDITS: readonly CauseId[] = ['empty-required', 'duplicate-row'];
+const PLAN_EDITS: readonly CauseId[] = [UNTITLED, 'duplicate-row'];
 
 export interface Suggested {
   readonly plan: ImportPlan;
@@ -319,7 +343,7 @@ export interface Suggested {
 export const withSuggestions = (plan: ImportPlan, open: readonly CauseId[], facts: CheckFacts): Suggested =>
   PLAN_EDITS.filter((id) => open.includes(id)).reduce<Suggested>(
     (done, id) => {
-      const writes = id === 'empty-required' ? answerOf(done.plan, id, facts) === 'identifier' && !fromCode(done.plan.slots.item[TITLE]) : answerOf(done.plan, id, facts) === FILE_ROWS.value;
+      const writes = id === UNTITLED ? answerOf(done.plan, id, facts) === 'identifier' && !fromCode(done.plan.slots.item[TITLE]) : answerOf(done.plan, id, facts) === FILE_ROWS.value;
       return writes ? { plan: withAnswer(done.plan, id, suggestedOf(done.plan, id, facts), facts), applied: [...done.applied, id] } : done;
     },
     { plan, applied: [] },
