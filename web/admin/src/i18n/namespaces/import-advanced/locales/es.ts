@@ -338,4 +338,5 @@ export const es: ImportAdvancedMessages = {
   'adv.changes.orphan.wrongTarget': 'Nombra un registro de otro tipo.',
   'adv.changes.orphan.lineKeyChanged': 'La lista cambió, así que la línea que nombra puede ser otra fila.',
   'adv.changes.orphan.noGroup': 'El archivo que nombra no está en ningún elemento.',
+  'adv.changes.orphan.outside': 'El archivo que nombra no está en ninguna carpeta que importas.',
 };

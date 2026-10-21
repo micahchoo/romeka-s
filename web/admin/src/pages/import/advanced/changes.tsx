@@ -23,6 +23,7 @@ const ORPHAN_WORDS: Readonly<Record<OrphanReason, AdvancedMessageKey>> = {
   wrongTarget: 'adv.changes.orphan.wrongTarget',
   lineKeyChanged: 'adv.changes.orphan.lineKeyChanged',
   noGroup: 'adv.changes.orphan.noGroup',
+  outside: 'adv.changes.orphan.outside',
 };
 
 export const AdvancedChanges = (): ReactElement => {

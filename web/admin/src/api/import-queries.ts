@@ -16,8 +16,18 @@ export interface PageQuery {
 
 export type SetFilter = { readonly existing: number } | { readonly record: number } | { readonly new: number };
 export type TemplateFilter = { readonly existing: number } | { readonly new: number } | 'none';
-export type Unused = 'unmatched' | 'decision' | 'flag' | 'parent' | 'noFiles' | 'identical' | 'noRow' | 'noRecord';
-export const UNUSED_REASONS: readonly Unused[] = ['unmatched', 'decision', 'flag', 'parent', 'noFiles', 'identical', 'noRow', 'noRecord'];
+export type Unused = 'unmatched' | 'decision' | 'flag' | 'parent' | 'noFiles' | 'identical' | 'noRow' | 'noRecord' | 'outside';
+export const UNUSED_REASONS: readonly Unused[] = [
+  'unmatched',
+  'decision',
+  'flag',
+  'parent',
+  'noFiles',
+  'identical',
+  'noRow',
+  'noRecord',
+  'outside',
+];
 
 export interface RecordsQuery {
   readonly kind?: RecordKind;

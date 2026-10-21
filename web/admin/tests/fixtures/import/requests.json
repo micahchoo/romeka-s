@@ -204,6 +204,14 @@
   },
   {
     "include": [
+      "entries"
+    ],
+    "entries": {
+      "reason": "outside"
+    }
+  },
+  {
+    "include": [
       "identical"
     ],
     "identical": {

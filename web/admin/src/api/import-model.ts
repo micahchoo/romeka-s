@@ -87,7 +87,9 @@ export type LeftBy =
   /** A copy of a file the import keeps (`anomalies.identical: keepOne`). */
   | 'identical'
   /** An item no row of the list joined (`anomalies.itemsWithoutRow: leave`). */
-  | 'noRow';
+  | 'noRow'
+  /** A file in no series' folder. */
+  | 'outside';
 
 export type Fate = 'create' | { readonly act: number } | { readonly left: LeftBy };
 
@@ -175,8 +177,8 @@ export type Anomaly =
   | { readonly headerNotes: { readonly sheet: string; readonly notes: readonly string[] } }
   | { readonly sheetUnread: { readonly sheet: string; readonly detail: string } };
 
-export type OrphanReason = 'missingEntry' | 'wrongTarget' | 'lineKeyChanged' | 'noGroup';
-export const ORPHAN_REASONS: readonly OrphanReason[] = ['missingEntry', 'wrongTarget', 'lineKeyChanged', 'noGroup'];
+export type OrphanReason = 'missingEntry' | 'wrongTarget' | 'lineKeyChanged' | 'noGroup' | 'outside';
+export const ORPHAN_REASONS: readonly OrphanReason[] = ['missingEntry', 'wrongTarget', 'lineKeyChanged', 'noGroup', 'outside'];
 
 export interface Orphan {
   /** The decision's index in the plan. */
@@ -278,8 +280,8 @@ const parseResolved: Parser<Resolved> = (raw, path = []) => {
 
 const asFlagKind = oneOf(FLAG_KINDS);
 
-const parseLeftBy = wordOr<'parent' | 'noFiles' | 'identical' | 'noRow', LeftBy>(
-  ['parent', 'noFiles', 'identical', 'noRow'],
+const parseLeftBy = wordOr<'parent' | 'noFiles' | 'identical' | 'noRow' | 'outside', LeftBy>(
+  ['parent', 'noFiles', 'identical', 'noRow', 'outside'],
   variants<LeftBy>({
     decision: (value, path) => ({ decision: asCount(value, path) }),
     flag: (value, path) => ({ flag: asFlagKind(value, path) }),

@@ -33,6 +33,7 @@ const LEFT: Readonly<Record<Exclude<LeftBy, { readonly decision: number } | { re
   noFiles: 'lists.left.noFiles',
   identical: 'lists.left.identical',
   noRow: 'lists.left.noRow',
+  outside: 'lists.left.outside',
 };
 
 export const leftWords = (left: LeftBy, t: ListsTranslator['t']): string => {
