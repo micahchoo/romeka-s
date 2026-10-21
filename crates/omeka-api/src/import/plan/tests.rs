@@ -97,7 +97,7 @@ fn every_plan_the_admin_is_served_is_stored_byte_for_byte() {
 fn the_full_fixture_reaches_every_member_typed() {
     let plan = parse(FULL);
     assert_eq!(plan.sources[0].id(), &SourceId("s1".into()));
-    let series = plan.structure.series(plan.structure.sole());
+    let series = plan.structure.all_series().next().expect("a series").1;
     assert_eq!(
         series.lists()[1].read.encoding,
         EncodingChoice::Is(Encoding::Utf16Le)
@@ -118,20 +118,20 @@ fn the_full_fixture_reaches_every_member_typed() {
 fn a_v2_plan_is_one_series_that_takes_every_file_with_its_sets_rule() {
     let plan = parse(FULL);
     let structure = &plan.structure;
-    let sole = structure.sole();
+    let (only, _) = structure.all_series().next().expect("a series");
     assert_eq!(structure.all_series().count(), 1);
     let path = RelPath::parse("Letters/1901/A1_p1.jpg").expect("path");
     assert_eq!(
         structure.place(&SourceId("s1".into()), &path),
         Placement::Series {
-            at: sole,
+            at: only,
             path: "Letters/1901/A1_p1.jpg"
         },
         "the pattern matches the path relative to its source"
     );
-    let sets = &structure.series(sole).rules(RecordKind::Item)[&SlotName::Sets];
+    let sets = &structure.series(only).rules(RecordKind::Item)[&SlotName::Sets];
     assert_eq!(
-        structure.memberships(sole),
+        structure.memberships(only),
         [SetSource::Each(EachValue {
             each: EachSet {
                 sources: sets.sources.clone(),
@@ -146,7 +146,7 @@ fn a_v2_plan_is_one_series_that_takes_every_file_with_its_sets_rule() {
         structure
             .lists()
             .map(|(_, list)| list)
-            .eq(structure.series(sole).lists())
+            .eq(structure.series(only).lists())
     );
 }
 
@@ -570,7 +570,10 @@ fn a_slot_rule_value_map_round_trips_and_a_missing_map_is_empty() {
     });
     fn item_rules(plan: &ImportPlan) -> &SlotRules {
         plan.structure
-            .series(plan.structure.sole())
+            .all_series()
+            .next()
+            .expect("a series")
+            .1
             .rules(RecordKind::Item)
     }
     let map = &item_rules(&plan)[&SlotName::Template].map;
