@@ -22,7 +22,9 @@ use super::flags::FlagBook;
 use super::join::{self, SheetIn};
 use super::matching::{self, Matching};
 use super::model::{Fate, Model, Parent, Record, RecordId, SlotValue, Subject};
-use super::plan::{FlagKind, ImportPlanV2, RecordKind, SheetId, SlotName, SourceId, TagId, Term};
+use super::plan::{
+    Action, FlagKind, ImportPlanV2, RecordKind, SheetId, SlotName, SourceId, TagId, Term,
+};
 use super::sheet::{Sheet, SheetError};
 use super::slots::{self, Ctx, named};
 use super::tags::Embedded;
@@ -84,7 +86,15 @@ pub fn derive(
 
     let grouping = grouping::group(index, plan, &sheet_ins);
     let mut orphans = grouping.orphans.clone();
-    let mut joined = join::join(&sheet_ins, &grouping, &plan.decisions, &mut book);
+    let media_by_file =
+        plan.action.action == Action::Create && !plan.slots.media.contains_key(&SlotName::ItemKey);
+    let mut joined = join::join(
+        &sheet_ins,
+        &grouping,
+        &plan.decisions,
+        media_by_file,
+        &mut book,
+    );
     orphans.append(&mut joined.orphans);
     let mut made = records::make(
         &grouping,

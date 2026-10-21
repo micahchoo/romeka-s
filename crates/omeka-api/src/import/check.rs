@@ -12,7 +12,7 @@ use std::collections::BTreeMap;
 use serde::Serialize;
 
 use super::model::{Fate, Flag, Model, NewSet, OwnerRef};
-use super::plan::{Action, FlagPolicy, ImportPlanV2, NewTypeFrom, RecordKind, Term};
+use super::plan::{Action, FlagPolicy, ImportPlanV2, NewTypeFrom, RecordKind, SlotName, Term};
 
 /// What a record does when the run reaches it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -69,6 +69,9 @@ pub struct Check {
     pub without_template: usize,
     /// Records whose owner names no user, which get the default owner.
     pub default_owner: usize,
+    /// Items the run creates with no `dcterms:title`, whatever their item
+    /// type requires: Omeka lists them as untitled.
+    pub items_without_title: usize,
     /// The resources a delete removes; the run needs this as `confirm`.
     pub deletes: usize,
     pub can_run: bool,
@@ -81,6 +84,8 @@ pub fn check(plan: &ImportPlanV2, model: &Model) -> Check {
     let mut counts: Vec<Count> = Vec::new();
     let mut without_template = 0;
     let mut default_owner = 0;
+    let mut items_without_title = 0;
+    let title = SlotName::Term(Term::parse("dcterms:title").unwrap_or_else(|_| unreachable!()));
     for record in &model.records {
         let does = match record.fate {
             Fate::Create => Does::Create,
@@ -102,6 +107,11 @@ pub fn check(plan: &ImportPlanV2, model: &Model) -> Check {
             without_template += usize::from(record.resolved.template.is_none());
             default_owner += usize::from(matches!(record.resolved.owner, OwnerRef::Unknown(_)));
         }
+        items_without_title += usize::from(
+            does == Does::Create
+                && record.kind == RecordKind::Item
+                && !record.slots.contains_key(&title),
+        );
     }
     let deletes = if action == Action::Delete {
         model
@@ -157,6 +167,7 @@ pub fn check(plan: &ImportPlanV2, model: &Model) -> Check {
         blocking,
         without_template,
         default_owner,
+        items_without_title,
         deletes,
         digest: model.digest.clone(),
     }
@@ -257,6 +268,43 @@ mod tests {
             "no base template: items and media"
         );
         assert!(check.blocking.is_empty());
+    }
+
+    #[test]
+    fn check_counts_the_items_it_adds_without_a_title_whatever_their_item_type() {
+        let pattern = r"^(?<identifier>[A-Z]\d)\.jpg$";
+        let count = |edit: &dyn Fn(&mut serde_json::Value)| {
+            let plan = plan(|plan| {
+                plan["grouping"]["pattern"] = json!(pattern);
+                edit(plan);
+            });
+            let model = derive(
+                &index(&["A1.jpg", "B2.jpg", "C3.jpg"]),
+                &Sheets::new(),
+                &plan,
+                &Catalog::default(),
+                &NoTags,
+            );
+            check(&plan, &model).items_without_title
+        };
+        assert_eq!(count(&|_| {}), 3, "no item type requires a title");
+        assert_eq!(
+            count(&|plan| {
+                plan["slots"]["item"]["dcterms:title"] = json!({
+                    "sources": [{ "from": "group", "name": "identifier" }], "combine": "first"
+                });
+            }),
+            0,
+            "the item code is the title"
+        );
+        assert_eq!(
+            count(&|plan| {
+                plan["decisions"] = json!([{ "kind": "leave",
+                    "entry": { "file": { "source": "s1", "path": "C3.jpg" } } }]);
+            }),
+            2,
+            "an item left out is not added"
+        );
     }
 
     #[test]

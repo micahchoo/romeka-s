@@ -40,6 +40,7 @@
       "keep": 5,
       "leave": 2
     },
+    "itemsWithoutTitle": 2,
     "newFields": [
       {
         "label": "Shelf mark",

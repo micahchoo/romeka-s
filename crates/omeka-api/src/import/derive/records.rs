@@ -8,7 +8,9 @@ use super::super::flags::{FlagBook, expected_types};
 use super::super::grouping::Grouping;
 use super::super::join::{Joined, RowAt, SheetIn};
 use super::super::model::{LeftBy, Origin, RecordId, Subject};
-use super::super::plan::{FlagKind, FlagPolicy, ItemsWithoutRowAnswer, RecordKind, RowKind};
+use super::super::plan::{
+    FlagKind, FlagPolicy, ItemsWithoutRowAnswer, JoinOn, RecordKind, RowKind,
+};
 
 /// A record before its slots are resolved.
 pub(crate) struct Draft {
@@ -129,6 +131,7 @@ pub(crate) fn make(
     let leave_rowless = without_row == ItemsWithoutRowAnswer::Leave && joins_items(sheets);
     let mut file_record = vec![None; grouping.files.len()];
     let mut drafts: Vec<Draft> = Vec::new();
+    let mut group_items: Vec<RecordId> = Vec::new();
     let next = |drafts: &Vec<Draft>| RecordId(u32::try_from(drafts.len()).unwrap_or(u32::MAX));
 
     for at in &joined.set_rows {
@@ -150,12 +153,10 @@ pub(crate) fn make(
         let item = next(&drafts);
         let mut draft = Draft::new(RecordKind::Item, Origin::Group(key.clone()));
         draft.identifier = Some(key.text().to_string());
-        if rows.is_empty() && leave_rowless {
-            draft.left = Some(LeftBy::NoRow);
-        }
         draft.rows = rows;
         draft.files.clone_from(&kept);
         drafts.push(draft);
+        group_items.push(item);
         if kept.is_empty() {
             no_file(&mut drafts[item.index()], grouping, sheets, item, book);
         }
@@ -211,6 +212,20 @@ pub(crate) fn make(
         }
         drafts.push(draft);
     }
+    if leave_rowless {
+        // An item has a row when it or one of its media has one.
+        for item in group_items {
+            let draft = &drafts[item.index()];
+            let has_row = !draft.rows.is_empty()
+                || draft
+                    .media
+                    .iter()
+                    .any(|media| !drafts[media.index()].rows.is_empty());
+            if !has_row {
+                drafts[item.index()].left = Some(LeftBy::NoRow);
+            }
+        }
+    }
     Made {
         drafts,
         file_left,
@@ -218,16 +233,20 @@ pub(crate) fn make(
     }
 }
 
-/// Whether a sheet the derive read joins item rows to file groups: without
-/// one, no item could have a row, so `itemsWithoutRow: leave` is moot.
+/// Whether a sheet the derive read joins rows to file groups, item rows to
+/// their group or media rows to their file: without one, no item could have
+/// a row, so `itemsWithoutRow: leave` is moot.
 fn joins_items(sheets: &[SheetIn<'_>]) -> bool {
     sheets.iter().any(|sheet| {
+        let Some(join) = &sheet.plan.join else {
+            return false;
+        };
         sheet.sheet.is_some()
-            && sheet.plan.join.is_some()
-            && !matches!(
-                sheet.plan.row_kind,
-                RowKind::All(RecordKind::Media | RecordKind::ItemSet)
-            )
+            && match sheet.plan.row_kind {
+                RowKind::All(RecordKind::ItemSet) => false,
+                RowKind::All(RecordKind::Media) => join.on == JoinOn::FileName,
+                _ => true,
+            }
     })
 }
 
