@@ -209,6 +209,20 @@ describe('create', () => {
   });
 });
 
+describe('read', () => {
+  it('answers the note the server holds now, with its ETag', async () => {
+    const current = { ...annotationAt(NOTE_IRI, 'Their text'), 'dcterms:source': 'Briquet 1500' };
+    const { client, calls } = recorder([() => json(200, current, { ETag: '"r7"' })]);
+    const note = await client.read({ ...storedNote(''), fromTrack: true });
+    expect(calls.map((call) => call.url)).toEqual([NOTE_IRI]);
+    expect(headersOf(calls[0]).get('Accept')).toContain('anno.jsonld');
+    expect(note.etag).toBe('"r7"');
+    expect(note.text).toBe('Their text');
+    expect(note.raw).toEqual(current);
+    expect(note.fromTrack).toBe(true);
+  });
+});
+
 describe('replace', () => {
   it('sends If-Match with the note ETag and the server document with the edits applied', async () => {
     const stored = { ...annotationAt(NOTE_IRI, 'Watermark'), 'dcterms:source': 'Briquet 1442' };

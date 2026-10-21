@@ -122,4 +122,5 @@ export const es: ResourcesMessages = {
   'place.add': 'Añadir un lugar',
   'place.invalid': 'Escriba una latitud de -90 a 90, una coma y una longitud de -180 a 180.',
   'place.unavailable': 'El mapa no se pudo cargar. Escriba el lugar como "lat, lng".',
+  'media.loadingNotes': 'Cargando las notas...',
 };

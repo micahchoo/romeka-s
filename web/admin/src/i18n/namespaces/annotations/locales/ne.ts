@@ -1,0 +1,95 @@
+/**
+ * The Nepali media notes panel messages.
+ *
+ * @machine-translated: written by `scripts/translate-locales.mjs` with sarvam-30b and
+ * md-translator's checks, and not yet reviewed by a reader of Nepali. Correct
+ * a string here; a later run keeps it. It is typed `AnnotationsMessages`, so a key
+ * added to English and not here is a `tsc` error.
+ */
+import type { AnnotationsMessages } from '../index';
+
+export const ne: AnnotationsMessages = {
+  'notes.heading': 'नोटहरू',
+  'notes.loading': 'नोटहरू लोड हुँदैछ...',
+  'notes.listLabel': 'यस मिडियामा नोटहरू',
+  'notes.facts.image': '{total} नोटहरू। {regions} क्षेत्रहरूमा, {whole} सम्पूर्ण छविमा।',
+  'notes.facts.imageOne': '1 नोट। {regions} क्षेत्रमा, {whole} सम्पूर्ण छविमा।',
+  'notes.facts.time': '{total} नोटहरू। {times} एकै पटक, {whole} सम्पूर्ण फाइलमा।',
+  'notes.facts.timeOne': '1 नोट। {times} एकै पटक, {whole} सम्पूर्ण फाइलमा।',
+  'notes.facts.file': 'यस फाइलमा {total} नोटहरू।',
+  'notes.facts.fileOne': 'यस फाइलमा 1 नोट।',
+  'notes.readOnly':
+    'तपाईँ यी नोटहरू पढ्न सक्नुहुन्छ। यिनीहरूलाई परिवर्तन गर्न यस मिडियामा सम्पादन अधिकार आवश्यक पर्छ।',
+  'notes.empty.image': 'अहिलेसम्म कुनै नोट छैन। सम्पूर्ण छविको बारेमा एउटा नोट थप्नुहोस्।',
+  'notes.empty.time': 'अहिलेसम्म कुनै नोट छैन। सम्पूर्ण रेकर्डिङको बारेमा एउटा नोट थप्नुहोस्।',
+  'notes.empty.file': 'अहिलेसम्म कुनै नोटहरू छैनन्।',
+  'notes.add.image': 'सम्पूर्ण छविको बारेमा एउटा नोट थप्नुहोस्',
+  'notes.add.time': 'सम्पूर्ण रेकर्डिङको बारेमा एउटा नोट थप्नुहोस्',
+  'notes.add.file': 'यस फाइलको बारेमा एउटा नोट थप्नुहोस्',
+  'notes.region': 'क्षेत्र {number}',
+  'notes.timeRange': '{start} देखि {end} सम्म',
+  'notes.wholeImage': 'सम्पूर्ण छवि',
+  'notes.wholeFile': 'सम्पूर्ण फाइल',
+  'notes.wholeTime': 'सम्पूर्ण रेकर्डिङ',
+  'notes.fromTrack': 'क्याप्सन फाइलबाट। यी क्याप्सनहरूको आगामी आयातले यस नोटलाई प्रतिस्थापन गर्दछ।',
+  'notes.changed': 'परिवर्तन गरिएको {when}',
+  'notes.noText': '(कुनै पाठ छैन)',
+  'notes.draft': 'सुरक्षित नगरिएको',
+  'notes.draftBanner': 'तपाईँसँग सुरक्षित नगरिएको नोट छ। यसलाई राख्ने वा त्याग्ने।',
+  'notes.keep': 'यसलाई राख्ने',
+  'notes.discard': 'यसलाई त्याग्ने',
+  'notes.restoredChange': 'तपाईँको सुरक्षित नगरिएको परिवर्तन फिर्ता आयो।',
+  'notes.filterLabel': 'पाठद्वारा नोटहरू फिल्टर गर्नुहोस्',
+  'notes.filterPlaceholder': 'पाठद्वारा फिल्टर गर्नुहोस्',
+  'notes.filter.region': 'क्षेत्रहरू',
+  'notes.filter.time': 'समय',
+  'notes.filter.whole': 'सम्पूर्ण फाइल',
+  'notes.clearFilter': 'फिल्टर हटाउनुहोस्',
+  'notes.matchCount': '{total} नोटहरूमध्ये {shown} “{query}” सँग मेल खान्छन्।',
+  'notes.shownCount': '{total} नोटहरूमध्ये {shown} देखाइँदै',
+  'notes.showMore': 'थप 50 देखाउनुहोस्',
+  'notes.noMatch': 'फिल्टरसँग मेल खाने कुनै नोटहरू छैनन्।',
+  'notes.form.newTitle': 'नयाँ नोट',
+  'notes.form.editTitle': 'यस नोटलाई सम्पादन गर्नुहोस्',
+  'notes.form.text': 'नोट',
+  'notes.form.language': 'भाषा',
+  'notes.form.motivation': 'नोटले के गर्छ',
+  'notes.motivation.commenting': 'टिप्पणी',
+  'notes.motivation.tagging': 'ट्याग',
+  'notes.motivation.describing': 'विवरण',
+  'notes.motivation.supplementing': 'ट्रान्सक्रिप्ट',
+  'notes.form.advanced': 'उन्नत',
+  'notes.form.raw': 'सर्भरले के भण्डारण गर्छ',
+  'notes.form.saving': 'बचत गर्दै...',
+  'notes.form.savingLong':
+    'अझै बचत गर्दै। तपाईँको नोट यहाँ राखिएको छ। तपाईँ काम गरिरहन सक्नुहुन्छ।',
+  'notes.form.empty': 'पहिले नोट टाइप गर्नुहोस्।',
+  'notes.form.noChanges': 'कुनै परिवर्तन छैन।',
+  'notes.form.delete': 'मेटाउनुहोस्',
+  'notes.form.deleteConfirm': 'यो नोट मेटाउनुहोस्',
+  'notes.form.keep': 'राख्नुहोस्',
+  'notes.unknownMotivation':
+    'यो नोटले यस्तो प्रेरणा प्रयोग गर्छ जुन यो पृष्ठले परिवर्तन गर्न सक्दैन।',
+  'notes.saved': 'सुरक्षित।',
+  'notes.deleted': 'मेटाइयो।',
+  'notes.alreadyDeleted': 'यो नोट पहिले नै मेटाइयो।',
+  'notes.keptTheirs': 'उनीहरूको संस्करण राखियो।',
+  'notes.notSaved': 'सुरक्षित भएन। तपाईँको परिवर्तन राखियो। पुनः प्रयास गर्नुहोस्।',
+  'notes.conflict': 'द्वन्द्व',
+  'notes.conflict.save':
+    'कसैले यो नोट परिवर्तन गर्‍यो। उनीहरूको संस्करण देखाइएको छ। तपाईँको पाठ यसको मुनि छ।',
+  'notes.conflict.delete':
+    'तपाईँले यो नोट खोल्नुभन्दा पछि कसैले यसलाई परिवर्तन गर्‍यो। उनीहरूको संस्करण देखाइएको छ।',
+  'notes.conflict.theirs': 'उनीहरूको संस्करण',
+  'notes.conflict.yours': 'तपाईँको पाठ',
+  'notes.conflict.saveMine': 'उनीहरूमाथि मेरो संस्करण सुरक्षित गर्नुहोस्',
+  'notes.conflict.useTheirs': 'उनीहरूको संस्करण प्रयोग गर्नुहोस्',
+  'notes.conflict.deleteTheirs': 'उनीहरूको संस्करण मेट्नुहोस्',
+  'notes.gone':
+    'कसैले यो नोट मेटायो। तपाईँको पाठ राखिएको छ। के यसलाई नयाँ नोटको रूपमा सुरक्षित गर्ने?',
+  'notes.gone.saveAsNew': 'नयाँ नोटको रूपमा सुरक्षित गर्नुहोस्',
+  'notes.stale': 'गणनाहरू अद्यावधिक नभएको हुन सक्छ।',
+  'notes.refresh': 'रिफ्रेस',
+  'notes.loadFailed': 'नोटहरू लोड भएनन्।',
+  'notes.retry': 'पुनः प्रयास गर्नुहोस्',
+};
