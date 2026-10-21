@@ -201,9 +201,7 @@ impl Fixture {
         body.extend_from_slice(format!("\r\n--{BOUNDARY}--\r\n").as_bytes());
         let request = axum::http::Request::builder()
             .method("POST")
-            .uri(format!(
-                "/api/romeka/imports/{id}/{route}?key_identity={KEY_IDENTITY}&key_credential={KEY_CREDENTIAL}"
-            ))
+            .uri(keyed(&format!("/api/romeka/imports/{id}/{route}"), ADMIN))
             .header(
                 "content-type",
                 format!("multipart/form-data; boundary={BOUNDARY}"),
@@ -226,6 +224,34 @@ impl Fixture {
             .unwrap()
             .unwrap()
     }
+}
+
+/// The v2 `plan` as a v3 plan whose tree is `levels`: its pattern, lists
+/// and slot rules dropped, every other member kept.
+pub fn v3_plan(plan: &Value, levels: Value) -> Value {
+    let mut v3 = plan.clone();
+    let object = v3.as_object_mut().unwrap();
+    for member in ["grouping", "example", "sheets", "slots"] {
+        object.remove(member);
+    }
+    object.insert("version".into(), json!(3));
+    object.insert(
+        "structure".into(),
+        json!({ "levels": levels, "freeSets": [] }),
+    );
+    v3
+}
+
+/// A v3 series over `folder` of source `s1`, grouping `<identifier>.jpg`,
+/// with no list and no rule.
+pub fn v3_series(id: &str, folder: &str) -> Value {
+    json!({
+        "kind": "series", "id": id, "set": null,
+        "scope": [{ "source": "s1", "folder": folder }],
+        "grouping": { "pattern": r"^(?<identifier>[A-Z]+_\d+)\.jpg$", "caseFold": false },
+        "example": null, "lists": [],
+        "slots": { "item": {}, "media": {}, "itemSet": {} }
+    })
 }
 
 pub fn write_tree(root: &Path, files: &[(&str, &[u8])]) {

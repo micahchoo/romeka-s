@@ -56,6 +56,11 @@ fn plan() -> ImportPlan {
     ImportPlan::from_json(&value.to_string()).unwrap()
 }
 
+/// The one series of a plan of one.
+fn only(plan: &ImportPlan) -> SeriesIx {
+    list_series(plan, None).unwrap()
+}
+
 fn columns(texts: &[&str]) -> Vec<ListColumn> {
     texts
         .iter()
@@ -82,6 +87,7 @@ fn the_template_has_one_row_per_grouped_item_with_bom_brackets_and_values() {
             "template",
             "visibility",
         ]),
+        only(&plan),
     );
     let text = String::from_utf8(csv).unwrap();
     assert!(text.starts_with('\u{feff}'), "a byte order mark");
@@ -123,6 +129,7 @@ fn a_filled_list_maps_its_bracketed_columns_first_and_its_values_reach_the_recor
         &model,
         &catalog(),
         &columns(&["dcterms:title", "dcterms:date"]),
+        only(&plan),
     );
     let template = String::from_utf8(template).unwrap();
     let header = template.split("\r\n").next().unwrap();
@@ -135,8 +142,10 @@ fn a_filled_list_maps_its_bracketed_columns_first_and_its_values_reach_the_recor
     );
     let read = list_read(false);
     let sheet = sheet::read(filled.as_bytes(), &read, None).unwrap();
+    let series = only(&plan);
     let added = add_list(
         &mut plan,
+        series,
         RelPath::parse("lists/1.csv").unwrap(),
         read,
         &sheet,
@@ -208,9 +217,11 @@ fn a_list_without_an_identifier_column_is_refused() {
     let read = list_read(true);
     let sheet = sheet::read(b"Name\tTitle [dcterms:title]\nA\tB\n", &read, None).unwrap();
     let mut plan = plan();
+    let series = only(&plan);
     assert_eq!(
         add_list(
             &mut plan,
+            series,
             RelPath::parse("lists/1.tsv").unwrap(),
             read,
             &sheet,
@@ -232,7 +243,12 @@ fn title_cell(title: &str) -> (String, String) {
     let index = index(&["AF_001.jpg"]);
     let plan = plan_titled(title);
     let model = derive(&index, &Sheets::new(), &plan, &catalog(), &NoTags);
-    let csv = template_csv(&model, &catalog(), &columns(&["dcterms:title"]));
+    let csv = template_csv(
+        &model,
+        &catalog(),
+        &columns(&["dcterms:title"]),
+        only(&plan),
+    );
     let text = String::from_utf8(csv).unwrap();
     let text = text.trim_start_matches('\u{feff}');
     let read = list_read(false);
@@ -257,6 +273,7 @@ fn a_cell_a_spreadsheet_would_run_as_a_formula_leaves_the_template_with_a_leadin
             &model,
             &catalog(),
             &columns(&["dcterms:title"]),
+            only(&plan),
         ))
         .unwrap();
         let line = text.split("\r\n").nth(1).unwrap();
@@ -282,6 +299,7 @@ fn the_template_leaves_safe_text_alone() {
         &model,
         &catalog(),
         &columns(&["dcterms:title"]),
+        only(&plan),
     ))
     .unwrap();
     assert!(text.contains("AF_001,AF_001.jpg,दीपक\r\n"), "{text}");
@@ -294,7 +312,7 @@ fn a_file_name_that_starts_like_a_formula_is_quoted_in_the_files_column() {
     value["grouping"]["pattern"] = json!(r"^(?<identifier>.+)\.jpg$");
     let plan = ImportPlan::from_json(&value.to_string()).unwrap();
     let model = derive(&index, &Sheets::new(), &plan, &catalog(), &NoTags);
-    let text = String::from_utf8(template_csv(&model, &catalog(), &[])).unwrap();
+    let text = String::from_utf8(template_csv(&model, &catalog(), &[], only(&plan))).unwrap();
     let line = text.split("\r\n").nth(1).unwrap();
     assert!(line.ends_with(",'=cmd.jpg"), "{line}");
 }
@@ -342,6 +360,7 @@ fn an_identifier_that_starts_like_a_formula_round_trips_and_joins_its_item() {
         &model,
         &catalog(),
         &columns(&["dcterms:title"]),
+        only(&plan),
     ))
     .unwrap();
     let lines: Vec<&str> = text.split("\r\n").collect();
@@ -358,8 +377,10 @@ fn an_identifier_that_starts_like_a_formula_round_trips_and_joins_its_item() {
         header: IDENTIFIER.to_string(),
     };
     let mut sheet = sheet::read(filled.as_bytes(), &read, Some(&key)).unwrap();
+    let series = only(&plan);
     let added = add_list(
         &mut plan,
+        series,
         RelPath::parse("lists/1.csv").unwrap(),
         read,
         &sheet,
@@ -393,4 +414,165 @@ fn an_identifier_that_starts_like_a_formula_round_trips_and_joins_its_item() {
     };
     assert_eq!(title("-001").as_deref(), Some("Lamp"));
     assert_eq!(title("=X").as_deref(), Some("Bowl"));
+}
+
+/// A v3 plan of two series, `letters` over `Letters/` and `photos` over
+/// `Photos/`, each grouping `<identifier>.jpg`.
+fn two_series() -> ImportPlan {
+    let series = |id: &str, folder: &str| {
+        json!({
+            "kind": "series", "id": id, "set": null,
+            "scope": [{ "source": "s1", "folder": folder }],
+            "grouping": { "pattern": r"^(?<identifier>[A-Z]+_\d+)\.jpg$", "caseFold": false },
+            "example": null, "lists": [],
+            "slots": { "item": {}, "media": {}, "itemSet": {} }
+        })
+    };
+    let mut value: serde_json::Value =
+        serde_json::from_str(include_str!("../fixtures/v3/born_digital.json")).unwrap();
+    value["structure"] = json!({
+        "levels": [series("letters", "Letters"), series("photos", "Photos")],
+        "freeSets": []
+    });
+    ImportPlan::from_json(&value.to_string()).unwrap()
+}
+
+#[test]
+fn a_list_is_for_the_series_named_or_for_the_only_one() {
+    let one = plan();
+    assert!(list_series(&one, None).is_ok(), "one series may go unnamed");
+    assert_eq!(
+        list_series(&one, Some("all")),
+        list_series(&one, None),
+        "a lifted v2 plan's series is all"
+    );
+    let two = two_series();
+    let photos = two
+        .structure
+        .all_series()
+        .find(|(_, series)| series.id().0 == "photos")
+        .unwrap()
+        .0;
+    assert_eq!(list_series(&two, Some("photos")), Ok(photos));
+    assert_eq!(list_series(&two, None), Err(ListError::SeriesNeeded));
+    assert_eq!(
+        list_series(&two, Some("maps")),
+        Err(ListError::UnknownSeries("maps".into()))
+    );
+}
+
+#[test]
+fn the_template_lists_the_items_of_its_series_only() {
+    let index = index(&["Letters/AF_001.jpg", "Photos/PH_001.jpg"]);
+    let plan = two_series();
+    let model = derive(&index, &Sheets::new(), &plan, &catalog(), &NoTags);
+    let lines = |named: &str| {
+        let series = list_series(&plan, Some(named)).unwrap();
+        let csv = String::from_utf8(template_csv(&model, &catalog(), &[], series)).unwrap();
+        csv.split("\r\n")
+            .skip(1)
+            .map(str::to_string)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(lines("letters"), ["AF_001,AF_001.jpg", ""]);
+    assert_eq!(lines("photos"), ["PH_001,PH_001.jpg", ""]);
+}
+
+/// `plan` with a list for the series `named` whose `sets` column gives
+/// each item the set `2018`, derived over one letter and one photo with
+/// the install's set #2018 titled "Older".
+fn with_sets_column(mut plan: ImportPlan, named: Option<&str>) -> (ImportPlan, Model) {
+    let list = "Identifier,Files,Item sets [sets]\r\nAF_001,,2018\r\nPH_001,,2018\r\n";
+    let read = list_read(false);
+    let sheet = sheet::read(list.as_bytes(), &read, None).unwrap();
+    let series = list_series(&plan, named).unwrap();
+    add_list(
+        &mut plan,
+        series,
+        RelPath::parse("lists/1.csv").unwrap(),
+        read,
+        &sheet,
+        &catalog(),
+    )
+    .unwrap();
+    let plan = ImportPlan::from_json(&plan.to_json()).expect("the boundary takes the plan");
+    let (_, list_plan) = plan.structure.lists().next().unwrap();
+    let sheets: Sheets = [(
+        list_plan.id.clone(),
+        sheet::read(
+            list.as_bytes(),
+            &list_plan.read,
+            sheet::key_column(list_plan),
+        ),
+    )]
+    .into_iter()
+    .collect();
+    let mut catalog = catalog();
+    catalog.item_sets.push(crate::import::catalog::ExistingSet {
+        id: 2018,
+        title: "Older".into(),
+        keys: Default::default(),
+    });
+    let index = index(&["Letters/AF_001.jpg", "Photos/PH_001.jpg"]);
+    let model = derive(&index, &sheets, &plan, &catalog, &NoTags);
+    (plan, model)
+}
+
+fn sets_of(model: &Model, key: &str) -> Vec<crate::import::model::SetRef> {
+    model
+        .kept()
+        .find(|record| {
+            record.kind == RecordKind::Item && record.resolved.item_key.as_deref() == Some(key)
+        })
+        .unwrap()
+        .resolved
+        .sets
+        .clone()
+}
+
+#[test]
+fn a_sets_column_in_a_v3_plan_names_sets_by_title_for_its_own_series() {
+    use crate::import::model::SetRef;
+    let (plan, model) = with_sets_column(two_series(), Some("photos"));
+    let stored: serde_json::Value = serde_json::from_str(&plan.to_json()).unwrap();
+    assert_eq!(stored["structure"]["levels"][1]["lists"][0]["id"], "list-1");
+    assert_eq!(
+        stored["structure"]["freeSets"],
+        json!([{ "each": {
+            "sources": [{ "from": "column", "sheet": "list-1",
+                          "column": { "index": 2, "header": "Item sets [sets]" } }],
+            "combine": "first",
+            "names": "title"
+        } }])
+    );
+    assert_eq!(
+        sets_of(&model, "PH_001"),
+        [SetRef::New(0)],
+        "2018 is a title, not set #2018"
+    );
+    assert_eq!(model.new_sets[0].title, "2018");
+    assert_eq!(
+        sets_of(&model, "AF_001"),
+        [],
+        "a letter has no row of the photos' list"
+    );
+}
+
+#[test]
+fn a_sets_column_in_a_v2_plan_keeps_v2s_reading() {
+    use crate::import::model::SetRef;
+    let mut value = serde_json::to_value(plan()).unwrap();
+    value["grouping"]["pattern"] = json!(r"^(?:.*/)?(?<identifier>[A-Z]+_\d+)\.jpg$");
+    let (plan, model) = with_sets_column(ImportPlan::from_json(&value.to_string()).unwrap(), None);
+    let stored: serde_json::Value = serde_json::from_str(&plan.to_json()).unwrap();
+    assert_eq!(stored["version"], 2);
+    assert_eq!(
+        stored["slots"]["item"]["sets"]["sources"][0]["sheet"],
+        "list-1"
+    );
+    assert_eq!(
+        sets_of(&model, "AF_001"),
+        [SetRef::Existing(2018)],
+        "v2 read an id that exists first"
+    );
 }

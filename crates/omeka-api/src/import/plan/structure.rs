@@ -342,6 +342,11 @@ impl Structure {
         }
     }
 
+    /// Add a free set after the others.
+    pub fn push_free_set(&mut self, set: SetSource) {
+        self.free_sets.push(set);
+    }
+
     /// Add a list to the series, after its other lists.
     pub fn push_list(&mut self, at: SeriesIx, list: SheetPlan) {
         self.series_mut(at).lists.push(list);

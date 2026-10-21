@@ -2,9 +2,10 @@
 //! the JSON an import is shown as.
 //!
 //! An error answers the usual document, `{"errors": {"error": message}}`.
-//! A 409 also carries `code`, the name the contract gives it (`stale`,
-//! `v1Plan`, `changed`, ...), and the members the admin needs to act on it,
-//! so the admin branches on the code and shows the message.
+//! A 409, and a 400 the admin can act on, also carries `code`, the name the
+//! contract gives it (`stale`, `v1Plan`, `seriesNeeded`, ...), and the
+//! members the admin needs to act on it, so the admin branches on the code
+//! and shows the message.
 
 use axum::body::Body;
 use axum::http::{HeaderMap, StatusCode, Uri, header};
@@ -38,8 +39,10 @@ pub(crate) enum ImportError {
     /// 413: a file past the route's own limit.
     TooLarge(String),
     NotFound(String),
-    /// A 409 with its code and the members that explain it.
-    Conflict {
+    /// A 409, or a 400 the admin acts on, with its code and the members
+    /// that explain it.
+    Coded {
+        status: StatusCode,
         code: &'static str,
         message: String,
         members: Map<String, Value>,
@@ -50,16 +53,27 @@ pub(crate) enum ImportError {
 
 impl ImportError {
     pub(crate) fn conflict(code: &'static str, message: impl Into<String>) -> Self {
-        Self::Conflict {
+        Self::Coded {
+            status: StatusCode::CONFLICT,
             code,
             message: message.into(),
             members: Map::new(),
         }
     }
 
-    /// A 409 with one more member.
+    /// A 400 with a code, for a request the admin can correct.
+    pub(crate) fn refused(code: &'static str, message: impl Into<String>) -> Self {
+        Self::Coded {
+            status: StatusCode::BAD_REQUEST,
+            code,
+            message: message.into(),
+            members: Map::new(),
+        }
+    }
+
+    /// A coded error with one more member.
     pub(crate) fn with(mut self, key: &str, value: Value) -> Self {
-        if let Self::Conflict { members, .. } = &mut self {
+        if let Self::Coded { members, .. } = &mut self {
             members.insert(key.to_string(), value);
         }
         self
@@ -83,11 +97,12 @@ impl ImportError {
             Self::BadRequest(message) => (StatusCode::BAD_REQUEST, message, None, Map::new()),
             Self::TooLarge(message) => (StatusCode::PAYLOAD_TOO_LARGE, message, None, Map::new()),
             Self::NotFound(message) => (StatusCode::NOT_FOUND, message, None, Map::new()),
-            Self::Conflict {
+            Self::Coded {
+                status,
                 code,
                 message,
                 members,
-            } => (StatusCode::CONFLICT, message, Some(code), members),
+            } => (status, message, Some(code), members),
             Self::Internal(message) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, message, None, Map::new())
             }

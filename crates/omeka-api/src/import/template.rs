@@ -19,9 +19,10 @@ use serde::Serialize;
 use super::catalog::Catalog;
 use super::model::{Model, Origin, Record};
 use super::plan::{
-    Auto, ColumnOptions, ColumnPlan, ColumnRef, Combine, Delimiter, EncodingChoice, ImportPlan,
-    Join, JoinNormalize, JoinOn, Quote, ReadOptions, RecordKind, RelPath, RowKind, SheetId,
-    SheetPlan, SlotName, SlotRule, SourceId, SourcePlan, SourceRef, Term,
+    Auto, ColumnOptions, ColumnPlan, ColumnRef, Combine, Delimiter, EachSet, EachValue,
+    EncodingChoice, ImportPlan, Join, JoinNormalize, JoinOn, PlanVersion, Quote, ReadOptions,
+    RecordKind, RelPath, RowKind, SeriesIx, SetNames, SetSource, SheetId, SheetPlan, SlotName,
+    SlotRule, SourceId, SourcePlan, SourceRef, Term,
 };
 use super::sheet::Sheet;
 use super::values::{ValueType, Visibility};
@@ -54,6 +55,32 @@ pub enum ListError {
     /// An upload with no `Identifier` header.
     #[error("the list has no Identifier column")]
     NoIdentifier,
+    /// A plan of several series, and no `?series=` to say which.
+    #[error("the plan has several series and the list names none")]
+    SeriesNeeded,
+    /// A `?series=` that names no series of the plan.
+    #[error("the plan has no series {0:?}")]
+    UnknownSeries(String),
+}
+
+/// The series a list is for: the one `named`, which `?series=` gives, or
+/// the plan's only series when it gives none.
+///
+/// # Errors
+/// [`ListError::UnknownSeries`] for a name no series has, and
+/// [`ListError::SeriesNeeded`] for no name in a plan of several series.
+pub fn list_series(plan: &ImportPlan, named: Option<&str>) -> Result<SeriesIx, ListError> {
+    let mut all = plan.structure.all_series();
+    match named {
+        Some(named) => all
+            .find(|(_, series)| series.id().0 == named)
+            .map(|(at, _)| at)
+            .ok_or_else(|| ListError::UnknownSeries(named.to_string())),
+        None => match (all.next(), all.next()) {
+            (Some((only, _)), None) => Ok(only),
+            _ => Err(ListError::SeriesNeeded),
+        },
+    }
 }
 
 impl ListColumn {
@@ -119,10 +146,16 @@ impl ListColumn {
     }
 }
 
-/// The list as CSV: a UTF-8 byte order mark, so a spreadsheet reads
-/// Devanagari right, then the header and one CRLF-ended row per item.
+/// The list of one series' items as CSV: a UTF-8 byte order mark, so a
+/// spreadsheet reads Devanagari right, then the header and one CRLF-ended
+/// row per item.
 #[must_use]
-pub fn template_csv(model: &Model, catalog: &Catalog, columns: &[ListColumn]) -> Vec<u8> {
+pub fn template_csv(
+    model: &Model,
+    catalog: &Catalog,
+    columns: &[ListColumn],
+    series: SeriesIx,
+) -> Vec<u8> {
     let mut out = String::from('\u{feff}');
     let mut header = vec![IDENTIFIER.to_string(), FILES.to_string()];
     header.extend(columns.iter().map(|column| column.header(catalog)));
@@ -131,7 +164,7 @@ pub fn template_csv(model: &Model, catalog: &Catalog, columns: &[ListColumn]) ->
         let Origin::Group(key) = &record.origin else {
             continue;
         };
-        if record.kind != RecordKind::Item {
+        if record.kind != RecordKind::Item || record.series != series {
             continue;
         }
         let names: Vec<&str> = record
@@ -261,14 +294,21 @@ pub struct ListAdded {
     pub mapped: Vec<u32>,
 }
 
-/// Add the list stored at `file` in the plan's staging source to `plan`: a
-/// sheet joined on `Identifier`, each bracketed column mapped first in its
-/// slot. A staging source is added when the plan has none.
+/// Add the list stored at `file` in the plan's staging source to the
+/// series `series` of `plan`: a sheet joined on `Identifier`, each
+/// bracketed column mapped first in its slot. A staging source is added
+/// when the plan has none.
+///
+/// The `sets` columns of a v2 plan join the free set read as v2 read sets,
+/// first, so the plan keeps one sets rule. In a v3 plan they make one more
+/// free set whose values are titles; a column of this list gives nothing
+/// to an item of another series.
 ///
 /// # Errors
 /// [`ListError::NoIdentifier`] when no header is `Identifier`.
 pub fn add_list(
     plan: &mut ImportPlan,
+    series: SeriesIx,
     file: RelPath,
     read: ReadOptions,
     sheet: &Sheet,
@@ -280,19 +320,13 @@ pub fn add_list(
         .find(|column| column.header.eq_ignore_ascii_case(IDENTIFIER))
         .ok_or(ListError::NoIdentifier)?;
     let source = staging_source(plan);
-    // The first series takes the list until the upload names one (U6's
-    // `?series=`); the boundary refuses a plan with none.
-    let (series, _) = plan
-        .structure
-        .all_series()
-        .next()
-        .unwrap_or_else(|| unreachable!("every plan the boundary passes has a series"));
     let id = (1_u32..)
         .map(|n| SheetId(format!("list-{n}")))
         .find(|id| plan.structure.lists().all(|(_, sheet)| sheet.id != *id))
         .unwrap_or_else(|| unreachable!());
     let mut columns = Vec::new();
     let mut mapped = Vec::new();
+    let mut set_columns = Vec::new();
     for column in sheet.columns.iter().filter(|column| column.mappable) {
         let Some(slot) = bracketed(&column.header)
             .and_then(|text| ListColumn::parse(text, catalog).ok())
@@ -318,7 +352,10 @@ pub fn add_list(
             column: column_ref,
         };
         if slot == SlotName::Sets {
-            plan.structure.text_sets_mut().sources.insert(0, from);
+            match plan.version {
+                PlanVersion::V2 => plan.structure.text_sets_mut().sources.insert(0, from),
+                PlanVersion::V3 => set_columns.push(from),
+            }
             mapped.push(column.index);
             continue;
         }
@@ -337,6 +374,16 @@ pub fn add_list(
             }
         }
         mapped.push(column.index);
+    }
+    if !set_columns.is_empty() {
+        plan.structure.push_free_set(SetSource::Each(EachValue {
+            each: EachSet {
+                sources: set_columns,
+                combine: Combine::First,
+                map: indexmap::IndexMap::new(),
+                names: SetNames::Title,
+            },
+        }));
     }
     plan.structure.push_list(
         series,
