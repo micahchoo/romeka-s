@@ -110,6 +110,25 @@ pub struct Messages {
     /// The item page's strip heading, `%s` the item's file count. A Romeka
     /// string.
     pub files_count: &'static str,
+    /// A media card's word for an image.
+    pub kind_image: &'static str,
+    /// A media card's word for a sound file.
+    pub kind_audio: &'static str,
+    /// A media card's word for a video.
+    pub kind_video: &'static str,
+    /// A media card's word for a PDF.
+    pub kind_pdf: &'static str,
+    /// A media card's word for a 3D model.
+    pub kind_model_3d: &'static str,
+    /// A media card's word for a caption file.
+    pub kind_captions: &'static str,
+    /// A media card's word for an embed or a remote IIIF presentation.
+    pub kind_embed: &'static str,
+    /// A media card's word for a file no other kind names.
+    pub kind_other_file: &'static str,
+    /// A card's label for an item with no file. The type stands there for an
+    /// item set, which has no files. A Romeka string.
+    pub no_file: &'static str,
     /// The footer's link list, as its `nav` label.
     pub footer_links: &'static str,
     /// The footer's licence line when the site keeps every right.
@@ -229,6 +248,15 @@ pub static EN: Messages = Messages {
     previous: "Previous",
     file_of: "File %s of %s",
     files_count: "%s files",
+    kind_image: "Image",
+    kind_audio: "Audio",
+    kind_video: "Video",
+    kind_pdf: "PDF",
+    kind_model_3d: "3D model",
+    kind_captions: "Captions",
+    kind_embed: "Embed",
+    kind_other_file: "File",
+    no_file: "No file",
     footer_links: "Footer links",
     all_rights_reserved: "All rights reserved",
     search_placeholder: "Search the collection",
@@ -318,6 +346,15 @@ pub static ES: Messages = Messages {
     previous: "Anterior",
     file_of: "Archivo %s de %s",
     files_count: "%s archivos",
+    kind_image: "Imagen",
+    kind_audio: "Audio",
+    kind_video: "Vídeo",
+    kind_pdf: "PDF",
+    kind_model_3d: "Modelo 3D",
+    kind_captions: "Subtítulos",
+    kind_embed: "Incrustado",
+    kind_other_file: "Archivo",
+    no_file: "Sin archivo",
     footer_links: "Enlaces del pie de página",
     all_rights_reserved: "Todos los derechos reservados",
     search_placeholder: "Buscar en la colección",

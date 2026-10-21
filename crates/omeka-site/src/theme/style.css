@@ -1265,6 +1265,28 @@ header {
   text-transform: uppercase;
 }
 
+/* A card's corner badge names the kind of a file whose picture does not (a
+   video's poster, a PDF's first page), with the run time when one is known. */
+.resource-badge {
+  background: color-mix(in srgb, var(--color-background) 88%, transparent);
+  border-radius: var(--radius-sm);
+  bottom: var(--space-1);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 0.1rem var(--space-2);
+  position: absolute;
+  right: var(--space-1);
+}
+
+/* The run time under a recording's kind in an empty slot. */
+.resource-duration {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
 .resource-text,
 .resource-list .resource-name,
 .resource-meta {
@@ -1888,6 +1910,8 @@ header {
   align-items: center;
   color: var(--color-muted);
   display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
   justify-content: center;
 }
 
