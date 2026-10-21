@@ -14,7 +14,7 @@ import { listHref } from '../lists/address';
 import { fileName, recordName } from '../lists/record-words';
 import { usePreview } from '../lists/use-preview';
 import { placeHref } from '../screens';
-import { CAUSE_ORDER, DEFAULT_POLICY, FACTS, HANDLED, answerOf, checkFactsOf, isBlocking, suggestedOf, withAnswer, withSuggestions, wordsOf } from './causes';
+import { CAUSE_ORDER, DEFAULT_POLICY, FACTS, HANDLED, UNTITLED, answerOf, checkFactsOf, isBlocking, suggestedOf, titleFlag, withAnswer, withSuggestions, wordsOf } from './causes';
 import type { CauseId, CheckFacts } from './causes';
 import { readState, withState } from './example-state';
 import { useSimpleText } from './messages';
@@ -160,7 +160,7 @@ export const Check = (): ReactElement => {
   const stated = flags.filter((flag) => flag.count > 0 && FACTS.includes(flag.kind));
   const byKind = new Map<FlagCount['kind'], { count: number; samples: FlagSample[] }>();
   for (const flag of flags) {
-    if (flag.count === 0 || handledBy(flag) || FACTS.includes(flag.kind)) {
+    if (flag.count === 0 || handledBy(flag) || FACTS.includes(flag.kind) || titleFlag(flag)) {
       continue;
     }
     const kept = byKind.get(flag.kind) ?? { count: 0, samples: [] };
@@ -178,8 +178,11 @@ export const Check = (): ReactElement => {
   if (entries.total > 0) {
     causes.push({ id: 'unmatchedFiles', count: entries.total, examples: entries.items.flatMap((entry) => ('file' in entry.entry ? [fileName(entry.entry.file)] : [])), kind: null });
   }
-  if (draft.plan.sheets.length > 0 && unpaired.files.total > 0) {
-    causes.push({ id: 'itemsWithoutRow', count: unpaired.files.total, examples: unpaired.files.items.map((file) => fileName(file.file)), kind: null });
+  if (draft.plan.sheets.length > 0 && unpaired.items > 0) {
+    causes.push({ id: 'itemsWithoutRow', count: unpaired.items, examples: unpaired.files.items.map((file) => fileName(file.file)), kind: null });
+  }
+  if (check.itemsWithoutTitle > 0) {
+    causes.push({ id: UNTITLED, count: check.itemsWithoutTitle, examples: [], kind: null });
   }
   causes.sort((a, b) => order(a.id) - order(b.id));
   const { answered } = readState(draft.plan);

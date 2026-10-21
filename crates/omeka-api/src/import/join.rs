@@ -5,7 +5,9 @@
 //! a `fileName` join, the group holding the file its cell names. Both sides
 //! pass through [`normalize`] first. A media row with a `fileName` join
 //! finds its file; every other media row attaches by item key later, once
-//! item keys are resolved. An item-set row is a record of its own. A `pair`
+//! item keys are resolved. In a create import, a media row whose list gives
+//! no item key can attach only by its file, so one that names no file of
+//! the import is `no-file` and makes no record. An item-set row is a record of its own. A `pair`
 //! decision joins its row to its file's group (or, for a media row, to the
 //! file) before the rule, so a rule row that would join that target is a
 //! duplicate.
@@ -69,7 +71,8 @@ pub(crate) struct Joined {
     /// Each file a joined row names by its `fileName` cell or a `pair`,
     /// with the first row that names it.
     pub named: BTreeMap<usize, RowAt>,
-    /// Rows a flag's `leave` policy took out.
+    /// Rows a flag's `leave` policy took out, and media rows `no-file` took
+    /// out: no policy can keep a media record that has no file.
     pub skipped: BTreeMap<RowAt, FlagKind>,
     /// `pair` decisions whose row or file is gone or cannot join.
     pub orphans: Vec<Orphan>,
@@ -161,10 +164,14 @@ const EXACT: JoinNormalize = JoinNormalize {
     separators: false,
 };
 
+/// `media_by_file` holds when a media row without an item key cell can
+/// attach to nothing but its file: a create import with no item-key rule
+/// for media.
 pub(crate) fn join(
     sheets: &[SheetIn<'_>],
     grouping: &Grouping<'_>,
     decisions: &[Decision],
+    media_by_file: bool,
     book: &mut FlagBook<'_>,
 ) -> Joined {
     let mut joined = Joined::default();
@@ -179,6 +186,12 @@ pub(crate) fn join(
             JoinOn::Identifier => groups_by_key(grouping, how),
             JoinOn::FileName => files_by_name(grouping, how),
         });
+        let by_file_only = media_by_file
+            && plan.item_key.is_none()
+            && plan
+                .join
+                .as_ref()
+                .is_some_and(|join| join.on == JoinOn::FileName);
         let mut seen_keys: HashSet<String> = HashSet::new();
         let mut taken: HashSet<Target> = HashSet::new();
         for (at_row, row) in sheet.rows.iter().enumerate() {
@@ -263,6 +276,21 @@ pub(crate) fn join(
                         at,
                         file: Some(file),
                     });
+                }
+                (RecordKind::Media, _) if by_file_only => {
+                    let named = plan
+                        .join
+                        .as_ref()
+                        .map(|join| cell(row, join.column.index).trim().to_string())
+                        .filter(|text| !text.is_empty());
+                    book.raise(
+                        FlagKind::NoFile,
+                        Subject::Entry(entry[0].clone()),
+                        None,
+                        named,
+                        &entry,
+                    );
+                    joined.skipped.insert(at, FlagKind::NoFile);
                 }
                 (RecordKind::Media, _) => joined.media_rows.push(MediaRow { at, file: None }),
                 (_, Some(Target::Group(group))) => {

@@ -189,7 +189,8 @@ describe('Add: questions nobody answered in Check', () => {
   const untitled: Scenario = {
     ...bhc006,
     groups: [{ files: '3', folder: 'Artifacts', media: 'image', row: true, count: 274, from: 0 }],
-    flags: [DUPLICATES, { kind: 'empty-required', slot: 'dcterms:title', count: 274, detail: null }],
+    flags: [DUPLICATES],
+    untitled: 274,
   };
   const openAdd = (plan: Record<string, unknown>): ReturnType<typeof simpleServer> => {
     const server = simpleServer(untitled, plan);
@@ -211,7 +212,7 @@ describe('Add: questions nobody answered in Check', () => {
     const plan = last(server.saved);
     expect(asRecord(sheet(plan)['join'], [])['on']).toBe('fileName');
     expect(titleOf(plan)).toEqual([{ from: 'group', name: 'identifier' }]);
-    expect(asRecord(plan['simple'], [])['answered']).toEqual(['empty-required', 'duplicate-row']);
+    expect(asRecord(plan['simple'], [])['answered']).toEqual(['untitled', 'duplicate-row']);
     const saves = server.saved.length;
     await new Promise((resolve) => setTimeout(resolve, 300));
     expect(server.saved).toHaveLength(saves);

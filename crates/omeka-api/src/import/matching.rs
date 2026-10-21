@@ -219,7 +219,12 @@ pub(crate) fn run(
     }
     for at in 0..records.len() {
         let record = &records[at];
-        if record.kind != RecordKind::Media || record.parent.is_some() {
+        // A left record needs no parent: a refused file, or a decision, took
+        // it out.
+        if record.kind != RecordKind::Media
+            || record.parent.is_some()
+            || matches!(record.fate, Fate::Left(_))
+        {
             continue;
         }
         let key = record.resolved.item_key.clone().unwrap_or_default();
@@ -242,7 +247,7 @@ pub(crate) fn run(
                         Some(key.clone()),
                         &entries[at],
                     );
-                    if policy == Some(FlagPolicy::Leave) && !matches!(record.fate, Fate::Left(_)) {
+                    if policy == Some(FlagPolicy::Leave) {
                         records[at].fate = Fate::Left(LeftBy::Flag(FlagKind::Unmatched));
                     }
                     Parent::Missing(key)
