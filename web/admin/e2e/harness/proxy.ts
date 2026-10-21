@@ -12,6 +12,11 @@
  * appended, the pair `omeka_api::auth::authenticate` reads. Restricted reads and
  * every write need it, and upstream presents the key exactly this way. This file
  * is the harness's own proxy; the suite does not depend on the coordinator's.
+ *
+ * `/annotations` is not keyed. The admin writes a note through the session
+ * cookie, as production does, and keying the route made a fresh browser context
+ * read and write as the administrator. A spec that posts there without a
+ * browser passes the key itself.
  */
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer, request as httpRequest } from 'node:http';
@@ -70,19 +75,10 @@ const portPaths = (pathname: string): boolean =>
   pathname.startsWith('/annotations/') ||
   pathname === '/iiif-viewer' ||
   pathname.startsWith('/iiif/') ||
-  pathname === '/annotations' ||
-  pathname.startsWith('/annotations/') ||
   pathname.startsWith('/application/');
 
 const apiPaths = (pathname: string): boolean =>
   pathname === '/api' || pathname.startsWith('/api/');
-
-/** Paths that leave for the port with the harness's admin key pair: the SPA's
- * own API and the Web Annotation routes, which the admin writes through. */
-const keyedPaths = (pathname: string): boolean =>
-  apiPaths(pathname) ||
-  pathname === '/annotations' ||
-  pathname.startsWith('/annotations/');
 
 /** The file a pathname names inside a static root, or `null` when it escapes. */
 const fileFor = (root: string, pathname: string): string | null => {
@@ -179,7 +175,7 @@ const forward = (
   res: ServerResponse,
   options: ProxyOptions,
 ): void => {
-  if (keyedPaths(url.pathname)) {
+  if (apiPaths(url.pathname)) {
     url.searchParams.set('key_identity', options.identity);
     url.searchParams.set('key_credential', options.credential);
   }
