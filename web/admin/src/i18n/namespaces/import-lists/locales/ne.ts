@@ -30,6 +30,7 @@ export const ne: ImportListsMessages = {
   'lists.facts.pdf': 'PDF हरू',
   'lists.facts.audio': 'ध्वनिहरू',
   'lists.facts.video': 'चलचित्रहरू',
+  'lists.facts.document': 'कागजातहरू',
   'lists.facts.other': 'अन्य फाइलहरू',
   'lists.facts.parts': 'तपाईँले चिन्ह लगाउनुभएको भागमा {parts} शब्दहरू भएका',
   'lists.facts.pages': '{count} पृष्ठ सङ्ख्याहरू',
