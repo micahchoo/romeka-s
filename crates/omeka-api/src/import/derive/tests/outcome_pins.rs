@@ -11,6 +11,7 @@ use serde_json::{Value, json};
 
 use super::scenarios::S1_TO_S8;
 use crate::import::model::Model;
+use crate::import::plan::{ImportPlan, PlanVersion};
 
 fn outcome_text(model: &Model) -> String {
     let records: Vec<Value> = model
@@ -40,5 +41,28 @@ fn lifted_plans_keep_their_outcome() {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/import/derive/tests/outcome_pins");
     for (name, scenario) in S1_TO_S8 {
         text::assert_pinned(&dir, name, &outcome_text(&scenario().derive()));
+    }
+}
+
+/// A v3 plan of one series derives what the v2 plan it lifts from derives:
+/// the same pinned outcome and the same digest.
+#[test]
+fn v3_plans_of_one_series_keep_their_outcome() {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/import/derive/tests/outcome_pins");
+    for (name, scenario) in S1_TO_S8 {
+        let mut scenario = scenario();
+        let lifted = scenario.derive();
+        let mut plan = scenario.plan.clone();
+        plan.version = PlanVersion::V3;
+        let v3 = plan.to_json();
+        assert!(
+            v3.contains(r#""structure":{"levels":[{"kind":"series""#),
+            "{name}: {v3}"
+        );
+        scenario.plan =
+            ImportPlan::from_json(&v3).unwrap_or_else(|error| panic!("{name}: {error}"));
+        let model = scenario.derive();
+        text::assert_pinned(&dir, name, &outcome_text(&model));
+        assert_eq!(model.digest, lifted.digest, "{name}");
     }
 }
