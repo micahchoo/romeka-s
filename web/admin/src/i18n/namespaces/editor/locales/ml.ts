@@ -601,6 +601,7 @@ export const ml: EditorMessages = {
   'mediaRef.remove': 'നീക്കം ചെയ്യുക',
   'mediaRef.changeItem': 'മറ്റൊരു ഇനം തിരഞ്ഞെടുക്കുക',
   'focal.noImage': 'ആദ്യം ഒരു പശ്ചാത്തല ചിത്രം തിരഞ്ഞെടുക്കുക.',
+  'focal.notAPicture': 'ഈ മീഡിയയ്ക്ക് ഫോക്കൽ പോയിന്റ് സെറ്റ് ചെയ്യാൻ ചിത്രമില്ല.',
   'focal.frame':
     'ഫോക്കൽ പോയിന്റ്: {x}% കുറുകെ, {y}% താഴേക്ക്. ചിത്രം ക്ലിക്ക് ചെയ്യുക അല്ലെങ്കിൽ നീക്കാൻ ആരോ കീകൾ ഉപയോഗിക്കുക.',
   'focal.center': 'മധ്യഭാഗം',
@@ -618,7 +619,6 @@ export const ml: EditorMessages = {
   'region.pageGroup': 'എല്ലാ പേജിലും',
   'region.pageHelp':
     'സൈറ്റ് ഹെഡറും ഫൂട്ടറും മുഴുവൻ സൈറ്റിന്റേതാണ്. പ്രിവ്യൂവിൽ ഒന്നിൽ ക്ലിക്ക് ചെയ്യുക, അല്ലെങ്കിൽ ഇവിടെ തിരഞ്ഞെടുക്കുക.',
-  // The featured items section template.
   'sectionTemplate.featuredItems.label': 'മൂന്ന് പ്രധാന ഇനങ്ങൾ',
   'sectionTemplate.featuredItems.description':
     'ഓരോന്നിലും ചിത്രവും, പേരും, ലിങ്കും ഉള്ള മൂന്ന് ഇനം കാർഡുകൾ.',

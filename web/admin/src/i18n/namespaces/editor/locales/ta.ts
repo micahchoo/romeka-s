@@ -616,6 +616,7 @@ export const ta: EditorMessages = {
   'mediaRef.remove': 'நீக்கவும்',
   'mediaRef.changeItem': 'மற்றொரு உருப்படியைத் தேர்ந்தெடுக்கவும்',
   'focal.noImage': 'முதலில் பின்னணிப் படத்தை தேர்ந்தெடுக்கவும்.',
+  'focal.notAPicture': 'இந்த ஊடகத்திற்கு ஒரு மையப்புள்ளியை அமைக்கப் படம் இல்லை.',
   'focal.frame':
     'மையப்புள்ளி: {x}% குறுக்கே, {y}% கீழே. படத்தை கிளிக் செய்யவும் அல்லது நகர்த்த \'அம்பு\' விசைகளைப் பயன்படுத்தவும்.',
   'focal.center': 'மையப்படுத்த',
@@ -633,7 +634,6 @@ export const ta: EditorMessages = {
   'region.pageGroup': 'ஒவ்வொரு பக்கத்திலும்',
   'region.pageHelp':
     'தளத்தின் தலைப்பு மற்றும் அடிக்குறிப்பு முழு தளத்தைச் சார்ந்தது. முன்னோட்டத்தில் ஒன்றைத் தேர்ந்தெடுக்கவும், அல்லது இங்கே ஒன்றைத் தேர்ந்தெடுக்கவும்.',
-  // The featured items section template.
   'sectionTemplate.featuredItems.label': 'மூன்று சிறப்பம்சங்கள்',
   'sectionTemplate.featuredItems.description':
     'ஒவ்வொரு படத்துடனும் அதன் தலைப்பு மற்றும் இணைப்பைக் கொண்ட மூன்று உருப்படி அட்டைகள் ஒரு வரிசையில்.',

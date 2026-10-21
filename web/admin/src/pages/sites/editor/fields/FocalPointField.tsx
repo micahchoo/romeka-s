@@ -6,7 +6,8 @@
  * `images` that is shown and set: an asset or a media) and puts the point
  * where the curator clicks. The arrow keys move it in steps of five, so the
  * control works without a pointer. "Center" clears both values, which is the
- * browser's own centred crop.
+ * browser's own centred crop. A stored media with no image of its own says so
+ * rather than framing a broken picture.
  */
 import type { KeyboardEvent, MouseEvent, ReactElement } from 'react';
 import { api } from '../../../../api/client';
@@ -86,7 +87,8 @@ export interface FocalPointFieldProps {
 export const FocalPointField = ({ id, label, help, x, y, image, onChange }: FocalPointFieldProps): ReactElement => {
   const { t } = useTranslator(editor);
   const url = useAsync(() => imageUrl(image), [image?.kind, image?.id]);
-  const src = url.status === 'ready' ? url.data : null;
+  const loaded = url.status === 'ready';
+  const src = loaded ? url.data : null;
   const storedX = percent(x);
   const storedY = percent(y);
   const across = storedX ?? CENTER;
@@ -120,8 +122,8 @@ export const FocalPointField = ({ id, label, help, x, y, image, onChange }: Foca
   return (
     <fieldset className="block-field focal-field" aria-describedby={helpId(id)}>
       <legend>{label}</legend>
-      {image === null ? (
-        <p className="field-note">{t('focal.noImage')}</p>
+      {image === null || (loaded && src === null) ? (
+        <p className="field-note">{image === null ? t('focal.noImage') : t('focal.notAPicture')}</p>
       ) : (
         <>
           <button

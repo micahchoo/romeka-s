@@ -594,6 +594,7 @@ export const kn: EditorMessages = {
   'mediaRef.remove': 'ತೆಗೆದುಹಾಕಿ',
   'mediaRef.changeItem': 'ಮತ್ತೊಂದು ಐಟಂ ಅನ್ನು ಆರಿಸಿ',
   'focal.noImage': 'ಮೊದಲು ಹಿನ್ನೆಲೆ ಚಿತ್ರವನ್ನು ಆರಿಸಿ.',
+  'focal.notAPicture': 'ಈ ಮೀಡಿಯಾದಲ್ಲಿ ಫೋಕಲ್ ಪಾಯಿಂಟ್ ಸೆಟ್ ಮಾಡಲು ಯಾವುದೇ ಚಿತ್ರವಿಲ್ಲ.',
   'focal.frame':
     'ಫೋಕಲ್ ಪಾಯಿಂಟ್: {x}% ಅಡ್ಡಲಾಗಿ, {y}% ಕೆಳಕ್ಕೆ. ಚಿತ್ರವನ್ನು ಕ್ಲಿಕ್ ಮಾಡಿ ಅಥವಾ ಅದನ್ನು ಸರಿಸಲು ಬಾಣದ ಕೀಗಳನ್ನು ಬಳಸಿ.',
   'focal.center': 'ಕೇಂದ್ರ',
@@ -611,7 +612,6 @@ export const kn: EditorMessages = {
   'region.pageGroup': 'ಪ್ರತಿ ಪುಟದಲ್ಲಿ',
   'region.pageHelp':
     'ಹೆಡರ್ ಮತ್ತು ಫುಟರ್ ಇಡೀ ಸೈಟ್‌ಗೆ ಸೇರಿವೆ. ಪ್ರಿವ್ಯೂನಲ್ಲಿ ಒಂದನ್ನು ಕ್ಲಿಕ್ ಮಾಡಿ, ಅಥವಾ ಇಲ್ಲಿ ಒಂದನ್ನು ಆರಿಸಿ.',
-  // The featured items section template.
   'sectionTemplate.featuredItems.label': 'ಮೂರು ಪ್ರಮುಖ ಐಟಂಗಳು',
   'sectionTemplate.featuredItems.description':
     'ಪ್ರತಿ ಚಿತ್ರ, ಶೀರ್ಷಿಕೆ ಮತ್ತು ಲಿಂಕ್ ಹೊಂದಿರುವ ಮೂರು ಐಟಂ ಕಾರ್ಡ್‌ಗಳು ಒಂದು ಸಾಲಿನಲ್ಲಿರುತ್ತವೆ.',

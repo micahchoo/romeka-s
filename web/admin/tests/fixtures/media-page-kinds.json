@@ -1,0 +1,104 @@
+[
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/media/960",
+    "@type": "o:Media",
+    "o:id": 960,
+    "o:is_public": true,
+    "o:owner": null,
+    "o:resource_class": null,
+    "o:resource_template": null,
+    "o:thumbnail": null,
+    "o:title": null,
+    "thumbnail_display_urls": {
+      "large": null,
+      "medium": null,
+      "square": null
+    },
+    "o:created": {
+      "@value": "2026-10-20T09:00:00+00:00",
+      "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+    },
+    "o:modified": null,
+    "o:ingester": "upload",
+    "o:renderer": "file",
+    "o:item": { "@id": "http://localhost/api/items/1", "o:id": 1 },
+    "o:source": "photo.jpg",
+    "o:media_type": "image/jpeg",
+    "o:sha256": "aaaa",
+    "o:size": 2048,
+    "o:filename": "photo.jpg",
+    "o:lang": null,
+    "o:alt_text": null,
+    "o:original_url": "http://localhost/files/original/photo.jpg",
+    "o:thumbnail_urls": {}
+  },
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/media/961",
+    "@type": "o:Media",
+    "o:id": 961,
+    "o:is_public": true,
+    "o:owner": null,
+    "o:resource_class": null,
+    "o:resource_template": null,
+    "o:thumbnail": null,
+    "o:title": null,
+    "thumbnail_display_urls": {
+      "large": null,
+      "medium": null,
+      "square": null
+    },
+    "o:created": {
+      "@value": "2026-10-20T09:01:00+00:00",
+      "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+    },
+    "o:modified": null,
+    "o:ingester": "upload",
+    "o:renderer": "file",
+    "o:item": { "@id": "http://localhost/api/items/1", "o:id": 1 },
+    "o:source": "tone.mp3",
+    "o:media_type": "audio/mpeg",
+    "o:sha256": "bbbb",
+    "o:size": 620,
+    "o:filename": "tone.mp3",
+    "o:lang": null,
+    "o:alt_text": null,
+    "o:original_url": "http://localhost/files/original/tone.mp3",
+    "o:thumbnail_urls": {}
+  },
+  {
+    "@context": "http://localhost/api-context",
+    "@id": "http://localhost/api/media/962",
+    "@type": "o:Media",
+    "o:id": 962,
+    "o:is_public": true,
+    "o:owner": null,
+    "o:resource_class": null,
+    "o:resource_template": null,
+    "o:thumbnail": null,
+    "o:title": null,
+    "thumbnail_display_urls": {
+      "large": null,
+      "medium": null,
+      "square": null
+    },
+    "o:created": {
+      "@value": "2026-10-20T09:02:00+00:00",
+      "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+    },
+    "o:modified": null,
+    "o:ingester": "upload",
+    "o:renderer": "file",
+    "o:item": { "@id": "http://localhost/api/items/1", "o:id": 1 },
+    "o:source": "report.pdf",
+    "o:media_type": "application/pdf",
+    "o:sha256": "cccc",
+    "o:size": 4096,
+    "o:filename": "report.pdf",
+    "o:lang": null,
+    "o:alt_text": null,
+    "o:original_url": "http://localhost/files/original/report.pdf",
+    "o:thumbnail_urls": {}
+  }
+]
