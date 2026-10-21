@@ -891,6 +891,98 @@ same way:
 first hero each fetch one more chunk; the assets table fetches the upload
 control with its route.
 
+## Decision 29: the initial ceiling moves to 88064 for the media wire members (accepted)
+
+**Measured.** After D3 (av-access) merged with main on 2026-10-21, `npm run perf:check` read
+`initial js 87041 B`, 1 B over the 87040 ceiling Decision 20 set when the payload was 84680 B. The
+2.4 KB between them went to the media run: the server media kind, the preview state and now the
+access-copy state on every media document (`src/api/parse.ts`, eager because every list parses
+media), and the shared upload client.
+
+**Tried first.** Moving `playerUrl` into the lazy media stage measured 87037 B once and 87041 B
+again with the helper copied exactly: gzip noise, not a saving. Sharing one parser for the preview
+and access members measured 87098 B: the shared helper cost more than the duplicate it removed,
+because gzip already compresses the repeat.
+
+**Budget.** `bundle.initialJsGzipBytes` moves from 87040 to 88064, which leaves 1023 B.
+
+**To win it back.** The media parse could load with the first route that shows media instead of the
+shell, if the list pages that do not show media stop parsing it eagerly. That is a structural
+change for its own unit, measured before and after.
+
+## Decision 30: the item page's notes and viewer load as their own chunks (accepted)
+
+**Change.** The item page gains each card's note count and Annotate action, the
+first file's notes summary, "All notes in this item", and a file viewer that
+shows the media page's stage over the page. None of it is eager: the summary and
+the grouped list are the `item-notes` chunk, the WAP container reader they share
+with the cards is `read`, and the viewer is `viewer`. The item route chunk keeps
+the card actions and the state that ties the three together. The actions and the
+summary read the existing `annotations` namespace, so an item page also fetches
+its `annotations-messages` chunk, which the media route already shares.
+
+**Measured.** `npm run build` then `npm run perf:check` and `npm run perf:pages`,
+gzip bytes, one build:
+
+| Asset | Before | After | Note |
+| --- | --- | --- | --- |
+| initial js | 86990 | 87006 | the route's new wiring, 34 B under 87040 |
+| initial css | 5447 | 5513 | the card action row, the aligned cards |
+| items route, own chunk | 5580 | 6649 | the actions and the viewer state |
+| `item-notes` | none | 1223 js, 443 css | the summary and the grouped list |
+| `read` | none | 296 | the container reader |
+| `viewer` | none | 1409 js, 499 css | the dialog and its camera |
+| largest chunk | 9785 | 9785 (`preview-*`) | 455 B under the ceiling |
+
+**Read cost.** The notes read is one WAP container request per file, in parallel,
+not one per page: `container(mediaId, { pages: 'first' })` stops after the first
+page, so a file with 300 notes still costs one request. The e2e item-notes spec
+measures 6 requests for 6 files, 846 ms from the navigation to the last group on
+the harness (debug server, one run, a warm machine). PERF.md's earlier
+measurement stands: parallel authenticated requests cost about one round, because
+`bcrypt::verify` dominates.
+
+**Verdict.** Accepted. No budget moved; the initial payload has 33 B of room, so
+the next eager addition has to move or split something.
+
+## Decision 31: the item page's note counts come from one read (accepted)
+
+**Premise.** Decision 30 left the item page reading one WAP container per visible file, because a
+card's count had no other source. That is 100 session-authenticated requests on a 100-file item.
+`GET /annotations/item/{id}/counts` now answers every file's count and write right in one document
+(`docs/api.md`, "Web Annotation Protocol"), and the page reads a container only for a file whose
+notes it draws.
+
+**Change.** `src/pages/items/notes/read.ts` fetches the counts, then one container for each file with
+a count above zero; a file with none costs an entry in the counts document and no request. The cards,
+the first file's summary and the grouped list all read the counts document, so the page holds one
+source for a count. The counts parse is in the same lazy `read` chunk, not in the eager media parse,
+so no list page pays for it.
+
+**Measured.** `npm run build` then `npm run perf:check` and `npm run perf:pages`, gzip bytes, against
+this branch's base (`802e978b`) built the same way from a `git archive` copy with the same
+`node_modules`:
+
+| Asset | Before | After | Note |
+| --- | --- | --- | --- |
+| initial js | 87054 | 87047 | inside the run-to-run gzip difference; no member was added to the eager parse |
+| initial css | 5513 | 5513 | |
+| items route, own chunk | 6654 | 6654 | |
+| items route, total with shared chunks | 56150 | 56139 | |
+| `read` | 295 | 625 | the counts fetch and its parser |
+| `item-notes` | 1222 js, 443 css | 1257 js, 443 css | counts replace the container's totals |
+| largest chunk | 9787 (`preview-*`) | 9786 (`preview-*`) | 454 B under the 10240 B ceiling |
+
+**Read cost.** `item-notes.spec.ts` creates a 6-file item with notes on 2 files and counts the
+requests the page makes: 1 counts read and 2 container reads, 837 ms from navigation to the last
+group on the harness (debug server, one run, a warm machine). Decision 30 measured 6 containers for
+the same path, 846 ms, so the wall clock did not move: one authenticated round is `bcrypt::verify`,
+and requests in parallel cost about what one costs. What changed is the request count, which is the
+part that grows with the item.
+
+**Verdict.** Accepted. No budget moved and the initial payload does not grow. A 100-file item now
+costs one counts read plus one container per file that has notes, instead of one per file.
+
 ## Budgets
 
 `timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,
@@ -910,22 +1002,56 @@ request on the server. The next step is a server-side change in
 `web/admin`. On the frontend the initial payload is 88411 B gzip (Decision 6) and the rest of
 the parse on the paint path is React, which Decision 3 measures.
 
-## Decision 29: the initial ceiling moves to 88064 for the media wire members (accepted)
+## Decision 31: the document parsers and the write encoders load with their routes (accepted, ends Decision 29's raise)
 
-**Measured.** After D3 (av-access) merged with main on 2026-10-21, `npm run perf:check` read
-`initial js 87041 B`, 1 B over the 87040 ceiling Decision 20 set when the payload was 84680 B. The
-2.4 KB between them went to the media run: the server media kind, the preview state and now the
-access-copy state on every media document (`src/api/parse.ts`, eager because every list parses
-media), and the shared upload client.
+**Measured, before.** `npm run build` then `npm run perf:check` on this branch: initial js 87043 B
+gzip against the 88064 B ceiling Decision 29 set. Decision 29 recorded 87041 B for the same code;
+the 2 B is gzip noise between builds.
 
-**Tried first.** Moving `playerUrl` into the lazy media stage measured 87037 B once and 87041 B
-again with the helper copied exactly: gzip noise, not a saving. Sharing one parser for the preview
-and access members measured 87098 B: the shared helper cost more than the duplicate it removed,
-because gzip already compresses the repeat.
+**Change.** Three moves, each of which takes a module out of the shell without adding a request to a
+route's first paint:
 
-**Budget.** `bundle.initialJsGzipBytes` moves from 87040 to 88064, which leaves 1023 B.
+- `src/api/media.ts` owns the media document (`parseMedia`), the player URL, `mediaIdFromParam` and
+  the five media calls. The media routes and the editor's media fields import it, so it arrives with
+  their chunk. `src/api/parse.ts` no longer names a media field, and `client.ts` has no media
+  method.
+- `src/api/vocabularies.ts` owns the vocabulary document, the diff parser and the eight vocabulary
+  calls. The vocabularies, properties, resource classes and resource templates routes import it.
+  Classes, properties and templates keep their calls in `client.ts`, because every form's option
+  lists read them and they share `parseVocabularyMember`.
+- `client.ts` fetches `src/api/write.ts` with the first save (`writeEncoders()`), not with the
+  shell. The sites pages import the encoders themselves, so the module arrives with their route as
+  it did before, from the entry instead of from the route. Every other form fetches it once, after
+  the curator has filled the form and pressed save.
 
-**To win it back.** The media parse could load with the first route that shows media instead of the
-shell, if the list pages that do not show media stop parsing it eagerly. That is a structural
-change for its own unit, measured before and after.
+Both new modules follow the pattern `src/api/term-lists.ts` set: a resource family whose pages are
+lazy keeps its parser and its calls in its own module, and the shared parse helpers stay in
+`parse.ts`.
+
+**Measured, after each move.** The same tree, `npm run build` then `npm run perf:check`, gzip bytes:
+
+| Step | initial js | Cut |
+| --- | --- | --- |
+| before | 87043 | |
+| `src/api/media.ts` | 86538 | 505 |
+| `write.ts` behind `writeEncoders()` | 85435 | 1103 |
+| `src/api/vocabularies.ts` | 85088 | 347 |
+
+These are single builds on one machine. The total is 1955 B, 2.2% of the 87043 B. The split between
+the steps is what each build reported; a gzip difference of a few bytes between two builds of the
+same code is noise, so the 505 B is the least certain of the three.
+
+**First paint.** The media and vocabulary modules ride the chunk of the route that imports them, so
+no route waits on a new request. The shell's first paint drops 1955 B of parsing.
+
+**Limitation.** A form outside the sites route fetches the 1695 B encoder chunk on its first save,
+between the press and the `POST`. Only the first save of a session pays it; the sites routes fetch
+it with their own chunk. The budget spec's create round trip is a median of five runs, so its median
+does not include that one request. The same run on this tree passed every timing budget: create
+round trip median 10.3 ms of 400 ms, first contentful paint 76.0 ms of 250 ms.
+
+**Budget.** `bundle.initialJsGzipBytes` moves from 88064 to 87552, the measured 85088 plus 2464 B.
+That is 104 B more room than Decision 20 left (2360 B) and 96 B less than the 2.5 KB this unit was
+asked to leave. The per-chunk ceilings do not move; the largest lazy chunk is 9804 B.
+
 

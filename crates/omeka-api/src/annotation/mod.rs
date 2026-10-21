@@ -37,11 +37,11 @@ use std::pin::Pin;
 
 use chrono::NaiveDateTime;
 use omeka_db::DbError;
-use omeka_db::ids::MediaId;
+use omeka_db::ids::{ItemId, MediaId};
 use omeka_db::repos::MediaRepo;
 use omeka_db::repos::{
     ChangeOutcome, Cue, InsertOutcome, MediaAnnotationRepo, MediaAnnotationRow,
-    MediaAnnotationWrite, RestoredCue, TrackOutcome, UndoOutcome,
+    MediaAnnotationWrite, MediaFilter, Paging, RestoredCue, TrackOutcome, UndoOutcome,
 };
 use omeka_db::rows::MediaRow;
 use omeka_db::{DbPool, with_db};
@@ -109,6 +109,18 @@ pub struct Summary {
 pub struct TrackRef {
     pub lang: Option<String>,
     pub cues: u32,
+}
+
+/// One file's note count on an item page, with the rights its container states.
+///
+/// A count and its rights come from the item's one counts read: the page draws
+/// a card's count and its write action from this, so it never reads a container
+/// just to learn what the card says.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NoteCount {
+    pub media: MediaId,
+    pub count: u32,
+    pub rights: Rights,
 }
 
 /// Which rows a notes view reads.
@@ -372,7 +384,7 @@ impl<'a> Annotations<'a> {
         if readable.is_empty() {
             return Ok(HashMap::new());
         }
-        let (open, hidden) = split(&readable);
+        let (open, hidden) = split(readable.iter().map(|(media, rights)| (media.id, *rights)));
         let mut rows = Vec::new();
         let mut totals = HashMap::new();
         if !open.is_empty() {
@@ -435,30 +447,40 @@ impl<'a> Annotations<'a> {
         Ok(summaries)
     }
 
-    /// The note count of every readable media, under the caller's rights.
+    /// The note count of every readable media, under the caller's rights. One
+    /// grouped query per rights group, and no extent: a count never opens a file.
     pub async fn counts(
         &self,
         media: &[MediaId],
     ) -> Result<HashMap<MediaId, u32>, AnnotationError> {
-        let readable = self.readable(media).await?;
-        let (open, hidden) = split(&readable);
-        let mut totals = HashMap::new();
-        if !open.is_empty() {
-            totals = with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
-                .authored()
-                .counts(&open, None)
-                .await)?;
-        }
-        if !hidden.is_empty() {
-            totals.extend(with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
-                .authored()
-                .counts(&hidden, Some(&["supplementing"]))
-                .await)?);
-        }
+        let readable = self.readable_rows(media).await?;
+        let mut totals = self.totals(&readable).await?;
         for (media, _) in &readable {
-            totals.entry(media.id).or_insert(0);
+            totals.entry(media.id()).or_insert(0);
         }
         Ok(totals)
+    }
+
+    /// The note count of every media of one item the caller may read, in the
+    /// item's own order, each with the rights its container would state.
+    ///
+    /// The item page's cards, its first-file summary and its grouped list read
+    /// this one answer, so a visit asks once for the counts it draws instead of
+    /// asking each file's container. A media the caller may not read is absent,
+    /// and the counts are exactly the container's `total`: the read is one
+    /// statement for the item's media and one grouped count statement per
+    /// rights group, which is one when every file answers the same rights.
+    pub async fn item_counts(&self, item: ItemId) -> Result<Vec<NoteCount>, AnnotationError> {
+        let readable = self.visible_of_item(item).await?;
+        let totals = self.totals(&readable).await?;
+        Ok(readable
+            .iter()
+            .map(|(media, rights)| NoteCount {
+                media: media.id(),
+                count: totals.get(&media.id()).copied().unwrap_or(0),
+                rights: *rights,
+            })
+            .collect())
     }
 
     pub async fn get(&self, id: AnnotationId) -> Result<Annotation, AnnotationError> {
@@ -906,36 +928,106 @@ impl<'a> Annotations<'a> {
             .ok_or(AnnotationError::NotFound)
     }
 
-    /// The media the caller may read, with its rights. Media the caller may not
-    /// read are absent, which is the 404 every route answers for them.
+    /// The media the caller may read, with its rights and its extent. An
+    /// extent can open a file, so only a caller that draws the media asks for
+    /// one; a count goes through [`Self::readable_rows`].
     async fn readable(
         &self,
         media: &[MediaId],
     ) -> Result<Vec<(MediaRef, Rights)>, AnnotationError> {
-        let annotations_public = settings::annotations_public(self.pool).await?;
-        let mut seen = HashSet::new();
-        let mut readable = Vec::with_capacity(media.len());
-        for id in media {
-            if !seen.insert(*id) {
-                continue;
-            }
-            let Some(row) = self.readable_row(*id).await? else {
-                continue;
-            };
-            let rights = access::level(self.actor, &row, annotations_public);
+        let rows = self.readable_rows(media).await?;
+        let mut readable = Vec::with_capacity(rows.len());
+        for (row, rights) in rows {
             let extent = self.extents.extent(&row).await;
             readable.push((media_ref(&row, extent), rights));
         }
         Ok(readable)
     }
 
-    async fn readable_row(&self, media: MediaId) -> Result<Option<MediaRow>, AnnotationError> {
-        Ok(
-            with_db!(self.pool, |db| MediaRepo::new(db).get(media).await)?.filter(|row| {
+    /// The media the caller may read, with its rights: the rows, no extent.
+    async fn readable_rows(
+        &self,
+        media: &[MediaId],
+    ) -> Result<Vec<(MediaRow, Rights)>, AnnotationError> {
+        let annotations_public = settings::annotations_public(self.pool).await?;
+        let mut seen = HashSet::new();
+        let mut rows = Vec::with_capacity(media.len());
+        for id in media {
+            if !seen.insert(*id) {
+                continue;
+            }
+            if let Some(row) = self.media_row(*id).await? {
+                rows.push(row);
+            }
+        }
+        Ok(self.visible(rows, annotations_public))
+    }
+
+    /// The media of one item the caller may read, with its rights, in the
+    /// item's order. One statement, then the same visibility the reads use.
+    async fn visible_of_item(
+        &self,
+        item: ItemId,
+    ) -> Result<Vec<(MediaRow, Rights)>, AnnotationError> {
+        let annotations_public = settings::annotations_public(self.pool).await?;
+        let rows = with_db!(self.pool, |db| MediaRepo::new(db)
+            .list(
+                &MediaFilter {
+                    item_id: Some(item),
+                    ..MediaFilter::default()
+                },
+                &Paging {
+                    limit: None,
+                    offset: None,
+                },
+            )
+            .await)?;
+        Ok(self.visible(rows, annotations_public))
+    }
+
+    /// The rows the caller may read, each with the rights its container would
+    /// state. Every read applies the one rule here.
+    fn visible(&self, rows: Vec<MediaRow>, annotations_public: bool) -> Vec<(MediaRow, Rights)> {
+        rows.into_iter()
+            .filter(|row| {
                 self.actor
                     .sees_resource(row.resource.is_public, row.resource.owner_id)
-            }),
-        )
+            })
+            .map(|row| {
+                let rights = access::level(self.actor, &row, annotations_public);
+                (row, rights)
+            })
+            .collect()
+    }
+
+    /// The count of each readable media's notes, one grouped query per rights
+    /// group. A media with no row is absent from the map.
+    async fn totals(
+        &self,
+        readable: &[(MediaRow, Rights)],
+    ) -> Result<HashMap<MediaId, u32>, AnnotationError> {
+        let (open, hidden) = split(readable.iter().map(|(row, rights)| (row.id(), *rights)));
+        let mut totals = HashMap::new();
+        if !open.is_empty() {
+            totals = with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
+                .authored()
+                .counts(&open, None)
+                .await)?;
+        }
+        if !hidden.is_empty() {
+            totals.extend(with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
+                .authored()
+                .counts(&hidden, Some(&["supplementing"]))
+                .await)?);
+        }
+        Ok(totals)
+    }
+
+    /// One media row, whatever its visibility: [`Self::visible`] applies that.
+    async fn media_row(&self, media: MediaId) -> Result<Option<MediaRow>, AnnotationError> {
+        Ok(with_db!(self.pool, |db| MediaRepo::new(db)
+            .get(media)
+            .await)?)
     }
 }
 
@@ -1047,13 +1139,13 @@ fn named_first(candidate: Option<&str>, current: Option<&str>) -> bool {
 }
 
 /// The readable media split by the switch: captions only, or everything.
-fn split(readable: &[(MediaRef, Rights)]) -> (Vec<MediaId>, Vec<MediaId>) {
+fn split(readable: impl Iterator<Item = (MediaId, Rights)>) -> (Vec<MediaId>, Vec<MediaId>) {
     let mut open = Vec::new();
     let mut hidden = Vec::new();
     for (media, rights) in readable {
         match rights {
-            Rights::ReadCaptionsOnly => hidden.push(media.id),
-            Rights::Read | Rights::ReadWrite => open.push(media.id),
+            Rights::ReadCaptionsOnly => hidden.push(media),
+            Rights::Read | Rights::ReadWrite => open.push(media),
         }
     }
     (open, hidden)

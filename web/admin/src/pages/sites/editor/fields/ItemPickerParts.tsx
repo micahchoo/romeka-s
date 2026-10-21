@@ -6,6 +6,7 @@
 import type { KeyboardEvent, ReactElement, Ref } from 'react';
 import { useState } from 'react';
 import { api } from '../../../../api/client';
+import { listMediaForItem } from '../../../../api/media';
 import type { Item, ItemId, ItemSet, ItemSetId, Media } from '../../../../api/types';
 import { mediaName, previewImageUrl } from '../../../../app/media';
 import { MediaImage } from '../../../../app/media-image';
@@ -199,7 +200,7 @@ const MediaStrip = ({ item }: { readonly item: Item }): ReactElement | null => {
     async (): Promise<readonly Media[]> =>
       item.media.length === 0
         ? []
-        : (await api.listMediaForItem(item.id, { perPage: PEEK_MEDIA })).items,
+        : (await listMediaForItem(api, item.id, { perPage: PEEK_MEDIA })).items,
     [item.id],
   );
   const media = state.status === 'ready' ? state.data : [];

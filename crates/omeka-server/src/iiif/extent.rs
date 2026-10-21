@@ -25,11 +25,9 @@ use omeka_db::repos::{ExtentRow, MediaExtentRepo};
 use omeka_db::rows::MediaRow;
 use omeka_db::{DbPool, with_db};
 use omeka_media::av_probe;
-use omeka_media::file_render::ThumbnailType;
 use omeka_media::iiif_image::source_size;
 use omeka_media::image_metadata;
 use omeka_media::kind::{Extent, KindInput, MediaKind};
-use omeka_media::media_type::is_raw_media_type;
 use omeka_media::store::{Store, StorePrefix, storage_path};
 use omeka_media::tool::Tools;
 use tokio::sync::Semaphore;
@@ -124,7 +122,7 @@ impl Extents {
     pub(crate) async fn of(&self, media: &MediaRow) -> Extent {
         match self.kind(media) {
             MediaKind::LocalImage => Extent {
-                size: self.image(&display_path(media)).await,
+                size: self.image(&display_path(self.store.as_ref(), media)).await,
                 duration_ms: None,
             },
             MediaKind::Audio | MediaKind::Video => {
@@ -192,23 +190,21 @@ impl omeka_api::annotation::ExtentSource for Extents {
     }
 }
 
-/// The image the media page draws: the original, or for a camera RAW, whose
-/// sensor data no decoder here reads, the preview-derived large derivative
-/// (`iiif::image::StoredImage::of` makes the same choice for the manifest and
-/// the Image API). Notes address the pixels the reader sees, so their canvas is
-/// this image.
-fn display_path(media: &MediaRow) -> String {
-    if media.media_type.as_deref().is_some_and(is_raw_media_type) {
-        return match media.storage_id.as_deref() {
-            Some(storage_id) => storage_path(
-                StorePrefix::Thumbnail(ThumbnailType::Large),
-                storage_id,
-                Some("jpg"),
-            ),
-            None => String::new(),
-        };
+/// The image a canvas for this media is: the JPEG access master when the store
+/// holds one, else the original, or the derivative that stands in for an
+/// original no decoder here reads. `iiif::image::StoredImage::of` asks the same
+/// function for the manifest and the Image API, so notes address the pixels the
+/// reader sees and the canvas is the space they are placed in.
+fn display_path(store: &dyn Store, media: &MediaRow) -> String {
+    match media.storage_id.as_deref() {
+        Some(storage_id) => omeka_media::access::display_path(
+            store,
+            storage_id,
+            media.extension.as_deref(),
+            media.media_type.as_deref(),
+        ),
+        None => String::new(),
     }
-    original_path(media)
 }
 
 /// The storage path of a media row's original.

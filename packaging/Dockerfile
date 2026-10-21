@@ -13,11 +13,12 @@
 # The context is the whole workspace because the Rust and SPA stages compile it.
 # packaging/Dockerfile.dockerignore keeps the context small.
 #
-# The stages in order: the SPA, the Rust binary, the ffmpeg build, the media
-# tools, the office document tools, Caddy with its low-port capability, and the
-# runtime that joins them. `--target media-tools` builds the tools alone and
-# `--target office-tools` adds LibreOffice to them (packaging/README.md says
-# why, with the measured size).
+# The stages in order: the SPA, the Rust binary, the ffmpeg build, the base
+# media tools every image shares, the separate full tools image, the office
+# document tools, Caddy with its low-port capability, and the runtime that joins
+# them. `--target media-tools` builds the tools image alone and
+# `--target office-tools` adds LibreOffice to it; `packaging/README.md` says why,
+# with the measured size, and how a job calls either.
 
 # Stage 1: the admin SPA bundle.
 FROM node:22-bookworm-slim AS web
@@ -78,6 +79,8 @@ ARG FFMPEG_VERSION=7.1.5
 ARG FFMPEG_SHA256=de668509caf9e35e3cd162473441fdb29538c6d96ed080292b3cf9e6fc5d558f
 ARG DAV1D_VERSION=1.5.1
 ARG DAV1D_SHA256=401813f1f89fa8fd4295805aa5284d9aed9bc7fc1fdbe554af4292f64cbabe21
+ARG X264_COMMIT=b35605ace3ddf7c1a5d67a2eb553f034aef41d55
+ARG X264_SHA256=6eeb82934e69fd51e043bd8c5b0d152839638d1ce7aa4eea65a3fedcf83ff224
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
@@ -97,65 +100,130 @@ RUN set -eux; \
         --buildtype=release --default-library=static --libdir=lib \
         -Denable_tools=false -Denable_tests=false --prefix=/opt/dav1d; \
     ninja -C dav1d/build install
+# x264 is the H.264 encoder the playable copies use (`video_mp4_args` in
+# crates/omeka-media/src/tool.rs). FFmpeg has no native H.264 encoder, and an
+# image without it fails every video copy with "Option not found" (measured on
+# 8124, 2026-10-21). x264 is GPL-2.0-or-later, which this GPL-3.0 project may
+# link; the stable branch head is pinned by commit and archive hash.
+RUN set -eux; \
+    curl -fsSLo x264.tar.bz2 \
+        "https://code.videolan.org/videolan/x264/-/archive/${X264_COMMIT}/x264-${X264_COMMIT}.tar.bz2"; \
+    echo "${X264_SHA256}  x264.tar.bz2" | sha256sum -c -; \
+    mkdir x264; \
+    tar -xjC x264 --strip-components=1 -f x264.tar.bz2; \
+    cd x264; \
+    ./configure --prefix=/opt/x264 --enable-static --enable-pic --disable-cli; \
+    make -j"$(nproc)"; \
+    make install
 # `--disable-network` also drops every protocol but a local file and a pipe,
-# which is all the tools use. Wave U8's transcodes add their encoders to this
-# configure line (`--enable-libx264` and an x264 build; AAC is native).
+# which is all the tools use. AAC is FFmpeg's own encoder.
 RUN set -eux; \
     curl -fsSLo ffmpeg.tar.xz "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz"; \
     echo "${FFMPEG_SHA256}  ffmpeg.tar.xz" | sha256sum -c -; \
     mkdir ffmpeg; \
     tar -xJC ffmpeg --strip-components=1 -f ffmpeg.tar.xz; \
     cd ffmpeg; \
-    PKG_CONFIG_PATH=/opt/dav1d/lib/pkgconfig ./configure \
+    PKG_CONFIG_PATH=/opt/dav1d/lib/pkgconfig:/opt/x264/lib/pkgconfig ./configure \
         --prefix=/opt/ffmpeg \
         --disable-autodetect --enable-zlib --enable-libdav1d \
+        --enable-gpl --enable-libx264 \
         --disable-doc --disable-debug --disable-shared --enable-static --enable-small \
         --disable-network --enable-protocol=file,pipe; \
     make -j"$(nproc)"; \
     install -D -m 0755 ffmpeg /opt/ffmpeg/bin/ffmpeg; \
     install -D -m 0755 ffprobe /opt/ffmpeg/bin/ffprobe
+# The image proves it can make a playable copy: the encoder arguments of
+# `video_mp4_args`, on a generated second of picture and tone. A build whose
+# ffmpeg lacks an encoder those arguments name fails here, not on a curator's file.
+RUN set -eux; \
+    /opt/ffmpeg/bin/ffmpeg -hide_banner -loglevel error \
+        -f lavfi -i testsrc=duration=1:size=320x240:rate=25 \
+        -f lavfi -i sine=duration=1 \
+        -map 0:v:0 -map 1:a \
+        -vf "scale=w='if(gte(iw,ih),-2,min(iw,1080))':h='if(gte(iw,ih),min(ih,1080),-2)'" \
+        -c:v libx264 -preset medium -crf 23 -pix_fmt yuv420p \
+        -c:a aac -b:a 128k -movflags +faststart /tmp/selftest.mp4; \
+    /opt/ffmpeg/bin/ffprobe -v error -show_entries stream=codec_name -of csv=p=0 /tmp/selftest.mp4 | sort | tr '\n' ' ' | grep -qx 'aac h264 '; \
+    rm /tmp/selftest.mp4
 
-# Stage 4: the media tools. This stage is also the plan's separate tools image
-# for the derivative jobs of wave U8 (`briefs/media-ui-plan.md`, open call 2):
+# Stage 4: the media tools every image shares. Each command is optional at
+# runtime (`crates/omeka-media/src/tool.rs`): an installation that drops one
+# skips that derivative with the command's name as the reason, never an error.
 #
-#     docker build -f packaging/Dockerfile --target media-tools -t romeka-s:media-tools .
-#
-# Every command is optional at runtime (`crates/omeka-media/src/tool.rs`): an
-# installation that drops one skips that derivative with the command's name as
-# the reason, never an error. Each line names what asks for it.
-FROM debian:bookworm-slim AS media-tools
+# `pdftoppm` (poppler-utils) makes a PDF's first page, and `exiftool`
+# (libimage-exiftool-perl) extracts the full-size JPEG a camera RAW file embeds,
+# so a NEF gets a JPEG access master without decoding its sensor data. Both are
+# small enough for every deployment (measured 2026-10-21, `packaging/README.md`).
+FROM debian:bookworm-slim AS media-base
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
+        ca-certificates \
         libimage-exiftool-perl \
         poppler-utils; \
-    rm -rf /var/lib/apt/lists/*
-# `pdftoppm` (poppler-utils) makes a PDF's first page; `exiftool`
-# (libimage-exiftool-perl) extracts the full-size JPEG a camera RAW file
-# embeds, so a NEF gets derivatives without decoding its sensor data.
-#
-# Wave U8 adds vips (TIFF, PSD, EXR, HEIC), libraw and ghostscript to the apt
-# line above. Measure the installed size of that addition before taking it.
+    rm -rf /var/lib/apt/lists/*; \
+    groupadd --system romeka; \
+    useradd --system --gid romeka --home-dir /data --shell /usr/sbin/nologin romeka; \
+    mkdir -p /db /data/files; \
+    chown -R romeka:romeka /db /data
 COPY --from=ffmpeg-build /opt/ffmpeg /opt/ffmpeg
 # `ffmpeg` makes a video's poster and decodes AVIF and HEIC, and its `ffprobe`
 # reads the duration and frame size a time-based IIIF canvas needs.
 ENV PATH=/opt/ffmpeg/bin:$PATH
 
-# Stage 4b: LibreOffice, the office document tools. This is deliberately not
-# part of the runtime image: measured 2026-10-21, the three -nogui packages and
-# their fonts add 401 MB on top of the 209 MB tools stage, where the whole
-# runtime image is 343 MB. An install that wants a PDF access copy of a .docx
-# runs the job runner from this image against the same database and store:
+# Stage 5: the separate tools image the job runner calls, for the formats the
+# main image leaves out. It is the same worker binary with every access-copy
+# command installed:
+#
+#     docker build -f packaging/Dockerfile --target media-tools -t romeka-s:media-tools .
+#     docker run --rm -v romeka_db:/db -v romeka_files:/data/files \
+#         romeka-s:media-tools media derivatives --database /db/romeka.db --store /data/files
+#
+# `vips` (`libvips-tools`, with its TIFF, HEIC, PSD and EXR loaders) makes the
+# JPEG access master for a layout the image crate refuses, `dcraw_emu`
+# (`libraw-bin`) decodes a RAW with no embedded preview, and `gs`
+# (`ghostscript`) rasterises page one of an EPS, AI or PS file. Measured, that
+# set adds 232 MB, which is why it is a second image rather than every
+# deployment's (see `packaging/README.md`).
+FROM media-base AS media-tools
+# The access-copy commands this image adds, as one list so a new one is measured
+# before it is taken (`packaging/README.md`, "The media tools"). Building with an
+# empty or shorter list is how each command's size was measured
+# (`.evidence/tool-sizes.sh` in the unit that added them):
+#
+#     docker build -f packaging/Dockerfile --target media-tools \
+#         --build-arg MEDIA_TOOLS_EXTRA=libvips-tools -t romeka-s:measure-vips .
+ARG MEDIA_TOOLS_EXTRA="ghostscript libraw-bin libvips-tools"
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        ${MEDIA_TOOLS_EXTRA}; \
+    rm -rf /var/lib/apt/lists/*
+COPY --from=build /out/romeka /usr/local/bin/romeka
+WORKDIR /data
+USER romeka
+ENTRYPOINT ["/usr/local/bin/romeka"]
+
+# Stage 6: the office document tools. LibreOffice turns a document into the PDF
+# access copy a reader and a canvas need, and it is deliberately not part of the
+# runtime image: measured 2026-10-21, the three `-nogui` packages and their fonts
+# add 401 MB, where the whole runtime image is 343 MB. An install that wants the
+# copies runs the same job runner from this image against the server's database
+# and store:
 #
 #     docker build -f packaging/Dockerfile --target office-tools -t romeka-s:office-tools .
-#     docker run --rm -v romeka-db:/db -v romeka-files:/data/files \
-#         romeka-s:office-tools romeka media derivatives --retry
+#     docker run --rm -v romeka_db:/db -v romeka_files:/data/files \
+#         romeka-s:office-tools media derivatives --database /db/romeka.db --store /data/files
 #
-# The `-nogui` packages are LibreOffice's headless builds; there is no X
-# server in this image and `soffice --headless` needs none. DejaVu and
-# Liberation are the fonts a document names; without them a PDF substitutes a
-# different face and its line breaks move.
+# `--retry` puts back the rows a server without LibreOffice settled with
+# `needs soffice, not installed`. The `-nogui` packages are LibreOffice's
+# headless builds, and there is no X server in this image. DejaVu and Liberation
+# are the fonts a document names; without them a PDF substitutes a different
+# face and its line breaks move.
 FROM media-tools AS office-tools
+# The tools image runs as `romeka`; the package install needs root, and the image
+# goes back to the job runner's user for the copies it writes.
+USER root
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
@@ -165,14 +233,9 @@ RUN set -eux; \
         fonts-dejavu \
         fonts-liberation; \
     rm -rf /var/lib/apt/lists/*
-# The job runner is this image's entry point: the CLI, pointed at the server's
-# database and store, makes the copies the server queued and left for it.
-COPY --from=build /out/romeka /usr/local/bin/romeka
-ENV ROMEKA_DB=/db/romeka.db \
-    ROMEKA_STORE=/data/files
-WORKDIR /data
+USER romeka
 
-# Stage 5: Caddy with its low-port capability set. The capability is an xattr
+# Stage 7: Caddy with its low-port capability set. The capability is an xattr
 # on the binary and the runtime's COPY preserves it, so the 52 MiB binary is
 # copied into the image once. Setting it in the runtime would copy the file up
 # into a second layer of the same size.
@@ -184,9 +247,9 @@ FROM caddy:2.11-alpine AS caddy
 RUN apk add --no-cache libcap \
     && setcap cap_net_bind_service=+ep /usr/bin/caddy
 
-# Stage 6: the runtime. It starts from the tools stage, so the tool list and
-# their provenance above is the only place either is written down.
-FROM media-tools AS runtime
+# Stage 8: the runtime. It starts from the base tools stage, so the tool list
+# and their provenance above is the only place either is written down.
+FROM media-base AS runtime
 COPY --from=caddy /usr/bin/caddy /usr/local/bin/caddy
 # Caddy terminates TLS on :80 and :443 and the container runs as a non-root
 # user, so the low-port capability is attached to the binary. A container that
@@ -204,11 +267,9 @@ COPY --from=caddy /usr/bin/caddy /usr/local/bin/caddy
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
-        bash ca-certificates curl libcap2-bin media-types; \
+        bash curl libcap2-bin media-types; \
     rm -rf /var/lib/apt/lists/*; \
-    groupadd --system romeka; \
-    useradd --system --gid romeka --home-dir /data --shell /usr/sbin/nologin romeka; \
-    mkdir -p /db /data/files /srv/dist /srv/caddy/data /srv/caddy/config /archive; \
+    mkdir -p /srv/dist /srv/caddy/data /srv/caddy/config /archive; \
     chown -R romeka:romeka /db /data /srv
 
 COPY --from=build /out/romeka /usr/local/bin/romeka

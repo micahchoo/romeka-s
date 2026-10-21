@@ -442,6 +442,68 @@ mod tests {
         (run.finish(), seen)
     }
 
+    /// A copy keeps 1080 lines on the short side: a 720p source keeps its frame,
+    /// a 4K one becomes 1920x1080, and a portrait 4K one 1080x1920. (A first
+    /// cut capped both sides at 1080, so a 1280x720 AVI became 1080x608.)
+    #[test]
+    fn a_copy_keeps_up_to_1080_lines_on_the_short_side() {
+        let tools = Tools::on_path();
+        let Some(ffmpeg) = tools.ffmpeg() else {
+            eprintln!("skipping: no ffmpeg on PATH");
+            return;
+        };
+        if tools.ffprobe().is_none() {
+            eprintln!("skipping: no ffprobe on PATH");
+            return;
+        }
+        for (made, kept) in [
+            ((1280, 720), (1280, 720)),
+            ((3840, 2160), (1920, 1080)),
+            ((2160, 3840), (1080, 1920)),
+        ] {
+            let dir = tempfile::tempdir().expect("tempdir");
+            let sample = dir.path().join("sample.avi");
+            let status = std::process::Command::new(ffmpeg)
+                .args(["-v", "error", "-y", "-f", "lavfi", "-i"])
+                .arg(format!(
+                    "testsrc=duration=0.4:size={}x{}:rate=5",
+                    made.0, made.1
+                ))
+                .args(["-c:v", "mjpeg"])
+                .arg(&sample)
+                .status()
+                .expect("ffmpeg runs");
+            assert!(status.success(), "the sample was made");
+            let store = FileStore::new(dir.path(), "/files");
+            let storage_id = "scale-sample";
+            let original = storage_path(StorePrefix::Original, storage_id, Some("avi"));
+            store
+                .put(
+                    &std::fs::read(&sample).expect("the sample"),
+                    &original,
+                    Some("video/x-msvideo"),
+                )
+                .expect("store");
+            let run = Transcode::start(
+                Arc::new(store),
+                tools.clone(),
+                TranscodeSource {
+                    storage_id: storage_id.to_string(),
+                    extension: Some("avi".to_string()),
+                    media_type: Some("video/x-msvideo".to_string()),
+                    has_original: true,
+                },
+                AccessTarget::Mp4,
+            )
+            .expect("a worker");
+            let (work, _) = poll(run);
+            assert!(matches!(work, TranscodeWork::Ready { .. }), "{work:?}");
+            let copy = dir.path().join(copy_path(storage_id, AccessTarget::Mp4));
+            let copied = av_probe::probe_with(tools, &copy).expect("the copy");
+            assert_eq!(copied.size, Some(kept), "a {made:?} source");
+        }
+    }
+
     /// An MJPEG AVI becomes a playable MP4 under `access/`, at the same
     /// duration, and the trailer records the progress it reported.
     #[test]

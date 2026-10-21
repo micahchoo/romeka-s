@@ -16,8 +16,6 @@ import {
   parseItemSet,
   parseJob,
   parseListOf,
-  parseMedia,
-  parseMediaPlayer,
   parseModule,
   parsePasswordLink,
   parseSiteItemsChange,
@@ -30,8 +28,6 @@ import {
   parseStalePage,
   parseGlobalSettings,
   parseUser,
-  parseVocabulary,
-  parseVocabularyDiff,
 } from './parse';
 import type {
   ApiErrors,
@@ -49,9 +45,6 @@ import type {
   ItemSetWrite,
   ItemWrite,
   Job,
-  Media,
-  MediaId,
-  MediaWrite,
   Module,
   PageId,
   Parser,
@@ -77,30 +70,8 @@ import type {
   UserWrite,
   GlobalSettings,
   GlobalSettingsWrite,
-  Vocabulary,
-  VocabularyId,
   VocabularyMemberWrite,
-  VocabularyWrite,
-  VocabularyDiff,
-  VocabularySource,
 } from './types';
-import {
-  encodeAsset,
-  encodeItem,
-  encodeItemSet,
-  encodeMedia,
-  encodeResourceTemplate,
-  encodeSiteCreate,
-  encodeSiteItemsCommand,
-  encodeSitePage,
-  encodeUser,
-  encodeUserSettings,
-  encodeVocabulary,
-  encodeVocabularyDiff,
-  encodeVocabularyImport,
-  encodeVocabularySource,
-  encodeVocabularyMember,
-} from './write';
 import type { WireBody } from './write';
 
 declare global {
@@ -278,6 +249,15 @@ const readJsonBody = async (response: Response): Promise<unknown> => {
   return parseJson(text);
 };
 
+/**
+ * The request encoders, fetched with the first save rather than with the shell.
+ * A save is a click after a form has been filled, so the one chunk request it
+ * costs is off the first paint; a route that imports `write.ts` itself already
+ * fetches it with its own chunk.
+ */
+let encoders: Promise<typeof import('./write')> | null = null;
+const writeEncoders = (): Promise<typeof import('./write')> => (encoders ??= import('./write'));
+
 export const defaultBaseUrl = (): string => window.ROMEKA_BASE ?? '';
 
 const defaultFetch: typeof fetch = (input, init) => globalThis.fetch(input, init);
@@ -311,20 +291,6 @@ export class ApiClient {
     return parseItem(raw);
   }
 
-  async getMedia(id: MediaId): Promise<Media> {
-    const raw = await this.requestJson(`/api/media/${String(id)}`);
-    return parseMedia(raw);
-  }
-
-  /**
-   * The provider's own player URL for an embed media, or `null` when the
-   * server's render is not one allow-listed frame (`/api/romeka/media/{id}/player`).
-   */
-  async getMediaPlayer(id: MediaId): Promise<string | null> {
-    const raw = await this.requestJson(`/api/romeka/media/${String(id)}/player`);
-    return parseMediaPlayer(raw);
-  }
-
   async getItemSet(id: ItemSetId): Promise<ItemSet> {
     const raw = await this.requestJson(`/api/item_sets/${String(id)}`);
     return parseItemSet(raw);
@@ -333,11 +299,6 @@ export class ApiClient {
   async getUser(id: UserId): Promise<User> {
     const raw = await this.requestJson(`/api/users/${String(id)}`);
     return parseUser(raw);
-  }
-
-  async getVocabulary(id: VocabularyId): Promise<Vocabulary> {
-    const raw = await this.requestJson(`/api/vocabularies/${String(id)}`);
-    return parseVocabulary(raw);
   }
 
   async getProperty(id: PropertyId): Promise<Property> {
@@ -356,37 +317,44 @@ export class ApiClient {
   }
 
   async createItem(write: ItemWrite): Promise<Item> {
+    const { encodeItem } = await writeEncoders();
     return parseItem(await this.writeJson('POST', '/api/items', encodeItem(write, 'create')));
   }
 
   async updateItem(id: ItemId, write: ItemWrite): Promise<Item> {
+    const { encodeItem } = await writeEncoders();
     return parseItem(
       await this.writeJson('PUT', `/api/items/${String(id)}`, encodeItem(write, 'update')),
     );
   }
 
   async createItemSet(write: ItemSetWrite): Promise<ItemSet> {
+    const { encodeItemSet } = await writeEncoders();
     return parseItemSet(
       await this.writeJson('POST', '/api/item_sets', encodeItemSet(write, 'create')),
     );
   }
 
   async updateItemSet(id: ItemSetId, write: ItemSetWrite): Promise<ItemSet> {
+    const { encodeItemSet } = await writeEncoders();
     return parseItemSet(
       await this.writeJson('PUT', `/api/item_sets/${String(id)}`, encodeItemSet(write, 'update')),
     );
   }
 
   async createUser(write: UserWrite): Promise<User> {
+    const { encodeUser } = await writeEncoders();
     return parseUser(await this.writeJson('POST', '/api/users', encodeUser(write)));
   }
 
   async updateUser(id: UserId, write: UserWrite): Promise<User> {
+    const { encodeUser } = await writeEncoders();
     return parseUser(await this.writeJson('PUT', `/api/users/${String(id)}`, encodeUser(write)));
   }
 
   /** Store the settings the write names and nothing else; `locale: ''` removes it. */
   async updateUserSettings(id: UserId, write: UserSettingsWrite): Promise<void> {
+    const { encodeUserSettings } = await writeEncoders();
     await this.writeJson('PATCH', `/api/users/${String(id)}`, encodeUserSettings(write));
   }
 
@@ -414,10 +382,6 @@ export class ApiClient {
     );
   }
 
-  async updateMedia(id: MediaId, write: MediaWrite): Promise<Media> {
-    return parseMedia(await this.writeJson('PUT', `/api/media/${String(id)}`, encodeMedia(write)));
-  }
-
   async getSite(id: SiteId): Promise<Site> {
     const raw = await this.requestJson(`/api/sites/${String(id)}`);
     return parseSite(raw);
@@ -429,6 +393,7 @@ export class ApiClient {
   }
 
   async createSite(write: SiteCreate): Promise<Site> {
+    const { encodeSiteCreate } = await writeEncoders();
     return parseSite(await this.writeJson('POST', '/api/sites', encodeSiteCreate(write)));
   }
 
@@ -449,6 +414,7 @@ export class ApiClient {
     command: SiteItemsCommand,
     dryRun = false,
   ): Promise<SiteItemsChange> {
+    const { encodeSiteItemsCommand } = await writeEncoders();
     return parseSiteItemsChange(
       await this.writeJson(
         'POST',
@@ -459,6 +425,7 @@ export class ApiClient {
   }
 
   async createSitePage(write: SitePageWrite): Promise<SitePage> {
+    const { encodeSitePage } = await writeEncoders();
     return parseSitePage(await this.writeJson('POST', '/api/site_pages', encodeSitePage(write)));
   }
 
@@ -472,6 +439,7 @@ export class ApiClient {
     write: SitePageWrite,
     loadedModified: string | null = null,
   ): Promise<PageSaveResult> {
+    const { encodeSitePage } = await writeEncoders();
     const body = {
       ...encodeSitePage(write),
       ...(loadedModified === null ? {} : { 'o:modified': loadedModified }),
@@ -516,10 +484,6 @@ export class ApiClient {
     await this.deleteJson(`/api/item_sets/${String(id)}`);
   }
 
-  async deleteMedia(id: MediaId): Promise<void> {
-    await this.deleteJson(`/api/media/${String(id)}`);
-  }
-
   async deleteUser(id: UserId): Promise<void> {
     await this.deleteJson(`/api/users/${String(id)}`);
   }
@@ -543,6 +507,7 @@ export class ApiClient {
    * `Content-Type` by hand would drop the boundary the parser needs.
    */
   async createAsset(write: AssetWrite, file: File): Promise<Asset> {
+    const { encodeAsset } = await writeEncoders();
     const body = new FormData();
     body.set('data', JSON.stringify(encodeAsset(write)));
     body.set('file', file);
@@ -560,6 +525,7 @@ export class ApiClient {
 
   /** `AssetAdapter::hydrate` writes `o:name` and `o:alt_text` on an update. */
   async updateAsset(id: AssetId, write: AssetWrite): Promise<Asset> {
+    const { encodeAsset } = await writeEncoders();
     return parseAsset(await this.writeJson('PUT', `/api/assets/${String(id)}`, encodeAsset(write)));
   }
 
@@ -584,72 +550,15 @@ export class ApiClient {
     await this.deleteJson(`/api/jobs/${String(id)}`);
   }
 
-  async createVocabulary(write: VocabularyWrite): Promise<Vocabulary> {
-    return parseVocabulary(
-      await this.writeJson('POST', '/api/vocabularies', encodeVocabulary(write, 'create')),
-    );
-  }
-
-  /**
-   * A partial update. A full `PUT` must carry the `o:class` and `o:property`
-   * lists, and one that omits either removes every member of that kind, so the
-   * vocabulary form sends the scalar members only.
-   */
-  async updateVocabulary(id: VocabularyId, write: VocabularyWrite): Promise<Vocabulary> {
-    return parseVocabulary(
-      await this.writeJson(
-        'PATCH',
-        `/api/vocabularies/${String(id)}`,
-        encodeVocabulary(write, 'update'),
-      ),
-    );
-  }
-
-  async deleteVocabulary(id: VocabularyId): Promise<void> {
-    await this.deleteJson(`/api/vocabularies/${String(id)}`);
-  }
-
-  /**
-   * Create a vocabulary from RDF (a Romeka route): the server reads the file or
-   * fetches the URL and stores every class and property in the namespace.
-   */
-  async importVocabulary(write: VocabularyWrite, source: VocabularySource): Promise<Vocabulary> {
-    return parseVocabulary(
-      await this.writeJson(
-        'POST',
-        '/api/vocabularies/import',
-        encodeVocabularyImport(write, source),
-      ),
-    );
-  }
-
-  /** What an update from this source would change (a Romeka route). Nothing is written. */
-  async diffVocabulary(id: VocabularyId, source: VocabularySource): Promise<VocabularyDiff> {
-    return parseVocabularyDiff(
-      await this.writeJson('POST', `/api/vocabularies/${String(id)}/diff`, {
-        source: encodeVocabularySource(source),
-      }),
-    );
-  }
-
-  /** Apply a reviewed diff (a Romeka route). A change that no longer applies is refused. */
-  async applyVocabularyDiff(id: VocabularyId, diff: VocabularyDiff): Promise<Vocabulary> {
-    return parseVocabulary(
-      await this.writeJson(
-        'POST',
-        `/api/vocabularies/${String(id)}/diff/apply`,
-        encodeVocabularyDiff(diff),
-      ),
-    );
-  }
-
   async createResourceClass(write: VocabularyMemberWrite): Promise<ResourceClass> {
+    const { encodeVocabularyMember } = await writeEncoders();
     return parseResourceClass(
       await this.writeJson('POST', '/api/resource_classes', encodeVocabularyMember(write, 'create')),
     );
   }
 
   async updateResourceClass(id: ClassId, write: VocabularyMemberWrite): Promise<ResourceClass> {
+    const { encodeVocabularyMember } = await writeEncoders();
     return parseResourceClass(
       await this.writeJson(
         'PUT',
@@ -664,12 +573,14 @@ export class ApiClient {
   }
 
   async createProperty(write: VocabularyMemberWrite): Promise<Property> {
+    const { encodeVocabularyMember } = await writeEncoders();
     return parseProperty(
       await this.writeJson('POST', '/api/properties', encodeVocabularyMember(write, 'create')),
     );
   }
 
   async updateProperty(id: PropertyId, write: VocabularyMemberWrite): Promise<Property> {
+    const { encodeVocabularyMember } = await writeEncoders();
     return parseProperty(
       await this.writeJson(
         'PUT',
@@ -684,6 +595,7 @@ export class ApiClient {
   }
 
   async createResourceTemplate(write: ResourceTemplateWrite): Promise<ResourceTemplate> {
+    const { encodeResourceTemplate } = await writeEncoders();
     return parseResourceTemplate(
       await this.writeJson('POST', '/api/resource_templates', encodeResourceTemplate(write, 'create')),
     );
@@ -693,6 +605,7 @@ export class ApiClient {
     id: TemplateId,
     write: ResourceTemplateWrite,
   ): Promise<ResourceTemplate> {
+    const { encodeResourceTemplate } = await writeEncoders();
     return parseResourceTemplate(
       await this.writeJson(
         'PUT',
@@ -710,10 +623,6 @@ export class ApiClient {
     return this.searchPage('data_types', query, parseDataType);
   }
 
-  async listMediaForItem(itemId: ItemId, query: ResourceQuery = {}): Promise<ApiPage<Media>> {
-    return this.searchPage('media', { itemId, ...query }, parseMedia);
-  }
-
   async listUsers(query: ResourceQuery = {}): Promise<ApiPage<User>> {
     return this.searchPage('users', query, parseUser);
   }
@@ -724,10 +633,6 @@ export class ApiClient {
 
   async listItemSets(query: ResourceQuery = {}): Promise<ApiPage<ItemSet>> {
     return this.searchPage('item_sets', query, parseItemSet);
-  }
-
-  async listMedia(query: ResourceQuery = {}): Promise<ApiPage<Media>> {
-    return this.searchPage('media', query, parseMedia);
   }
 
   async listAssets(query: ResourceQuery = {}): Promise<ApiPage<Asset>> {
@@ -744,10 +649,6 @@ export class ApiClient {
 
   async listProperties(query: ResourceQuery = {}): Promise<ApiPage<Property>> {
     return this.searchPage('properties', query, parseProperty);
-  }
-
-  async listVocabularies(query: ResourceQuery = {}): Promise<ApiPage<Vocabulary>> {
-    return this.searchPage('vocabularies', query, parseVocabulary);
   }
 
   async listResourceTemplates(query: ResourceQuery = {}): Promise<ApiPage<ResourceTemplate>> {

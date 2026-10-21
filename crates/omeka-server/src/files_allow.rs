@@ -59,9 +59,9 @@ enum StoredFile<'a> {
         storage_id: &'a str,
         extension: Option<&'a str>,
     },
-    /// `access/<storage id>.<suffix>`, the playable copy of an original. It
-    /// belongs to the media its storage id names and is served with the type
-    /// its suffix states.
+    /// `access/<storage id>.<suffix>`, a copy a browser plays or shows when it
+    /// cannot open the original. It belongs to the media its storage id names
+    /// and is served with the type its suffix states.
     Access {
         storage_id: &'a str,
         extension: Option<&'a str>,
@@ -139,18 +139,18 @@ async fn verdict(
         } => media_owner(state, storage_id)
             .await?
             .filter(|owner| owner.extension.as_deref() == extension),
-        StoredFile::Access {
-            storage_id,
-            extension,
-        } => media_owner(state, storage_id)
-            .await?
-            .filter(|_| access_media_type(extension).is_some()),
         StoredFile::Thumbnail {
             storage_id,
             extension,
         } => media_owner(state, storage_id)
             .await?
             .filter(|_| extension == Some(THUMBNAIL_EXTENSION)),
+        StoredFile::Access {
+            storage_id,
+            extension,
+        } => media_owner(state, storage_id)
+            .await?
+            .filter(|_| access_media_type(extension).is_some()),
         StoredFile::Asset {
             storage_id,
             extension,
@@ -218,11 +218,12 @@ fn forwarded_name(forwarded: &str) -> &str {
     path.rsplit('/').next().unwrap_or_default()
 }
 
-/// The type an access copy with `extension` answers with. A copy is only an
-/// MP4, an M4A or a document's PDF in this build; any other suffix is no copy
-/// the store wrote.
+/// The type an access copy with `extension` answers with. A copy is a JPEG
+/// master, an MP4, an M4A or a document's PDF in this build; any other suffix is
+/// no copy the store wrote.
 fn access_media_type(extension: Option<&str>) -> Option<String> {
     match extension? {
+        "jpg" => Some("image/jpeg".to_string()),
         "mp4" => Some("video/mp4".to_string()),
         "m4a" => Some("audio/mp4".to_string()),
         "pdf" => Some("application/pdf".to_string()),
@@ -389,6 +390,10 @@ mod tests {
         );
         assert_eq!(access_media_type(Some("mp4")).as_deref(), Some("video/mp4"));
         assert_eq!(access_media_type(Some("m4a")).as_deref(), Some("audio/mp4"));
+        assert_eq!(
+            access_media_type(Some("jpg")).as_deref(),
+            Some("image/jpeg")
+        );
         assert_eq!(
             access_media_type(Some("pdf")).as_deref(),
             Some("application/pdf")

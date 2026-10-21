@@ -99,8 +99,8 @@ const changedAt = (note: Note): number =>
   note.modified === null ? 0 : Number.isNaN(Date.parse(note.modified)) ? 0 : Date.parse(note.modified);
 
 
-/** The first line of a note, short enough for one row. */
-const firstLine = (text: string): string => {
+/** The first line of a note, short enough for one place in a list. */
+export const snippetOf = (text: string): string => {
   const line = text.split('\n')[0]?.trim() ?? '';
   return line.length > 120 ? `${line.slice(0, 119)}…` : line;
 };
@@ -277,7 +277,7 @@ export const NoteList = (props: NoteListProps): ReactElement => {
         <ol className="media-notes-entries" aria-label={t('notes.listLabel')}>
           {shown.map((row) => {
             const open = props.selected === row.note.iri;
-            const snippet = firstLine(row.note.text);
+            const snippet = snippetOf(row.note.text);
             const content = props.expanded(row.note);
             return (
               <li key={row.note.iri} className={`note-entry${open ? ' is-selected' : ''}`}>

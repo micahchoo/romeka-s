@@ -1,6 +1,7 @@
 import type { ReactElement, SyntheticEvent } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
+import { updateMedia } from '../../api/media';
 import type { Media, MediaWrite } from '../../api/types';
 import { allValues, toValueWrites, type ResourceDraft } from '../../app/draft';
 import { ErrorNotice, FormErrors } from '../../app/errors';
@@ -59,7 +60,7 @@ const MediaEditor = ({ media, options, onSaved }: MediaEditorProps): ReactElemen
       altText: nullable(altText),
     };
     save(async () => {
-      onSaved(await api.updateMedia(media.id, write));
+      onSaved(await updateMedia(api, media.id, write));
     });
   };
 

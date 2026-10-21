@@ -321,6 +321,88 @@ async fn the_item_page_chips_a_cropped_tile_and_draws_no_overlay_on_it() {
 }
 
 #[tokio::test]
+async fn the_item_page_fills_the_first_files_notes_list() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let store = FileStore::new(dir.path(), "/files");
+    let (pool, seed) = seeded_pool().await;
+    let pool = DbPool::from(pool);
+    let app = common::router_with_store(pool.clone(), store.clone());
+    // A second file, so the item page draws a strip after the notes list.
+    add_image(&pool, &store, &seed, "item-second", 2).await;
+    add_note(
+        &app,
+        seed.media.0,
+        &note(
+            &canvas(seed.item.0, seed.media.0),
+            "A note on the first file",
+            Some(rect(10, 10, 20, 10)),
+        ),
+    )
+    .await;
+
+    let page = page_of(&app, &format!("{SITE}/item/{}", seed.item.0)).await;
+    assert!(
+        page.contains("class=\"annotated-media"),
+        "the first file carries its notes: {page}"
+    );
+    let list = page
+        .split("<section class=\"annotation-list\"")
+        .nth(1)
+        .unwrap_or_default();
+    assert!(
+        list.contains("A note on the first file"),
+        "the list fills where it is placed: {page}"
+    );
+    let filled = page
+        .find("<section class=\"annotation-list\"")
+        .expect("a filled list");
+    let strip = page
+        .find("<ul class=\"media-files-list\">")
+        .expect("the strip");
+    assert!(
+        filled < strip,
+        "the list sits after the first file and before the strip: {page}"
+    );
+    assert_eq!(
+        page.matches("<div class=\"annotation-list\"></div>")
+            .count(),
+        1,
+        "the places the list takes keep their element: {page}"
+    );
+}
+
+#[tokio::test]
+async fn the_switch_off_leaves_the_item_pages_first_file_without_notes() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let store = FileStore::new(dir.path(), "/files");
+    let (pool, seed) = seeded_pool().await;
+    let pool = DbPool::from(pool);
+    let app = common::router_with_store(pool.clone(), store.clone());
+    add_note(
+        &app,
+        seed.media.0,
+        &note(
+            &canvas(seed.item.0, seed.media.0),
+            "A hidden note on the first file",
+            None,
+        ),
+    )
+    .await;
+    with_db!(&pool, |dbp| SettingRepo::new(dbp)
+        .set(omeka_api::settings::ANNOTATIONS_PUBLIC, &json!(false))
+        .await)
+    .unwrap();
+
+    let page = page_of(&app, &format!("{SITE}/item/{}", seed.item.0)).await;
+    assert!(!page.contains("A hidden note on the first file"), "{page}");
+    assert!(!page.contains("class=\"annotated-media"), "{page}");
+    assert!(
+        page.contains("<div class=\"annotation-list\"></div>"),
+        "the place stays, empty: {page}"
+    );
+}
+
+#[tokio::test]
 async fn a_media_with_no_notes_is_the_page_without_the_list() {
     let (pool, seed) = seeded_pool().await;
     let pool = DbPool::from(pool);

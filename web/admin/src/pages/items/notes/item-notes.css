@@ -1,0 +1,90 @@
+/**
+ * The item page's notes summary and grouped list. Loaded with the lazy notes
+ * chunk, so an item page that never reaches them pays none of this.
+ */
+
+.item-notes-status,
+.item-notes-count {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin: 0 0 var(--space-2);
+}
+
+.item-first-notes {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.item-first-notes h3,
+.item-all-notes h3 {
+  font-size: 15px;
+  margin: 0 0 var(--space-2);
+}
+
+.item-all-notes {
+  margin: 0 0 var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.item-notes-file {
+  margin: 0 0 var(--space-3);
+}
+
+.item-notes-file h4 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: 14px;
+  margin: 0 0 var(--space-1);
+}
+
+.item-notes-file h4 a {
+  color: var(--accent);
+}
+
+.item-notes-kind {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.item-note-lines {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item-note-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  font-size: 13px;
+  min-width: 0;
+}
+
+.item-note-place {
+  color: var(--accent);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.item-note-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.item-notes-more {
+  display: inline-block;
+  margin-top: var(--space-1);
+  font-size: 13px;
+}

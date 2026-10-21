@@ -194,9 +194,11 @@ impl MadeStill {
     }
 }
 
-/// The longest side an access copy's video is scaled to. A 1080p television is
-/// the largest screen a collection streams to, and a transcode that keeps the
-/// source's 4K would cost more disk than the original.
+/// The most lines an access copy's video keeps: 1080p, measured on the short
+/// side, so a landscape 1920x1080 and a portrait 1080x1920 both stay as they
+/// are and only larger sources shrink. A 1080p television is the largest screen
+/// a collection streams to, and a copy that keeps the source's 4K would cost
+/// more disk than the original.
 pub const ACCESS_SIDE: u32 = 1080;
 
 /// The H.264 quality an access copy uses.
@@ -276,8 +278,10 @@ impl AccessTool {
 /// download finishes.
 #[must_use]
 pub fn video_mp4_args(source: &Path, output: &Path) -> Vec<OsString> {
+    // The short side is capped and the long side follows at an even size
+    // (`-2`), which H.264's 4:2:0 needs.
     let scale = format!(
-        "scale=w='min(iw,{ACCESS_SIDE})':h='min(ih,{ACCESS_SIDE})':force_original_aspect_ratio=decrease"
+        "scale=w='if(gte(iw,ih),-2,min(iw,{ACCESS_SIDE}))':h='if(gte(iw,ih),min(ih,{ACCESS_SIDE}),-2)'"
     );
     let crf = ACCESS_CRF.to_string();
     let bitrate = format!("{ACCESS_AUDIO_KBPS}k");
@@ -360,7 +364,11 @@ pub fn image_jpeg_args(tool: AccessTool, source: &Path, output: &Path) -> Option
             OsStr::new("-o"),
             OsStr::new("1"),
             OsStr::new("-T"),
-            OsStr::new("-c"),
+            // libraw's `-c` is an exposure threshold, not dcraw's stdout
+            // switch; `-Z -` is how `dcraw_emu` writes the decoded TIFF to
+            // standard output.
+            OsStr::new("-Z"),
+            OsStr::new("-"),
             source.as_os_str(),
         ])),
         AccessTool::Vips => {
@@ -891,6 +899,32 @@ impl Tools {
         self.timeout
     }
 
+    /// Run an access tool with `args`, bounded in time, and answer what it
+    /// wrote to standard output. A command that writes its image to a file
+    /// answers nothing here; its caller reads the file.
+    ///
+    /// # Errors
+    /// A [`ToolError`] when the command is absent, runs past the timeout, exits
+    /// non-zero, or writes more than `limit` bytes.
+    pub fn run_access(
+        &self,
+        tool: AccessTool,
+        args: &[OsString],
+        limit: usize,
+    ) -> Result<Vec<u8>, ToolError> {
+        let program = self.access_program(tool)?;
+        let name = match tool {
+            AccessTool::LibRaw => self.libraw_name,
+            other => other.command(),
+        };
+        let borrowed: Vec<&OsStr> = args.iter().map(OsString::as_os_str).collect();
+        let output = capture(program, name, &borrowed, self.timeout, limit)?;
+        if !output.status.success() {
+            return Err(ToolError::Failed(name, reason(&output.stderr)));
+        }
+        Ok(output.stdout)
+    }
+
     /// `ffprobe`'s JSON answer for the file at `source`: the container's
     /// duration and each stream's type and frame size.
     ///
@@ -1101,8 +1135,39 @@ impl Tools {
         Ok(output.stdout)
     }
 
-    /// The numeric EXIF orientation the container states, when it states one
-    /// that turns the pixels.
+    /// The access-copy commands this install has, as a queued row names them,
+    /// apart from `ffmpeg`, which [`Tools::derivative_commands`] always names.
+    /// `exiftool`, libraw, `vips` and `gs` make an image master; `soffice` makes
+    /// a document's PDF.
+    #[must_use]
+    pub fn access_commands(&self) -> Vec<&'static str> {
+        AccessTool::ALL
+            .into_iter()
+            .filter(|tool| *tool != AccessTool::Ffmpeg)
+            .filter_map(|tool| tool.found(self))
+            .collect()
+    }
+
+    /// Every command a derivative worker claims an `access_copy` row for, as the
+    /// row records it, and so the one filter the claim and the queue count use.
+    ///
+    /// `ffmpeg` is always here: a video or audio copy whose command has gone
+    /// settles `none` with a typed skip, as its still always did, and every image
+    /// carries it. Every other command is here only when the install has it, so a
+    /// row for a command this process lacks waits for the worker that has it
+    /// instead of being settled as a skip. That includes `soffice`, which only the
+    /// office-tools image has.
+    #[must_use]
+    pub fn derivative_commands(&self) -> Vec<&'static str> {
+        let mut commands = vec!["ffmpeg"];
+        commands.extend(self.access_commands());
+        commands
+    }
+
+    /// The numeric EXIF orientation a file's container states, when it states
+    /// one that turns the pixels. A camera writes its pixels as the sensor saw
+    /// them and this tag says how they go upright; an embedded preview usually
+    /// carries no tag of its own, so its container's value is the one to apply.
     fn orientation(&self, exiftool: &Path, source: &Path) -> Option<Orientation> {
         let args: Vec<&OsStr> = vec![
             OsStr::new("-q"),
@@ -1668,6 +1733,37 @@ mod tests {
         assert!(started.elapsed() < Duration::from_secs(3), "killed early");
     }
 
+    /// A derivative worker claims only the commands this install has, so a tools
+    /// image and a main image can share one queue.
+    #[test]
+    fn the_access_copy_commands_are_the_ones_installed() {
+        let _guard = scripted();
+        let dir = dir();
+        assert!(
+            Tools::none().access_commands().is_empty(),
+            "an install with no access-copy command claims nothing"
+        );
+        let tools = Tools::none()
+            .with_exiftool(script(dir.path(), "exiftool", "exit 0"))
+            .with_vips(script(dir.path(), "vips", "exit 0"))
+            .with_soffice(script(dir.path(), "soffice", "exit 0"));
+        let names = tools.access_commands();
+        assert!(names.contains(&"exiftool"), "{names:?}");
+        assert!(names.contains(&"vips"), "{names:?}");
+        assert!(names.contains(&"soffice"), "{names:?}");
+        assert!(!names.contains(&"ffmpeg"), "{names:?}");
+        let commands = tools.derivative_commands();
+        assert!(commands.contains(&"ffmpeg"), "{commands:?}");
+        assert!(
+            commands.contains(&"soffice"),
+            "the one claim filter names the document command when the install has it: {commands:?}"
+        );
+        assert!(
+            !Tools::none().derivative_commands().contains(&"soffice"),
+            "without LibreOffice the row waits for the worker that has it"
+        );
+    }
+
     /// The video copy is H.264 and AAC in an MP4 whose index comes first, with
     /// the source's own size kept and each side capped at 1080.
     #[test]
@@ -1690,7 +1786,7 @@ mod tests {
                 "-map",
                 "0:a?",
                 "-vf",
-                "scale=w='min(iw,1080)':h='min(ih,1080)':force_original_aspect_ratio=decrease",
+                "scale=w='if(gte(iw,ih),-2,min(iw,1080))':h='if(gte(iw,ih),min(ih,1080),-2)'",
                 "-c:v",
                 "libx264",
                 "-preset",
@@ -1759,7 +1855,7 @@ mod tests {
             text(
                 &image_jpeg_args(AccessTool::LibRaw, Path::new("photo.nef"), output).expect("raw")
             ),
-            ["-q", "3", "-w", "-o", "1", "-T", "-c", "photo.nef"],
+            ["-q", "3", "-w", "-o", "1", "-T", "-Z", "-", "photo.nef"],
             "libraw decodes to a TIFF on standard output, which vips then encodes"
         );
         let page = text(

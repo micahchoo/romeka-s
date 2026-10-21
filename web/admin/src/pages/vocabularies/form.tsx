@@ -11,6 +11,7 @@
 import type { ReactElement, SyntheticEvent } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
+import { createVocabulary, updateVocabulary } from '../../api/vocabularies';
 import type { User, UserId, Vocabulary, VocabularyWrite } from '../../api/types';
 import { ErrorNotice } from '../../app/errors';
 import { OptionSelect, SaveStatus, SubmitRow, TextField } from '../../app/fields';
@@ -103,10 +104,10 @@ const VocabularyEditor = ({
     };
     save(async () => {
       if (vocabulary === null) {
-        const created = await api.createVocabulary(write);
+        const created = await createVocabulary(api, write);
         window.location.hash = standardsHref('vocabularies', created.id);
       } else {
-        onSaved(await api.updateVocabulary(vocabulary.id, write));
+        onSaved(await updateVocabulary(api, vocabulary.id, write));
       }
     });
   };

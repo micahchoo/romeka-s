@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { Suspense, lazy, useState } from 'react';
 import { api } from '../../api/client';
+import { deleteMedia, getMedia } from '../../api/media';
 import type { Media, MediaId, ThumbnailType } from '../../api/types';
 import { DeleteControl } from '../../app/delete';
 import { formatBytes, formatDateTime } from '../../app/format';
@@ -14,6 +15,7 @@ import { useTranslator } from '../../i18n';
 import type { KeyOf, MessageKey, Translator } from '../../i18n';
 import { MediaEditForm } from './form';
 import type { TrackSummary } from './annotations/client';
+import type { NotesFocus } from './annotations/link';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
 
@@ -74,10 +76,17 @@ const derivativeUrl = (media: Media, kind: DerivativeKind): string | null =>
  * `Admin/MediaController::showAction`: one media, its stage, the metadata the
  * API carries, the file derivatives, and its values.
  */
-export const MediaDetail = ({ mediaId }: { readonly mediaId: MediaId }): ReactElement => {
+export const MediaDetail = ({
+  mediaId,
+  focus = null,
+}: {
+  readonly mediaId: MediaId;
+  /** The notes job the URL asked for, applied when the panel is ready. */
+  readonly focus?: NotesFocus | null;
+}): ReactElement => {
   const translator = useTranslator(common, resources);
   const { t, locale } = translator;
-  const state = useAsync(() => api.getMedia(mediaId), [mediaId]);
+  const state = useAsync(() => getMedia(api, mediaId), [mediaId]);
   const [edited, setEdited] = useState<Media | null>(null);
   // One player for the page: the stage renders it, the notes panel seeks it.
   const [player, setPlayer] = useState<HTMLMediaElement | null>(null);
@@ -108,7 +117,7 @@ export const MediaDetail = ({ mediaId }: { readonly mediaId: MediaId }): ReactEl
           <MediaStage media={media} player={setPlayer} tracks={tracks} />
         </Suspense>
         <Suspense fallback={<p role="status">{t('media.loadingNotes')}</p>}>
-          <MediaNotes key={media.id} media={media} player={player} onTracks={setTracks} />
+          <MediaNotes key={media.id} media={media} player={player} focus={focus} onTracks={setTracks} />
         </Suspense>
       </div>
 
@@ -175,7 +184,7 @@ export const MediaDetail = ({ mediaId }: { readonly mediaId: MediaId }): ReactEl
         label={t('media.deleteLabel')}
         rowName={mediaName(media) ?? t('common.untitled')}
         onConfirm={async () => {
-          await api.deleteMedia(media.id);
+          await deleteMedia(api, media.id);
           window.location.hash = '#/media';
         }}
       />

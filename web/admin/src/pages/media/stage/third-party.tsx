@@ -15,6 +15,7 @@
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { api, defaultBaseUrl } from '../../../api/client';
+import { getMediaPlayer } from '../../../api/media';
 import type { MediaId } from '../../../api/types';
 import { useTranslator } from '../../../i18n';
 import { resources } from '../../../i18n/namespaces/resources';
@@ -119,7 +120,7 @@ export const EmbedCard = ({
     setFrame({ state: 'asking' });
     // A refused or failed answer is what this card showed before the player
     // route existed: the render frame, or the link alone.
-    api.getMediaPlayer(mediaId).then(
+    getMediaPlayer(api, mediaId).then(
       (player) => {
         setFrame(player === null ? missed() : { state: 'player', url: player });
       },

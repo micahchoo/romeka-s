@@ -185,9 +185,13 @@ async fn a_derivative_row_is_queued_claimed_settled_and_removed_with_its_media()
         !repo.enqueue(&poster).await.expect("second queue"),
         "one row per pair"
     );
-    assert_eq!(repo.pending().await.expect("count"), 1);
+    assert_eq!(repo.pending(&["ffmpeg"]).await.expect("count"), 1);
 
-    let claimed = repo.claim_next().await.expect("claim").expect("a row");
+    let claimed = repo
+        .claim_next(&["ffmpeg"])
+        .await
+        .expect("claim")
+        .expect("a row");
     assert_eq!(claimed.state, DerivativeState::Running);
     assert_eq!(claimed.attempts, 1);
     assert!(

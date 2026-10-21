@@ -444,6 +444,115 @@ async fn a_raw_create_records_the_copy_it_needs_and_the_tool() {
     assert!(access.finished.is_some() || access.state == DerivativeState::Pending);
 }
 
+/// A camera RAW's create queues both rows, and the worker settles the access
+/// copy from the embedded preview: the master is the preview at the source's own
+/// size, upright, and the three thumbnails come from it.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_raw_create_settles_an_upright_master() {
+    if Tools::on_path().exiftool().is_none() {
+        eprintln!("skipping: no exiftool on PATH");
+        return;
+    }
+    let harness = harness().await;
+    let bytes = std::fs::read(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/media-kinds/image.nef"),
+    )
+    .expect("image.nef");
+    let document = create_media(&harness, "photo.nef", &bytes).await;
+    let id = document["o:id"].as_u64().expect("the media id");
+    let storage_id = document["o:filename"]
+        .as_str()
+        .and_then(|name| name.rsplit_once('.'))
+        .map(|(stem, _)| stem.to_string())
+        .expect("the stored name");
+    assert_eq!(preview(&document)["state"], json!("pending"));
+
+    omeka_api::derivatives::drain(&harness.pool, &harness.store)
+        .await
+        .expect("the queue drains");
+
+    let access = with_db!(&harness.pool, |db| MediaDerivativeRepo::new(db)
+        .get(MediaId(id), DerivativeKind::AccessCopy)
+        .await)
+    .expect("row")
+    .expect("the access row");
+    assert_eq!(access.state, DerivativeState::Ready, "{access:?}");
+    assert_eq!(access.tool.as_deref(), Some("exiftool"));
+    let master = harness
+        .store
+        .read(&omeka_media::access::copy_path(
+            &storage_id,
+            omeka_media::access::AccessTarget::Jpeg,
+        ))
+        .expect("the master");
+    assert_eq!(
+        omeka_media::iiif_image::source_size(&master),
+        Some((800, 1200)),
+        "the preview's 1200x800, turned by Orientation 6"
+    );
+    let large = harness
+        .store
+        .read(&omeka_media::thumbnailer::thumbnail_path(
+            &storage_id,
+            omeka_media::file_render::ThumbnailType::Large,
+        ))
+        .expect("the large derivative");
+    assert_eq!(
+        omeka_media::iiif_image::source_size(&large),
+        Some((533, 800)),
+        "the derivative is capped at 800"
+    );
+    assert_eq!(
+        preview(&read_media(&harness, id).await)["state"],
+        json!("ready")
+    );
+}
+
+/// A 16-bit TIFF the image crate cannot decode gets its master through `vips`,
+/// at the source's own size, and the media reads ready afterwards.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_16_bit_tiff_create_settles_a_master_through_vips() {
+    if Tools::on_path().vips().is_none() {
+        eprintln!("skipping: no vips on PATH");
+        return;
+    }
+    let harness = harness().await;
+    let bytes = std::fs::read(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/media-kinds/image-deep.tif"),
+    )
+    .expect("image-deep.tif");
+    let document = create_media(&harness, "deep.tif", &bytes).await;
+    let id = document["o:id"].as_u64().expect("the media id");
+    let storage_id = document["o:filename"]
+        .as_str()
+        .and_then(|name| name.rsplit_once('.'))
+        .map(|(stem, _)| stem.to_string())
+        .expect("the stored name");
+
+    omeka_api::derivatives::drain(&harness.pool, &harness.store)
+        .await
+        .expect("the queue drains");
+
+    let access = with_db!(&harness.pool, |db| MediaDerivativeRepo::new(db)
+        .get(MediaId(id), DerivativeKind::AccessCopy)
+        .await)
+    .expect("row")
+    .expect("the access row");
+    assert_eq!(access.state, DerivativeState::Ready, "{access:?}");
+    assert_eq!(access.tool.as_deref(), Some("vips"));
+    let master = harness
+        .store
+        .read(&omeka_media::access::copy_path(
+            &storage_id,
+            omeka_media::access::AccessTarget::Jpeg,
+        ))
+        .expect("the master");
+    assert_eq!(
+        omeka_media::iiif_image::source_size(&master),
+        Some((1200, 800))
+    );
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn a_docx_create_queues_a_pdf_copy_and_the_worker_makes_it() {
     if Tools::on_path().soffice().is_none() {

@@ -9,6 +9,7 @@
 import type { ReactElement, SyntheticEvent } from "react";
 import { useState } from "react";
 import { api } from "../../api/client";
+import { importVocabulary } from "../../api/vocabularies";
 import { FormErrors } from "../../app/errors";
 import { SubmitRow } from "../../app/fields";
 import { toError } from "../../app/useAsync";
@@ -67,7 +68,7 @@ const ImportForm = (): ReactElement => {
       }
       setBusy(true);
       try {
-        const created = await api.importVocabulary(
+        const created = await importVocabulary(api, 
           {
             namespaceUri: namespaceUri.trim(),
             prefix: prefix.trim(),

@@ -32,10 +32,21 @@ exiftool -q -overwrite_original -Orientation=6 -n "$out/image.jpg"
 magick "$work/base.png" -strip "$out/image.gif"
 magick "$work/base.png" -quality 80 -strip "$out/image.webp"
 magick "$work/base.png" -compress zip -strip "$out/image.tif"
+# The three TIFF layouts the image crate does not read and `vips` does: CMYK
+# samples, 16 bits a sample, and a second page. Each gets a JPEG access master.
+magick "$work/base.png" -colorspace CMYK -compress zip "$out/image-cmyk.tif"
+# 1200x800, larger than the 800 pixel large derivative, so a master made from
+# it proves the canvas reaches the source's own size.
+magick "$work/base.png" -filter point -resize 1200x800! -depth 16 -compress zip "$out/image-deep.tif"
+magick "$work/base.png" "$work/base.png" -compress zip "$out/image-pages.tif"
+# A Photoshop document and a PostScript page, the two other formats an access
+# master covers. ImageMagick writes the PSD; vips reads it and writes no PSD.
+magick "$work/base.png" -compress zip -strip "$out/image.psd"
 magick "$work/base.png" -quality 50 -strip "$out/image.avif"
 heif-enc -q 50 -o "$out/image.heic" "$work/base.png" >/dev/null
-# The preview a camera RAW embeds: the same 120x80 frame, JPEG, no metadata.
-magick "$work/base.png" -quality 55 -strip "$work/nef-preview.jpg"
+# The preview a camera RAW embeds: the same frame at 1200x800, JPEG, no
+# metadata. A real BHC006 NEF embeds a full-size 6016x4016 preview the same way.
+magick "$work/base.png" -filter point -resize 1200x800! -quality 55 -strip "$work/nef-preview.jpg"
 
 cat >"$out/image.svg" <<'SVG'
 <svg xmlns="http://www.w3.org/2000/svg" width="120" height="80" viewBox="0 0 120 80" role="img" aria-label="A red square and a blue bar">
@@ -54,6 +65,22 @@ cat >"$out/hostile.svg" <<'SVG'
   <foreignObject x="60" y="10" width="50" height="30"><div xmlns="http://www.w3.org/1999/xhtml">foreign</div></foreignObject>
 </svg>
 SVG
+
+cat >"$out/image.eps" <<'EPS'
+%!PS-Adobe-3.0 EPSF-3.0
+%%BoundingBox: 0 0 120 80
+%%Creator: the media-kind corpus
+%%Title: image.eps
+%%EndComments
+0.957 0.941 0.910 setrgbcolor 0 0 120 80 rectfill
+0.753 0.224 0.169 setrgbcolor 0 40 47 40 rectfill
+0.173 0.243 0.314 setrgbcolor 73 0 47 39 rectfill
+1 0.769 0.059 setrgbcolor 56 46 moveto 78 46 lineto 67 68 lineto closepath fill
+0 0 0 setrgbcolor /Helvetica findfont 10 scalefont setfont
+8 30 moveto (Page one) show
+showpage
+%%EOF
+EPS
 
 sound() { # frequency, output, codec arguments...
   local frequency=$1 output=$2
@@ -410,14 +437,16 @@ PY
 
 # A minimal Nikon NEF: the maker's TIFF container, its IFD0 naming the camera
 # and Orientation 6, and one SubIFD holding a JpgFromRaw preview. A real
-# BHC006 NEF keeps its full-size preview the same way (a JPEG-compressed
-# SubIFD); this one has a 120x80 preview so the fixture stays under 64 KiB.
+# BHC006 NEF keeps its full-size 6016x4016 preview the same way (a
+# JPEG-compressed SubIFD); this one has a 1200x800 preview so the fixture stays
+# under 64 KiB and the preview is still larger than the 800 pixel derivative.
 python3 - "$out" "$work/nef-preview.jpg" <<'PY'
 import struct
 import sys
 from pathlib import Path
 
 out, preview = Path(sys.argv[1]), Path(sys.argv[2]).read_bytes()
+preview_width, preview_height = 1200, 800
 typesize = {1: 1, 2: 1, 3: 2, 4: 4}
 entry_size = 12
 
@@ -456,8 +485,8 @@ def long(tag, *values):
 sub_offset = jpeg_offset = 0
 for _ in range(3):
     ifd0 = [
-        long(256, 120),
-        long(257, 80),
+        long(256, 6016),
+        long(257, 4016),
         short(258, 8, 8, 8),
         short(259, 1),
         short(262, 2),
@@ -472,13 +501,13 @@ for _ in range(3):
     sub_offset = 8 + len(ifd0_bytes)
     sub = [
         long(254, 1),
-        long(256, 120),
-        long(257, 80),
+        long(256, preview_width),
+        long(257, preview_height),
         short(258, 8, 8, 8),
         short(259, 6),
         short(262, 6),
         short(277, 3),
-        long(278, 80),
+        long(278, preview_height),
         short(530, 2, 1),
         long(513, jpeg_offset),
         long(514, len(preview)),

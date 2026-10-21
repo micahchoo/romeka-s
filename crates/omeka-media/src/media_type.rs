@@ -107,6 +107,13 @@ pub fn detected_media_type_of(bytes: &[u8], extension: Option<&str>) -> String {
 const EXTENSION_TYPES: &[(&str, &str, &str)] = &[
     ("text/plain", "vtt", "text/vtt"),
     ("text/plain", "srt", "application/x-subrip"),
+    // PostScript's own bytes are text, so the byte read answers `text/plain`
+    // and the name says which of the three page formats it is. An Illustrator
+    // file is either a PDF or PostScript.
+    ("text/plain", "eps", "application/postscript"),
+    ("text/plain", "ps", "application/postscript"),
+    ("text/plain", "ai", "application/illustrator"),
+    ("application/pdf", "ai", "application/illustrator"),
     ("application/json", "gltf", "model/gltf+json"),
     ("application/octet-stream", "glb", "model/gltf-binary"),
     ("audio/ogg", "ogv", "video/ogg"),

@@ -11,6 +11,7 @@
  */
 import type { KeyboardEvent, MouseEvent, ReactElement } from 'react';
 import { api } from '../../../../api/client';
+import { getMedia } from '../../../../api/media';
 import { assetIdFromParam } from '../../../../api/parse';
 import type { AssetId, JsonValue, MediaId } from '../../../../api/types';
 import { useAsync } from '../../../../app/useAsync';
@@ -70,7 +71,7 @@ const imageUrl = async (image: FocalImage | null): Promise<string | null> => {
   if (image.kind === 'asset') {
     return (await api.getAsset(image.id)).assetUrl;
   }
-  return largeImageUrl(await api.getMedia(image.id));
+  return largeImageUrl(await getMedia(api, image.id));
 };
 
 export interface FocalPointFieldProps {
