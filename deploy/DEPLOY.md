@@ -41,6 +41,7 @@ except the first one.
 | `ROMEKA_S3_ENDPOINT`, `ROMEKA_S3_BUCKET`, `ROMEKA_S3_REGION`, `ROMEKA_S3_ACCESS_KEY`, `ROMEKA_S3_SECRET_KEY`, `ROMEKA_S3_PUBLIC_BASE`, `ROMEKA_S3_URL_TTL_SECS` | the server and every job | the bucket, its key pair, an optional CDN for plain URLs, and the signed URL lifetime (default 14400 seconds, enough for one long video; at most one week). [`docs/operator-guide.md`](../docs/operator-guide.md), Object storage, gives the URL rules and the bucket policy. `compose.yaml` passes each of them from `.env` |
 | `ROMEKA_ARCHIVE_DIR` | `compose.archive.yaml` | the host folder the import reads, mounted read-only at `/archive`; used only with that file |
 | `ROMEKA_ARCHIVE_ROOTS`, `ROMEKA_ARCHIVE_ROOT` | the server and every job | the server folders an import may read. `ROMEKA_ARCHIVE_ROOTS` holds `name=path` pairs separated by `;`; `ROMEKA_ARCHIVE_ROOT` is the root named `archive`. `compose.archive.yaml` sets `ROMEKA_ARCHIVE_ROOT` to `/archive`; neither compose file passes `ROMEKA_ARCHIVE_ROOTS`, so add it to the `environment` block for more roots. With no root, the Import page still takes files and lists uploaded from the browser |
+| `ROMEKA_OFFICE_IMAGE`, `ROMEKA_OFFICE_INTERVAL_SECS` | `compose.office.yaml` | the office worker's image tag (build it from the same commit as `ROMEKA_IMAGE`) and the seconds between its passes (default 3600); used only with that file |
 | `ROMEKA_API_HOST`, `ROMEKA_API_PORT` | the server and Caddy | the loopback address the server binds and the origin forwards to. The image sets `127.0.0.1:8123`; they are not in the compose environment block, so setting them in `.env` changes nothing. |
 | `ROMEKA_CONFIG` | the server | names a JSON config file. This deployment does not set it: the variables above cover every key it can hold. |
 | `ROMEKA_MODE` | the entrypoint | `serve` (the default) or `install`; set per command, not in `.env` |
@@ -363,6 +364,20 @@ start with both files:
 docker compose -f compose.yaml -f compose.archive.yaml up -d
 ```
 
+To make PDF copies of office documents (DOC, DOCX, ODT, RTF, XLS, XLSX, ODS,
+PPT, PPTX, ODP), add the office worker. It is a second container built from the
+`office-tools` image, with LibreOffice, vips, libraw and ghostscript, and it
+shares the database and store volumes. Once an hour it puts back each copy the
+server recorded as `needs soffice, not installed` (or another tool it has) and
+makes it:
+
+```
+docker compose -f compose.yaml -f compose.archive.yaml -f compose.office.yaml up -d
+```
+
+Stop the worker with the server before an upgrade's migration, because it
+writes to the same database.
+
 ## 9. Troubleshooting
 
 | Symptom | First check |
@@ -388,6 +403,7 @@ romeka key add -d /db/romeka.db --owner admin@example.org
 | --- | --- |
 | `compose.yaml` | the service, the volumes, the ports and the health check |
 | `compose.archive.yaml` | a server folder for the import: the read-only `/archive` mount and `ROMEKA_ARCHIVE_ROOT` |
+| `compose.office.yaml` | the office worker: the `office-tools` image, which makes office, RAW, 16-bit TIFF and PostScript copies the server image cannot |
 | `Caddyfile` | TLS, the SPA, the media files behind the server's access check, and the routes Caddy forwards |
 | `.env.example` | every setting, with its default and a one-line comment |
 | `backup.sh` | procedure 4, as one command |
