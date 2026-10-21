@@ -27,6 +27,8 @@ export const HeaderSection = ({
         id="theme-setting-logo"
         label={tt('themeSetting.logo')}
         value={draft.content.logo}
+        accepts="image"
+        decorative={false}
         onChange={(value) => {
           onChange('logo', value);
         }}
@@ -36,6 +38,8 @@ export const HeaderSection = ({
         id="theme-setting-banner"
         label={tt('themeSetting.banner')}
         value={draft.content.banner}
+        accepts="image"
+        decorative={false}
         onChange={(value) => {
           onChange('banner', value);
         }}

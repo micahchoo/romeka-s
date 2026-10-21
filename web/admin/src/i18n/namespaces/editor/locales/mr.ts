@@ -114,10 +114,12 @@ export const mr: EditorMessages = {
   'manifest.fromItem': 'या साइटवरून एक घटक',
   'manifest.pickItem': 'एक घटक शोधा',
   'manifest.itemFallback': 'घटक {id}',
-  'blockField.asset.attachments': 'प्रतिमा',
-  'fieldHelp.asset.attachments': 'प्रत्येक प्रतिमा एका पृष्ठाशी जोडू शकते.',
-  'blockField.asset.id': 'प्रतिमा',
-  'fieldHelp.asset.id': 'अपलोड केलेली प्रतिमा फाईल.',
+  'blockField.asset.attachments': 'फाईल्स',
+  'fieldHelp.asset.attachments':
+    'प्रत्येक फाईल एखाद्या पृष्ठाशी जोडू शकते; जी फाईल चित्र नाही, ती स्वतःशी जोडली जाते.',
+  'blockField.asset.id': 'फाईल',
+  'fieldHelp.asset.id':
+    'अपलोड केलेली फाईल: चित्र असल्यास ते थेट दिसते, इतर फाईल्स लिंक म्हणून दिसतात.',
   'blockField.asset.alt_link_title': 'लिंक मजकूर',
   'fieldHelp.asset.alt_link_title': 'प्रतिमेखालील पृष्ठाचे शीर्षक बदलतो.',
   'blockField.asset.caption': 'कॅप्शन',

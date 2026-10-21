@@ -5,17 +5,19 @@ import type { Asset, AssetId } from '../../api/types';
 import { DeleteControl } from '../../app/delete';
 import { ErrorNotice } from '../../app/errors';
 import { EditPanel } from '../../app/fields';
+import { assetKind, fileImageUrl } from '../../app/media';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import { AssetEditForm } from './form';
+import { AssetTile } from './upload';
 import { common } from '../../i18n/namespaces/common';
 import { admin } from '../../i18n/namespaces/admin';
 
 /**
  * `Admin/AssetController::showDetailsAction` with `::editAction` and
  * `::deleteAction`: one asset, the file it stored, the edit form and the
- * delete control. `POST /api/assets` has no form: the create needs a multipart
- * file the API's JSON boundary cannot carry.
+ * delete control. The preview follows the file's kind, so a PDF or a recording
+ * shows its kind's tile and its file link instead of a broken image.
  */
 export const AssetDetail = ({ assetId }: { readonly assetId: AssetId }): ReactElement => {
   const { t } = useTranslator(common, admin);
@@ -30,11 +32,19 @@ export const AssetDetail = ({ assetId }: { readonly assetId: AssetId }): ReactEl
   }
 
   const asset = edited ?? state.data;
+  const kind = assetKind(asset);
+  const imageUrl = fileImageUrl(asset.mediaType, asset.assetUrl);
   return (
     <section>
       <h2>{asset.name}</h2>
 
-      <img className="asset-preview" src={asset.assetUrl} alt={asset.altText ?? asset.name} />
+      {imageUrl === null ? (
+        <p>
+          <AssetTile asset={asset} className="asset-preview asset-preview-kind" decorative={false} />
+        </p>
+      ) : (
+        <img className="asset-preview" src={imageUrl} alt={asset.altText ?? asset.name} />
+      )}
 
       <dl>
         <dt>{t('column.id')}</dt>
@@ -45,7 +55,7 @@ export const AssetDetail = ({ assetId }: { readonly assetId: AssetId }): ReactEl
         <dd>{asset.filename}</dd>
         <dt>{t('column.mediaType')}</dt>
         <dd>{asset.mediaType}</dd>
-        <dt>{t('column.altText')}</dt>
+        <dt>{t(kind === 'image' ? 'column.altText' : 'assets.linkText')}</dt>
         <dd>{asset.altText ?? t('common.none')}</dd>
         <dt>{t('column.owner')}</dt>
         <dd>
