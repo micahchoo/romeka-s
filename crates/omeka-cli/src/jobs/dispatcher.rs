@@ -9,6 +9,7 @@ use omeka_db::ids::{JobId, UserId};
 use omeka_db::repos::JobRepo;
 use omeka_db::rows::NewJob;
 use omeka_db::with_db;
+use omeka_server::{DispatchError, JobDispatch};
 use serde_json::Value;
 
 use super::status::JobStatus;
@@ -223,5 +224,20 @@ impl<'a> Dispatcher<'a> {
             return Err(error);
         }
         Ok(id)
+    }
+}
+
+/// Starts each job in a new `romeka job run` process and reaps it when it
+/// exits, so a long-lived server leaves no zombie processes.
+pub struct ProcessDispatch(pub JobCommand);
+
+impl JobDispatch for ProcessDispatch {
+    fn start(&self, job: JobId) -> Result<(), DispatchError> {
+        let mut child = self
+            .0
+            .spawn(job)
+            .map_err(|error| DispatchError(error.to_string()))?;
+        std::thread::spawn(move || child.wait());
+        Ok(())
     }
 }
