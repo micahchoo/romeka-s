@@ -22,6 +22,7 @@ export const MEDIA_WORDS: Readonly<Record<MediaKind, ListsMessageKey>> = {
   pdf: 'lists.facts.pdf',
   audio: 'lists.facts.audio',
   video: 'lists.facts.video',
+  document: 'lists.facts.document',
   other: 'lists.facts.other',
 };
 

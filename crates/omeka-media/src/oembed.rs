@@ -67,6 +67,23 @@ impl OembedAllowList {
             .collect()
     }
 
+    /// Whether a host is one the rules allow, matched as a source URL's host
+    /// is: an entry without a leading dot matches itself, and one with it
+    /// matches itself and every subdomain.
+    #[must_use]
+    pub fn allows_host(&self, host: &str) -> bool {
+        self.rules
+            .iter()
+            .flat_map(|rule| rule.hosts.iter())
+            .any(|pattern| {
+                let allowed = pattern.trim_start_matches('.');
+                host == allowed
+                    || host
+                        .strip_suffix(allowed)
+                        .is_some_and(|prefix| prefix.ends_with('.'))
+            })
+    }
+
     /// The endpoint for a source URL.
     ///
     /// `Some(None)` means the URL is allowed and its endpoint must be
@@ -486,6 +503,18 @@ mod tests {
             list.endpoint_for("https://player.vimeo.com/video/1"),
             Some(Some("https://vimeo.com/api/oembed.json"))
         );
+    }
+
+    /// A host is matched as a source URL's host is: itself, and its subdomains
+    /// where the rule names a whole domain.
+    #[test]
+    fn allow_list_matches_a_host_and_its_subdomains() {
+        let list = OembedAllowList::shipped();
+        assert!(list.allows_host("www.youtube.com"));
+        assert!(list.allows_host("player.vimeo.com"));
+        assert!(list.allows_host("vimeo.com"));
+        assert!(!list.allows_host("notyoutube.com"));
+        assert!(!list.allows_host("example.org"));
     }
 
     /// `getOembed` builds `<endpoint>?format=json&url=<encoded source>` and

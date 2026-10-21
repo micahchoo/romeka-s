@@ -1,32 +1,10 @@
 /** The words the upload view shows for sizes, row states and problems. */
-import type { Locale } from '../../../i18n';
+import { sizeText } from '../../../app/upload/size-text';
 import type { ImportTranslator } from '../messages';
-import type { UploadProblem } from './problem';
-import type { UploadRow } from './session';
+import type { UploadProblem } from '../../../app/upload/problem';
+import type { UploadRow } from '../../../app/upload/session';
 
-const UNITS = ['byte', 'kilobyte', 'megabyte', 'gigabyte', 'terabyte'] as const;
-const formats = new Map<string, Intl.NumberFormat>();
-
-/**
- * A size in the locale's unit words. The steps are 1000, as the unit words
- * mean them: 1 GB is 1,000,000,000 bytes, the number a limit setting holds.
- */
-export const sizeText = (bytes: number, locale: Locale): string => {
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1000 && unit < UNITS.length - 1) {
-    value /= 1000;
-    unit += 1;
-  }
-  const name = UNITS[unit] ?? 'byte';
-  const key = `${locale}:${name}`;
-  let format = formats.get(key);
-  if (format === undefined) {
-    format = new Intl.NumberFormat(locale, { style: 'unit', unit: name, unitDisplay: unit === 0 ? 'long' : 'short', maximumFractionDigits: unit < 2 ? 0 : 1 });
-    formats.set(key, format);
-  }
-  return format.format(value);
-};
+export { sizeText };
 
 export const problemText = (problem: UploadProblem, translator: ImportTranslator): string => {
   const { t, locale } = translator;

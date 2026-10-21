@@ -863,6 +863,34 @@ of inside it, so the notes panel downloads about 1.7 KB less, and a later editor
 chunk does not carry the table a second time. The 10 B on the initial payload is
 the panel's lazy import of the region editor.
 
+## Decision 28: the asset picker, its upload control and the focal point load on demand (accepted)
+
+**Change.** The asset field's picker and the shared upload/description control
+move out of the editor's `fields` chunk, and the hero's focal point control
+moves out after them. `fields` had 57 B of headroom, and the lazy wrapper alone
+took it 41 B over the 10240 B ceiling. The focal point control, which only the
+hero uses, left first, as Decision 24 asks. The asset picker and the upload
+control are shared by the assets table and the editor, so each is its own
+chunk.
+
+**Measured.** `npm run build` then `npm run perf:check` and gzip bytes from
+`zlib.gzipSync` over the manifest's files, against main `b5f40d23` built the
+same way:
+
+| Asset | Before | After | Note |
+| --- | --- | --- | --- |
+| initial js | 86211 | 86243 | the two new lazy boundaries in `FieldControl` |
+| initial css | 5172 | 5360 | the upload, drop and kind-tile rules |
+| `fields` chunk | 10183 | 9669 | 571 B under the ceiling |
+| asset picker | in a shared chunk | 920 | `AssetPicker-*` |
+| upload control | none | 1259 | `upload-*`, shared with the assets table |
+| focal point | in `fields` | 1256 | `focalPointControl-*`, hero only |
+| largest chunk | 10183 (`fields`) | 9905 (`import-routes`) | 335 B under the ceiling |
+
+**Verdict.** Accepted. No budget moved. The editor's first asset block and its
+first hero each fetch one more chunk; the assets table fetches the upload
+control with its route.
+
 ## Budgets
 
 `timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,

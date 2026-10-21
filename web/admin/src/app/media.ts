@@ -10,7 +10,8 @@
  */
 import type { KeyOf } from '../i18n';
 import type { resources } from '../i18n/namespaces/resources';
-import type { Media, ServerMediaKind, ThumbnailType } from '../api/types';
+import { SERVER_MEDIA_KINDS } from '../api/types';
+import type { Asset, Media, ServerMediaKind, ThumbnailType } from '../api/types';
 
 /** Order a browse cell prefers. Upstream shows the square thumbnail. */
 const CELL_ORDER: readonly ThumbnailType[] = ['square', 'medium', 'large'];
@@ -209,7 +210,12 @@ export const fileExtension = (media: Media): string | null => {
     return null;
   }
   const name = nonEmpty(media.filename) ?? nonEmpty(media.source);
-  const extension = name === null ? null : extensionOf(name);
+  return name === null ? null : extensionOfName(name);
+};
+
+/** The extension a stored file's name carries, upper case. */
+export const extensionOfName = (name: string): string | null => {
+  const extension = extensionOf(name);
   return extension === null ? null : extension.toUpperCase();
 };
 
@@ -289,6 +295,26 @@ export const kindOfFile = (name: string, type: string | null): MediaKind => {
   return kindOfFacts(bare, extensionOf(name));
 };
 
+const isServerKind = (kind: string): kind is ServerMediaKind =>
+  SERVER_MEDIA_KINDS.some((known) => known === kind);
+
+/** The admin's word for a server kind; `null` for the catch-all or a newer server's kind. */
+export const mediaKindOfServerKind = (kind: string): MediaKind | null => {
+  if (!isServerKind(kind)) {
+    return null;
+  }
+  const word = SERVER_KIND_WORDS[kind];
+  return word === 'by-type' ? null : word;
+};
+
+/**
+ * The kind of a stored asset, from the same table a media's kind comes from.
+ * An asset has no renderer and no server kind, so its recorded media type and
+ * the extension in its storage name are all it says.
+ */
+export const assetKind = (asset: Asset): MediaKind =>
+  kindOfFile(asset.filename, asset.mediaType);
+
 /**
  * What the media is. The one read every preview and picker derives from. The
  * server's kind wins when the document carries it; the table above is the
@@ -338,14 +364,21 @@ const thumbnailUrl = (media: Media, order: readonly ThumbnailType[]): string | n
 };
 
 /**
- * The original file, when the browser draws it in an `<img>`. A PDF, a video or
+ * The file itself, when the browser draws it in an `<img>`. A PDF, a video or
  * an audio file in an image element is a broken image, so those answer `null`
- * and the caller shows the kind's placeholder.
+ * and the caller shows the kind's placeholder. An asset has no thumbnail, so
+ * this is the only image test it has.
  */
-const originalImageUrl = (media: Media): string | null => {
-  const type = bareType(media);
-  return type !== null && SHOWABLE_IMAGE_TYPES.has(type) ? nonEmpty(media.originalUrl) : null;
+export const fileImageUrl = (mediaType: string | null, url: string | null): string | null => {
+  if (url === null || url === '') {
+    return null;
+  }
+  const type = mediaType?.split(';')[0]?.trim().toLowerCase() ?? null;
+  return type !== null && SHOWABLE_IMAGE_TYPES.has(type) ? url : null;
 };
+
+const originalImageUrl = (media: Media): string | null =>
+  fileImageUrl(media.mediaType, nonEmpty(media.originalUrl));
 
 /**
  * The image a browse cell shows: a thumbnail when the port produced one, the

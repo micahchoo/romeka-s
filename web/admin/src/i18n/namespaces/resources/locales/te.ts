@@ -26,6 +26,15 @@ export const te: ResourcesMessages = {
   'items.empty': 'ఎటువంటి అంశాలు కనుగొనబడలేదు.',
   'items.mediaHeading': 'మీడియా ({count})',
   'items.noMedia': 'ఎటువంటి మీడియా లేదు.',
+  'items.addMedia': 'మీడియాను జోడించండి',
+  'items.closeAddMedia': 'మూసివేయండి',
+  'items.noMediaYet':
+    'ఇంకా మీడియా లేదు. ఇక్కడ ఒక ఫైల్‌ను ఉంచండి, ఒకదాన్ని ఎంచుకోండి, లేదా ఒక లింక్‌ను పేస్ట్ చేయండి.',
+  'items.mayNotAdd':
+    'మీరు ఈ మీడియాను చూడవచ్చు. ఈ వస్తువును సవరించడానికి అనుమతించబడిన వ్యక్తులు మాత్రమే మీడియాను జోడించగలరు.',
+  'items.dropToAdd': 'ఈ వస్తువుకు {count} ఫైళ్లను జోడించడానికి డ్రాప్ చేయండి',
+  'items.dropToAddOne': 'ఈ వస్తువుకు 1 ఫైల్‌ను జోడించడానికి డ్రాప్ చేయండి',
+  'items.addMediaNextPage': 'మీరు తదుపరి పేజీలో ఫైళ్లను మరియు లింక్‌లను జోడిస్తారు.',
   'items.valuesHeading': 'విలువలు',
   'items.rowName': 'ఐటమ్ #{id}',
   'items.editLabel': 'ఈ ఐటమ్‌ను ఎడిట్ చేయండి',

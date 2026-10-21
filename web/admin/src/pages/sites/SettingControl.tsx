@@ -194,6 +194,8 @@ export const SettingControl = ({
           label={label}
           description={t(spec.helpKey)}
           value={text}
+          accepts="image"
+          decorative
           onChange={onChange}
         />
       );

@@ -118,10 +118,12 @@ export const kn: EditorMessages = {
   'manifest.fromItem': 'ಈ ಸೈಟ್‌ನ ಒಂದು ಐಟಂ',
   'manifest.pickItem': 'ಒಂದು ಐಟಂ ಅನ್ನು ಹುಡುಕಿ',
   'manifest.itemFallback': 'ಐಟಂ {id}',
-  'blockField.asset.attachments': 'ಚಿತ್ರಗಳು',
-  'fieldHelp.asset.attachments': 'ಪ್ರತಿ ಚಿತ್ರವು ಪುಟಕ್ಕೆ ಲಿಂಕ್ ಮಾಡಬಹುದು.',
-  'blockField.asset.id': 'ಚಿತ್ರ',
-  'fieldHelp.asset.id': 'ಅಪ್‌ಲೋಡ್ ಮಾಡಿದ ಚಿತ್ರ ಫೈಲ್.',
+  'blockField.asset.attachments': 'ಫೈಲ್‌ಗಳು',
+  'fieldHelp.asset.attachments':
+    'ಪ್ರತಿ ಫೈಲ್ ಪುಟಕ್ಕೆ ಲಿಂಕ್ ಮಾಡಬಹುದು; ಚಿತ್ರವಲ್ಲದ ಫೈಲ್ ತನ್ನನ್ನೇ ಲಿಂಕ್ ಮಾಡುತ್ತದೆ.',
+  'blockField.asset.id': 'ಫೈಲ್',
+  'fieldHelp.asset.id':
+    'ಅಪ್‌ಲೋಡ್ ಮಾಡಿದ ಫೈಲ್: ಚಿತ್ರವು ಇನ್‌ಲೈನ್‌ನಲ್ಲಿ ತೋರಿಸುತ್ತದೆ, ಯಾವುದೇ ಇತರ ಫೈಲ್ ಲಿಂಕ್ ಆಗಿ ತೋರಿಸುತ್ತದೆ.',
   'blockField.asset.alt_link_title': 'ಲಿಂಕ್ ಪಠ್ಯ',
   'fieldHelp.asset.alt_link_title': 'ಚಿತ್ರದ ಕೆಳಗೆ ಪುಟದ ಶೀರ್ಷಿಕೆಯನ್ನು ಬದಲಾಯಿಸುತ್ತದೆ.',
   'blockField.asset.caption': 'ಶೀರ್ಷಿಕೆ',

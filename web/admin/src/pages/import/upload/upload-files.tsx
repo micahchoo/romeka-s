@@ -7,14 +7,14 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { DragEvent, ReactElement } from 'react';
 import type { ImportId } from '../../../api/import-plan';
-import { uploadApi } from '../../../api/import-uploads';
-import type { UploadApi } from '../../../api/import-uploads';
+import { importTarget } from '../../../api/import-uploads';
+import type { UploadTarget } from '../../../app/upload/target';
 import { useImportText } from '../messages';
 import type { ImportTranslator } from '../messages';
-import { fromBrowserEntry, fromDrop, fromInput } from './pick';
-import type { Picked } from './pick';
-import { UploadSession, totals } from './session';
-import type { UploadRow, UploadSnapshot } from './session';
+import { fromBrowserEntry, fromDrop, fromInput } from '../../../app/upload/pick';
+import type { Picked } from '../../../app/upload/pick';
+import { UploadSession, totals } from '../../../app/upload/session';
+import type { UploadRow, UploadSnapshot } from '../../../app/upload/session';
 import { problemText, sizeText, stateText } from './text';
 import './upload.css';
 
@@ -24,8 +24,8 @@ export interface UploadFilesProps {
   readonly onFilesChanged?: () => void;
   /** Every change of what the view shows, for a shell that holds Next while files are still on their way. */
   readonly onChange?: (snapshot: UploadSnapshot) => void;
-  /** For tests: the client, and the delay between tries and job polls. */
-  readonly api?: UploadApi;
+  /** For tests: the destination, and the delay between tries and job polls. */
+  readonly api?: UploadTarget;
   readonly wait?: (ms: number) => Promise<void>;
 }
 
@@ -34,14 +34,13 @@ const SHOWN = 200;
 const RETRYABLE = new Set(['connection', 'server', 'gone', 'importFull']);
 
 const useSession = (props: UploadFilesProps): UploadSession | null => {
-  const { importId, api = uploadApi, wait } = props;
+  const { importId, api, wait } = props;
   const changed = useRef(props.onFilesChanged);
   changed.current = props.onFilesChanged;
   const [session, setSession] = useState<UploadSession | null>(null);
   useEffect(() => {
     const created = new UploadSession({
-      api,
-      importId,
+      target: api ?? importTarget(importId),
       ...(wait === undefined ? {} : { wait }),
       onFilesChanged: () => changed.current?.(),
     });
@@ -261,7 +260,7 @@ export const UploadFiles = (props: UploadFilesProps): ReactElement => {
           {closed === null ? <DropZone session={session} translator={translator} /> : <p role="alert">{problemText(closed, translator)}</p>}
           {snapshot.loaded ? null : <p className="upload-note">{t('upload.loading')}</p>}
           {snapshot.loadProblem !== null && closed === null ? <p role="alert">{problemText(snapshot.loadProblem, translator)}</p> : null}
-          {snapshot.limit === null ? null : (
+          {snapshot.limit === null || snapshot.limit.total === null ? null : (
             <p className="upload-note">
               {t('upload.limits', { file: sizeText(snapshot.limit.file, locale), total: sizeText(snapshot.limit.total, locale), used: sizeText(snapshot.used, locale) })}
             </p>

@@ -26,6 +26,15 @@ export const ml: ResourcesMessages = {
   'items.empty': 'ഐറ്റങ്ങൾ ഒന്നും കണ്ടെത്തിയില്ല.',
   'items.mediaHeading': 'മീഡിയ ({count})',
   'items.noMedia': 'മീഡിയ ഒന്നുമില്ല.',
+  'items.addMedia': 'മീഡിയ ചേർക്കുക',
+  'items.closeAddMedia': 'അടയ്ക്കുക',
+  'items.noMediaYet':
+    'ഇതുവരെ മീഡിയ ഒന്നുമില്ല. ഇവിടെ ഒരു ഫയൽ ഇടുക, ഒന്ന് തിരഞ്ഞെടുക്കുക, അല്ലെങ്കിൽ ഒരു ലിങ്ക് പേസ്റ്റ് ചെയ്യുക.',
+  'items.mayNotAdd':
+    'നിങ്ങൾക്ക് ഈ മീഡിയ കാണാം. ഈ ഇനം എഡിറ്റ് ചെയ്യാൻ കഴിയുന്ന ആളുകൾക്ക് മാത്രമേ മീഡിയ ചേർക്കാൻ കഴിയൂ.',
+  'items.dropToAdd': 'ഈ ഇനത്തിൽ {count} ഫയലുകൾ ചേർക്കാൻ താഴേക്ക് ഇടുക',
+  'items.dropToAddOne': 'ഈ ഇനത്തിൽ 1 ഫയൽ ചേർക്കാൻ താഴേക്ക് ഇടുക',
+  'items.addMediaNextPage': 'നിങ്ങൾ ഫയലുകളും ലിങ്കുകളും അടുത്ത പേജിൽ ചേർക്കുന്നു.',
   'items.valuesHeading': 'മൂല്യങ്ങൾ',
   'items.rowName': 'ഐറ്റം #{id}',
   'items.editLabel': 'ഈ ഐറ്റം എഡിറ്റ് ചെയ്യുക',

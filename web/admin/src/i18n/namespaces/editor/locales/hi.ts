@@ -113,10 +113,12 @@ export const hi: EditorMessages = {
   'manifest.fromItem': 'इस साइट से एक आइटम',
   'manifest.pickItem': 'एक आइटम खोजें',
   'manifest.itemFallback': 'आइटम {id}',
-  'blockField.asset.attachments': 'इमेज',
-  'fieldHelp.asset.attachments': 'प्रत्येक इमेज एक पेज से लिंक कर सकती है।',
-  'blockField.asset.id': 'इमेज',
-  'fieldHelp.asset.id': 'अपलोड की गई इमेज फ़ाइल।',
+  'blockField.asset.attachments': 'फ़ाइलें',
+  'fieldHelp.asset.attachments':
+    'प्रत्येक फ़ाइल एक पृष्ठ से जुड़ सकती है; एक फ़ाइल जो चित्र नहीं है, वह स्वयं से जुड़ती है।',
+  'blockField.asset.id': 'फ़ाइल',
+  'fieldHelp.asset.id':
+    'अपलोड की गई फ़ाइल: एक छवि इनलाइन दिखाई देती है, कोई भी अन्य फ़ाइल एक लिंक के रूप में दिखाई देती है।',
   'blockField.asset.alt_link_title': 'लिंक टेक्स्ट',
   'fieldHelp.asset.alt_link_title': 'इमेज के नीचे पेज के शीर्षक को प्रतिस्थापित करता है।',
   'blockField.asset.caption': 'कैप्शन',

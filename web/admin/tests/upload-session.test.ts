@@ -1,15 +1,15 @@
 /**
- * The upload queue (`pages/import/upload/session.ts`) through the real client
+ * The upload queue (`app/upload/session.ts`) through an import's real target
  * (`api/import-uploads.ts`) against an in-memory tus 1.0 server that answers
  * the way `docs/import-v2.md` ("Arrival", "Wire") says the routes do.
  */
 import { describe, expect, it } from 'vitest';
-import { UploadApi } from '../src/api/import-uploads';
+import { importTarget } from '../src/api/import-uploads';
 import type { JobStatus } from '../src/api/import-uploads';
 import { brandId } from '../src/api/parse';
-import { UploadSession, totals } from '../src/pages/import/upload/session';
-import type { UploadSnapshot } from '../src/pages/import/upload/session';
-import type { PickedFile } from '../src/pages/import/upload/pick';
+import { UploadSession, totals } from '../src/app/upload/session';
+import type { UploadSnapshot } from '../src/app/upload/session';
+import type { PickedFile } from '../src/app/upload/pick';
 
 const ID = brandId<'ImportId'>(4);
 const BASE = '/api/romeka/imports/4/uploads';
@@ -175,8 +175,7 @@ const file = (path: string, size: number): PickedFile => ({ path, file: new File
 const setup = (server = new FakeServer(), concurrency = 3) => {
   const changes: string[] = [];
   const session = new UploadSession({
-    api: new UploadApi({ baseUrl: '', fetchFn: server.fetch }),
-    importId: ID,
+    target: importTarget(ID, { baseUrl: '', fetchFn: server.fetch }),
     chunkSize: CHUNK,
     concurrency,
     wait: () => Promise.resolve(),
@@ -425,7 +424,12 @@ describe('refusals', () => {
   it('fails a file after the connection drops more times than it retries', async () => {
     const server = new FakeServer();
     const failing: typeof fetch = (input, init) => (init?.method === 'PATCH' ? Promise.reject(new TypeError('Failed to fetch')) : server.fetch(input, init));
-    const flaky = new UploadSession({ api: new UploadApi({ baseUrl: '', fetchFn: failing }), importId: ID, chunkSize: CHUNK, retries: 2, wait: () => Promise.resolve() });
+    const flaky = new UploadSession({
+      target: importTarget(ID, { baseUrl: '', fetchFn: failing }),
+      chunkSize: CHUNK,
+      retries: 2,
+      wait: () => Promise.resolve(),
+    });
     await flaky.add({ files: [file('a.tif', 25)], skipped: 0 });
     await flaky.whenIdle();
     expect(flaky.snapshot().rows[0]?.phase).toEqual({ kind: 'failed', problem: { kind: 'connection' } });

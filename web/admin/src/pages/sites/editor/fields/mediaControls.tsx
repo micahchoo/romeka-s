@@ -1,12 +1,11 @@
 /**
  * The controls of the field kinds that name a media of the site: one media
- * (`mediaRef`) and the point of its image a crop keeps in view (`focalPoint`).
+ * (`mediaRef`). The focal point on that media's image is its own chunk
+ * (`focalPointControl.tsx`), because only the hero uses it.
  */
 import type { ReactElement } from 'react';
-import type { BlockField } from '../../blockSchema';
 import { useEditorText } from '../messages';
 import type { ControlProps, FieldOf } from './controlBase';
-import { FocalPointField, focalImage } from './FocalPointField';
 import { MediaRefField } from './MediaRefField';
 
 export const MediaRefControl = ({
@@ -29,32 +28,5 @@ export const MediaRefControl = ({
       />
       {error}
     </>
-  );
-};
-
-export const FocalPointControl = ({
-  field,
-  id,
-  record,
-  siblings,
-  onPatch,
-}: ControlProps & {
-  readonly field: FieldOf<'focalPoint'>;
-  /** The fields of the same list, which name the image the point is on. */
-  readonly siblings: readonly BlockField[];
-}): ReactElement => {
-  const e = useEditorText();
-  return (
-    <FocalPointField
-      id={id}
-      label={e(field.label)}
-      help={e(field.help)}
-      x={record[field.key]}
-      y={record[field.yKey]}
-      image={focalImage(field.images, record, siblings)}
-      onChange={(x, y) => {
-        onPatch({ [field.key]: x, [field.yKey]: y });
-      }}
-    />
   );
 };

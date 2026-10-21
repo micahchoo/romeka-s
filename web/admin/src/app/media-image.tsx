@@ -68,7 +68,7 @@ const ICONS: Readonly<Record<MediaKind, ReactNode>> = {
   ),
 };
 
-const MediaKindIcon = ({ kind }: { readonly kind: MediaKind }): ReactElement => (
+export const MediaKindIcon = ({ kind }: { readonly kind: MediaKind }): ReactElement => (
   <svg
     className="media-kind-icon"
     viewBox="0 0 24 24"
@@ -149,25 +149,48 @@ export interface MediaImageProps {
   readonly decorative?: boolean;
 }
 
+export interface KindTileProps {
+  readonly kind: MediaKind;
+  /** Image URL. `null` renders the kind's placeholder, so a file is never an `<img>`. */
+  readonly url: string | null;
+  /** The name a screen reader reads when the tile shows a picture. */
+  readonly name: string;
+  /** The file's extension, upper case, when its name carries one. */
+  readonly extension: string | null;
+  /** Size class, applied to the image and to the placeholder. */
+  readonly className: string;
+  readonly lazy?: boolean;
+  /**
+   * Icon only, for a box too small for words (the browse table's 3rem cell).
+   * The words stay in the DOM for a screen reader and in the title for a pointer.
+   */
+  readonly compact?: boolean;
+  /** A preview beside its own name: empty `alt`, and nothing for a screen reader. */
+  readonly decorative?: boolean;
+  /** What a derivative that is not ready says; `null` for a tile with no state. */
+  readonly preview?: string | null;
+}
+
 /**
- * One media preview, in the same box whether it is an image or a placeholder.
- * A placeholder names the kind and the file extension, because a curator
- * meeting an audio file in a grid still needs to know what it is.
+ * One preview, in the same box whether it is an image or a placeholder: a
+ * picture, or the kind in words and the file extension. A media and an asset
+ * both draw through this, so an asset of any kind never lands in an `<img>`
+ * that cannot show it.
  */
-export const MediaImage = ({
-  media,
+export const KindTile = ({
+  kind,
   url,
+  name,
+  extension,
   className,
   lazy = false,
   compact = false,
   decorative = false,
-}: MediaImageProps): ReactElement => {
+  preview = null,
+}: KindTileProps): ReactElement => {
   const { t } = useTranslator(resources);
-  const kind = mediaKind(media);
-  const preview = usePreviewText(media);
   if (url === null) {
     const label = t(KIND_LABEL[kind]);
-    const extension = fileExtension(media);
     // A PDF file's extension repeats the kind's own name, so it earns no line.
     const namedFile = extension !== null && extension.toLowerCase() !== label.toLowerCase();
     const words = namedFile ? `${label} ${extension}` : label;
@@ -192,7 +215,7 @@ export const MediaImage = ({
     <img
       className={`media-image ${className}`}
       src={url}
-      alt={decorative ? '' : (mediaName(media) ?? t('media.altFallback', { id: media.id }))}
+      alt={decorative ? '' : name}
       loading={lazy ? 'lazy' : 'eager'}
     />
   );
@@ -213,5 +236,35 @@ export const MediaImage = ({
         <span className="media-image-badge-word">{label}</span>
       </span>
     </span>
+  );
+};
+
+/**
+ * One media preview, in the same box whether it is an image or a placeholder.
+ * A placeholder names the kind and the file extension, because a curator
+ * meeting an audio file in a grid still needs to know what it is.
+ */
+export const MediaImage = ({
+  media,
+  url,
+  className,
+  lazy = false,
+  compact = false,
+  decorative = false,
+}: MediaImageProps): ReactElement => {
+  const { t } = useTranslator(resources);
+  const preview = usePreviewText(media);
+  return (
+    <KindTile
+      kind={mediaKind(media)}
+      url={url}
+      name={mediaName(media) ?? t('media.altFallback', { id: media.id })}
+      extension={fileExtension(media)}
+      className={className}
+      lazy={lazy}
+      compact={compact}
+      decorative={decorative}
+      preview={preview}
+    />
   );
 };

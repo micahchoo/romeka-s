@@ -118,10 +118,12 @@ export const ml: EditorMessages = {
   'manifest.fromItem': 'ഈ സൈറ്റിൽ നിന്നുള്ള ഒരു ഇനം',
   'manifest.pickItem': 'ഒരു ഇനം കണ്ടെത്തുക',
   'manifest.itemFallback': 'ഇനം {id}',
-  'blockField.asset.attachments': 'ചിത്രങ്ങൾ',
-  'fieldHelp.asset.attachments': 'ഓരോ ചിത്രവും ഒരു പേജിലേക്ക് ബന്ധിപ്പിക്കാം.',
-  'blockField.asset.id': 'ചിത്രം',
-  'fieldHelp.asset.id': 'അപ്‌ലോഡ് ചെയ്ത ചിത്ര ഫയൽ.',
+  'blockField.asset.attachments': 'ഫയലുകൾ',
+  'fieldHelp.asset.attachments':
+    'ഓരോ ഫയലും ഒരു പേജുമായി ബന്ധിപ്പിക്കാം; ചിത്രമല്ലാത്ത ഒരു ഫയൽ സ്വയം ബന്ധിപ്പിക്കുന്നു.',
+  'blockField.asset.id': 'ഫയൽ',
+  'fieldHelp.asset.id':
+    'അപ്‌ലോഡ് ചെയ്ത ഫയൽ: ഒരു ചിത്രം ഇൻലൈനായി കാണിക്കുന്നു, മറ്റേതൊരു ഫയലും ലിങ്ക് ആയി കാണിക്കുന്നു.',
   'blockField.asset.alt_link_title': 'ലിങ്ക് ടെക്സ്റ്റ്',
   'fieldHelp.asset.alt_link_title': 'ചിത്രത്തിന് താഴെയുള്ള പേജ് തലക്കെട്ടിന് പകരമാകുന്നു.',
   'blockField.asset.caption': 'അടിക്കുറിപ്പ്',

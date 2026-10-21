@@ -3,8 +3,11 @@
  * exercised through the real typed client and its parsers. No network.
  */
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
+import { brandId } from '../src/api/parse';
+import { setSession } from '../src/api/session';
+import type { User } from '../src/api/types';
 import { ItemsList } from '../src/pages/items/list';
 import { ItemsPage } from '../src/pages/items/page';
 import { loadFixture } from './loadFixture';
@@ -165,6 +168,24 @@ describe('items list', () => {
   });
 });
 
+const user = (role: string, id: number): User => ({
+  id: brandId<'UserId'>(id),
+  apiUrl: `http://localhost/api/users/${String(id)}`,
+  types: ['o:User'],
+  name: `User ${String(id)}`,
+  email: `user${String(id)}@example.com`,
+  created: '2026-10-16T09:00:00+00:00',
+  role,
+  isActive: true,
+  localeSetting: null,
+  lessons: { hidden: false, seen: [] },
+  adminLocale: null,
+});
+
+afterEach(() => {
+  setSession(null);
+});
+
 describe('item detail', () => {
   it('show renders fields, media rows and values', async () => {
     const fetchMock = installFetch(detailHandler);
@@ -216,6 +237,30 @@ describe('item detail', () => {
     const mediaUrl = first(urlsFor(fetchMock, '/api/media'));
     expect(mediaUrl.searchParams.get('item_id')).toBe('1');
     expect(mediaUrl.searchParams.get('per_page')).toBe('100');
+  });
+
+  it('a researcher sees the media but no way to add one', async () => {
+    setSession(user('researcher', 3));
+    installFetch(detailHandler);
+    render(<ItemsPage param="1" />);
+
+    expect(await screen.findByRole('heading', { name: 'Media (3)', level: 2 })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add media' })).not.toBeInTheDocument();
+    expect(screen.getByText('You can view these media. Only people who may edit this item can add media.')).toBeInTheDocument();
+  });
+
+  it('an author sees the button on her own item and the note on another author’s', async () => {
+    setSession(user('author', 3));
+    installFetch(detailHandler);
+    const own = render(<ItemsPage param="1" />);
+    expect(await screen.findByRole('button', { name: 'Add media' })).toBeInTheDocument();
+    own.unmount();
+
+    setSession(user('author', 4));
+    installFetch(detailHandler);
+    render(<ItemsPage param="1" />);
+    expect(await screen.findByText('You can view these media. Only people who may edit this item can add media.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add media' })).not.toBeInTheDocument();
   });
 
   it('missing item shows the upstream error message with status', async () => {

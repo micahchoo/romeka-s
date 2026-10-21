@@ -431,15 +431,24 @@ has no route for it.
 | Method | Path | Response |
 | --- | --- | --- |
 | GET | `/api/romeka/media/:id/render` | 200 `text/html; charset=utf-8`; 404; 415 |
+| GET | `/api/romeka/media/:id/player` | 200 `application/json`, `{"url": …}` or `{"url": null}`; 404 |
 
-Only an oEmbed or HTML media answers; any other kind is a 415 whose error
-document names the media's renderer. A media the caller cannot see, an id that
-names no media, and an id that is not a number are a 404, as on the media read.
-The document carries the media's title, one `<base href>` on the server root and
-the purified render. Every answer carries a CSP whose only sources are this
-origin and the `http` and `https` origins the fragment's own `img` and `iframe`
-sources name, `X-Frame-Options: SAMEORIGIN`, `frame-ancestors 'self'`,
+Only an oEmbed or HTML media answers the render; any other kind is a 415 whose
+error document names the media's renderer. A media the caller cannot see, an id
+that names no media, and an id that is not a number are a 404, as on the media
+read. The document carries the media's title, one `<base href>` on the server
+root and the purified render. Every answer carries a CSP whose only sources are
+this origin and the `http` and `https` origins the fragment's own `img` and
+`iframe` sources name, `X-Frame-Options: SAMEORIGIN`, `frame-ancestors 'self'`,
 `Cache-Control: private, no-cache` and `Vary: Cookie`, and none sets a cookie.
+
+The player route answers the provider's own player URL when the render is
+exactly one `https` `iframe` whose host is on the shipped oEmbed allow list, and
+`null` for every other media, which the stage reads as "keep the strict frame".
+The stage frames a URL directly with `allow-same-origin` beside
+`allow-scripts`; there it grants the provider's own origin, never this one.
+A provider player nested inside a sandboxed frame of ours would inherit an
+opaque origin and refuse to draw.
 
 ## Live preview
 

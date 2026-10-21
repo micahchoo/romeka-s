@@ -132,6 +132,7 @@ const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement =
       />
       <FormErrors errors={formErrors} />
       <SaveStatus state={saveState} />
+      {item === null ? <p className="field-help">{t('items.addMediaNextPage')}</p> : null}
       <SubmitRow
         label={item === null ? t('items.add') : t('action.save')}
         busy={saveState.status === 'saving'}
