@@ -194,9 +194,11 @@ impl MadeStill {
     }
 }
 
-/// The longest side an access copy's video is scaled to. A 1080p television is
-/// the largest screen a collection streams to, and a transcode that keeps the
-/// source's 4K would cost more disk than the original.
+/// The most lines an access copy's video keeps: 1080p, measured on the short
+/// side, so a landscape 1920x1080 and a portrait 1080x1920 both stay as they
+/// are and only larger sources shrink. A 1080p television is the largest screen
+/// a collection streams to, and a copy that keeps the source's 4K would cost
+/// more disk than the original.
 pub const ACCESS_SIDE: u32 = 1080;
 
 /// The H.264 quality an access copy uses.
@@ -267,8 +269,10 @@ impl AccessTool {
 /// download finishes.
 #[must_use]
 pub fn video_mp4_args(source: &Path, output: &Path) -> Vec<OsString> {
+    // The short side is capped and the long side follows at an even size
+    // (`-2`), which H.264's 4:2:0 needs.
     let scale = format!(
-        "scale=w='min(iw,{ACCESS_SIDE})':h='min(ih,{ACCESS_SIDE})':force_original_aspect_ratio=decrease"
+        "scale=w='if(gte(iw,ih),-2,min(iw,{ACCESS_SIDE}))':h='if(gte(iw,ih),min(ih,{ACCESS_SIDE}),-2)'"
     );
     let crf = ACCESS_CRF.to_string();
     let bitrate = format!("{ACCESS_AUDIO_KBPS}k");
@@ -1518,7 +1522,7 @@ mod tests {
                 "-map",
                 "0:a?",
                 "-vf",
-                "scale=w='min(iw,1080)':h='min(ih,1080)':force_original_aspect_ratio=decrease",
+                "scale=w='if(gte(iw,ih),-2,min(iw,1080))':h='if(gte(iw,ih),min(ih,1080),-2)'",
                 "-c:v",
                 "libx264",
                 "-preset",
