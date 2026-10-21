@@ -13,9 +13,9 @@ import { readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { largeImageUrl, previewImageUrl } from '../src/app/media';
+import { largeImageUrl, mediaKind, previewImageUrl } from '../src/app/media';
 import { parseMedia } from '../src/api/parse';
-import type { Media } from '../src/api/types';
+import type { Media, ServerMediaKind } from '../src/api/types';
 
 interface Kind {
   readonly file: string;
@@ -58,6 +58,43 @@ const KINDS: readonly Kind[] = [
 const KNOWN_RED: ReadonlySet<string> = new Set([
 ]);
 
+/**
+ * The kind `MediaKind::of` gives each corpus file once the server has sniffed
+ * it. The two image formats the thumbnailer cannot read are `other-file`, which
+ * is why the server's word wins over the admin's own image table for them.
+ */
+const SERVER_KINDS: Readonly<Record<string, ServerMediaKind>> = {
+  'image.jpg': 'local-image',
+  'image.png': 'local-image',
+  'image.gif': 'local-image',
+  'image.webp': 'local-image',
+  'image.tif': 'local-image',
+  'image.avif': 'other-file',
+  'image.heic': 'other-file',
+  'image.svg': 'local-image',
+  'hostile.svg': 'local-image',
+  'audio.mp3': 'audio',
+  'audio.m4a': 'audio',
+  'audio.ogg': 'audio',
+  'audio.opus': 'audio',
+  'audio.flac': 'audio',
+  'audio.wav': 'audio',
+  'video.mp4': 'video',
+  'video.webm': 'video',
+  'video.mov': 'video',
+  'video.mkv': 'video',
+  'video.ogv': 'video',
+  'doc.pdf': 'pdf',
+  'doc.docx': 'other-file',
+  'model.glb': 'model-3d',
+  'model.gltf': 'model-3d',
+  'captions.vtt': 'captions',
+  'captions.srt': 'captions',
+};
+
+/** The rows where the server has no image kind and its word, not the table's, decides. */
+const SERVER_ONLY: ReadonlySet<string> = new Set(['image.avif', 'image.heic']);
+
 const HELPERS: readonly (readonly [string, (media: Media) => string | null])[] = [
   ['previewImageUrl', previewImageUrl],
   ['largeImageUrl', largeImageUrl],
@@ -83,7 +120,7 @@ const corpusDir = resolve(
 );
 
 /** One Media as the API sends it, before a thumbnail exists. */
-const media = (kind: Kind): Media =>
+const media = (kind: Kind, serverKind: ServerMediaKind | null = null): Media =>
   parseMedia({
     '@id': 'http://localhost/api/media/1',
     '@type': ['o:Media'],
@@ -102,6 +139,7 @@ const media = (kind: Kind): Media =>
     'o:modified': null,
     'o:ingester': 'upload',
     'o:renderer': 'file',
+    ...(serverKind === null ? {} : { 'o:kind': serverKind }),
     'o:item': { '@id': 'http://localhost/api/items/1', 'o:id': 1 },
     'o:source': kind.file,
     'o:media_type': kind.mediaType,
@@ -134,6 +172,20 @@ describe('media kind previews', () => {
       .filter((name) => !name.startsWith('.') && !['make.sh', 'README.md', 'BASELINE.md'].includes(name))
       .sort();
     expect(KINDS.map((kind) => kind.file).sort()).toEqual(files);
+  });
+
+  it('the server kind names every row, and the table agrees where the server reads the file', () => {
+    expect(Object.keys(SERVER_KINDS).sort()).toEqual(KINDS.map((kind) => kind.file).sort());
+    const failures: string[] = [];
+    for (const kind of KINDS) {
+      const fromServer = mediaKind(media(kind, SERVER_KINDS[kind.file]));
+      const fromTable = mediaKind(media(kind));
+      const expected = SERVER_ONLY.has(kind.file) ? 'other' : fromTable;
+      if (fromServer !== expected) {
+        failures.push(`${kind.file}: server ${fromServer}, table ${expected}`);
+      }
+    }
+    expect(failures).toEqual([]);
   });
 
   it('a preview URL is an image or null', () => {

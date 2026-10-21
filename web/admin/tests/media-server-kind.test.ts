@@ -49,7 +49,7 @@ const WORDS: readonly (readonly [ServerMediaKind, string])[] = [
   ['model-3d', 'model'],
   ['captions', 'captions'],
   ['embed', 'embed'],
-  ['iiif-presentation', 'embed'],
+  ['iiif-presentation', 'manifest'],
 ];
 
 describe('the server media kind', () => {
