@@ -225,8 +225,7 @@ export const mr: ImportListsMessages = {
   'lists.trip.andMore': 'आणि {count} अधिक',
   'lists.trip.remove': 'ही सूची काढून टाका',
   'lists.picker.title': 'तुमच्या फोल्डरमधील सूची',
-  'lists.picker.lede':
-    'तुमच्या फाईल्सपैकी सर्वाधिक फाईल्सना नाव देणारी सूची प्रथम येते. तुम्ही एकापेक्षा जास्त वापरू शकता.',
+  'lists.picker.order': 'तुमच्या सर्वाधिक फाईल्सना नाव देणारी सूची प्रथम येते.',
   'lists.picker.folder': '{folder} फोल्डरमध्ये',
   'lists.picker.rows': '{count} ओळी',
   'lists.picker.rowsOne': '1 ओळ',
@@ -234,22 +233,17 @@ export const mr: ImportListsMessages = {
   'lists.picker.declined': 'नाकारले',
   'lists.picker.offered': 'वापरले नाही',
   'lists.picker.unreadable': 'वाचले नाही',
-  'lists.picker.names':
-    '“{column}” या स्तंभाद्वारे, {rows} ओळींपैकी {count} ओळी तुमच्या फाईल्सपैकी एकाला नाव देतात.',
-  'lists.picker.codes':
-    '“{column}” या स्तंभाद्वारे, {rows} ओळींपैकी {count} ओळी तुमच्या घटकांपैकी एकाचा कोड देतात.',
-  'lists.picker.folded':
-    '{count} अधिक जेव्हा कॅपिटल अक्षरे, सुरुवातीला शून्या आणि _ - . दुर्लक्षित केले जातात.',
-  'lists.picker.noPair':
-    'कॅपिटल अक्षरे, सुरुवातीची शून्ये आणि _ - . दुर्लक्षित केली तरीही कोणतीही ओळ तुमच्या फाईलचे किंवा घटकाचे नाव देत नाही.',
-  'lists.picker.overlap': '{file} मधील समान घटकांची जोडी लावते: {count}',
+  'lists.picker.byNames': '“{column}” द्वारे, {rows} ओळींपैकी {count} ओळी एका फाईलचे नाव देतात.',
+  'lists.picker.byCodes': '“{column}” द्वारे, {rows} ओळींपैकी {count} ओळी एका घटकाचा कोड देतात.',
+  'lists.picker.loose': '+{count} कॅपिटल अक्षरे, सुरुवातीची शून्ये आणि _ - . दुर्लक्षित केल्यास',
+  'lists.picker.none': 'कोणतीही ओळ तुमच्या फाईलचे किंवा घटकाचे नाव देत नाही.',
+  'lists.picker.sameItems': '{file} मधील समान घटक · {count} घटक',
   'lists.picker.unread': 'ही सूची वाचता आली नाही: {message}',
   'lists.picker.use': 'या सूचीचा वापर करा',
   'lists.picker.reading': 'सूची वाचत आहे...',
   'lists.picker.stop': 'याचा वापर थांबवा',
   'lists.picker.decline': 'या घटकांबद्दल नाही',
-  'lists.picker.ask':
-    'ही सूची {file} मधील समान घटकांच्या {count} जोड्या लावते. दोन्ही वापरा, किंवा {file} च्या जागी या सूचीचा वापर करा?',
+  'lists.picker.shared': 'ही सूची {file} मधील समान घटकांच्या {count} जोड्या लावते.',
   'lists.picker.both': 'दोन्ही वापरा',
   'lists.picker.instead': '{file} च्या जागी या सूचीचा वापर करा',
   'lists.picker.cancel': 'ते जोडू नका',
