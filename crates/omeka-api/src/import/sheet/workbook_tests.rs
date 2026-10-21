@@ -6,7 +6,7 @@ use std::num::NonZeroU32;
 use rust_xlsxwriter::{ExcelDateTime, Format as CellFormat, Workbook as XlsxBook};
 
 use super::*;
-use crate::import::plan::{Auto, ImportPlanV2, PlanError};
+use crate::import::plan::{Auto, ImportPlan, PlanError};
 
 fn options(header_line: u32, sheet_name: Option<&str>) -> ReadOptions {
     ReadOptions {
@@ -325,9 +325,9 @@ fn sheet_name_is_an_optional_string_at_the_boundary() {
     let with = |name: serde_json::Value| {
         let mut plan = full.clone();
         plan["sheets"][0]["read"]["sheetName"] = name;
-        ImportPlanV2::from_json(&plan.to_string())
+        ImportPlan::from_json(&plan.to_string())
     };
-    let plain = ImportPlanV2::from_json(&full.to_string()).unwrap();
+    let plain = ImportPlan::from_json(&full.to_string()).unwrap();
     assert_eq!(plain.sheets[0].read.sheet_name, None);
     assert!(
         !plain.to_json().contains("sheetName"),

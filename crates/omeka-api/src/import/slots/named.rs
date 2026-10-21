@@ -11,7 +11,7 @@ use super::super::flags::FlagBook;
 use super::super::model::{
     LeftBy, NewSet, OwnerRef, RecordId, Resolved, SetRef, SlotValue, Subject, TemplateRef,
 };
-use super::super::plan::{FlagKind, FlagPolicy, ImportPlanV2, NewTypeFrom, Owner, SlotName, Term};
+use super::super::plan::{FlagKind, FlagPolicy, ImportPlan, NewTypeFrom, Owner, SlotName, Term};
 use super::super::values::{Visibility, fold_title};
 use super::Ctx;
 
@@ -229,7 +229,7 @@ pub(crate) fn resolve(
 
 /// A template by id or label, then a new type by label, titles compared
 /// folded.
-fn template_named(ctx: &Ctx<'_, '_>, plan: &ImportPlanV2, text: &str) -> Option<TemplateRef> {
+fn template_named(ctx: &Ctx<'_, '_>, plan: &ImportPlan, text: &str) -> Option<TemplateRef> {
     if let Ok(id) = text.trim().parse::<i64>()
         && ctx.catalog.template(id).is_some()
     {
@@ -274,7 +274,7 @@ fn owner_named(ctx: &Ctx<'_, '_>, text: &str) -> OwnerRef {
 
 /// The field a new type from the mapping requires: `dcterms:title`, or
 /// `foaf:name` when the type's class, or the record's, is `foaf:Person`.
-pub(crate) fn required_term(plan: &ImportPlanV2, new_type: usize, class: Option<&Term>) -> Term {
+pub(crate) fn required_term(plan: &ImportPlan, new_type: usize, class: Option<&Term>) -> Term {
     let person = |term: &Term| term.as_str() == "foaf:Person";
     let class_is_person = plan
         .new_types
@@ -291,7 +291,7 @@ pub(crate) fn required_term(plan: &ImportPlanV2, new_type: usize, class: Option<
 }
 
 /// Whether a new type takes its fields from the mapping.
-pub(crate) fn from_mapping(plan: &ImportPlanV2, new_type: usize) -> bool {
+pub(crate) fn from_mapping(plan: &ImportPlan, new_type: usize) -> bool {
     plan.new_types
         .get(new_type)
         .is_some_and(|new_type| matches!(new_type.from, NewTypeFrom::Mapping(_)))

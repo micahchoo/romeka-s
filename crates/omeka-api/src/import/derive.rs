@@ -23,7 +23,7 @@ use super::join::{self, SheetIn};
 use super::matching::{self, Matching};
 use super::model::{Fate, Model, Parent, Record, RecordId, SlotValue, Subject};
 use super::plan::{
-    Action, FlagKind, ImportPlanV2, RecordKind, SheetId, SlotName, SourceId, TagId, Term,
+    Action, FlagKind, ImportPlan, RecordKind, SheetId, SlotName, SourceId, TagId, Term,
 };
 use super::sheet::{Sheet, SheetError};
 use super::slots::{self, Ctx, named};
@@ -67,7 +67,7 @@ impl FileTags for NoTags {
 pub fn derive(
     index: &Index,
     sheets: &Sheets,
-    plan: &ImportPlanV2,
+    plan: &ImportPlan,
     catalog: &Catalog,
     tags: &dyn FileTags,
 ) -> Model {
@@ -270,7 +270,7 @@ fn media_order_key(draft: &records::Draft, slots: &BTreeMap<SlotName, Vec<SlotVa
 
 /// The blocking plan flags: `unknown-term`, `template-missing`,
 /// `type-exists`.
-fn plan_flags(plan: &ImportPlanV2, catalog: &Catalog, book: &mut FlagBook<'_>) {
+fn plan_flags(plan: &ImportPlan, catalog: &Catalog, book: &mut FlagBook<'_>) {
     let new_terms: BTreeSet<Term> = plan
         .new_terms
         .iter()

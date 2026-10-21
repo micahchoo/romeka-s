@@ -13,7 +13,7 @@ use super::super::decisions::{Act, EntryRef, RowRef, Single, singles};
 use super::super::grouping::Grouping;
 use super::super::join::{SheetIn, line_keys_changed};
 use super::super::model::{Anomaly, LeftBy, Orphan, OrphanReason, RecordId};
-use super::super::plan::{ImportPlanV2, RecordKind, SheetId, SlotName};
+use super::super::plan::{ImportPlan, RecordKind, SheetId, SlotName};
 use super::super::slots::SetDecisions;
 use super::records::Draft;
 
@@ -38,7 +38,7 @@ fn rows_read(sheets: &[SheetIn<'_>]) -> HashSet<RowRef> {
 
 /// `entries` holds each draft's entries, by the draft's place.
 pub(crate) fn apply(
-    plan: &ImportPlanV2,
+    plan: &ImportPlan,
     grouping: &Grouping<'_>,
     sheets: &[SheetIn<'_>],
     drafts: &mut [Draft],

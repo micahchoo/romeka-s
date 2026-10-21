@@ -18,7 +18,7 @@ use super::sample::sample;
 use crate::import::evidence::FileEntry;
 use crate::import::grouping::pattern::{FilePattern, PART};
 use crate::import::model::{GroupKey, Model, Origin, Record};
-use crate::import::plan::{ImportPlanV2, RecordKind};
+use crate::import::plan::{ImportPlan, RecordKind};
 use crate::import::scan::StoredIndex;
 
 /// The pattern group that numbers the pages of one item.
@@ -169,7 +169,7 @@ pub(super) struct Facts<'d> {
 }
 
 impl<'d> Facts<'d> {
-    pub(super) fn new(plan: &ImportPlanV2, stored: &'d StoredIndex) -> Self {
+    pub(super) fn new(plan: &ImportPlan, stored: &'d StoredIndex) -> Self {
         let entries = stored
             .index
             .sources

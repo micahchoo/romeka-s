@@ -13,7 +13,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use omeka_media::validation::{FileRefusal, FileValidation};
 
-use super::plan::{ImportPlanV2, MatchKey, StarterId, Term};
+use super::plan::{ImportPlan, MatchKey, StarterId, Term};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Catalog {
@@ -112,7 +112,7 @@ impl Catalog {
     /// every term the plan matches on, and `dcterms:identifier`, which
     /// resource links name.
     #[must_use]
-    pub fn terms_needed(plan: &ImportPlanV2) -> BTreeSet<Term> {
+    pub fn terms_needed(plan: &ImportPlan) -> BTreeSet<Term> {
         let rules = [
             &plan.action.match_by.item,
             &plan.action.match_by.media,

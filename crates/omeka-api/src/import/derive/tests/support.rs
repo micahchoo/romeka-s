@@ -9,7 +9,7 @@ use crate::import::derive::{FileTags, Index, IndexedSource, NoTags, Sheets, deri
 use crate::import::evidence::{FileEntry, Walk};
 use crate::import::model::{Flag, Model, Record};
 use crate::import::plan::{
-    FlagKind, ImportPlanV2, RecordKind, RelPath, SlotName, SourceId, SourcePlan, TagId, Term,
+    FlagKind, ImportPlan, RecordKind, RelPath, SlotName, SourceId, SourcePlan, TagId, Term,
     default_plan,
 };
 use crate::import::sheet::{self, key_column};
@@ -68,10 +68,10 @@ pub fn base() -> Json {
     serde_json::to_value(plan).expect("json")
 }
 
-pub fn plan(edit: impl FnOnce(&mut Json)) -> ImportPlanV2 {
+pub fn plan(edit: impl FnOnce(&mut Json)) -> ImportPlan {
     let mut value = base();
     edit(&mut value);
-    ImportPlanV2::from_json(&value.to_string()).unwrap_or_else(|error| panic!("{error}: {value}"))
+    ImportPlan::from_json(&value.to_string()).unwrap_or_else(|error| panic!("{error}: {value}"))
 }
 
 /// `<folders>/<identifier>[_<part>].<ext>`: `Box/A1_front.jpg` is part
@@ -123,7 +123,7 @@ pub fn rule(sources: Json, combine: &str) -> Json {
     json!({ "sources": sources, "combine": combine })
 }
 
-pub fn read_sheets(plan: &ImportPlanV2, csv: &[(&str, &[u8])]) -> Sheets {
+pub fn read_sheets(plan: &ImportPlan, csv: &[(&str, &[u8])]) -> Sheets {
     csv.iter()
         .map(|(id, bytes)| {
             let sheet_plan = plan
@@ -194,7 +194,7 @@ pub fn catalog() -> Catalog {
     }
 }
 
-pub fn run(index: &Index, sheets: &Sheets, plan: &ImportPlanV2) -> Model {
+pub fn run(index: &Index, sheets: &Sheets, plan: &ImportPlan) -> Model {
     derive(index, sheets, plan, &catalog(), &NoTags)
 }
 

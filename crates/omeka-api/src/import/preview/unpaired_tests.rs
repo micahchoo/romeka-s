@@ -13,7 +13,7 @@ use super::super::{Derived, DiskTags, PreviewRequest, preview};
 use crate::import::catalog::Catalog;
 use crate::import::derive::{Index, IndexedSource, NoTags, Sheets, derive};
 use crate::import::evidence::{FileEntry, Walk};
-use crate::import::plan::{ImportPlanV2, RelPath, SourceId, SourcePlan, default_plan};
+use crate::import::plan::{ImportPlan, RelPath, SourceId, SourcePlan, default_plan};
 use crate::import::scan::StoredIndex;
 use crate::import::sheet;
 
@@ -40,7 +40,7 @@ fn derived(files: &[&str], rows: &str, row_kind: &str) -> Derived {
         "columns": [{ "column": { "index": 0, "header": "File" },
                       "options": { "split": null, "type": "literal", "lang": null, "private": false } }]
     }]);
-    let plan = Arc::new(ImportPlanV2::from_json(&value.to_string()).unwrap());
+    let plan = Arc::new(ImportPlan::from_json(&value.to_string()).unwrap());
     let index = Index {
         sources: vec![IndexedSource {
             id: SourceId("s1".into()),

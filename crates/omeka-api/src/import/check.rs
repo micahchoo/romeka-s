@@ -12,7 +12,7 @@ use std::collections::BTreeMap;
 use serde::Serialize;
 
 use super::model::{Fate, Flag, Model, NewSet, OwnerRef};
-use super::plan::{Action, FlagPolicy, ImportPlanV2, NewTypeFrom, RecordKind, SlotName, Term};
+use super::plan::{Action, FlagPolicy, ImportPlan, NewTypeFrom, RecordKind, SlotName, Term};
 
 /// What a record does when the run reaches it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -79,7 +79,7 @@ pub struct Check {
 }
 
 #[must_use]
-pub fn check(plan: &ImportPlanV2, model: &Model) -> Check {
+pub fn check(plan: &ImportPlan, model: &Model) -> Check {
     let action = plan.action.action;
     let mut counts: Vec<Count> = Vec::new();
     let mut without_template = 0;
@@ -230,7 +230,7 @@ mod tests {
         }
     }
 
-    fn plan(edit: impl FnOnce(&mut serde_json::Value)) -> ImportPlanV2 {
+    fn plan(edit: impl FnOnce(&mut serde_json::Value)) -> ImportPlan {
         let plan = default_plan(vec![SourcePlan::Folder {
             id: SourceId("s1".into()),
             root: "archive".into(),
@@ -239,7 +239,7 @@ mod tests {
         .expect("plan");
         let mut value = serde_json::to_value(plan).expect("json");
         edit(&mut value);
-        ImportPlanV2::from_json(&value.to_string()).expect("valid")
+        ImportPlan::from_json(&value.to_string()).expect("valid")
     }
 
     #[test]

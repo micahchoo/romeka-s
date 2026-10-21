@@ -18,7 +18,7 @@ fn derived(paths: &[&str], edit: impl FnOnce(&mut serde_json::Value)) -> Derived
     let mut value = serde_json::to_value(plan).unwrap();
     value["grouping"]["pattern"] = json!(r"^(?<identifier>[A-Z]\d+)\.jpg$");
     edit(&mut value);
-    let plan = Arc::new(ImportPlanV2::from_json(&value.to_string()).unwrap());
+    let plan = Arc::new(ImportPlan::from_json(&value.to_string()).unwrap());
     let index = Index {
         sources: vec![IndexedSource {
             id: SourceId("s1".into()),

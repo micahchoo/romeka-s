@@ -11,7 +11,7 @@ use super::super::model::{
     Anomaly, EntryState, Fate, Flag, LeftBy, Model, NewSet, NewTypeFields, Orphan, Parent, Record,
     RecordId, Subject, TemplateRef,
 };
-use super::super::plan::{FlagKind, ImportPlanV2, RecordKind, RowKind, SlotName, Term};
+use super::super::plan::{FlagKind, ImportPlan, RecordKind, RowKind, SlotName, Term};
 use super::super::sheet::{HeaderNote, SheetError};
 use super::super::slots::named;
 use super::{Index, Sheets};
@@ -19,7 +19,7 @@ use super::{Index, Sheets};
 /// `encoding-unsupported`, unread sheets, changed bytes, header notes and
 /// unmapped columns.
 pub(super) fn sheet_findings(
-    plan: &ImportPlanV2,
+    plan: &ImportPlan,
     sheets: &Sheets,
     book: &mut FlagBook<'_>,
     anomalies: &mut Vec<Anomaly>,
@@ -101,7 +101,7 @@ pub(super) fn sheet_findings(
 }
 
 pub(super) struct Parts<'a, 'i> {
-    pub plan: &'a ImportPlanV2,
+    pub plan: &'a ImportPlan,
     pub grouping: &'a Grouping<'i>,
     pub sheets: &'a [SheetIn<'i>],
     pub joined: &'a Joined,
@@ -321,7 +321,7 @@ fn shape_anomalies(records: &[Record], anomalies: &mut Vec<Anomaly>) {
 
 /// One field per term a record using the type writes; the required field
 /// first.
-fn new_type_fields(plan: &ImportPlanV2, records: &[Record]) -> Vec<NewTypeFields> {
+fn new_type_fields(plan: &ImportPlan, records: &[Record]) -> Vec<NewTypeFields> {
     (0..plan.new_types.len())
         .filter(|new_type| named::from_mapping(plan, *new_type))
         .map(|new_type| {

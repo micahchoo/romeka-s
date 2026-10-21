@@ -23,7 +23,7 @@ use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Type};
 use crate::import::model::{
     Fate, Link, Model, OwnerRef, Record, RecordId, SetRef, SlotValue, TemplateRef,
 };
-use crate::import::plan::{Action, ImportPlanV2, Owner, RecordKind, SlotName, SlotRules, Term};
+use crate::import::plan::{Action, ImportPlan, Owner, RecordKind, SlotName, SlotRules, Term};
 use crate::import::values::{ValueType, Visibility};
 
 /// The install's ids for what the model names by term, and what the run
@@ -219,7 +219,7 @@ pub(super) fn values(lookup: &Lookup, record: &Record) -> Vec<ValueContent> {
 /// The run's view of a record's named slots.
 pub(super) struct Named<'a> {
     pub lookup: &'a Lookup,
-    pub plan: &'a ImportPlanV2,
+    pub plan: &'a ImportPlan,
     pub runner: Option<UserId>,
     /// What this run or an earlier attempt wrote for each item-set record.
     pub set_records: &'a HashMap<RecordId, ItemSetId>,

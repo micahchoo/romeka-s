@@ -25,7 +25,7 @@ use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Type};
 use super::catalog::{
     Catalog, ExistingItem, ExistingMedia, ExistingSet, Field, Keys, Template, User,
 };
-use super::plan::{ImportPlanV2, MatchKey, NewTypeFrom, Term};
+use super::plan::{ImportPlan, MatchKey, NewTypeFrom, Term};
 use super::starters::starter;
 
 /// The template the install calls "Base Resource". Upstream creates it at
@@ -70,7 +70,7 @@ fn raw(id: u64) -> i64 {
 pub async fn load<DB>(
     pool: &Pool<DB>,
     import: ImportId,
-    plan: &ImportPlanV2,
+    plan: &ImportPlan,
     owners: Owners,
     files: FileValidation,
 ) -> Result<Catalog, DbError>
@@ -291,7 +291,7 @@ where
 }
 
 /// The fields of each starter the plan's new types name.
-fn starter_fields(plan: &ImportPlanV2) -> BTreeMap<super::plan::StarterId, Vec<Field>> {
+fn starter_fields(plan: &ImportPlan) -> BTreeMap<super::plan::StarterId, Vec<Field>> {
     plan.new_types
         .iter()
         .filter_map(|new_type| match new_type.from {
@@ -326,7 +326,7 @@ mod tests {
     use super::*;
     use crate::import::plan::{RelPath, SourceId, SourcePlan, StarterId, default_plan};
 
-    fn plan(edit: impl FnOnce(&mut serde_json::Value)) -> ImportPlanV2 {
+    fn plan(edit: impl FnOnce(&mut serde_json::Value)) -> ImportPlan {
         let plan = default_plan(vec![SourcePlan::Folder {
             id: SourceId("s1".into()),
             root: "archive".into(),
@@ -335,7 +335,7 @@ mod tests {
         .unwrap();
         let mut value = serde_json::to_value(plan).unwrap();
         edit(&mut value);
-        ImportPlanV2::from_json(&value.to_string()).unwrap()
+        ImportPlan::from_json(&value.to_string()).unwrap()
     }
 
     #[tokio::test]

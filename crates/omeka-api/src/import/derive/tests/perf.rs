@@ -32,7 +32,7 @@ fn one(text: &str) -> Embedded {
 struct Load {
     index: crate::import::derive::Index,
     sheets: crate::import::derive::Sheets,
-    plan: crate::import::plan::ImportPlanV2,
+    plan: crate::import::plan::ImportPlan,
     tags: Warm,
 }
 

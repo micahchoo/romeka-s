@@ -385,7 +385,7 @@ fn the_digest_is_stable_across_runs_and_input_order_and_moves_with_any_change() 
         "input order does not count"
     );
 
-    let changed_value = crate::import::plan::ImportPlanV2 {
+    let changed_value = crate::import::plan::ImportPlan {
         slots: {
             let mut slots = plan.slots.clone();
             slots.item[0].sources =
@@ -416,7 +416,7 @@ fn the_digest_is_stable_across_runs_and_input_order_and_moves_with_any_change() 
     let flag_policy = run(
         &index(&[("A1.jpg", "image/png")]),
         &Sheets::new(),
-        &crate::import::plan::ImportPlanV2 {
+        &crate::import::plan::ImportPlan {
             flags: [(FlagKind::FormatMismatch, FlagPolicy::Repair)]
                 .into_iter()
                 .collect(),

@@ -63,7 +63,7 @@ use super::decisions::EntryRef;
 use super::derive::{FileTags, Sheets, derive};
 use super::evidence::FileEntry;
 use super::model::{Anomaly, Model, OrphanReason, PatternState};
-use super::plan::{ImportPlanV2, SheetId, SourceId, SourcePlan, TagId};
+use super::plan::{ImportPlan, SheetId, SourceId, SourcePlan, TagId};
 use super::scan::{self, IndexCache, SourceState, StoredIndex};
 use super::tags::{Embedded, TagCache};
 use facts::Facts;
@@ -194,7 +194,7 @@ impl FileTags for DiskTags {
 
 /// One import derived, with what the sections read besides the model.
 pub struct Derived {
-    pub plan: Arc<ImportPlanV2>,
+    pub plan: Arc<ImportPlan>,
     pub model: Model,
     pub catalog: Catalog,
     pub stored: StoredIndex,
@@ -222,7 +222,7 @@ pub async fn derive_import<DB>(
     store: &Arc<dyn Store>,
     caches: &Arc<Caches>,
     import: ImportId,
-    plan: Arc<ImportPlanV2>,
+    plan: Arc<ImportPlan>,
     owners: Owners,
     files: FileValidation,
 ) -> Result<Derived, PreviewError>

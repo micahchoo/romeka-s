@@ -2,9 +2,9 @@
 //! saved by revision, deleted (`docs/import-v2.md`, "Lifecycle and the
 //! ledger", "Copy", "Plan saves").
 //!
-//! Every plan that reaches the database passes [`ImportPlanV2::from_json`]
-//! and the install check [`ImportPlanV2::refuse_existing_labels`], and is
-//! stored in its canonical form ([`ImportPlanV2::to_json`]).
+//! Every plan that reaches the database passes [`ImportPlan::from_json`]
+//! and the install check [`ImportPlan::refuse_existing_labels`], and is
+//! stored in its canonical form ([`ImportPlan::to_json`]).
 
 use omeka_db::Backend;
 use omeka_db::DbError;
@@ -14,7 +14,7 @@ use omeka_db::rows::{ImportRow, ImportStatus, NewImport};
 use serde_json::Value;
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Type};
 
-use super::plan::{ImportPlanV2, PlanError, SourcePlan, default_plan};
+use super::plan::{ImportPlan, PlanError, SourcePlan, default_plan};
 
 /// Why a draft operation was refused.
 #[derive(Debug, thiserror::Error)]
@@ -56,7 +56,7 @@ pub enum Start {
     CopyFrom(ImportId),
 }
 
-fn plan_value(plan: &ImportPlanV2) -> Result<Value, DraftError> {
+fn plan_value(plan: &ImportPlan) -> Result<Value, DraftError> {
     serde_json::from_str(&plan.to_json()).map_err(|error| DraftError::Plan(PlanError::Shape(error)))
 }
 
@@ -91,7 +91,7 @@ where
         Start::Sources(sources) => (default_plan(sources)?, None),
         Start::CopyFrom(from) => {
             let row = repo.get(from).await?.ok_or(DraftError::Missing)?;
-            (ImportPlanV2::from_json(&row.plan.to_string())?, Some(from))
+            (ImportPlan::from_json(&row.plan.to_string())?, Some(from))
         }
     };
     Ok(repo
@@ -134,7 +134,7 @@ where
     for<'x> Option<Vec<u8>>: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
     for<'x> &'x str: Encode<'x, DB> + Type<DB> + ColumnIndex<DB::Row>,
 {
-    let plan = ImportPlanV2::from_json(&plan.to_string())?;
+    let plan = ImportPlan::from_json(&plan.to_string())?;
     let labels: Vec<String> = TemplateRepo::new(pool)
         .list()
         .await?
