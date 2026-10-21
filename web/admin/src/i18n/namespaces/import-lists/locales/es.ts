@@ -28,6 +28,7 @@ export const es: ImportListsMessages = {
   'lists.facts.pdf': 'PDF',
   'lists.facts.audio': 'sonidos',
   'lists.facts.video': 'vídeos',
+  'lists.facts.document': 'documentos',
   'lists.facts.other': 'otros archivos',
   'lists.facts.parts': 'con las palabras {parts} en la parte que marcaste',
   'lists.facts.pages': '{count} números de página',

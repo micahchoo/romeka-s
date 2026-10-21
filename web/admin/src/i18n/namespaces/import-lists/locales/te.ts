@@ -30,6 +30,7 @@ export const te: ImportListsMessages = {
   'lists.facts.pdf': 'పిడిఎఫ్లు',
   'lists.facts.audio': 'శబ్దాలు',
   'lists.facts.video': 'సినిమాలు',
+  'lists.facts.document': 'పత్రాలు',
   'lists.facts.other': 'ఇతర ఫైల్‌లు',
   'lists.facts.parts': 'మీరు గుర్తించిన భాగంలో {parts} పదాలతో',
   'lists.facts.pages': '{count} పేజీ సంఖ్యలు',

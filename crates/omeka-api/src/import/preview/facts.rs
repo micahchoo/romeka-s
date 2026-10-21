@@ -10,6 +10,7 @@
 
 use std::collections::{BTreeSet, HashMap};
 
+use omeka_media::kind as media;
 use serde::{Deserialize, Serialize};
 
 use super::query::{FlagsBy, Page, PageQuery, RecordView, page};
@@ -65,7 +66,9 @@ impl Bucket {
     }
 }
 
-/// A file's media type, read from its sniffed type.
+/// A file's kind, as the media pages will name it once the file is imported:
+/// `omeka-media`'s kind of an uploaded file, reduced to the names the import
+/// screens show.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum MediaKind {
@@ -73,22 +76,38 @@ pub enum MediaKind {
     Pdf,
     Audio,
     Video,
+    Document,
     Other,
 }
 
 impl MediaKind {
+    /// The kind of a file the scan sniffed. The extension names an office
+    /// document whose bytes are only a zip. An image counts as one when its
+    /// derivatives can be made, as it will on the media pages after import.
     #[must_use]
-    pub fn of(sniffed: &str) -> Self {
-        if sniffed.starts_with("image/") {
-            Self::Image
-        } else if sniffed == "application/pdf" {
-            Self::Pdf
-        } else if sniffed.starts_with("audio/") {
-            Self::Audio
-        } else if sniffed.starts_with("video/") {
-            Self::Video
-        } else {
-            Self::Other
+    pub fn of(sniffed: &str, path: &str) -> Self {
+        let extension = std::path::Path::new(path)
+            .extension()
+            .and_then(std::ffi::OsStr::to_str);
+        let kind = media::MediaKind::of(&media::KindInput {
+            renderer: "file",
+            ingester: "upload",
+            media_type: Some(sniffed),
+            extension,
+            has_thumbnails: true,
+        });
+        match kind {
+            media::MediaKind::LocalImage => Self::Image,
+            media::MediaKind::Pdf { .. } => Self::Pdf,
+            media::MediaKind::Audio => Self::Audio,
+            media::MediaKind::Video => Self::Video,
+            media::MediaKind::Document => Self::Document,
+            media::MediaKind::IiifImage
+            | media::MediaKind::Model3d
+            | media::MediaKind::Captions
+            | media::MediaKind::Embed
+            | media::MediaKind::IiifPresentation
+            | media::MediaKind::OtherFile => Self::Other,
         }
     }
 }
@@ -191,7 +210,7 @@ impl<'d> Facts<'d> {
             let path = file.path.as_str();
             folders.insert(path.split_once('/').map_or("", |(top, _)| top));
             if let Some(entry) = self.entries.get(&(file.source.0.as_str(), path)) {
-                media.insert(MediaKind::of(&entry.sniffed));
+                media.insert(MediaKind::of(&entry.sniffed, path));
             }
             if let Some(groups) = self.pattern.as_ref().and_then(|p| p.groups(path)) {
                 if let Some(part) = groups.get(PART) {
