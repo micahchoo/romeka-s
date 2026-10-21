@@ -83,7 +83,8 @@ export const PairsList = ({ rows, example }: { readonly rows: number; readonly e
   const draft = useDraft();
   const id = useId();
   const [sent, setSent] = useState<Sent>({ at: 'idle' });
-  if (rows <= PAIR_BY_HAND) {
+  // Offered by the rows left, but kept while it holds a send: an upload that pairs the rows down to 30 or fewer must still show its result and its undo.
+  if (rows <= PAIR_BY_HAND && sent.at === 'idle') {
     return null;
   }
   // An edit not yet saved would be lost under the revision the list makes.
