@@ -554,8 +554,9 @@ impl<'a> Loader<'a> {
         options: &RenderOptions,
     ) -> Result<MediaRef, DbError> {
         let media_url = resource_show_url(&self.site.slug, "media", row.id().0);
+        let alt_text = omeka_api::settings::media_alt_text(self.pool, self.catalog, row).await?;
         let view = MediaView::new(
-            media_core(row),
+            media_core(row, alt_text.clone()),
             MediaData::parse(&row.ingester, row.data.as_ref()).unwrap_or(MediaData::None),
             self.render_env(),
             item_url.to_string(),
@@ -564,7 +565,7 @@ impl<'a> Loader<'a> {
         .in_item(item_is_public);
         let thumbnail = view
             .thumbnail_url(options.thumbnail_type.unwrap_or(ThumbnailType::Square))
-            .map(|url| Thumbnail::new(url.to_string(), row.alt_text.clone().unwrap_or_default()));
+            .map(|url| Thumbnail::new(url.to_string(), alt_text.unwrap_or_default()));
         // The renderer registries are built here rather than held on the loader:
         // a `RendererRegistry` is not `Send`, and a value that lives across an
         // `await` would make the site handler's future non-`Send`.
@@ -1599,8 +1600,9 @@ pub(crate) fn display_title(row: &ResourceRow, messages: &Messages) -> String {
 
 /// A `media` row as the core media value the renderers read. The columns the
 /// media subsystem does not use (owner, class, template, thumbnail, language)
-/// are left at their defaults.
-fn media_core(row: &MediaRow) -> Media {
+/// are left at their defaults. `alt_text` is the resolved alt text, which the
+/// caller reads through [`omeka_api::settings::media_alt_text`].
+fn media_core(row: &MediaRow, alt_text: Option<String>) -> Media {
     let mut media = Media::new(
         MediaId::new(row.id().0),
         ItemId::new(row.item_id.0),
@@ -1622,7 +1624,7 @@ fn media_core(row: &MediaRow) -> Media {
     media.position = row.position;
     // `altTextResolved` is null without alt text, but `Thumbnail` always writes
     // an `alt` attribute, so the empty string stands in for the null here.
-    media.alt_text = Some(row.alt_text.clone().unwrap_or_default());
+    media.alt_text = Some(alt_text.unwrap_or_default());
     media
 }
 

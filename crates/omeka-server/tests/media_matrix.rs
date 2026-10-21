@@ -92,7 +92,6 @@ const KNOWN_RED: &[(&str, &str)] = &[
     ("image.heic", "site-item-card"),
     ("image.heic", "site-media-page"),
     ("image.heic", "thumbnail"),
-    ("image.jpg", "thumbnail"),
     ("image.svg", "api"),
     ("image.svg", "iiif"),
     ("image.svg", "ingest"),

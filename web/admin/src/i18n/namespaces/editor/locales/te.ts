@@ -613,7 +613,6 @@ export const te: EditorMessages = {
   'region.pageGroup': 'ప్రతి పేజీలో',
   'region.pageHelp':
     'సైట్ హెడర్ మరియు ఫుటర్ మొత్తం సైట్‌కు చెందుతాయి. ప్రివ్యూలో ఒకదాన్ని క్లిక్ చేయండి, లేదా ఇక్కడ ఎంచుకోండి.',
-  // The featured items section template.
   'sectionTemplate.featuredItems.label': 'మూడు ఫీచర్ చేసిన అంశాలు',
   'sectionTemplate.featuredItems.description':
     'ప్రతి దానిలో చిత్రం, శీర్షిక మరియు లింక్ ఉన్న మూడు అంశాల కార్డులు ఒక వరుసలో ఉంటాయి.',

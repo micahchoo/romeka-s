@@ -111,9 +111,12 @@ export const en = {
   'settings.defaultPrivateItemSets': 'Default to private item sets',
   'settings.indexFulltextSearch': 'Index fulltext search',
   'settings.versionNotifications': 'Version notifications',
+  'settings.mediaAltTextProperty': 'Media alt text property',
+  'settings.mediaAltTextPropertyInfo':
+    'The property whose first value describes a media when no alt text is set. Leave it empty and a media with no alt text has none.',
   'settings.saved': 'Settings updated.',
   'settings.note':
-    'The port saves the locale and the security settings; the other changes are not persisted.',
+    'The port saves the locale, the media alt text property and the security settings; the other changes are not persisted.',
   // `SettingForm`'s security group and its `RestoreTextarea` buttons.
   'settings.security': 'Security',
   'settings.disableFileValidation': 'Disable file validation',

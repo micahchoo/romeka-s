@@ -408,7 +408,9 @@ async fn load_image(
             id,
             Thumbnail::new(
                 loader.files().url(&path, kind),
-                media.alt_text.clone().unwrap_or_default(),
+                omeka_api::settings::media_alt_text(loader.pool(), loader.catalog(), &media)
+                    .await?
+                    .unwrap_or_default(),
             ),
         ));
     }
