@@ -10,6 +10,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { afterEach, describe, expect, it } from 'vitest';
 import { asRecord } from '../src/api/parse';
 import { ImportPage } from '../src/pages/import/page';
+import { findFact } from './fact-rows';
 import { scenario } from './import-simple-scenarios';
 import type { Scenario } from './import-simple-scenarios';
 import { simpleServer } from './import-simple-server';
@@ -165,8 +166,9 @@ describe('Add: a title question nobody answered', () => {
   it('saves the suggested item code as the title once, and says so with a way back to Check', async () => {
     const server = simpleServer(items('3'), LISTED);
     openAdd(server);
-    const line = await screen.findByText(/get their item code as the title/, {}, { timeout: 5000 });
-    expect(within(line.closest('li') ?? line).getByRole('link', { name: 'Change it' })).toHaveAttribute('href', '#/import/1/simple/check');
+    const titles = await findFact('Titles');
+    expect(titles).toHaveTextContent('From the item code');
+    expect(within(titles).getByRole('link', { name: 'Change it' })).toHaveAttribute('href', '#/import/1/simple/check');
     await waitFor(
       () => {
         expect(titleSources(last(server.saved))).toEqual([{ from: 'group', name: 'identifier' }]);
@@ -182,7 +184,7 @@ describe('Add: a title question nobody answered', () => {
     const slots = { item: { 'dcterms:title': { sources: [{ from: 'group', name: 'identifier' }], combine: 'first' } }, media: {}, itemSet: {} };
     const server = simpleServer(items('3'), { ...LISTED, slots, simple: { answered: ['untitled'] } });
     openAdd(server);
-    await screen.findByText(/get their item code as the title/, {}, { timeout: 5000 });
+    expect(await findFact('Titles')).toHaveTextContent('From the item code');
     await new Promise((resolve) => setTimeout(resolve, 500));
     expect(server.saved.map(titleSources).filter((sources) => Array.isArray(sources) && sources.length > 0)).toEqual([]);
   }, 20_000);
@@ -191,9 +193,9 @@ describe('Add: a title question nobody answered', () => {
     const answered = { simple: { answered: ['untitled'] } };
     const server = simpleServer(items('3'), { ...LISTED, ...answered });
     openAdd(server);
-    await screen.findByText(/^Ready to add/, {}, { timeout: 5000 });
+    await findFact('What it does');
     await new Promise((resolve) => setTimeout(resolve, 500));
-    expect(screen.queryByText(/get their item code as the title/)).toBeNull();
+    expect(screen.queryByText('Titles', { selector: 'dt' })).toBeNull();
     expect(server.saved.map(titleSources).filter((sources) => Array.isArray(sources) && sources.length > 0)).toEqual([]);
   }, 20_000);
 });

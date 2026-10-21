@@ -14,8 +14,7 @@ export const hi: ImportListsMessages = {
   'lists.withFilters': 'इन फ़िल्टरों के साथ।',
   'lists.changes.one': 'आपने 1 परिवर्तन किया है।',
   'lists.changes.count': 'आपने {count} परिवर्तन किए हैं।',
-  'lists.changes.many':
-    'उनमें से {count} एक साथ कई आइटम बदलते हैं। और फ़ाइलें जोड़ने या कोई उत्तर बदलने पर भी आपके परिवर्तन बने रहते हैं।',
+  'lists.changes.many': 'उनमें से {count} एक साथ कई बदलते हैं। फ़ाइलें या उत्तर बदलने पर भी सब बने रहते हैं।',
   'lists.changes.undoMany': 'एक साथ कई पर किया गया अंतिम परिवर्तन पूर्ववत करें',
   'lists.chart.caption': 'प्रत्येक आइटम में फ़ाइलें। गलत समूहन यहाँ पहले दिखाया गया है।',
   'lists.chart.bar': '{count} आइटम {files} के साथ। उन्हें दिखाएँ।',
@@ -49,8 +48,7 @@ export const hi: ImportListsMessages = {
   'lists.left.noFiles': 'इसकी हर फ़ाइल छोड़ दी गई है।',
   'lists.left.identical': 'रखी गई फ़ाइल के समान बाइट्स।',
   'lists.left.noRow': 'आपकी सूची में कोई पंक्ति नहीं है।',
-  'lists.files.lede':
-    'इस आयात की हर फ़ाइल। कुछ देखने के लिए एक फ़िल्टर चुनें। फिर उन्हें एक-एक करके, या एक साथ बदलें।',
+  'lists.files.lede': 'इस आयात की प्रत्येक फाइल। फ़िल्टर करें, फिर एक या सभी को बदलें।',
   'lists.files.filters': 'फ़ाइलों को फ़िल्टर करें',
   'lists.files.text': 'फ़ाइल के नाम का हिस्सा',
   'lists.files.used': 'एक आइटम में',
@@ -86,11 +84,10 @@ export const hi: ImportListsMessages = {
   'lists.files.noneFiltered':
     'किसी भी फ़ाइल में ये फ़िल्टर नहीं हैं। फ़िल्टर बदलें, या सभी दिखाएं।',
   'lists.groups.label': 'समूहों में आपके आइटम',
-  'lists.groups.lede':
-    'आपके {items} आइटम {groups} समूह बनाते हैं। एक समूह के आइटमों में समान तथ्य होते हैं: फ़ाइलों की संख्या, कौन से प्रकार, और क्या आपकी सूची में उनके लिए एक पंक्ति है।',
+  'lists.groups.lede': 'आपकी {items} वस्तुएं समान तथ्यों के साथ {groups} समूह बनाती हैं।',
   'lists.groups.count': '{count} आइटम में',
   'lists.groups.countOne': '1 आइटम में',
-  'lists.groups.odd': 'देखने लायक: आपके आइटमों में से 100 में से 2 से कम, या 7 या अधिक फ़ाइलें।',
+  'lists.groups.odd': 'देखने लायक: 100 में से 2 से कम, या 7+ फाइलें।',
   'lists.groups.noFile': 'कोई फ़ाइल नहीं। केवल आपकी सूची के विवरण।',
   'lists.groups.more': 'और {count} फ़ाइलें',
   'lists.groups.moreOne': 'और 1 फ़ाइल',
@@ -104,8 +101,7 @@ export const hi: ImportListsMessages = {
   'lists.identical.why': 'उनका आकार और सामग्री समान है।',
   'lists.identical.size': 'प्रत्येक {bytes} बाइट्स',
   'lists.identical.resource': 'समान फ़ाइलों के सेट',
-  'lists.items.lede':
-    'वे आइटम जिन्हें आप जोड़ने वाले हैं। कुछ देखने के लिए एक फ़िल्टर चुनें। फिर उन सभी को एक साथ बदलें।',
+  'lists.items.lede': 'वे आइटम जिन्हें आप जोड़ेंगे। फ़िल्टर करें, फिर उन्हें एक साथ सभी बदलें।',
   'lists.items.filters': 'आइटम फ़िल्टर करें',
   'lists.items.text': 'पहचानकर्ता या शीर्षक',
   'lists.items.group': 'समूह',
@@ -131,8 +127,7 @@ export const hi: ImportListsMessages = {
   'lists.items.colState': 'स्थिति',
   'lists.items.noTitle': 'कोई शीर्षक नहीं',
   'lists.items.look': 'देखने की आवश्यकता: {problem}',
-  'lists.items.none':
-    'अभी कोई आइटम नहीं। आप जो आइटम जोड़ने वाले हैं, वे यहाँ सूचीबद्ध हैं, ताकि आप उनके विवरण की जाँच और सुधार कर सकें।',
+  'lists.items.none': 'अभी तक कोई आइटम नहीं है। प्रत्येक आइटम जिसे आप जोड़ेंगे, यहाँ दिखाई देगा।',
   'lists.items.noneFiltered': 'किसी आइटम में ये फ़िल्टर नहीं हैं। फ़िल्टर बदलें, या सभी दिखाएँ।',
   'lists.many.items': 'एक साथ सभी {count} बदलें:',
   'lists.many.files': 'एक साथ सभी {count} फ़ाइलें बदलें:',
@@ -149,7 +144,7 @@ export const hi: ImportListsMessages = {
   'lists.many.cancel': 'रद्द करें',
   'lists.many.done': 'पूर्ण: {change} ({count})। इसे आपके अन्य उत्तरों के साथ सहेजा गया है।',
   'lists.pair.lede':
-    'आपकी सूची की कुछ पंक्तियों में कोई फ़ाइल नहीं है, और कुछ आइटमों के लिए कोई पंक्ति नहीं है। कोई पंक्ति किसी फ़ाइल से तभी जुड़ती है जब पंक्ति में फ़ाइल का ठीक वही नाम या कोड दिया हो। बाकी को आप यहाँ खुद जोड़ सकते हैं।',
+    'उन पंक्तियों को जोड़ें जिनका कोई फ़ाइल नाम नहीं है, उन वस्तुओं के साथ जिनका कोई पंक्ति नहीं है।',
   'lists.pair.rows': '1. एक पंक्ति चुनें: {count} पंक्तियों में कोई फ़ाइल नहीं है',
   'lists.pair.rowsOne': '1. एक पंक्ति चुनें: 1 पंक्ति में कोई फ़ाइल नहीं है',
   'lists.pair.files': '2. इसकी फ़ाइल चुनें: {count} फ़ाइलों की कोई पंक्ति नहीं है',
@@ -167,12 +162,10 @@ export const hi: ImportListsMessages = {
   'lists.pair.pairOf': 'पंक्ति {row} और {file}',
   'lists.pair.undo': 'पूर्ववत करें',
   'lists.pairs.title': '{count} पंक्तियों की कोई फ़ाइल नहीं है: उन्हें स्प्रेडशीट में जोड़ें',
-  'lists.pairs.lede':
-    'पंक्तियों को डाउनलोड करें। प्रत्येक पंक्ति के {column} कॉलम में, इसकी फ़ाइल का नाम लिखें, जैसे {example}। फिर सूची वापस भेजें।',
+  'lists.pairs.lede': '{column} में प्रत्येक पंक्ति के फ़ाइल नाम लिखें, जैसे {example}।',
   'lists.pairs.example': 'photo-1.jpg',
   'lists.pairs.download': '{count} पंक्तियाँ डाउनलोड करें (.csv)',
-  'lists.pairs.exact':
-    'कोई पंक्ति तभी जुड़ती है जब उसके {column} सेल में ठीक एक फ़ाइल का नाम हो। अगर दो फ़ोल्डरों में एक ही नाम की फ़ाइल हो, तो फ़ोल्डर और नाम दोनों लिखें, जैसे letters/page-1.jpg। कुछ न जोड़ने के लिए {column} सेल खाली छोड़ दें।',
+  'lists.pairs.exact': '{column}: एक फ़ाइल का सटीक नाम, या फ़ोल्डर/नाम। खाली जोड़े कुछ नहीं।',
   'lists.pairs.none': 'कोई पंक्ति नहीं जोड़ी गई।',
   'lists.pairs.addedOne': '1 पंक्ति जोड़ी गई।',
   'lists.pairs.added': '{count} पंक्तियाँ जोड़ी गईं।',
@@ -183,12 +176,10 @@ export const hi: ImportListsMessages = {
   'lists.pairs.why.noRow': 'इस आयात की किसी पंक्ति का यह पता नहीं है।',
   'lists.pairs.why.noFile': 'इस आयात की किसी भी फ़ाइल का यह नाम नहीं है।',
   'lists.pairs.why.manyFiles': 'एक से अधिक फ़ाइल का यह नाम है। फ़ोल्डर भी लिखें।',
-  'lists.pairs.why.noItem':
-    'यह फ़ाइल इस आयात के किसी आइटम में नहीं है: इसका नाम आपके उदाहरण से मेल नहीं खाया।',
+  'lists.pairs.why.noItem': 'किसी भी आइटम में: इसका नाम आपके उदाहरण में फिट नहीं होता है।',
   'lists.pairs.undo': 'ये जोड़ियाँ पूर्ववत करें',
   'lists.trip.title': 'स्वयं एक सूची भरें',
-  'lists.trip.lede':
-    'अपने आइटम स्प्रेडशीट में बताएँ। हर आइटम के लिए एक पंक्ति वाली सूची डाउनलोड करें, उसे भरें और फिर अपलोड करें।',
+  'lists.trip.lede': 'प्रति आइटम एक पंक्ति डाउनलोड करें, इसे भरें, इसे फिर से अपलोड करें।',
   'lists.trip.step1': '1. भरने के लिए एक सूची डाउनलोड करें',
   'lists.trip.columns': 'सूची में कॉलम',
   'lists.trip.removeColumn': 'कॉलम {column} हटाएँ',
@@ -200,28 +191,23 @@ export const hi: ImportListsMessages = {
   'lists.trip.colWho': 'इसे कौन देख सकता है',
   'lists.trip.first': 'पहली पंक्तियाँ, जो डाउनलोड की जाएँगी:',
   'lists.trip.firstTable': 'सूची की पहली पंक्तियाँ',
-  'lists.trip.keep':
-    'पहले दो कॉलम, Identifier और Files, जैसे हैं वैसे ही रहने दें। हम इन्हीं से हर आइटम को ढूँढते हैं। हर कॉलम के नाम में वर्गाकार कोष्ठक वाला हिस्सा भी रहने दें: यह Omeka को बताता है कि कॉलम कौन-सा फ़ील्ड भरता है। एक सेल में एक से अधिक मान हो सकते हैं, उनके बीच | लगाएँ।',
+  'lists.trip.keep': 'आइडेंटिफ़ायर, फाइलें और प्रत्येक [फ़ील्ड] रखें; मानों को | के साथ अलग करें।',
   'lists.trip.download': 'सूची डाउनलोड करें ({count} पंक्तियाँ, .csv)',
   'lists.trip.downloadPlain': 'सूची डाउनलोड करें (.csv)',
   'lists.trip.step2': '2. भरी हुई सूची अपलोड करें',
   'lists.trip.drop': 'भरी हुई सूची यहाँ ड्रैग करें',
-  'lists.trip.kinds':
-    'एक .csv या .tsv फ़ाइल, अधिकतम 50 MB। Excel से, सूची को CSV के रूप में सहेजें।',
+  'lists.trip.kinds': '.csv या .tsv, अधिकतम 50 MB। Excel से, CSV के रूप में सहेजें।',
   'lists.trip.choose': 'फ़ाइल चुनें',
   'lists.trip.waitSave': 'जब तक आपका अंतिम परिवर्तन सहेजा न जाए, प्रतीक्षा करें।',
   'lists.trip.sending': '{file} भेज रहे हैं...',
   'lists.trip.read': '{file} से {count} पंक्तियाँ पढ़ी गईं।',
   'lists.trip.belong': '{count} इस आयात के आइटमों की हैं।',
   'lists.trip.strays': '{count} नहीं हैं।',
-  'lists.trip.fills':
-    'यह {columns} कॉलम भरता है। इसके मान पहले आते हैं, आपकी अन्य सूचियों और फ़ाइल नामों से पहले।',
-  'lists.trip.fillsNone':
-    'यह कोई फ़ील्ड नहीं भरता: किसी भी कॉलम का नाम वर्ग कोष्ठक में फ़ील्ड नहीं रखता।',
-  'lists.trip.unused': 'हमने {columns} का उपयोग नहीं किया: इन नामों में कोई फ़ील्ड नहीं है।',
+  'lists.trip.fills': '{columns} भरता है; इसके मान अन्य सूचियों और फ़ाइल नामों पर जीतते हैं।',
+  'lists.trip.fillsNone': 'कोई फ़ील्ड नहीं भरता: किसी भी कॉलम में [फ़ील्ड] नहीं है।',
+  'lists.trip.unused': 'उपयोग नहीं किया गया: {columns}। इन नामों में कोई [फ़ील्ड] नहीं है।',
   'lists.trip.showStrays': 'वे {count} पंक्तियाँ दिखाएँ जो किसी आइटम की नहीं हैं',
-  'lists.trip.straysWhy':
-    'उनका आइडेंटिफ़ायर इस आयात का हिस्सा नहीं है। क्या पहला कॉलम बदला गया था?',
+  'lists.trip.straysWhy': 'उनका आइडेंटिफ़ायर इस आयात में नहीं है। क्या इसे बदला गया था?',
   'lists.trip.andMore': 'और {count} अधिक',
   'lists.trip.remove': 'इस सूची को हटाएँ',
   'lists.picker.title': 'आपकी फ़ोल्डर में सूचियाँ',
