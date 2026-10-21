@@ -179,7 +179,8 @@ export const te: AnnotationsMessages = {
   'captions.dialog.summaryOne': 'ఈ ఫైల్‌లో 1 క్యూ ఉంది, {start} నుండి {end} వరకు.',
   'captions.dialog.replaces': 'ఇది {cues} {language} క్యూలను భర్తీ చేస్తుంది.',
   'captions.dialog.replacesOne': 'ఇది {language} క్యూను భర్తీ చేస్తుంది.',
-  'captions.dialog.handEdited': '{count} ఇక్కడ చేతితో మార్చబడ్డాయి; ఆ మార్పులు పోతాయి.',
+  'captions.dialog.handEdited':
+    '{count} ఇక్కడ చేతితో మార్చబడ్డాయి. ఈ ఫైల్ వాటిని భర్తీ చేస్తుంది; «భర్తీని వెనక్కి తీసుకో» వాటిని తిరిగి తెస్తుంది.',
   'captions.dialog.commitAdd': '{language} క్యాప్షన్లను జోడించండి',
   'captions.dialog.commitReplace': '{cues} {language} క్యూలను మార్చండి',
   'captions.dialog.commitReplaceOne': '1 {language} క్యూని భర్తీ చేయండి',

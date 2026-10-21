@@ -181,7 +181,8 @@ export const mr: AnnotationsMessages = {
   'captions.dialog.summaryOne': 'या फाईलमध्ये 1 क्यू आहे, {start} ते {end}.',
   'captions.dialog.replaces': 'हे {cues} {language} क्लूज बदलून टाकते.',
   'captions.dialog.replacesOne': 'हे {language} संकेत बदलून टाकते.',
-  'captions.dialog.handEdited': '{count} यातील बदल येथे हाताने केले गेले; ते बदल नष्ट होतील.',
+  'captions.dialog.handEdited':
+    'त्यापैकी {count} बदल येथे हाताने केले गेले. हे फाईल त्यांना बदलून टाकते; «बदल पूर्ववत करा» त्यांना एकदा परत आणते.',
   'captions.dialog.commitAdd': '{language} कॅप्शन्स जोडा',
   'captions.dialog.commitReplace': '{cues} {language} क्लूज बदला',
   'captions.dialog.commitReplaceOne': '1 {language} संकेत बदला',

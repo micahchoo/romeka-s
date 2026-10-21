@@ -182,7 +182,8 @@ export const kn: AnnotationsMessages = {
   'captions.dialog.summaryOne': 'ಈ ಫೈಲ್ 1 ಕ್ಯೂ ಹೊಂದಿದೆ, {start} ರಿಂದ {end} ವರೆಗೆ.',
   'captions.dialog.replaces': 'ಇದು {cues} {language} ಸುಳಿವುಗಳನ್ನು ಬದಲಾಯಿಸುತ್ತದೆ.',
   'captions.dialog.replacesOne': 'ಇದು {language} ಸುಳಿವನ್ನು ಬದಲಾಯಿಸುತ್ತದೆ.',
-  'captions.dialog.handEdited': '{count} ಇಲ್ಲಿ ಕೈಯಾರೆ ಬದಲಾಯಿಸಲಾಗಿದೆ; ಆ ಬದಲಾವಣೆಗಳು ಕಳೆದುಹೋಗುತ್ತವೆ.',
+  'captions.dialog.handEdited':
+    '{count} ಇಲ್ಲಿ ಕೈಯಿಂದ ಬದಲಾಯಿಸಲಾಗಿದೆ. ಈ ಫೈಲ್ ಅವುಗಳನ್ನು ಬದಲಾಯಿಸುತ್ತದೆ; «ಬದಲಾಯಿಸುವುದನ್ನು ರದ್ದುಗೊಳಿಸಿ» ಅವುಗಳನ್ನು ಒಮ್ಮೆ ಮರಳಿ ತರುತ್ತದೆ.',
   'captions.dialog.commitAdd': '{language} ಶೀರ್ಷಿಕೆಗಳನ್ನು ಸೇರಿಸಿ',
   'captions.dialog.commitReplace': '{cues} {language} ಸುಳಿವುಗಳನ್ನು ಬದಲಾಯಿಸಿ',
   'captions.dialog.commitReplaceOne': '1 {language} ಸುಳಿವನ್ನು ಬದಲಾಯಿಸಿ',
