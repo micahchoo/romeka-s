@@ -12,11 +12,11 @@ MEDIA_MATRIX_PRINT=1 cargo test -p omeka-server --test media_matrix -- --nocaptu
 
 | kind | ingest | thumbnail | api | site-media-page | site-item-card | iiif | safe |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| image.jpg | pass | **fail** | pass | **fail** | pass | pass | n/a |
-| image.png | pass | pass | pass | **fail** | pass | pass | n/a |
-| image.gif | pass | pass | pass | **fail** | pass | pass | n/a |
-| image.webp | pass | pass | pass | **fail** | pass | pass | n/a |
-| image.tif | pass | pass | pass | **fail** | pass | pass | n/a |
+| image.jpg | pass | **fail** | pass | pass | pass | pass | n/a |
+| image.png | pass | pass | pass | pass | pass | pass | n/a |
+| image.gif | pass | pass | pass | pass | pass | pass | n/a |
+| image.webp | pass | pass | pass | pass | pass | pass | n/a |
+| image.tif | pass | pass | pass | pass | pass | pass | n/a |
 | image.avif | **fail** | **fail** | **fail** | **fail** | **fail** | **fail** | n/a |
 | image.heic | **fail** | **fail** | **fail** | **fail** | **fail** | **fail** | n/a |
 | image.svg | **fail** | **fail** | **fail** | **fail** | **fail** | **fail** | n/a |
@@ -91,24 +91,19 @@ MEDIA_MATRIX_PRINT=1 cargo test -p omeka-server --test media_matrix -- --nocaptu
 - `image.avif` / site-item-card
 - `image.avif` / site-media-page
 - `image.avif` / thumbnail
-- `image.gif` / site-media-page
 - `image.heic` / api
 - `image.heic` / iiif
 - `image.heic` / ingest
 - `image.heic` / site-item-card
 - `image.heic` / site-media-page
 - `image.heic` / thumbnail
-- `image.jpg` / site-media-page
 - `image.jpg` / thumbnail
-- `image.png` / site-media-page
 - `image.svg` / api
 - `image.svg` / iiif
 - `image.svg` / ingest
 - `image.svg` / site-item-card
 - `image.svg` / site-media-page
 - `image.svg` / thumbnail
-- `image.tif` / site-media-page
-- `image.webp` / site-media-page
 - `model.glb` / api
 - `model.glb` / iiif
 - `model.glb` / ingest

@@ -1,7 +1,9 @@
 //! The IIIF presentation media renderer (`Media/Renderer/IiifPresentation.php`).
 //!
 //! Builds the Mirador viewer query from the media source and the two
-//! `iiif_viewer_*` site settings, then emits the viewer iframe.
+//! `iiif_viewer_*` site settings, then emits the viewer iframe. The frame loads
+//! lazily, a departure from upstream, so a page with a viewer far down costs no
+//! viewer request until the reader scrolls to it.
 
 use crate::data::MediaData;
 use crate::render::{MediaView, RenderOptions, Renderer, View};
@@ -46,7 +48,7 @@ impl Renderer for IiifPresentation {
             .unwrap_or_else(|| "700px".to_string());
         let title = options.title.clone().unwrap_or_default();
         format!(
-            "<iframe style=\"width: {width}; height: {height};\" aria-label=\"{}\" src=\"{}\"></iframe>",
+            "<iframe style=\"width: {width}; height: {height};\" aria-label=\"{}\" src=\"{}\" loading=\"lazy\"></iframe>",
             escape_html(&title),
             escape_html(&src)
         )
@@ -78,7 +80,8 @@ mod tests {
     }
 
     /// `Renderer/IiifPresentation.php:18`: the default theme is light and the
-    /// sidebar is closed, and the viewer iframe carries the query.
+    /// sidebar is closed, the viewer iframe carries the query, and it loads
+    /// lazily.
     #[test]
     fn iiif_presentation_renderer_matches_upstream_defaults() {
         let registry = FileRendererRegistry::with_defaults();
@@ -92,7 +95,8 @@ mod tests {
             concat!(
                 "<iframe style=\"width: 100%; height: 700px;\" aria-label=\"\" ",
                 "src=\"https://example.org/iiif-viewer?url=https%3A%2F%2Fexample.org%2Fmanifest",
-                "&amp;mirador_config=%7B%22window.sideBarOpen%22%3Afalse%2C%22selectedTheme%22%3A%22light%22%7D\"></iframe>"
+                "&amp;mirador_config=%7B%22window.sideBarOpen%22%3Afalse%2C%22selectedTheme%22%3A%22light%22%7D\"",
+                " loading=\"lazy\"></iframe>"
             )
         );
     }
