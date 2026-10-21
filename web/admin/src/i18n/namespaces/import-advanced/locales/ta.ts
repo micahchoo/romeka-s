@@ -49,6 +49,7 @@ export const ta: ImportAdvancedMessages = {
   'adv.files.example.file': 'குறிக்கப்பட்டது',
   'adv.files.example.words': '{words} சொற்கள் மட்டுமே',
   'adv.files.example.number': '“{text}” என்பதற்குப் பதிலாக எந்த எண்ணையும் பயன்படுத்தலாம்',
+  'adv.files.example.letters': '“{text}” க்கு பதிலாக எந்த எழுத்துக்களும்',
   'adv.files.example.remove': 'நீக்கு',
   'adv.files.example.removeOne': 'அடையாளத்தை நீக்கு: {mark}',
   'adv.files.example.writes':
