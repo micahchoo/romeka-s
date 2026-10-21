@@ -50,6 +50,7 @@ export const kn: ImportListsMessages = {
   'lists.left.noFiles': 'ಅದರ ಪ್ರತಿಯೊಂದು ಫೈಲ್ ಅನ್ನು ಹೊರಗಿಡಲಾಗಿದೆ.',
   'lists.left.identical': 'ಅದನ್ನು ಉಳಿಸಿಕೊಳ್ಳುವ ಫೈಲ್‌ನಂತೆಯೇ ಅದೇ ಬೈಟ್‌ಗಳು.',
   'lists.left.noRow': 'ನಿಮ್ಮ ಪಟ್ಟಿಯಲ್ಲಿ ಯಾವುದೇ ಸಾಲು ಇಲ್ಲ.',
+  'lists.left.outside': 'ನೀವು ಆಮದು ಮಾಡುವ ಯಾವುದೇ ಫೋಲ್ಡರ್‌ನಲ್ಲಿ ಇದು ಇಲ್ಲ.',
   'lists.files.lede':
     'ಈ ಆಮದು ಮಾಡಿದ ಪ್ರತಿಯೊಂದು ಫೈಲ್. ಫಿಲ್ಟರ್ ಮಾಡಿ, ನಂತರ ಒಂದು ಅಥವಾ ಎಲ್ಲವನ್ನು ಬದಲಾಯಿಸಿ.',
   'lists.files.filters': 'ಫೈಲ್‌ಗಳನ್ನು ಫಿಲ್ಟರ್ ಮಾಡಿ',
@@ -67,6 +68,7 @@ export const kn: ImportListsMessages = {
   'lists.files.why.identical': 'ಅದನ್ನು ಉಳಿಸಿಕೊಂಡಿರುವ ಫೈಲ್‌ನಂತೆಯೇ ಬೈಟ್‌ಗಳು',
   'lists.files.why.noRow': 'ನಿಮ್ಮ ಪಟ್ಟಿಯಲ್ಲಿ ಅದರ ಐಟಂಗೆ ಯಾವುದೇ ಸಾಲು ಇಲ್ಲ',
   'lists.files.why.noRecord': 'ಇದು ಯಾವುದೇ ಐಟಂನಲ್ಲಿ ಇಲ್ಲ',
+  'lists.files.why.outside': 'ಇದು ನೀವು ಆಮದು ಮಾಡುವ ಯಾವುದೇ ಫೋಲ್ಡರ್‌ನಲ್ಲಿ ಇಲ್ಲ',
   'lists.files.count': '{count} ಫೈಲ್‌ಗಳು',
   'lists.files.countOne': '1 ಫೈಲ್',
   'lists.files.table': 'ಪ್ರತಿಯೊಂದು ಫೈಲ್',

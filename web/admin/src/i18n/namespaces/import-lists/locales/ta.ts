@@ -50,6 +50,7 @@ export const ta: ImportListsMessages = {
   'lists.left.noFiles': 'அதன் கோப்புகள் அனைத்தும் விடப்பட்டுள்ளன.',
   'lists.left.identical': 'ஒரு கோப்பாக வைத்துக்கொள்ளப்பட்ட அதே பைட்டுகள்.',
   'lists.left.noRow': 'உங்கள் பட்டியலில் வரிசை இல்லை.',
+  'lists.left.outside': 'நீங்கள் இறக்குமதி செய்யும் எந்தக் கோப்புறையிலும் இது இல்லை.',
   'lists.files.lede':
     'இந்த இறக்குமதியின் ஒவ்வொரு கோப்பும். வடிகட்டவும், பின்னர் ஒன்று அல்லது அனைத்தையும் மாற்றவும்.',
   'lists.files.filters': 'கோப்புகளை வடிகட்டவும்',
@@ -67,6 +68,7 @@ export const ta: ImportListsMessages = {
   'lists.files.why.identical': 'ஒரு கோப்பைப் போல வைத்துக்கொள்ளப்பட்ட அதே பைட்டுகள்',
   'lists.files.why.noRow': 'உங்கள் பட்டியலில் அதன் உருப்படிக்கு வரிசை இல்லை',
   'lists.files.why.noRecord': 'இது எந்த உருப்படியிலும் இல்லை',
+  'lists.files.why.outside': 'இது நீங்கள் இறக்குமதி செய்யும் எந்தக் கோப்புறையிலும் இல்லை',
   'lists.files.count': '{count} கோப்புகள்',
   'lists.files.countOne': '1 கோப்பு',
   'lists.files.table': 'ஒவ்வொரு கோப்பும்',

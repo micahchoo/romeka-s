@@ -49,6 +49,7 @@ export const ne: ImportListsMessages = {
   'lists.left.noFiles': 'यसका सबै फाइल छोडिएका छन्।',
   'lists.left.identical': 'राखिएको फाइलकै बाइट।',
   'lists.left.noRow': 'तपाईँको सूचीमा कुनै पङ्क्ति छैन।',
+  'lists.left.outside': 'यो आयात गरिएको कुनै पनि फोल्डरमा छैन।',
   'lists.files.lede':
     'यस आयातको हरेक फाइल। फिल्टर गर्नुहोस्, त्यसपछि एक वा सबै परिवर्तन गर्नुहोस्।',
   'lists.files.filters': 'फाइलहरू फिल्टर गर्नुहोस्',
@@ -66,6 +67,7 @@ export const ne: ImportListsMessages = {
   'lists.files.why.identical': 'राखिएको फाइलकै बाइट',
   'lists.files.why.noRow': 'तपाईँको सूचीमा यसको वस्तुको कुनै पङ्क्ति छैन',
   'lists.files.why.noRecord': 'यो कुनै पनि वस्तुमा छैन',
+  'lists.files.why.outside': 'यो आयात गरिएको कुनै पनि फोल्डरमा छैन',
   'lists.files.count': '{count} फाइलहरू',
   'lists.files.countOne': '1 फाइल',
   'lists.files.table': 'हरेक फाइल',
