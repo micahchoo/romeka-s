@@ -190,7 +190,6 @@ describe('the resource page block schema', () => {
       'values',
       'itemSets',
       'sitePages',
-      'mediaList',
       'linkedResources',
     ]);
     expect(items?.blocks.map((block) => block.name)).toContain('mediaList');
@@ -209,7 +208,13 @@ describe('the resource page block schema', () => {
 
   it('drafts fall back to the theme default, and a stored map wins', () => {
     const fallback = resourcePageBlockDrafts(RESOURCE_PAGE_BLOCKS_REGISTRY, {});
-    expect(fallback['items']).toContain('mediaList');
+    expect(fallback['items']).toEqual([
+      'mediaEmbeds',
+      'values',
+      'itemSets',
+      'sitePages',
+      'linkedResources',
+    ]);
     expect(fallback['media']).toEqual(['mediaRender', 'values']);
 
     const stored = resourcePageBlockDrafts(RESOURCE_PAGE_BLOCKS_REGISTRY, {
@@ -276,7 +281,7 @@ describe('the site Theme page', () => {
     expect(settings).toMatchObject({
       resource_page_blocks: {
         items: {
-          main: ['mediaEmbeds', 'values', 'itemSets', 'sitePages', 'mediaList', 'linkedResources'],
+          main: ['mediaEmbeds', 'values', 'itemSets', 'sitePages', 'linkedResources'],
         },
         media: { main: ['mediaRender', 'values'] },
       },
@@ -424,7 +429,7 @@ describe('the site Theme page', () => {
         expect(resource.at(-1)?.['resource_page']).toEqual({ kind: 'items', id: 1 });
         expect(resource.at(-1)?.['o:theme_settings']).toMatchObject({
           resource_page_blocks: {
-            items: { main: ['mediaEmbeds', 'itemSets', 'sitePages', 'mediaList', 'linkedResources'] },
+            items: { main: ['mediaEmbeds', 'itemSets', 'sitePages', 'linkedResources'] },
           },
         });
       },

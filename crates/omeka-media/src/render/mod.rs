@@ -148,6 +148,19 @@ impl MediaView {
     pub fn thumbnail_url(&self, kind: ThumbnailType) -> Option<&str> {
         self.thumbnails.get(&kind).map(String::as_str)
     }
+
+    /// The thumbnail URL for a type only when a derivative is stored. The plain
+    /// [`MediaView::thumbnail_url`] answers the theme's placeholder for a media
+    /// with none, which is what a card shows and what a video must not use as a
+    /// poster.
+    #[must_use]
+    pub fn stored_thumbnail_url(&self, kind: ThumbnailType) -> Option<&str> {
+        if self.media.has_thumbnails {
+            self.thumbnail_url(kind)
+        } else {
+            None
+        }
+    }
 }
 
 /// `MediaRepresentation::thumbnailUrl`: the stored thumbnail, or the configured

@@ -6,11 +6,14 @@
  * that the browser decodes the bytes, which is the check a jsdom test cannot
  * make.
  */
-import type { Locator } from '@playwright/test';
+import type { APIRequestContext, Locator } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { expect, expectClean, test } from '../fixtures';
-import { MEDIA_FILE } from '../harness/seed';
-import { readHarness } from '../harness/state';
+import { numberField, record } from '../harness/json';
+import { MEDIA_FILE, SITE_SLUG } from '../harness/seed';
+import { readHarness, REPO_ROOT } from '../harness/state';
 
 /** The seeded PNG is 8 by 8. The square thumbnail is cropped and scaled to 200. */
 const ORIGINAL_WIDTH = 8;
@@ -175,4 +178,81 @@ test('the Kind filter lists one kind and keeps the filter in the URL', async ({
   await expect(picture).toHaveCount(0);
 
   await expectClean(diagnostics, 'media kind filter');
+});
+
+/** A corpus file the running server turns into derivatives with ffmpeg or
+ * poppler. Read from the repository so the matrix and this spec use one copy. */
+const corpus = (name: string): Buffer =>
+  readFileSync(join(REPO_ROOT, 'fixtures', 'media-kinds', name));
+
+/** Upload one corpus file as the only media of a new public item, and answer
+ * the item's id. */
+const uploadItem = async (
+  request: APIRequestContext,
+  name: string,
+  mediaType: string,
+): Promise<number> => {
+  const answer = await request.post('/api/items', {
+    multipart: {
+      data: JSON.stringify({
+        'o:is_public': true,
+        'dcterms:title': [{ type: 'literal', '@value': name }],
+        'o:media': [{ 'o:ingester': 'upload', file_index: 0, 'o:is_public': true }],
+      }),
+      file: { name, mimeType: mediaType, buffer: corpus(name) },
+    },
+  });
+  expect(answer.status(), await answer.text()).toBe(200);
+  const created: unknown = await answer.json();
+  const item = record(created, 'item');
+  return numberField(item, 'o:id', 'item');
+};
+
+test('a video poster reaches the admin list and the public player', async ({
+  page,
+  diagnostics,
+}) => {
+  const item = await uploadItem(page.request, 'video.mp4', 'video/mp4');
+
+  // The admin list shows the square derivative as the row's picture, not the
+  // video placeholder.
+  await page.goto('/#/media');
+  const row = page.locator('tbody tr', { hasText: 'video.mp4' });
+  await expect(row).toHaveCount(1);
+  const cell = row.locator('img.media-image');
+  await expect(cell).toBeVisible();
+  const src = await srcOf(cell, 'the video row has no picture');
+  expect(src.startsWith(`${readHarness().baseUrl}/files/square/`)).toBe(true);
+  const derivative = await page.request.get(src);
+  expect(derivative.status()).toBe(200);
+  expect(derivative.headers()['content-type']).toBe('image/jpeg');
+
+  // The public item page plays the file with that still as its poster, and
+  // asks for the header rather than the whole recording.
+  await page.goto(`/s/${SITE_SLUG}/item/${String(item)}`);
+  const video = page.locator('.media-render video').first();
+  await expect(video).toBeVisible();
+  const poster = await video.getAttribute('poster');
+  expect(poster?.startsWith(`${readHarness().baseUrl}/files/large/`), String(poster)).toBe(true);
+  expect(await video.getAttribute('preload')).toBe('metadata');
+  const still = await page.request.get(poster ?? '');
+  expect(still.status()).toBe(200);
+  expect(still.headers()['content-type']).toBe('image/jpeg');
+  await expectClean(diagnostics, 'video poster');
+});
+
+test('a PDF first page is the media list thumbnail', async ({ page, diagnostics }) => {
+  await uploadItem(page.request, 'doc.pdf', 'application/pdf');
+
+  await page.goto('/#/media');
+  const row = page.locator('tbody tr', { hasText: 'doc.pdf' });
+  await expect(row).toHaveCount(1);
+  const cell = row.locator('img.media-image');
+  await expect(cell).toBeVisible();
+  const src = await srcOf(cell, 'the PDF row has no picture');
+  expect(src.startsWith(`${readHarness().baseUrl}/files/square/`)).toBe(true);
+  const pageImage = await page.request.get(src);
+  expect(pageImage.status()).toBe(200);
+  expect(pageImage.headers()['content-type']).toBe('image/jpeg');
+  await expectClean(diagnostics, 'PDF first page');
 });

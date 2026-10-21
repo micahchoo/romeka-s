@@ -1,0 +1,37 @@
+{
+  "@context": ["http://www.w3.org/ns/anno.jsonld", "http://iiif.io/api/presentation/3/context.json"],
+  "id": "https://archive.example/annotations/media/4127/page?after=91310",
+  "type": "AnnotationPage",
+  "partOf": { "id": "https://archive.example/annotations/media/4127/", "type": "AnnotationCollection", "total": 3 },
+  "items": [
+    {
+      "id": "https://archive.example/annotations/91311",
+      "type": "Annotation",
+      "motivation": "identifying",
+      "created": "2026-10-19T10:00:00Z",
+      "modified": "2026-10-19T10:00:00Z",
+      "creator": { "id": "https://example.org/users/ana", "type": "Person" },
+      "body": [
+        {
+          "type": "TextualBody",
+          "value": "<p>A <b>seal</b><script>alert(1)</script></p>",
+          "format": "text/html",
+          "language": "en",
+          "purpose": "describing"
+        },
+        { "id": "https://example.org/seals/12", "purpose": "linking" }
+      ],
+      "target": {
+        "type": "SpecificResource",
+        "source": { "id": "https://archive.example/iiif/3/item/812/canvas/4127" },
+        "selector": {
+          "type": "SvgSelector",
+          "value": "<svg xmlns=\"http://www.w3.org/2000/svg\" onload=\"alert(1)\"><script>alert(2)</script><polygon points=\"10,20 30,40 50,60\"/></svg>"
+        }
+      },
+      "dcterms:source": "Briquet 1442",
+      "romeka:client": { "name": "Another WAP client", "version": 2 },
+      "example:flag": true
+    }
+  ]
+}

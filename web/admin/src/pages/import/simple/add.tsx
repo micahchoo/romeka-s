@@ -7,12 +7,16 @@
  * the end are the run screen's (`run/`), the one start path both modes share;
  * this file gives it Simple's words for the check.
  */
+import { useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import type { Action } from '../../../api/import-plan';
 import type { Check } from '../../../api/import-sections';
 import { useDraft } from '../draft-context';
 import RunScreen from '../run/run-screen';
+import { usePreview } from '../lists/use-preview';
 import { placeHref } from '../screens';
+import { fromCode, itemCodeFits, withAnswer } from './causes';
+import { readState, withState } from './example-state';
 import { useSimpleText } from './messages';
 import type { SimpleMessageKey } from './messages';
 import './simple.css';
@@ -27,6 +31,7 @@ const ACTION_WORDS: Readonly<Record<Action, SimpleMessageKey>> = {
 };
 
 const NAMES_SHOWN = 10;
+const TITLE = 'dcterms:title';
 
 const counted = (check: Check, kind: 'item' | 'media'): number =>
   check.counts.filter((count) => count.kind === kind && count.does !== 'leave').reduce((sum, count) => sum + count.count, 0);
@@ -71,6 +76,11 @@ export const SimpleSummary = ({ check }: { readonly check: Check }): ReactElemen
         </p>
       )}
       <ul>
+        {fromCode(draft.plan.slots.item[TITLE]) ? (
+          <li>
+            {t('guided.add.titleCode')} <a href={placeHref(draft.id, { mode: 'simple', screen: 'check' })}>{t('guided.add.titleChange')}</a>
+          </li>
+        ) : null}
         {out === 0 ? null : <li>{out === 1 ? t('guided.add.leftOne') : t('guided.add.left', { count: number(out) })}</li>}
         <Names names={check.newSets.map((set) => set.title)} one="guided.add.newSetOne" many="guided.add.newSets" />
         <Names names={check.newTypes.map((type) => type.label)} one="guided.add.newTypeOne" many="guided.add.newTypes" />
@@ -110,6 +120,32 @@ export const SimpleSummary = ({ check }: { readonly check: Check }): ReactElemen
   );
 };
 
-const AddThem = (): ReactElement => <RunScreen summary={SimpleSummary} />;
+/**
+ * Check promises that a skipped question gets its suggested answer, and the
+ * run adds no title unless a rule gives one. So when the person never
+ * answered the title question and no rule exists, visiting this screen writes
+ * the suggested item code once. The run screen waits for that, so its Start
+ * never counts a plan that is about to change.
+ */
+const AddThem = (): ReactElement => {
+  const { t } = useSimpleText();
+  const draft = useDraft();
+  const read = usePreview(['histogram'], {}, draft.editable);
+  const tried = useRef(false);
+  const [settled, setSettled] = useState(!draft.editable);
+  useEffect(() => {
+    if (tried.current || read.status === 'loading') {
+      return;
+    }
+    tried.current = true;
+    const rule = draft.plan.slots.item[TITLE];
+    const unasked = !readState(draft.plan).answered.includes('empty-required') && (rule === undefined || rule.sources.length === 0);
+    if (read.status === 'ready' && unasked && itemCodeFits(read.data.pattern, read.data.histogram)) {
+      draft.change((plan) => withState(withAnswer(plan, 'empty-required', 'identifier'), { answered: [...readState(plan).answered, 'empty-required'] }));
+    }
+    setSettled(true);
+  }, [read, draft]);
+  return settled ? <RunScreen summary={SimpleSummary} /> : <p role="status" className="import-slow">{t('shell.loading')}</p>;
+};
 
 export default AddThem;
