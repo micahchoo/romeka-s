@@ -242,6 +242,53 @@ test('a video poster reaches the admin list and the public player', async ({
   await expectClean(diagnostics, 'video poster');
 });
 
+test('a ?t= link opens the player there, and a value that is not a number is ignored', async ({
+  page,
+  diagnostics,
+}) => {
+  const item = await uploadItem(page.request, 'video.mp4', 'video/mp4');
+  const media = await mediaIdOf(page.request, item);
+
+  // The fixture is half a second long; 0.2 s is a moment inside it. The loader
+  // writes a media fragment on the source, so the browser seeks with no script.
+  await page.goto(`/s/${SITE_SLUG}/media/${String(media)}?t=0.2`);
+  const video = page.locator('.media-render video').first();
+  await expect(video).toHaveAttribute('src', /#t=0\.2$/);
+  await expect
+    .poll(() => video.evaluate((node: HTMLVideoElement) => node.currentTime))
+    .toBeGreaterThan(0.15);
+
+  if (process.env.START_TIME_EVIDENCE === '1') {
+    // The fixture burns its timecode into the frame, so the photograph shows
+    // which moment the browser opened at. The plain load is the page the
+    // renderer emitted before this unit, byte for byte.
+    const prefix = process.env.START_TIME_EVIDENCE_PREFIX ?? 'start-time';
+    const frame = async (name: string): Promise<void> => {
+      await video.evaluate(async (node: HTMLVideoElement) => {
+        node.playbackRate = 0.25;
+        await node.play().catch(() => undefined);
+      });
+      await page.waitForTimeout(120);
+      await video.evaluate((node: HTMLVideoElement) => {
+        node.pause();
+      });
+      await video.screenshot({ path: join(REPO_ROOT, '.evidence', name) });
+    };
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await frame(`${prefix}-cued-1280.png`);
+    await page.setViewportSize({ width: 375, height: 812 });
+    await frame(`${prefix}-cued-375.png`);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(`/s/${SITE_SLUG}/media/${String(media)}`);
+    await frame(`${prefix}-plain-1280.png`);
+  }
+
+  // A broken link is no start: the page plays from the beginning.
+  await page.goto(`/s/${SITE_SLUG}/media/${String(media)}?t=later`);
+  await expect(page.locator('.media-render video').first()).not.toHaveAttribute('src', /#t=/);
+  await expectClean(diagnostics, '?t=');
+});
+
 test('a PDF first page is the media list thumbnail', async ({ page, diagnostics }) => {
   await uploadItem(page.request, 'doc.pdf', 'application/pdf');
 

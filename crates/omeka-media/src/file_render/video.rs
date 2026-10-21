@@ -1,7 +1,7 @@
 //! The video file renderer (`Media/FileRenderer/VideoRenderer.php`).
 
 use crate::file_render::{FileRenderer, ThumbnailType};
-use crate::render::{MediaView, RenderOptions};
+use crate::render::{MediaView, RenderOptions, media_fragment};
 use crate::text::{escape_html, hyperlink};
 
 /// The video renderer.
@@ -22,9 +22,13 @@ impl FileRenderer for Video {
     /// black rectangle, and `preload="metadata"` is always sent, so a page with
     /// a two hour recording fetches its header rather than the whole file
     /// before anyone presses play. `options.poster` still wins.
+    ///
+    /// A third: `options.start` becomes the media fragment `#t=62` on `src`, so
+    /// a `?t=` link opens at that moment with no script.
     fn render(&self, media: &MediaView, options: &RenderOptions) -> String {
         let original = media.original_url.clone().unwrap_or_default();
-        let mut attrs = vec![format!("src=\"{}\"", escape_html(&original))];
+        let source = media_fragment(&original, options.start);
+        let mut attrs = vec![format!("src=\"{}\"", escape_html(&source))];
         if let Some(width) = &options.width {
             attrs.push(format!("width=\"{}\"", escape_html(width)));
         }
@@ -60,6 +64,7 @@ impl FileRenderer for Video {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::render::MediaStart;
     use crate::testing::{media_row, media_view_from};
 
     fn video_media() -> MediaView {
@@ -124,5 +129,19 @@ mod tests {
     fn a_video_without_derivatives_has_no_poster() {
         let html = Video.render(&video_media(), &RenderOptions::default());
         assert!(!html.contains("poster="), "{html}");
+    }
+
+    /// A start reaches the browser as a media fragment on the source, so a
+    /// `?t=` link plays from that moment with no script.
+    #[test]
+    fn a_start_cues_the_video_with_a_media_fragment() {
+        let options = RenderOptions {
+            start: Some(MediaStart::from_millis(62_000)),
+            ..RenderOptions::default()
+        };
+        assert_eq!(
+            Video.render(&video_media(), &options),
+            "<video src=\"/files/original/abc123.mp4#t=62\" preload=\"metadata\" controls><a href=\"/files/original/abc123.mp4\">abc123.mp4</a></video>"
+        );
     }
 }
