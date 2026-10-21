@@ -193,6 +193,7 @@ export const en = {
   'guided.check.nothing': 'Nothing to answer. Your files and your list are ready to add.',
   'guided.check.example': 'For example, {name}.',
   'guided.check.exampleOf': 'For example, {name}: “{value}”.',
+  'guided.check.omekaItem': 'Omeka item {id}',
   'guided.check.another': 'Another example',
   'guided.check.showAll': 'Show all {count}',
   'guided.check.pair': 'Pair by hand',
