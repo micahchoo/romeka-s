@@ -41,6 +41,7 @@ def render_document(doc: Doc) -> str:
     shared_section(out, doc)
     errors_section(out)
     annotations_section(out)
+    embed_frame_section(out)
     return "\n".join(out).rstrip("\n") + "\n"
 
 
@@ -76,6 +77,11 @@ def sources_section(out: list[str]) -> None:
                     "`crates/omeka-server/src/annotations/`",
                     "the Web Annotation Protocol routes, which sit outside `/api` and are stated in "
                     "the appendix below rather than parsed from `omeka-api`",
+                ],
+                [
+                    "`crates/omeka-server/src/media_render.rs`",
+                    "the embed frame route, which is stated in the appendix below rather than parsed "
+                    "from `omeka-api`",
                 ],
             ],
         )
@@ -381,4 +387,52 @@ def annotations_section(out: list[str]) -> None:
         "for a selector the media's surface does not take, and the matching sentence for a box "
         "outside the canvas, a time range past the duration, or a document that is not an annotation."
     )
+    out.append("")
+
+
+def embed_frame_section(out: list[str]) -> None:
+    out.append("## The embed frame")
+    out.append("")
+    out.append(
+        "`GET /api/romeka/media/{id}/render` answers the server's own render of one media as a "
+        "complete HTML document, which the admin media stage puts in a sandboxed frame "
+        "(`crates/omeka-server/src/media_render.rs`). Upstream's admin calls `$media->render()` for "
+        "the same reason and has no route for it."
+    )
+    out.append("")
+    out.append(
+        "Only an oEmbed or HTML media answers; any other kind is a 415 whose error document names "
+        "the media's renderer. A media the caller cannot see, an id that names no media, and an id "
+        "that is not a number are a 404, as they are on the media read. The caller is the session "
+        "cookie or the API key pair, by the same visibility rule the API applies to a media and its "
+        "item."
+    )
+    out.append("")
+    out.append(
+        "The document carries the media's title, one `<base href>` on the server root, and the "
+        "purified render. Its headers are part of the contract:"
+    )
+    out.append("")
+    out.append(
+        table(
+            ["Header", "Value"],
+            [
+                ["`Content-Type`", "`text/html; charset=utf-8`"],
+                [
+                    "`Content-Security-Policy`",
+                    "`default-src 'none'`; `script-src 'none'`; `style-src 'unsafe-inline'` for the frame's own "
+                    "base rule set and the `style` attributes the purifier keeps; `base-uri 'self'`; "
+                    "`form-action 'none'`; "
+                    "`frame-ancestors 'self'`; `img-src 'self'` plus the `http` and `https` origins "
+                    "the fragment's `img` sources name; `frame-src` the origins its `iframe` sources "
+                    "name. No source expression is wider than the render itself",
+                ],
+                ["`X-Frame-Options`", "`SAMEORIGIN`"],
+                ["`Cache-Control`", "`private, no-cache`"],
+                ["`Vary`", "`Cookie`"],
+            ],
+        )
+    )
+    out.append("")
+    out.append("No answer sets a cookie.")
     out.append("")

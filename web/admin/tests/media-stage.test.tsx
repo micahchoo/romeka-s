@@ -264,6 +264,91 @@ describe('a media the stage cannot show', () => {
     );
   });
 
+  it('frames the server render of an HTML media only after the press', () => {
+    render(
+      <MediaStage
+        media={media({
+          kind: 'embed',
+          renderer: 'html',
+          ingester: 'html',
+          type: null,
+          filename: null,
+          originalUrl: null,
+        })}
+      />,
+    );
+
+    expect(document.querySelector('iframe')).toBeNull();
+    expect(
+      screen.getByText(/HTML that the server renders. Nothing loads until you open it\./),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('link')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load the embed' }));
+
+    const frame = document.querySelector('iframe');
+    expect(frame).not.toBeNull();
+    expect(frame).toHaveAttribute('src', '/api/romeka/media/7/render');
+    expect(frame).toHaveAttribute('sandbox', 'allow-scripts allow-presentation');
+    expect(frame?.getAttribute('sandbox')).not.toContain('allow-same-origin');
+    expect(frame).toHaveAccessibleName('The rendered HTML');
+    expect(screen.queryByRole('button', { name: 'Load the embed' })).toBeNull();
+  });
+
+  it('names the host of an oEmbed media, keeps the link, and frames its render on the press', () => {
+    const source = 'https://www.youtube.com/watch?v=abc123';
+    render(
+      <MediaStage
+        media={media({
+          kind: 'embed',
+          renderer: 'oembed',
+          ingester: 'oembed',
+          type: null,
+          filename: null,
+          originalUrl: null,
+          source,
+        })}
+      />,
+    );
+
+    expect(document.querySelector('iframe')).toBeNull();
+    expect(screen.getByText(/is a page on www\.youtube\.com/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open on www.youtube.com' })).toHaveAttribute(
+      'href',
+      source,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load the embed' }));
+
+    const frame = document.querySelector('iframe');
+    expect(frame).toHaveAttribute('src', '/api/romeka/media/7/render');
+    expect(frame).toHaveAttribute('sandbox', 'allow-scripts allow-presentation');
+    expect(frame).toHaveAccessibleName('The embed from www.youtube.com');
+    expect(screen.getByRole('link', { name: 'Open on www.youtube.com' })).toHaveAttribute(
+      'href',
+      source,
+    );
+  });
+
+  it('says an outside page with no address has no stored file, instead of an empty box', () => {
+    render(
+      <MediaStage
+        media={media({
+          kind: 'embed',
+          renderer: 'youtube',
+          ingester: 'youtube',
+          type: null,
+          filename: null,
+          originalUrl: null,
+        })}
+      />,
+    );
+
+    expect(screen.getByText('This media has no stored file.')).toBeInTheDocument();
+    expect(screen.queryByRole('img')).toBeNull();
+    expect(document.querySelector('iframe')).toBeNull();
+  });
+
   it('opens a IIIF manifest in the server viewer, and names its host', () => {
     const source = 'https://iiif.example.org/museum/manifest';
     render(
@@ -286,24 +371,6 @@ describe('a media the stage cannot show', () => {
       `/iiif-viewer?url=${encodeURIComponent(source)}`,
     );
     expect(screen.getByRole('link', { name: 'Open the manifest' })).toHaveAttribute('href', source);
-  });
-
-  it('says a media has no stored file instead of showing an empty box', () => {
-    render(
-      <MediaStage
-        media={media({
-          kind: 'embed',
-          renderer: 'html',
-          ingester: 'html',
-          type: null,
-          filename: null,
-          originalUrl: null,
-        })}
-      />,
-    );
-
-    expect(screen.getByText('This media has no stored file.')).toBeInTheDocument();
-    expect(screen.queryByRole('img')).toBeNull();
   });
 });
 

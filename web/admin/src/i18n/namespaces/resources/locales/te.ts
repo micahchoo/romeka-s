@@ -99,6 +99,11 @@ export const te: ResourcesMessages = {
   'media.stage.embedHeading':
     'ఈ మీడియా {host} లోని ఒక పేజీ. మీరు దానిని తెరిచే వరకు దీని నుండి ఏమీ లోడ్ అవ్వదు.',
   'media.stage.embedOpen': '{host} పై తెరవండి',
+  'media.stage.embedLoad': 'ఎంబెడ్‌ను లోడ్ చేయండి',
+  'media.stage.embedFrame': '{host} నుండి ఎంబెడ్',
+  'media.stage.embedSnippetHeading':
+    'ఈ మీడియా HTML, దీనిని సర్వర్ రెండర్ చేస్తుంది. మీరు దానిని తెరిచే వరకు ఏదీ లోడ్ కాదు.',
+  'media.stage.embedSnippetFrame': 'రెండర్ చేయబడిన HTML',
   'media.stage.manifestHeading': 'ఈ మీడియా {host} నుండి ఒక IIIF మానిఫెస్ట్.',
   'media.stage.manifestOpen': 'IIIF వ్యూయర్‌లో తెరవండి',
   'media.stage.manifestSource': 'మానిఫెస్ట్‌ను తెరవండి',
