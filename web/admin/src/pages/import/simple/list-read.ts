@@ -20,10 +20,11 @@ export const folderSheets = (plan: ImportPlan): readonly SheetPlan[] =>
 
 /**
  * The edit that adds `list` to a plan: read once with automatic options, and
- * once more on the header line the server guessed when that is not line 1.
+ * once more on the header line the server guessed when that is not line 1;
+ * its counts as that read gives them.
  */
 export const listEdit = async (id: ImportId, plan: ImportPlan, list: ListFile): Promise<(now: ImportPlan) => ImportPlan> => {
-  const readWith = (sheet: SheetPlan) => importApi.preview(id, ['sheets', 'columnMatches'], { plan: { ...plan, sheets: [...plan.sheets, sheet] } });
+  const readWith = (sheet: SheetPlan) => importApi.preview(id, ['sheets', 'columnMatches', 'listCandidates'], { plan: { ...plan, sheets: [...plan.sheets, sheet] } });
   const first = sheetOf(plan, list.source, list.file);
   let sheet = first;
   let preview = await readWith(first);
@@ -38,6 +39,10 @@ export const listEdit = async (id: ImportId, plan: ImportPlan, list: ListFile): 
   if (read === null) {
     throw new Error(view?.error ?? list.file);
   }
-  const matches = preview.columnMatches.find((one) => one.sheet === sheet.id);
-  return (now) => (now.sheets.some((one) => one.file === sheet.file && one.source === sheet.source) ? now : withRead({ ...now, sheets: [...now.sheets, sheet] }, sheet.id, read, matches, fields));
+  const counts = {
+    grain: null,
+    matches: preview.columnMatches.find((one) => one.sheet === sheet.id),
+    cells: preview.listCandidates.find((one) => one.inPlan === sheet.id)?.cells ?? [],
+  };
+  return (now) => (now.sheets.some((one) => one.file === sheet.file && one.source === sheet.source) ? now : withRead({ ...now, sheets: [...now.sheets, sheet] }, sheet.id, read, counts, fields));
 };

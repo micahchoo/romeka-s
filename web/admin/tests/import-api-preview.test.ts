@@ -115,11 +115,15 @@ describe('what the sections say', () => {
               { index: 1, header: 'Year', varies: { groups: 0, of: 4 } },
             ],
           },
+          cells: [
+            { index: 0, header: 'File', separator: null },
+            { index: 1, header: 'Year', separator: { text: ',', cells: 2 } },
+          ],
           overlaps: [{ source: 's1', file: 'old/AF.csv', sharedTargets: 3 }],
         },
         {
           source: 's1', file: 'broken.xlsx', inPlan: null, read: { error: 'the workbook cannot be read: no zip' },
-          rows: 0, columns: 0, best: null, grain: null, overlaps: [],
+          rows: 0, columns: 0, best: null, grain: null, cells: [], overlaps: [],
         },
       ],
     };

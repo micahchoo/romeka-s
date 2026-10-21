@@ -144,6 +144,8 @@ export const en = {
   'guided.list.levelOut': 'Leave out',
   'guided.list.varies': 'Varies in {count} of {of} items.',
   'guided.list.itemOnly': 'An item type or an item set goes on the item only.',
+  'guided.list.split': 'Several values in one cell, separated by “{separator}”',
+  'guided.list.splitCount': 'In {count} of {of} cells.',
   'guided.list.levelLede':
     'On the item: the values of all its rows, each value once. On each file: the values of that file’s own row. We suggest each file where the values differ inside some item, and the item where they never do.',
   // Where they go.

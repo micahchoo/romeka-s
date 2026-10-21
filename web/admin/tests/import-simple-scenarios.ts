@@ -8,7 +8,7 @@
  * (its `seen` decisions), so the pass the test drives meets the same
  * questions; the item counts are made up and only have to add up.
  */
-import type { Bucket, Grain, MediaKind } from '../src/api/import-sections';
+import type { Bucket, ColumnCells, Grain, MediaKind } from '../src/api/import-sections';
 
 export interface ScenarioGroup {
   readonly files: Bucket;
@@ -94,6 +94,12 @@ export interface ScenarioList {
   readonly columns?: readonly string[];
   /** What `listCandidates` says its rows describe; none when absent. */
   readonly grain?: Grain;
+  /** Which separator `listCandidates` says each column's cells hold; none when absent. */
+  readonly cells?: readonly ColumnCells[];
+  /** The sheet view's lines from line 1; when absent, the header and one row of `A`s, comma-separated. */
+  readonly lines?: readonly string[];
+  /** The line of `lines` that `columns` are on, which the server guesses; 1 when absent. */
+  readonly headerLine?: number;
 }
 
 const big = (size: number, small: number, large: number): number => (size > 9 ? large : small);

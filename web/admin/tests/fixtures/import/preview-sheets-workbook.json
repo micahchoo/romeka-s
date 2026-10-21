@@ -80,8 +80,8 @@
       },
       "id": "list-2",
       "lines": [
-        "Identifier\tFiles\tTitle [dcterms:title]",
-        "BHC_006_AF_001\t\tBrass lamp"
+        "Identifier,Files,Title [dcterms:title]",
+        "BHC_006_AF_001,,Brass lamp"
       ],
       "read": {
         "blankLines": 0,
