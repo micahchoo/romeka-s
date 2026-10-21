@@ -17,6 +17,7 @@ import { KIND_LABEL } from '../../../app/media';
 import type { KeyOf, MessageKey, Translator } from '../../../i18n';
 import { useTranslator } from '../../../i18n';
 import { resources } from '../../../i18n/namespaces/resources';
+import { originalFacts, showsOriginal } from '../access';
 import { recallPosition, rememberPosition } from './play-position';
 import { EmbedCard, ManifestCard, ThirdPartyCard } from './third-party';
 import { stageView } from './view';
@@ -432,7 +433,15 @@ export const MediaStage = ({
         tracks={tracks ?? []}
         translator={translator}
       />
-      {view.element === 'none' ? null : (
+      {view.element === 'none' ? null : showsOriginal(media) && media.originalUrl !== null ? (
+        <p className="media-stage-original">
+          <a href={media.originalUrl}>
+            {translator.t('media.stage.original', {
+              facts: originalFacts(media, translator),
+            })}
+          </a>
+        </p>
+      ) : (
         <FileFactsLine file={view.file} translator={translator} />
       )}
     </div>

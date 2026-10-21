@@ -471,6 +471,19 @@ fn media_command<'a, 'b>() -> App<'a, 'b> {
                         .help("Queue rows a tool failed on or skipped"),
                 )
                 .arg(
+                    Arg::with_name("redo")
+                        .long("redo")
+                        .value_name("KIND")
+                        .takes_value(true)
+                        .min_values(0)
+                        .max_values(1)
+                        .possible_values(&["video", "audio", "image", "document"])
+                        .help(
+                            "Make ready copies again: video, audio, image or document; \
+                             every kind when the word is left out",
+                        ),
+                )
+                .arg(
                     Arg::with_name("media")
                         .long("media")
                         .value_name("ID")
@@ -1006,6 +1019,7 @@ async fn run_media(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
             database: location(m)?,
             store: m.value_of("store").map(PathBuf::from),
             retry: m.is_present("retry"),
+            redo: redo_of(m)?,
             media: optional_id(m, "media")?,
         })
         .await?;
@@ -1075,9 +1089,31 @@ fn print_derivative_report(report: &DerivativeReport) {
         );
     }
     println!(
-        "queued {}, retried {}, waiting {}, already ready {}, nothing to do {}",
-        report.queued, report.retried, report.waiting, report.ready, report.skipped
+        "queued {}, retried {}, redone {}, waiting {}, already ready {}, nothing to do {}",
+        report.queued, report.retried, report.redone, report.waiting, report.ready, report.skipped
     );
+}
+
+/// The `--redo` value: no flag, every ready copy, or one target kind.
+fn redo_of(args: &ArgMatches<'_>) -> Result<Option<media_derivatives_cmd::Redo>, CliError> {
+    if !args.is_present("redo") {
+        return Ok(None);
+    }
+    match args.value_of("redo") {
+        None | Some("") => Ok(Some(media_derivatives_cmd::Redo::All)),
+        Some(value) => media_derivatives_cmd::RedoKind::parse(value)
+            .map(|kind| Some(media_derivatives_cmd::Redo::Kind(kind)))
+            .ok_or_else(|| {
+                CliError::message(format!(
+                    "--redo takes {} or no word, not \"{value}\"",
+                    media_derivatives_cmd::RedoKind::ALL
+                        .iter()
+                        .map(|kind| kind.name())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ))
+            }),
+    }
 }
 
 async fn run_backup(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {

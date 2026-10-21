@@ -9,27 +9,77 @@
 //! import could not.
 //!
 //! Unlike `romeka media thumbnails`, which stays for a one-off inline pass, this
-//! command records its work in the queue and the job log and can retry a row a
-//! tool failed on (`--retry`).
+//! command records its work in the queue and the job log, can retry a row a
+//! tool failed on (`--retry`), and can make ready copies again (`--redo`).
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use omeka_api::derivatives::{DERIVATIVES_JOB, enqueue_access, preview_kind};
+use omeka_api::derivatives::{enqueue_access, preview_kind, queue_worker};
 use omeka_api::jsonld::BaseUrl;
 use omeka_db::DbPool;
 use omeka_db::Location;
 use omeka_db::ids::MediaId;
-use omeka_db::repos::{JobRepo, MediaDerivativeRepo, MediaFilter, MediaRepo, Paging};
-use omeka_db::rows::{
-    DerivativeKind, DerivativeRow, DerivativeState, MediaRow, NewDerivative, NewJob,
-};
+use omeka_db::repos::{MediaDerivativeRepo, MediaFilter, MediaRepo, Paging};
+use omeka_db::rows::{DerivativeKind, DerivativeRow, DerivativeState, MediaRow, NewDerivative};
 use omeka_db::with_db;
+use omeka_media::access::AccessTarget;
 use omeka_media::store::Store;
 use omeka_media::thumbnailer::thumbnails_stored;
 
 use crate::CliError;
 use crate::jobs::{JobEnv, Runner};
+
+/// Which ready copies `--redo` makes again, by the copy's target. A bare
+/// `--redo` takes every kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Redo {
+    All,
+    Kind(RedoKind),
+}
+
+/// The target kind a `--redo` value names.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RedoKind {
+    Video,
+    Audio,
+    Image,
+    Document,
+}
+
+impl RedoKind {
+    /// The word the command line uses, in the order `--help` lists them.
+    pub const ALL: [Self; 4] = [Self::Video, Self::Audio, Self::Image, Self::Document];
+
+    /// The word a reader typed.
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Video => "video",
+            Self::Audio => "audio",
+            Self::Image => "image",
+            Self::Document => "document",
+        }
+    }
+
+    /// The word a reader typed, or `None` for another word.
+    #[must_use]
+    pub fn parse(value: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|kind| kind.name() == value)
+    }
+
+    /// Whether a copy at `target` is this kind.
+    #[must_use]
+    pub const fn matches(self, target: AccessTarget) -> bool {
+        matches!(
+            (self, target),
+            (Self::Video, AccessTarget::Mp4)
+                | (Self::Audio, AccessTarget::M4a)
+                | (Self::Image, AccessTarget::Jpeg)
+                | (Self::Document, AccessTarget::Pdf)
+        )
+    }
+}
 
 /// Input for `romeka media derivatives`.
 #[derive(Debug, Clone)]
@@ -40,6 +90,9 @@ pub struct DerivativeOptions {
     pub store: Option<PathBuf>,
     /// Re-queue rows a tool failed on or skipped, instead of leaving them.
     pub retry: bool,
+    /// Make ready copies again, of every kind or of one target kind. The old
+    /// copy stays until the worker writes the new one over it.
+    pub redo: Option<Redo>,
     /// Only this media.
     pub media: Option<u64>,
 }
@@ -51,6 +104,8 @@ pub struct DerivativeReport {
     pub queued: usize,
     /// Failed or skipped rows this run put back in the queue.
     pub retried: usize,
+    /// Ready copies this run asked a worker to make again.
+    pub redone: usize,
     /// Rows already waiting for a worker.
     pub waiting: usize,
     /// Media whose derivative was already in the store.
@@ -96,9 +151,9 @@ pub async fn run(options: &DerivativeOptions) -> Result<DerivativeReport, CliErr
     let media = selected(&pool, options.media).await?;
     let mut report = DerivativeReport::default();
     for row in &media {
-        queue(&pool, &store, row, options.retry, &mut report).await?;
+        queue(&pool, &store, row, options, &mut report).await?;
     }
-    if report.queued + report.retried > 0 {
+    if report.queued + report.retried + report.redone > 0 {
         run_worker(&pool, Arc::clone(&store)).await?;
     }
     report.rows = finished(&pool, &media).await?;
@@ -118,21 +173,80 @@ async fn selected(pool: &DbPool, media: Option<u64>) -> Result<Vec<MediaRow>, Cl
     Ok(rows)
 }
 
-/// Queue one media's preview, or record why nothing was queued, and record its
-/// access decision either way.
+/// Record one media's access decision, retry or redo it when asked, and count
+/// both its access row and its preview row.
+///
+/// An audio file has no preview kind and still has an access rule, so the
+/// access row is handled before the preview count returns.
 async fn queue(
+    pool: &DbPool,
+    store: &Arc<dyn Store>,
+    media: &MediaRow,
+    options: &DerivativeOptions,
+    report: &mut DerivativeReport,
+) -> Result<(), CliError> {
+    access(pool, store, media, options, report).await?;
+    preview(pool, store, media, options.retry, report).await
+}
+
+/// Decide what a browser needs for this original, record it, and count the row
+/// this run left.
+async fn access(
+    pool: &DbPool,
+    store: &Arc<dyn Store>,
+    media: &MediaRow,
+    options: &DerivativeOptions,
+    report: &mut DerivativeReport,
+) -> Result<(), CliError> {
+    let id = media.id();
+    let before = with_db!(pool, |db| MediaDerivativeRepo::new(db)
+        .get(id, DerivativeKind::AccessCopy)
+        .await)?;
+    let decided = enqueue_access(pool, store, media).await?;
+    let row = match before {
+        Some(row) => row,
+        None => {
+            // A new row is queued when it waits for a command, and settled when
+            // the original stands or the command is missing.
+            match decided {
+                Some(decision) if decision.state == DerivativeState::Pending => {
+                    report.queued += 1;
+                }
+                Some(_) => report.skipped += 1,
+                None => {}
+            }
+            return Ok(());
+        }
+    };
+    if options.retry
+        && with_db!(pool, |db| MediaDerivativeRepo::new(db)
+            .retry(id, DerivativeKind::AccessCopy)
+            .await)?
+    {
+        report.retried += 1;
+        return Ok(());
+    }
+    if let Some(redo) = options.redo
+        && redo_matches(media, redo)
+        && with_db!(pool, |db| MediaDerivativeRepo::new(db)
+            .redo(id, DerivativeKind::AccessCopy)
+            .await)?
+    {
+        report.redone += 1;
+        return Ok(());
+    }
+    count(report, row.state);
+    Ok(())
+}
+
+/// Queue one media's preview, or count the row it has.
+async fn preview(
     pool: &DbPool,
     store: &Arc<dyn Store>,
     media: &MediaRow,
     retry: bool,
     report: &mut DerivativeReport,
 ) -> Result<(), CliError> {
-    // An audio file has no preview kind and still has an access rule, so the
-    // decision is made before the preview returns early.
-    enqueue_access(pool, store, media).await?;
-    if retry {
-        retry_copy(pool, media, report).await?;
-    }
     let Some(kind) = preview_kind(media) else {
         report.skipped += 1;
         return Ok(());
@@ -152,49 +266,41 @@ async fn queue(
         report.queued += 1;
         return Ok(());
     };
-    match row.state {
-        DerivativeState::Ready => report.ready += 1,
-        DerivativeState::Pending | DerivativeState::Running => report.waiting += 1,
-        DerivativeState::Failed | DerivativeState::None if retry => {
-            if with_db!(pool, |db| MediaDerivativeRepo::new(db)
-                .retry(id, kind)
-                .await)?
-            {
-                report.retried += 1;
-            } else {
-                report.waiting += 1;
-            }
+    if retry && row.state == DerivativeState::Failed {
+        if with_db!(pool, |db| MediaDerivativeRepo::new(db)
+            .retry(id, kind)
+            .await)?
+        {
+            report.retried += 1;
+        } else {
+            report.waiting += 1;
         }
-        DerivativeState::Failed | DerivativeState::None => report.skipped += 1,
+        return Ok(());
     }
+    count(report, row.state);
     Ok(())
 }
 
-/// Put a failed access copy back in the queue for `--retry`, and one whose tool
-/// was missing when it was decided. A copy settled "a browser shows the
-/// original" has no tool, so it has nothing to wait for and stays settled.
-async fn retry_copy(
-    pool: &DbPool,
-    media: &MediaRow,
-    report: &mut DerivativeReport,
-) -> Result<(), CliError> {
-    let id = media.id();
-    let Some(row) = with_db!(pool, |db| MediaDerivativeRepo::new(db)
-        .get(id, DerivativeKind::AccessCopy)
-        .await)?
-    else {
-        return Ok(());
+/// Whether this media's copy is the kind a `--redo` value names.
+fn redo_matches(media: &MediaRow, redo: Redo) -> bool {
+    let Redo::Kind(kind) = redo else {
+        return true;
     };
-    let waiting = row.state == DerivativeState::Failed
-        || (row.state == DerivativeState::None && row.tool.is_some());
-    if waiting
-        && with_db!(pool, |db| MediaDerivativeRepo::new(db)
-            .retry(id, DerivativeKind::AccessCopy)
-            .await)?
-    {
-        report.retried += 1;
+    let target = omeka_media::access::target_of(
+        media.media_type.as_deref().unwrap_or_default(),
+        media.extension.as_deref(),
+    )
+    .unwrap_or(AccessTarget::Jpeg);
+    kind.matches(target)
+}
+
+/// Count one row's state in the report's totals.
+fn count(report: &mut DerivativeReport, state: DerivativeState) {
+    match state {
+        DerivativeState::Ready => report.ready += 1,
+        DerivativeState::Pending | DerivativeState::Running => report.waiting += 1,
+        DerivativeState::Failed | DerivativeState::None => report.skipped += 1,
     }
-    Ok(())
 }
 
 /// Whether the three thumbnail files are in the store for this media.
@@ -205,21 +311,15 @@ fn files_stored(store: &dyn Store, media: &MediaRow) -> bool {
     thumbnails_stored(store, storage_id).unwrap_or(false)
 }
 
-/// Compose a worker job and run it in this process, as `romeka import run` runs
-/// a run job.
+/// Start the queue's one worker and run it in this process, as `romeka import
+/// run` runs a run job. `queue_worker` composes the row only when a row this
+/// install can claim is waiting and no worker already holds the queue, so the
+/// command shares D1's cap with a server: when another worker holds it, this
+/// run leaves the rows to that worker and its report says they are waiting.
 async fn run_worker(pool: &DbPool, store: Arc<dyn Store>) -> Result<(), CliError> {
-    let job = with_db!(pool, |db| JobRepo::new(db)
-        .create(&NewJob {
-            owner_id: None,
-            pid: None,
-            status: Some("starting".to_string()),
-            class: DERIVATIVES_JOB.to_string(),
-            args: Some(serde_json::json!({})),
-            log: None,
-            started: None,
-        })
-        .await)?
-    .id;
+    let Some(job) = queue_worker(pool, None).await? else {
+        return Ok(());
+    };
     let env = JobEnv {
         store,
         base_url: BaseUrl::parse(crate::jobs::DEFAULT_BASE_URL)

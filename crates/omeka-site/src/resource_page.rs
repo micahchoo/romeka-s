@@ -339,22 +339,26 @@ fn media_render(resource: &ResourceView, ctx: &RenderContext<'_>) -> String {
     out
 }
 
-/// The line under a media's file: "Download the original · PDF · 2.3 MB". The
-/// kind and the size come from the server, so the line states the wait before
-/// the click.
+/// The line under a media's file: "Download the original (AVI, 467 MB)". The
+/// format and the size come from the server, so the line states the wait before
+/// the click. A file whose name carries no extension, and a row with no stored
+/// size, leave their part out.
 fn download_line(resource: &ResourceView, ctx: &RenderContext<'_>) -> String {
     let Some(download) = &resource.download else {
         return String::new();
     };
-    let mut facts = String::new();
-    if let Some(kind) = &resource.media_kind {
-        facts.push_str(" · ");
-        facts.push_str(kind.label);
+    let mut facts = Vec::new();
+    if let Some(format) = &download.format {
+        facts.push(format.clone());
     }
     if let Some(size) = download.size {
-        facts.push_str(" · ");
-        facts.push_str(&human_size(size));
+        facts.push(human_size(size));
     }
+    let facts = if facts.is_empty() {
+        String::new()
+    } else {
+        format!(" ({})", facts.join(", "))
+    };
     format!(
         "<p class=\"media-download\"><a href=\"{}\">{}{}</a></p>",
         escape_html(&download.url),

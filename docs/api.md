@@ -686,7 +686,7 @@ The playable copy of a media (`o-module-romeka:access`): whether a current brows
 | JSON key | Rust field | Type | Notes |
 | --- | --- | --- | --- |
 | `state` | `state` | `PreviewState` |  |
-| `reason` | `reason` | `Option<String>` | omitted when unset |
+| `reason` | `reason` | `Option<String>` | omitted when unset; server that reads a TIFF or JPEG 2000 whose pixels only it decodes. |
 | `progress` | `progress` | `Option<u8>` | omitted when unset |
 | `url` | `url` | `Option<String>` | omitted when unset |
 | `media_type` | `media_type` | `Option<String>` | omitted when unset |
@@ -1527,3 +1527,11 @@ The document carries the media's title, one `<base href>` on the server root, an
 | `Vary` | `Cookie` |
 
 No answer sets a cookie.
+
+## Retrying one media's access copy
+
+`POST /api/romeka/media/{id}/derivatives/retry` re-queues one media's `access_copy` row after the tool that makes it failed, or after a tool the decision found missing was installed (`crates/omeka-server/src/media_derivatives.rs`). It answers the media document the read route builds, whose `o-module-romeka:access.state` is `pending` again, and starts the install's one derivative worker through the same dispatcher a create uses. The route takes no body.
+
+The caller needs the media update grant: a global or site administrator, an editor or a reviewer, or an author whose own row it is; anyone else gets the 403 the media write gets. A media the caller may not see and an id that names no media are the media read's 404. A row that is already waiting or ready, and a row settled because the original is what the reader gets, has nothing to make again and answers 409 `server.noDerivativeToRetry`, because the document would not change.
+
+Upstream has no such route: it makes every derivative inside the request and has nothing to retry.

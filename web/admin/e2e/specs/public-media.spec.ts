@@ -329,7 +329,7 @@ test('the media page saves the original under its own name', async ({ page, diag
   await page.goto(mediaPage(media));
 
   const link = page.locator('.media-download a');
-  await expect(link).toHaveText('Download the original · PDF · 853 B');
+  await expect(link).toHaveText('Download the original (PDF, 853 B)');
   const download = page.waitForEvent('download');
   await link.click();
   const saved = await download;
@@ -374,7 +374,7 @@ test('a kind with no canvas offers no viewer link', async ({ page, diagnostics }
   // The file still saves under its own name; only the viewer and manifest are
   // absent, because there is no canvas to open.
   await expect(page.locator('.media-download a')).toHaveCount(1);
-  await expect(page.locator('.media-download')).toContainText('3D model');
+  await expect(page.locator('.media-download')).toContainText('GLB');
   await expectClean(diagnostics, 'a kind with no canvas');
 });
 

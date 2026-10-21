@@ -306,7 +306,8 @@ export const taServer: ServerCatalogue = {
   'server.importZipUnpacked': 'ZIP விரிவுபடுத்தப்பட்டது: {count} கோப்புகள் சேர்க்கப்பட்டன.',
   'server.importSweepDone':
     '{imports} இறக்குமதிகளின் கோப்புகள் நீக்கப்பட்டன, {uploads} முழுமையடையாத பதிவேற்றங்கள்.',
-  'server.importAccessFailed': '{media}-க்கான இயக்கக்கூடிய நகல் எதுவும் வரிசைப்படுத்தப்படவில்லை: {reason}',
+  'server.importAccessFailed':
+    '{media}-க்கான இயக்கக்கூடிய நகல் எதுவும் வரிசைப்படுத்தப்படவில்லை: {reason}',
   'server.importAccessUnread':
     'இந்த இறக்குமதிக்கான இயக்கக்கூடிய நகல்கள் எதுவும் வரிசைப்படுத்தப்படவில்லை: {reason}',
   'server.mediaUploadNotFound':
@@ -317,6 +318,8 @@ export const taServer: ServerCatalogue = {
     'இந்தப் பதிவேற்றத்தில் {received} / {length} பைட்டுகள் உள்ளன. இதைச் சேர்ப்பதற்கு முன் மீதமுள்ளவற்றை அனுப்பவும்.',
   'server.mediaUploadIngester':
     'ஒரு நிலுவையில் உள்ள பதிவேற்றம், பதிவேற்றக் கருவியுடன் சேர்க்கப்படுகிறது.',
+  'server.noDerivativeToRetry':
+    'இந்த ஊடகத்திற்கு மீண்டும் உருவாக்கத் தோல்வியுற்ற நகல் எதுவும் இல்லை.',
   'server.mediaUploadInline':
     'ஒரு நிலுவையில் உள்ள பதிவேற்றம், ஒரு உருப்படியின் உள்ளே அல்லாமல், அதன் சொந்த ஊடக உருவாக்கத்துடன் சேர்க்கப்படுகிறது.',
   'server.uploadTooLarge':

@@ -262,3 +262,48 @@ async fn upload_avi(app: &axum::Router, seed: &Seed) -> (u64, u64) {
     assert!(attached.status.is_success(), "{}", attached.body);
     (item, media)
 }
+
+/// A copy this install cannot make is no copy: the media page states the wait
+/// instead of opening a video element on an AVI the browser cannot play, and
+/// the original stays the download.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_copy_this_install_cannot_make_states_the_wait_instead_of_a_player() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let store = FileStore::new(dir.path(), "/files");
+    let (pool, seed) = seeded_pool().await;
+    let app = router_with_store(pool.clone(), store);
+    let (_, media) = upload_avi(&app, &seed).await;
+    let pool = omeka_db::DbPool::from(pool);
+    let claimed = with_db!(&pool, |db| MediaDerivativeRepo::new(db)
+        .claim_next(&["ffmpeg"])
+        .await)
+    .expect("a claim")
+    .expect("the access row a create queued");
+    assert_eq!(claimed.kind, DerivativeKind::AccessCopy, "{claimed:?}");
+    with_db!(&pool, |db| MediaDerivativeRepo::new(db)
+        .finish(
+            claimed.media_id,
+            claimed.kind,
+            DerivativeState::None,
+            Some("needs vips, not installed".to_string()),
+            Some("vips".to_string()),
+        )
+        .await)
+    .expect("the settled row");
+
+    let page = send(app.clone(), get(&format!("{SITE}/media/{media}"), false))
+        .await
+        .body;
+    assert!(
+        !page.contains("<video"),
+        "no player opens an original the browser cannot play: {page}"
+    );
+    assert!(
+        page.contains("A copy this browser can play or show could not be made."),
+        "the page states the wait: {page}"
+    );
+    assert!(
+        page.contains("/download"),
+        "the original stays the download: {page}"
+    );
+}

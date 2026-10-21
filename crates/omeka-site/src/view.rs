@@ -161,6 +161,9 @@ pub struct DownloadLink {
     /// The site route that answers the file as an attachment, relative to the
     /// origin.
     pub url: String,
+    /// The file's own extension, upper case, when the name carries one: the
+    /// word a reader knows the format by, such as `AVI` or `DOCX`.
+    pub format: Option<String>,
     /// The stored byte size, when the ingest recorded one.
     pub size: Option<u64>,
 }

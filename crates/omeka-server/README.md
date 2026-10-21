@@ -432,6 +432,7 @@ has no route for it.
 | --- | --- | --- |
 | GET | `/api/romeka/media/:id/render` | 200 `text/html; charset=utf-8`; 404; 415 |
 | GET | `/api/romeka/media/:id/player` | 200 `application/json`, `{"url": …}` or `{"url": null}`; 404 |
+| POST | `/api/romeka/media/:id/derivatives/retry` | 200 the media document with its copy `pending`; 403, 404, 409 |
 
 Only an oEmbed or HTML media answers the render; any other kind is a 415 whose
 error document names the media's renderer. A media the caller cannot see, an id

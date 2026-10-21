@@ -28,11 +28,11 @@
 //! camera RAW's canvas is 6016x4016 rather than the 800 pixel derivative that
 //! stood in before the master existed.
 //!
-//! "A browser shows the original" covers the image path as well: a JPEG, PNG,
-//! GIF, WebP, AVIF or SVG is shown by the browser, and a TIFF or JPEG 2000 is
-//! shown through the server's own derivatives. So an image's test is whether
-//! this server reads its layout, which is the same fact that decides whether
-//! the thumbnails exist.
+//! What reads an original that needs no copy is part of the decision: a
+//! browser plays a playable video or audio file and draws a JPEG, PNG, GIF,
+//! WebP, AVIF or SVG, while a TIFF or JPEG 2000 this server decodes is read by
+//! the image server, which serves its tiles and thumbnails. The words a reader
+//! sees name that reader, so a TIFF never says a browser shows it.
 
 use crate::av_probe::{self, Streams};
 use crate::kind::{OFFICE_DOCUMENT_EXTENSIONS, OFFICE_DOCUMENT_MEDIA_TYPES};
@@ -40,9 +40,6 @@ use crate::media_type::{RAW_MEDIA_TYPES, extension_for_media_type, is_raw_media_
 use crate::sample;
 use crate::store::{Store, StorePrefix, storage_path};
 use crate::tool::{AccessTool, Still, Tools};
-
-/// The words a reader sees when the original needs no copy.
-pub const ORIGINAL_REASON: &str = "a browser shows the original";
 
 /// The size above which a WAV gets an AAC copy. About three minutes of CD
 /// stereo: a reader waits on a download that long, and the same audio as AAC
@@ -244,7 +241,7 @@ pub fn display_path(
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Access {
     /// The original as stored is what the reader gets.
-    Original,
+    Original(OriginalReader),
     /// A derivative in `target`'s format, made by the first of `tools` this
     /// install has. A RAW file has two: `exiftool` reads the embedded preview,
     /// which is fast, and `libraw` decodes the sensor data when there is none.
@@ -252,6 +249,27 @@ pub enum Access {
         target: AccessTarget,
         tools: &'static [AccessTool],
     },
+}
+
+/// What reads a stored original that needs no copy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum OriginalReader {
+    /// A browser plays the file, or draws it as a picture.
+    Browser,
+    /// The image server reads the file and serves its tiles and thumbnails,
+    /// because no browser decodes this layout.
+    ImageServer,
+}
+
+impl OriginalReader {
+    /// The words a reader sees for this reader.
+    #[must_use]
+    pub const fn reason(self) -> &'static str {
+        match self {
+            Self::Browser => "a browser shows the original",
+            Self::ImageServer => "the image server reads the original",
+        }
+    }
 }
 
 impl Access {
@@ -278,7 +296,7 @@ impl Access {
             return Some(Self::audio(facts));
         }
         if media_type == "application/pdf" {
-            return Some(Self::Original);
+            return Some(Self::Original(OriginalReader::Browser));
         }
         if is_office_document(Some(media_type), facts.extension.as_deref()) {
             return Some(Self::copy(AccessTarget::Pdf, &[AccessTool::Soffice]));
@@ -291,7 +309,7 @@ impl Access {
     #[must_use]
     pub const fn reason(self) -> &'static str {
         match self {
-            Self::Original => ORIGINAL_REASON,
+            Self::Original(reader) => reader.reason(),
             Self::Copy { target, .. } => target.reason(),
         }
     }
@@ -302,8 +320,8 @@ impl Access {
     #[must_use]
     pub fn queue(self, tools: &Tools) -> Queue {
         match self {
-            Self::Original => Queue::None {
-                reason: ORIGINAL_REASON.to_string(),
+            Self::Original(reader) => Queue::None {
+                reason: reader.reason().to_string(),
             },
             Self::Copy { tools: wanted, .. } => {
                 match wanted.iter().find_map(|tool| tool.found(tools)) {
@@ -336,7 +354,7 @@ impl Access {
         {
             return Self::copy(AccessTarget::Mp4, &[AccessTool::Ffmpeg]);
         }
-        Self::Original
+        Self::Original(OriginalReader::Browser)
     }
 
     /// Audio: by codec, with the container as the fallback when the probe could
@@ -356,7 +374,7 @@ impl Access {
         if is_wav(media_type) && facts.size.is_some_and(|size| size > LARGE_WAV_BYTES) {
             return Self::copy(AccessTarget::M4a, &[AccessTool::Ffmpeg]);
         }
-        Self::Original
+        Self::Original(OriginalReader::Browser)
     }
 
     /// Images: the types no decoder here reads get an access master from the
@@ -385,17 +403,19 @@ impl Access {
         }
         if media_type == "image/jp2" || names_any(&JP2_EXTENSIONS, extension) {
             return Some(match facts.jp2 {
-                Some(Jp2Test::Decodes) => Self::Original,
+                Some(Jp2Test::Decodes) => Self::Original(OriginalReader::ImageServer),
                 _ => Self::copy(AccessTarget::Jpeg, &[AccessTool::Vips]),
             });
         }
         if media_type == "image/tiff" {
             return Some(match facts.tiff {
-                Some(TiffTest::Decodes) => Self::Original,
+                Some(TiffTest::Decodes) => Self::Original(OriginalReader::ImageServer),
                 _ => Self::copy(AccessTarget::Jpeg, &[AccessTool::Vips]),
             });
         }
-        media_type.starts_with("image/").then_some(Self::Original)
+        media_type
+            .starts_with("image/")
+            .then_some(Self::Original(OriginalReader::Browser))
     }
 
     const fn copy(target: AccessTarget, tools: &'static [AccessTool]) -> Self {
@@ -630,6 +650,11 @@ mod tests {
         tools: &[AccessTool::Soffice],
     };
 
+    /// The original a browser plays or draws, and the one only the image
+    /// server reads.
+    const BROWSER: Access = Access::Original(OriginalReader::Browser);
+    const SERVER: Access = Access::Original(OriginalReader::ImageServer);
+
     fn corpus(name: &str) -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../fixtures/media-kinds")
@@ -648,41 +673,31 @@ mod tests {
     /// file comes from the codecs `ffprobe` reports, so those rows are skipped
     /// when the command is absent.
     const CORPUS: [(&str, &str, &str, Option<Access>); 33] = [
-        ("image.jpg", "image/jpeg", "jpg", Some(Access::Original)),
-        ("image.png", "image/png", "png", Some(Access::Original)),
-        ("image.gif", "image/gif", "gif", Some(Access::Original)),
-        ("image.webp", "image/webp", "webp", Some(Access::Original)),
+        ("image.jpg", "image/jpeg", "jpg", Some(BROWSER)),
+        ("image.png", "image/png", "png", Some(BROWSER)),
+        ("image.gif", "image/gif", "gif", Some(BROWSER)),
+        ("image.webp", "image/webp", "webp", Some(BROWSER)),
         ("image.tif", "image/tiff", "tif", Some(VIPS_JPEG)),
         ("image.nef", "image/x-nikon-nef", "nef", Some(RAW_JPEG)),
-        ("image.avif", "image/avif", "avif", Some(Access::Original)),
+        ("image.avif", "image/avif", "avif", Some(BROWSER)),
         ("image.heic", "image/heic", "heic", Some(VIPS_JPEG)),
-        ("image.svg", "image/svg+xml", "svg", Some(Access::Original)),
-        (
-            "hostile.svg",
-            "image/svg+xml",
-            "svg",
-            Some(Access::Original),
-        ),
-        ("audio.mp3", "audio/mpeg", "mp3", Some(Access::Original)),
-        ("audio.m4a", "audio/mp4", "m4a", Some(Access::Original)),
-        ("audio.ogg", "audio/ogg", "ogg", Some(Access::Original)),
-        ("audio.opus", "audio/ogg", "opus", Some(Access::Original)),
-        ("audio.flac", "audio/flac", "flac", Some(Access::Original)),
-        ("audio.wav", "audio/x-wav", "wav", Some(Access::Original)),
-        ("video.mp4", "video/mp4", "mp4", Some(Access::Original)),
-        ("video.webm", "video/webm", "webm", Some(Access::Original)),
-        (
-            "video.mov",
-            "video/quicktime",
-            "mov",
-            Some(Access::Original),
-        ),
+        ("image.svg", "image/svg+xml", "svg", Some(BROWSER)),
+        ("hostile.svg", "image/svg+xml", "svg", Some(BROWSER)),
+        ("audio.mp3", "audio/mpeg", "mp3", Some(BROWSER)),
+        ("audio.m4a", "audio/mp4", "m4a", Some(BROWSER)),
+        ("audio.ogg", "audio/ogg", "ogg", Some(BROWSER)),
+        ("audio.opus", "audio/ogg", "opus", Some(BROWSER)),
+        ("audio.flac", "audio/flac", "flac", Some(BROWSER)),
+        ("audio.wav", "audio/x-wav", "wav", Some(BROWSER)),
+        ("video.mp4", "video/mp4", "mp4", Some(BROWSER)),
+        ("video.webm", "video/webm", "webm", Some(BROWSER)),
+        ("video.mov", "video/quicktime", "mov", Some(BROWSER)),
         ("video.mkv", "video/x-matroska", "mkv", Some(MP4)),
         ("video.ogv", "video/ogg", "ogv", Some(MP4)),
         ("mjpeg.avi", "video/x-msvideo", "avi", Some(MP4)),
         ("mpeg2.mpg", "video/mpeg", "mpg", Some(MP4)),
         ("wma.wma", "audio/x-ms-wma", "wma", Some(M4A)),
-        ("doc.pdf", "application/pdf", "pdf", Some(Access::Original)),
+        ("doc.pdf", "application/pdf", "pdf", Some(BROWSER)),
         (
             "doc.docx",
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -785,21 +800,15 @@ mod tests {
         for media_type in COPY_VIDEO_TYPES {
             assert_eq!(video(media_type, Some("h264"), Some("aac")), Some(MP4));
         }
-        assert_eq!(
-            video("video/mp4", Some("h264"), Some("aac")),
-            Some(Access::Original)
-        );
-        assert_eq!(
-            video("video/quicktime", Some("h264"), None),
-            Some(Access::Original)
-        );
+        assert_eq!(video("video/mp4", Some("h264"), Some("aac")), Some(BROWSER));
+        assert_eq!(video("video/quicktime", Some("h264"), None), Some(BROWSER));
         assert_eq!(
             video("video/webm", Some("vp9"), Some("opus")),
-            Some(Access::Original)
+            Some(BROWSER)
         );
         assert_eq!(
             video("video/webm", Some("av1"), Some("opus")),
-            Some(Access::Original)
+            Some(BROWSER)
         );
         assert_eq!(video("video/mp4", Some("hevc"), Some("aac")), Some(MP4));
         assert_eq!(
@@ -842,7 +851,7 @@ mod tests {
         for codec in ["mp3", "aac", "opus", "vorbis", "flac", "pcm_s16le"] {
             assert_eq!(
                 audio("audio/mpeg", Some(codec), None),
-                Some(Access::Original),
+                Some(BROWSER),
                 "{codec}"
             );
         }
@@ -853,7 +862,7 @@ mod tests {
         );
         assert_eq!(
             audio("audio/x-wav", Some("pcm_s16le"), Some(LARGE_WAV_BYTES)),
-            Some(Access::Original),
+            Some(BROWSER),
             "the threshold itself is small"
         );
         assert_eq!(
@@ -865,7 +874,7 @@ mod tests {
             Some(M4A),
             "no probe: the container decides"
         );
-        assert_eq!(audio("audio/mpeg", None, None), Some(Access::Original));
+        assert_eq!(audio("audio/mpeg", None, None), Some(BROWSER));
     }
 
     /// Images: the types no decoder here reads get a master from the one tool
@@ -893,15 +902,16 @@ mod tests {
         assert_eq!(image("image/heic", "heic", None), Some(VIPS_JPEG));
         assert_eq!(image("application/postscript", "eps", None), Some(GS_JPEG));
         assert_eq!(image("application/illustrator", "ai", None), Some(GS_JPEG));
-        assert_eq!(image("image/jpeg", "jpg", None), Some(Access::Original));
-        assert_eq!(image("image/png", "png", None), Some(Access::Original));
-        assert_eq!(image("image/gif", "gif", None), Some(Access::Original));
-        assert_eq!(image("image/webp", "webp", None), Some(Access::Original));
-        assert_eq!(image("image/avif", "avif", None), Some(Access::Original));
-        assert_eq!(image("image/svg+xml", "svg", None), Some(Access::Original));
+        assert_eq!(image("image/jpeg", "jpg", None), Some(BROWSER));
+        assert_eq!(image("image/png", "png", None), Some(BROWSER));
+        assert_eq!(image("image/gif", "gif", None), Some(BROWSER));
+        assert_eq!(image("image/webp", "webp", None), Some(BROWSER));
+        assert_eq!(image("image/avif", "avif", None), Some(BROWSER));
+        assert_eq!(image("image/svg+xml", "svg", None), Some(BROWSER));
         assert_eq!(
             image("image/tiff", "tif", Some(TiffTest::Decodes)),
-            Some(Access::Original)
+            Some(SERVER),
+            "a browser does not draw a TIFF; the image server does"
         );
         for reason in ["cmyk", "not 8 bits per sample", "tiled", "multipage"] {
             assert_eq!(
@@ -976,7 +986,7 @@ mod tests {
             .with_ghostscript(present("gs"))
             .with_soffice(present("soffice"));
         assert_eq!(
-            Access::Original.queue(&all),
+            BROWSER.queue(&all),
             Queue::None {
                 reason: "a browser shows the original".to_string()
             }
@@ -1085,7 +1095,11 @@ mod tests {
 
         let plain = decode_to_jp2("image.png", "plain.jp2");
         assert_eq!(plain.jp2, Some(Jp2Test::Decodes));
-        assert_eq!(Access::of(&plain), Some(Access::Original));
+        assert_eq!(
+            Access::of(&plain),
+            Some(SERVER),
+            "the image server reads a JPEG 2000 its own decoder opens"
+        );
 
         let cmyk = decode_to_jp2("image-cmyk.tif", "cmyk.jp2");
         assert_eq!(cmyk.jp2, Some(Jp2Test::Rejects("the decoder refused it")));
@@ -1129,7 +1143,7 @@ mod tests {
                 .expect("8-bit");
         });
         assert_eq!(facts.tiff, Some(TiffTest::Decodes));
-        assert_eq!(access, Some(Access::Original));
+        assert_eq!(access, Some(SERVER), "the image server reads an 8-bit TIFF");
 
         let (facts, access) = encode("cmyk.tif", &|encoder| {
             encoder
@@ -1337,7 +1351,7 @@ mod tests {
                 "-f",
                 "mp4",
             ],
-            expected: Some(Access::Original),
+            expected: Some(BROWSER),
         },
         Sample {
             name: "theora.ogv",
@@ -1369,7 +1383,7 @@ mod tests {
             extension: "wav",
             source: &AUDIO_SOURCE,
             codec_args: &["-c:a", "pcm_s16le", "-f", "wav"],
-            expected: Some(Access::Original),
+            expected: Some(BROWSER),
         },
         Sample {
             name: "aac.m4a",
@@ -1377,7 +1391,7 @@ mod tests {
             extension: "m4a",
             source: &AUDIO_SOURCE,
             codec_args: &["-c:a", "aac", "-f", "ipod"],
-            expected: Some(Access::Original),
+            expected: Some(BROWSER),
         },
         Sample {
             name: "flac.flac",
@@ -1385,7 +1399,7 @@ mod tests {
             extension: "flac",
             source: &AUDIO_SOURCE,
             codec_args: &["-c:a", "flac", "-f", "flac"],
-            expected: Some(Access::Original),
+            expected: Some(BROWSER),
         },
     ];
 
