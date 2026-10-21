@@ -38,7 +38,7 @@ except the first one.
 | `ROMEKA_SMTP_HOST`, `ROMEKA_SMTP_PORT`, `ROMEKA_SMTP_USER`, `ROMEKA_SMTP_PASSWORD`, `ROMEKA_SMTP_TLS`, `ROMEKA_MAIL_FROM` | the server | mail; with no host the messages go to the log |
 | `ROMEKA_DB`, `ROMEKA_STORE` | the entrypoint and the server | the database file and the store root, which the volumes in `compose.yaml` are mounted at. The entrypoint passes the store as `serve --store`, and the server passes it on to every job process. `ROMEKA_STORE` is always a path, never the backend |
 | `ROMEKA_STORE_BACKEND` | the server and every job | `local` (the default) or `s3`. With `s3` the files go to the bucket below, and `ROMEKA_STORE` holds nothing |
-| `ROMEKA_S3_ENDPOINT`, `ROMEKA_S3_BUCKET`, `ROMEKA_S3_REGION`, `ROMEKA_S3_ACCESS_KEY`, `ROMEKA_S3_SECRET_KEY`, `ROMEKA_S3_PUBLIC_BASE`, `ROMEKA_S3_URL_TTL_SECS` | the server and every job | the bucket, its key pair, an optional CDN for plain URLs, and the signed URL lifetime (default 900 seconds). [`docs/operator-guide.md`](../docs/operator-guide.md), Object storage, gives the URL rules and the bucket policy. `compose.yaml` passes each of them from `.env` |
+| `ROMEKA_S3_ENDPOINT`, `ROMEKA_S3_BUCKET`, `ROMEKA_S3_REGION`, `ROMEKA_S3_ACCESS_KEY`, `ROMEKA_S3_SECRET_KEY`, `ROMEKA_S3_PUBLIC_BASE`, `ROMEKA_S3_URL_TTL_SECS` | the server and every job | the bucket, its key pair, an optional CDN for plain URLs, and the signed URL lifetime (default 14400 seconds, enough for one long video; at most one week). [`docs/operator-guide.md`](../docs/operator-guide.md), Object storage, gives the URL rules and the bucket policy. `compose.yaml` passes each of them from `.env` |
 | `ROMEKA_ARCHIVE_DIR` | `compose.archive.yaml` | the host folder the import reads, mounted read-only at `/archive`; used only with that file |
 | `ROMEKA_ARCHIVE_ROOTS`, `ROMEKA_ARCHIVE_ROOT` | the server and every job | the server folders an import may read. `ROMEKA_ARCHIVE_ROOTS` holds `name=path` pairs separated by `;`; `ROMEKA_ARCHIVE_ROOT` is the root named `archive`. `compose.archive.yaml` sets `ROMEKA_ARCHIVE_ROOT` to `/archive`; neither compose file passes `ROMEKA_ARCHIVE_ROOTS`, so add it to the `environment` block for more roots. With no root, the Import page still takes files and lists uploaded from the browser |
 | `ROMEKA_API_HOST`, `ROMEKA_API_PORT` | the server and Caddy | the loopback address the server binds and the origin forwards to. The image sets `127.0.0.1:8123`; they are not in the compose environment block, so setting them in `.env` changes nothing. |
@@ -321,8 +321,12 @@ server reading a newer schema is the failure that loses data.
   item or media is served only to a signed-in user who may see it, or to a
   request whose query string carries that user's API key pair. Everyone else
   gets 403. A file that no media or asset row names is a 404, so a file left in
-  the store after its row was deleted is no longer served. Private files carry
-  `Cache-Control: private` and `Vary: Cookie`. Every file carries
+  the store after its row was deleted is no longer served. The same answer
+  carries the media's stored type and, for an original, the `o:source` name as
+  an inline `Content-Disposition`, so the extension never decides the type.
+  Private files carry `Cache-Control: private` and `Vary: Cookie`; a public
+  original carries `Cache-Control: public, max-age=31536000, immutable`, since
+  its name is a content id no later write reuses. Every file carries
   `X-Content-Type-Options: nosniff`, and HTML, SVG and XML files carry
   `Content-Security-Policy: sandbox`. Measured on a loopback Caddy 2.11 with a
   release server, the check adds about 0.1 ms to a public JPEG.

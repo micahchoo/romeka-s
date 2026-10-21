@@ -161,18 +161,19 @@ impl GatedStore {
 }
 
 impl Store for GatedStore {
-    fn put(&self, bytes: &[u8], path: &str) -> Result<(), StoreError> {
+    fn put(&self, bytes: &[u8], path: &str, media_type: Option<&str>) -> Result<(), StoreError> {
         self.pass(path)?;
-        self.inner.put(bytes, path)
+        self.inner.put(bytes, path, media_type)
     }
     fn put_stream(
         &self,
         reader: &mut dyn Read,
         size_hint: Option<u64>,
         path: &str,
+        media_type: Option<&str>,
     ) -> Result<u64, StoreError> {
         self.pass(path)?;
-        self.inner.put_stream(reader, size_hint, path)
+        self.inner.put_stream(reader, size_hint, path, media_type)
     }
     fn read(&self, path: &str) -> Result<Vec<u8>, StoreError> {
         self.inner.read(path)

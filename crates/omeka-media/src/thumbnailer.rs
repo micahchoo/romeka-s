@@ -33,7 +33,9 @@ use image::imageops::FilterType;
 use thiserror::Error;
 
 use crate::file_render::ThumbnailType;
-use crate::store::{Store, StoreError, StorePrefix, Thumbnailer, storage_path};
+use crate::store::{
+    Store, StoreError, StorePrefix, THUMBNAIL_MEDIA_TYPE, Thumbnailer, storage_path,
+};
 
 /// The source media types the thumbnailer decodes: the four GD decodes
 /// (`Gd::setSource`) plus `image/tiff` and `image/jp2`, which GD cannot read
@@ -193,7 +195,11 @@ pub fn generate_thumbnails(
         Err(skip) => return Ok(ThumbnailOutcome::Skipped(skip)),
     };
     for (kind, bytes) in derivatives {
-        store.put(&bytes, &thumbnail_path(storage_id, kind))?;
+        store.put(
+            &bytes,
+            &thumbnail_path(storage_id, kind),
+            Some(THUMBNAIL_MEDIA_TYPE),
+        )?;
     }
     Ok(ThumbnailOutcome::Generated)
 }
@@ -217,7 +223,11 @@ pub fn generate_thumbnails_from_reader<R: Read + Seek>(
         Err(skip) => return Ok(ThumbnailOutcome::Skipped(skip)),
     };
     for (kind, bytes) in derivatives {
-        store.put(&bytes, &thumbnail_path(storage_id, kind))?;
+        store.put(
+            &bytes,
+            &thumbnail_path(storage_id, kind),
+            Some(THUMBNAIL_MEDIA_TYPE),
+        )?;
     }
     Ok(ThumbnailOutcome::Generated)
 }

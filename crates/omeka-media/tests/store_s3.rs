@@ -23,7 +23,7 @@ fn a_signed_url_serves_the_file_until_it_expires() {
         return;
     };
     let path = "original/0123456789abcdef0123456789abcdef01234567.txt";
-    store.put(b"private bytes", path).unwrap();
+    store.put(b"private bytes", path, None).unwrap();
 
     let fifteen_minutes = store.url(
         path,
@@ -57,7 +57,7 @@ fn a_forged_or_unsigned_url_is_refused() {
         return;
     };
     let path = "original/89abcdef0123456789abcdef0123456789abcdef.txt";
-    store.put(b"private bytes", path).unwrap();
+    store.put(b"private bytes", path, None).unwrap();
     let signed = store.url(
         path,
         Access::Signed {
@@ -112,7 +112,7 @@ fn creating_a_bucket_this_account_owns_is_a_no_op() {
         return;
     };
     store.create_bucket().unwrap();
-    store.put(b"x", "asset/a.png").unwrap();
+    store.put(b"x", "asset/a.png", None).unwrap();
     store.create_bucket().unwrap();
     assert!(
         store.exists("asset/a.png").unwrap(),

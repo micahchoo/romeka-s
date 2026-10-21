@@ -36,7 +36,11 @@ pub(crate) fn copy_asset_files(
                 path: source.local_path(&storage_path)?,
             });
         }
-        target.put(&source.read(&storage_path)?, &storage_path)?;
+        target.put(
+            &source.read(&storage_path)?,
+            &storage_path,
+            Some(&asset.media_type),
+        )?;
     }
     Ok(())
 }

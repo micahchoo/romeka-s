@@ -104,7 +104,11 @@ async fn media_member_emits_the_three_thumbnail_urls_from_the_store_files() {
     let store = FileStore::new(&root, "/files");
     for kind in ["large", "medium", "square"] {
         store
-            .put(b"jpeg", &format!("{kind}/{}.jpg", storage_id()))
+            .put(
+                b"jpeg",
+                &format!("{kind}/{}.jpg", storage_id()),
+                Some("image/jpeg"),
+            )
             .unwrap();
     }
     let answer = send(

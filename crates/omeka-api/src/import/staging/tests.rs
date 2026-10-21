@@ -385,7 +385,7 @@ async fn removing_the_staging_area_leaves_nothing_in_the_store() {
     .await
     .unwrap();
     site.store
-        .put(b"orphan", &file_path(site.import, "no-row"))
+        .put(b"orphan", &file_path(site.import, "no-row"), None)
         .unwrap();
     assert_eq!(
         remove_all(&site.pool, &site.store, site.import)
@@ -426,7 +426,7 @@ fn a_stored_reader_seeks_inside_and_outside_its_held_chunk() {
     let root = tempfile::tempdir().unwrap();
     let store = FileStore::new(root.path(), "/files");
     let bytes: Vec<u8> = (0..3_000_000_u32).map(|n| (n % 251) as u8).collect();
-    store.put(&bytes, "original/seek.bin").unwrap();
+    store.put(&bytes, "original/seek.bin", None).unwrap();
     let mut reader = StoredReader::new(&store, "original/seek.bin".into(), 0..bytes.len() as u64);
     let mut four = [0_u8; 4];
 
