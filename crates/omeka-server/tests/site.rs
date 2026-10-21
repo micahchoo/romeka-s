@@ -14,8 +14,8 @@ use common::{
 };
 use omeka_db::ids::{SiteId, UserId};
 use omeka_db::repos::{
-    ItemRepo, MediaRepo, PropertyRepo, SiteBlockAttachmentRepo, SiteRepo, SiteSettingRepo,
-    ValueRepo,
+    ExtentRow, ItemRepo, MediaExtentRepo, MediaRepo, PropertyRepo, SiteBlockAttachmentRepo,
+    SiteRepo, SiteSettingRepo, ValueRepo,
 };
 use omeka_db::rows::{
     NewItem, NewMedia, NewProperty, NewResource, NewSite, NewSiteBlock, NewSiteBlockAttachment,
@@ -591,6 +591,112 @@ async fn item_show_keeps_a_three_hundred_file_item_light() {
     );
 }
 
+/// A `?t=` link opens the file at that moment before any script runs, because
+/// the loader writes a media fragment on the player's source.
+#[tokio::test]
+async fn media_show_cues_a_recording_at_the_t_in_the_query() {
+    let (pool, seed) = site_pool().await;
+    let media = add_recording(
+        &pool,
+        seed.item,
+        2,
+        "talk.mp4",
+        "video/mp4",
+        "mp4",
+        Some(62_346),
+    )
+    .await;
+    let answer = send(
+        router(pool),
+        get(&format!("/s/museum/media/{media}?t=62"), false),
+    )
+    .await;
+    assert_eq!(answer.status, StatusCode::OK);
+    assert!(
+        answer.body.contains("/files/original/media2.mp4#t=62\""),
+        "{}",
+        answer.body
+    );
+}
+
+/// A non-numeric or negative `?t=` is no start: the player is not cued, and
+/// the page is the one a plain request renders.
+#[tokio::test]
+async fn media_show_ignores_a_t_that_is_not_a_number() {
+    let (pool, seed) = site_pool().await;
+    let media = add_recording(
+        &pool,
+        seed.item,
+        2,
+        "talk.mp4",
+        "video/mp4",
+        "mp4",
+        Some(62_346),
+    )
+    .await;
+    let app = router(pool);
+    for value in ["abc", "-1", ""] {
+        let answer = send(
+            app.clone(),
+            get(&format!("/s/museum/media/{media}?t={value}"), false),
+        )
+        .await;
+        assert_eq!(answer.status, StatusCode::OK);
+        assert!(
+            !answer.body.contains("#t="),
+            "?t={value:?} cued the player: {}",
+            answer.body
+        );
+    }
+}
+
+/// A start past the file's probed run time is held at the run time, so a stale
+/// link plays the last moment instead of nothing.
+#[tokio::test]
+async fn media_show_clamps_a_t_past_the_duration() {
+    let (pool, seed) = site_pool().await;
+    let media = add_recording(
+        &pool,
+        seed.item,
+        2,
+        "talk.mp4",
+        "video/mp4",
+        "mp4",
+        Some(62_346),
+    )
+    .await;
+    let answer = send(
+        router(pool),
+        get(&format!("/s/museum/media/{media}?t=100"), false),
+    )
+    .await;
+    assert!(
+        answer
+            .body
+            .contains("/files/original/media2.mp4#t=62.346\""),
+        "{}",
+        answer.body
+    );
+}
+
+/// No extent row is no clamp: the link the visitor followed is the one the
+/// player gets.
+#[tokio::test]
+async fn media_show_keeps_a_t_when_the_duration_is_unknown() {
+    let (pool, seed) = site_pool().await;
+    let media = add_recording(&pool, seed.item, 2, "talk.mp4", "video/mp4", "mp4", None).await;
+    let answer = send(
+        router(pool),
+        get(&format!("/s/museum/media/{media}?t=100"), false),
+    )
+    .await;
+    assert!(
+        answer.body.contains("/files/original/media2.mp4#t=100\""),
+        "{}",
+        answer.body
+    );
+}
+
 /// One media row as a route test needs it: a stored upload with a square
 /// thumbnail, `position` ordered within the item.
 async fn add_file(
@@ -627,6 +733,55 @@ async fn add_file(
         .unwrap()
         .id()
         .0
+}
+
+/// One audio or video row as a route test needs it, with the run time
+/// `romeka_media_extent` records for its original when `duration_ms` is set.
+async fn add_recording(
+    pool: &sqlx::SqlitePool,
+    item: omeka_db::ids::ItemId,
+    position: i64,
+    source: &str,
+    media_type: &str,
+    extension: &str,
+    duration_ms: Option<u64>,
+) -> u64 {
+    let storage = format!("media{position}");
+    let media = MediaRepo::new(pool)
+        .create(&NewMedia {
+            resource: NewResource::default(),
+            item_id: item,
+            ingester: "upload".to_string(),
+            renderer: "file".to_string(),
+            data: None,
+            source: Some(source.to_string()),
+            media_type: Some(media_type.to_string()),
+            storage_id: Some(storage.clone()),
+            extension: Some(extension.to_string()),
+            sha256: Some(format!("sha{position}")),
+            size: Some(1),
+            has_original: true,
+            has_thumbnails: false,
+            position: Some(position - 1),
+            lang: None,
+            alt_text: None,
+        })
+        .await
+        .unwrap();
+    if let Some(duration_ms) = duration_ms {
+        MediaExtentRepo::new(pool)
+            .put(
+                media.id(),
+                &format!("original/{storage}.{extension}"),
+                &ExtentRow {
+                    duration_ms: Some(duration_ms),
+                    ..ExtentRow::default()
+                },
+            )
+            .await
+            .unwrap();
+    }
+    media.id().0
 }
 
 /// `Mvc\ExceptionListener`: a missing resource id is a 404.

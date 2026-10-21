@@ -7,6 +7,7 @@
 import { crc32, deflateSync } from 'node:zlib';
 import type { Page } from '@playwright/test';
 import { expect, expectClean, test } from '../fixtures';
+import { record } from '../harness/json';
 import { SITE_SLUG } from '../harness/seed';
 import { readHarness } from '../harness/state';
 
@@ -55,7 +56,7 @@ const png = (width: number, height: number): Buffer => {
 };
 
 /** An item holding one uploaded image, created through the API. */
-const createItem = async (page: Page): Promise<number> => {
+const createItem = async (page: Page): Promise<{ item: number; media: number }> => {
   const properties: unknown = await (await page.request.get('/api/properties?term=dcterms:title')).json();
   const title = idOf(first(properties));
   const created = await page.request.post('/api/items', {
@@ -69,7 +70,8 @@ const createItem = async (page: Page): Promise<number> => {
     },
   });
   expect(created.status(), await created.text()).toBe(200);
-  return idOf(await created.json());
+  const document: unknown = await created.json();
+  return { item: idOf(document), media: idOf(first(record(document, 'item')['o:media'])) };
 };
 
 /** A fresh page with one HTML block, so the spec owns what it edits. */
@@ -106,7 +108,7 @@ test('a IIIF block of a local item previews as a poster and opens Mirador on the
   page,
   diagnostics,
 }) => {
-  const item = await createItem(page);
+  const { item } = await createItem(page);
   await page.goto(await createPage(page));
   await page.getByRole('button', { name: /Insert block at position/ }).last().click();
   await page
@@ -149,4 +151,66 @@ test('a IIIF block of a local item previews as a poster and opens Mirador on the
   await expect(viewer.getByText(ITEM_TITLE).first()).toBeVisible({ timeout: 15_000 });
   await expect(viewer.locator('.mirador-osd-container canvas').first()).toBeVisible({ timeout: 15_000 });
   await expectClean(diagnostics, 'the public page with Mirador');
+});
+
+const NOTE_TEXT = 'Watermark: crowned shield';
+
+/** Write one region note on the item's media through the Web Annotation Protocol. */
+const addNote = async (page: Page, item: number, media: number): Promise<void> => {
+  const harness = readHarness();
+  const canvas = `${harness.baseUrl}/iiif/3/item/${String(item)}/canvas/${String(media)}`;
+  const answer = await page.request.post(
+    `${harness.baseUrl}/annotations/media/${String(media)}/?key_identity=${harness.keyIdentity}&key_credential=${harness.keyCredential}`,
+    {
+      headers: { 'content-type': 'application/ld+json; profile="http://www.w3.org/ns/anno.jsonld"' },
+      data: {
+        '@context': 'http://www.w3.org/ns/anno.jsonld',
+        type: 'Annotation',
+        motivation: 'commenting',
+        body: { type: 'TextualBody', value: NOTE_TEXT, format: 'text/plain' },
+        target: {
+          type: 'SpecificResource',
+          source: { id: canvas, type: 'Canvas' },
+          selector: {
+            type: 'FragmentSelector',
+            conformsTo: 'http://www.w3.org/TR/media-frags/',
+            value: 'xywh=pixel:120,140,320,200',
+          },
+        },
+      },
+    },
+  );
+  expect(answer.status(), await answer.text()).toBe(201);
+};
+
+test('Mirador lists the note the item manifest references from its canvas', async ({ page }) => {
+  const { item, media } = await createItem(page);
+  const manifest = `${readHarness().baseUrl}/iiif/3/item/${String(item)}/manifest`;
+  const openViewer = async (): Promise<void> => {
+    const response = await page.goto(`/iiif-viewer?url=${encodeURIComponent(manifest)}`);
+    expect(response?.status()).toBe(200);
+    await expect(page.locator('#viewer .mirador-viewer')).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.locator('#viewer .mirador-osd-container canvas').first(),
+    ).toBeVisible({ timeout: 15_000 });
+  };
+  const evidence = process.env.EVIDENCE_DIR;
+
+  // Before: the canvas references no page, so Mirador offers no annotations panel.
+  await openViewer();
+  await expect(page.getByRole('tab', { name: /annotations/i })).toHaveCount(0);
+  if (evidence !== undefined && evidence !== '') {
+    // Let the sidebar settle and the canvas paint before the capture.
+    await page.waitForTimeout(1_500);
+    await page.screenshot({ path: `${evidence}/iiif-notes-before.png`, fullPage: true });
+  }
+
+  await addNote(page, item, media);
+  await openViewer();
+  await page.getByRole('tab', { name: /annotations/i }).click();
+  await expect(page.getByText(NOTE_TEXT)).toBeVisible({ timeout: 15_000 });
+  if (evidence !== undefined && evidence !== '') {
+    await page.waitForTimeout(1_000);
+    await page.screenshot({ path: `${evidence}/iiif-notes-after.png`, fullPage: true });
+  }
 });

@@ -21,8 +21,9 @@ use omeka_db::ids as db;
 use omeka_db::repos::{
     AssetRepo, ItemRepo, ItemSetRepo, MediaRepo, SettingRepo, SiteRepo, UserRepo,
 };
-use omeka_db::rows::{ResourceRow, SiteRow};
+use omeka_db::rows::{MediaRow, ResourceRow, SiteRow};
 use omeka_db::with_db;
+use omeka_media::render::MediaStart;
 use omeka_site::blocks::browse_preview::parse_query;
 use omeka_site::nav::{self, NavItem, PageRef};
 use omeka_site::render::{render_index, render_page};
@@ -32,7 +33,9 @@ use omeka_site::settings::SiteSettings;
 use omeka_site::slug::{PublicRoute, kind_for_controller, page_url, parse_public_path};
 use omeka_site::theme::tokens::ThemeSettings;
 use omeka_site::theme::{DefaultTheme, Theme, theme_for};
-use omeka_site::view::{ErrorView, NoResources, RenderContext, ResourceProvider, View, Viewer};
+use omeka_site::view::{
+    ErrorView, NoResources, RenderContext, ResourceProvider, ResourceView, View, Viewer,
+};
 use serde_json::Value;
 
 use super::load::{self, Access, BrowseScope, Loader, thumbnail_for_asset};
@@ -257,6 +260,26 @@ impl<'a> Common<'a> {
             current_path: uri.path().to_string(),
             preview: false,
         })
+    }
+
+    /// The moment this request asks the player to open at, from `?t=`. A value
+    /// that is not a finite, non-negative number is no start, so a broken link
+    /// plays the file from the beginning rather than failing.
+    fn media_start(&self) -> Option<MediaStart> {
+        self.query
+            .iter()
+            .find(|(name, _)| name == "t")
+            .and_then(|(_, value)| MediaStart::parse_seconds(value))
+    }
+
+    /// A media as its own page shows it. The request's query may cue the
+    /// player; the loader holds the start inside the file's probed duration.
+    async fn media_resource_view(&self, row: &MediaRow) -> Result<ResourceView, SiteError> {
+        let view = self
+            .loader
+            .media_resource_view(row, self.media_start())
+            .await?;
+        Ok(view)
     }
 
     /// The page size in force: the site setting, then the global setting, then
@@ -553,7 +576,7 @@ async fn show_kind(common: &Common<'_>, kind: ResourceKind, id: u64) -> Result<O
             require_visible(common, &row.resource)?;
             // `noindexMedia` reads the media's item (`Module.php:813-817`).
             let in_site = common.loader.item_in_site(row.item_id).await?;
-            (common.loader.media_resource_view(&row).await?, !in_site)
+            (common.media_resource_view(&row).await?, !in_site)
         }
     };
     let mut ctx = common.context(None, &NoResources);

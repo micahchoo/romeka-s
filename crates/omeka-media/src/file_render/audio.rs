@@ -1,7 +1,7 @@
 //! The audio file renderer (`Media/FileRenderer/AudioRenderer.php`).
 
 use crate::file_render::FileRenderer;
-use crate::render::{MediaView, RenderOptions};
+use crate::render::{MediaView, RenderOptions, media_fragment};
 use crate::text::{escape_html, hyperlink};
 
 /// The audio renderer.
@@ -15,9 +15,12 @@ impl FileRenderer for Audio {
 
     /// `FileRenderer/AudioRenderer.php:17`: a `<audio>` element with `src` and
     /// the truthy playback attributes, wrapping a hyperlink to the original.
+    /// A start is the media fragment `#t=62` on `src`, so a `?t=` link opens at
+    /// that moment with no script.
     fn render(&self, media: &MediaView, options: &RenderOptions) -> String {
         let original = media.original_url.clone().unwrap_or_default();
-        let mut attrs = vec![format!("src=\"{}\"", escape_html(&original))];
+        let source = media_fragment(&original, options.start);
+        let mut attrs = vec![format!("src=\"{}\"", escape_html(&source))];
         if options.autoplay.unwrap_or(false) {
             attrs.push("autoplay".to_string());
         }
@@ -38,6 +41,7 @@ impl FileRenderer for Audio {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::render::MediaStart;
     use crate::testing::{media_row, media_view_from};
 
     fn audio_media() -> MediaView {
@@ -73,6 +77,20 @@ mod tests {
         assert_eq!(
             Audio.render(&audio_media(), &options),
             "<audio src=\"/files/original/abc123.mp3\" autoplay controls loop muted><a href=\"/files/original/abc123.mp3\">abc123.mp3</a></audio>"
+        );
+    }
+
+    /// A start reaches the browser as a media fragment on the source, so a
+    /// `?t=` link plays from that moment with no script.
+    #[test]
+    fn a_start_cues_the_audio_with_a_media_fragment() {
+        let options = RenderOptions {
+            start: Some(MediaStart::from_millis(1_500)),
+            ..RenderOptions::default()
+        };
+        assert_eq!(
+            Audio.render(&audio_media(), &options),
+            "<audio src=\"/files/original/abc123.mp3#t=1.5\" controls><a href=\"/files/original/abc123.mp3\">abc123.mp3</a></audio>"
         );
     }
 }

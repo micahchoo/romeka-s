@@ -208,6 +208,7 @@ pub(super) async fn canvas_media(state: &AppState, media: &Value) -> Option<Canv
         id,
         label,
         painting,
+        annotation_page: None,
     })
 }
 
