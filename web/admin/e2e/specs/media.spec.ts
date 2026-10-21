@@ -6,7 +6,7 @@
  * that the browser decodes the bytes, which is the check a jsdom test cannot
  * make.
  */
-import type { APIRequestContext, Locator } from '@playwright/test';
+import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -114,9 +114,11 @@ test('a media list row for an mp3 shows the audio placeholder and no broken imag
     },
   });
   expect(created.status(), await created.text()).toBe(200);
+  const item = numberField(record(await created.json(), 'item'), 'o:id', 'item');
+  const media = await mediaIdOf(page.request, item);
 
   await page.goto('/#/media');
-  const row = page.locator('tbody tr', { hasText: 'tone.mp3' });
+  const row = await rowOf(page, media);
   await expect(row).toHaveCount(1);
 
   // The row has no image at all, and its cell names the kind and the file.
@@ -161,12 +163,14 @@ test('the Kind filter lists one kind and keeps the filter in the URL', async ({
     },
   });
   expect(created.status(), await created.text()).toBe(200);
+  const item = numberField(record(await created.json(), 'item'), 'o:id', 'item');
+  const media = await mediaIdOf(page.request, item);
 
   await page.goto('/#/media');
-  const audio = page.locator('tbody tr', { hasText: 'filter-tone.mp3' });
   const picture = page.locator('tbody tr', { hasText: MEDIA_FILE });
-  await expect(audio).toHaveCount(1);
   await expect(picture).toHaveCount(1);
+  const audio = await rowOf(page, media);
+  await expect(audio).toHaveCount(1);
 
   await page.getByLabel('Kind').selectOption('audio');
   await expect(audio).toHaveCount(1);
@@ -214,11 +218,12 @@ test('a video poster reaches the admin list and the public player', async ({
   diagnostics,
 }) => {
   const item = await uploadItem(page.request, 'video.mp4', 'video/mp4');
+  const media = await mediaIdOf(page.request, item);
 
   // The admin list shows the square derivative as the row's picture, not the
   // video placeholder.
   await page.goto('/#/media');
-  const row = page.locator('tbody tr', { hasText: 'video.mp4' });
+  const row = await rowOf(page, media);
   await expect(row).toHaveCount(1);
   const cell = row.locator('img.media-image');
   await expect(cell).toBeVisible();
@@ -290,10 +295,11 @@ test('a ?t= link opens the player there, and a value that is not a number is ign
 });
 
 test('a PDF first page is the media list thumbnail', async ({ page, diagnostics }) => {
-  await uploadItem(page.request, 'doc.pdf', 'application/pdf');
+  const item = await uploadItem(page.request, 'doc.pdf', 'application/pdf');
+  const media = await mediaIdOf(page.request, item);
 
   await page.goto('/#/media');
-  const row = page.locator('tbody tr', { hasText: 'doc.pdf' });
+  const row = await rowOf(page, media);
   await expect(row).toHaveCount(1);
   const cell = row.locator('img.media-image');
   await expect(cell).toBeVisible();
@@ -316,6 +322,36 @@ const mediaIdOf = async (request: APIRequestContext, item: number): Promise<numb
   }
   return numberField(record(media[0], 'media'), 'o:id', 'media');
 };
+
+/** A browse row picked by the show page its own upload returned, because every
+ * spec shares one database and another may have left a file of the same name.
+ * The list shows 25 rows at a time, so the row may need the pager: turn it until
+ * the page the row is on is the one on screen. */
+const rowOf = async (page: Page, media: number): Promise<Locator> => {
+  const row = page
+    .locator('tbody tr')
+    .filter({ has: page.locator(`a[href="#/media/${String(media)}"]`) });
+  const pager = page.locator('.pager');
+  await expect(pager).toBeVisible();
+  for (let shown = 1; ; shown += 1) {
+    if ((await row.count()) === 1) {
+      return row;
+    }
+    const next = page.getByRole('button', { name: 'Next' });
+    if (await next.isDisabled()) {
+      throw new Error(`no media row links to #/media/${String(media)}`);
+    }
+    await next.click();
+    await expect(pager).toContainText(`Page ${String(shown + 1)} of`);
+  }
+};
+
+/** The public card of one item, found by the page it links to, so a card another
+ * spec added to the same site is not counted here. */
+const itemCard = (page: Page, item: number): Locator =>
+  page
+    .locator('li.item')
+    .filter({ has: page.locator(`a[href="/s/${SITE_SLUG}/item/${String(item)}"]`) });
 
 /** A policy with no `unsafe-eval`: the vendored viewer must run under it. */
 const PAGE_POLICY =
@@ -449,14 +485,15 @@ test('a public item card names the kind of its first file', async ({ page, diagn
   }
   // A sound file has no picture, so its slot names the kind and carries the
   // server's kind for the matrix and for a style hook.
-  const audioCard = page.locator('li.item[data-media-kind="audio"]');
+  const audioCard = itemCard(page, audio);
   await expect(audioCard).toHaveCount(1);
   await expect(audioCard.locator('.resource-kind')).toHaveText('Audio');
   await expect(audioCard.locator('img')).toHaveCount(0);
+  expect(await audioCard.getAttribute('data-media-kind')).toBe('audio');
 
   // An item with no file differs from a sound file: it says "No file" and
   // carries no media kind at all.
-  const bareCard = page.locator('li.item', { hasText: 'No file' });
+  const bareCard = itemCard(page, bare);
   await expect(bareCard).toHaveCount(1);
   await expect(bareCard.locator('.resource-kind')).toHaveText('No file');
   expect(await bareCard.getAttribute('data-media-kind')).toBeNull();
@@ -465,6 +502,8 @@ test('a public item card names the kind of its first file', async ({ page, diagn
 });
 
 test('a video with captions offers each language as a WebVTT track', async ({ page, diagnostics }) => {
+  const harness = readHarness();
+  const key = `key_identity=${harness.keyIdentity}&key_credential=${harness.keyCredential}`;
   const item = await uploadItem(page.request, 'video.mp4', 'video/mp4');
   const media = await mediaIdOf(page.request, item);
   for (const [name, lang, type] of [
@@ -472,7 +511,7 @@ test('a video with captions offers each language as a WebVTT track', async ({ pa
     ['captions.srt', 'fr', 'application/x-subrip'],
   ] as const) {
     const answer = await page.request.post(
-      `/annotations/media/${String(media)}/tracks?lang=${lang}`,
+      `/annotations/media/${String(media)}/tracks?lang=${lang}&${key}`,
       { headers: { 'content-type': type }, data: corpus(name) },
     );
     expect(answer.status(), await answer.text()).toBe(200);
