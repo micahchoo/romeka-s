@@ -17,6 +17,7 @@ MEDIA_MATRIX_PRINT=1 cargo test -p omeka-server --test media_matrix -- --nocaptu
 | image.gif | pass | pass | pass | pass | pass | pass | pass | pass | n/a |
 | image.webp | pass | pass | pass | pass | pass | pass | pass | pass | n/a |
 | image.tif | pass | pass | pass | pass | pass | pass | pass | pass | n/a |
+| image.nef | pass | pass | pass | pass | pass | pass | pass | pass | n/a |
 | image.avif | pass | pass | pass | pass | pass | pass | **fail** | n/a | n/a |
 | image.heic | pass | pass | pass | pass | pass | pass | **fail** | n/a | n/a |
 | image.svg | pass | pass | pass | pass | pass | pass | pass | pass | n/a |

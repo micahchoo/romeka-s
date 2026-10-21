@@ -28,10 +28,9 @@ use omeka_db::DbPool;
 use omeka_db::repos::{ItemRepo, MediaRepo};
 use omeka_db::rows::{NewItem, NewMedia, NewResource};
 use omeka_db::with_db;
-use omeka_media::kind::{KindInput, MediaKind};
-use omeka_media::media_type::detected_media_type;
+use omeka_media::kind::{DISPLAY_IMAGE_MEDIA_TYPES, KindInput, MediaKind};
+use omeka_media::media_type::detected_media_type_of;
 use omeka_media::store::FileStore;
-use omeka_media::thumbnailer::SOURCE_MEDIA_TYPES;
 
 /// One media row the test stored.
 struct Stored {
@@ -172,8 +171,9 @@ async fn store_corpus(pool: &DbPool, seed: &Seed) -> Vec<Stored> {
     let mut stored = Vec::new();
     for file in corpus_files() {
         let bytes = std::fs::read(corpus_dir().join(&file)).expect(&file);
-        let media_type = detected_media_type(&bytes);
-        let thumbnails = SOURCE_MEDIA_TYPES.contains(&media_type.as_str());
+        let extension = file.rsplit_once('.').map(|(_, extension)| extension);
+        let media_type = detected_media_type_of(&bytes, extension);
+        let thumbnails = DISPLAY_IMAGE_MEDIA_TYPES.contains(&media_type.as_str());
         let (item, media) = store_media(
             pool,
             seed,

@@ -34,6 +34,8 @@ magick "$work/base.png" -quality 80 -strip "$out/image.webp"
 magick "$work/base.png" -compress zip -strip "$out/image.tif"
 magick "$work/base.png" -quality 50 -strip "$out/image.avif"
 heif-enc -q 50 -o "$out/image.heic" "$work/base.png" >/dev/null
+# The preview a camera RAW embeds: the same 120x80 frame, JPEG, no metadata.
+magick "$work/base.png" -quality 55 -strip "$work/nef-preview.jpg"
 
 cat >"$out/image.svg" <<'SVG'
 <svg xmlns="http://www.w3.org/2000/svg" width="120" height="80" viewBox="0 0 120 80" role="img" aria-label="A red square and a blue bar">
@@ -237,6 +239,90 @@ Path(out, "model.glb").write_bytes(glb)
 
 Path(out, "doc.pdf").write_bytes(pdf())
 Path(out, "doc.docx").write_bytes(docx())
+PY
+
+# A minimal Nikon NEF: the maker's TIFF container, its IFD0 naming the camera
+# and Orientation 6, and one SubIFD holding a JpgFromRaw preview. A real
+# BHC006 NEF keeps its full-size preview the same way (a JPEG-compressed
+# SubIFD); this one has a 120x80 preview so the fixture stays under 64 KiB.
+python3 - "$out" "$work/nef-preview.jpg" <<'PY'
+import struct
+import sys
+from pathlib import Path
+
+out, preview = Path(sys.argv[1]), Path(sys.argv[2]).read_bytes()
+typesize = {1: 1, 2: 1, 3: 2, 4: 4}
+entry_size = 12
+
+
+def ifd(entries, offset):
+    entries = sorted(entries)
+    body = 2 + entry_size * len(entries) + 4
+    data = bytearray()
+    encoded = bytearray(struct.pack("<H", len(entries)))
+    for tag, kind, count, value in entries:
+        encoded += struct.pack("<HHI", tag, kind, count)
+        if typesize[kind] * count <= 4:
+            encoded += value.ljust(4, b"\0")[:4]
+        else:
+            encoded += struct.pack("<I", offset + body + len(data))
+            data += value
+            if len(data) % 2:
+                data += b"\0"
+    encoded += struct.pack("<I", 0)
+    return bytes(encoded) + bytes(data)
+
+
+def ascii_entry(tag, text):
+    value = text.encode() + b"\0"
+    return tag, 2, len(value), value
+
+
+def short(tag, *values):
+    return tag, 3, len(values), struct.pack("<" + "H" * len(values), *values)
+
+
+def long(tag, *values):
+    return tag, 4, len(values), struct.pack("<" + "I" * len(values), *values)
+
+
+sub_offset = jpeg_offset = 0
+for _ in range(3):
+    ifd0 = [
+        long(256, 120),
+        long(257, 80),
+        short(258, 8, 8, 8),
+        short(259, 1),
+        short(262, 2),
+        ascii_entry(271, "NIKON CORPORATION"),
+        ascii_entry(272, "NIKON D3300"),
+        short(274, 6),
+        short(277, 3),
+        short(284, 1),
+        long(330, sub_offset),
+    ]
+    ifd0_bytes = ifd(ifd0, 8)
+    sub_offset = 8 + len(ifd0_bytes)
+    sub = [
+        long(254, 1),
+        long(256, 120),
+        long(257, 80),
+        short(258, 8, 8, 8),
+        short(259, 6),
+        short(262, 6),
+        short(277, 3),
+        long(278, 80),
+        short(530, 2, 1),
+        long(513, jpeg_offset),
+        long(514, len(preview)),
+        long(273, jpeg_offset),
+        long(279, len(preview)),
+    ]
+    sub_bytes = ifd(sub, sub_offset)
+    jpeg_offset = sub_offset + len(sub_bytes)
+
+nef = b"II*\0" + struct.pack("<I", 8) + ifd(ifd0, 8) + ifd(sub, sub_offset) + preview
+Path(out, "image.nef").write_bytes(nef)
 PY
 
 rm -f "$out/.docx.tmp"

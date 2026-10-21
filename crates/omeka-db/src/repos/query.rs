@@ -305,8 +305,9 @@ impl QueryFilter {
     }
 }
 
-/// A filter on the port's media kind: the kind names to keep, and the media types the
-/// thumbnailer draws from, which decide `local-image` as `MediaKind::of` does.
+/// A filter on the port's media kind: the kind names to keep, and the media types
+/// whose derivatives display as an image, which decide `local-image` as
+/// `MediaKind::of` does.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MediaKindFilter {
     pub names: Vec<String>,
@@ -342,7 +343,7 @@ where
            WHEN media.renderer = 'file' AND media.has_thumbnails = 1
              AND media.media_type IN (",
     );
-    // The thumbnailer's source types, bound from the caller, so a new image format changes one list.
+    // The display image types, bound from the caller, so a new image format changes one list.
     if filter.local_image_types.is_empty() {
         statement.push("NULL");
     }

@@ -113,7 +113,7 @@ pub fn kind_names(values: Vec<String>) -> Option<omeka_db::repos::MediaKindFilte
         .collect();
     (!names.is_empty()).then(|| omeka_db::repos::MediaKindFilter {
         names,
-        local_image_types: omeka_media::thumbnailer::SOURCE_MEDIA_TYPES
+        local_image_types: omeka_media::kind::DISPLAY_IMAGE_MEDIA_TYPES
             .iter()
             .map(|media_type| (*media_type).to_string())
             .collect(),
