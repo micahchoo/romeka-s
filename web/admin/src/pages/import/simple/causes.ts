@@ -8,7 +8,10 @@
  */
 import type { AnomalyAnswers, FlagKind, FlagPolicy, ImportPlan, SlotRule } from '../../../api/import-plan';
 import { BLOCKING_FLAG_KINDS, FLAG_KINDS } from '../../../api/import-plan';
+import type { PatternState } from '../../../api/import-model';
+import type { BucketCount } from '../../../api/import-sections';
 import { exampleOf } from '../example';
+import { readState } from './example-state';
 import type { SimpleMessageKey } from './messages';
 
 export const DEFAULT_POLICY: Readonly<Record<FlagKind, FlagPolicy>> = {
@@ -38,6 +41,19 @@ export const DEFAULT_POLICY: Readonly<Record<FlagKind, FlagPolicy>> = {
 
 /** Kinds the run handles without a question: the screen lists them under "We took care of". */
 export const HANDLED: readonly FlagKind[] = ['space-at-ends', 'not-media'];
+
+/** Kinds Check states as a fact: the person has no choice about them, so no card asks. */
+export const FACTS: readonly FlagKind[] = ['listed-not-media'];
+
+/** What the preview says about the items, for the answers that depend on it. */
+export interface CheckFacts {
+  /** The pattern has an `identifier` group and some item has more than one file. */
+  readonly itemCodeFits: boolean;
+}
+
+/** Whether the item code fits as the title: the pattern has an `identifier` group and some item has more than one file. */
+export const itemCodeFits = (pattern: PatternState, histogram: readonly BucketCount[]): boolean =>
+  typeof pattern === 'object' && 'groups' in pattern && pattern.groups.includes('identifier') && histogram.some((bucket) => bucket.files !== '0' && bucket.files !== '1' && bucket.count > 0);
 
 export type AnomalyId = 'identical' | 'unmatchedFiles' | 'itemsWithoutRow';
 export type CauseId = FlagKind | AnomalyId;
@@ -132,6 +148,7 @@ const FLAG_WORDS: Readonly<Partial<Record<FlagKind, CauseWords>>> = {
     why: null,
     options: [
       { value: 'keep', label: 'guided.check.noTitleKeep' },
+      { value: 'identifier', label: 'guided.check.noTitleCode' },
       { value: 'filename', label: 'guided.check.noTitleName' },
     ],
   },
@@ -167,17 +184,30 @@ export const wordsOf = (id: CauseId, plan: ImportPlan): CauseWords => {
 
 const TITLE = 'dcterms:title';
 const fromName = (rule: SlotRule | undefined): boolean => rule?.sources.some((source) => source.from === 'file' && source.fact === 'name') === true;
+const isCode = (source: SlotRule['sources'][number]): boolean => source.from === 'group' && source.name === 'identifier';
+export const fromCode = (rule: SlotRule | undefined): boolean => rule?.sources.some(isCode) === true;
 
 const defaultPolicyOf = (plan: ImportPlan, kind: FlagKind): FlagPolicy =>
   kind === 'unmatched' ? (plan.action.unmatched === 'create' ? 'keep' : 'leave') : DEFAULT_POLICY[kind];
 
-/** The answer the plan holds now; the suggested one when the person gave none. */
-export const answerOf = (plan: ImportPlan, id: CauseId): string => {
+/**
+ * The answer the plan holds now; the suggested one when the person gave none.
+ * An empty title has no flag policy to hold the answer: it is the title rule's
+ * last source, and with no rule yet the item code shows as chosen where it fits.
+ */
+export const answerOf = (plan: ImportPlan, id: CauseId, facts: CheckFacts): string => {
   if (isAnomaly(id)) {
     return (plan.anomalies ?? DEFAULT_ANOMALIES)[id];
   }
   if (id === 'empty-required') {
-    return fromName(plan.slots.item[TITLE]) ? 'filename' : 'keep';
+    const rule = plan.slots.item[TITLE];
+    if (fromName(rule)) {
+      return 'filename';
+    }
+    if (fromCode(rule)) {
+      return 'identifier';
+    }
+    return facts.itemCodeFits && !readState(plan).answered.includes(id) ? 'identifier' : 'keep';
   }
   return plan.flags[id] ?? defaultPolicyOf(plan, id);
 };
@@ -185,14 +215,16 @@ export const answerOf = (plan: ImportPlan, id: CauseId): string => {
 /**
  * What the run does with no answer: the anomaly's default answer, or the
  * kind's default policy (`unmatched` follows the plan's `action.unmatched`).
- * "Keep" is the default for an empty title: the file name is an offer.
+ * An empty title is the exception: the run adds no title unless a rule gives
+ * one, so the item code is only suggested, and written when the person takes
+ * the suggestion. Where the code does not fit, "keep" is suggested.
  */
-export const suggestedOf = (plan: ImportPlan, id: CauseId): string => {
+export const suggestedOf = (plan: ImportPlan, id: CauseId, facts: CheckFacts): string => {
   if (isAnomaly(id)) {
     return DEFAULT_ANOMALIES[id];
   }
   if (id === 'empty-required') {
-    return 'keep';
+    return facts.itemCodeFits ? 'identifier' : 'keep';
   }
   return defaultPolicyOf(plan, id);
 };
@@ -211,10 +243,11 @@ export const withAnswer = (plan: ImportPlan, id: CauseId, value: string): Import
     return { ...plan, anomalies: next };
   }
   if (id === 'empty-required') {
-    // "Use the file name" is the title rule's last source: the file name where the list gives no title.
+    // The item code or the file name is the title rule's last source: it applies where the list gives no title.
     const rule = plan.slots.item[TITLE] ?? { sources: [], combine: 'first' as const };
-    const sources = rule.sources.filter((source) => !(source.from === 'file' && source.fact === 'name'));
-    const next = { ...rule, sources: value === 'filename' ? [...sources, { from: 'file' as const, fact: 'name' as const }] : sources };
+    const sources = rule.sources.filter((source) => !isCode(source) && !(source.from === 'file' && source.fact === 'name'));
+    const last = value === 'filename' ? [{ from: 'file' as const, fact: 'name' as const }] : value === 'identifier' ? [{ from: 'group' as const, name: 'identifier' }] : [];
+    const next = { ...rule, sources: [...sources, ...last] };
     return { ...plan, slots: { ...plan.slots, item: { ...plan.slots.item, [TITLE]: next } } };
   }
   const policy = asPolicy(value);
