@@ -2,13 +2,13 @@
  * "Do you have a list that describes them?": the lists found in the folder,
  * each used only when the person says so; for each list in use, how its rows
  * find their items, by the column with the most cells that exactly equal an
- * item's code or a file's name, counted on screen, and where each column
- * goes; and the list to fill in yourself.
+ * item's code or a file's name, counted on screen, what one row describes,
+ * and where each column goes; and the list to fill in yourself.
  */
 import type { ReactElement } from 'react';
-import type { SheetColumnMatches } from '../../../api/import-sections';
+import type { Grain, SheetColumnMatches } from '../../../api/import-sections';
 import type { SheetView } from '../../../api/import-sheet-views';
-import type { SheetPlan } from '../../../api/import-plan';
+import type { RecordKind, SheetPlan } from '../../../api/import-plan';
 import { ErrorNotice } from '../../../app/errors';
 import { useDraft } from '../draft-context';
 import { ListPicker } from '../lists/list-picker';
@@ -16,9 +16,10 @@ import { RoundTrip } from '../lists/round-trip';
 import { usePreview } from '../lists/use-preview';
 import { placeHref } from '../screens';
 import { ListColumns } from './list-columns';
-import { cellsOf, withJoin } from './list-plan';
+import { cellsOf, withFileRows, withJoin, withRowKind } from './list-plan';
 import { folderSheets } from './list-read';
 import { useSimpleText } from './messages';
+import type { SimpleMessageKey } from './messages';
 import './simple.css';
 
 const encodingWords = (view: SheetView, t: ReturnType<typeof useSimpleText>['t']): string | null => {
@@ -118,7 +119,56 @@ const Found = ({ unpairedRows, unpairedFiles, rows }: { readonly unpairedRows: n
   );
 };
 
-const InUse = ({ sheet, view, matches }: { readonly sheet: SheetPlan; readonly view: SheetView | undefined; readonly matches: SheetColumnMatches | undefined }): ReactElement => {
+const KINDS: readonly (readonly [RecordKind, SimpleMessageKey])[] = [
+  ['item', 'guided.list.grainItem'],
+  ['media', 'guided.list.grainFile'],
+  ['itemSet', 'guided.list.grainSet'],
+];
+
+/** "Each row describes": the answer the plan holds, and the one the count suggests. */
+const RowsDescribe = ({ sheet, grain }: { readonly sheet: SheetPlan; readonly grain: Grain | null }): ReactElement => {
+  const { t, number } = useSimpleText();
+  const draft = useDraft();
+  const others = grain?.rowsNamingOtherFilesOfAGroup ?? 0;
+  const suggested: RecordKind = others > 0 ? 'media' : 'item';
+  const evidence = grain === null ? null : others === 0 ? t('guided.list.grainNone') : others === 1 ? t('guided.list.grainEvidenceOne') : t('guided.list.grainEvidence', { count: number(others) });
+  return (
+    <fieldset className="guided-opts" data-decision="rowKind">
+      <legend>{t('guided.list.grainAsk')}</legend>
+      {evidence === null ? null : <p>{evidence}</p>}
+      {KINDS.map(([kind, label]) => (
+        <label key={kind}>
+          <input
+            type="radio"
+            name={`rows-${sheet.id}`}
+            value={kind}
+            checked={sheet.rowKind === kind}
+            disabled={!draft.editable}
+            onChange={() => {
+              draft.change((plan) => (kind === 'media' ? withFileRows(plan, sheet.id, grain) : withRowKind(plan, sheet.id, kind)));
+            }}
+          />
+          <span>
+            {t(label)}
+            {kind === suggested ? <span className="guided-pill">{t('guided.check.suggested')}</span> : null}
+          </span>
+        </label>
+      ))}
+    </fieldset>
+  );
+};
+
+const InUse = ({
+  sheet,
+  view,
+  matches,
+  grain,
+}: {
+  readonly sheet: SheetPlan;
+  readonly view: SheetView | undefined;
+  readonly matches: SheetColumnMatches | undefined;
+  readonly grain: Grain | null;
+}): ReactElement => {
   const { t } = useSimpleText();
   const rows = view?.read?.rows ?? matches?.rows ?? 0;
   return (
@@ -130,7 +180,8 @@ const InUse = ({ sheet, view, matches }: { readonly sheet: SheetPlan; readonly v
         {view === undefined ? null : <HeaderLine sheet={sheet} view={view} />}
       </ul>
       <Pairing sheet={sheet} matches={matches} rows={rows} />
-      {view === undefined ? null : <ListColumns sheet={sheet} view={view} />}
+      <RowsDescribe sheet={sheet} grain={grain} />
+      {view === undefined ? null : <ListColumns sheet={sheet} view={view} grain={grain} />}
     </section>
   );
 };
@@ -138,7 +189,7 @@ const InUse = ({ sheet, view, matches }: { readonly sheet: SheetPlan; readonly v
 /** The lists in use: one block each, under the unpaired counts, which the server totals over every list. */
 const InUseLists = ({ sheets }: { readonly sheets: readonly SheetPlan[] }): ReactElement => {
   const { t } = useSimpleText();
-  const read = usePreview(['sheets', 'columnMatches', 'unpaired'], { unpaired: { rows: { perPage: 1 }, files: { perPage: 1 } } });
+  const read = usePreview(['sheets', 'columnMatches', 'unpaired', 'listCandidates'], { unpaired: { rows: { perPage: 1 }, files: { perPage: 1 } } });
   if (read.status === 'loading') {
     return <p role="status" className="import-slow">{t('shell.loading')}</p>;
   }
@@ -149,13 +200,14 @@ const InUseLists = ({ sheets }: { readonly sheets: readonly SheetPlan[] }): Reac
     sheet,
     view: read.data.sheets.find((one) => one.id === sheet.id),
     matches: read.data.columnMatches.find((one) => one.sheet === sheet.id),
+    grain: read.data.listCandidates.find((one) => one.inPlan === sheet.id)?.grain ?? null,
   }));
   const rows = blocks.reduce((sum, { view, matches }) => sum + (view?.read?.rows ?? matches?.rows ?? 0), 0);
   return (
     <div aria-busy={read.busy}>
       <Found unpairedRows={read.data.unpaired.rows.total} unpairedFiles={read.data.unpaired.files.total} rows={rows} />
-      {blocks.map(({ sheet, view, matches }) => (
-        <InUse key={sheet.id} sheet={sheet} view={view} matches={matches} />
+      {blocks.map(({ sheet, view, matches, grain }) => (
+        <InUse key={sheet.id} sheet={sheet} view={view} matches={matches} grain={grain} />
       ))}
     </div>
   );

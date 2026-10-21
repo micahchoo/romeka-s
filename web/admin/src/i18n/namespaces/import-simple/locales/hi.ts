@@ -121,6 +121,25 @@ export const hi: ImportSimpleMessages = {
   'guided.list.noField': 'ओमेका में किसी भी फ़ील्ड का यह नाम नहीं है। एक चुनें, या इसे छोड़ दें।',
   'guided.list.moreFields':
     'यहाँ आप डब्लिन कोर फ़ील्ड देखते हैं। अन्य सभी फ़ील्ड एडवांस्ड मोड में हैं।',
+  'guided.list.grainAsk': 'प्रत्येक पंक्ति वर्णन करती है',
+  'guided.list.grainItem': 'एक आइटम',
+  'guided.list.grainFile': 'एक फाइल',
+  'guided.list.grainSet': 'एक आइटम सेट',
+  'guided.list.grainEvidence':
+    '{count} पंक्तियाँ ऐसे आइटम की कोई दूसरी फ़ाइल बताती हैं जिसे कोई पंक्ति पहले से बताती है; लगता है कि हर पंक्ति एक फ़ाइल का वर्णन करती है।',
+  'guided.list.grainEvidenceOne':
+    '1 पंक्ति ऐसे आइटम की कोई दूसरी फ़ाइल बताती है जिसे कोई पंक्ति पहले से बताती है; लगता है कि हर पंक्ति एक फ़ाइल का वर्णन करती है।',
+  'guided.list.grainNone':
+    'कोई भी दो पंक्तियाँ एक ही आइटम की फ़ाइलें नहीं बतातीं; लगता है कि हर पंक्ति एक आइटम का वर्णन करती है।',
+  'guided.list.colLevel': 'इसके मान कहाँ जाते हैं',
+  'guided.list.levelOf': '{column} के मान कहाँ जाते हैं',
+  'guided.list.levelItem': 'आइटम',
+  'guided.list.levelFile': 'प्रत्येक फ़ाइल',
+  'guided.list.levelOut': 'छोड़ें',
+  'guided.list.varies': '{of} में से {count} आइटमों में भिन्न होता है।',
+  'guided.list.itemOnly': 'एक आइटम प्रकार या आइटम सेट केवल आइटम पर जाता है।',
+  'guided.list.levelLede':
+    'आइटम पर: सभी पंक्तियों के मान, प्रत्येक मान एक बार। प्रत्येक फ़ाइल पर: उस फ़ाइल की पंक्ति के मान। हम सुझाव देते हैं कि प्रत्येक फ़ाइल वहाँ हो जहाँ मान किसी आइटम के अंदर भिन्न हों, और आइटम वहाँ हो जहाँ वे कभी नहीं होते।',
   'guided.where.setsTitle': 'आइटम सेट',
   'guided.where.setsAsk': 'प्रत्येक आइटम को किस आइटम सेट में जाना चाहिए?',
   'guided.where.setsGloss': 'आइटम सेट ओमेका में आइटमों का एक संग्रह है।',
@@ -183,6 +202,9 @@ export const hi: ImportSimpleMessages = {
   'guided.check.mustFix': 'इसे जोड़ने से पहले ठीक किया जाना चाहिए।',
   'guided.check.keep': 'उन्हें वैसा ही रहने दें',
   'guided.check.leave': 'उन्हें बाहर छोड़ दें',
+  'guided.check.fileRows': 'प्रत्येक पंक्ति एक फ़ाइल का वर्णन करती है',
+  'guided.check.fileRowsWhy':
+    'आपकी सूची की कुछ पंक्तियाँ ऐसे आइटम की कोई दूसरी फ़ाइल बताती हैं जिसे कोई पंक्ति पहले से बताती है। ऐसी सूची में हर फ़ाइल के लिए एक पंक्ति हो सकती है।',
   'guided.check.spacesRepair': 'स्पेस हटाएँ',
   'guided.check.other': '{count} बार: {problem}।',
   'guided.check.otherOne': '1 बार: {problem}।',
@@ -285,4 +307,5 @@ export const hi: ImportSimpleMessages = {
   'guided.add.undo': 'आप बाद में पूरे आयात को पूर्ववत कर सकते हैं।',
   'guided.add.titleCode': 'बिना शीर्षक वाले आइटमों को उनका आइटम कोड शीर्षक के रूप में मिलता है।',
   'guided.add.titleChange': 'इसे बदलें',
+  'guided.add.fileRows': '“{name}” की प्रत्येक पंक्ति एक फ़ाइल का वर्णन करती है।',
 };

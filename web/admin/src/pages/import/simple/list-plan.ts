@@ -6,9 +6,9 @@
  * that field's label (compared as titles). Every other column waits for the
  * person.
  */
-import type { SheetColumnMatches } from '../../../api/import-sections';
+import type { Grain, SheetColumnMatches, Varies } from '../../../api/import-sections';
 import type { SheetRead } from '../../../api/import-sheet-views';
-import type { ColumnRef, ImportPlan, SheetPlan, SlotName, SlotRule, SlotRules, SourceRef, Term } from '../../../api/import-plan';
+import type { ColumnRef, ImportPlan, RecordKind, SheetPlan, SlotName, SlotRule, SlotRules, SourceRef, Term } from '../../../api/import-plan';
 import { isTerm } from '../../../api/import-plan';
 
 /** Where a column goes: nowhere, a field, the item type, the item set, or a new field. */
@@ -55,15 +55,138 @@ export const withJoin = (plan: ImportPlan, sheet: string, column: SheetColumnMat
   sheets: plan.sheets.map((one) => (one.id === sheet ? { ...one, join: joinOn(column) } : one)),
 });
 
+const readsColumn = (source: SourceRef, sheet: string, index: number): boolean => source.from === 'column' && source.sheet === sheet && source.column.index === index;
+
 const rulesWithout = (rules: SlotRules, sheet: string, index: number): SlotRules => {
   const next: { [slot: string]: SlotRule } = {};
   for (const [slot, rule] of Object.entries<SlotRule | undefined>(rules)) {
     if (rule !== undefined) {
-      next[slot] = { ...rule, sources: rule.sources.filter((source) => !(source.from === 'column' && source.sheet === sheet && source.column.index === index)) };
+      next[slot] = { ...rule, sources: rule.sources.filter((source) => !readsColumn(source, sheet, index)) };
     }
   }
   return next;
 };
+
+/**
+ * Where a list column's values go when its rows describe files: on the item
+ * (every row's values, each once), on each file, or nowhere. It is read from
+ * where the column's sources are, never stored: `slots.item` is the item,
+ * `slots.media` each file.
+ */
+export type Level = 'item' | 'file' | 'out';
+
+const KIND: Readonly<Record<Exclude<Level, 'out'>, 'item' | 'media'>> = { item: 'item', file: 'media' };
+
+/** A slot only an item has: a column feeding one cannot go on each file. */
+export const itemOnly = (slot: string): boolean => slot === 'sets' || slot === 'template';
+
+interface Place {
+  readonly kind: 'item' | 'media';
+  readonly slot: string;
+  readonly rule: SlotRule;
+}
+
+/** Every item and media rule that reads the column, items first. */
+const placesOf = (plan: ImportPlan, sheet: string, index: number): readonly Place[] =>
+  (['item', 'media'] as const).flatMap((kind) =>
+    Object.entries<SlotRule | undefined>(plan.slots[kind]).flatMap(([slot, rule]) =>
+      rule?.sources.some((source) => readsColumn(source, sheet, index)) === true ? [{ kind, slot, rule }] : [],
+    ),
+  );
+
+export const levelOf = (plan: ImportPlan, sheet: string, index: number): Level => {
+  const places = placesOf(plan, sheet, index);
+  if (places.some((place) => place.kind === 'item')) {
+    return 'item';
+  }
+  return places.length === 0 ? 'out' : 'file';
+};
+
+/** Whether the column may go on each file: no slot it feeds is an item's alone. */
+export const fileLevelAllowed = (plan: ImportPlan, sheet: string, index: number): boolean =>
+  !placesOf(plan, sheet, index).some((place) => itemOnly(place.slot));
+
+/**
+ * The column's sources moved to `level`, each into the same slot with its
+ * rule's combine and value map, ahead of the slot's other sources; `out`
+ * removes them. A rule left with no source goes too, unless `out` leaves it
+ * a value map. A column feeding `sets` or `template` cannot go on each file,
+ * so that edit leaves the plan as it is.
+ */
+export const withColumnLevel = (plan: ImportPlan, sheet: string, column: ColumnRef, level: Level): ImportPlan => {
+  if (level === 'file' && !fileLevelAllowed(plan, sheet, column.index)) {
+    return plan;
+  }
+  const places = placesOf(plan, sheet, column.index);
+  const without = (kind: 'item' | 'media'): SlotRules => {
+    const next: { [slot: string]: SlotRule } = {};
+    for (const [slot, rule] of Object.entries<SlotRule | undefined>(plan.slots[kind])) {
+      if (rule === undefined) {
+        continue;
+      }
+      const sources = rule.sources.filter((source) => !readsColumn(source, sheet, column.index));
+      const lostItsLast = sources.length === 0 && rule.sources.length > 0;
+      if (!lostItsLast || (level === 'out' && rule.map !== undefined)) {
+        next[slot] = { ...rule, sources };
+      }
+    }
+    return next;
+  };
+  const slots = { ...plan.slots, item: without('item'), media: without('media') };
+  if (level === 'out') {
+    return { ...plan, slots };
+  }
+  const kind = KIND[level];
+  const into: { [slot: string]: SlotRule | undefined } = { ...slots[kind] };
+  const source: SourceRef = { from: 'column', sheet, column };
+  for (const place of places) {
+    const there = into[place.slot];
+    into[place.slot] = there === undefined ? { ...place.rule, sources: [source] } : { ...there, sources: [source, ...there.sources.filter((one) => !readsColumn(one, sheet, column.index))] };
+  }
+  return { ...plan, slots: { ...slots, [kind]: into } };
+};
+
+/** The columns of `sheet` that some rule of `kinds` reads. */
+const columnsIn = (plan: ImportPlan, sheet: string, kinds: readonly ('item' | 'media')[]): readonly ColumnRef[] => {
+  const found = new Map<number, ColumnRef>();
+  for (const rule of kinds.flatMap((kind) => Object.values<SlotRule | undefined>(plan.slots[kind]))) {
+    for (const source of rule?.sources ?? []) {
+      if (source.from === 'column' && source.sheet === sheet) {
+        found.set(source.column.index, source.column);
+      }
+    }
+  }
+  return [...found.values()];
+};
+
+/**
+ * What each row of the list describes. Rows that describe files find their
+ * file by name, so `media` joins by file name (same column, same folds);
+ * any other kind brings the columns it put on each file back to the item,
+ * where its rows can give them values.
+ */
+export const withRowKind = (plan: ImportPlan, sheet: string, kind: RecordKind): ImportPlan => {
+  const next: ImportPlan = {
+    ...plan,
+    sheets: plan.sheets.map((one) =>
+      one.id === sheet ? { ...one, rowKind: kind, join: kind === 'media' && one.join !== null ? { ...one.join, on: 'fileName' } : one.join } : one,
+    ),
+  };
+  return kind === 'media' ? next : columnsIn(next, sheet, ['media']).reduce((edited, column) => withColumnLevel(edited, sheet, column, 'item'), next);
+};
+
+export const variesOf = (grain: Grain | null, index: number): Varies | null => grain?.columns.find((column) => column.index === index)?.varies ?? null;
+
+/** The level a count suggests: on each file where the values differ inside some item, on the item where they never do. */
+export const suggestedLevel = (varies: Varies | null, fileAllowed: boolean): Exclude<Level, 'out'> =>
+  varies !== null && varies.groups > 0 && fileAllowed ? 'file' : 'item';
+
+/** "Each row describes one file": the rows become media rows, and each column in use goes where its count suggests. */
+export const withFileRows = (plan: ImportPlan, sheet: string, grain: Grain | null): ImportPlan =>
+  columnsIn(plan, sheet, ['item', 'media']).reduce(
+    (edited, column) => withColumnLevel(edited, sheet, column, suggestedLevel(variesOf(grain, column.index), fileLevelAllowed(edited, sheet, column.index))),
+    withRowKind(plan, sheet, 'media'),
+  );
 
 const slotOf = (target: Exclude<Target, ''>): SlotName => {
   if (target === 'template' || target === 'sets') {
@@ -88,37 +211,44 @@ export const localTerm = (label: string): Term => {
   return `local:${camel.join('')}`;
 };
 
-/** The column's place in the item rules: the first rule that reads it. */
+/** The column's place in the rules, on the item or on each file: the first rule that reads it. */
 export const targetOf = (plan: ImportPlan, sheet: string, index: number): Target => {
-  for (const [slot, rule] of Object.entries<SlotRule | undefined>(plan.slots.item)) {
-    if (rule?.sources.some((source) => source.from === 'column' && source.sheet === sheet && source.column.index === index) === true) {
-      if (slot === 'template' || slot === 'sets') {
-        return slot;
-      }
-      const made = plan.newTerms.find((term) => localTerm(term.label) === slot);
-      if (made !== undefined) {
-        return `new:${made.label}`;
-      }
-      return isTerm(slot) ? `field:${slot}` : '';
-    }
+  const slot = placesOf(plan, sheet, index)[0]?.slot;
+  if (slot === undefined) {
+    return '';
   }
-  return '';
+  if (slot === 'template' || slot === 'sets') {
+    return slot;
+  }
+  const made = plan.newTerms.find((term) => localTerm(term.label) === slot);
+  if (made !== undefined) {
+    return `new:${made.label}`;
+  }
+  return isTerm(slot) ? `field:${slot}` : '';
 };
 
-/** Sends the column to `target` only: its earlier place is dropped, and a list's column comes first among the sources. */
+/**
+ * Sends the column to `target` only: its earlier place is dropped, and a
+ * list's column comes first among the sources. A column on each file stays
+ * on each file, unless the target is an item's alone.
+ */
 export const withTarget = (plan: ImportPlan, sheet: string, column: ColumnRef, target: Target): ImportPlan => {
+  const onFiles = levelOf(plan, sheet, column.index) === 'file' && !itemOnly(target);
   const item = rulesWithout(plan.slots.item, sheet, column.index);
+  const media = rulesWithout(plan.slots.media, sheet, column.index);
   const newTerms =
     target.startsWith('new:') && !plan.newTerms.some((term) => term.label === target.slice('new:'.length))
       ? [...plan.newTerms, { label: target.slice('new:'.length) }]
       : plan.newTerms;
   if (target === '') {
-    return { ...plan, slots: { ...plan.slots, item } };
+    return { ...plan, slots: { ...plan.slots, item, media } };
   }
   const slot = slotOf(target);
-  const rule = item[slot] ?? { sources: [], combine: 'first' as const };
+  const rules = onFiles ? media : item;
+  const rule = rules[slot] ?? { sources: [], combine: 'first' as const };
   const source: SourceRef = { from: 'column', sheet, column };
-  return { ...plan, newTerms, slots: { ...plan.slots, item: { ...item, [slot]: { ...rule, sources: [source, ...rule.sources] } } } };
+  const placed = { ...rules, [slot]: { ...rule, sources: [source, ...rule.sources] } };
+  return { ...plan, newTerms, slots: { ...plan.slots, item: onFiles ? item : placed, media: onFiles ? placed : media } };
 };
 
 /**

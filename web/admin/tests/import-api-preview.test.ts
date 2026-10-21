@@ -107,7 +107,14 @@ describe('what the sections say', () => {
         {
           source: 's1', file: 'AF.xlsx', inPlan: null, read: 'ok', rows: 8, columns: 2,
           best: { index: 0, header: 'File', on: 'fileName', paired: 8, pairedNormalized: 8, empty: 0 },
-          grain: { groupsWithManyRows: 4, rowsNamingOtherFilesOfAGroup: 4 },
+          grain: {
+            groupsWithManyRows: 4,
+            rowsNamingOtherFilesOfAGroup: 4,
+            columns: [
+              { index: 0, header: 'File', varies: { groups: 4, of: 4 } },
+              { index: 1, header: 'Year', varies: { groups: 0, of: 4 } },
+            ],
+          },
           overlaps: [{ source: 's1', file: 'old/AF.csv', sharedTargets: 3 }],
         },
         {
@@ -118,6 +125,10 @@ describe('what the sections say', () => {
     };
     const parsed = parsePreview(['listCandidates'])(answer).listCandidates;
     expect(parsed[0]?.grain?.rowsNamingOtherFilesOfAGroup).toBe(4);
+    expect(parsed[0]?.grain?.columns.map((column) => [column.header, column.varies.groups, column.varies.of])).toEqual([
+      ['File', 4, 4],
+      ['Year', 0, 4],
+    ]);
     expect(parsed[1]?.read).toEqual({ error: 'the workbook cannot be read: no zip' });
     expect(roundTrip(parsed)).toEqual(answer.listCandidates);
     expect(() => parsePreview(['listCandidates'])({ ...answer, listCandidates: [{ ...answer.listCandidates[1], read: 'failed' }] })).toThrow(ParseError);
