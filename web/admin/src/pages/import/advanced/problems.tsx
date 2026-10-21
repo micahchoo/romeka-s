@@ -208,7 +208,7 @@ export const AdvancedProblems = (): ReactElement => {
                 {t('adv.problems.noRow.name')}
                 <p className="adv-plain">{t('adv.problems.noRow.plain')}</p>
               </th>
-              <td className="num">{number(unpaired.files.total)}</td>
+              <td className="num">{number(unpaired.items)}</td>
               <td>
                 <select
                   aria-label={t('adv.problems.noRow.name')}

@@ -1,8 +1,9 @@
 /**
- * Check in Simple, rendered over the fake server: the title question offers
- * the item code for items of many files, a file the list names and the
- * install refuses is a fact with a link and no question, and the unmatched
- * files question speaks plainly when nobody marked an example.
+ * Check in Simple, rendered over the fake server: the title question comes
+ * from the server's count of items to add with no title, whatever their item
+ * type, and offers the item code for items of many files; a file the list
+ * names and the install refuses is a fact with a link and no question; and
+ * the unmatched files question speaks plainly when nobody marked an example.
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -36,7 +37,8 @@ const items = (files: '1' | '3'): Scenario => ({
       from: 0,
     },
   ],
-  flags: [{ kind: 'empty-required', slot: 'dcterms:title', count: 4, detail: null }],
+  flags: [],
+  untitled: 4,
 });
 
 const openCheck = (server: ReturnType<typeof simpleServer>): void => {
@@ -57,7 +59,7 @@ describe('Check: the title', () => {
   it('suggests the item code for items of three files, and choosing it saves a title from the identifier group', async () => {
     const server = simpleServer(items('3'), LISTED);
     openCheck(server);
-    const card = await screen.findByRole('article', { name: /^4 items have no title/ }, { timeout: 5000 });
+    const card = await screen.findByRole('article', { name: /^4 items to add have no title/ }, { timeout: 5000 });
     const code = within(card).getByRole('radio', {
       name: /^Use the item code as the title/,
     });
@@ -74,7 +76,7 @@ describe('Check: the title', () => {
 
   it('keeps the file name on offer, and the untitled answer truthful, for items of one file', async () => {
     openCheck(simpleServer(items('1'), LISTED));
-    const card = await screen.findByRole('article', { name: /^4 items have no title/ }, { timeout: 5000 });
+    const card = await screen.findByRole('article', { name: /^4 items to add have no title/ }, { timeout: 5000 });
     expect(
       within(card)
         .getByRole('radio', { name: /^Add them without a title/ })
@@ -86,6 +88,20 @@ describe('Check: the title', () => {
       }),
     ).toBeInTheDocument();
     expect(card).not.toHaveTextContent('Omeka shows the identifier');
+  }, 20_000);
+
+  it('asks once when an item type also requires the title', async () => {
+    const required = { ...items('3'), flags: [{ kind: 'empty-required', slot: 'dcterms:title', count: 4, detail: null }] };
+    openCheck(simpleServer(required, LISTED));
+    await screen.findByRole('article', { name: /^4 items to add have no title/ }, { timeout: 5000 });
+    expect(screen.queryByRole('article', { name: /times: A field that must have a value is empty/ })).toBeNull();
+    expect(screen.getAllByRole('article', { name: /title/ })).toHaveLength(1);
+  }, 20_000);
+
+  it('asks with no list at all, where no item type requires a title', async () => {
+    openCheck(simpleServer(items('3')));
+    const card = await screen.findByRole('article', { name: /^4 items to add have no title/ }, { timeout: 5000 });
+    expect(within(card).getByRole('radio', { name: /^Use the item code as the title/ })).toBeChecked();
   }, 20_000);
 });
 
@@ -163,7 +179,7 @@ describe('Add: a title question nobody answered', () => {
 
   it('says the title comes from the item code on a later visit too, and saves nothing', async () => {
     const slots = { item: { 'dcterms:title': { sources: [{ from: 'group', name: 'identifier' }], combine: 'first' } }, media: {}, itemSet: {} };
-    const server = simpleServer(items('3'), { ...LISTED, slots, simple: { answered: ['empty-required'] } });
+    const server = simpleServer(items('3'), { ...LISTED, slots, simple: { answered: ['untitled'] } });
     openAdd(server);
     await screen.findByText(/get their item code as the title/, {}, { timeout: 5000 });
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -171,7 +187,7 @@ describe('Add: a title question nobody answered', () => {
   }, 20_000);
 
   it('writes no title rule for a person who answered "without a title"', async () => {
-    const answered = { simple: { answered: ['empty-required'] } };
+    const answered = { simple: { answered: ['untitled'] } };
     const server = simpleServer(items('3'), { ...LISTED, ...answered });
     openAdd(server);
     await screen.findByText(/^Ready to add/, {}, { timeout: 5000 });
