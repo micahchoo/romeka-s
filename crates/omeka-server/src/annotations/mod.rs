@@ -13,13 +13,14 @@
 //! rows a caption import wrote), which a WAP client does not ask for and the
 //! admin editor cannot work without. `docs/compat.md` records the difference.
 
+mod counts;
 mod kept;
 mod tracks;
 mod wap;
 
 use axum::Router;
 use axum::response::Response;
-use axum::routing::any;
+use axum::routing::{any, get};
 use omeka_api::annotation::{
     Annotation, AnnotationError, Iris, MediaRef, Origin, OriginFilter, Page, TrackError,
 };
@@ -64,6 +65,7 @@ pub(crate) fn router() -> Router<AppState> {
             "/annotations/media/{id}/captions.vtt",
             any(tracks::captions),
         )
+        .route("/annotations/item/{id}/counts", get(counts::counts))
         .route("/annotations/{id}", any(wap::annotation))
 }
 

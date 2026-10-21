@@ -20,7 +20,9 @@ use omeka_api::read::Api;
 use omeka_api::settings::{ANNOTATIONS_PUBLIC, annotations_public};
 use omeka_db::DbPool;
 use omeka_db::ids::{ItemId, MediaId, UserId};
-use omeka_db::repos::{ItemRepo, MediaRepo, SettingRepo, UserRepo};
+use omeka_db::repos::{
+    Cue, ItemRepo, MediaAnnotationRepo, MediaAnnotationWrite, MediaRepo, SettingRepo, UserRepo,
+};
 use omeka_db::rows::{MediaRow, NewItem, NewMedia, NewResource, NewUser};
 use omeka_db::{migrate, open_memory};
 use omeka_media::kind::Extent;
@@ -32,9 +34,11 @@ const BASE: &str = "https://archive.example";
 struct Seed {
     db: DbPool,
     pool: SqlitePool,
+    owner: UserId,
     /// Another author, who may read the public media but not write them.
     other: UserId,
     editor: UserId,
+    item: ItemId,
     image: MediaId,
     video: MediaId,
     pdf: MediaId,
@@ -142,8 +146,10 @@ async fn seed() -> Seed {
     Seed {
         db: DbPool::from(pool.clone()),
         pool,
+        owner,
         other,
         editor,
+        item,
         image,
         video,
         pdf,
@@ -613,6 +619,131 @@ async fn summaries_and_counts_leave_out_a_media_the_caller_cannot_read() {
     assert_eq!(counts.get(&seed.image), Some(&1));
     assert_eq!(counts.get(&seed.video), Some(&0));
     assert_eq!(counts.get(&seed.private), None);
+}
+
+/// An extent source that fails the test if a count asks it for a file: the
+/// item's counts are one statement about rows, not one open per media.
+struct NoExtents;
+
+impl ExtentSource for NoExtents {
+    fn extent<'a>(&'a self, _: &'a MediaRow) -> Pin<Box<dyn Future<Output = Extent> + Send + 'a>> {
+        Box::pin(async { panic!("a note count must not read a file") })
+    }
+}
+
+/// One authored row, written straight to the table: the counts read, not the
+/// create, is what these tests are about.
+async fn insert_note(seed: &Seed, media: MediaId, motivation: &str) {
+    // The table holds a `supplementing` row only with a time range.
+    let timed = motivation == "supplementing";
+    MediaAnnotationRepo::new(&seed.pool)
+        .insert(
+            media,
+            Some(seed.other),
+            None,
+            &MediaAnnotationWrite {
+                motivation,
+                selector_kind: if timed { "time" } else { "whole" },
+                selector: None,
+                time_ms: timed.then_some((0, 1000)),
+                body_json: r#"[{"type":"TextualBody","value":"n","format":"text/plain"}]"#,
+                body_text: "n",
+                lang: None,
+                extensions: None,
+            },
+        )
+        .await
+        .expect("a note row");
+}
+
+#[tokio::test]
+async fn an_items_counts_answer_every_readable_media_with_the_rights_its_container_states() {
+    let seed = seed().await;
+    insert_note(&seed, seed.image, "commenting").await;
+    insert_note(&seed, seed.image, "commenting").await;
+    insert_note(&seed, seed.video, "commenting").await;
+    insert_note(&seed, seed.video, "supplementing").await;
+    // An imported cue is a row the container lists under `origin=all` only, so
+    // the notes view the item page draws never counts it.
+    MediaAnnotationRepo::new(&seed.pool)
+        .replace_track(
+            seed.video,
+            Some("en"),
+            &[Cue {
+                start_ms: 0,
+                end_ms: 1000,
+                body_json: r#"[{"type":"TextualBody","value":"A cue","format":"text/plain"}]"#,
+                body_text: "A cue",
+            }],
+        )
+        .await
+        .expect("a caption row");
+
+    let anonymous_api = api(&seed, Actor::anonymous()).await;
+    let anonymous = Annotations::new(&anonymous_api, &NoExtents);
+    let counts = anonymous
+        .item_counts(seed.item)
+        .await
+        .expect("the item's counts");
+    let by_media: HashMap<MediaId, (u32, Rights)> = counts
+        .iter()
+        .map(|entry| (entry.media, (entry.count, entry.rights)))
+        .collect();
+    assert_eq!(
+        by_media.get(&seed.image),
+        Some(&(2, Rights::Read)),
+        "an anonymous reader counts the notes and not the file"
+    );
+    assert_eq!(
+        by_media.get(&seed.video),
+        Some(&(2, Rights::Read)),
+        "the hand-written caption is a note; the imported cue is not"
+    );
+    assert_eq!(by_media.get(&seed.pdf), Some(&(0, Rights::Read)));
+    assert_eq!(
+        by_media.get(&seed.private),
+        None,
+        "a private media is absent"
+    );
+
+    let owner_api = api(&seed, Actor::new(seed.owner, "author")).await;
+    let owner = Annotations::new(&owner_api, &NoExtents);
+    let own = owner
+        .item_counts(seed.item)
+        .await
+        .expect("the owner's counts");
+    let own_by_media: HashMap<MediaId, Rights> = own
+        .iter()
+        .map(|entry| (entry.media, entry.rights))
+        .collect();
+    assert_eq!(own_by_media.get(&seed.image), Some(&Rights::ReadWrite));
+    assert_eq!(
+        own_by_media.get(&seed.theirs),
+        Some(&Rights::Read),
+        "another author's media is readable, not writable"
+    );
+    assert_eq!(own_by_media.get(&seed.private), Some(&Rights::ReadWrite));
+
+    set_switch(&seed, false).await;
+    let reader_api = api(&seed, Actor::anonymous()).await;
+    let reader = Annotations::new(&reader_api, &NoExtents);
+    let hidden = reader
+        .item_counts(seed.item)
+        .await
+        .expect("the switch's counts");
+    let hidden_by_media: HashMap<MediaId, (u32, Rights)> = hidden
+        .iter()
+        .map(|entry| (entry.media, (entry.count, entry.rights)))
+        .collect();
+    assert_eq!(
+        hidden_by_media.get(&seed.video),
+        Some(&(1, Rights::ReadCaptionsOnly)),
+        "the switch keeps the caption row and hides the comment"
+    );
+    assert_eq!(
+        hidden_by_media.get(&seed.image),
+        Some(&(0, Rights::ReadCaptionsOnly))
+    );
 }
 
 #[tokio::test]
