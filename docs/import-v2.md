@@ -495,6 +495,7 @@ ones that would write broken data or have no defined result.
 | `cells-count` | row | leave | no |
 | `no-file` | item record | keep | no |
 | `not-media` | file | leave | no |
+| `listed-not-media` (a file a list row names that the install refuses; detail is the row key and the extension) | file | leave (only policy: the run's ingest refuses it again) | no |
 | `format-mismatch` | file | keep | no |
 | `exists` | record | leave | no |
 | `unmatched` | record | `action.unmatched` | no |

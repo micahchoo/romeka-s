@@ -198,6 +198,7 @@ export const en = {
   'problem.cells-count': 'A row with the wrong number of cells',
   'problem.no-file': 'A row that names no file of this import',
   'problem.not-media': 'Not a picture, a sound, a film or a PDF',
+  'problem.listed-not-media': 'A file your list names that Omeka does not take',
   'problem.format-mismatch': 'A file whose name ending does not fit its contents',
   'problem.exists': 'Already in Omeka',
   'problem.unmatched': 'No item in Omeka to change',

@@ -278,11 +278,14 @@ impl ImportPlanV2 {
     /// The policy a flag of this kind gets, or `None` for a blocking kind.
     #[must_use]
     pub fn policy(&self, kind: FlagKind) -> Option<FlagPolicy> {
-        let default = kind.default_policy()?;
-        Some(self.flags.get(&kind).copied().unwrap_or(match default {
-            PolicyDefault::Is(policy) => policy,
-            PolicyDefault::ActionUnmatched => self.action.unmatched.policy(),
-        }))
+        let planned = self.flags.get(&kind).copied();
+        Some(match kind.default_policy()? {
+            PolicyDefault::Only(policy) => policy,
+            PolicyDefault::Is(policy) => planned.unwrap_or(policy),
+            PolicyDefault::ActionUnmatched => {
+                planned.unwrap_or_else(|| self.action.unmatched.policy())
+            }
+        })
     }
 
     /// Refuse a new type whose label, compared as a title, an existing
