@@ -164,7 +164,7 @@ export const advancedServer = (items: number): AdvancedServer => {
           },
         ];
       } else if (section === 'unpaired') {
-        answer['unpaired'] = { rows: paged([], {}), files: paged([{ file: { source: 's1', path: paths[0] }, record: 1 }], {}) };
+        answer['unpaired'] = { rows: paged([], {}), files: paged([{ file: { source: 's1', path: paths[0] }, record: 1 }], {}), items: 1 };
       } else if (section === 'check') {
         const check = asRecord(sectionOf('preview-check.json', 'check'), []);
         const action = asRecord(asked['action'], [])['action'];

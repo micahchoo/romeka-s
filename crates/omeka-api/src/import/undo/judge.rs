@@ -4,11 +4,15 @@
 //! The judge keeps what earlier rows decided: an item it keeps keeps its
 //! media and the sets that hold it. Rows must come in undo order
 //! ([`super::order`]).
+//!
+//! A template or field is in use only by what the undo leaves behind: the
+//! judge remembers every row it acts on, so the preview, which deletes
+//! nothing, counts the import's own items as gone, as the undo does.
 
 use std::collections::{HashMap, HashSet};
 
 use omeka_db::Backend;
-use omeka_db::ids::{ImportId, ItemId, MediaId};
+use omeka_db::ids::{ImportId, ItemId, MediaId, ResourceId, TemplateId};
 use omeka_db::repos::{ImportResourceRepo, ImportTouchRepo, MediaRepo, Presence};
 use omeka_db::rows::{
     BeforeImage, ImageMemberships, ImportChange, ImportKind, ImportResourceRow, ImportTarget,
@@ -17,7 +21,7 @@ use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Type};
 
 use super::UndoError;
 use super::report::Force;
-use crate::import::touched::{Own, Touch, touched};
+use crate::import::touched::{Own, Touch, resource, touched};
 
 /// What the undo does with one row.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -41,6 +45,10 @@ pub(super) struct Judge<'u, DB: Backend> {
     verdicts: HashMap<ItemId, Vec<Touch>>,
     /// Items the undo keeps, whose media it keeps too.
     kept_items: HashSet<ItemId>,
+    /// Resources the undo restores or deletes before it reaches a template or field.
+    leaving_resources: HashSet<ResourceId>,
+    /// Templates the undo deletes before it reaches a field.
+    leaving_templates: HashSet<TemplateId>,
 }
 
 impl<'u, DB> Judge<'u, DB>
@@ -74,6 +82,8 @@ where
             images,
             verdicts: HashMap::new(),
             kept_items: HashSet::new(),
+            leaving_resources: HashSet::new(),
+            leaving_templates: HashSet::new(),
         }
     }
 
@@ -84,11 +94,27 @@ where
             return Ok(Verdict::Gone);
         };
         let touches = match target {
-            ImportTarget::ResourceTemplate(id) if reads.template_in_use(id).await? => {
-                vec![Touch::InUse]
+            ImportTarget::ResourceTemplate(id) => {
+                let users = reads.template_users(id).await?;
+                self.in_use(
+                    users
+                        .iter()
+                        .any(|user| !self.leaving_resources.contains(user)),
+                )
             }
-            ImportTarget::Property(id) if reads.property_in_use(id).await? => vec![Touch::InUse],
-            ImportTarget::ResourceTemplate(_) | ImportTarget::Property(_) => Vec::new(),
+            ImportTarget::Property(id) => {
+                let users = reads.property_users(id).await?;
+                self.in_use(
+                    users
+                        .resources
+                        .iter()
+                        .any(|user| !self.leaving_resources.contains(user))
+                        || users
+                            .templates
+                            .iter()
+                            .any(|user| !self.leaving_templates.contains(user)),
+                )
+            }
             ImportTarget::Item(item) if row.change == ImportChange::Created => {
                 self.verdict(row, item, modified).await?
             }
@@ -114,15 +140,30 @@ where
             _ => self.read_touched(row, modified).await?,
         };
         if touches.is_empty() {
+            self.leaves(target);
             return Ok(Verdict::Act { forced: false });
         }
         if self.force.covers(target) {
+            self.leaves(target);
             return Ok(Verdict::Act { forced: true });
         }
         if let ImportTarget::Item(item) = target {
             self.kept_items.insert(item);
         }
         Ok(Verdict::Keep(touches))
+    }
+
+    fn in_use(&self, used: bool) -> Vec<Touch> {
+        if used { vec![Touch::InUse] } else { Vec::new() }
+    }
+
+    fn leaves(&mut self, target: ImportTarget) {
+        if let Some(id) = resource(target) {
+            self.leaving_resources.insert(id);
+        }
+        if let ImportTarget::ResourceTemplate(id) = target {
+            self.leaving_templates.insert(id);
+        }
     }
 
     async fn read_touched(

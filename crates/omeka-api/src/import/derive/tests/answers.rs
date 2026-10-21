@@ -176,3 +176,27 @@ fn leave_changes_nothing_when_no_list_joins_items() {
     let model = run(&index(FILES), &Sheets::new(), &plan);
     assert_eq!(item_keys(&model).len(), 3);
 }
+
+#[test]
+fn leave_keeps_an_item_whose_rows_describe_its_files() {
+    let plan = plan(|plan| {
+        plan["grouping"]["pattern"] = json!(r"^(?<identifier>X_\d{3})(?<part>[a-z])\.[^.]+$");
+        plan["sheets"] = json!([sheet_plan("views", &["File"])]);
+        plan["sheets"][0]["rowKind"] = json!("media");
+        plan["sheets"][0]["join"] = join_on("fileName", 0, "File", false, false, false);
+        plan["anomalies"] = json!({ "itemsWithoutRow": "leave" });
+    });
+    let files = [
+        ("X_010a.jpg", JPEG),
+        ("X_010b.jpg", JPEG),
+        ("X_020a.jpg", JPEG),
+    ];
+    let sheets = read_sheets(&plan, &[("views", b"File\nX_010b.jpg\n")]);
+    let model = run(&index(&files), &sheets, &plan);
+    assert_eq!(
+        item_keys(&model),
+        ["group:X_010"],
+        "X_010 has a row through its view b; X_020 has none"
+    );
+    assert_eq!(left_of(&model, "X_020a.jpg"), Some(LeftBy::Parent));
+}

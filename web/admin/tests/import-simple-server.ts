@@ -94,6 +94,13 @@ const merged = (groups: readonly ScenarioGroup[], marks: number, listed: boolean
 
 const sameFacts = (a: unknown, b: Record<string, unknown>): boolean => JSON.stringify(a) === JSON.stringify(b);
 
+/** Whether the plan's title rule gives every item a title: the item code or the file name. */
+const titledByRule = (itemSlots: Record<string, unknown>): boolean => {
+  const rule = itemSlots['dcterms:title'];
+  const sources = isRecord(rule) && Array.isArray(rule['sources']) ? rule['sources'].filter(isRecord) : [];
+  return sources.some((source) => (source['from'] === 'group' && source['name'] === 'identifier') || (source['from'] === 'file' && source['fact'] === 'name'));
+};
+
 /** The scenario's one `sheet` as a list of the folder, counted by its column that pairs the most. */
 const sheetList = (scenario: Scenario): ScenarioList => {
   const paired = Math.max(0, ...scenario.sheet.columns.map((column) => Math.max(column.groupKeys, column.fileNames)));
@@ -221,7 +228,7 @@ export const simpleServer = (scenario: Scenario, planEdits: Record<string, unkno
             slot: flag.slot,
             policy: policies[flag.kind] ?? (['not-media', 'cells-count', 'exists'].includes(flag.kind) ? 'leave' : 'keep'),
             count: flag.count,
-            samples: [{ subject: { record: 7 }, record: 7, detail: flag.detail }],
+            samples: [{ subject: flag.row === undefined ? { record: 7 } : { entry: { row: { sheet: 'folder-list-1', key: flag.row } } }, record: flag.row === undefined ? 7 : null, detail: flag.detail }],
           }));
       } else if (section === 'identical') {
         const set = { source: 's1', size: 20, sha256: 'a'.repeat(64), paths: ['photos/a.jpg', 'photos/a (2).jpg'] };
@@ -235,6 +242,7 @@ export const simpleServer = (scenario: Scenario, planEdits: Record<string, unkno
         answer['unpaired'] = {
           rows: { ...paged(rows, rowsPage), total: listed ? scenario.unpairedRows : 0 },
           files: { ...paged(files, filesPage), total: listed ? scenario.unpairedFiles : 0 },
+          items: listed ? (scenario.unpairedItems ?? scenario.unpairedFiles) : 0,
         };
       } else if (section === 'entries') {
         const query = isRecord(body['entries']) ? body['entries'] : {};
@@ -317,6 +325,7 @@ export const simpleServer = (scenario: Scenario, planEdits: Record<string, unkno
           newTypes: [],
           newFields: [],
           withoutTemplate: 0,
+          itemsWithoutTitle: titledByRule(slots) ? 0 : (scenario.untitled ?? 0),
           digest: `digest-${String(revision)}`,
         };
       }

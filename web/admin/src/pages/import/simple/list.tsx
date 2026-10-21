@@ -106,15 +106,26 @@ const Pairing = ({ sheet, matches, rows }: { readonly sheet: SheetPlan; readonly
   );
 };
 
-const Found = ({ unpairedRows, unpairedFiles, rows }: { readonly unpairedRows: number; readonly unpairedFiles: number; readonly rows: number }): ReactElement => {
+/**
+ * How the rows found their items: the rows that name no file of the import,
+ * the rows whose file this Omeka refuses (the `listed-not-media` flags, which
+ * Check states), and the items with no row.
+ */
+const Found = ({ unpairedRows, refused, items, rows }: { readonly unpairedRows: number; readonly refused: number; readonly items: number; readonly rows: number }): ReactElement => {
   const { t, number } = useSimpleText();
   const draft = useDraft();
   return (
     <p>
-      <b>{t('guided.list.paired', { count: number(rows - unpairedRows), rows: number(rows) })}</b>{' '}
-      {unpairedRows === 0 ? null : <>{unpairedRows === 1 ? t('guided.list.noFileOne') : t('guided.list.noFile', { count: number(unpairedRows) })} </>}
-      {unpairedFiles === 0 ? null : <>{unpairedFiles === 1 ? t('guided.list.noRowOne') : t('guided.list.noRow', { count: number(unpairedFiles) })} </>}
-      {unpairedRows + unpairedFiles === 0 ? null : <a href={placeHref(draft.id, { mode: 'simple', screen: 'pair' })}>{t('guided.list.pair')}</a>}
+      <b>{t('guided.list.paired', { count: number(rows - unpairedRows - refused), rows: number(rows) })}</b>{' '}
+      {unpairedRows === 0 ? null : <>{unpairedRows === 1 ? t('guided.list.noImportFileOne') : t('guided.list.noImportFile', { count: number(unpairedRows) })} </>}
+      {refused === 0 ? null : (
+        <>
+          {refused === 1 ? t('guided.list.refusedOne') : t('guided.list.refused', { count: number(refused) })}{' '}
+          <a href={placeHref(draft.id, { mode: 'simple', screen: 'check' })}>{t('guided.list.refusedCheck')}</a>{' '}
+        </>
+      )}
+      {items === 0 ? null : <>{items === 1 ? t('guided.list.noRowOne') : t('guided.list.noRow', { count: number(items) })} </>}
+      {unpairedRows + items === 0 ? null : <a href={placeHref(draft.id, { mode: 'simple', screen: 'pair' })}>{t('guided.list.pair')}</a>}
     </p>
   );
 };
@@ -189,7 +200,7 @@ const InUse = ({
 /** The lists in use: one block each, under the unpaired counts, which the server totals over every list. */
 const InUseLists = ({ sheets }: { readonly sheets: readonly SheetPlan[] }): ReactElement => {
   const { t } = useSimpleText();
-  const read = usePreview(['sheets', 'columnMatches', 'unpaired', 'listCandidates'], { unpaired: { rows: { perPage: 1 }, files: { perPage: 1 } } });
+  const read = usePreview(['sheets', 'columnMatches', 'unpaired', 'listCandidates', 'flags'], { unpaired: { rows: { perPage: 1 }, files: { perPage: 1 } } });
   if (read.status === 'loading') {
     return <p role="status" className="import-slow">{t('shell.loading')}</p>;
   }
@@ -203,9 +214,10 @@ const InUseLists = ({ sheets }: { readonly sheets: readonly SheetPlan[] }): Reac
     grain: read.data.listCandidates.find((one) => one.inPlan === sheet.id)?.grain ?? null,
   }));
   const rows = blocks.reduce((sum, { view, matches }) => sum + (view?.read?.rows ?? matches?.rows ?? 0), 0);
+  const refused = read.data.flags.filter((flag) => flag.kind === 'listed-not-media').reduce((sum, flag) => sum + flag.count, 0);
   return (
     <div aria-busy={read.busy}>
-      <Found unpairedRows={read.data.unpaired.rows.total} unpairedFiles={read.data.unpaired.files.total} rows={rows} />
+      <Found unpairedRows={read.data.unpaired.rows.total} refused={refused} items={read.data.unpaired.items} rows={rows} />
       {blocks.map(({ sheet, view, matches, grain }) => (
         <InUse key={sheet.id} sheet={sheet} view={view} matches={matches} grain={grain} />
       ))}
