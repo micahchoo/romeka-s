@@ -7,7 +7,7 @@
  * draw, which is the failure the hero `<img>` had for six kinds.
  */
 import type { APIRequestContext, Page } from '@playwright/test';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { expect, expectClean, test } from '../fixtures';
@@ -174,26 +174,63 @@ test('an SVG shows as a picture, on the original file', async ({ page, diagnosti
   await expectClean(diagnostics, 'SVG stage');
 });
 
-test('a document is a file card with its size and a download', async ({ page, diagnostics }) => {
+test('a document shows its PDF copy, and the document itself stays the download', async ({
+  page,
+  diagnostics,
+}) => {
+  test.setTimeout(120_000);
   const media = await uploadItem(
     page.request,
     'doc.docx',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   );
+  // The copy is made by the background worker and its first page becomes the
+  // preview a moment later; the page does not poll, so wait on both through the
+  // API and then open it, as an editor returning to the page does.
+  await expect
+    .poll(
+      async () => {
+        const answer = await page.request.get(`/api/media/${String(media)}`);
+        expect(answer.status(), await answer.text()).toBe(200);
+        const document: unknown = await answer.json();
+        const fields = record(document, 'media');
+        const access = fields['o-module-romeka:access'];
+        const preview = fields['o-module-romeka:preview'];
+        const ready = (member: unknown): boolean => isRecord(member) && member['state'] === 'ready';
+        return ready(access) && ready(preview);
+      },
+      { timeout: 60_000 },
+    )
+    .toBe(true);
   await page.goto(`/#/media/${String(media)}`);
 
   const stage = page.locator('.media-stage');
-  const card = stage.locator('.media-stage-file');
-  await expect(card).toBeVisible();
-  await expect(card).toContainText('doc.docx');
   await expect(stage).toContainText('Document');
   await expect(stage).toContainText('DOCX');
-  await expect(card.locator('a', { hasText: 'Download the file' })).toHaveAttribute(
+  const firstPage = stage.locator('img');
+  await expect(firstPage).toHaveCount(1);
+  const pageSource = await firstPage.getAttribute('src');
+  expect(pageSource?.includes('/files/large/'), String(pageSource)).toBe(true);
+
+  await page.getByRole('button', { name: 'Read the PDF here' }).click();
+  const viewer = stage.locator('object[type="application/pdf"]');
+  await expect(viewer).toHaveCount(1);
+  const data = await viewer.getAttribute('data');
+  expect(data, String(data)).toMatch(/\/files\/access\/[0-9a-f]+\.pdf$/);
+  // The document, never the PDF copy, is what the page downloads.
+  await expect(stage.locator('a', { hasText: 'Download the file' }).first()).toHaveAttribute(
     'href',
     /\/files\/original\/.*\.docx$/,
   );
-  await expect(page.locator('.media-stage img')).toHaveCount(0);
-  await expect(page.locator('.media-stage video, .media-stage audio')).toHaveCount(0);
+  await expect(stage.locator('a', { hasText: 'Open the PDF' })).toHaveCount(0);
+  if (process.env.DOCUMENT_EVIDENCE === '1') {
+    mkdirSync(join(REPO_ROOT, '.evidence'), { recursive: true });
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.screenshot({
+      path: join(REPO_ROOT, '.evidence', 'document-admin-stage-1280.png'),
+      fullPage: true,
+    });
+  }
   await expectClean(diagnostics, 'document stage');
 });
 

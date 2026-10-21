@@ -55,8 +55,6 @@ const KNOWN_RED: &[(&str, &str)] = &[
     ("captions.srt", "thumbnail"),
     ("captions.vtt", "iiif"),
     ("captions.vtt", "thumbnail"),
-    ("doc.docx", "iiif"),
-    ("doc.docx", "thumbnail"),
     ("model.glb", "iiif"),
     ("model.glb", "thumbnail"),
     ("model.gltf", "iiif"),
@@ -363,6 +361,27 @@ const FIXTURES: &[Fixture] = &[
         upright: false,
     },
     Fixture {
+        file: "doc.xlsx",
+        media_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        kind: Kind::Document,
+        captions: false,
+        upright: false,
+    },
+    Fixture {
+        file: "doc.pptx",
+        media_type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        kind: Kind::Document,
+        captions: false,
+        upright: false,
+    },
+    Fixture {
+        file: "doc.odt",
+        media_type: "application/vnd.oasis.opendocument.text",
+        kind: Kind::Document,
+        captions: false,
+        upright: false,
+    },
+    Fixture {
         file: "model.glb",
         media_type: "model/gltf-binary",
         kind: Kind::Model,
@@ -431,19 +450,21 @@ struct Notes {
 
 #[tokio::test]
 async fn the_media_kind_matrix_matches_the_known_red_list() {
-    // A poster needs ffmpeg, a PDF page needs pdftoppm, and a RAW preview
-    // needs exiftool. The runtime image installs all three
-    // (`packaging/Dockerfile`); a host without them cannot say whether these
-    // cells pass, so it stops before judging any of them.
+    // A poster needs ffmpeg, a PDF page needs pdftoppm, a RAW preview needs
+    // exiftool and an office document's copy needs LibreOffice. The runtime
+    // image installs the first three (`packaging/Dockerfile`) and the
+    // office-tools image installs the last; a host without them cannot say
+    // whether these cells pass, so it stops before judging any of them.
     let tools = omeka_media::tool::Tools::on_path();
     for (tool, path) in [
         ("ffmpeg", tools.ffmpeg()),
         ("pdftoppm", tools.pdftoppm()),
         ("exiftool", tools.exiftool()),
+        ("soffice", tools.soffice()),
     ] {
         assert!(
             path.is_some(),
-            "the matrix needs {tool} on PATH; install ffmpeg, poppler-utils and exiftool"
+            "the matrix needs {tool} on PATH; install ffmpeg, poppler-utils, exiftool and libreoffice"
         );
     }
     let dir = tempfile::tempdir().expect("tempdir");
@@ -965,10 +986,13 @@ fn judge(
         Cell::Annotate => Some(annotate(fixture, seen)),
         Cell::Thumbnail => Some(thumbnail(fixture, seen, store)),
         Cell::Api => Some(api_cell(seen)),
-        Cell::SiteMediaPage => Some(site_media_page(fixture, seen, css)),
-        Cell::Playable => {
-            matches!(fixture.kind, Kind::Audio | Kind::Video).then(|| playable(seen, store))
-        }
+        Cell::SiteMediaPage => Some(site_media_page(fixture, seen, css, store)),
+        Cell::Playable => match fixture.kind {
+            Kind::Audio | Kind::Video => Some(playable(seen, store)),
+            // A document "plays" through the browser's PDF reader, on its copy.
+            Kind::Document => Some(readable(seen, store)),
+            _ => None,
+        },
         Cell::SiteNotes => Some(site_notes(fixture, seen)),
         Cell::SiteItemCard => Some(site_item_card(seen, browse)),
         Cell::SiteDownload => Some(site_download(fixture, seen)),
@@ -1136,7 +1160,7 @@ fn api_cell(seen: &Observed) -> bool {
 
 /// The public media page renders the element the kind needs, and an image is
 /// not cover-cropped by the theme's sheet.
-fn site_media_page(fixture: &Fixture, seen: &Observed, css: &str) -> bool {
+fn site_media_page(fixture: &Fixture, seen: &Observed, css: &str, store: &FileStore) -> bool {
     let Some(page) = &seen.page else {
         return false;
     };
@@ -1165,7 +1189,10 @@ fn site_media_page(fixture: &Fixture, seen: &Observed, css: &str) -> bool {
                     .as_deref()
                     .is_some_and(|item| !has_pdf_object(item))
         }
-        Kind::Document | Kind::Captions => has_file_link(page, doc),
+        // A document's page opens its PDF copy in the reader, and still links
+        // the original document it downloaded before this copy existed.
+        Kind::Document => readable(seen, store) && has_file_link(page, doc),
+        Kind::Captions => has_file_link(page, doc),
         Kind::Model => has_model_reader(page),
     };
     let crop = matches!(fixture.kind, Kind::Image | Kind::Svg) && cover_crop(css);
@@ -1224,6 +1251,41 @@ fn playable(seen: &Observed, store: &FileStore) -> bool {
     // A page that names a file the store does not hold is no player source at
     // all, whatever its extension promises.
     plays && store.exists(stored).unwrap_or(false)
+}
+
+/// A document's "playable" cell: its media page opens the PDF access copy in the
+/// browser's reader, and the store holds the file the page names. An office
+/// document whose copy was never made keeps the card and a red cell.
+fn readable(seen: &Observed, store: &FileStore) -> bool {
+    let (Some(page), Some(doc)) = (&seen.page, &seen.media_doc) else {
+        return false;
+    };
+    let Some(path) = access_pdf(doc) else {
+        return false;
+    };
+    ["<object", "<embed", "<iframe"]
+        .iter()
+        .any(|open| names_source(page, open, &path))
+        && store.exists(&path).unwrap_or(false)
+}
+
+/// The `access/<stem>.pdf` path a document's copy has, from its stored name.
+fn access_pdf(doc: &Value) -> Option<String> {
+    let filename = doc["o:filename"].as_str()?;
+    let stem = filename.rsplit_once('.').map_or(filename, |(stem, _)| stem);
+    Some(format!("access/{stem}.pdf"))
+}
+
+/// Whether a tag of kind `open` names `url` as its `data` or its `src`.
+/// Whether a tag of kind `open` names `path` under `/files/` as its `data` or
+/// its `src`. The URL may be absolute (the site renders `http://host/files/…`)
+/// or relative, so the stored path is what the check reads.
+fn names_source(page: &str, open: &str, path: &str) -> bool {
+    let named = format!("/files/{path}");
+    page.split(open)
+        .skip(1)
+        .map(|tag| tag.split('>').next().unwrap_or(tag))
+        .any(|tag| (tag.contains("data=\"") || tag.contains("src=\"")) && tag.contains(&named))
 }
 
 /// The model page offers the vendored viewer behind a button that states the
@@ -1513,11 +1575,22 @@ fn iiif(fixture: &Fixture, seen: &Observed) -> bool {
                 Kind::Image | Kind::Svg => body["type"] == "Image",
                 Kind::Audio => body["type"] == "Sound" && timed(),
                 Kind::Video => body["type"] == "Video" && timed(),
+                // A document paints its PDF copy's first page and links the
+                // document itself through `rendering`.
+                Kind::Document => {
+                    let original = seen
+                        .media_doc
+                        .as_ref()
+                        .and_then(|doc| doc["o:filename"].as_str());
+                    body["type"] == "Image"
+                        && canvas["rendering"][0]["id"].as_str().is_some_and(|id| {
+                            id.contains("/files/original/")
+                                && original.is_some_and(|name| id.ends_with(name))
+                        })
+                }
                 // A PDF's pages are canvases too, but only once a unit
                 // renders them; a model and a caption paint nothing.
-                Kind::Pdf | Kind::Document | Kind::Model | Kind::Captions => {
-                    body["type"] == "Image"
-                }
+                Kind::Pdf | Kind::Model | Kind::Captions => body["type"] == "Image",
             }
         })
     })

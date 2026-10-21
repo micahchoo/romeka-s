@@ -42,7 +42,10 @@ MEDIA_MATRIX_PRINT=1 cargo test -p omeka-server --test media_matrix -- --nocaptu
 | mpeg2.mpg | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | n/a | n/a |
 | wma.wma | pass | pass | **fail** | pass | pass | pass | pass | pass | pass | pass | pass | n/a | n/a |
 | doc.pdf | pass | pass | pass | pass | pass | n/a | pass | pass | pass | pass | pass | n/a | n/a |
-| doc.docx | pass | pass | **fail** | pass | pass | n/a | pass | pass | pass | **fail** | n/a | n/a | n/a |
+| doc.docx | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | n/a | n/a |
+| doc.xlsx | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | n/a | n/a |
+| doc.pptx | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | n/a | n/a |
+| doc.odt | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | pass | n/a | n/a |
 | model.glb | pass | pass | **fail** | pass | pass | n/a | pass | pass | pass | **fail** | n/a | n/a | n/a |
 | model.gltf | pass | pass | **fail** | pass | pass | n/a | pass | pass | pass | **fail** | n/a | n/a | n/a |
 | captions.vtt | pass | pass | **fail** | pass | pass | n/a | pass | pass | pass | **fail** | n/a | n/a | n/a |
@@ -60,8 +63,6 @@ MEDIA_MATRIX_PRINT=1 cargo test -p omeka-server --test media_matrix -- --nocaptu
 - `captions.srt` / thumbnail
 - `captions.vtt` / iiif
 - `captions.vtt` / thumbnail
-- `doc.docx` / iiif
-- `doc.docx` / thumbnail
 - `model.glb` / iiif
 - `model.glb` / thumbnail
 - `model.gltf` / iiif

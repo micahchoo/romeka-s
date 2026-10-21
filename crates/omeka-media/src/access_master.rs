@@ -228,7 +228,9 @@ fn attempt(
                 .map_err(|error| Attempt::Failed(tool.command(), error))?;
             read_output(&output, tool.command()).map(|bytes| (bytes, None))
         }
-        AccessTool::Ffmpeg | AccessTool::ExifTool => Err(Attempt::Missing(tool.command())),
+        AccessTool::Ffmpeg | AccessTool::ExifTool | AccessTool::Soffice => {
+            Err(Attempt::Missing(tool.command()))
+        }
     }
 }
 

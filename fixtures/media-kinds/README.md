@@ -41,7 +41,10 @@ prints with `MEDIA_MATRIX_PRINT=1`.
 | `mjpeg.avi` | MJPEG video with PCM audio in AVI, a container no browser opens, so it gets an H.264/AAC MP4 copy. |
 | `mpeg2.mpg` | MPEG-2 video with MP2 audio in an MPEG program stream, another container a browser refuses. |
 | `doc.pdf` | Two-page PDF. |
-| `doc.docx` | Word document. |
+| `doc.docx` | Word document: the office corpus row the access copy's PDF, its first-page thumbnail, the reader and the IIIF canvas are read through. |
+| `doc.xlsx` | Excel workbook. |
+| `doc.pptx` | PowerPoint presentation, one 10x7.5 inch slide. |
+| `doc.odt` | OpenDocument text, the zip container a byte read cannot name. |
 | `model.glb` | Binary glTF with an embedded buffer. |
 | `model.gltf` | JSON glTF with a base64 data-URI buffer. |
 | `captions.vtt` | WebVTT captions. |
@@ -56,7 +59,7 @@ prints with `MEDIA_MATRIX_PRINT=1`.
 
 The tools are `ffmpeg`, ImageMagick 7 (`magick`), `exiftool`, `heif-enc`,
 `resvg` is not needed because the SVGs are written directly, and `python3` for
-the PDF, DOCX, GLB and glTF containers. The PSD is ImageMagick's, because vips
-reads a Photoshop document and writes none. The EPS is written as text, so no
-tool is needed for it. The script strips container metadata and passes
-`-bitexact` to ffmpeg where the muxer honours it.
+the PDF, DOCX, XLSX, PPTX, ODT, GLB and glTF containers. The PSD is
+ImageMagick's, because vips reads a Photoshop document and writes none. The EPS
+is written as text, so no tool is needed for it. The script strips container
+metadata and passes `-bitexact` to ffmpeg where the muxer honours it.

@@ -14,10 +14,11 @@
 # packaging/Dockerfile.dockerignore keeps the context small.
 #
 # The stages in order: the SPA, the Rust binary, the ffmpeg build, the base
-# media tools every image shares, the separate full tools image, Caddy with its
-# low-port capability, and the runtime that joins them. `--target media-tools`
-# builds the tools image alone (`packaging/README.md` says why and how a job
-# calls it).
+# media tools every image shares, the separate full tools image, the office
+# document tools, Caddy with its low-port capability, and the runtime that joins
+# them. `--target media-tools` builds the tools image alone and
+# `--target office-tools` adds LibreOffice to it; `packaging/README.md` says why,
+# with the measured size, and how a job calls either.
 
 # Stage 1: the admin SPA bundle.
 FROM node:22-bookworm-slim AS web
@@ -203,7 +204,38 @@ WORKDIR /data
 USER romeka
 ENTRYPOINT ["/usr/local/bin/romeka"]
 
-# Stage 6: Caddy with its low-port capability set. The capability is an xattr
+# Stage 6: the office document tools. LibreOffice turns a document into the PDF
+# access copy a reader and a canvas need, and it is deliberately not part of the
+# runtime image: measured 2026-10-21, the three `-nogui` packages and their fonts
+# add 401 MB, where the whole runtime image is 343 MB. An install that wants the
+# copies runs the same job runner from this image against the server's database
+# and store:
+#
+#     docker build -f packaging/Dockerfile --target office-tools -t romeka-s:office-tools .
+#     docker run --rm -v romeka_db:/db -v romeka_files:/data/files \
+#         romeka-s:office-tools media derivatives --database /db/romeka.db --store /data/files
+#
+# `--retry` puts back the rows a server without LibreOffice settled with
+# `needs soffice, not installed`. The `-nogui` packages are LibreOffice's
+# headless builds, and there is no X server in this image. DejaVu and Liberation
+# are the fonts a document names; without them a PDF substitutes a different
+# face and its line breaks move.
+FROM media-tools AS office-tools
+# The tools image runs as `romeka`; the package install needs root, and the image
+# goes back to the job runner's user for the copies it writes.
+USER root
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        libreoffice-writer-nogui \
+        libreoffice-calc-nogui \
+        libreoffice-impress-nogui \
+        fonts-dejavu \
+        fonts-liberation; \
+    rm -rf /var/lib/apt/lists/*
+USER romeka
+
+# Stage 7: Caddy with its low-port capability set. The capability is an xattr
 # on the binary and the runtime's COPY preserves it, so the 52 MiB binary is
 # copied into the image once. Setting it in the runtime would copy the file up
 # into a second layer of the same size.
@@ -215,7 +247,7 @@ FROM caddy:2.11-alpine AS caddy
 RUN apk add --no-cache libcap \
     && setcap cap_net_bind_service=+ep /usr/bin/caddy
 
-# Stage 7: the runtime. It starts from the base tools stage, so the tool list
+# Stage 8: the runtime. It starts from the base tools stage, so the tool list
 # and their provenance above is the only place either is written down.
 FROM media-base AS runtime
 COPY --from=caddy /usr/bin/caddy /usr/local/bin/caddy

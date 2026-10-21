@@ -192,15 +192,12 @@ pub(super) async fn canvas_media(state: &AppState, media: &Value) -> Option<Canv
             })
         }
         MediaKind::IiifImage => Painting::Remote(media.get("data")?.clone()),
-        MediaKind::Pdf { first_page: true } => {
-            let file = StoredFile::of(media)?;
-            let page = format!("large/{}.jpg", file.storage_id);
-            let size = state.extents.image(&page).await?;
-            Painting::Still {
-                url: file.large_url?,
-                size,
-                pdf_url: file.original_url?,
-            }
+        MediaKind::Pdf { first_page: true } => first_page(state, media).await?,
+        MediaKind::Document => {
+            // An office document paints its PDF copy's first page; before the
+            // copy is ready there is no page and the media has no canvas.
+            access_copy(media)?;
+            first_page(state, media).await?
         }
         MediaKind::Audio | MediaKind::Video => {
             let file = StoredFile::of(media)?;
@@ -249,6 +246,24 @@ pub(super) async fn canvas_media(state: &AppState, media: &Value) -> Option<Canv
 
 fn service_id(state: &AppState, media: u64) -> String {
     format!("{}/iiif/image/3/{media}", state.base.as_str())
+}
+
+/// The still canvas a PDF, or an office document's PDF copy, paints: its first
+/// page's large derivative, with the document it was read from as the
+/// `rendering`. `None` when the page derivative is not stored, so a media whose
+/// copy failed has no canvas rather than a broken one.
+async fn first_page(state: &AppState, media: &Value) -> Option<Painting> {
+    let file = StoredFile::of(media)?;
+    let page = format!("large/{}.jpg", file.storage_id);
+    let size = state.extents.image(&page).await?;
+    Some(Painting::Still {
+        url: file.large_url?,
+        size,
+        original: Original {
+            url: file.original_url?,
+            media_type: file.media_type?,
+        },
+    })
 }
 
 /// The stored image behind a media id and its size, as the request's caller

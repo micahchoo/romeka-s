@@ -5,12 +5,13 @@ that terminates TLS and serves the admin SPA and the media bytes.
 
 ## Files
 
-- `Dockerfile` builds seven stages. `web` builds the SPA, `build` builds the
+- `Dockerfile` builds eight stages. `web` builds the SPA, `build` builds the
   release binary of the `omeka-cli` package, `ffmpeg-build` compiles ffmpeg and
   ffprobe, `media-base` installs the commands every image carries, `media-tools`
   is the separate image with the access-copy commands the main one leaves out,
-  `caddy` sets the low-port capability on the origin binary, and `runtime` joins
-  the base tools with the SPA and the origin. Build it from the repository root:
+  `office-tools` adds LibreOffice to that image, `caddy` sets the low-port
+  capability on the origin binary, and `runtime` joins the base tools with the
+  SPA and the origin. Build it from the repository root:
   `docker build -f packaging/Dockerfile -t romeka-s:local .`
 - `Dockerfile.dockerignore` is the build context filter.
 - `entrypoint.sh` installs an absent database, starts the server on loopback and
@@ -33,6 +34,7 @@ error (`needs <command>, not installed`).
 | `dcraw_emu` | `media-tools` | `libraw-bin` (Debian 12) | 0.20.2 | a camera RAW whose file embeds no preview |
 | `vips` | `media-tools` | `libvips-tools` (Debian 12, with the TIFF, HEIC, PSD and EXR loaders) | 8.14.1 | the JPEG access master for a layout the `image` crate refuses |
 | `gs` | `media-tools` | `ghostscript` (Debian 12) | 10.00.0 | the first page of an EPS, AI or PS file |
+| `soffice` | `office-tools` | `libreoffice-writer-nogui`, `-calc-nogui`, `-impress-nogui`, with `fonts-dejavu` and `fonts-liberation` (Debian 12) | 7.4.7 | the PDF access copy of a DOC, DOCX, ODT, RTF, XLS, XLSX, ODS, PPT, PPTX or ODP |
 
 Both downloaded tarballs are checked against the sha256 above inside the build,
 and the build reads no network at run time: ffmpeg is configured
@@ -54,8 +56,8 @@ its own into the `media-tools` stage and the image was weighed
 `vips` is 158.8 MB, far over the "under about 60 MB" a main-image tool has to
 clear, and `ghostscript` is 61.9 MB. `libraw` is 4.0 MB, but it cannot encode a
 JPEG without `vips`, so it travels with `vips` rather than alone. The main image
-therefore stays at **350,842,433 B** (345 MB after `slim-image`, plus 5.2 MB for
-x264 in ffmpeg and this unit's code): a NEF
+therefore stays at **351,069,591 B** (345 MB after `slim-image`, plus x264 in
+ffmpeg and the office unit's code, measured on the merged tree): a NEF
 still gets its full-size master through `exiftool`, and the odd TIFF, PSD, HEIC,
 EXR and PostScript page wait for the tools image. A type with ffmpeg-made
 thumbnails (HEIC, AVIF, BMP) is still a local image without `vips`; its canvas
@@ -83,6 +85,47 @@ claim from one queue safely: a claim is a conditional `UPDATE`, and each worker
 claims only the commands its own install has. Run the command on a timer (the
 compose service or a systemd timer, once a minute is plenty); the server's own
 worker handles the `exiftool` rows as it always does.
+
+## The office document tools
+
+An office document gets a PDF access copy through LibreOffice
+(`crates/omeka-media/src/access.rs`, `D6` of `briefs/media-ui-plan.md`).
+`soffice` is optional at runtime like the other tools: where it is absent the
+row records `needs soffice, not installed` and the media keeps its card.
+
+It is a separate image, not part of `runtime`, because of its size. Measured
+2026-10-21 on amd64 with Debian 12's packages:
+
+| Layer | Size |
+| --- | --- |
+| `libreoffice-writer-nogui` 7.4.7, `libreoffice-calc-nogui`, `libreoffice-impress-nogui`, `fonts-dejavu` 2.37 and `fonts-liberation` 1.07.4, as one apt layer | 348,492,384 B (348 MB) |
+| **added to the tools image** | **348,492,384 B** |
+| the office-tools image (`--target office-tools`) | 856,965,330 B (857 MB) |
+| the tools image it builds on (`--target media-tools`) | 508,472,946 B (508 MB) |
+| the runtime image, which this unit does not change | 351,069,591 B (351 MB) |
+
+The two fonts are 10 MB of that layer, measured on a bare base; the rest is
+LibreOffice and the libraries it pulls, several of which `vips`, `libraw` and
+`ghostscript` already brought into the tools image, which is why the layer is
+smaller here than it is over the runtime's base.
+
+The `-nogui` packages are LibreOffice's headless builds and need no X server.
+The fonts are what a document names; without them the PDF substitutes another
+face and the line breaks move. Build and run it against the server's database
+and store:
+
+```
+docker build -f packaging/Dockerfile --target office-tools -t romeka-s:office-tools .
+docker run --rm -v romeka_db:/db -v romeka_files:/data/files \
+    romeka-s:office-tools media derivatives --retry --database /db/romeka.db --store /data/files
+```
+
+`--retry` puts back the rows that recorded `needs soffice, not installed` when
+the server planned them. The image carries the same CLI and entry point as
+`media-tools`, so it is the job runner in that container; the server itself
+never needs LibreOffice. Measured on the built images: `soffice` is absent from
+`runtime` and from `media-tools` and present in `office-tools` (7.4.7.2), and
+the corpus `doc.docx` converts inside `office-tools` to a one-page PDF.
 
 ## The ffmpeg build
 
@@ -139,18 +182,20 @@ on amd64. Before is `romeka-s:05e3a30a`.
 | **total** | **795 MB** | **343 MB** |
 
 The base tools stage (`media-base`, without the SPA, the origin or the binary) is
-209 MB. The largest remaining item is the 62.3 MB Rust binary, and Caddy is
+222 MB. The largest remaining item is the Rust binary, and Caddy is
 52 MB; a custom Caddy build with only the modules `deploy/Caddyfile` uses would
 cut the second.
 
-**After the access-copy commands (2026-10-21).** The runtime is 350,842,433 B,
-which is 345,641,393 B for the D4 build before the merge plus 5.2 MB for x264
-in ffmpeg (the code itself is about 13 KB). `exiftool`, `poppler-utils` and
-ffmpeg are still the whole tool set. The tools image (`--target media-tools`) is
-508,251,522 B: 220.4 MB of `libvips-tools`, `libraw-bin` and `ghostscript`,
-65.6 MB for the binary it now carries, and the 222 MB base. Those numbers are the reason the main image keeps
-its size and the heavy commands live in the second image (`packaging/README.md`,
-"The media tools").
+**After the access-copy commands (2026-10-21, merged tree).** The runtime is
+351,069,591 B, the D4 build plus the office unit's code (about 227 KB in the
+binary). `exiftool`, `poppler-utils` and ffmpeg are still the whole tool set.
+The tools image (`--target media-tools`) is 508,472,946 B: 220.4 MB of
+`libvips-tools`, `libraw-bin` and `ghostscript`, 65.9 MB for the binary it
+carries, and the 222 MB base. The office-tools image (`--target office-tools`)
+is 856,965,330 B, the tools image plus the 348 MB LibreOffice layer. Those
+numbers are the reason the main image keeps its size and the heavy commands live
+in the two separate images (`packaging/README.md`, "The media tools" and "The
+office document tools").
 
 ## Running it
 

@@ -25,21 +25,25 @@ const blankToNull = (text: string | null): string | null =>
   text === null || text === '' ? null : text;
 
 /**
- * The file a player opens: the access copy the server marked ready, the
- * original otherwise. A WMA or an AVI is no container a browser opens, and the
- * server made an M4A or an MP4 for it; the original stays the download and the
- * link beside the player, never its source.
+ * The access copy's URL when the server marked it ready, else `null`. A WMA or
+ * an AVI is no container a browser opens, and a document is no PDF the reader
+ * opens; the server made the copy and the original stays the download.
  */
-const playerUrl = (media: Media): string | null => {
+const readyCopyUrl = (media: Media): string | null => {
   const copy = media.access;
-  if (copy !== null && copy.state === 'ready') {
-    const url = blankToNull(copy.url);
-    if (url !== null) {
-      return url;
-    }
+  if (copy === null || copy.state !== 'ready') {
+    return null;
   }
-  return blankToNull(media.originalUrl);
+  return blankToNull(copy.url);
 };
+
+/**
+ * The file a player opens: the access copy when it is ready, the original
+ * otherwise. The original stays the download and the link beside the player,
+ * never its source.
+ */
+const playerUrl = (media: Media): string | null =>
+  readyCopyUrl(media) ?? blankToNull(media.originalUrl);
 
 /** The facts a file card states, and the link that takes the file. */
 export interface FileFacts {
@@ -82,7 +86,13 @@ export type StageView =
   | {
       readonly element: 'pdf';
       readonly pageUrl: string | null;
+      /** The PDF the reader opens: the original, or a document's copy. */
       readonly fileUrl: string;
+      /**
+       * The reader shows an access copy of another file, so the page opens the
+       * original as a download instead of the PDF it read.
+       */
+      readonly copy: boolean;
       readonly file: FileFacts;
     }
   | { readonly element: 'text'; readonly textUrl: string; readonly file: FileFacts }
@@ -172,7 +182,31 @@ export const stageView = (media: Media): StageView => {
     case 'pdf':
       return original === null
         ? { element: 'file', file }
-        : { element: 'pdf', pageUrl: largeImageUrl(media), fileUrl: original, file };
+        : {
+            element: 'pdf',
+            pageUrl: largeImageUrl(media),
+            fileUrl: original,
+            copy: false,
+            file,
+          };
+    case 'document': {
+      // The server's PDF copy is what the reader opens; the document itself
+      // stays the file the page downloads. Before the copy exists the stage
+      // keeps the file card this kind had.
+      const copy = readyCopyUrl(media);
+      if (copy === null || original === null) {
+        return original === null && file.sourceUrl === null
+          ? { element: 'none' }
+          : { element: 'file', file };
+      }
+      return {
+        element: 'pdf',
+        pageUrl: largeImageUrl(media),
+        fileUrl: copy,
+        copy: true,
+        file,
+      };
+    }
     case 'captions':
       return original === null ? { element: 'file', file } : { element: 'text', textUrl: original, file };
     case 'model':
@@ -215,8 +249,6 @@ export const stageView = (media: Media): StageView => {
         ? { element: 'none' }
         : { element: 'outside', url: source, host: hostOf(source), file };
     }
-    case 'document':
     case 'other':
-      return original === null && file.sourceUrl === null ? { element: 'none' } : { element: 'file', file };
-  }
+      return original === null && file.sourceUrl === null ? { element: 'none' } : { element: 'file', file };  }
 };

@@ -222,9 +222,42 @@ const UPSTREAM_ALIASES: &[(&str, &str)] = &[
 /// The media types and extensions this fork's two extra file renderers answer
 /// to. Upstream has no PDF or 3D renderer, so a PDF drew its thumbnail and a
 /// model fell through to the fallback link.
+///
+/// The office document types reach the PDF renderer too: once the document's
+/// access copy exists, the reader opens that PDF, and until then the renderer
+/// draws the thumbnail card the page had.
 const FORK_RENDERER_ALIASES: &[(&str, &str)] = &[
     ("application/pdf", "pdf"),
     ("pdf", "pdf"),
+    ("application/msword", "pdf"),
+    ("application/rtf", "pdf"),
+    ("application/vnd.ms-excel", "pdf"),
+    ("application/vnd.ms-powerpoint", "pdf"),
+    ("application/vnd.oasis.opendocument.presentation", "pdf"),
+    ("application/vnd.oasis.opendocument.spreadsheet", "pdf"),
+    ("application/vnd.oasis.opendocument.text", "pdf"),
+    (
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "pdf",
+    ),
+    (
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "pdf",
+    ),
+    (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "pdf",
+    ),
+    ("doc", "pdf"),
+    ("docx", "pdf"),
+    ("odp", "pdf"),
+    ("ods", "pdf"),
+    ("odt", "pdf"),
+    ("ppt", "pdf"),
+    ("pptx", "pdf"),
+    ("rtf", "pdf"),
+    ("xls", "pdf"),
+    ("xlsx", "pdf"),
     ("model/gltf-binary", "model"),
     ("model/gltf+json", "model"),
     ("glb", "model"),
@@ -328,7 +361,7 @@ mod tests {
     #[test]
     fn registry_returns_none_for_unknown_name() {
         let registry = FileRendererRegistry::with_defaults();
-        assert!(registry.get("application/msword").is_none());
+        assert!(registry.get("application/zip").is_none());
         assert_eq!(
             registry.names(),
             vec!["audio", "fallback", "model", "pdf", "thumbnail", "video"]
@@ -352,6 +385,28 @@ mod tests {
                 registry.get(name).map(FileRenderer::name),
                 Some(renderer),
                 "{name}"
+            );
+        }
+    }
+
+    /// An office document reaches the PDF renderer by its type, by the MIME
+    /// types of the older Word, Excel and PowerPoint formats, and by every
+    /// extension in the corpus, so its page can open the PDF copy.
+    #[test]
+    fn registry_resolves_every_office_document() {
+        let registry = FileRendererRegistry::with_defaults();
+        for extension in crate::kind::OFFICE_DOCUMENT_EXTENSIONS {
+            assert_eq!(
+                registry.get(extension).map(FileRenderer::name),
+                Some("pdf"),
+                "{extension}"
+            );
+        }
+        for media_type in crate::kind::OFFICE_DOCUMENT_MEDIA_TYPES {
+            assert_eq!(
+                registry.get(media_type).map(FileRenderer::name),
+                Some("pdf"),
+                "{media_type}"
             );
         }
     }

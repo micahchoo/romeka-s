@@ -554,6 +554,65 @@ async fn a_16_bit_tiff_create_settles_a_master_through_vips() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_docx_create_queues_a_pdf_copy_and_the_worker_makes_it() {
+    if Tools::on_path().soffice().is_none() {
+        eprintln!("skipping: no soffice on PATH");
+        return;
+    }
+    let harness = harness().await;
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/media-kinds/doc.docx");
+    let bytes = std::fs::read(&path).expect("the DOCX fixture");
+    let document = create_media(&harness, "notes.docx", &bytes).await;
+    let id = document["o:id"].as_u64().expect("id");
+    assert_eq!(
+        state_of(&document),
+        "none",
+        "no decoder makes a still from a document; its preview comes from the copy"
+    );
+    let planned = with_db!(&harness.pool, |db| MediaDerivativeRepo::new(db)
+        .get(MediaId(id), DerivativeKind::AccessCopy)
+        .await)
+    .expect("row")
+    .expect("the access row");
+    assert_eq!(planned.state, DerivativeState::Pending, "{planned:?}");
+    assert_eq!(planned.tool.as_deref(), Some("soffice"));
+    assert_eq!(
+        document["o-module-romeka:access"]["state"], "pending",
+        "{document}"
+    );
+
+    let jobs = harness.recorder.taken();
+    assert_eq!(jobs.len(), 1, "the create queued one worker");
+    Runner::with_env(&harness.pool, job_env(&harness))
+        .run(jobs[0])
+        .await
+        .expect("the worker ran");
+
+    let ready = read_media(&harness, id).await;
+    let access = &ready["o-module-romeka:access"];
+    assert_eq!(access["state"], "ready", "{ready}");
+    assert_eq!(access["media_type"], "application/pdf", "{ready}");
+    assert!(
+        access["url"]
+            .as_str()
+            .is_some_and(|url| url.ends_with(".pdf")),
+        "{ready}"
+    );
+    assert_eq!(ready["o:kind"], "document", "{ready}");
+    // The copy's first page is the preview, which is what the reader and the
+    // item card show.
+    assert_eq!(preview(&ready)["state"], "ready", "{ready}");
+    assert!(ready["o:thumbnail_urls"]["large"].is_string(), "{ready}");
+    // The original is still the document the API names.
+    assert!(
+        ready["o:original_url"]
+            .as_str()
+            .is_some_and(|url| url.ends_with(".docx")),
+        "{ready}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn a_tool_that_fails_settles_failed_and_the_backfill_retries_it() {
     let harness = harness().await;
     let (media, storage_id) =

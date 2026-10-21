@@ -216,6 +216,165 @@ def docx() -> bytes:
     return data
 
 
+def package(entries) -> bytes:
+    """One zip with the entries in order and a fixed timestamp, so the bytes
+    are reproducible across runs and machines."""
+    buffer = Path(out, ".package.tmp")
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_STORED) as archive:
+        for name, data in entries:
+            info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_STORED
+            archive.writestr(info, data)
+    data = buffer.read_bytes()
+    buffer.unlink()
+    return data
+
+
+CONTENT_TYPES = (
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+    '<Default Extension="xml" ContentType="application/xml"/>'
+    "%s"
+    "</Types>"
+)
+ROOT_RELS = (
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="%s"/>'
+    "</Relationships>"
+)
+
+
+def xlsx() -> bytes:
+    content_types = CONTENT_TYPES % (
+        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+        '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+    )
+    workbook = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+        ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        '<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>'
+    )
+    workbook_rels = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+        "</Relationships>"
+    )
+    sheet = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        '<sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>Romeka media matrix</t></is></c></row></sheetData>'
+        "</worksheet>"
+    )
+    return package(
+        [
+            ("[Content_Types].xml", content_types),
+            ("_rels/.rels", ROOT_RELS % "xl/workbook.xml"),
+            ("xl/workbook.xml", workbook),
+            ("xl/_rels/workbook.xml.rels", workbook_rels),
+            ("xl/worksheets/sheet1.xml", sheet),
+        ]
+    )
+
+
+def pptx() -> bytes:
+    content_types = CONTENT_TYPES % (
+        '<Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>'
+        '<Override PartName="/ppt/slides/slide1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>'
+    )
+    presentation = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"'
+        ' xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"'
+        ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        '<p:sldIdLst><p:sldId id="256" r:id="rId1"/></p:sldIdLst>'
+        '<p:sldSz cx="9144000" cy="6858000"/><p:notesSz cx="6858000" cy="9144000"/>'
+        "</p:presentation>"
+    )
+    presentation_rels = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide1.xml"/>'
+        "</Relationships>"
+    )
+    slide = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"'
+        ' xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+        "<p:cSld><p:spTree>"
+        '<p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>'
+        '<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/>'
+        '<a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>'
+        "<p:sp><p:nvSpPr><p:cNvPr id=\"2\" name=\"Title\"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>"
+        '<p:spPr><a:xfrm><a:off x="914400" y="914400"/><a:ext cx="7315200" cy="914400"/></a:xfrm></p:spPr>'
+        '<p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Romeka media matrix</a:t></a:r></a:p></p:txBody>'
+        "</p:sp>"
+        "</p:spTree></p:cSld></p:sld>"
+    )
+    return package(
+        [
+            ("[Content_Types].xml", content_types),
+            ("_rels/.rels", ROOT_RELS % "ppt/presentation.xml"),
+            ("ppt/presentation.xml", presentation),
+            ("ppt/_rels/presentation.xml.rels", presentation_rels),
+            ("ppt/slides/slide1.xml", slide),
+        ]
+    )
+
+
+ODF_NS = (
+    'xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"'
+    ' xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"'
+    ' xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0"'
+    ' office:version="1.2"'
+)
+
+
+def odt() -> bytes:
+    mimetype = "application/vnd.oasis.opendocument.text"
+    content = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        f"<office:document-content {ODF_NS}><office:body><office:text>"
+        "<text:p>Romeka media matrix</text:p>"
+        "</office:text></office:body></office:document-content>"
+    )
+    styles = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        f"<office:document-styles {ODF_NS}><office:styles/></office:document-styles>"
+    )
+    meta = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        f"<office:document-meta {ODF_NS}><office:meta/></office:document-meta>"
+    )
+    settings = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        f"<office:document-settings {ODF_NS}><office:settings/></office:document-settings>"
+    )
+    manifest = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" manifest:version="1.2">'
+        f'<manifest:file-entry manifest:full-path="/" manifest:version="1.2" manifest:media-type="{mimetype}"/>'
+        '<manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/>'
+        '<manifest:file-entry manifest:full-path="styles.xml" manifest:media-type="text/xml"/>'
+        '<manifest:file-entry manifest:full-path="meta.xml" manifest:media-type="text/xml"/>'
+        '<manifest:file-entry manifest:full-path="settings.xml" manifest:media-type="text/xml"/>'
+        "</manifest:manifest>"
+    )
+    return package(
+        [
+            ("mimetype", mimetype),
+            ("content.xml", content),
+            ("styles.xml", styles),
+            ("meta.xml", meta),
+            ("settings.xml", settings),
+            ("META-INF/manifest.xml", manifest),
+        ]
+    )
+
+
 def mesh() -> tuple[dict, bytes]:
     positions = struct.pack("<9f", 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0)
     indices = struct.pack("<3H2x", 0, 1, 2)
@@ -271,6 +430,9 @@ Path(out, "model.glb").write_bytes(glb)
 
 Path(out, "doc.pdf").write_bytes(pdf())
 Path(out, "doc.docx").write_bytes(docx())
+Path(out, "doc.xlsx").write_bytes(xlsx())
+Path(out, "doc.pptx").write_bytes(pptx())
+Path(out, "doc.odt").write_bytes(odt())
 PY
 
 # A minimal Nikon NEF: the maker's TIFF container, its IFD0 naming the camera

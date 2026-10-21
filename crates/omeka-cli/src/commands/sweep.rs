@@ -85,6 +85,7 @@ pub async fn run(options: &SweepOptions) -> Result<SweepReport, CliError> {
             omeka_media::access::AccessTarget::Mp4,
             omeka_media::access::AccessTarget::M4a,
             omeka_media::access::AccessTarget::Jpeg,
+            omeka_media::access::AccessTarget::Pdf,
         ] {
             named.insert(omeka_media::access::copy_path(&storage_id, target));
         }

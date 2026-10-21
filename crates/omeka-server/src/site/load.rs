@@ -39,8 +39,8 @@ use omeka_db::repos::{
     TemplateRepo, ValueRepo, compare_opt_text_ci, compare_text_ci,
 };
 use omeka_db::rows::{
-    AssetRow, ItemRow, ItemSetRow, MediaRow, ResourceRow, SiteBlockRow, SitePageRow, SiteRow,
-    TemplatePropertyRow, ValueRow,
+    AssetRow, DerivativeKind, DerivativeState, ItemRow, ItemSetRow, MediaRow, ResourceRow,
+    SiteBlockRow, SitePageRow, SiteRow, TemplatePropertyRow, ValueRow,
 };
 use omeka_db::with_db;
 use omeka_site::annotation::{self, NoteLine, NotesView, Place, Surface};
@@ -827,10 +827,11 @@ impl<'a> Loader<'a> {
         );
         // The media manifest exists only for a kind that paints a canvas. The
         // page head links it and the "Use elsewhere" block opens it, so a
-        // model or a document links neither.
-        view.iiif_manifest = kind
-            .canvas_body()
-            .map(|_| Iris::new(self.base.as_str()).media_manifest(row.id()));
+        // model or a document with no PDF copy yet links neither. A document's
+        // canvas is its copy's first page, so it exists once that page does.
+        let paints = kind.canvas_body().is_some()
+            || (kind == MediaKind::Document && self.document_canvas_ready(row).await?);
+        view.iiif_manifest = paints.then(|| Iris::new(self.base.as_str()).media_manifest(row.id()));
         let mut share = self.share_view(
             ShareTarget::Media,
             &view.title,
@@ -842,6 +843,21 @@ impl<'a> Loader<'a> {
         view.share = Some(share);
         view.download = download_link(row, &view.url);
         Ok(view)
+    }
+
+    /// Whether an office document paints a canvas: its PDF copy is ready and
+    /// the copy's first page became the large thumbnail that canvas shows.
+    /// Upstream has no access copy, so a document has no canvas there at all.
+    async fn document_canvas_ready(&self, row: &MediaRow) -> Result<bool, DbError> {
+        if !row.has_thumbnails {
+            return Ok(false);
+        }
+        let rows = with_db!(&self.pool, |db| MediaDerivativeRepo::new(db)
+            .for_media(row.id())
+            .await)?;
+        Ok(rows.iter().any(|row| {
+            row.kind == DerivativeKind::AccessCopy && row.state == DerivativeState::Ready
+        }))
     }
 
     /// The one-line share block an item or a media page carries. The viewer

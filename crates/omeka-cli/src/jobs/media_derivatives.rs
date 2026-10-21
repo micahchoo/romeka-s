@@ -6,7 +6,9 @@
 //! at a time, makes the still from the stored original, and settles the row
 //! ready, failed or none. An `access_copy` row whose tool is `ffmpeg` becomes a
 //! transcode instead: an H.264/AAC MP4 for video or an AAC M4A for audio, which
-//! runs on its own thread and reports its progress to the row. Upstream makes
+//! runs on its own thread and reports its progress to the row. One whose tool is
+//! `soffice` becomes a PDF made from an office document, on the same thread and
+//! with no progress. Upstream makes
 //! the same derivatives inside the request (`TempFile::storeThumbnails`); the
 //! archive import keeps doing that, because it already runs off the request and
 //! batches its work.

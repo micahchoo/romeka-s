@@ -149,8 +149,9 @@ where
     ///
     /// A preview kind is always its own. An `access_copy` row is claimed only when its tool is one
     /// of `commands`, the commands this install has (`Tools::derivative_commands`): `ffmpeg` for an
-    /// audio or video copy, and the still-master commands for a JPEG master. Two workers on one
-    /// queue therefore claim disjoint sets, and neither settles a row it cannot make.
+    /// audio or video copy, `soffice` for an office document's PDF, and the still-master commands
+    /// for a JPEG master. Two workers on one queue therefore claim disjoint sets, and neither
+    /// settles a row it cannot make.
     ///
     /// The claim is the `UPDATE ... WHERE state = 'pending'`; a candidate another worker took first
     /// leaves zero rows affected, and the next candidate is tried.

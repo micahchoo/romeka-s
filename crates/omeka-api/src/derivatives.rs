@@ -7,11 +7,12 @@
 //! `o-module-romeka:preview: {"state": "pending"}`. The worker (`Romeka\Job\MediaDerivatives`)
 //! claims the row, makes the still, and settles it ready, failed or none.
 //!
-//! The same worker makes the audio and video access copies D2 planned: an `access_copy` row whose
-//! tool is `ffmpeg` is a transcode (H.264/AAC MP4 or AAC M4A), which runs on its own thread, writes
-//! its progress to the row and stops between progress updates when the job is asked to stop or an
-//! import starts ([`settle_next`]). A copy waiting for another tool is left for the worker that runs
-//! that tool.
+//! The same worker makes the audio, video and office document access copies D2 planned: an
+//! `access_copy` row whose tool is `ffmpeg` is a transcode (H.264/AAC MP4 or AAC M4A), and one whose
+//! tool is `soffice` is a PDF made from an office document. A transcode runs on its own thread,
+//! writes its progress to the row and stops between progress updates when the job is asked to stop
+//! or an import starts ([`settle_next`]); a document's PDF copy runs on the same thread with no
+//! progress. A copy waiting for another tool is left for the worker that runs that tool.
 //!
 //! This module owns the decisions the create path, the worker and the CLI backfill must agree on:
 //! which kind of derivative a media needs, when to queue one, what a media document shows for it,
@@ -34,7 +35,7 @@ use omeka_media::derivative::{DerivativeWork, PreviewSource, make_preview};
 use omeka_media::store::{Store, StorePrefix, Thumbnailer, storage_path};
 use omeka_media::thumbnailer::{SOURCE_MEDIA_TYPES, thumbnails_stored};
 use omeka_media::tool::{Still, Tools};
-use omeka_media::transcode::{Transcode, TranscodeSource, TranscodeWork, poster_from_copy};
+use omeka_media::transcode::{Transcode, TranscodeSource, TranscodeWork, thumbnails_from_copy};
 
 use crate::errors::ApiError;
 use crate::read::db_error;
@@ -467,7 +468,8 @@ pub async fn settle_next_with(
 }
 
 /// Settle one `access_copy` row with the worker its target belongs to: a video
-/// or audio copy is a transcode, and every other type's copy is a JPEG master.
+/// or audio copy is a transcode, an office document's copy is the PDF conversion
+/// on the same thread, and every other type's copy is a JPEG master.
 async fn settle_access(
     pool: &DbPool,
     store: &Arc<dyn Store>,
@@ -575,8 +577,8 @@ async fn settle_preview(
 }
 
 /// Settle one `access_copy` row: decide the target from the stored type,
-/// re-probe a video whose create-time probe failed, transcode, and record what
-/// happened.
+/// re-probe a video whose create-time probe failed, make the copy, and record
+/// what happened.
 ///
 /// The original is never changed. A copy that stops because the worker was
 /// asked to or an import started goes back to the queue with nothing stored.
@@ -615,7 +617,7 @@ async fn settle_copy(
         TranscodeWork::Ready { .. } => (DerivativeState::Ready, None),
         TranscodeWork::Skipped { reason, .. } => (DerivativeState::None, Some(reason.clone())),
         TranscodeWork::Failed { reason, .. } => (DerivativeState::Failed, Some(reason.clone())),
-        TranscodeWork::Stopped => {
+        TranscodeWork::Stopped { .. } => {
             requeue(pool, row).await?;
             return Ok(Some(Settled::Queued {
                 reason: Some("the copy stopped and waits for the next worker".to_string()),
@@ -725,12 +727,13 @@ async fn replayed_as_original(
     }
 }
 
-/// The poster a copy makes when the original's own still failed or was never
-/// queued: the copy's frame becomes the three thumbnails.
+/// The three thumbnails a copy makes when the original's own still failed or was
+/// never queued: the copy's frame, or its first page for a document, becomes the
+/// thumbnails.
 ///
 /// A preview row that is queued, running or ready already answers the poster, so
-/// the work is not done twice; the copy's frame is the fallback for a media whose
-/// preview is absent or failed.
+/// the work is not done twice; the copy's own still is the fallback for a media
+/// whose preview is absent or failed.
 async fn poster_after_copy(
     pool: &DbPool,
     store: &Arc<dyn Store>,
@@ -765,10 +768,11 @@ async fn poster_after_copy(
         return Ok(());
     }
     let copy = access::copy_path(&storage_id, target);
-    let made =
-        tokio::task::spawn_blocking(move || poster_from_copy(store.as_ref(), &storage_id, &copy))
-            .await
-            .map_err(|error| ApiError::internal(format!("the poster did not finish: {error}")))?;
+    let made = tokio::task::spawn_blocking(move || {
+        thumbnails_from_copy(store.as_ref(), &storage_id, &copy, target)
+    })
+    .await
+    .map_err(|error| ApiError::internal(format!("the poster did not finish: {error}")))?;
     if made {
         mark_thumbnails(pool, row.media_id).await?;
     }

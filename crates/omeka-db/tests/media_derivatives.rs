@@ -78,12 +78,13 @@ async fn a_claim_takes_the_row_once_and_counts_the_attempt() {
 }
 
 #[tokio::test]
-async fn an_access_copy_is_claimed_when_ffmpeg_makes_it_and_left_otherwise() {
+async fn an_access_copy_is_claimed_when_this_worker_runs_its_tool_and_left_otherwise() {
     let pool = common::memory().await;
     let video = media(&pool, "queue-access").await;
     let image = media(&pool, "queue-image").await;
+    let document = media(&pool, "queue-document").await;
     let repo = MediaDerivativeRepo::new(&pool);
-    for (id, tool) in [(image, "vips"), (video, "ffmpeg")] {
+    for (id, tool) in [(image, "vips"), (video, "ffmpeg"), (document, "soffice")] {
         assert!(
             repo.plan(
                 &NewDerivative {
@@ -98,22 +99,22 @@ async fn an_access_copy_is_claimed_when_ffmpeg_makes_it_and_left_otherwise() {
             .unwrap()
         );
     }
+    let commands = ["ffmpeg", "soffice"];
     assert_eq!(
-        repo.pending(&["ffmpeg"]).await.unwrap(),
-        1,
-        "only the copy whose tool this worker runs is its work"
+        repo.pending(&commands).await.unwrap(),
+        2,
+        "the copies whose commands this worker runs are its work"
     );
-    let claimed = repo
-        .claim_next(&["ffmpeg"])
-        .await
-        .unwrap()
-        .expect("the ffmpeg copy");
-    assert_eq!(claimed.media_id, video);
-    assert_eq!(claimed.kind, DerivativeKind::AccessCopy);
-    assert!(
-        repo.claim_next(&["ffmpeg"]).await.unwrap().is_none(),
-        "the image copy waits for the worker that runs vips"
+    let mut claimed = Vec::new();
+    while let Some(row) = repo.claim_next(&commands).await.unwrap() {
+        claimed.push(row.media_id);
+    }
+    assert_eq!(
+        claimed.len(),
+        2,
+        "the ffmpeg and soffice copies are this worker's"
     );
+    assert!(claimed.contains(&video) && claimed.contains(&document));
     let waiting = repo
         .get(image, DerivativeKind::AccessCopy)
         .await
@@ -121,7 +122,7 @@ async fn an_access_copy_is_claimed_when_ffmpeg_makes_it_and_left_otherwise() {
         .expect("the row");
     assert_eq!(waiting.state, DerivativeState::Pending);
 
-    // A preview row queued behind the ffmpeg copy is claimed next.
+    // A preview row queued behind the copies is claimed next.
     repo.enqueue(&poster(video)).await.unwrap();
     assert_eq!(
         repo.pending(&["ffmpeg"]).await.unwrap(),

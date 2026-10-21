@@ -213,6 +213,11 @@ pub const ACCESS_JPEG_QUALITY: u8 = 90;
 /// The resolution an EPS, AI or PS page is rasterised at.
 const POSTSCRIPT_DPI: u32 = 150;
 
+/// How long LibreOffice may take to turn one office document into a PDF. A
+/// document with a hundred pages takes seconds; the bound is there so a stuck
+/// conversion never holds a worker, and the caller's stop flag ends it sooner.
+pub const OFFICE_TIMEOUT: Duration = Duration::from_secs(120);
+
 /// The external command an access copy comes from. Each is optional at
 /// runtime, like `ffmpeg` and `pdftoppm`: a command this install does not have
 /// is a typed skip, never an error, and the media keeps its original.
@@ -228,16 +233,19 @@ pub enum AccessTool {
     Vips,
     /// The first page of an EPS, AI or PS file.
     Ghostscript,
+    /// The PDF copy of an office document.
+    Soffice,
 }
 
 impl AccessTool {
     /// Every tool, in the order the access table prefers them.
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::Ffmpeg,
         Self::ExifTool,
         Self::LibRaw,
         Self::Vips,
         Self::Ghostscript,
+        Self::Soffice,
     ];
 
     /// The command name this tool is preferred under, as a reason reports it.
@@ -251,6 +259,7 @@ impl AccessTool {
             Self::LibRaw => "dcraw_emu",
             Self::Vips => "vips",
             Self::Ghostscript => "gs",
+            Self::Soffice => "soffice",
         }
     }
 
@@ -392,7 +401,28 @@ pub fn image_jpeg_args(tool: AccessTool, source: &Path, output: &Path) -> Option
             ]))
         }
         AccessTool::Ffmpeg => None,
+        AccessTool::Soffice => None,
     }
+}
+
+/// The arguments that turn `source` into a PDF in `outdir` with LibreOffice.
+///
+/// `soffice` runs headless, writes `<input stem>.pdf` into `outdir`, and is
+/// given a private user profile under `outdir` so two conversions running at
+/// once never share LibreOffice's single-instance lock or its profile.
+#[must_use]
+pub fn office_pdf_args(source: &Path, outdir: &Path) -> Vec<OsString> {
+    let mut profile = OsString::from("-env:UserInstallation=file://");
+    profile.push(outdir.join("profile"));
+    into_args([
+        profile.as_os_str(),
+        OsStr::new("--headless"),
+        OsStr::new("--convert-to"),
+        OsStr::new("pdf"),
+        OsStr::new("--outdir"),
+        outdir.as_os_str(),
+        source.as_os_str(),
+    ])
 }
 
 /// Collect a borrowed argument slice into the owned list a command takes.
@@ -538,6 +568,74 @@ impl Tools {
             .filter(|path| path.is_file())
             .ok_or(ToolError::ToolMissing(name))
     }
+
+    /// Run one office document's PDF conversion to completion, bounded by
+    /// [`OFFICE_TIMEOUT`] and stopping when `stop` is set.
+    ///
+    /// LibreOffice reports no progress, so nothing is reported here; `stop` is
+    /// read every [`TRANSCODE_POLL`], so a conversion that must yield ends
+    /// within a tenth of a second.
+    ///
+    /// # Errors
+    /// [`ToolError::ToolMissing`] when this install has no `soffice`,
+    /// [`ToolError::Timeout`] when the conversion runs past the bound, and
+    /// [`ToolError::Failed`] with the command's last error line when it exits
+    /// non-zero.
+    pub fn office_pdf(
+        &self,
+        args: &[OsString],
+        stop: &std::sync::atomic::AtomicBool,
+    ) -> Result<TranscodeEnd, ToolError> {
+        use std::sync::atomic::Ordering;
+
+        const NAME: &str = "soffice";
+        let soffice = self.program(self.soffice.as_deref(), NAME)?;
+        let mut child = Command::new(soffice)
+            .args(args)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|error| match error.kind() {
+                std::io::ErrorKind::NotFound => ToolError::ToolMissing(NAME),
+                _ => ToolError::Failed(NAME, error.to_string()),
+            })?;
+        // Both pipes are drained on their own threads: LibreOffice writes little
+        // on a normal conversion but a warning on every run, and a full pipe
+        // would block the command rather than end it.
+        let stdout = read_apart(child.stdout.take(), STDERR_LIMIT);
+        let stderr = read_apart(child.stderr.take(), STDERR_LIMIT);
+        let deadline = Instant::now() + OFFICE_TIMEOUT;
+        let status = loop {
+            if stop.load(Ordering::Relaxed) {
+                let _ = child.kill();
+                let _ = child.wait();
+                let _ = stdout.join();
+                let _ = stderr.join();
+                return Ok(TranscodeEnd::Stopped);
+            }
+            match child.try_wait() {
+                Ok(Some(status)) => break status,
+                Ok(None) if Instant::now() >= deadline => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    let _ = stdout.join();
+                    let _ = stderr.join();
+                    return Err(ToolError::Timeout(NAME, OFFICE_TIMEOUT));
+                }
+                Ok(None) => thread::sleep(TRANSCODE_POLL),
+                Err(error) => {
+                    let _ = stderr.join();
+                    return Err(ToolError::Failed(NAME, error.to_string()));
+                }
+            }
+        };
+        let stderr = stderr.join().unwrap_or_default();
+        if !status.success() {
+            return Err(ToolError::Failed(NAME, last_line(&stderr)));
+        }
+        Ok(TranscodeEnd::Finished)
+    }
 }
 
 /// The percentage of `duration` a progress line names, 0 to 99. `None` when the
@@ -609,6 +707,8 @@ pub struct Tools {
     libraw_name: &'static str,
     vips: Option<PathBuf>,
     ghostscript: Option<PathBuf>,
+    /// The LibreOffice command that turns an office document into a PDF.
+    soffice: Option<PathBuf>,
     timeout: Duration,
 }
 
@@ -634,6 +734,7 @@ impl Tools {
                 libraw_name,
                 vips: find_on_path("vips"),
                 ghostscript: find_on_path("gs"),
+                soffice: find_on_path("soffice"),
                 timeout: TIMEOUT,
             }
         })
@@ -651,6 +752,7 @@ impl Tools {
             libraw_name: "dcraw_emu",
             vips: None,
             ghostscript: None,
+            soffice: None,
             timeout: TIMEOUT,
         }
     }
@@ -713,6 +815,13 @@ impl Tools {
         self
     }
 
+    /// Name the LibreOffice command to run, instead of the one on `PATH`.
+    #[must_use]
+    pub fn with_soffice(mut self, path: impl Into<PathBuf>) -> Self {
+        self.soffice = Some(path.into());
+        self
+    }
+
     /// The `ffmpeg` this process found, when it found one.
     #[must_use]
     pub fn ffmpeg(&self) -> Option<&Path> {
@@ -761,6 +870,12 @@ impl Tools {
         self.ghostscript.as_deref()
     }
 
+    /// The LibreOffice command this process found, when it found one.
+    #[must_use]
+    pub fn soffice(&self) -> Option<&Path> {
+        self.soffice.as_deref()
+    }
+
     /// The command that would run `tool`, or the typed skip when this install
     /// does not have it. An access worker runs its copy through this and
     /// reports [`ToolError::ToolMissing`] the way a still does.
@@ -774,6 +889,7 @@ impl Tools {
             AccessTool::LibRaw => self.program(self.libraw.as_deref(), self.libraw_name),
             AccessTool::Vips => self.program(self.vips.as_deref(), "vips"),
             AccessTool::Ghostscript => self.program(self.ghostscript.as_deref(), "gs"),
+            AccessTool::Soffice => self.program(self.soffice.as_deref(), "soffice"),
         }
     }
 
@@ -1019,12 +1135,12 @@ impl Tools {
         Ok(output.stdout)
     }
 
-    /// The image master commands this install has, as a queued row names them.
-    /// The claim is filtered by this list, so two workers on one queue (a main
-    /// image with `exiftool` and a tools image with `vips`) each claim the rows
-    /// they can make and neither settles the other's as a skip.
+    /// The access-copy commands this install has, as a queued row names them,
+    /// apart from `ffmpeg`, which [`Tools::derivative_commands`] always names.
+    /// `exiftool`, libraw, `vips` and `gs` make an image master; `soffice` makes
+    /// a document's PDF.
     #[must_use]
-    pub fn image_master_names(&self) -> Vec<&'static str> {
+    pub fn access_commands(&self) -> Vec<&'static str> {
         AccessTool::ALL
             .into_iter()
             .filter(|tool| *tool != AccessTool::Ffmpeg)
@@ -1033,17 +1149,18 @@ impl Tools {
     }
 
     /// Every command a derivative worker claims an `access_copy` row for, as the
-    /// row records it.
+    /// row records it, and so the one filter the claim and the queue count use.
     ///
     /// `ffmpeg` is always here: a video or audio copy whose command has gone
-    /// settles `none` with a typed skip, as its still always did, and there is
-    /// no second image that could make it. An image master's command is here
-    /// only when the install has it, so a row for a command this process lacks
-    /// waits for the worker that has it instead of being settled as a skip.
+    /// settles `none` with a typed skip, as its still always did, and every image
+    /// carries it. Every other command is here only when the install has it, so a
+    /// row for a command this process lacks waits for the worker that has it
+    /// instead of being settled as a skip. That includes `soffice`, which only the
+    /// office-tools image has.
     #[must_use]
     pub fn derivative_commands(&self) -> Vec<&'static str> {
         let mut commands = vec!["ffmpeg"];
-        commands.extend(self.image_master_names());
+        commands.extend(self.access_commands());
         commands
     }
 
@@ -1558,25 +1675,93 @@ mod tests {
 
         let ghostscript = Tools::none().with_ghostscript(script(dir.path(), "gs", "exit 0"));
         assert_eq!(AccessTool::Ghostscript.found(&ghostscript), Some("gs"));
+
+        let soffice = Tools::none().with_soffice(script(dir.path(), "soffice", "exit 0"));
+        assert_eq!(AccessTool::Soffice.found(&soffice), Some("soffice"));
+        assert_eq!(
+            Tools::none()
+                .access_program(AccessTool::Soffice)
+                .expect_err("no soffice"),
+            ToolError::ToolMissing("soffice")
+        );
     }
 
-    /// An image worker claims only the commands this install has, so a tools
+    /// The office copy is headless, writes into the caller's folder, and gives
+    /// every run a private LibreOffice profile so two conversions never share
+    /// the single-instance lock.
+    #[test]
+    fn the_office_copy_is_headless_with_a_private_profile() {
+        let args = text(&office_pdf_args(
+            Path::new("/tmp/run/source.docx"),
+            Path::new("/tmp/run"),
+        ));
+        assert_eq!(
+            args,
+            [
+                "-env:UserInstallation=file:///tmp/run/profile",
+                "--headless",
+                "--convert-to",
+                "pdf",
+                "--outdir",
+                "/tmp/run",
+                "/tmp/run/source.docx",
+            ]
+        );
+    }
+
+    /// A conversion that finishes writes its PDF; one asked to stop is killed
+    /// and answers `Stopped`, which the worker turns into a requeue.
+    #[test]
+    fn an_office_copy_runs_to_its_pdf_or_stops() {
+        use std::sync::atomic::AtomicBool;
+
+        let _guard = scripted();
+        let dir = dir();
+        let writer = script(dir.path(), "soffice", "printf '%s' '%PDF-1.6' > \"$1\"");
+        let tools = Tools::none().with_soffice(&writer);
+        let output = dir.path().join("source.pdf");
+        let args = vec![std::ffi::OsString::from(&output)];
+        let stop = AtomicBool::new(false);
+        assert_eq!(tools.office_pdf(&args, &stop), Ok(TranscodeEnd::Finished));
+        assert!(output.is_file(), "the conversion wrote its PDF");
+
+        let slow = script(dir.path(), "soffice", "sleep 5");
+        let tools = Tools::none().with_soffice(&slow);
+        let stop = AtomicBool::new(true);
+        let started = Instant::now();
+        assert_eq!(tools.office_pdf(&args, &stop), Ok(TranscodeEnd::Stopped));
+        assert!(started.elapsed() < Duration::from_secs(3), "killed early");
+    }
+
+    /// A derivative worker claims only the commands this install has, so a tools
     /// image and a main image can share one queue.
     #[test]
-    fn the_image_master_commands_are_the_ones_installed() {
+    fn the_access_copy_commands_are_the_ones_installed() {
         let _guard = scripted();
         let dir = dir();
         assert!(
-            Tools::none().image_master_names().is_empty(),
-            "an install with no master command claims nothing"
+            Tools::none().access_commands().is_empty(),
+            "an install with no access-copy command claims nothing"
         );
         let tools = Tools::none()
             .with_exiftool(script(dir.path(), "exiftool", "exit 0"))
-            .with_vips(script(dir.path(), "vips", "exit 0"));
-        let names = tools.image_master_names();
+            .with_vips(script(dir.path(), "vips", "exit 0"))
+            .with_soffice(script(dir.path(), "soffice", "exit 0"));
+        let names = tools.access_commands();
         assert!(names.contains(&"exiftool"), "{names:?}");
         assert!(names.contains(&"vips"), "{names:?}");
+        assert!(names.contains(&"soffice"), "{names:?}");
         assert!(!names.contains(&"ffmpeg"), "{names:?}");
+        let commands = tools.derivative_commands();
+        assert!(commands.contains(&"ffmpeg"), "{commands:?}");
+        assert!(
+            commands.contains(&"soffice"),
+            "the one claim filter names the document command when the install has it: {commands:?}"
+        );
+        assert!(
+            !Tools::none().derivative_commands().contains(&"soffice"),
+            "without LibreOffice the row waits for the worker that has it"
+        );
     }
 
     /// The video copy is H.264 and AAC in an MP4 whose index comes first, with
