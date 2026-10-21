@@ -52,8 +52,9 @@ export interface RunningProxy {
 /**
  * Paths the port answers: the API, its context, health, the public site, its
  * Logout form, the published term lists and vocabularies, the IIIF viewer,
- * manifests and images, and upstream's fallback thumbnails under
- * `/application/asset/` (which `deploy/Caddyfile` also sends to the port).
+ * manifests and images, the Web Annotation Protocol routes, and upstream's
+ * fallback thumbnails under `/application/asset/` (which `deploy/Caddyfile`
+ * also sends to the port).
  */
 const portPaths = (pathname: string): boolean =>
   pathname === '/api' ||
@@ -67,6 +68,8 @@ const portPaths = (pathname: string): boolean =>
   pathname.startsWith('/vocab/') ||
   pathname === '/iiif-viewer' ||
   pathname.startsWith('/iiif/') ||
+  pathname === '/annotations' ||
+  pathname.startsWith('/annotations/') ||
   pathname.startsWith('/application/');
 
 const apiPaths = (pathname: string): boolean =>
