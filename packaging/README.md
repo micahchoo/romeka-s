@@ -62,13 +62,14 @@ That build is a call for the unit that adds the transcodes.
 
 ## Build caching
 
-The Rust stage caches the cargo registry but not the compiled target. A cache
-mount at a fixed path belongs to the Docker daemon, not to the checkout, and
-cargo decides freshness by mtime, so a build here can reuse a crate another
-checkout compiled. Measured on 2026-10-21: after an earlier build of this tree
-succeeded, a rebuild failed twice with `missing field extension in initializer
-of KindInput`, a field no file in this tree defines, and the same Dockerfile
-with the target mount removed built cleanly.
+The Rust stage caches the cargo registry and the compiled target. A cache mount
+at a fixed path belongs to the Docker daemon, not to the checkout, and cargo
+decides freshness by mtime, so a build could reuse a crate another checkout
+compiled. Measured on 2026-10-21: a deploy failed on fields its own `omeka-db`
+had, and this unit's build failed with `missing field extension in initializer
+of KindInput`, both after a build of a different checkout. The stage therefore
+touches the copied sources before `cargo build`: the workspace crates rebuild
+every time, and the dependencies stay cached.
 
 ## Measured size
 

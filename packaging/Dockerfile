@@ -34,12 +34,10 @@ FROM rust:1.93-bookworm AS build
 WORKDIR /src
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
-# The registry is a cache mount, so a dependency fetch is paid once. The
-# compiled target is not: a cache mount at a fixed path is shared by every
-# checkout that builds this image, and cargo compares mtimes, so a build here
-# would happily reuse a crate another checkout compiled and fail on an API it
-# does not have. `--locked` refuses a dependency change that Cargo.lock does not
-# record.
+# Cache mounts keep the registry and the compiled dependencies across rebuilds.
+# `--locked` refuses a dependency change that Cargo.lock does not record. The
+# binary is copied out in this same step: a cache mount is not visible to the
+# next one, so an artifact left in target/ would not reach it.
 #
 # The CLI package's binary is installed under the name this image exports, so
 # the crate's own binary name never has to match it. The loop holds the product's
@@ -53,6 +51,7 @@ COPY crates ./crates
 # (2026-10-21: a deploy failed on fields its own omeka-db had). Touching the
 # copied sources rebuilds the workspace crates every time; dependencies stay cached.
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/src/target \
     set -eux; \
     find crates -type f -exec touch {} +; \
     cargo build --release --locked -p omeka-cli; \
