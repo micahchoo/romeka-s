@@ -27,6 +27,8 @@
 //!   image, for the archive import's tags.
 //! - [`data`]: the typed `media.data` payloads.
 //! - [`oembed`]: the oEmbed service (`Stdlib/Oembed.php`).
+//! - [`kind`]: the per-kind table: what an annotation may point at, what the
+//!   IIIF canvas paints, and the size and duration a canvas needs.
 //!
 //! # The one network seam
 //!
@@ -54,6 +56,7 @@ pub mod http_guard;
 pub mod iiif_image;
 pub mod image_metadata;
 pub mod ingest;
+pub mod kind;
 pub mod media_type;
 pub mod oembed;
 pub mod render;

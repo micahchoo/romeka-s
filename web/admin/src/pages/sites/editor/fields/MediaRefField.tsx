@@ -18,7 +18,7 @@ import { api } from '../../../../api/client';
 import { brandId } from '../../../../api/parse';
 import type { ItemId, JsonValue, Media, MediaId } from '../../../../api/types';
 import { useAsync } from '../../../../app/useAsync';
-import { mediaName, previewImageUrl } from '../../../../app/media';
+import { imagePreviewUrl, mediaName, previewImageUrl } from '../../../../app/media';
 import { useTranslator } from '../../../../i18n';
 import { common } from '../../../../i18n/namespaces/common';
 import { editor } from '../../../../i18n/namespaces/editor';
@@ -32,9 +32,11 @@ export const mediaIdOf = (value: JsonValue | undefined): MediaId | null => {
   return typeof id === 'number' && Number.isInteger(id) && id > 0 ? brandId<'MediaId'>(id) : null;
 };
 
-/** The item's media that have an image to show, in the item's order. */
+/** The item's media that are images with something to show, in the item's order. */
 const imagesOf = async (item: ItemId): Promise<readonly Media[]> =>
-  (await api.listMediaForItem(item, { perPage: 200 })).items.filter((media) => previewImageUrl(media) !== null);
+  (await api.listMediaForItem(item, { perPage: 200 })).items.filter(
+    (media) => imagePreviewUrl(media) !== null,
+  );
 
 /** The item's images, and whether visitors may see the item itself. */
 const listingOf = async (

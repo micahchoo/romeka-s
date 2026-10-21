@@ -569,6 +569,7 @@ export const en = {
   'mediaRef.remove': 'Remove',
   'mediaRef.changeItem': 'Choose another item',
   'focal.noImage': 'Choose a background image first.',
+  'focal.notAPicture': 'This media has no image to set a focal point on.',
   'focal.frame': 'Focal point: {x}% across, {y}% down. Click the image or use the arrow keys to move it.',
   'focal.center': 'Center',
   // The site header and footer, selected in the page editor (site-regions).

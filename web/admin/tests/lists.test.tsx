@@ -136,7 +136,7 @@ describe('media page', () => {
     expect(screen.getByText('photo.jpg')).toBeInTheDocument();
     expect(screen.getByText('upload')).toBeInTheDocument();
     expect(screen.getByText('[Untitled]')).toBeInTheDocument();
-    expect(screen.getByText('No preview')).toBeInTheDocument();
+    expect(screen.getByText('Embed')).toBeInTheDocument();
   });
 });
 

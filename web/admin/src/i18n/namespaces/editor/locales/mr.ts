@@ -589,6 +589,7 @@ export const mr: EditorMessages = {
   'mediaRef.remove': 'काढून टाका',
   'mediaRef.changeItem': 'दुसरी वस्तू निवडा',
   'focal.noImage': 'प्रथम पार्श्वभूमी प्रतिमा निवडा.',
+  'focal.notAPicture': 'या माध्यमात कोणताही फोकल पॉइंट सेट करण्यासाठी प्रतिमा नाही.',
   'focal.frame':
     'मध्यबिंदू: {x}% आडवे, {y}% खाली. प्रतिमेवर क्लिक करा किंवा मध्यबिंदू हलवण्यासाठी बाण की वापरा.',
   'focal.center': 'मध्यभागी',
