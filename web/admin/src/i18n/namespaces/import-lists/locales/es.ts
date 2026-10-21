@@ -14,7 +14,7 @@ export const es: ImportListsMessages = {
   'lists.changes.count': 'Has hecho {count} cambios.',
   'lists.changes.many': '{count} de ellos cambian muchos a la vez. Tus cambios se quedan cuando añades más archivos o cambias una respuesta.',
   'lists.changes.undoMany': 'Deshacer el último cambio a muchos',
-  'lists.chart.caption': 'Archivos de cada elemento. Una agrupación equivocada se ve aquí primero: casi todos los elementos tienen 1 archivo, o uno tiene miles.',
+  'lists.chart.caption': 'Archivos de cada elemento. Una agrupación equivocada se ve aquí primero.',
   'lists.chart.bar': '{count} elementos con {files}. Mostrarlos.',
   'lists.facts.files0': 'ningún archivo',
   'lists.facts.files1': '1 archivo',

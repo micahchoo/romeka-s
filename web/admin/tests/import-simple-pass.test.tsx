@@ -9,7 +9,9 @@
  * It counts what `SCALE.md` counts. A decision is a question the screens put
  * to the person (each `data-decision`, each group of items), counted once
  * however often it shows, plus "where are your files". A click is every
- * click, search and choice from the start page to the start. Both must be
+ * click, search and choice from the start page to the start. A group of
+ * items and a Check question are each a row of a list, which names its
+ * decision whether or not it is selected. Both must be
  * within 3 of the prototype's, and no screen may draw more than about 1,000
  * elements.
  */
@@ -39,6 +41,9 @@ const Routed = (): ReactElement => {
 };
 
 const ELEMENTS = 1200;
+
+/** The group the scenario's `leave` words describe, named as the groups list names it: by its chips. */
+const LEAVE_GROUP = '1 file, pictures, no row, Artifacts';
 
 class Drive {
   clicks = 0;
@@ -74,10 +79,6 @@ class Drive {
   look(): void {
     for (const element of document.querySelectorAll('[data-decision]')) {
       this.seen.add(element.getAttribute('data-decision') ?? '');
-    }
-    for (const group of document.querySelectorAll('.import-group > p:first-child')) {
-      const count = group.querySelector('b')?.textContent ?? '';
-      this.seen.add(`group:${group.textContent.replace(count, '').trim()}`);
     }
     expect(document.querySelectorAll('body *').length).toBeLessThan(ELEMENTS);
   }
@@ -118,7 +119,7 @@ const markExample = async (drive: Drive, mark: Scenario['marks'][number], first:
   expect(screen.getByText(/^With this, your files make [\d,]+ items?:/)).toBeInTheDocument();
   drive.look();
   drive.click(use);
-  expect(await screen.findByText(/^Files are one item when their names differ only in the part you marked/, {}, { timeout: 5000 })).toBeInTheDocument();
+  expect(await screen.findByText(/^Items: names differ only in the marked part/, {}, { timeout: 5000 })).toBeInTheDocument();
   await groupsShown();
   drive.look();
 };
@@ -131,23 +132,20 @@ const pass = async (at: Scenario): Promise<{ readonly drive: Drive; readonly ser
   const drive = new Drive(at);
 
   drive.click(await screen.findByRole('button', { name: 'Use everything in archive' }));
-  expect(await screen.findByText(/^Right now, files are one item only when their names are the same except for the ending/, {}, { timeout: 5000 })).toBeInTheDocument();
+  expect(await screen.findByText('Items: names equal but for the ending.', {}, { timeout: 5000 })).toBeInTheDocument();
   await groupsShown();
   drive.look();
   for (const [index, mark] of at.marks.entries()) {
     await markExample(drive, mark, index === 0);
   }
   if (at.leave !== null) {
-    const words = at.leave;
-    const group = [...document.querySelectorAll<HTMLElement>('.import-group')].find((one) => words.every((word) => one.textContent.includes(word)));
-    expect(group).toBeDefined();
-    if (group !== undefined) {
-      drive.click(within(group).getByRole('button', { name: 'Leave them out' }));
-      drive.click(await within(group).findByRole('button', { name: /^Change these/ }, { timeout: 5000 }));
-    }
+    drive.click(within(screen.getByRole('listbox', { name: 'Your items in groups' })).getByRole('option', { name: LEAVE_GROUP }));
+    const group = await screen.findByRole('region', { name: /^[\d,]+ items?$/ });
+    drive.click(within(group).getByRole('button', { name: 'Leave out' }));
+    drive.click(await within(group).findByRole('button', { name: /^Change these/ }, { timeout: 5000 }));
   }
-  drive.click(screen.getByRole('button', { name: 'Yes, use the suggested answers' }));
-  expect(await screen.findByText('Every group is confirmed.')).toBeInTheDocument();
+  drive.click(screen.getByRole('button', { name: 'They are right' }));
+  expect(await screen.findByText('confirmed')).toBeInTheDocument();
   await next(drive);
 
   expect(await screen.findByRole('option', { name: at.sheet.file }, { timeout: 5000 })).toHaveTextContent('In use');
