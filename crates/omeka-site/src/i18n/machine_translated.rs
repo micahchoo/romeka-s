@@ -98,6 +98,7 @@ flat_catalogue! {
         missing_page, untitled, site_pages, title, class, linked_caption, page_not_found,
         page_not_found_message, forbidden, pager_count, no_title_recorded, no_media_attached,
         previous, file_of, files_count,
+        model_turn, model_no_javascript, model_loading, model_failed,
         kind_image, kind_audio, kind_video, kind_pdf, kind_model_3d, kind_captions,
         kind_embed, kind_other_file, no_file,
         footer_links, all_rights_reserved, search_placeholder, iiif_poster, iiif_view_in_viewer,

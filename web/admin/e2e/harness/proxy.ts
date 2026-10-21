@@ -50,17 +50,15 @@ export interface RunningProxy {
 }
 
 /**
- * Paths the port answers: the API, its context, health, the annotation
- * container, the public site, its Logout form, the published term lists and
- * vocabularies, the IIIF viewer, manifests and images, and upstream's fallback
- * thumbnails under `/application/asset/` (which `deploy/Caddyfile` also sends to
- * the port).
+ * Paths the port answers: the API, its context, health, the public site, its
+ * Logout form, the published term lists and vocabularies, the IIIF viewer,
+ * manifests and images, the Web Annotation Protocol routes, and upstream's
+ * fallback thumbnails under `/application/asset/` (which `deploy/Caddyfile`
+ * also sends to the port).
  */
 const portPaths = (pathname: string): boolean =>
   pathname === '/api' ||
   pathname.startsWith('/api/') ||
-  pathname === '/annotations' ||
-  pathname.startsWith('/annotations/') ||
   pathname === '/api-context' ||
   pathname === '/health' ||
   pathname === '/logout' ||
@@ -70,6 +68,8 @@ const portPaths = (pathname: string): boolean =>
   pathname.startsWith('/vocab/') ||
   pathname === '/iiif-viewer' ||
   pathname.startsWith('/iiif/') ||
+  pathname === '/annotations' ||
+  pathname.startsWith('/annotations/') ||
   pathname.startsWith('/application/');
 
 const apiPaths = (pathname: string): boolean =>
@@ -84,9 +84,50 @@ const fileFor = (root: string, pathname: string): string | null => {
   return file;
 };
 
-const sendFile = (res: ServerResponse, file: string): void => {
+/** A `Range` header as a byte window, `null` when it is not one this file has. */
+const byteRange = (
+  header: string | undefined,
+  size: number,
+): { readonly start: number; readonly end: number } | null => {
+  const match = header === undefined ? null : /^bytes=(\d*)-(\d*)$/.exec(header);
+  if (match === null) {
+    return null;
+  }
+  const from = match[1] ?? '';
+  const to = match[2] ?? '';
+  if (from === '' && to === '') {
+    return null;
+  }
+  const start = from === '' ? Math.max(0, size - Number(to)) : Number(from);
+  const end = from === '' || to === '' ? size - 1 : Math.min(Number(to), size - 1);
+  return start <= end && start < size ? { start, end } : null;
+};
+
+/** A stored or built file, honouring a byte range as Caddy does. A media
+ * element seeks only when the origin answers 206, and a `#t=` fragment is a
+ * seek, so the harness origin has to answer one. */
+const sendFile = (
+  req: IncomingMessage,
+  res: ServerResponse,
+  file: string,
+): void => {
+  const size = statSync(file).size;
+  const type = MIME_TYPES[extname(file)] ?? 'application/octet-stream';
+  const range = byteRange(req.headers.range, size);
+  if (range !== null) {
+    res.writeHead(206, {
+      'content-type': type,
+      'accept-ranges': 'bytes',
+      'content-range': `bytes ${String(range.start)}-${String(range.end)}/${String(size)}`,
+      'content-length': range.end - range.start + 1,
+    });
+    createReadStream(file, { start: range.start, end: range.end }).pipe(res);
+    return;
+  }
   res.writeHead(200, {
-    'content-type': MIME_TYPES[extname(file)] ?? 'application/octet-stream',
+    'content-type': type,
+    'accept-ranges': 'bytes',
+    'content-length': size,
   });
   createReadStream(file).pipe(res);
 };
@@ -97,6 +138,7 @@ const sendFile = (res: ServerResponse, file: string): void => {
  * shell.
  */
 const serveStatic = (
+  req: IncomingMessage,
   root: string,
   pathname: string,
   res: ServerResponse,
@@ -104,13 +146,13 @@ const serveStatic = (
 ): boolean => {
   const file = fileFor(root, pathname);
   if (file !== null && existsSync(file) && statSync(file).isFile()) {
-    sendFile(res, file);
+    sendFile(req, res, file);
     return true;
   }
   if (fallback !== undefined && extname(pathname) === '') {
     const shell = fileFor(root, fallback);
     if (shell !== null && existsSync(shell)) {
-      sendFile(res, shell);
+      sendFile(req, res, shell);
       return true;
     }
   }
@@ -158,7 +200,7 @@ export const startProxy = async (options: ProxyOptions, port = 0): Promise<Runni
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url ?? '/', 'http://harness.local');
     if (url.pathname.startsWith('/files/')) {
-      if (!serveStatic(options.storeRoot, url.pathname.slice('/files'.length), res)) {
+      if (!serveStatic(req, options.storeRoot, url.pathname.slice('/files'.length), res)) {
         notFound(res);
       }
       return;
@@ -167,7 +209,7 @@ export const startProxy = async (options: ProxyOptions, port = 0): Promise<Runni
       forward(url, req, res, options);
       return;
     }
-    if (serveStatic(options.distRoot, url.pathname, res, '/index.html')) {
+    if (serveStatic(req, options.distRoot, url.pathname, res, '/index.html')) {
       return;
     }
     // The SPA's bundle and the theme's files share the `/assets` prefix, as

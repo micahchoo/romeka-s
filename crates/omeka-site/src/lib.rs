@@ -35,6 +35,7 @@ pub mod html;
 pub mod i18n;
 pub mod iiif_viewer;
 pub mod map;
+pub mod model_reader;
 pub mod nav;
 pub mod render;
 pub mod resource_page;

@@ -198,6 +198,74 @@ fn thumbnail_url(media: &Media, env: &RenderEnv, kind: ThumbnailType, public: bo
     )
 }
 
+/// A playhead offset into an audio or video file, in milliseconds.
+///
+/// A media fragment writes seconds (`#t=62`, `#t=1.5`) and the site's `?t=`
+/// query reads the same unit. Milliseconds are the stored unit and seconds are
+/// the printed one, the same split `romeka_media_extent` uses for a duration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct MediaStart(u64);
+
+impl MediaStart {
+    /// A start at `milliseconds` into the file.
+    #[must_use]
+    pub const fn from_millis(milliseconds: u64) -> Self {
+        Self(milliseconds)
+    }
+
+    /// Parse a `?t=` value: seconds, with a fraction to the millisecond.
+    /// `None` for a value that is not a finite, non-negative number, which a
+    /// hand-written or stale link may carry.
+    #[must_use]
+    pub fn parse_seconds(value: &str) -> Option<Self> {
+        let seconds: f64 = value.trim().parse().ok()?;
+        if !seconds.is_finite() || seconds < 0.0 {
+            return None;
+        }
+        let milliseconds = (seconds * 1000.0).round();
+        if milliseconds > u64::MAX as f64 {
+            return None;
+        }
+        Some(Self(milliseconds as u64))
+    }
+
+    /// This start, held inside a known run time. A link past the end plays the
+    /// last moment rather than nothing.
+    #[must_use]
+    pub fn clamped_to(self, duration_ms: Option<u64>) -> Self {
+        match duration_ms {
+            Some(duration) if self.0 > duration => Self(duration),
+            _ => self,
+        }
+    }
+
+    /// The seconds a media fragment and a `?t=` link state.
+    #[must_use]
+    pub fn seconds(self) -> String {
+        let whole = self.0 / 1000;
+        let fraction = self.0 % 1000;
+        if fraction == 0 {
+            whole.to_string()
+        } else {
+            format!("{whole}.{fraction:03}")
+                .trim_end_matches('0')
+                .to_string()
+        }
+    }
+}
+
+/// The source URL a player opens at `start`: `url#t=62`, the media fragment a
+/// browser honours with no script. One builder, so the video and the audio
+/// player cue the same way.
+#[must_use]
+pub fn media_fragment(url: &str, start: Option<MediaStart>) -> String {
+    let Some(start) = start else {
+        return url.to_string();
+    };
+    let base = url.split_once('#').map_or(url, |(base, _)| base);
+    format!("{base}#t={}", start.seconds())
+}
+
 /// The options a caller passes to a renderer.
 ///
 /// Upstream passes an associative array; the port names each key it reads.
@@ -225,10 +293,58 @@ pub struct RenderOptions {
     pub muted: Option<bool>,
     /// `poster`, for the video renderer.
     pub poster: Option<String>,
+    /// The moment a `?t=` link asks the player to open at. A recording writes
+    /// it as a media fragment on its source; a kind a browser cannot play
+    /// ignores it.
+    pub start: Option<MediaStart>,
     /// `allowfullscreen`, default true for the YouTube renderer.
     pub allowfullscreen: Option<bool>,
     /// `title`, for the IIIF viewer iframe.
     pub title: Option<String>,
+    /// Whether the embed is the file's own page, where a browser's document
+    /// reader may draw. An item page or a block shows the file's card instead,
+    /// so a page of files never loads one reader per file.
+    pub reader: bool,
+    /// The 3D viewer a `model` file renderer offers on the reader's press, with
+    /// the words the site renders it in. `None` on a surface that has no
+    /// viewer: the renderer then links the file instead of offering a button.
+    pub model_reader: Option<ModelReader>,
+}
+
+/// The deferred 3D viewer: where the vendored library is served from, and the
+/// words the facade says before and during the download. The site layer owns
+/// the library's URL and the translated text; the renderer owns the markup.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelReader {
+    /// The library's URL on this origin, versioned by its bytes.
+    pub library_url: String,
+    /// The button's label, which states the library's download size.
+    pub turn: String,
+    /// The button's label once pressed, while the library loads.
+    pub loading: String,
+    /// The line shown when the library cannot load.
+    pub failed: String,
+    /// The line a reader without JavaScript sees.
+    pub no_javascript: String,
+}
+
+/// A byte count as a page states it: `812 B`, `140 KB`, `2.3 MB`, `1.2 GB`.
+/// One decimal from a megabyte up, none below it, 1024 bytes to the next unit.
+#[must_use]
+pub fn human_size(bytes: u64) -> String {
+    const KB: u64 = 1024;
+    const MB: u64 = KB * 1024;
+    const GB: u64 = MB * 1024;
+    let value = bytes as f64;
+    if bytes >= GB {
+        format!("{:.1} GB", value / GB as f64)
+    } else if bytes >= MB {
+        format!("{:.1} MB", value / MB as f64)
+    } else if bytes >= KB {
+        format!("{:.0} KB", value / KB as f64)
+    } else {
+        format!("{bytes} B")
+    }
 }
 
 /// The registries a renderer may reach, the port's shape for `$view`.
@@ -391,5 +507,71 @@ mod tests {
             "/item/1",
             "/media/1",
         )
+    }
+
+    /// A page states a download's size in whole bytes, whole kilobytes, or one
+    /// decimal above, so "140 KB" is what the reader pays.
+    #[test]
+    fn a_size_is_stated_in_the_unit_a_reader_reads() {
+        assert_eq!(human_size(0), "0 B");
+        assert_eq!(human_size(812), "812 B");
+        assert_eq!(human_size(143_378), "140 KB");
+        assert_eq!(human_size(2_411_724), "2.3 MB");
+        assert_eq!(human_size(1_288_490_188), "1.2 GB");
+    }
+
+    /// A `?t=` value is seconds, and a value that is not a finite,
+    /// non-negative number is no start at all.
+    #[test]
+    fn a_start_reads_seconds_and_refuses_what_is_not_a_number() {
+        assert_eq!(
+            MediaStart::parse_seconds("62"),
+            Some(MediaStart::from_millis(62_000))
+        );
+        assert_eq!(
+            MediaStart::parse_seconds(" 1.5 "),
+            Some(MediaStart::from_millis(1_500))
+        );
+        assert_eq!(
+            MediaStart::parse_seconds("0"),
+            Some(MediaStart::from_millis(0))
+        );
+        for value in ["", "abc", "-1", "NaN", "inf", "1 second"] {
+            assert_eq!(MediaStart::parse_seconds(value), None, "{value:?}");
+        }
+    }
+
+    /// A start opens the file with no script: the media fragment carries the
+    /// seconds, and no start leaves the URL byte for byte as it was.
+    #[test]
+    fn a_start_is_a_media_fragment_on_the_source() {
+        assert_eq!(media_fragment("/files/a.mp4", None), "/files/a.mp4");
+        assert_eq!(
+            media_fragment("/files/a.mp4", Some(MediaStart::from_millis(62_000))),
+            "/files/a.mp4#t=62"
+        );
+        assert_eq!(
+            media_fragment(
+                "https://s3.example/a.mp4?X-Amz-Signature=abc",
+                Some(MediaStart::from_millis(1_500))
+            ),
+            "https://s3.example/a.mp4?X-Amz-Signature=abc#t=1.5"
+        );
+    }
+
+    /// A link past the end plays the last moment; with no probed run time the
+    /// link is kept as it was written.
+    #[test]
+    fn a_start_past_the_duration_is_held_at_the_duration() {
+        let start = MediaStart::from_millis(100_000);
+        assert_eq!(
+            start.clamped_to(Some(62_346)),
+            MediaStart::from_millis(62_346)
+        );
+        assert_eq!(start.clamped_to(None), start);
+        assert_eq!(
+            MediaStart::from_millis(2_000).clamped_to(Some(62_346)),
+            MediaStart::from_millis(2_000)
+        );
     }
 }

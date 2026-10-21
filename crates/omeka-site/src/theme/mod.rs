@@ -212,7 +212,11 @@ pub fn library_stylesheet(asset_base: &str, path: &str) -> String {
     )
 }
 
-fn library_url(asset_base: &str, path: &str) -> String {
+/// The URL a bundled library is served from: the asset base, the path under
+/// it, and the bytes' version. A caller that loads a library from its own code
+/// rather than a `<script>` element names it here, so one file has one URL.
+#[must_use]
+pub fn library_url(asset_base: &str, path: &str) -> String {
     let base = asset_base.trim_end_matches('/');
     match theme_asset(DEFAULT_INFO.name, path) {
         Some(asset) => format!("{base}/{path}?v={}", asset.version()),

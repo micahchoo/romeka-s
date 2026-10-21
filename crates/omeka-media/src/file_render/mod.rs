@@ -3,11 +3,14 @@
 //! One module per upstream class under `application/src/Media/FileRenderer/`:
 //! [`audio`] (`AudioRenderer.php`), [`video`] (`VideoRenderer.php`),
 //! [`thumbnail`] (`ThumbnailRenderer.php`) and [`fallback`]
-//! (`FallbackRenderer.php`). [`FileRendererRegistry`] mirrors `Manager.php`,
-//! including its alias table from `application/config/module.config.php:897`.
+//! (`FallbackRenderer.php`), plus this fork's [`pdf`] and [`model`] renderers.
+//! [`FileRendererRegistry`] mirrors `Manager.php`, including its alias table
+//! from `application/config/module.config.php:897`.
 
 pub mod audio;
 pub mod fallback;
+pub mod model;
+pub mod pdf;
 pub mod thumbnail;
 pub mod video;
 
@@ -136,8 +139,9 @@ impl FileRendererRegistry {
     }
 
     /// The four upstream invokables plus the alias table
-    /// (`application/config/module.config.php:891,897`), and this fork's
-    /// aliases for the formats upstream's table predates.
+    /// (`application/config/module.config.php:891,897`), this fork's aliases
+    /// for the formats upstream's table predates, and its two renderers
+    /// upstream has none of.
     #[must_use]
     pub fn with_defaults() -> Self {
         let mut registry = Self::new();
@@ -145,7 +149,12 @@ impl FileRendererRegistry {
         registry.register(Box::new(thumbnail::Thumbnail));
         registry.register(Box::new(audio::Audio));
         registry.register(Box::new(video::Video));
+        registry.register(Box::new(pdf::Pdf));
+        registry.register(Box::new(model::Model));
         for (alias, target) in UPSTREAM_ALIASES {
+            registry.alias(alias, target);
+        }
+        for (alias, target) in FORK_RENDERER_ALIASES {
             registry.alias(alias, target);
         }
         registry
@@ -207,6 +216,18 @@ const UPSTREAM_ALIASES: &[(&str, &str)] = &[
     ("opus", "audio"),
 ];
 
+/// The media types and extensions this fork's two extra file renderers answer
+/// to. Upstream has no PDF or 3D renderer, so a PDF drew its thumbnail and a
+/// model fell through to the fallback link.
+const FORK_RENDERER_ALIASES: &[(&str, &str)] = &[
+    ("application/pdf", "pdf"),
+    ("pdf", "pdf"),
+    ("model/gltf-binary", "model"),
+    ("model/gltf+json", "model"),
+    ("glb", "model"),
+    ("gltf", "model"),
+];
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -249,11 +270,32 @@ mod tests {
     #[test]
     fn registry_returns_none_for_unknown_name() {
         let registry = FileRendererRegistry::with_defaults();
-        assert!(registry.get("application/pdf").is_none());
+        assert!(registry.get("application/msword").is_none());
         assert_eq!(
             registry.names(),
-            vec!["audio", "fallback", "thumbnail", "video"]
+            vec!["audio", "fallback", "model", "pdf", "thumbnail", "video"]
         );
+    }
+
+    /// A PDF and a glTF model reach this fork's renderers by media type and by
+    /// extension, so a row that stored no type still gets the reader.
+    #[test]
+    fn registry_resolves_the_pdf_and_model_renderers() {
+        let registry = FileRendererRegistry::with_defaults();
+        for (name, renderer) in [
+            ("application/pdf", "pdf"),
+            ("pdf", "pdf"),
+            ("model/gltf-binary", "model"),
+            ("model/gltf+json", "model"),
+            ("glb", "model"),
+            ("gltf", "model"),
+        ] {
+            assert_eq!(
+                registry.get(name).map(FileRenderer::name),
+                Some(renderer),
+                "{name}"
+            );
+        }
     }
 
     /// FLAC plays through the audio renderer and Matroska through the video
