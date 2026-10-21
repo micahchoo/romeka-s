@@ -428,3 +428,11 @@ export class NotesClient {
 
 /** The application-wide client. Same origin, so the session cookie rides along. */
 export const notesClient = new NotesClient();
+
+/**
+ * The captions file of one language, as the public page and a `<track>` read
+ * it (contract 6.5). A plain link and a player's `src` both use it, so the
+ * route is spelled here once.
+ */
+export const captionsUrl = (mediaId: MediaId, lang: string): string =>
+  `${defaultBaseUrl()}/annotations/media/${String(mediaId)}/captions.vtt?lang=${encodeURIComponent(lang)}`;

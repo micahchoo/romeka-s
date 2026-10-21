@@ -399,6 +399,7 @@ export class ApiClient {
         extension_whitelist: write.extensionWhitelist,
         disable_file_validation: write.disableFileValidation,
         import_allow_private_urls: write.importAllowPrivateUrls,
+        romeka_annotations_public: write.annotationsPublic,
       }),
     );
   }

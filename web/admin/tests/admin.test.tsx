@@ -133,6 +133,7 @@ describe('settings page', () => {
     extension_whitelist: ['pdf', 'jpg'],
     disable_file_validation: false,
     import_allow_private_urls: false,
+    romeka_annotations_public: true,
   };
 
   it('settings_saves_the_global_locale_and_keeps_the_other_fields_in_the_page', async () => {
@@ -175,10 +176,10 @@ describe('settings page', () => {
           jsonResponse(
             init?.method === 'PATCH'
               ? {
+                  ...fileSettings,
                   media_type_whitelist: restoredTypes,
                   extension_whitelist: ['pdf', 'tif'],
                   disable_file_validation: true,
-                  import_allow_private_urls: false,
                 }
               : fileSettings,
           ),
@@ -214,6 +215,7 @@ describe('settings page', () => {
       extension_whitelist: ['pdf', 'tif'],
       disable_file_validation: true,
       import_allow_private_urls: false,
+      romeka_annotations_public: true,
     });
     expect(types).toHaveValue(restoredTypes.join(','));
     expect(screen.getByLabelText('Disable file validation')).toBeChecked();

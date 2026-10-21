@@ -7,10 +7,12 @@
  * is one component with one job, because the notes panel (A-3) mounts beside it
  * and owns everything about notes.
  */
-import type { ReactElement } from 'react';
+import type { ReactElement, RefCallback } from 'react';
 import { useEffect, useState } from 'react';
 import type { Media } from '../../../api/types';
+import { defaultBaseUrl } from '../../../api/client';
 import { formatBytes } from '../../../app/format';
+import { languageName } from '../../../app/language';
 import { KIND_LABEL } from '../../../app/media';
 import type { KeyOf, MessageKey, Translator } from '../../../i18n';
 import { useTranslator } from '../../../i18n';
@@ -23,6 +25,40 @@ import './stage.css';
 
 /** The keys this stage reads: the shell catalogue and the media namespace. */
 type StageTranslator = Translator<MessageKey | KeyOf<typeof resources>>;
+
+/** The caption languages the player offers, as the panel reports them. */
+export interface CaptionTrack {
+  readonly lang: string;
+  readonly cues: number;
+}
+
+/** The `<track>` elements of a player: one per language with cues (A-6). */
+const CaptionTracks = ({
+  tracks,
+  mediaId,
+  mediaLang,
+  translator,
+}: {
+  readonly tracks: readonly CaptionTrack[];
+  readonly mediaId: number;
+  readonly mediaLang: string | null;
+  readonly translator: StageTranslator;
+}): ReactElement => (
+  <>
+    {tracks
+      .filter((track) => track.lang !== '' && track.cues > 0)
+      .map((track) => (
+        <track
+          key={track.lang}
+          kind="captions"
+          src={`${defaultBaseUrl()}/annotations/media/${String(mediaId)}/captions.vtt?lang=${encodeURIComponent(track.lang)}`}
+          srcLang={track.lang}
+          label={languageName(track.lang, translator.locale)}
+          {...(mediaLang === track.lang ? { default: true } : {})}
+        />
+      ))}
+  </>
+);
 
 /** Where a player left off, unless the kept time is past the end. */
 const resumeAt = (player: HTMLMediaElement, mediaId: number): void => {
@@ -116,14 +152,21 @@ const ImageStage = ({
 const AudioStage = ({
   view,
   mediaId,
+  player,
+  tracks,
+  mediaLang,
   translator,
 }: {
   readonly view: Extract<StageView, { element: 'audio' }>;
   readonly mediaId: number;
+  readonly player: RefCallback<HTMLMediaElement> | undefined;
+  readonly tracks: readonly CaptionTrack[];
+  readonly mediaLang: string | null;
   readonly translator: StageTranslator;
 }): ReactElement => (
   <audio
     className="media-stage-player"
+    ref={player}
     controls
     preload="metadata"
     src={view.url}
@@ -134,6 +177,7 @@ const AudioStage = ({
       rememberPosition(mediaId, event.currentTarget.currentTime);
     }}
   >
+    <CaptionTracks tracks={tracks} mediaId={mediaId} mediaLang={mediaLang} translator={translator} />
     <p>
       {translator.t('media.stage.playFailed')}{' '}
       <a href={view.url}>{translator.t('media.stage.downloadFile')}</a>
@@ -144,14 +188,21 @@ const AudioStage = ({
 const VideoStage = ({
   view,
   mediaId,
+  player,
+  tracks,
+  mediaLang,
   translator,
 }: {
   readonly view: Extract<StageView, { element: 'video' }>;
   readonly mediaId: number;
+  readonly player: RefCallback<HTMLMediaElement> | undefined;
+  readonly tracks: readonly CaptionTrack[];
+  readonly mediaLang: string | null;
   readonly translator: StageTranslator;
 }): ReactElement => (
   <video
     className="media-stage-player"
+    ref={player}
     controls
     preload="metadata"
     src={view.url}
@@ -163,6 +214,7 @@ const VideoStage = ({
       rememberPosition(mediaId, event.currentTarget.currentTime);
     }}
   >
+    <CaptionTracks tracks={tracks} mediaId={mediaId} mediaLang={mediaLang} translator={translator} />
     <p>
       {translator.t('media.stage.playFailed')}{' '}
       <a href={view.url}>{translator.t('media.stage.downloadFile')}</a>
@@ -294,20 +346,43 @@ const firstLines = (text: string, limit: number): string =>
 const StageBody = ({
   view,
   media,
+  player,
+  tracks,
   translator,
 }: {
   readonly view: StageView;
   readonly media: Media;
+  readonly player: RefCallback<HTMLMediaElement> | undefined;
+  readonly tracks: readonly CaptionTrack[];
   readonly translator: StageTranslator;
 }): ReactElement => {
   const mediaId = media.id;
+  const mediaLang = media.lang;
   switch (view.element) {
     case 'image':
       return <ImageStage view={view} translator={translator} />;
     case 'audio':
-      return <AudioStage view={view} mediaId={mediaId} translator={translator} />;
+      return (
+        <AudioStage
+          view={view}
+          mediaId={mediaId}
+          player={player}
+          tracks={tracks}
+          mediaLang={mediaLang}
+          translator={translator}
+        />
+      );
     case 'video':
-      return <VideoStage view={view} mediaId={mediaId} translator={translator} />;
+      return (
+        <VideoStage
+          view={view}
+          mediaId={mediaId}
+          player={player}
+          tracks={tracks}
+          mediaLang={mediaLang}
+          translator={translator}
+        />
+      );
     case 'pdf':
       return <PdfStage view={view} translator={translator} />;
     case 'text':
@@ -323,13 +398,31 @@ const StageBody = ({
   }
 };
 
-/** One media's stage, with the facts line the server can state about it. */
-export const MediaStage = ({ media }: { readonly media: Media }): ReactElement => {
+/**
+ * One media's stage, with the facts line the server can state about it. The
+ * page hands in a ref callback and keeps the element it names, so the notes
+ * panel can seek the player the editor is watching.
+ */
+export const MediaStage = ({
+  media,
+  player,
+  tracks,
+}: {
+  readonly media: Media;
+  readonly player?: RefCallback<HTMLMediaElement>;
+  readonly tracks?: readonly CaptionTrack[];
+}): ReactElement => {
   const translator = useTranslator(resources);
   const view = stageView(media);
   return (
     <div className="media-stage" data-stage={view.element}>
-      <StageBody view={view} media={media} translator={translator} />
+      <StageBody
+        view={view}
+        media={media}
+        player={player}
+        tracks={tracks ?? []}
+        translator={translator}
+      />
       {view.element === 'none' ? null : (
         <FileFactsLine file={view.file} translator={translator} />
       )}
