@@ -1,0 +1,211 @@
+/* The region editor's own chunk carries these rules, so a page that shows no
+ * picture downloads none of them. */
+.region-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.region-toolbar,
+.region-advanced {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.region-advanced {
+  align-items: start;
+}
+
+/* 32 by 32 targets with 24 px spacing, the floor for a toolbar (design, floor
+ * rules). The buttons keep the shell's own styling. */
+.region-toolbar button {
+  min-width: 2rem;
+  min-height: 2rem;
+}
+
+.region-toolbar button[aria-pressed='true'],
+.region-advanced button[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.region-readout {
+  min-width: 3.5ch;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.region-hint,
+.region-count {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.region-refusal {
+  margin: 0;
+  color: var(--danger);
+}
+
+.region-refusal::before {
+  content: '! ';
+  font-weight: 700;
+}
+
+.region-selected {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.region-by-numbers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: end;
+}
+
+.region-by-numbers .region-advanced-title {
+  flex-basis: 100%;
+  margin: 0;
+  font-weight: 600;
+}
+
+.region-by-numbers .region-hint {
+  flex-basis: 100%;
+}
+
+.region-number {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 6rem;
+}
+
+.region-number span {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+/* Pan stays native scrolling, and it stays available while Move is the tool. */
+.region-scroll {
+  max-height: 70vh;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.region-figure {
+  position: relative;
+  margin: 0;
+}
+
+.region-figure img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.region-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: pan-y;
+}
+
+/* A draw tool is a mode made visible: a crosshair, and no scroll competing with
+ * the drag it is asking for. */
+.region-overlay.is-drawing {
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.region-overlay:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.region-shapes {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+/* The shapes are a picture of the list, never a second tab stop: the pointer and
+ * the list are the ways to select, and this group never eats an event. */
+.region-shapes,
+.region-shapes * {
+  pointer-events: none;
+}
+
+.region-shapes .region-shape {
+  vector-effect: non-scaling-stroke;
+}
+
+.region-shapes .is-selected .region-shape {
+  stroke-width: 3;
+}
+
+.region-shapes.is-dense .region-shape {
+  opacity: 0.5;
+}
+
+.region-shapes.is-dense .is-selected .region-shape {
+  opacity: 1;
+}
+
+.region-draft .region-shape {
+  stroke-dasharray: 6 4;
+}
+
+.region-shape.is-live {
+  fill: var(--accent-soft);
+  fill-opacity: 0.4;
+  stroke-dasharray: 4 3;
+}
+
+.region-handles {
+  fill: var(--surface);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.region-number {
+  fill: var(--accent);
+  stroke: var(--bg);
+  paint-order: stroke;
+  font-weight: 600;
+}
+
+.region-outline polyline {
+  fill: none;
+  stroke: var(--accent);
+  stroke-dasharray: 4 3;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.region-outline circle {
+  fill: var(--surface);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.region-outline .region-corner {
+  fill: var(--accent);
+  stroke: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .region-figure {
+    transition: none;
+  }
+}

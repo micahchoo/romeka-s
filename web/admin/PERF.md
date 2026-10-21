@@ -837,6 +837,32 @@ three lazy controls now share one loading line, `editor/fields/ControlLoading.ts
 | property list | 802 | 805 | `PropertyListField-*` |
 | largest catalogue chunk | 10585 | 10640 | the Malayalam `ml-*` table, 624 B under its ceiling |
 
+## Decision 27: the notes panel's table loads as its own chunk (accepted)
+
+**Change.** The media notes panel gains the region editor (A-4), whose strings
+live in the `annotations` namespace, and that table sat inside the panel chunk
+for both to share. With the new keys the panel chunk measured 10143 B of the
+10240 B per-chunk ceiling, 97 B of slack, before the region editor's own chunk
+existed. `vite.config.ts` names `i18n/namespaces/annotations/index.ts`
+`annotations-messages`, the way the other namespaces already load, so the panel,
+the region editor and the coming time editor read one shared table.
+
+**Measured.** `npm run build` then `npm run perf:check`, gzip bytes, single
+builds on one machine:
+
+| Asset | Before | After |
+| --- | --- | --- |
+| panel chunk | 10143 | 8394 |
+| `annotations-messages` | none | 1958 |
+| region editor | none | 4124 js, 850 css |
+| largest chunk | 10143 (panel) | 9909 (`import-routes`) |
+| initial js | 86170 | 86178 |
+
+**Verdict.** Accepted. A media page fetches the table beside the panel instead
+of inside it, so the notes panel downloads about 1.7 KB less, and a later editor
+chunk does not carry the table a second time. The 10 B on the initial payload is
+the panel's lazy import of the region editor.
+
 ## Budgets
 
 `timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,
