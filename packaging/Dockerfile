@@ -137,7 +137,7 @@ RUN set -eux; \
         -f lavfi -i testsrc=duration=1:size=320x240:rate=25 \
         -f lavfi -i sine=duration=1 \
         -map 0:v:0 -map 1:a \
-        -vf "scale=w='min(iw,1080)':h='min(ih,1080)':force_original_aspect_ratio=decrease" \
+        -vf "scale=w='if(gte(iw,ih),-2,min(iw,1080))':h='if(gte(iw,ih),min(ih,1080),-2)'" \
         -c:v libx264 -preset medium -crf 23 -pix_fmt yuv420p \
         -c:a aac -b:a 128k -movflags +faststart /tmp/selftest.mp4; \
     /opt/ffmpeg/bin/ffprobe -v error -show_entries stream=codec_name -of csv=p=0 /tmp/selftest.mp4 | sort | tr '\n' ' ' | grep -qx 'aac h264 '; \
