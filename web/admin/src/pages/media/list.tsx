@@ -7,6 +7,7 @@ import { ListPage } from '../../app/list';
 import { MediaImage, MediaKindBadge, MediaPreviewState } from '../../app/media-image';
 import { KIND_LABEL, mediaName, previewImageUrl } from '../../app/media';
 import type { MediaKind } from '../../app/media';
+import { MediaAccessCue } from './access';
 import { useTranslator } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
@@ -143,6 +144,7 @@ export const MediaList = (): ReactElement => {
                 <a href={`#/media/${String(media.id)}`}>{mediaName(media) ?? t('common.untitled')}</a>
                 <MediaKindBadge media={media} />
                 <MediaPreviewState media={media} />
+                <MediaAccessCue media={media} />
               </span>
             ),
           },

@@ -39,11 +39,22 @@ const readyCopyUrl = (media: Media): string | null => {
 
 /**
  * The file a player opens: the access copy when it is ready, the original
- * otherwise. The original stays the download and the link beside the player,
- * never its source.
+ * otherwise. A copy that is still being made, or one that failed, gives no
+ * player at all rather than one sourced from an original this browser cannot
+ * play; the page states the wait above the stage. The original stays the
+ * download and the link beside the player, never its source.
  */
-const playerUrl = (media: Media): string | null =>
-  readyCopyUrl(media) ?? blankToNull(media.originalUrl);
+const playerUrl = (media: Media): string | null => {
+  const copy = media.access;
+  if (
+    copy?.state === 'pending' ||
+    copy?.state === 'failed' ||
+    (copy?.state === 'none' && (copy.reason?.startsWith('needs ') ?? false))
+  ) {
+    return null;
+  }
+  return readyCopyUrl(media) ?? blankToNull(media.originalUrl);
+};
 
 /** The facts a file card states, and the link that takes the file. */
 export interface FileFacts {

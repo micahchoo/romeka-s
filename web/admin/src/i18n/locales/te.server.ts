@@ -296,6 +296,7 @@ export const teServer: ServerCatalogue = {
   'server.mediaUploadIncomplete':
     'ఈ అప్‌లోడ్‌లో {received} బైట్లు {length} లో ఉన్నాయి. దీనిని జోడించే ముందు మిగిలిన వాటిని పంపండి.',
   'server.mediaUploadIngester': 'స్టేజ్డ్ అప్‌లోడ్ అప్‌లోడ్ ఇంజియర్‌తో జోడించబడింది.',
+  'server.noDerivativeToRetry': 'ఈ మీడియాకు మళ్ళీ విఫలమైన కాపీని తయారు చేయడానికి లేదు.',
   'server.mediaUploadInline':
     'స్టేజ్డ్ అప్‌లోడ్ దాని స్వంత మీడియా క్రియేట్‌తో జోడించబడుతుంది, ఐటమ్ లోపల కాదు.',
   'server.uploadTooLarge':

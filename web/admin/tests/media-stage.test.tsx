@@ -161,10 +161,13 @@ describe('a media the stage can show', () => {
       'href',
       ORIGINAL,
     );
-    expect(screen.getByText('Video')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Original: AVI,/ })).toHaveAttribute(
+      'href',
+      ORIGINAL,
+    );
   });
 
-  it('plays the AAC copy of a WMA and the original while the copy is still pending', () => {
+  it('plays the AAC copy of a WMA once ready, and no player while it is being made', () => {
     const copy = 'http://localhost/files/access/7.m4a';
     const wma = (access: MediaAccess | null): Media =>
       media({ type: 'audio/x-ms-wma', filename: 'talk.wma', access });
@@ -178,7 +181,8 @@ describe('a media the stage can show', () => {
         media={wma({ state: 'pending', reason: null, progress: 40, url: null, mediaType: null })}
       />,
     );
-    expect(document.querySelector('audio')).toHaveAttribute('src', ORIGINAL);
+    expect(document.querySelector('audio')).toBeNull();
+    expect(document.querySelector('.media-stage-file')).not.toBeNull();
     queued.unmount();
 
     render(
@@ -236,7 +240,7 @@ describe('a media the stage can show', () => {
     );
 
     expect(screen.getByRole('img')).toHaveAttribute('src', LARGE);
-    expect(screen.getByText('Document')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Original: DOCX,/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Read the PDF here' }));
 
     const viewer = document.querySelector('object');

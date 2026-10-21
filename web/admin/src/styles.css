@@ -462,6 +462,27 @@ dd {
   color: var(--danger);
 }
 
+/* The access copy's state: one line above the stage, and the failed state's
+ * Retry button beside its reason. */
+.media-access-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.media-access-state p {
+  margin: 0;
+}
+
+.media-access-state.is-failed {
+  color: var(--danger);
+}
+
 .media-image-state {
   text-align: center;
 }

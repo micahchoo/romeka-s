@@ -33,6 +33,13 @@
   background-size: 16px 16px;
 }
 
+/* The original beside a copy: the preservation master, named and sized so the
+ * editor knows which file the player opens. */
+.media-stage-original {
+  margin: var(--space-1) 0 0;
+  font-size: 13px;
+}
+
 .media-stage-player {
   display: block;
   width: 100%;

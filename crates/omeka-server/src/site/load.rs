@@ -64,8 +64,8 @@ use omeka_media::data::MediaData;
 use omeka_media::file_render::{FileRendererRegistry, LinkType, ThumbnailType};
 use omeka_media::kind::{KindInput, MediaKind};
 use omeka_media::render::{
-    MediaStart, MediaView, ModelReader, RenderEnv, RenderOptions, RendererRegistry,
-    View as MediaRendererView, human_size,
+    AccessCopyState, MediaStart, MediaView, ModelReader, RenderEnv, RenderOptions,
+    RendererRegistry, View as MediaRendererView, human_size,
 };
 use omeka_media::store::{FileKind, FileUrls, download_name};
 
@@ -643,17 +643,37 @@ impl<'a> Loader<'a> {
         let rows = with_db!(&self.pool, |db| MediaDerivativeRepo::new(db)
             .for_media(row.id())
             .await)?;
-        let access = omeka_api::derivatives::access_copy(
+        let access = match omeka_api::derivatives::access_copy(
             &rows,
             row.storage_id.as_deref(),
             row.media_type.as_deref(),
             row.extension.as_deref(),
-        )
-        .and_then(|copy| copy.stored)
-        .map(|copy| {
-            self.files
-                .url(&copy.path, omeka_media::store::FileKind::Original)
-        });
+        ) {
+            None => AccessCopyState::Original,
+            Some(copy) => match copy.state {
+                DerivativeState::Ready => match &copy.stored {
+                    Some(stored) => AccessCopyState::Ready(
+                        self.files
+                            .url(&stored.path, omeka_media::store::FileKind::Original),
+                    ),
+                    None => AccessCopyState::Original,
+                },
+                DerivativeState::Pending | DerivativeState::Running => AccessCopyState::Pending,
+                DerivativeState::Failed => AccessCopyState::Failed,
+                // A copy this install cannot make is no copy at all: the
+                // original stays the download, and a player must not open a
+                // file the missing tool was going to convert.
+                DerivativeState::None
+                    if copy
+                        .reason
+                        .as_deref()
+                        .is_some_and(|reason| reason.starts_with("needs ")) =>
+                {
+                    AccessCopyState::Failed
+                }
+                DerivativeState::None => AccessCopyState::Original,
+            },
+        };
         let view = MediaView::new(
             core,
             MediaData::parse(&row.ingester, row.data.as_ref()).unwrap_or(MediaData::None),
@@ -662,7 +682,7 @@ impl<'a> Loader<'a> {
             media_url.clone(),
         )
         .in_item(item_is_public)
-        .with_access(access);
+        .with_access_state(access);
         let thumbnail = view
             .thumbnail_url(options.thumbnail_type.unwrap_or(ThumbnailType::Square))
             .map(|url| Thumbnail::new(url.to_string(), alt_text.unwrap_or_default()));
@@ -678,6 +698,19 @@ impl<'a> Loader<'a> {
         let mut options = options.clone();
         if is_model {
             options.model_reader = self.model_reader();
+        }
+        // A recording or document whose copy is still being made, or whose copy
+        // failed, says so in the place the player would stand. The words are the
+        // site catalogue's, so every locale states the wait in its own language.
+        if matches!(
+            kind,
+            MediaKind::Audio | MediaKind::Video | MediaKind::Document
+        ) {
+            options.access_wait = match &view.access {
+                AccessCopyState::Pending => Some(self.messages().access_pending.to_string()),
+                AccessCopyState::Failed => Some(self.messages().access_failed.to_string()),
+                AccessCopyState::Original | AccessCopyState::Ready(_) => None,
+            };
         }
         let rendered = renderers.render(
             &row.renderer,
@@ -2138,6 +2171,11 @@ fn download_link(row: &MediaRow, media_url: &str) -> Option<DownloadLink> {
     }
     Some(DownloadLink {
         url: format!("{media_url}/download"),
+        format: row
+            .extension
+            .as_deref()
+            .filter(|extension| !extension.is_empty())
+            .map(str::to_ascii_uppercase),
         size: row.size.and_then(|size| u64::try_from(size).ok()),
     })
 }
