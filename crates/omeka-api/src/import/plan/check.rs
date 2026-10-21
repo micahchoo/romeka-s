@@ -108,7 +108,7 @@ fn slots(plan: &ImportPlan) -> Result<(), PlanError> {
             let SourceRef::Column { sheet, column } = source else {
                 continue;
             };
-            let Some((_, read)) = plan.structure.lists().find(|(_, s)| &s.id == sheet) else {
+            let Some((_, read)) = plan.structure.list(sheet) else {
                 return Err(PlanError::MissingSheet(sheet.0.clone()));
             };
             if read.column(column.index).is_none() {

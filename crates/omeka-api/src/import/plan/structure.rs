@@ -1,13 +1,13 @@
-//! The archive's tree, the one way the engine reads which files form a
-//! series and which pattern, lists and slot rules that series has
-//! (`briefs/import-plan-v3.md`, "The seam").
+//! The archive's tree: the one way the engine reads which series takes a
+//! file and which pattern, lists and slot rules that series has.
 //!
 //! A v2 plan is one series that takes every file: its pattern matches each
 //! path relative to its source, as in v2, and its `slots.item.sets` rule is
 //! its one membership.
 
 use super::{
-    Grouping, RecordKind, RelPath, SheetPlan, SlotName, SlotRule, SlotRules, Slots, SourceId,
+    Grouping, RecordKind, RelPath, SheetId, SheetPlan, SlotName, SlotRule, SlotRules, Slots,
+    SourceId,
 };
 
 /// How a series names the item sets of its items. Today the v2
@@ -77,6 +77,12 @@ impl Structure {
     /// Every list with the series that holds it, in plan order.
     pub fn lists(&self) -> impl Iterator<Item = (SeriesIx, &SheetPlan)> {
         self.series.sheets.iter().map(|list| (SeriesIx(()), list))
+    }
+
+    /// The list with this id, with the series that holds it.
+    #[must_use]
+    pub fn list(&self, id: &SheetId) -> Option<(SeriesIx, &SheetPlan)> {
+        self.lists().find(|(_, list)| list.id == *id)
     }
 
     /// The set sources of an item of this series, in the order its sets

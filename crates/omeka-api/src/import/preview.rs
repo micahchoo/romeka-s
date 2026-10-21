@@ -249,9 +249,9 @@ where
     tokio::task::spawn_blocking(move || {
         let dirs = scan::source_dirs(&roots, &plan.sources);
         let read: BTreeMap<SheetId, Arc<ReadSheet>> = plan
-            .sheets
-            .iter()
-            .filter_map(|sheet| {
+            .structure
+            .lists()
+            .filter_map(|(_, sheet)| {
                 let read = match plan
                     .sources
                     .iter()

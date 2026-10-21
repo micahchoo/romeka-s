@@ -160,9 +160,9 @@ pub(super) fn column_matches(derived: &Derived) -> Vec<SheetMatches> {
     let targets = Targets::exact(derived);
     derived
         .plan
-        .sheets
-        .iter()
-        .filter_map(|plan| {
+        .structure
+        .lists()
+        .filter_map(|(_, plan)| {
             let sheet = derived.sheets.get(&plan.id)?.sheet.as_ref().ok()?;
             Some(SheetMatches {
                 sheet: plan.id.clone(),

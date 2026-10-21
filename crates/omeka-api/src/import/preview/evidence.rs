@@ -91,9 +91,9 @@ pub struct TagSample {
 pub(super) fn sheet_views(derived: &Derived) -> Vec<SheetView> {
     derived
         .plan
-        .sheets
-        .iter()
-        .map(|plan| {
+        .structure
+        .lists()
+        .map(|(_, plan)| {
             let read = derived.sheets.get(&plan.id);
             let (error, sheet_read) = match read.map(|read| &read.sheet) {
                 None => (None, None),
