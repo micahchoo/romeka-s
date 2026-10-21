@@ -7,9 +7,12 @@
 //! sniffed from its first [`SNIFF_BYTES`], validated, and streamed into the
 //! store through [`Store::put_stream`] while its SHA-256 is computed. A
 //! TIFF or JPEG of that size gets its thumbnails from a second, bounded
-//! read of the stored original (`ImageThumbnailer::derivatives_from_reader`);
-//! any other type gets none. A staged file (an upload) takes the same two
-//! paths, read through the store instead of the disk.
+//! read of the stored original (`ImageThumbnailer::derivatives_from_reader`).
+//! A video or PDF of that size gets its poster or first page from the
+//! external tool, run on the folder file; a staged file and a URL body have
+//! no local path, so they get none (`romeka media thumbnails` backfills).
+//! Any other type gets none. A staged file (an upload) takes the same paths,
+//! read through the store instead of the disk.
 //!
 //! A URL record runs its ingester with the guarded HTTP client the caller
 //! built from `settings::address_policy`. The `url` ingester's download is
@@ -46,9 +49,10 @@ use omeka_media::store::{
     Store, StorePrefix, extension_from_source_name, new_storage_id, storage_path,
 };
 use omeka_media::thumbnailer::{
-    ImageThumbnailer, LARGE_SOURCE_MEDIA_TYPES, ThumbnailOutcome, generate_thumbnails_from_reader,
-    thumbnail_path,
+    ImageThumbnailer, LARGE_SOURCE_MEDIA_TYPES, ThumbnailOutcome, generate_thumbnails_from_path,
+    generate_thumbnails_from_reader, thumbnail_path,
 };
+use omeka_media::tool::Still;
 use omeka_media::uri::HttpUri;
 use omeka_media::validation::FileValidation;
 use serde_json::{Value, json};
@@ -120,9 +124,21 @@ pub fn arrive_file(
     path: &Path,
     name: &str,
 ) -> Result<Arrived, ArrivalError> {
+    arrive_file_over(store, validation, path, name, WHOLE_LIMIT)
+}
+
+/// [`arrive_file`] with the streaming limit named, so a test needs no 64 MiB
+/// file.
+fn arrive_file_over(
+    store: &dyn Store,
+    validation: &FileValidation,
+    path: &Path,
+    name: &str,
+    whole_limit: u64,
+) -> Result<Arrived, ArrivalError> {
     let unreadable = |error: io::Error| ArrivalError::Unreadable(error.to_string());
     let size = std::fs::metadata(path).map_err(unreadable)?.len();
-    if size > WHOLE_LIMIT {
+    if size > whole_limit {
         let mut head = Vec::with_capacity(SNIFF_BYTES);
         File::open(path)
             .map_err(unreadable)?
@@ -130,8 +146,16 @@ pub fn arrive_file(
             .read_to_end(&mut head)
             .map_err(unreadable)?;
         let file = File::open(path).map_err(unreadable)?;
-        return stream_file(store, validation, &head, Box::new(file), Some(size), name)
-            .map(|arrived| arrived.with(FILE_INGESTER, Some(name.to_string())));
+        return stream_file(
+            store,
+            validation,
+            &head,
+            Box::new(file),
+            Some(size),
+            name,
+            Some(path),
+        )
+        .map(|arrived| arrived.with(FILE_INGESTER, Some(name.to_string())));
     }
     let bytes = std::fs::read(path).map_err(unreadable)?;
     arrive_whole(store, validation, bytes, name)
@@ -156,8 +180,16 @@ pub fn arrive_stored(
             .read_range(stored, 0..SNIFF_BYTES as u64)
             .map_err(unreadable)?;
         let reader = StoredReader::new(store, stored.to_string(), 0..size);
-        return stream_file(store, validation, &head, Box::new(reader), Some(size), name)
-            .map(|arrived| arrived.with(FILE_INGESTER, Some(name.to_string())));
+        return stream_file(
+            store,
+            validation,
+            &head,
+            Box::new(reader),
+            Some(size),
+            name,
+            None,
+        )
+        .map(|arrived| arrived.with(FILE_INGESTER, Some(name.to_string())));
     }
     let bytes = store.read(stored).map_err(unreadable)?;
     arrive_whole(store, validation, bytes, name)
@@ -200,8 +232,11 @@ fn arrive_whole(
 
 /// Stream a file into the store: sniffed from `head` (its first bytes),
 /// validated, then `body` (the whole file, from its first byte) written
-/// while its SHA-256 is computed. Thumbnails only for the types in
-/// `LARGE_SOURCE_MEDIA_TYPES`.
+/// while its SHA-256 is computed. Thumbnails for the types in
+/// `LARGE_SOURCE_MEDIA_TYPES`, read back from the store, and for the types an
+/// external tool makes a still of, when `local` names the file on this
+/// machine. A tool that fails leaves the original stored with no thumbnails,
+/// as the upload path does.
 fn stream_file(
     store: &dyn Store,
     validation: &FileValidation,
@@ -209,6 +244,7 @@ fn stream_file(
     body: Box<dyn Read + '_>,
     size: Option<u64>,
     name: &str,
+    local: Option<&Path>,
 ) -> Result<Arrived, ArrivalError> {
     let source_extension = extension_from_source_name(name);
     let media_type = detected_media_type_of(head, source_extension.as_deref());
@@ -248,6 +284,9 @@ fn stream_file(
         // a staged file and a URL body, none of which can be re-read.
         let stored_original = StoredReader::new(store, stored[0].clone(), 0..written);
         generate_thumbnails_from_reader(store, &storage_id, stored_original, Some(&media_type))
+            .map_err(|error| ArrivalError::Store(error.to_string()))
+    } else if let (Some(path), Some(_)) = (local, Still::of(&media_type)) {
+        generate_thumbnails_from_path(store, &storage_id, path, Some(&media_type))
             .map_err(|error| ArrivalError::Store(error.to_string()))
     } else {
         Ok(ThumbnailOutcome::Existing)
@@ -332,7 +371,7 @@ fn arrive_download(
         .unwrap_or_default()
         .to_string();
     let body = Cursor::new(head.clone()).chain(response);
-    stream_file(store, validation, &head, Box::new(body), size, &name)
+    stream_file(store, validation, &head, Box::new(body), size, &name, None)
         .map(|arrived| arrived.with("url", Some(uri.raw().to_string())))
         .map_err(|error| match error {
             ArrivalError::Unreadable(reason) => failed(reason),
@@ -535,5 +574,89 @@ impl<R: Read> Read for Hashing<R> {
         let read = self.inner.read(buf)?;
         self.hasher.update(&buf[..read]);
         Ok(read)
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod tests {
+    use super::*;
+    use omeka_media::store::FileStore;
+
+    fn fixture(name: &str) -> Vec<u8> {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/media-kinds")
+            .join(name);
+        std::fs::read(&path).unwrap_or_else(|error| panic!("{}: {error}", path.display()))
+    }
+
+    fn arrive(name: &str, bytes: &[u8]) -> (Arrived, FileStore, tempfile::TempDir) {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let folder = dir.path().join("folder");
+        std::fs::create_dir(&folder).expect("folder");
+        std::fs::write(folder.join(name), bytes).expect("write");
+        let store = FileStore::new(dir.path().join("files"), "/files");
+        // A limit of 1 byte sends every file down the streaming path.
+        let arrived = arrive_file_over(
+            &store,
+            &FileValidation::default(),
+            &folder.join(name),
+            name,
+            1,
+        )
+        .expect("arrives");
+        (arrived, store, dir)
+    }
+
+    /// A video over the streaming limit gets the poster an upload gets.
+    #[test]
+    fn a_streamed_video_from_a_folder_gets_its_poster() {
+        let video = fixture("video.mp4");
+        let (arrived, store, _dir) = arrive("interview.mp4", &video);
+
+        let file = arrived.file.expect("file");
+        assert_eq!(file.media_type.as_deref(), Some("video/mp4"));
+        assert!(file.has_thumbnails, "a poster was made");
+        for kind in ThumbnailType::ALL {
+            assert!(
+                store
+                    .exists(&thumbnail_path(&file.storage_id, kind))
+                    .expect("exists"),
+                "{kind:?} stored"
+            );
+            assert!(
+                arrived
+                    .stored
+                    .contains(&thumbnail_path(&file.storage_id, kind))
+            );
+        }
+    }
+
+    /// A PDF over the limit gets its first page.
+    #[test]
+    fn a_streamed_pdf_from_a_folder_gets_its_first_page() {
+        let (arrived, _store, _dir) = arrive("report.pdf", &fixture("doc.pdf"));
+
+        assert!(arrived.file.expect("file").has_thumbnails);
+    }
+
+    /// A video the tool cannot read still imports: the original stays, with
+    /// no thumbnails and nothing stored for them.
+    #[test]
+    fn a_video_the_tool_cannot_read_keeps_its_original_without_thumbnails() {
+        let mut video = fixture("video.mp4");
+        video.truncate(24);
+        video.extend_from_slice(&[0xA5; 64]);
+        let (arrived, store, _dir) = arrive("broken.mp4", &video);
+
+        let file = arrived.file.expect("file");
+        assert!(!file.has_thumbnails);
+        assert_eq!(arrived.stored.len(), 1, "only the original");
+        assert!(store.exists(&arrived.stored[0]).expect("exists"));
+        assert!(
+            !store
+                .exists(&thumbnail_path(&file.storage_id, ThumbnailType::Large))
+                .expect("exists")
+        );
     }
 }

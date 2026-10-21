@@ -14,6 +14,7 @@
 
 mod access;
 mod model;
+pub mod tracks;
 mod wadm;
 
 pub use access::search_scope;
