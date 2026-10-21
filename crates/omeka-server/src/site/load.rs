@@ -14,7 +14,10 @@ use std::sync::LazyLock;
 use flate2::Compression;
 use flate2::write::GzEncoder;
 
-use omeka_api::annotation::Iris;
+use omeka_api::annotation::{
+    Annotation, AnnotationError, AnnotationId, Annotations, Body, ExtentSource, Iris, Page,
+    Selector, Summary,
+};
 use omeka_api::jsonld::BaseUrl;
 use omeka_api::read::catalog::Catalog;
 use omeka_api::read::params::Params;
@@ -40,6 +43,7 @@ use omeka_db::rows::{
     TemplatePropertyRow, ValueRow,
 };
 use omeka_db::with_db;
+use omeka_site::annotation::{self, NoteLine, NotesView, Place, Surface};
 use omeka_site::blocks::page_card::{self, CardImage};
 use omeka_site::blocks::parse::parse_block_data;
 use omeka_site::i18n::{Messages, sprintf1};
@@ -214,6 +218,8 @@ pub(crate) struct Loader<'a> {
     site: &'a Site,
     access: &'a Access<'a>,
     settings: &'a SiteSettings,
+    /// The size and run time of a stored media, for a note's overlay and rail.
+    extents: &'a dyn ExtentSource,
 }
 
 /// The visibility facts one site render reads: the asking actor and what the
@@ -263,6 +269,9 @@ impl<'a> Loader<'a> {
             .to_string()
     }
 
+    // The loader is the one struct a site render hands everything it reads
+    // through; one more borrow is the honest shape, not a parameter to bundle.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         pool: &'a DbPool,
         base: &'a BaseUrl,
@@ -271,6 +280,7 @@ impl<'a> Loader<'a> {
         site: &'a Site,
         access: &'a Access<'a>,
         settings: &'a SiteSettings,
+        extents: &'a dyn ExtentSource,
     ) -> Self {
         Self {
             pool,
@@ -280,6 +290,7 @@ impl<'a> Loader<'a> {
             site,
             access,
             settings,
+            extents,
         }
     }
 
@@ -672,32 +683,6 @@ impl<'a> Loader<'a> {
         })
     }
 
-    /// The caption languages of a recording, as the `<track>` elements the
-    /// embed plays. A kind with no timeline asks no question and runs no query.
-    async fn caption_tracks(
-        &self,
-        row: &MediaRow,
-        kind: MediaKind,
-    ) -> Result<Vec<omeka_site::annotation::TrackLink>, DbError> {
-        if !matches!(kind, MediaKind::Audio | MediaKind::Video) {
-            return Ok(Vec::new());
-        }
-        let counts = with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
-            .track_langs(&[row.id()])
-            .await)?;
-        let tracks: Vec<(Option<String>, u32)> = counts
-            .into_iter()
-            .map(|(_, lang, cues)| (lang, cues))
-            .collect();
-        let iris = Iris::new(self.base.as_str());
-        Ok(omeka_site::annotation::tracks(
-            &tracks,
-            self.settings.locale().tag(),
-            &iris.captions(row.id(), None),
-            self.messages().kind_captions,
-        ))
-    }
-
     /// The 3D viewer a model file offers on the reader's press: the vendored
     /// library's versioned URL, the size it downloads, and the site's words for
     /// the facade. `None` when the theme ships no such library, so the renderer
@@ -768,6 +753,7 @@ impl<'a> Loader<'a> {
                     title: display_title(&item.resource, self.messages()),
                     thumbnail: None,
                     media_kind: None,
+                    notes: 0,
                 });
                 url
             }
@@ -792,6 +778,124 @@ impl<'a> Loader<'a> {
             .await?,
         );
         Ok(view)
+    }
+
+    /// The caption languages of a recording, as the `<track>` elements the
+    /// embed plays. A kind with no timeline asks no question and runs no query.
+    async fn caption_tracks(
+        &self,
+        row: &MediaRow,
+        kind: MediaKind,
+    ) -> Result<Vec<omeka_site::annotation::TrackLink>, DbError> {
+        if !matches!(kind, MediaKind::Audio | MediaKind::Video) {
+            return Ok(Vec::new());
+        }
+        let counts = with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
+            .track_langs(&[row.id()])
+            .await)?;
+        let tracks: Vec<(Option<String>, u32)> = counts
+            .into_iter()
+            .map(|(_, lang, cues)| (lang, cues))
+            .collect();
+        let iris = Iris::new(self.base.as_str());
+        Ok(omeka_site::annotation::tracks(
+            &tracks,
+            self.settings.locale().tag(),
+            &iris.captions(row.id(), None),
+            self.messages().kind_captions,
+        ))
+    }
+
+    /// The notes one media page shows: a page of a hundred, or the page a cited
+    /// note starts. `None` when the media has no note a reader may see, so its
+    /// page is byte for byte the page without this unit.
+    pub(crate) async fn media_notes(
+        &self,
+        row: &MediaRow,
+        after: Option<i64>,
+        cited: Option<i64>,
+    ) -> Result<Option<NotesView>, DbError> {
+        let Some(mut page) = self
+            .notes_page(row, after.map(AnnotationId), NOTES_PER_PAGE)
+            .await?
+        else {
+            return Ok(None);
+        };
+        // A cited note on a later page opens the page that starts at it; one on
+        // the first page keeps the page a reader would have been reading.
+        if after.is_none()
+            && let Some(cited) = cited
+            && page.next.is_some_and(|next| cited > next.0)
+            && let Some(later) = self
+                .notes_page(
+                    row,
+                    Some(AnnotationId(cited.saturating_sub(1))),
+                    NOTES_PER_PAGE,
+                )
+                .await?
+        {
+            page = later;
+        }
+        if page.items.is_empty() {
+            return Ok(None);
+        }
+        let page_url = resource_show_url(&self.site.slug, "media", row.id().0);
+        let next_url = page
+            .next
+            .map(|next| format!("{page_url}?notes_after={}", next.0));
+        Ok(Some(notes_view(&page, page_url, next_url, None, cited)))
+    }
+
+    /// The notes of every media on the page, one query, as the item page shows
+    /// them: the first file's on the picture, the rest as a count on the strip.
+    async fn item_notes(
+        &self,
+        media: &[db::MediaId],
+    ) -> Result<std::collections::HashMap<db::MediaId, Summary>, DbError> {
+        let annotations = Annotations::for_reader(self.pool, self.access.actor, self.extents);
+        match annotations.summaries(media, ITEM_NOTES).await {
+            Ok(summaries) => Ok(summaries),
+            Err(AnnotationError::Db(error)) => Err(error),
+            // A read the caller may not make is a media the caller may not see,
+            // which this page already left out.
+            Err(_) => Ok(std::collections::HashMap::new()),
+        }
+    }
+
+    /// One notes page, with the service's own refusal read as "no notes".
+    async fn notes_page(
+        &self,
+        row: &MediaRow,
+        after: Option<AnnotationId>,
+        limit: u32,
+    ) -> Result<Option<Page>, DbError> {
+        let annotations = Annotations::for_reader(self.pool, self.access.actor, self.extents);
+        match annotations.notes_page(row.id(), after, limit).await {
+            Ok(page) => Ok(Some(page)),
+            Err(AnnotationError::NotFound) => Ok(None),
+            Err(AnnotationError::Db(error)) => Err(error),
+            Err(error) => Err(DbError::Column {
+                column: "annotation",
+                reason: error.to_string(),
+            }),
+        }
+    }
+
+    /// Wrap a media's rendered markup with its notes. The item page shows its
+    /// first file whole, so that file's notes are drawn on it; the other files
+    /// are cropped tiles, which name their count instead.
+    pub(crate) fn annotate_first(&self, view: &mut ResourceView, notes: &NotesView) {
+        let Some(embed) = view
+            .media_embeds
+            .first_mut()
+            .and_then(|media| media.embed.take())
+        else {
+            return;
+        };
+        let wrapped = annotation::annotated(&embed, Some(notes), self.messages(), ASSET_BASE);
+        if let Some(first) = view.media_embeds.first_mut() {
+            first.embed = Some(wrapped);
+        }
     }
 
     /// A media's place among the files of its item that the caller can see, in
@@ -822,6 +926,7 @@ impl<'a> Loader<'a> {
             title: media_display_title(entry, self.messages()),
             thumbnail: None,
             media_kind: None,
+            notes: 0,
         };
         Ok(Some(MediaPosition {
             number: index + 1,
@@ -1423,6 +1528,7 @@ impl<'a> Loader<'a> {
                     title: display_title(&set.resource, self.messages()),
                     thumbnail: None,
                     media_kind: None,
+                    notes: 0,
                 });
             }
         }
@@ -1436,14 +1542,23 @@ impl<'a> Loader<'a> {
             )
             .await)?;
         let item_url = view.url.clone();
-        for entry in media {
-            if !self
-                .access
-                .sees_resource(entry.resource.is_public, entry.resource.owner_id)
-            {
-                continue;
-            }
-            let kind = media_kind(&entry);
+        let visible: Vec<MediaRow> = media
+            .into_iter()
+            .filter(|entry| {
+                self.access
+                    .sees_resource(entry.resource.is_public, entry.resource.owner_id)
+            })
+            .collect();
+        // One summary read for every file's notes: the first file's are drawn
+        // on the picture, and each tile of the strip names its own count.
+        let ids: Vec<db::MediaId> = visible.iter().map(MediaRow::id).collect();
+        let notes = if ids.is_empty() {
+            std::collections::HashMap::new()
+        } else {
+            self.item_notes(&ids).await?
+        };
+        for entry in &visible {
+            let kind = media_kind(entry);
             if view.iiif_manifest.is_none() && kind.canvas_body() == Some(CanvasBody::Image) {
                 view.iiif_manifest = Some(format!(
                     "{}/iiif/3/item/{}/manifest",
@@ -1451,19 +1566,20 @@ impl<'a> Loader<'a> {
                     row.id().0
                 ));
             }
-            let title = media_display_title(&entry, self.messages());
+            let title = media_display_title(entry, self.messages());
             view.media.push(ResourceRef {
                 url: resource_show_url(&self.site.slug, "media", entry.id().0),
                 title: title.clone(),
-                thumbnail: square_thumbnail(self.files, &entry, row.resource.is_public, &title),
+                thumbnail: square_thumbnail(self.files, entry, row.resource.is_public, &title),
                 media_kind: Some(media_kind_cue(kind, self.messages())),
+                notes: notes.get(&entry.id()).map_or(0, |summary| summary.total),
             });
             // `media-embeds.phtml`: `$media->render()` with the renderer's own
             // defaults, except that the file opens its media page rather than
             // the raw original (a Romeka divergence, `docs/compat.md`).
             view.media_embeds.push(
                 self.media_ref(
-                    &entry,
+                    entry,
                     &item_url,
                     row.resource.is_public,
                     &RenderOptions {
@@ -1473,6 +1589,17 @@ impl<'a> Loader<'a> {
                 )
                 .await?,
             );
+        }
+        // The item page draws the first file whole, so its notes are drawn on
+        // it, capped at eight with a link to the rest.
+        if let Some(first) = visible.first()
+            && let Some(summary) = notes.get(&first.id())
+        {
+            let page_url = resource_show_url(&self.site.slug, "media", first.id().0);
+            let more_url = (summary.total > ITEM_NOTES).then(|| page_url.clone());
+            let view_notes =
+                summary_view(first.id(), media_kind(first), summary, page_url, more_url);
+            self.annotate_first(view, &view_notes);
         }
         view.file_count = view.media.len();
         for page in with_db!(self.pool, |db| SiteRepo::new(db)
@@ -1485,6 +1612,7 @@ impl<'a> Loader<'a> {
                     title: page.title.clone(),
                     thumbnail: None,
                     media_kind: None,
+                    notes: 0,
                 });
             }
         }
@@ -1580,6 +1708,7 @@ impl<'a> Loader<'a> {
                     title,
                     thumbnail,
                     media_kind: None,
+                    notes: 0,
                 },
             )));
         }
@@ -1604,6 +1733,7 @@ impl<'a> Loader<'a> {
                     title: display_title(&row.resource, self.messages()),
                     thumbnail,
                     media_kind: None,
+                    notes: 0,
                 },
             )));
         }
@@ -1627,6 +1757,7 @@ impl<'a> Loader<'a> {
                     title,
                     thumbnail,
                     media_kind: None,
+                    notes: 0,
                 },
             )));
         }
@@ -1830,6 +1961,129 @@ fn media_kind_cue(kind: MediaKind, messages: &Messages) -> MediaKindCue {
 /// `romeka_media_extent`.
 const fn is_recording(kind: MediaKind) -> bool {
     matches!(kind, MediaKind::Audio | MediaKind::Video)
+}
+
+/// The most notes a media page lists at once. The rest are a "Next" link.
+const NOTES_PER_PAGE: u32 = 100;
+
+/// The most notes the item page shows for its first file.
+const ITEM_NOTES: u32 = 8;
+
+/// A notes page as the site renders it.
+fn notes_view(
+    page: &Page,
+    page_url: String,
+    next_url: Option<String>,
+    more_url: Option<String>,
+    cited: Option<i64>,
+) -> NotesView {
+    notes_of(
+        page.media.id.0,
+        page.media.kind,
+        page.media.extent,
+        page.total,
+        &page.items,
+        page_url,
+        next_url,
+        more_url,
+        cited,
+    )
+}
+
+/// One item's summary of a media as the item page renders it. The summary
+/// carries the media's extent; its kind comes from the media row the item page
+/// read, so an image draws its overlay and a recording its rail.
+fn summary_view(
+    media: db::MediaId,
+    kind: MediaKind,
+    summary: &Summary,
+    page_url: String,
+    more_url: Option<String>,
+) -> NotesView {
+    notes_of(
+        media.0,
+        kind,
+        summary.extent,
+        summary.total,
+        &summary.first,
+        page_url,
+        None,
+        more_url,
+        None,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn notes_of(
+    media_id: u64,
+    kind: MediaKind,
+    extent: omeka_media::kind::Extent,
+    total: u32,
+    items: &[Annotation],
+    page_url: String,
+    next_url: Option<String>,
+    more_url: Option<String>,
+    cited: Option<i64>,
+) -> NotesView {
+    let surface = surface_of(kind);
+    NotesView {
+        media_id,
+        page_url,
+        surface,
+        total,
+        notes: note_lines(items),
+        canvas: if surface == Surface::Image {
+            extent.size
+        } else {
+            None
+        },
+        duration_ms: extent.duration_ms,
+        next_url,
+        more_url,
+        cited,
+    }
+}
+
+/// What a media's notes address: a picture's regions, a recording's moments,
+/// any other file as a whole.
+fn surface_of(kind: MediaKind) -> Surface {
+    match kind.surface() {
+        omeka_media::kind::Surface::Image => Surface::Image,
+        omeka_media::kind::Surface::Time => Surface::Time,
+        omeka_media::kind::Surface::Whole => Surface::Whole,
+    }
+}
+
+fn note_lines(items: &[Annotation]) -> Vec<NoteLine> {
+    items
+        .iter()
+        .map(|note| NoteLine {
+            id: note.id.0,
+            place: match &note.draft.selector {
+                Selector::Whole => Place::Whole,
+                Selector::Rect { x, y, w, h } => Place::Rect {
+                    x: *x,
+                    y: *y,
+                    w: *w,
+                    h: *h,
+                },
+                Selector::Polygon(points) => Place::Polygon(points.clone()),
+                Selector::Time { start_ms, end_ms } => Place::Time {
+                    start_ms: *start_ms,
+                    end_ms: *end_ms,
+                },
+            },
+            text: note
+                .draft
+                .bodies
+                .iter()
+                .find_map(|body| match body {
+                    Body::Text { value, .. } => Some(value.clone()),
+                    Body::Link { .. } => None,
+                })
+                .unwrap_or_default(),
+        })
+        .collect()
 }
 
 /// `MediaRepresentation::displayTitle`: the stored title, else the file's own
