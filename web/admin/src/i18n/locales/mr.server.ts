@@ -289,6 +289,9 @@ export const mrServer: ServerCatalogue = {
   'server.importZipUnpacked': 'ZIP उलगडला गेला: {count} फाईल्स जोडल्या गेल्या.',
   'server.importSweepDone':
     '{imports} आयातीमधील फाईल्स काढून टाकल्या, आणि {uploads} अपूर्ण अपलोड्स.',
+  'server.importAccessFailed':
+    'मीडिया {media} साठी कोणतेही खेळण्यायोग्य प्रत रांगेत नव्हती: {reason}',
+  'server.importAccessUnread': 'या आयातीसाठी कोणतेही खेळण्यायोग्य प्रत रांगेत नव्हते: {reason}',
   'server.mediaUploadNotFound':
     'या खात्यात "{upload}" आयडीसह कोणतेही टप्प्याटप्प्याने केलेले अपलोड नाही.',
   'server.mediaUploadBusy':
