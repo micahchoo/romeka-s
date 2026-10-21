@@ -37,6 +37,14 @@ export const FIELD_GROUPS = ['spacing', 'size', 'background', 'alignment', 'grid
 export type FieldGroup = (typeof FIELD_GROUPS)[number];
 
 /**
+ * What an asset or media field shows to visitors, from the block's own schema:
+ * an image a browser draws, an image this archive serves through the Image API
+ * (the one a IIIF viewer zooms), or any file at all.
+ */
+export const FIELD_ACCEPTS = ['image', 'imageService', 'any'] as const;
+export type FieldAccepts = (typeof FIELD_ACCEPTS)[number];
+
+/**
  * When a control shows: a test on one sibling's value. The sibling's default
  * stands in for an absent value, and a hidden control keeps what it stores.
  */
@@ -93,9 +101,20 @@ export type BlockField =
       readonly multiple: boolean;
     })
   | (FieldBase & { readonly type: 'pageRef' })
-  | (FieldBase & { readonly type: 'assetRef' })
+  /** An asset of the site, and what it must be to show. */
+  | (FieldBase & {
+      readonly type: 'assetRef';
+      readonly accepts: FieldAccepts;
+      /** Whether it sits behind the block, so it takes no description. */
+      readonly decorative: boolean;
+    })
   /** One media of the site, by id, stored as a Romeka setting. */
-  | (FieldBase & { readonly type: 'mediaRef' })
+  | (FieldBase & {
+      readonly type: 'mediaRef';
+      readonly accepts: FieldAccepts;
+      /** Whether it sits behind the block, so it takes no description. */
+      readonly decorative: boolean;
+    })
   | (FieldBase & {
       /** A point on a sibling image: x percent under `key`, y under `yKey`. */
       readonly type: 'focalPoint';
@@ -295,6 +314,18 @@ const parseCondition = (value: unknown, path: Path): FieldCondition | null => {
 const isFieldGroup = (value: string): value is FieldGroup =>
   FIELD_GROUPS.some((group) => group === value);
 
+const isFieldAccepts = (value: string): value is FieldAccepts =>
+  FIELD_ACCEPTS.some((accepts) => accepts === value);
+
+/** What a reference field shows, which the schema states for every one. */
+const parseAccepts = (value: unknown, path: Path): FieldAccepts => {
+  const accepts = parseString(value, path);
+  if (!isFieldAccepts(accepts)) {
+    throw new ParseError(path, `an accepted kind, got ${accepts}`);
+  }
+  return accepts;
+};
+
 const parseGroup = (value: unknown, path: Path): FieldGroup | null => {
   if (value === undefined) {
     return null;
@@ -382,9 +413,19 @@ const parseField = (value: unknown, path: Path): BlockField => {
     case 'pageRef':
       return { ...base, type: 'pageRef' };
     case 'assetRef':
-      return { ...base, type: 'assetRef' };
+      return {
+        ...base,
+        type: 'assetRef',
+        accepts: parseAccepts(value.accepts, [...path, 'accepts']),
+        decorative: parseFlag(value.decorative, [...path, 'decorative']),
+      };
     case 'mediaRef':
-      return { ...base, type: 'mediaRef' };
+      return {
+        ...base,
+        type: 'mediaRef',
+        accepts: parseAccepts(value.accepts, [...path, 'accepts']),
+        decorative: parseFlag(value.decorative, [...path, 'decorative']),
+      };
     case 'focalPoint':
       return {
         ...base,

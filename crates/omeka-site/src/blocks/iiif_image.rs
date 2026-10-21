@@ -23,7 +23,7 @@ use serde_json::Value as JsonValue;
 use crate::blocks::BlockLayout;
 use crate::blocks::iiif::{height, height_field, preview_poster};
 use crate::blocks::schema::{
-    ChoiceOption, LayoutSchema, When, boolean, choice, media_ref, option, text,
+    Accepts, ChoiceOption, LayoutSchema, When, boolean, choice, media_ref, option, text,
 };
 use crate::html::escape_html;
 use crate::theme::library_script;
@@ -62,6 +62,7 @@ const SCHEMA: LayoutSchema = LayoutSchema {
             "romeka.media",
             "blockField.iiifImage.media",
             "fieldHelp.iiifImage.media",
+            Accepts::ImageService,
         )
         .when(When::equals("romeka.source", "media")),
         text(

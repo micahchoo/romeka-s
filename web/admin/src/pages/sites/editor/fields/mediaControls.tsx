@@ -19,7 +19,14 @@ export const MediaRefControl = ({
   const e = useEditorText();
   return (
     <>
-      <MediaRefField id={id} label={e(field.label)} help={e(field.help)} value={value} onChange={onChange} />
+      <MediaRefField
+        id={id}
+        label={e(field.label)}
+        help={e(field.help)}
+        accepts={field.accepts}
+        value={value}
+        onChange={onChange}
+      />
       {error}
     </>
   );

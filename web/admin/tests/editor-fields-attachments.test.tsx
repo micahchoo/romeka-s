@@ -4,7 +4,7 @@
  * row, the tray's order is the rows' order, and the row edits (media, caption, order, remove) each dispatch the
  * whole attachment list. The media choice is limited to the row's item.
  */
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { DraftAction } from '../src/pages/sites/editor/draft';
 import {
@@ -15,7 +15,7 @@ import {
   rawAttachment,
 } from './editor-fields-helpers';
 import { loadFixture } from './loadFixture';
-import { installFetch, jsonResponse, listResponse, type Handler } from './stub';
+import { installFetch, jsonResponse, listResponse, urlsFor, type Handler } from './stub';
 
 const handler: Handler = (url) => {
   switch (url.pathname) {
@@ -239,6 +239,19 @@ describe('the attachments field control', () => {
       type: 'setAttachments',
       blockKey: key,
       attachments: [{ item: 12, media: null, caption: 'second' }],
+    });
+  });
+
+  it('narrows the archive by media kind from the picker\'s Has select', async () => {
+    const fetchMock = installFetch(handler);
+    renderAttachments([]);
+
+    fireEvent.change(await screen.findByLabelText('Has'), { target: { value: 'video' } });
+
+    await waitFor(() => {
+      expect(
+        urlsFor(fetchMock, '/api/items').map((url) => url.searchParams.getAll('has_media_kind')),
+      ).toContainEqual(['video']);
     });
   });
 

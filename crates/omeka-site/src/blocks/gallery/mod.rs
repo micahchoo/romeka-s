@@ -17,8 +17,8 @@ use serde_json::Value as JsonValue;
 
 use super::romeka::{ItemSelection, PlainImage, PlainRefs, RomkaBlock};
 use super::schema::{
-    ChoiceOption, LayoutSchema, When, asset_ref, boolean, choice, html, integer_range, item_media,
-    option, records,
+    Accepts, ChoiceOption, LayoutSchema, When, asset_ref, boolean, choice, html, integer_range,
+    item_media, option, records,
 };
 use crate::html::{Attr, escape_html, open_tag};
 use crate::theme::library_script;
@@ -54,6 +54,7 @@ const ASSET_FIELDS: &[super::schema::Field] = &[
         "asset",
         "romekaField.gallery.asset",
         "fieldHelp.gallery.asset",
+        Accepts::Image,
     ),
     html(
         "caption",

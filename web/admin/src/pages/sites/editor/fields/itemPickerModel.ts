@@ -4,7 +4,16 @@
  * filters make, and the text a row and the peek show from a list response.
  */
 import type { ResourceQuery } from '../../../../api/client';
-import type { ClassId, Item, ItemId, ItemSetId, Value } from '../../../../api/types';
+import type {
+  ClassId,
+  Item,
+  ItemId,
+  ItemSetId,
+  ServerMediaKind,
+  Value,
+} from '../../../../api/types';
+import type { MediaKind } from '../../../../app/media';
+import type { FieldAccepts } from '../../blockSchema';
 
 /** Several picks in the caller's order, which is the order the site shows them. */
 export interface ManyPick {
@@ -31,6 +40,13 @@ export interface OnePick {
 export type ItemPickerProps = {
   readonly id: string;
   readonly label: string;
+  /**
+   * What the field this picker fills shows, from the block's schema. A field
+   * that takes an image starts narrowed to items holding one, and a field that
+   * takes any media offers a kind to narrow by. Absent leaves the plain "Has
+   * media" test.
+   */
+  readonly accepts?: FieldAccepts;
 } & (ManyPick | OnePick);
 
 /** The picks as a list, so the tray and the rows read one shape in both modes. */
@@ -66,21 +82,87 @@ export type Source = { readonly kind: 'all' } | { readonly kind: 'set'; readonly
 
 export const ALL_ITEMS: Source = { kind: 'all' };
 
+/**
+ * What the picker asks of an item's media: nothing, any media, or a kind of
+ * media. One value, because the three are one choice and separate flags would
+ * have to be kept in agreement.
+ */
+export type MediaNarrowing =
+  | { readonly kind: 'none' }
+  | { readonly kind: 'media' }
+  | { readonly kind: 'kinds'; readonly kinds: readonly ServerMediaKind[] };
+
+export const NO_NARROWING: MediaNarrowing = { kind: 'none' };
+
+/** One choice of the "Has" select: the admin's kind word and the wire kinds it narrows to. */
+export interface HasChoice {
+  /** The kinds an item must hold, empty for any media. */
+  readonly kinds: readonly ServerMediaKind[];
+  /** The admin's word for the choice, or `null` for any media. */
+  readonly word: MediaKind | null;
+}
+
+const ANY_MEDIA: HasChoice = { kinds: [], word: null };
+
+/** Every kind a builder can narrow by, in the order the select shows them. */
+export const HAS_CHOICES: readonly HasChoice[] = [
+  ANY_MEDIA,
+  { kinds: ['local-image', 'iiif-image'], word: 'image' },
+  { kinds: ['audio'], word: 'audio' },
+  { kinds: ['video'], word: 'video' },
+  { kinds: ['pdf'], word: 'pdf' },
+  { kinds: ['model-3d'], word: 'model' },
+  { kinds: ['embed'], word: 'embed' },
+  { kinds: ['iiif-presentation'], word: 'manifest' },
+];
+
+/**
+ * The wire kinds an item must hold for a field that takes `accepts`. The
+ * narrowing picks the items; the field's own rule then decides which of their
+ * media it can show, so a IIIF slot still lists an item whose images it cannot
+ * zoom and says so on each tile.
+ */
+export const ACCEPT_KINDS: Readonly<Record<FieldAccepts, readonly ServerMediaKind[]>> = {
+  image: ['local-image', 'iiif-image'],
+  imageService: ['local-image', 'iiif-image'],
+  any: [],
+};
+
+/** The narrowing a field that takes `accepts` starts from. */
+export const narrowingFor = (accepts: FieldAccepts): MediaNarrowing => {
+  const kinds = ACCEPT_KINDS[accepts];
+  return kinds.length === 0 ? NO_NARROWING : { kind: 'kinds', kinds };
+};
+
+const sameKinds = (a: readonly ServerMediaKind[], b: readonly ServerMediaKind[]): boolean =>
+  a.length === b.length && a.every((kind, at) => kind === b[at]);
+
+/** The "Has" choice a narrowing shows, or any media when it narrows to no kinds. */
+export const hasChoiceOf = (narrowing: MediaNarrowing): HasChoice =>
+  narrowing.kind === 'kinds'
+    ? (HAS_CHOICES.find((choice) => sameKinds(choice.kinds, narrowing.kinds)) ?? ANY_MEDIA)
+    : ANY_MEDIA;
+
 export interface Filters {
   readonly source: Source;
   /** The settled search text; empty searches nothing. */
   readonly search: string;
   readonly classId: ClassId | null;
-  readonly hasMedia: boolean;
+  readonly narrowing: MediaNarrowing;
 }
 
-export const NO_FILTERS: Filters = { source: ALL_ITEMS, search: '', classId: null, hasMedia: false };
+export const NO_FILTERS: Filters = {
+  source: ALL_ITEMS,
+  search: '',
+  classId: null,
+  narrowing: NO_NARROWING,
+};
 
 export const isFiltered = (filters: Filters): boolean =>
   filters.source.kind !== 'all' ||
   filters.search !== '' ||
   filters.classId !== null ||
-  filters.hasMedia;
+  filters.narrowing.kind !== 'none';
 
 /** The `/api/items` query for the filters, without the page. The newest items come first. */
 export const itemQuery = (filters: Filters): ResourceQuery => ({
@@ -88,7 +170,10 @@ export const itemQuery = (filters: Filters): ResourceQuery => ({
   sortOrder: 'desc',
   ...(filters.search === '' ? {} : { search: filters.search }),
   ...(filters.classId === null ? {} : { resourceClassId: filters.classId }),
-  ...(filters.hasMedia ? { hasMedia: 1 } : {}),
+  ...(filters.narrowing.kind === 'media' ? { hasMedia: 1 } : {}),
+  ...(filters.narrowing.kind === 'kinds' && filters.narrowing.kinds.length > 0
+    ? { has_media_kind: filters.narrowing.kinds }
+    : {}),
   ...(filters.source.kind === 'set' ? { itemSetId: filters.source.id } : {}),
 });
 

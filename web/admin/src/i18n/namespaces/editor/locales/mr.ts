@@ -588,6 +588,13 @@ export const mr: EditorMessages = {
   'mediaRef.fallback': 'मीडिया {id}',
   'mediaRef.remove': 'काढून टाका',
   'mediaRef.changeItem': 'दुसरी वस्तू निवडा',
+  'mediaRef.mediaInItem': 'या घटकातील मीडिया:',
+  'mediaRef.notImage': 'प्रतिमा नाही',
+  'mediaRef.notZoomable': 'हा संग्रह तो झूम करू शकत नाही',
+  'mediaRef.misfit':
+    'येथे अभ्यागतांना काहीही दिसत नाही: हा विभाग प्रतिमा घेतो, आणि {kind} हा त्यांपैकी एक नाही.',
+  'mediaRef.misfitZoom':
+    'येथे अभ्यागतांना काहीही दिसत नाही: हा विभाग अशी प्रतिमा घेतो जी या संग्रहाचे झूम (zoom) करू शकते, आणि {kind} हा त्यांपैकी एक नाही.',
   'focal.noImage': 'प्रथम पार्श्वभूमी प्रतिमा निवडा.',
   'focal.notAPicture': 'या माध्यमात कोणताही फोकल पॉइंट सेट करण्यासाठी प्रतिमा नाही.',
   'focal.frame':

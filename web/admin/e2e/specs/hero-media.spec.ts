@@ -5,11 +5,13 @@
  * page renders it. A private media is offered but cannot be chosen, and a
  * chosen media that turns private later does not block the next save.
  */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { deflateSync, crc32 } from 'node:zlib';
 import type { Page } from '@playwright/test';
 import { expect, expectClean, test } from '../fixtures';
 import { SITE_SLUG } from '../harness/seed';
-import { readHarness } from '../harness/state';
+import { REPO_ROOT, readHarness } from '../harness/state';
 
 const PAGE_SLUG = 'hero-media';
 const HEADING = 'Charts of the harbour';
@@ -54,8 +56,29 @@ const png = (width: number, height: number): Buffer => {
   ]);
 };
 
-/** An item holding one uploaded image, public or private, made through the API. */
-const createItem = async (page: Page, title: string, mediaPublic: boolean): Promise<number> => {
+/** One file an item is created with: the 1200 by 600 harbour, unless told otherwise. */
+interface Uploaded {
+  readonly name: string;
+  readonly mimeType: string;
+  readonly buffer: Buffer;
+}
+
+const HARBOUR: Uploaded = { name: 'harbour.png', mimeType: 'image/png', buffer: png(1200, 600) };
+
+/** A corpus file the running server accepts, read from the repository. */
+const corpus = (name: string, mimeType: string): Uploaded => ({
+  name,
+  mimeType,
+  buffer: readFileSync(join(REPO_ROOT, 'fixtures', 'media-kinds', name)),
+});
+
+/** An item holding one uploaded file, public or private, made through the API. */
+const createItem = async (
+  page: Page,
+  title: string,
+  mediaPublic: boolean,
+  file: Uploaded = HARBOUR,
+): Promise<number> => {
   const properties: unknown = await (await page.request.get('/api/properties?term=dcterms:title')).json();
   const property = idOf(first(properties));
   const created = await page.request.post('/api/items', {
@@ -65,7 +88,7 @@ const createItem = async (page: Page, title: string, mediaPublic: boolean): Prom
         'dcterms:title': [{ type: 'literal', property_id: property, '@value': title }],
         'o:media': [{ 'o:ingester': 'upload', file_index: 0, 'o:is_public': mediaPublic }],
       }),
-      file: { name: 'harbour.png', mimeType: 'image/png', buffer: png(1200, 600) },
+      file,
     },
   });
   expect(created.status(), await created.text()).toBe(200);
@@ -158,6 +181,36 @@ test('a hero with a media of this site previews, saves and renders publicly', as
   await expect(image).toHaveCSS('object-position', '50% 60%');
   await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
   await expectClean(diagnostics, 'the public page with a media hero');
+});
+
+test('the hero picker with "Only items with images" never lists the audio-only item', async ({
+  page,
+}) => {
+  const audio = 'E2E hero candidate recording';
+  const photograph = 'E2E hero candidate photograph';
+  await createItem(page, audio, true, corpus('audio.mp3', 'audio/mpeg'));
+  await createItem(page, photograph, true);
+  await page.goto(await createPage(page, `${PAGE_SLUG}-audio`));
+  await page.getByRole('button', { name: /Insert block at position/ }).first().click();
+  await page
+    .getByRole('dialog', { name: 'Insert a block or template' })
+    .getByRole('button', { name: 'Hero banner' })
+    .click();
+  const form = page.getByRole('region', { name: 'Block inspector' });
+  await form.getByLabel('Background from').selectOption('media');
+
+  const onlyImages = form.getByRole('checkbox', { name: 'Only items with images' });
+  await expect(onlyImages).toBeChecked();
+  await form.getByLabel('Search titles and values').fill('E2E hero candidate');
+  const picker = form.getByRole('listbox', { name: 'Find the item' });
+  await expect(picker.getByRole('option', { name: photograph, exact: true })).toBeVisible();
+  await expect(picker.getByRole('option', { name: audio, exact: true })).toHaveCount(0);
+
+  // The same search without the filter lists the recording, so the filter is
+  // what kept it out and not the search text.
+  await onlyImages.uncheck();
+  await expect(picker.getByRole('option', { name: audio, exact: true })).toBeVisible();
+  await expect(picker.getByRole('option', { name: photograph, exact: true })).toBeVisible();
 });
 
 test('a private media is shown but cannot be chosen', async ({ page }) => {

@@ -620,6 +620,7 @@
           "label": "blockField.iiifImage.media",
           "help": "fieldHelp.iiifImage.media",
           "type": "mediaRef",
+          "accepts": "imageService",
           "when": {
             "field": "romeka.source",
             "test": "equals",
@@ -685,7 +686,8 @@
               "key": "id",
               "label": "blockField.asset.id",
               "help": "fieldHelp.asset.id",
-              "type": "assetRef"
+              "type": "assetRef",
+              "accepts": "any"
             },
             {
               "key": "page",
@@ -974,6 +976,8 @@
           "label": "romekaField.hero.background",
           "help": "fieldHelp.hero.background",
           "type": "assetRef",
+          "accepts": "image",
+          "decorative": true,
           "when": {
             "field": "background_source",
             "test": "equals",
@@ -985,6 +989,8 @@
           "label": "romekaField.hero.background_media",
           "help": "fieldHelp.hero.background_media",
           "type": "mediaRef",
+          "accepts": "image",
+          "decorative": true,
           "when": {
             "field": "background_source",
             "test": "equals",
@@ -1262,7 +1268,8 @@
               "key": "asset",
               "label": "romekaField.gallery.asset",
               "help": "fieldHelp.gallery.asset",
-              "type": "assetRef"
+              "type": "assetRef",
+              "accepts": "image"
             },
             {
               "key": "caption",
@@ -1760,6 +1767,8 @@
         "label": "blockLayoutData.background_image_asset",
         "help": "fieldHelp.layout.background_image_asset",
         "type": "assetRef",
+        "accepts": "image",
+        "decorative": true,
         "group": "background"
       },
       {
