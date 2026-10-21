@@ -7,6 +7,7 @@ import { formatBytes, formatDateTime } from '../../app/format';
 import { ErrorNotice } from '../../app/errors';
 import { EditPanel } from '../../app/fields';
 import { mediaName, originalFileUrl } from '../../app/media';
+import { MediaPreviewState } from '../../app/media-image';
 import { useAsync } from '../../app/useAsync';
 import { ValuesList } from '../../app/values';
 import { useTranslator } from '../../i18n';
@@ -99,6 +100,7 @@ export const MediaDetail = ({ mediaId }: { readonly mediaId: MediaId }): ReactEl
   return (
     <section>
       <h2>{mediaName(media) ?? t('common.untitled')}</h2>
+      <MediaPreviewState media={media} />
 
       {/* The stage is the media; the notes panel sits beside it from 1100px. */}
       <div className="media-detail-body">

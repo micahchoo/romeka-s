@@ -46,6 +46,7 @@ const media: Media = {
   lang: 'en',
   altText: null,
   originalUrl: `${BASE}/files/original/9.mp3`,
+  preview: null,
   thumbnailUrls: {},
 };
 

@@ -10,6 +10,75 @@ use super::common::{
 /// `MediaAdapter::getResourceName`.
 pub const RESOURCE_NAME: &str = "media";
 
+/// Where a media's derivatives stand, as `o-module-romeka:preview.state` reports them.
+///
+/// `pending` covers a queued row and a worker that has claimed it: from a reader's side both
+/// mean "not yet". `none` means there is nothing to wait for, either because the kind has no
+/// derivative or because a tool this install does not have makes it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PreviewState {
+    #[serde(rename = "pending")]
+    Pending,
+    #[serde(rename = "ready")]
+    Ready,
+    #[serde(rename = "failed")]
+    Failed,
+    #[serde(rename = "none")]
+    None,
+}
+
+/// The port's derivative state for one media (`o-module-romeka:preview`).
+///
+/// Upstream has no such member: its admin reads `media.has_thumbnails` and shows a placeholder
+/// while a derivative is missing. The reason is the typed skip or failure a reader can show, and
+/// progress is the percentage a long derivative reports.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MediaPreview {
+    pub state: PreviewState,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub progress: Option<u8>,
+}
+
+impl MediaPreview {
+    #[must_use]
+    pub fn pending(progress: Option<u8>) -> Self {
+        Self {
+            state: PreviewState::Pending,
+            reason: None,
+            progress,
+        }
+    }
+
+    #[must_use]
+    pub fn ready() -> Self {
+        Self {
+            state: PreviewState::Ready,
+            reason: None,
+            progress: None,
+        }
+    }
+
+    #[must_use]
+    pub fn failed(reason: Option<String>) -> Self {
+        Self {
+            state: PreviewState::Failed,
+            reason,
+            progress: None,
+        }
+    }
+
+    #[must_use]
+    pub fn none(reason: Option<String>) -> Self {
+        Self {
+            state: PreviewState::None,
+            reason,
+            progress: None,
+        }
+    }
+}
+
 /// One media document, including the raw `data` column
 /// (`MediaRepresentation::mediaData`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -65,6 +134,14 @@ pub struct Media {
     pub alt_text: Option<String>,
     #[serde(rename = "o:original_url")]
     pub original_url: Option<String>,
+    /// The port's derivative state for this media (`PreviewState`). Upstream has no such
+    /// member and reads none of it.
+    #[serde(
+        rename = "o-module-romeka:preview",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub preview: Option<MediaPreview>,
     #[serde(rename = "o:thumbnail_urls")]
     pub thumbnail_urls: ThumbnailUrls,
     pub data: Option<serde_json::Value>,

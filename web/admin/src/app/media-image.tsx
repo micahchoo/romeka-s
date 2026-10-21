@@ -84,6 +84,49 @@ const MediaKindIcon = ({ kind }: { readonly kind: MediaKind }): ReactElement => 
   </svg>
 );
 
+/**
+ * The words a preview needs while it is not ready: `Making preview` for a queued
+ * or running derivative, and the tool's reason when it failed. A ready preview,
+ * a media an older server sent no state for, and a kind with no derivative say
+ * nothing, because their tile already reads as it did before this state existed.
+ */
+const usePreviewText = (media: Media): string | null => {
+  const { t } = useTranslator(resources);
+  const preview = media.preview;
+  if (preview === null) {
+    return null;
+  }
+  if (preview.state === 'pending') {
+    return t('media.preview.pending');
+  }
+  if (preview.state === 'failed') {
+    return preview.reason === null
+      ? t('media.preview.failed')
+      : t('media.preview.failedWithReason', { reason: preview.reason });
+  }
+  return null;
+};
+
+/** The preview's state as one line, for a list cell or a page heading. */
+export const MediaPreviewState = ({
+  media,
+  className = '',
+}: {
+  readonly media: Media;
+  readonly className?: string;
+}): ReactElement | null => {
+  const text = usePreviewText(media);
+  if (text === null) {
+    return null;
+  }
+  const failed = media.preview?.state === 'failed';
+  return (
+    <span className={`media-preview-state${failed ? ' is-failed' : ''} ${className}`.trim()}>
+      {text}
+    </span>
+  );
+};
+
 /** A media's kind as a word, for a tile that is not only a picture. */
 export const MediaKindBadge = ({ media }: { readonly media: Media }): ReactElement => {
   const { t } = useTranslator(resources);
@@ -124,6 +167,8 @@ export interface KindTileProps {
   readonly compact?: boolean;
   /** A preview beside its own name: empty `alt`, and nothing for a screen reader. */
   readonly decorative?: boolean;
+  /** What a derivative that is not ready says; `null` for a tile with no state. */
+  readonly preview?: string | null;
 }
 
 /**
@@ -141,22 +186,28 @@ export const KindTile = ({
   lazy = false,
   compact = false,
   decorative = false,
+  preview = null,
 }: KindTileProps): ReactElement => {
   const { t } = useTranslator(resources);
   if (url === null) {
     const label = t(KIND_LABEL[kind]);
     // A PDF file's extension repeats the kind's own name, so it earns no line.
     const namedFile = extension !== null && extension.toLowerCase() !== label.toLowerCase();
+    const words = namedFile ? `${label} ${extension}` : label;
+    const spoken = preview === null ? words : `${words}. ${preview}`;
     return (
       <span
         className={`media-image media-image-empty ${className}${compact ? ' is-compact' : ''}`}
         data-kind={kind}
-        title={compact ? (namedFile ? `${label} ${extension}` : label) : undefined}
+        title={compact ? spoken : undefined}
         aria-hidden={decorative ? true : undefined}
       >
         <MediaKindIcon kind={kind} />
         <span className="media-image-kind">{label}</span>
         {namedFile ? <span className="media-image-extension">{extension}</span> : null}
+        {!compact && preview !== null ? (
+          <span className="media-preview-state media-image-state">{preview}</span>
+        ) : null}
       </span>
     );
   }
@@ -202,6 +253,7 @@ export const MediaImage = ({
   decorative = false,
 }: MediaImageProps): ReactElement => {
   const { t } = useTranslator(resources);
+  const preview = usePreviewText(media);
   return (
     <KindTile
       kind={mediaKind(media)}
@@ -212,6 +264,7 @@ export const MediaImage = ({
       lazy={lazy}
       compact={compact}
       decorative={decorative}
+      preview={preview}
     />
   );
 };

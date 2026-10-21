@@ -45,9 +45,11 @@ sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio
 # a video is never held whole (`commands/thumbnails.rs`). Tests use it too.
 tempfile = "3"
 thiserror.workspace = true
-tokio = { version = "1", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "sync"] }
+tokio = { version = "1", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 
 [dev-dependencies]
 # `tests/import_staging.rs` writes the ZIPs it uploads.
 flate2 = "1"
 axum = "0.8"
+# `tests/media_derivatives.rs` drives the router in-process with `oneshot`.
+tower = { version = "0.5", features = ["util"] }

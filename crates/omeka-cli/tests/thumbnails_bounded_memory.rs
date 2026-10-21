@@ -93,9 +93,12 @@ async fn a_large_video_is_streamed_not_read_whole() {
     .expect("backfill");
     let after = peak_resident_bytes();
 
-    assert_eq!(report.failed, 0, "{report:?}");
+    // The bytes are not a real video, so `ffmpeg` reads the whole streamed file
+    // and refuses it. That is a failure with the command's reason, not a skip:
+    // a missing tool is the skip (`make_preview` tells the two apart).
+    assert_eq!(report.failed, 1, "{report:?}");
     assert_eq!(report.results.len(), 1);
-    assert_eq!(report.results[0].status, ThumbnailStatus::Skipped);
+    assert_eq!(report.results[0].status, ThumbnailStatus::Failed);
     let message = report.results[0].message.as_deref().unwrap_or_default();
     assert!(message.contains("ffmpeg"), "{message}");
     if let (Some(before), Some(after)) = (before, after) {

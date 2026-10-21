@@ -192,6 +192,39 @@ export const seedSystem = (
 };
 
 /**
+ * The media row once its preview exists.
+ *
+ * The create answers `o-module-romeka:preview` `pending` and a worker makes the
+ * derivatives off the request, so the specs must not start until that worker
+ * has settled the row: they read the square and large files.
+ */
+const waitForPreview = async (
+  baseUrl: string,
+  item: number,
+): Promise<Record<string, unknown>> => {
+  const deadline = Date.now() + 30_000;
+  for (;;) {
+    const list = await apiGet(baseUrl, `/api/media?item_id=${String(item)}`);
+    const first = isArray(list) ? list[0] : undefined;
+    if (first !== undefined) {
+      const row = record(first, 'media');
+      const preview = row['o-module-romeka:preview'];
+      const state =
+        typeof preview === 'object' && preview !== null && 'state' in preview
+          ? preview.state
+          : null;
+      if (state === 'ready' || state === 'none') {
+        return row;
+      }
+    }
+    if (Date.now() > deadline) {
+      throw new Error('the derivative worker did not settle the seeded media in 30 seconds');
+    }
+    await new Promise((done) => setTimeout(done, 100));
+  }
+};
+
+/**
  * Create the item set, the items, one imported media file and one site, then
  * report the ids the run produced.
  */
@@ -227,14 +260,7 @@ export const seedData = async (baseUrl: string): Promise<Seeded> => {
   if (!uploaded.ok) {
     throw new Error(`POST /api/media: ${String(uploaded.status)} ${await uploaded.text()}`);
   }
-  const mediaDoc = await apiGet(baseUrl, `/api/media?item_id=${String(firstItem)}`);
-  if (!isArray(mediaDoc)) {
-    throw new Error('/api/media: expected an array');
-  }
-  const firstMedia = mediaDoc[0];
-  if (firstMedia === undefined) {
-    throw new Error(`importing ${MEDIA_FILE} wrote no media row`);
-  }
+  const firstMedia = await waitForPreview(baseUrl, firstItem);
 
   const site = await apiPost(baseUrl, '/api/sites', {
     'o:title': SITE_TITLE,
@@ -245,7 +271,7 @@ export const seedData = async (baseUrl: string): Promise<Seeded> => {
   return {
     itemSetId,
     itemIds,
-    mediaId: numberField(record(firstMedia, 'media'), 'o:id', 'media'),
+    mediaId: numberField(firstMedia, 'o:id', 'media'),
     siteId: numberField(site, 'o:id', 'site'),
   };
 };

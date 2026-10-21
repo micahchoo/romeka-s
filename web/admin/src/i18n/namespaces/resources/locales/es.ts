@@ -84,6 +84,10 @@ export const es: ResourcesMessages = {
   'media.browse.import': 'Importar',
   'media.filter.label': 'Tipo',
   'media.filter.all': 'Todos los tipos',
+  // A preview the server is still making, or could not make.
+  'media.preview.pending': 'Creando la vista previa',
+  'media.preview.failed': 'No se pudo crear la vista previa.',
+  'media.preview.failedWithReason': 'No se pudo crear la vista previa: {reason}',
   // La escena: un control por tipo y los datos al lado.
   'media.stage.noPreview': 'No hay vista previa.',
   'media.stage.noFile': 'Este medio no tiene ningún archivo guardado.',

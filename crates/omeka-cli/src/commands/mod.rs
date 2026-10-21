@@ -1,6 +1,7 @@
 //! One module per CLI command group.
 
 pub mod backup;
+pub mod derivatives;
 pub mod export;
 mod file_store;
 pub mod import;
