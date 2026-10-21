@@ -1325,6 +1325,7 @@ fn kind_word(kind: &str) -> &'static str {
         "audio" => "Audio",
         "video" => "Video",
         "pdf" => "PDF",
+        "document" => "Document",
         "model-3d" => "3D model",
         "captions" => "Captions",
         "embed" | "iiif-presentation" => "Embed",

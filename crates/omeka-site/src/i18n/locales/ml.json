@@ -62,6 +62,7 @@
   "kind_audio": "ഓഡിയോ",
   "kind_video": "വീഡിയോ",
   "kind_pdf": "PDF",
+  "kind_document": "രേഖ",
   "kind_model_3d": "3D മോഡൽ",
   "kind_captions": "അടിക്കുറിപ്പുകൾ",
   "kind_embed": "ഉൾപ്പെടുത്തുക",

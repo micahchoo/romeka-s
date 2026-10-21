@@ -62,6 +62,7 @@
   "kind_audio": "Audio",
   "kind_video": "Video",
   "kind_pdf": "PDF",
+  "kind_document": "Document",
   "kind_model_3d": "3D model",
   "kind_captions": "Captions",
   "kind_embed": "Embed",

@@ -2215,8 +2215,11 @@ a.pdf-card:focus-visible {
 }
 
 /* A phone draws no scrollable inline PDF: Android shows nothing and iOS shows
-   the first page only, so the page shows the card instead. */
-@media (pointer: coarse) and (max-width: 40rem) {
+   the first page only, so a narrow column shows the card instead. The width is
+   the condition, not the pointer: a narrow window on a machine with a mouse
+   draws the same unusable reader, and hiding it only for a coarse pointer left
+   an 80vh blank box above the download line. */
+@media (max-width: 40rem) {
   .pdf-reader-page > .pdf-object {
     display: none;
   }

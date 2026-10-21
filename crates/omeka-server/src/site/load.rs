@@ -633,6 +633,7 @@ impl<'a> Loader<'a> {
             renderer: &row.renderer,
             ingester: &row.ingester,
             media_type: row.media_type.as_deref(),
+            extension: row.extension.as_deref(),
             has_thumbnails: row.has_thumbnails,
         });
         let tracks = self.caption_tracks(row, kind).await?;
@@ -2114,6 +2115,7 @@ fn media_kind(row: &MediaRow) -> MediaKind {
         renderer: &row.renderer,
         ingester: &row.ingester,
         media_type: row.media_type.as_deref(),
+        extension: row.extension.as_deref(),
         has_thumbnails: row.has_thumbnails,
     })
 }
@@ -2127,6 +2129,7 @@ fn media_kind_cue(kind: MediaKind, messages: &Messages) -> MediaKindCue {
         MediaKind::Audio => (messages.kind_audio, MediaIcon::Audio),
         MediaKind::Video => (messages.kind_video, MediaIcon::Video),
         MediaKind::Pdf { .. } => (messages.kind_pdf, MediaIcon::Pdf),
+        MediaKind::Document => (messages.kind_document, MediaIcon::File),
         MediaKind::Model3d => (messages.kind_model_3d, MediaIcon::Model),
         MediaKind::Captions => (messages.kind_captions, MediaIcon::Captions),
         MediaKind::Embed | MediaKind::IiifPresentation => (messages.kind_embed, MediaIcon::Embed),

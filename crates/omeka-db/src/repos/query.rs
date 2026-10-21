@@ -305,13 +305,14 @@ impl QueryFilter {
     }
 }
 
-/// A filter on the port's media kind: the kind names to keep, and the media types
-/// whose derivatives display as an image, which decide `local-image` as
-/// `MediaKind::of` does.
+/// A filter on the port's media kind: the kind names to keep, and the stored
+/// facts `MediaKind::of` reads, so the clause applies the same table.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MediaKindFilter {
     pub names: Vec<String>,
     pub local_image_types: Vec<String>,
+    pub office_document_types: Vec<String>,
+    pub office_document_extensions: Vec<String>,
 }
 
 /// `romeka_kind` and `has_media_kind`: the port's media kind as the wire names
@@ -360,8 +361,34 @@ where
              AND media.media_type IN ('model/gltf-binary', 'model/gltf+json') THEN 'model-3d'
            WHEN media.renderer = 'file'
              AND media.media_type IN ('text/vtt', 'application/x-subrip') THEN 'captions'
+           WHEN media.renderer = 'file' AND media.media_type IN (",
+    );
+    if filter.office_document_types.is_empty() {
+        statement.push("NULL");
+    }
+    for (index, media_type) in filter.office_document_types.iter().enumerate() {
+        if index > 0 {
+            statement.push(", ");
+        }
+        statement.bind(media_type.clone())?;
+    }
+    statement.push(
+        ") THEN 'document'
            WHEN media.renderer = 'file' AND media.media_type LIKE 'audio/%' THEN 'audio'
            WHEN media.renderer = 'file' AND media.media_type LIKE 'video/%' THEN 'video'
+           WHEN media.renderer = 'file' AND LOWER(media.extension) IN (",
+    );
+    if filter.office_document_extensions.is_empty() {
+        statement.push("NULL");
+    }
+    for (index, extension) in filter.office_document_extensions.iter().enumerate() {
+        if index > 0 {
+            statement.push(", ");
+        }
+        statement.bind(extension.clone())?;
+    }
+    statement.push(
+        ") THEN 'document'
            ELSE 'other-file' END) IN (",
     );
     for (index, name) in names.iter().enumerate() {
