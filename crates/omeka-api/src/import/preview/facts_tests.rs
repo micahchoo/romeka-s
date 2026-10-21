@@ -537,3 +537,42 @@ fn identical_files_answer_the_sets_the_scan_stored() {
                 "paths": ["a.jpg", "copy/a.jpg"] })
     );
 }
+
+#[test]
+fn an_office_file_is_a_document_by_its_type_or_by_its_extension() {
+    let derived = derived(
+        &[
+            (
+                "Letters/LT1.docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ),
+            ("Letters/LT2.odt", "application/zip"),
+            ("Letters/LT3.zip", "application/zip"),
+        ],
+        None,
+        |_| {},
+    );
+    let found = answer(&derived, json!({ "include": ["shapes"], "seed": 1 }));
+    let media: Vec<(&Value, u64)> = groups(&found)
+        .iter()
+        .map(|group| (&group["facts"]["media"], group["count"].as_u64().unwrap()))
+        .collect();
+    assert!(
+        media.contains(&(&json!(["document"]), 2)),
+        "the .docx by its type, the .odt by its name: {media:?}"
+    );
+    assert!(
+        media.contains(&(&json!(["other"]), 1)),
+        "a plain zip: {media:?}"
+    );
+
+    let document = groups(&found)
+        .iter()
+        .find(|group| group["facts"]["media"] == json!(["document"]))
+        .unwrap();
+    let records = answer(
+        &derived,
+        json!({ "include": ["records"], "records": { "shape": document["facts"] } }),
+    );
+    assert_eq!(records["records"]["total"], 2, "{records}");
+}

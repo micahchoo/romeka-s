@@ -31,6 +31,7 @@ export const ta: ImportListsMessages = {
   'lists.facts.pdf': 'பி.டி.எஃப்.க்கள்',
   'lists.facts.audio': 'ஒலிகள்',
   'lists.facts.video': 'திரைப்படங்கள்',
+  'lists.facts.document': 'ஆவணங்கள்',
   'lists.facts.other': 'பிற கோப்புகள்',
   'lists.facts.parts': 'நீங்கள் குறிப்பிட்ட பகுதியில் {parts} என்ற சொற்களுடன்',
   'lists.facts.pages': '{count} பக்க எண்கள்',
