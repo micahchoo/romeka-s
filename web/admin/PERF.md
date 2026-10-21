@@ -945,6 +945,44 @@ measurement stands: parallel authenticated requests cost about one round, becaus
 **Verdict.** Accepted. No budget moved; the initial payload has 33 B of room, so
 the next eager addition has to move or split something.
 
+## Decision 31: the item page's note counts come from one read (accepted)
+
+**Premise.** Decision 30 left the item page reading one WAP container per visible file, because a
+card's count had no other source. That is 100 session-authenticated requests on a 100-file item.
+`GET /annotations/item/{id}/counts` now answers every file's count and write right in one document
+(`docs/api.md`, "Web Annotation Protocol"), and the page reads a container only for a file whose
+notes it draws.
+
+**Change.** `src/pages/items/notes/read.ts` fetches the counts, then one container for each file with
+a count above zero; a file with none costs an entry in the counts document and no request. The cards,
+the first file's summary and the grouped list all read the counts document, so the page holds one
+source for a count. The counts parse is in the same lazy `read` chunk, not in the eager media parse,
+so no list page pays for it.
+
+**Measured.** `npm run build` then `npm run perf:check` and `npm run perf:pages`, gzip bytes, against
+this branch's base (`802e978b`) built the same way from a `git archive` copy with the same
+`node_modules`:
+
+| Asset | Before | After | Note |
+| --- | --- | --- | --- |
+| initial js | 87054 | 87047 | inside the run-to-run gzip difference; no member was added to the eager parse |
+| initial css | 5513 | 5513 | |
+| items route, own chunk | 6654 | 6654 | |
+| items route, total with shared chunks | 56150 | 56139 | |
+| `read` | 295 | 625 | the counts fetch and its parser |
+| `item-notes` | 1222 js, 443 css | 1257 js, 443 css | counts replace the container's totals |
+| largest chunk | 9787 (`preview-*`) | 9786 (`preview-*`) | 454 B under the 10240 B ceiling |
+
+**Read cost.** `item-notes.spec.ts` creates a 6-file item with notes on 2 files and counts the
+requests the page makes: 1 counts read and 2 container reads, 837 ms from navigation to the last
+group on the harness (debug server, one run, a warm machine). Decision 30 measured 6 containers for
+the same path, 846 ms, so the wall clock did not move: one authenticated round is `bcrypt::verify`,
+and requests in parallel cost about what one costs. What changed is the request count, which is the
+part that grows with the item.
+
+**Verdict.** Accepted. No budget moved and the initial payload does not grow. A 100-file item now
+costs one counts read plus one container per file that has notes, instead of one per file.
+
 ## Budgets
 
 `timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,

@@ -356,9 +356,26 @@ def annotations_section(out: list[str]) -> None:
                 ["`GET`, `HEAD`", "`/annotations/{a}`", "one annotation, 200"],
                 ["`PUT`", "`/annotations/{a}`", "200, `If-Match` required"],
                 ["`DELETE`", "`/annotations/{a}`", "204, `If-Match` required"],
+                [
+                    "`GET`",
+                    "`/annotations/item/{id}/counts`",
+                    "200, the note count of every file of the item the caller may read",
+                ],
                 ["`OPTIONS`", "`/annotations/...`", "204, the CORS preflight"],
             ],
         )
+    )
+    out.append("")
+    out.append(
+        "The counts document is Romeka's own, for the admin's item page: "
+        '`{"media": {"<media id>": {"count": N, "writable": true|false}}}` under '
+        "`Cache-Control: no-store`, one entry per media of the item the caller may read, in the "
+        "item's order. `count` is the `total` the file's own container states, and `writable` is "
+        "whether that container would accept a `POST`, so the page draws a card from this answer "
+        "and reads one container only for a file whose notes it shows. A media the caller may not "
+        "read is absent, as its container is a 404, and an item with no such media answers an empty "
+        "`media` object. It is plain JSON rather than a WAP document, it carries `Cache-Control: "
+        "no-store`, and it sends no CORS headers: only the admin's own page reads it."
     )
     out.append("")
     out.append(

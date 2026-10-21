@@ -275,7 +275,7 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
     ],
     [baseMedia, added],
   );
-  const itemNotes = useItemNotes(media);
+  const itemNotes = useItemNotes(itemId, media);
 
   // The viewer is URL state: `?preview=<media>` opens it and a hash without it
   // (Back, or the close button) closes it.

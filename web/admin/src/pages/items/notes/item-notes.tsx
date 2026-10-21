@@ -101,25 +101,30 @@ export const ItemNotesSections = ({
   if (first === undefined) {
     return <p className="item-notes-status">{t('notes.itemEmpty')}</p>;
   }
+  const firstCount = read.counts.get(first.id)?.count ?? 0;
   const firstNotes = read.files.get(first.id);
   const firstName = mediaName(first) ?? t('common.untitled');
   const firstRows = firstNotes === undefined ? [] : placedNotes(firstNotes.notes);
   const grouped = media.flatMap((entry) => {
+    const known = read.counts.get(entry.id);
+    const count = known?.count ?? 0;
     const file = read.files.get(entry.id);
-    return file === undefined || file.total === 0 ? [] : [{ entry, file }];
+    return count === 0 || file === undefined
+      ? []
+      : [{ entry, file, count, writable: known?.writable === true }];
   });
 
   return (
     <>
       <section className="item-first-notes" aria-labelledby={firstHeading}>
         <h3 id={firstHeading}>{t('notes.firstHeading', { name: firstName })}</h3>
-        {firstNotes === undefined || firstNotes.total === 0 ? (
+        {firstCount === 0 || firstNotes === undefined ? (
           <p className="item-notes-status">{t('notes.firstNone')}</p>
         ) : (
           <>
             <p className="item-notes-count">
-              {t(firstNotes.total === 1 ? 'notes.facts.fileOne' : 'notes.facts.file', {
-                total: firstNotes.total,
+              {t(firstCount === 1 ? 'notes.facts.fileOne' : 'notes.facts.file', {
+                total: firstCount,
               })}
             </p>
             <ol className="item-note-lines">
@@ -133,9 +138,9 @@ export const ItemNotesSections = ({
                 />
               ))}
             </ol>
-            {firstNotes.total > FIRST_SHOWN ? (
+            {firstCount > FIRST_SHOWN ? (
               <a className="item-notes-more" href={mediaHref(first.id)}>
-                {t('notes.firstMore', { count: firstNotes.total - FIRST_SHOWN })}
+                {t('notes.firstMore', { count: firstCount - FIRST_SHOWN })}
               </a>
             ) : null}
           </>
@@ -156,12 +161,12 @@ export const ItemNotesSections = ({
                 {t('notes.itemCapped', { shown: media.length, total: totalFiles })}
               </p>
             ) : null}
-            {grouped.map(({ entry, file }) => {
+            {grouped.map(({ entry, file, count, writable }) => {
               const shown = Math.min(PER_FILE, file.notes.length);
               return (
                 <div className="item-notes-file" key={String(entry.id)}>
                   <h4>
-                    <a href={file.writable ? annotateHref(entry.id) : mediaHref(entry.id)}>
+                    <a href={writable ? annotateHref(entry.id) : mediaHref(entry.id)}>
                       {mediaName(entry) ?? t('common.untitled')}
                     </a>
                     <span className="item-notes-kind">{t(KIND_LABEL[mediaKind(entry)])}</span>
@@ -179,9 +184,9 @@ export const ItemNotesSections = ({
                         />
                       ))}
                   </ol>
-                  {file.total > shown ? (
+                  {count > shown ? (
                     <a className="item-notes-more" href={mediaHref(entry.id)}>
-                      {t('notes.itemMore', { count: file.total - shown })}
+                      {t('notes.itemMore', { count: count - shown })}
                     </a>
                   ) : null}
                 </div>

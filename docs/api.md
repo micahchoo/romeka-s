@@ -1499,7 +1499,10 @@ These routes are not `/api` and are not parsed from `omeka-api`: they are the W3
 | `GET`, `HEAD` | `/annotations/{a}` | one annotation, 200 |
 | `PUT` | `/annotations/{a}` | 200, `If-Match` required |
 | `DELETE` | `/annotations/{a}` | 204, `If-Match` required |
+| `GET` | `/annotations/item/{id}/counts` | 200, the note count of every file of the item the caller may read |
 | `OPTIONS` | `/annotations/...` | 204, the CORS preflight |
+
+The counts document is Romeka's own, for the admin's item page: `{"media": {"<media id>": {"count": N, "writable": true|false}}}` under `Cache-Control: no-store`, one entry per media of the item the caller may read, in the item's order. `count` is the `total` the file's own container states, and `writable` is whether that container would accept a `POST`, so the page draws a card from this answer and reads one container only for a file whose notes it shows. A media the caller may not read is absent, as its container is a 404, and an item with no such media answers an empty `media` object. It is plain JSON rather than a WAP document, it carries `Cache-Control: no-store`, and it sends no CORS headers: only the admin's own page reads it.
 
 The caller is the session cookie or the `/api` key pair; reading a media reads its notes, and holding the media-update grant writes them. Every answer carries `Access-Control-Allow-Origin: *`, `Vary: Accept, Cookie, Prefer`, `Cache-Control: no-cache` and a strong `ETag`: `"r<revision>"` for a note, and `"p"` with 16 hex characters of a SHA-256 over the content type and the body for a container or page. `If-Match` compares strongly, so a weak tag is a 412 and a missing one a 428. `If-None-Match` on a container or page is a 304. A create replayed with the same `Idempotency-Key` is a 200 and the same row; the key with a different draft is a 422.
 
