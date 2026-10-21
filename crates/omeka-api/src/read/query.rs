@@ -105,13 +105,19 @@ impl SearchQuery {
 /// blank values dropped. `None` when the request named none, so no filter
 /// applies; a name the server does not know stays in the list and matches no
 /// row, the way an unknown `ingester` does.
-pub fn kind_names(values: Vec<String>) -> Option<Vec<String>> {
-    let values: Vec<String> = values
+pub fn kind_names(values: Vec<String>) -> Option<omeka_db::repos::MediaKindFilter> {
+    let names: Vec<String> = values
         .into_iter()
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
         .collect();
-    (!values.is_empty()).then_some(values)
+    (!names.is_empty()).then(|| omeka_db::repos::MediaKindFilter {
+        names,
+        local_image_types: omeka_media::thumbnailer::SOURCE_MEDIA_TYPES
+            .iter()
+            .map(|media_type| (*media_type).to_string())
+            .collect(),
+    })
 }
 
 /// `AbstractEntityAdapter::buildBaseQuery`'s `id` filter: the request's id
