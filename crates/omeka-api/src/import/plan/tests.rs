@@ -9,15 +9,15 @@ const FULL: &str = include_str!("../fixtures/full.json");
 const DEFAULT: &str = include_str!("../fixtures/default.json");
 const DELETE: &str = include_str!("../fixtures/delete.json");
 
-fn parse(text: &str) -> ImportPlanV2 {
-    ImportPlanV2::from_json(text).expect("a valid plan")
+fn parse(text: &str) -> ImportPlan {
+    ImportPlan::from_json(text).expect("a valid plan")
 }
 
 /// The full fixture, changed by `edit`, through the boundary.
 fn refused(base: &str, edit: impl FnOnce(&mut Value)) -> PlanError {
     let mut value: Value = serde_json::from_str(base).expect("fixture json");
     edit(&mut value);
-    match ImportPlanV2::from_json(&value.to_string()) {
+    match ImportPlan::from_json(&value.to_string()) {
         Ok(_) => panic!("accepted: {value}"),
         Err(error) => error,
     }
@@ -118,7 +118,7 @@ fn a_v1_plan_is_refused_as_v1() {
         "withoutFiles": [], "csvRow": {}, "problemRows": "leave"
     });
     assert!(matches!(
-        ImportPlanV2::from_json(&v1.to_string()),
+        ImportPlan::from_json(&v1.to_string()),
         Err(PlanError::V1Plan)
     ));
 }
@@ -230,10 +230,10 @@ fn only_a_file_entry_moves() {
     assert!(matches!(error, PlanError::Shape(_)));
 }
 
-fn with_decisions(decisions: Value) -> Result<ImportPlanV2, PlanError> {
+fn with_decisions(decisions: Value) -> Result<ImportPlan, PlanError> {
     let mut value: Value = serde_json::from_str(FULL).expect("fixture json");
     value["decisions"] = decisions;
-    ImportPlanV2::from_json(&value.to_string())
+    ImportPlan::from_json(&value.to_string())
 }
 
 fn file(path: &str) -> Value {
@@ -469,7 +469,7 @@ fn paths_and_row_keys_are_stored_nfc() {
     ));
 }
 
-fn edited(edit: impl FnOnce(&mut Value)) -> ImportPlanV2 {
+fn edited(edit: impl FnOnce(&mut Value)) -> ImportPlan {
     let mut value: Value = serde_json::from_str(FULL).expect("fixture json");
     edit(&mut value);
     parse(&value.to_string())
