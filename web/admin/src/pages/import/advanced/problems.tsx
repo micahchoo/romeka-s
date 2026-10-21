@@ -26,6 +26,7 @@ const DEFAULT_POLICY: Readonly<Partial<Record<FlagKind, FlagPolicy>>> = {
   'cells-count': 'leave',
   'no-file': 'keep',
   'not-media': 'leave',
+  'listed-not-media': 'leave',
   'format-mismatch': 'keep',
   exists: 'leave',
   'many-matches': 'leave',
@@ -36,8 +37,15 @@ const DEFAULT_POLICY: Readonly<Partial<Record<FlagKind, FlagPolicy>>> = {
   'duplicate-row': 'leave',
 };
 
-/** Only these two kinds have a repair: trim, and read again with the list's encoding. */
-const REPAIRS: readonly FlagKind[] = ['space-at-ends', 'encoding-suspect'];
+/**
+ * The policies a kind offers when they are not keep and leave: two kinds have a repair (trim, and read again with the
+ * list's encoding); a file the install refuses can only be left out, because the run's ingest refuses it again.
+ */
+const POLICIES: Readonly<Partial<Record<FlagKind, readonly FlagPolicy[]>>> = {
+  'space-at-ends': ['keep', 'repair', 'leave'],
+  'encoding-suspect': ['keep', 'repair', 'leave'],
+  'listed-not-media': ['leave'],
+};
 
 const POLICY_WORDS: Readonly<Record<FlagPolicy, AdvancedMessageKey>> = {
   keep: 'adv.problems.policy.keep',
@@ -108,7 +116,7 @@ export const AdvancedProblems = (): ReactElement => {
                         draft.change((plan) => setFlagPolicy(plan, kind, policy));
                       }}
                     >
-                      {(REPAIRS.includes(kind) ? (['keep', 'repair', 'leave'] as const) : (['keep', 'leave'] as const)).map((policy) => (
+                      {(POLICIES[kind] ?? (['keep', 'leave'] as const)).map((policy) => (
                         <option key={policy} value={policy}>
                           {t(POLICY_WORDS[policy])}
                         </option>

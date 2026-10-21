@@ -316,7 +316,6 @@ async fn bhc006_an_object_is_one_item_with_its_views_in_order() {
 }
 
 #[tokio::test]
-#[ignore = "imp/engine: item values from media rows"]
 async fn bhc006_an_item_has_its_rows_keywords_each_once() {
     let (outcome, _) = outcome().await;
     let lamp = item(&outcome, "BHC006_GMT_AF_010");
@@ -448,7 +447,7 @@ async fn bhc006_only_the_series_folders_make_items() {
 
 /// The flag kind a person reads when a row names a file the install's file
 /// settings refuse. The engine unit names it.
-const NAMED_FILE_REFUSED: &str = "named-file-refused";
+const NAMED_FILE_REFUSED: &str = "listed-not-media";
 
 /// Whether the preview shows a problem of `kind` on the file at `path`.
 fn problem_on(preview: &Value, kind: &str, path: &str) -> bool {
@@ -463,7 +462,6 @@ fn problem_on(preview: &Value, kind: &str, path: &str) -> bool {
 }
 
 #[tokio::test]
-#[ignore = "imp/engine: a refused file a row names"]
 async fn bhc006_a_row_naming_a_raw_file_is_a_problem() {
     let (_, preview) = outcome().await;
     let named = cell("BHC006_GMT_AF", "BHC_006_GMT_AF_297a.NEF", IDENTIFIER);

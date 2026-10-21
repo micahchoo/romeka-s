@@ -200,6 +200,7 @@ export const hi: ImportMessages = {
   'problem.cells-count': 'गलत संख्या में सेल वाली एक पंक्ति',
   'problem.no-file': 'एक पंक्ति जिसमें इस आयात की किसी फ़ाइल का नाम नहीं है',
   'problem.not-media': 'चित्र, ध्वनि, फ़िल्म या PDF नहीं',
+  'problem.listed-not-media': 'आपकी सूची में नामित एक फ़ाइल, जिसे Omeka नहीं लेता',
   'problem.format-mismatch': 'एक फ़ाइल जिसके नाम का अंत उसकी सामग्री से मेल नहीं खाता',
   'problem.exists': 'पहले से ही Omeka में',
   'problem.unmatched': 'Omeka में बदलने के लिए कोई आइटम नहीं',
