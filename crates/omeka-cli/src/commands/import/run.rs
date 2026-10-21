@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use omeka_api::import::check::{Check, Does};
 use omeka_api::import::draft::{self, DraftError, Start};
-use omeka_api::import::plan::ImportPlanV2;
+use omeka_api::import::plan::ImportPlan;
 use omeka_api::import::plan::PlanError;
 use omeka_api::import::preview::Caches;
 use omeka_api::import::run::RUN_JOB;
@@ -103,10 +103,10 @@ pub async fn run(
     Ok(outcome)
 }
 
-fn read_plan(path: &std::path::Path) -> Result<ImportPlanV2, CliError> {
+fn read_plan(path: &std::path::Path) -> Result<ImportPlan, CliError> {
     let text = std::fs::read_to_string(path)
         .map_err(|error| CliError::message(format!("cannot read {}: {error}", path.display())))?;
-    ImportPlanV2::from_json(&text).map_err(|error| match error {
+    ImportPlan::from_json(&text).map_err(|error| match error {
         PlanError::V1Plan => CliError::message(messages::IMPORT_V1_PLAN),
         other => CliError::message(messages::import_plan_refused(other)),
     })
@@ -116,7 +116,7 @@ fn read_plan(path: &std::path::Path) -> Result<ImportPlanV2, CliError> {
 async fn make_draft(
     session: &Session,
     admin: &Admin,
-    plan: &ImportPlanV2,
+    plan: &ImportPlan,
 ) -> Result<ImportId, CliError> {
     let made = with_db!(&session.pool, |db| draft::create(
         db,
@@ -165,7 +165,7 @@ async fn go(
     session: &Session,
     admin: &Admin,
     import: ImportId,
-    plan: ImportPlanV2,
+    plan: ImportPlan,
     options: &RunOptions,
     stop: impl Future<Output = ()>,
     out: &mut dyn Write,
