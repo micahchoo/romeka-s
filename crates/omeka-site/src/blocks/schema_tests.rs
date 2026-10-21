@@ -168,6 +168,80 @@ fn every_sibling_reference_names_a_real_sibling() {
     }
 }
 
+/// One `assetRef` or `mediaRef` field the admin reads: where it is, what it
+/// accepts, and whether it is a background.
+type Reference = (String, String, String, bool);
+
+/// The reference fields of one serialised field list, descending into repeat
+/// groups, as `(list, key, accepts, decorative)` records.
+fn references_of(fields: &serde_json::Value, list: &str, out: &mut Vec<Reference>) {
+    let Some(entries) = fields.as_array() else {
+        return;
+    };
+    for field in entries {
+        let key = field["key"].as_str().expect("a field has a key");
+        match field["type"].as_str().expect("a field has a type") {
+            "assetRef" | "mediaRef" => out.push((
+                list.to_string(),
+                key.to_string(),
+                field["accepts"]
+                    .as_str()
+                    .expect("a reference accepts some kinds")
+                    .to_string(),
+                field["decorative"].as_bool().unwrap_or(false),
+            )),
+            "repeat" => references_of(&field["fields"], &format!("{list}.{key}"), out),
+            _ => {}
+        }
+    }
+}
+
+/// Every field that names an asset or a media states what the slot shows and
+/// whether it is a background, in the JSON the admin parses. The list is
+/// exact, so a new reference field has to answer both, and a reader of the
+/// registry knows the hero's slot takes images while the asset block's takes
+/// any file.
+#[test]
+fn every_reference_field_states_what_it_accepts() {
+    let json = serde_json::to_value(registry()).expect("the registry serialises");
+    let mut found: Vec<Reference> = Vec::new();
+    for list in ["layouts", "romeka"] {
+        for entry in json[list].as_array().expect("a list of blocks") {
+            let name = entry["name"].as_str().expect("a block has a name");
+            references_of(&entry["fields"], name, &mut found);
+        }
+    }
+    for list in ["blockLayoutData", "pageLayoutData", "sectionLayoutData"] {
+        references_of(&json[list]["fields"], list, &mut found);
+    }
+    let mut expected: Vec<Reference> = [
+        // A hero's background is a picture behind the text, read by nobody.
+        ("hero", "background", "image", true),
+        ("hero", "background_media", "image", true),
+        // A IIIF viewer zooms an image this archive serves, and reads no file.
+        ("iiifImage", "romeka.media", "imageService", false),
+        // A gallery shows its picture with a caption.
+        ("gallery.assets", "asset", "image", false),
+        // A block's own background is a picture behind the block.
+        ("blockLayoutData", "background_image_asset", "image", true),
+        // The asset block links to the file or draws it, so any file fits.
+        ("asset.attachments", "id", "any", false),
+    ]
+    .into_iter()
+    .map(|(list, key, accepts, decorative)| {
+        (
+            list.to_string(),
+            key.to_string(),
+            accepts.to_string(),
+            decorative,
+        )
+    })
+    .collect();
+    found.sort();
+    expected.sort();
+    assert_eq!(found, expected);
+}
+
 /// Every field carries a help key apart from its label, and a group or the
 /// advanced flag only in the layout-data schemas.
 #[test]

@@ -13,7 +13,9 @@
 use omeka_core::site::{AssetAttachment, BlockData, SiteBlock};
 use serde_json::Value as JsonValue;
 
-use crate::blocks::schema::{LayoutSchema, When, asset_ref, choice, link, option, repeat, text};
+use crate::blocks::schema::{
+    Accepts, LayoutSchema, When, asset_ref, choice, link, option, repeat, text,
+};
 use crate::blocks::{BlockLayout, columns};
 use crate::html::escape_html;
 use crate::slug::page_url;
@@ -33,7 +35,12 @@ const SCHEMA: LayoutSchema = LayoutSchema {
             "blockField.asset.attachments",
             "fieldHelp.asset.attachments",
             &[
-                asset_ref("id", "blockField.asset.id", "fieldHelp.asset.id"),
+                asset_ref(
+                    "id",
+                    "blockField.asset.id",
+                    "fieldHelp.asset.id",
+                    Accepts::Any,
+                ),
                 link(
                     "page",
                     "romeka.url",

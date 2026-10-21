@@ -3,7 +3,7 @@
 //! them to the admin beside the layouts' own schemas.
 
 use super::schema::{
-    ChoiceOption, Group, LayoutSchema, SideKeys, When, anchor, asset_ref, boolean, choice,
+    Accepts, ChoiceOption, Group, LayoutSchema, SideKeys, When, anchor, asset_ref, boolean, choice,
     integer_min, option, sides, text, theme_color,
 };
 
@@ -86,7 +86,9 @@ pub const BLOCK_LAYOUT_DATA: LayoutSchema = LayoutSchema {
             "background_image_asset",
             "blockLayoutData.background_image_asset",
             "fieldHelp.layout.background_image_asset",
+            Accepts::Image,
         )
+        .decorative()
         .group(Group::Background),
         choice(
             "background_image_size",

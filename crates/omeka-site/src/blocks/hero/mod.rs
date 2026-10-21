@@ -18,8 +18,8 @@ use serde_json::Value as JsonValue;
 
 use super::romeka::{PlainImage, PlainRefs, RomkaBlock};
 use super::schema::{
-    ChoiceOption, LayoutSchema, When, asset_ref, choice, focal_point, html, link, media_ref,
-    option, text, theme_color,
+    Accepts, ChoiceOption, LayoutSchema, When, asset_ref, choice, focal_point, html, link,
+    media_ref, option, text, theme_color,
 };
 use crate::html::{Attr, escape_html, hyperlink, open_tag};
 use crate::view::{RenderContext, Thumbnail};
@@ -96,13 +96,17 @@ const SCHEMA: LayoutSchema = LayoutSchema {
             "background",
             "romekaField.hero.background",
             "fieldHelp.hero.background",
+            Accepts::Image,
         )
+        .decorative()
         .when(When::equals("background_source", "asset")),
         media_ref(
             "background_media",
             "romekaField.hero.background_media",
             "fieldHelp.hero.background_media",
+            Accepts::Image,
         )
+        .decorative()
         .when(When::equals("background_source", "media")),
         focal_point(
             "focal_x",

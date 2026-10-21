@@ -595,6 +595,13 @@ export const te: EditorMessages = {
   'mediaRef.fallback': 'మీడియా {id}',
   'mediaRef.remove': 'తొలగించండి',
   'mediaRef.changeItem': 'మరొక అంశాన్ని ఎంచుకోండి',
+  'mediaRef.mediaInItem': 'ఈ అంశంలో మీడియా:',
+  'mediaRef.notImage': 'చిత్రం కాదు',
+  'mediaRef.notZoomable': 'ఈ ఆర్కైవ్‌ను జూమ్ చేయలేరు',
+  'mediaRef.misfit':
+    'సందర్శకులు ఇక్కడ ఏమీ చూడరు: ఈ ఫీల్డ్ చిత్రాలను తీసుకుంటుంది, మరియు {kind} వాటిలో ఒకటి కాదు.',
+  'mediaRef.misfitZoom':
+    'సందర్శకులు ఇక్కడ ఏమీ చూడరు: ఈ ఫీల్డ్ చిత్రాన్ని తీసుకుంటుంది, మరియు {kind} వాటిలో ఒకటి కాదు.',
   'focal.noImage': 'ముందుగా నేపథ్య చిత్రాన్ని ఎంచుకోండి.',
   'focal.notAPicture': 'ఈ మీడియాకు ఫోకల్ పాయింట్‌ను సెట్ చేయడానికి ఎటువంటి చిత్రం లేదు.',
   'focal.frame':
