@@ -396,6 +396,7 @@ List parameters (`GET /api/item_sets`).
 | --- | --- | --- |
 | `fulltext_search` | string | `SearchQuery::parse (query.rs)` |
 | `has_media` | boolean | `SearchQuery::parse (query.rs)` |
+| `has_media_kind` | list | `SearchQuery::parse (query.rs)` |
 | `in_sites` | boolean | `SearchQuery::parse (query.rs)` |
 | `is_open` | boolean | `search_item_sets (resources.rs)` |
 | `is_public` | boolean | `search_item_sets (resources.rs)` |
@@ -472,6 +473,7 @@ List parameters (`GET /api/items`).
 | --- | --- | --- |
 | `fulltext_search` | string | `SearchQuery::parse (query.rs)` |
 | `has_media` | boolean | `SearchQuery::parse (query.rs)` |
+| `has_media_kind` | list | `SearchQuery::parse (query.rs)` |
 | `in_sites` | boolean | `SearchQuery::parse (query.rs)` |
 | `is_public` | boolean | `item_filter (resources.rs)` |
 | `item_set_id` | list | `SearchQuery::parse (query.rs)` |
@@ -602,6 +604,7 @@ List parameters (`GET /api/media`).
 | --- | --- | --- |
 | `fulltext_search` | string | `SearchQuery::parse (query.rs)` |
 | `has_media` | boolean | `SearchQuery::parse (query.rs)` |
+| `has_media_kind` | list | `SearchQuery::parse (query.rs)` |
 | `in_sites` | boolean | `SearchQuery::parse (query.rs)` |
 | `ingester` | string | `search_media (resources.rs)` |
 | `is_public` | boolean | `search_media (resources.rs)` |
@@ -618,6 +621,7 @@ List parameters (`GET /api/media`).
 | `renderer` | string | `search_media (resources.rs)` |
 | `resource_class_id` | table id | `search_media (resources.rs)` |
 | `resource_template_id` | table id | `search_media (resources.rs)` |
+| `romeka_kind` | list | `search_media (resources.rs)` |
 | `search` | string | `SearchQuery::parse (query.rs)` |
 | `site_attachments_only` | boolean | `SearchQuery::parse (query.rs)` |
 | `site_id` | table id | `SearchQuery::parse (query.rs)` |
@@ -675,6 +679,7 @@ One media document, including the raw `data` column (`MediaRepresentation::media
 | `o:item` | `item` | `ResourceRef` |  |
 | `o:source` | `source` | `Option<String>` | null when unset |
 | `o:media_type` | `media_type` | `Option<String>` | null when unset |
+| `o:kind` | `kind` | `Option<String>` | omitted when unset; The port's per-kind name (`omeka_media::kind::MediaKind::name`). An older client reads its absence as "derive the kind yourself". |
 | `o:sha256` | `sha256` | `Option<String>` | null when unset |
 | `o:size` | `size` | `Option<u64>` | null when unset |
 | `o:filename` | `filename` | `Option<String>` | null when unset |

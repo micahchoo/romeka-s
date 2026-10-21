@@ -14,6 +14,7 @@ use omeka_db::repos::{
 };
 use omeka_db::rows::{AssetRow, ItemRow, ItemSetRow, MediaRow, ValueAnnotationRow, resource_type};
 use omeka_db::with_db;
+use omeka_media::kind::{KindInput, MediaKind};
 use omeka_media::store::{Download, FileKind};
 use omeka_media::thumbnailer::thumbnails_stored;
 
@@ -454,6 +455,7 @@ pub async fn search_media(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
         ingester: params.get("ingester").map(str::to_string),
         renderer: params.get("renderer").map(str::to_string),
         media_type: params.get("media_type").map(str::to_string),
+        kinds: super::query::kind_names(params.list("romeka_kind")),
         owner_id: params.id("owner_id"),
         resource_class_id: params.id("resource_class_id"),
         resource_template_id: params.id("resource_template_id"),
@@ -590,6 +592,7 @@ pub(crate) fn media_doc(
         item: resource_ref(base, "items", row.item_id.0),
         source: row.source.clone(),
         media_type: row.media_type.clone(),
+        kind: Some(media_kind(api, row).name().to_string()),
         sha256: row.sha256.clone(),
         size: row.size.and_then(|size| u64::try_from(size).ok()),
         filename,
@@ -898,6 +901,18 @@ fn media_thumbnail_urls(api: &Api<'_>, shown: Shown<'_>) -> ThumbnailUrls {
         );
     }
     urls
+}
+
+/// The port's kind for a media row, from the same table the SQL filter mirrors.
+/// A row whose derivatives are in the store counts as having them, as its
+/// thumbnail URLs do.
+fn media_kind(api: &Api<'_>, row: &MediaRow) -> MediaKind {
+    MediaKind::of(&KindInput {
+        renderer: &row.renderer,
+        ingester: &row.ingester,
+        media_type: row.media_type.as_deref(),
+        has_thumbnails: has_thumbnails(api, row),
+    })
 }
 
 /// Whether a media row has thumbnails to show.
