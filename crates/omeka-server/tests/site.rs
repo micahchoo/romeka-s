@@ -14,11 +14,12 @@ use common::{
 };
 use omeka_db::ids::{SiteId, UserId};
 use omeka_db::repos::{
-    ItemRepo, PropertyRepo, SiteBlockAttachmentRepo, SiteRepo, SiteSettingRepo, ValueRepo,
+    ItemRepo, MediaRepo, PropertyRepo, SiteBlockAttachmentRepo, SiteRepo, SiteSettingRepo,
+    ValueRepo,
 };
 use omeka_db::rows::{
-    NewItem, NewProperty, NewResource, NewSite, NewSiteBlock, NewSiteBlockAttachment, NewSitePage,
-    NewValue,
+    NewItem, NewMedia, NewProperty, NewResource, NewSite, NewSiteBlock, NewSiteBlockAttachment,
+    NewSitePage, NewValue,
 };
 
 /// The storage id `common::seed_system` gives the seeded asset.
@@ -247,8 +248,9 @@ async fn item_show_renders_the_item_values() {
         "{}",
         answer.body
     );
-    // The item's media render, its item set and its media list are the default
-    // resource page blocks, in the bundled theme's order.
+    // The item's media render and its item set are the default resource page
+    // blocks. The media list is not a default: the media block's strip carries
+    // every file.
     assert!(
         answer.body.contains("<div class=\"media-embeds\">"),
         "{}",
@@ -260,8 +262,24 @@ async fn item_show_renders_the_item_values() {
         answer.body
     );
     assert!(
-        answer.body.contains("<dl class=\"media-list\">"),
+        !answer.body.contains("<dl class=\"media-list\">"),
         "{}",
+        answer.body
+    );
+    // The file shown whole opens its media page, not the raw original.
+    assert!(
+        answer.body.contains(&format!(
+            "<a title=\"A photo\" href=\"/s/museum/media/{}\">",
+            seed.media.0
+        )),
+        "{}",
+        answer.body
+    );
+    assert!(
+        !answer
+            .body
+            .contains("href=\"http://localhost/files/original/"),
+        "the embed still links the original: {}",
         answer.body
     );
 }
@@ -370,6 +388,245 @@ async fn media_show_names_the_parent_item() {
         "{}",
         answer.body
     );
+}
+
+/// `MediaRepresentation::displayTitle`: a media with no title is named by its
+/// source's file name in the heading and in the document title, never
+/// `[Untitled]`.
+#[tokio::test]
+async fn media_show_names_a_titleless_file_by_its_source() {
+    let (pool, seed) = site_pool().await;
+    let media = add_file(&pool, seed.item, 2, None, "BHC006_GMT_AF_010a.jpg").await;
+    let path = format!("/s/museum/media/{media}");
+    let answer = send(router(pool), get(&path, false)).await;
+    assert_eq!(answer.status, StatusCode::OK);
+    assert!(
+        answer
+            .body
+            .contains("<h2 class=\"resource-title\">BHC006_GMT_AF_010a.jpg</h2>"),
+        "{}",
+        answer.body
+    );
+    assert!(
+        answer
+            .body
+            .contains("<title>BHC006_GMT_AF_010a.jpg · Romeka S</title>"),
+        "{}",
+        answer.body
+    );
+    assert!(!answer.body.contains("[Untitled]"), "{}", answer.body);
+}
+
+/// A source that names its file by a path is named by the last segment: the
+/// heading reads as a file name, not as a directory.
+#[tokio::test]
+async fn media_show_names_a_titleless_file_by_its_sources_last_segment() {
+    let (pool, seed) = site_pool().await;
+    let media = add_file(
+        &pool,
+        seed.item,
+        2,
+        None,
+        "https://example.org/scans/BHC006_GMT_PN_215.png",
+    )
+    .await;
+    let path = format!("/s/museum/media/{media}");
+    let answer = send(router(pool), get(&path, false)).await;
+    assert_eq!(answer.status, StatusCode::OK);
+    assert!(
+        answer
+            .body
+            .contains("<h2 class=\"resource-title\">BHC006_GMT_PN_215.png</h2>"),
+        "{}",
+        answer.body
+    );
+    assert!(
+        !answer.body.contains("https://example.org/scans"),
+        "{}",
+        answer.body
+    );
+}
+
+/// A media page says which of its item's files this is and links the file
+/// before and after it. The count follows the order the files are shown in.
+#[tokio::test]
+async fn media_show_places_the_file_among_its_items_files() {
+    let (pool, seed) = site_pool().await;
+    let item = ItemRepo::new(&pool)
+        .create(&NewItem {
+            resource: NewResource {
+                owner_id: Some(UserId(seed.user.0)),
+                title: Some("Five pages".to_string()),
+                ..NewResource::default()
+            },
+            primary_media_id: None,
+        })
+        .await
+        .unwrap();
+    let mut ids = Vec::new();
+    for position in 1..=5 {
+        ids.push(
+            add_file(
+                &pool,
+                item.id(),
+                position,
+                Some(&format!("Page {position}")),
+                &format!("page-{position}.jpg"),
+            )
+            .await,
+        );
+    }
+    let (first, second, third, fourth, fifth) = (ids[0], ids[1], ids[2], ids[3], ids[4]);
+    let answer = send(
+        router(pool),
+        get(&format!("/s/museum/media/{third}"), false),
+    )
+    .await;
+    assert_eq!(answer.status, StatusCode::OK);
+    assert!(
+        answer
+            .body
+            .contains("<span class=\"media-position-count\">File 3 of 5</span>"),
+        "{}",
+        answer.body
+    );
+    assert!(
+        answer.body.contains(&format!(
+            "<a class=\"media-previous\" rel=\"prev\" href=\"/s/museum/media/{second}\">Previous</a>"
+        )),
+        "{}",
+        answer.body
+    );
+    assert!(
+        answer.body.contains(&format!(
+            "<a class=\"media-next\" rel=\"next\" href=\"/s/museum/media/{fourth}\">Next</a>"
+        )),
+        "{}",
+        answer.body
+    );
+    assert!(
+        !answer.body.contains(&format!("/s/museum/media/{first}\"")),
+        "{}",
+        answer.body
+    );
+    assert!(
+        !answer.body.contains(&format!("/s/museum/media/{fifth}\"")),
+        "{}",
+        answer.body
+    );
+}
+
+/// The item page's whole file opens its media page, and the files after it are
+/// a strip. A 300 file item draws one large image and 299 strip images that
+/// wait until they are seen.
+#[tokio::test]
+async fn item_show_keeps_a_three_hundred_file_item_light() {
+    let (pool, seed) = site_pool().await;
+    let item = ItemRepo::new(&pool)
+        .create(&NewItem {
+            resource: NewResource {
+                owner_id: Some(UserId(seed.user.0)),
+                title: Some("A scan of three hundred pages".to_string()),
+                ..NewResource::default()
+            },
+            primary_media_id: None,
+        })
+        .await
+        .unwrap();
+    let mut ids = Vec::new();
+    for position in 1..=300 {
+        ids.push(
+            add_file(
+                &pool,
+                item.id(),
+                position,
+                Some(&format!("Page {position}")),
+                &format!("page-{position}.jpg"),
+            )
+            .await,
+        );
+    }
+    let path = format!("/s/museum/item/{}", item.id().0);
+    let answer = send(router(pool), get(&path, false)).await;
+    assert_eq!(answer.status, StatusCode::OK);
+    let body = &answer.body;
+    let strip_at = body.find("<div class=\"media-files\">").expect("the strip");
+    let stage = &body[..strip_at];
+    assert_eq!(
+        stage.matches("<div class=\"media-render file\">").count(),
+        1,
+        "one file renders whole"
+    );
+    assert!(
+        stage.contains(&format!(
+            "<a title=\"Page 1\" href=\"/s/museum/media/{}\">",
+            ids[0]
+        )),
+        "the first file opens its media page: {stage}"
+    );
+    assert!(
+        body.contains("<p class=\"media-files-title\">300 files</p>"),
+        "{body}"
+    );
+    let strip = &body[strip_at..];
+    assert_eq!(
+        strip.matches("<li class=\"media-file\">").count(),
+        299,
+        "the strip holds the files after the first"
+    );
+    assert_eq!(
+        strip
+            .matches("loading=\"lazy\" width=\"200\" height=\"200\"")
+            .count(),
+        299,
+        "every strip image declares its size and waits for the viewport"
+    );
+    assert!(
+        !strip.contains("Page 1<"),
+        "the first file is not repeated in the strip: {strip}"
+    );
+    assert!(
+        strip.contains(&format!("href=\"/s/museum/media/{}\"", ids[299])),
+        "the last file has its strip entry: {strip}"
+    );
+}
+
+/// One media row as a route test needs it: a stored upload with a square
+/// thumbnail, `position` ordered within the item.
+async fn add_file(
+    pool: &sqlx::SqlitePool,
+    item: omeka_db::ids::ItemId,
+    position: i64,
+    title: Option<&str>,
+    source: &str,
+) -> u64 {
+    let storage = format!("media{position}");
+    MediaRepo::new(pool)
+        .create(&NewMedia {
+            resource: NewResource {
+                title: title.map(str::to_string),
+                ..NewResource::default()
+            },
+            item_id: item,
+            ingester: "upload".to_string(),
+            renderer: "file".to_string(),
+            data: None,
+            source: Some(source.to_string()),
+            media_type: Some("image/jpeg".to_string()),
+            storage_id: Some(storage),
+            extension: Some("jpg".to_string()),
+            sha256: Some(format!("sha{position}")),
+            size: Some(1),
+            has_original: true,
+            has_thumbnails: true,
+            position: Some(position - 1),
+            lang: None,
+            alt_text: None,
+        })
+        .await
+        .unwrap()
+        .id()
+        .0
 }
 
 /// `Mvc\ExceptionListener`: a missing resource id is a 404.

@@ -12,8 +12,7 @@ import { SITE_SLUG, SITE_TITLE, WELCOME_SLUG } from '../harness/seed';
 
 test('a media page shows the whole file, never a 4:3 crop of it', async ({ page }) => {
   // The seeded items are not attached to the site, so the browse list is empty;
-  // the item page still renders, and its media list is the reader's route to
-  // the file.
+  // the item page still renders, and the whole first file opens its media page.
   const items = await page.request.get('/api/items?per_page=1');
   const listed: unknown = await items.json();
   if (!isArray(listed) || listed.length === 0) {
@@ -21,10 +20,18 @@ test('a media page shows the whole file, never a 4:3 crop of it', async ({ page 
   }
   const itemId = numberField(record(listed[0], 'item'), 'o:id', 'item');
   await page.goto(`/s/${SITE_SLUG}/item/${String(itemId)}`);
-  const file = page.locator('.media-list a').first();
+  // One file: it is the whole page, with no strip under it.
+  await expect(page.locator('.media-embeds .media-render a')).toHaveCount(1);
+  await expect(page.locator('.media-files')).toHaveCount(0);
+  const file = page.locator('.media-embeds .media-render a').first();
   await expect(file).toBeVisible();
   await file.click();
   await expect(page).toHaveURL(/\/media\/\d+$/);
+  // The upload has no title, so the heading and the document title name it by
+  // its source file.
+  await expect(page.getByRole('heading', { level: 2, name: 'sample.png' })).toBeVisible();
+  await expect(page).toHaveTitle(/^sample\.png · /);
+  await expect(page.locator('.media-position')).toHaveCount(0);
 
   const image = page.locator('.media-page .media-render img').first();
   await expect(image).toBeVisible();

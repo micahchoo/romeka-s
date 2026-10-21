@@ -84,6 +84,10 @@ pub struct ResourceView {
     /// For a media resource, the item it belongs to (`Media::item()`), for the
     /// media view's "Part of" line.
     pub parent_item: Option<ResourceRef>,
+    /// For a media resource, its place among the visible files of that item,
+    /// for the media page's "File 3 of 12" line and its Previous and Next
+    /// links. A Romeka addition; upstream's media view has no wayfinding.
+    pub media_position: Option<MediaPosition>,
     /// The resource's embedded JSON-LD document, a compact JSON object the show
     /// and browse views print in a `application/ld+json` script (`Module.php`
     /// `view.show.after` / `view.browse.after`, honouring
@@ -121,6 +125,7 @@ impl ResourceView {
             linked_resources: Vec::new(),
             primary_media: None,
             parent_item: None,
+            media_position: None,
             jsonld: None,
             iiif_manifest: None,
         }
@@ -136,6 +141,23 @@ pub struct ResourceRef {
     pub title: String,
     /// The square thumbnail, `None` when there is none.
     pub thumbnail: Option<Thumbnail>,
+}
+
+/// A media file's place among the files of its item.
+///
+/// The number counts the files a visitor can see, in the item's position
+/// order, so a hidden file leaves no gap in "File 3 of 12" and cannot be
+/// reached through Previous or Next.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MediaPosition {
+    /// The file's one-based position.
+    pub number: usize,
+    /// How many files the item shows.
+    pub total: usize,
+    /// The file before it, absent on the first.
+    pub previous: Option<ResourceRef>,
+    /// The file after it, absent on the last.
+    pub next: Option<ResourceRef>,
 }
 
 /// One displayed metadata value, the pair `displayValues` prints.
