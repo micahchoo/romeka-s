@@ -220,7 +220,7 @@ const LevelCell = ({
       {varies === null ? null : (
         <p className="adv-plain">
           {t('adv.lists.columns.varies', { count: number(varies.groups), of: number(varies.of) })}{' '}
-          {level === 'out' ? null : t(suggestedLevel(varies, fileAllowed) === 'file' ? 'adv.lists.columns.suggestFile' : 'adv.lists.columns.suggestItem')}
+          {level === 'out' ? null : t(suggestedLevel(draft.plan, sheet.id, column.index) === 'file' ? 'adv.lists.columns.suggestFile' : 'adv.lists.columns.suggestItem')}
         </p>
       )}
     </td>

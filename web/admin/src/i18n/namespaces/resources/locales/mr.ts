@@ -124,4 +124,5 @@ export const mr: ResourcesMessages = {
   'place.add': 'एक स्थान जोडा',
   'place.invalid': '-90 ते 90 मधील अक्षांश, एक स्वल्पविराम आणि -180 ते 180 मधील रेखांश टाईप करा.',
   'place.unavailable': 'नकाशा लोड होऊ शकला नाही. ती जागा "lat, lng" या स्वरूपात टाईप करा.',
+  'media.loadingNotes': 'नोंदी लोड होत आहेत...',
 };

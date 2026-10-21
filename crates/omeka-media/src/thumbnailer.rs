@@ -47,7 +47,7 @@ use crate::file_render::ThumbnailType;
 use crate::store::{
     Store, StoreError, StorePrefix, THUMBNAIL_MEDIA_TYPE, Thumbnailer, storage_path,
 };
-use crate::tool::{Still, ToolError, Tools};
+use crate::tool::{MadeStill, Still, ToolError, Tools};
 
 /// The source media types the thumbnailer decodes: the four GD decodes
 /// (`Gd::setSource`) plus `image/tiff`, `image/jp2` and `image/svg+xml`, which
@@ -136,8 +136,9 @@ impl ImageThumbnailer {
     }
 
     /// The three derivatives of a still an external tool makes from `original`:
-    /// a video's poster, a PDF's first page, an AVIF or HEIC frame. The still
-    /// the type asks for is [`Still::of`], and a type it names none for is a
+    /// a video's poster, a PDF's first page, an AVIF or HEIC frame, a camera
+    /// RAW file's embedded preview. The still the type asks for is
+    /// [`Still::of`], and a type it names none for is a
     /// [`ThumbnailSkip::UnsupportedType`].
     ///
     /// # Errors
@@ -152,8 +153,8 @@ impl ImageThumbnailer {
         let Some(still) = Still::of(media_type) else {
             return Err(ThumbnailSkip::UnsupportedType(media_type.to_string()));
         };
-        let bytes = still.make_from_bytes(tools, original, media_type)?;
-        derivatives_of_still(&bytes)
+        let made = still.make_from_bytes(tools, original, media_type)?;
+        derivatives_of_still(&made)
     }
 
     /// [`ImageThumbnailer::still_derivatives`] for a still made from a file the
@@ -172,8 +173,8 @@ impl ImageThumbnailer {
         let Some(still) = Still::of(media_type) else {
             return Err(ThumbnailSkip::UnsupportedType(media_type.to_string()));
         };
-        let bytes = still.make(tools, path)?;
-        derivatives_of_still(&bytes)
+        let made = still.make(tools, path)?;
+        derivatives_of_still(&made)
     }
 
     /// The three derivatives of an original read from `reader` and never
@@ -201,8 +202,16 @@ impl ImageThumbnailer {
 }
 
 /// Decode an image and turn it upright as its EXIF orientation says, the way
-/// ImageMagick's `auto-orient` does for upstream's configured thumbnailer.
+/// ImageMagick's `auto-orient` does for upstream's configured thumbnailer. A
+/// still whose container states the turn outside the image applies that.
 fn decode_oriented(bytes: &[u8]) -> Result<DynamicImage, ThumbnailSkip> {
+    decode_with_orientation(bytes, None)
+}
+
+fn decode_with_orientation(
+    bytes: &[u8],
+    stated: Option<Orientation>,
+) -> Result<DynamicImage, ThumbnailSkip> {
     let reader = image::ImageReader::new(Cursor::new(bytes))
         .with_guessed_format()
         .map_err(|error| ThumbnailSkip::Decode(error.to_string()))?;
@@ -210,7 +219,9 @@ fn decode_oriented(bytes: &[u8]) -> Result<DynamicImage, ThumbnailSkip> {
         .into_decoder()
         .map_err(|error| ThumbnailSkip::Decode(error.to_string()))?;
     // A malformed or absent EXIF block leaves the pixels as stored.
-    let orientation = decoder.orientation().unwrap_or(Orientation::NoTransforms);
+    let orientation = stated
+        .or_else(|| decoder.orientation().ok())
+        .unwrap_or(Orientation::NoTransforms);
     let mut image = DynamicImage::from_decoder(decoder)
         .map_err(|error| ThumbnailSkip::Decode(error.to_string()))?;
     image.apply_orientation(orientation);
@@ -219,9 +230,10 @@ fn decode_oriented(bytes: &[u8]) -> Result<DynamicImage, ThumbnailSkip> {
 
 /// The three derivatives of a still written by an external tool. `ffmpeg`
 /// already turns a frame upright, and `pdftoppm` writes an upright page, so
-/// this decodes without applying an EXIF tag that is not there.
-fn derivatives_of_still(bytes: &[u8]) -> Result<Vec<(ThumbnailType, Vec<u8>)>, ThumbnailSkip> {
-    let source = decode_oriented(bytes)?;
+/// this applies no EXIF tag that is not there. A RAW's preview carries no tag
+/// of its own, so the orientation its container stated turns it.
+fn derivatives_of_still(made: &MadeStill) -> Result<Vec<(ThumbnailType, Vec<u8>)>, ThumbnailSkip> {
+    let source = decode_with_orientation(&made.bytes, made.orientation)?;
     derivatives(&source)
 }
 
@@ -545,6 +557,23 @@ mod tests {
         assert_eq!(large.dimensions(), (50, 100));
         assert!(near(*large.get_pixel(25, 5), RED), "{large:?}");
         assert!(near(*large.get_pixel(25, 95), BLUE), "{large:?}");
+    }
+
+    /// A RAW's embedded preview carries no EXIF tag of its own; the container's
+    /// stated orientation turns the derivative upright.
+    #[test]
+    fn a_stated_orientation_turns_a_preview_without_a_tag() {
+        let made = MadeStill {
+            bytes: image_bytes(100, 50),
+            orientation: Some(Orientation::Rotate90),
+        };
+        let derivatives = derivatives_of_still(&made).expect("thumbnails");
+        let large = derivatives
+            .iter()
+            .find(|(kind, _)| *kind == ThumbnailType::Large)
+            .map(|(_, bytes)| image::load_from_memory(bytes).expect("decode").to_rgb8())
+            .expect("large derivative");
+        assert_eq!(large.dimensions(), (50, 100));
     }
 
     /// `Gd::createDefault` for a landscape image: the long side meets the

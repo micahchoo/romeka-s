@@ -110,5 +110,6 @@
  "place.remove": "Remove place {number}",
  "place.add": "Add a place",
  "place.invalid": "Type a latitude from -90 to 90, a comma, and a longitude from -180 to 180.",
- "place.unavailable": "The map could not load. Type the place as \"lat, lng\"."
+ "place.unavailable": "The map could not load. Type the place as \"lat, lng\".",
+ "media.loadingNotes": "Loading notes..."
 }

@@ -49,16 +49,6 @@ pub struct MediaAnnotationRow {
 }
 
 /// What a write stores. `body_text` and `lang` are derived by the one caller function
-/// Which rows a read covers: every row, or the notes a reader sees. A caption
-/// cue is a row (a `supplementing` annotation with a time range and a track
-/// origin), not a note; a reader's list and its counts leave the cues out.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RowScope {
-    All,
-    Notes,
-}
-
-/// What a write stores. `body_text` and `lang` are derived by the one caller function
 /// (`omeka_api::annotation`), so a write cannot forget them.
 #[derive(Debug, Clone, Copy)]
 pub struct MediaAnnotationWrite<'a> {
@@ -149,6 +139,7 @@ const ROW_COLUMNS: &str = "a.id, a.media_id, a.owner_id, a.revision, a.created, 
 /// `romeka_media_annotation` rows.
 pub struct MediaAnnotationRepo<'a, DB: Backend = Sqlite> {
     pool: &'a Pool<DB>,
+    authored: bool,
 }
 
 impl<'a, DB: Backend> MediaAnnotationRepo<'a, DB>
@@ -169,7 +160,21 @@ where
     for<'x> f64: Decode<'x, DB> + Type<DB>,
 {
     pub fn new(pool: &'a Pool<DB>) -> Self {
-        Self { pool }
+        Self {
+            pool,
+            authored: false,
+        }
+    }
+
+    /// Leave a caption import's rows out of [`Self::page`], [`Self::total`],
+    /// [`Self::firsts`] and [`Self::counts`].
+    ///
+    /// The notes views show what a person wrote; captions are a projection of
+    /// their own, read through [`Self::cues`] and [`Self::track_langs`].
+    #[must_use]
+    pub fn authored(mut self) -> Self {
+        self.authored = true;
+        self
     }
 
     /// Keyset page in id order: rows with id > `after`, at most `limit + 1`.
@@ -182,10 +187,16 @@ where
         after: i64,
         limit: u32,
         motivations: Option<&[&str]>,
-        scope: RowScope,
     ) -> Result<Vec<MediaAnnotationRow>, DbError> {
         let mut statement = Statement::<DB>::new(PAGE_COLUMNS);
-        push_page(&mut statement, media, after, limit, motivations, scope)?;
+        push_page(
+            &mut statement,
+            media,
+            after,
+            limit,
+            motivations,
+            self.authored,
+        )?;
         let (sql, arguments) = statement.into_parts();
         fetch_rows(&sql, arguments, self.pool)
             .await?
@@ -198,13 +209,12 @@ where
         &self,
         media: MediaId,
         motivations: Option<&[&str]>,
-        scope: RowScope,
     ) -> Result<u32, DbError> {
         let mut statement =
             Statement::<DB>::new("SELECT COUNT(*) FROM romeka_media_annotation WHERE media_id = ");
         statement.bind(bind_id(media))?;
         push_motivations(&mut statement, motivations)?;
-        push_scope(&mut statement, scope);
+        push_authored(&mut statement, self.authored, "");
         let (sql, arguments) = statement.into_parts();
         let raw: i64 = sqlx::query_scalar_with::<DB, i64, _>(&sql, arguments)
             .fetch_one(self.pool)
@@ -218,7 +228,6 @@ where
         media: &[MediaId],
         per_media: u32,
         motivations: Option<&[&str]>,
-        scope: RowScope,
     ) -> Result<Vec<MediaAnnotationRow>, DbError> {
         if media.is_empty() {
             return Ok(Vec::new());
@@ -236,7 +245,7 @@ where
         push_ids(&mut statement, media)?;
         statement.push(")");
         push_motivations(&mut statement, motivations)?;
-        push_scope(&mut statement, scope);
+        push_authored(&mut statement, self.authored, "a.");
         statement.push(") ranked WHERE ranked.position <= ");
         statement.bind(i64::from(per_media))?;
         statement.push(" ORDER BY ranked.media_id, ranked.position");
@@ -252,7 +261,6 @@ where
         &self,
         media: &[MediaId],
         motivations: Option<&[&str]>,
-        scope: RowScope,
     ) -> Result<HashMap<MediaId, u32>, DbError> {
         if media.is_empty() {
             return Ok(HashMap::new());
@@ -264,7 +272,7 @@ where
         push_ids(&mut statement, media)?;
         statement.push(")");
         push_motivations(&mut statement, motivations)?;
-        push_scope(&mut statement, scope);
+        push_authored(&mut statement, self.authored, "");
         statement.push(" GROUP BY media_id");
         let (sql, arguments) = statement.into_parts();
         let rows = fetch_rows(&sql, arguments, self.pool).await?;
@@ -496,7 +504,7 @@ where
         }
         let mut statement = Statement::<DB>::new(
             "SELECT media_id, lang, COUNT(*) AS cues FROM romeka_media_annotation
-             WHERE motivation = 'supplementing' AND origin = 'track' AND media_id IN (",
+             WHERE motivation = 'supplementing' AND media_id IN (",
         );
         push_ids(&mut statement, media)?;
         statement.push(") GROUP BY media_id, lang ORDER BY media_id, lang");
@@ -603,7 +611,7 @@ fn push_page<'q, DB: Backend>(
     after: i64,
     limit: u32,
     motivations: Option<&[&'q str]>,
-    scope: RowScope,
+    authored: bool,
 ) -> Result<(), DbError>
 where
     for<'x> i64: Encode<'x, DB> + Type<DB>,
@@ -613,17 +621,16 @@ where
     statement.push(" AND a.id > ");
     statement.bind(after)?;
     push_motivations(statement, motivations)?;
-    push_scope(statement, scope);
+    push_authored(statement, authored, "a.");
     statement.push(" ORDER BY a.id LIMIT ");
     statement.bind(i64::from(limit) + 1)?;
     Ok(())
 }
 
-/// `origin <> 'track'` for the notes scope: a cue imported from a caption file
-/// is a row, and the list of notes is not the transcript.
-fn push_scope<DB: Backend>(statement: &mut Statement<'_, DB>, scope: RowScope) {
-    if scope == RowScope::Notes {
-        statement.push(" AND origin <> 'track'");
+/// `origin = 'author'`, or nothing, under the alias the query uses.
+fn push_authored<DB: Backend>(statement: &mut Statement<'_, DB>, authored: bool, alias: &str) {
+    if authored {
+        statement.push(&format!(" AND {alias}origin = 'author'"));
     }
 }
 
@@ -799,7 +806,7 @@ mod tests {
             0,
             3,
             Some(&["supplementing"]),
-            RowScope::All,
+            false,
         )
         .unwrap();
         let sql = statement.sql();

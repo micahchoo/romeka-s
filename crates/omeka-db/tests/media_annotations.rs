@@ -10,7 +10,7 @@ mod import_db;
 use import_db::on_both;
 use omeka_db::repos::{
     ChangeOutcome, Cue, ExtentRow, FtsQuery, InsertOutcome, ItemRepo, MediaAnnotationRepo,
-    MediaAnnotationWrite, MediaExtentRepo, MediaRepo, RowScope, SearchScope, TrackOutcome,
+    MediaAnnotationWrite, MediaExtentRepo, MediaRepo, SearchScope, TrackOutcome,
 };
 use omeka_db::rows::{NewItem, NewMedia, NewResource};
 
@@ -124,23 +124,17 @@ on_both!(a_page_is_keyset_in_id_order, |pool| {
         a_note!(pool, media, text);
     }
 
-    let first = repo.page(media, 0, 3, None, RowScope::All).await.unwrap();
+    let first = repo.page(media, 0, 3, None).await.unwrap();
     assert_eq!(first.len(), 4, "a page asks for limit + 1");
     assert_eq!(first[0].body_json, textual("one"));
     assert_eq!(first[3].body_json, textual("four"));
 
-    let second = repo
-        .page(media, first[2].id, 3, None, RowScope::All)
-        .await
-        .unwrap();
+    let second = repo.page(media, first[2].id, 3, None).await.unwrap();
     assert_eq!(second.len(), 2);
     assert_eq!(second[0].body_json, textual("four"));
     assert_eq!(second[1].body_json, textual("five"));
 
-    let end = repo
-        .page(media, second[1].id, 3, None, RowScope::All)
-        .await
-        .unwrap();
+    let end = repo.page(media, second[1].id, 3, None).await.unwrap();
     assert!(end.is_empty());
 });
 
@@ -211,7 +205,7 @@ on_both!(a_taken_key_answers_the_row_it_names, |pool| {
         InsertOutcome::KeyTaken(taken) => assert_eq!(taken.id, first.id),
         other => panic!("expected KeyTaken, got {other:?}"),
     }
-    assert_eq!(repo.total(media, None, RowScope::All).await.unwrap(), 1);
+    assert_eq!(repo.total(media, None).await.unwrap(), 1);
 });
 
 on_both!(two_notes_without_a_key_coexist, |pool| {
@@ -219,7 +213,7 @@ on_both!(two_notes_without_a_key_coexist, |pool| {
     let repo = MediaAnnotationRepo::<Db>::new(pool);
     a_note!(pool, media, "one");
     a_note!(pool, media, "two");
-    assert_eq!(repo.total(media, None, RowScope::All).await.unwrap(), 2);
+    assert_eq!(repo.total(media, None).await.unwrap(), 2);
 });
 
 on_both!(a_caption_without_a_time_is_refused, |pool| {
@@ -237,7 +231,7 @@ on_both!(a_caption_without_a_time_is_refused, |pool| {
         extensions: None,
     };
     assert!(repo.insert(media, None, None, &write).await.is_err());
-    assert_eq!(repo.total(media, None, RowScope::All).await.unwrap(), 0);
+    assert_eq!(repo.total(media, None).await.unwrap(), 0);
 });
 
 on_both!(a_track_row_must_be_a_caption, |pool| {
@@ -312,7 +306,7 @@ on_both!(a_caption_import_keeps_hand_written_notes, |pool| {
     );
     let cues = repo.cues(media, Some("en")).await.unwrap();
     assert_eq!(cues.len(), 2, "the hand-written cue is still there");
-    assert_eq!(repo.total(media, None, RowScope::All).await.unwrap(), 3);
+    assert_eq!(repo.total(media, None).await.unwrap(), 3);
 });
 
 on_both!(track_langs_counts_each_language, |pool| {
@@ -378,10 +372,7 @@ on_both!(firsts_and_counts_group_by_media, |pool| {
     .unwrap();
     a_note!(pool, second, "other media");
 
-    let rows = repo
-        .firsts(&[first, second], 8, None, RowScope::All)
-        .await
-        .unwrap();
+    let rows = repo.firsts(&[first, second], 8, None).await.unwrap();
     let of_first: Vec<&str> = rows
         .iter()
         .filter(|row| row.media_id == first)
@@ -389,14 +380,11 @@ on_both!(firsts_and_counts_group_by_media, |pool| {
         .collect();
     assert_eq!(of_first, vec![&*early, &*late, &*whole_body]);
 
-    let counts = repo
-        .counts(&[first, second], None, RowScope::All)
-        .await
-        .unwrap();
+    let counts = repo.counts(&[first, second], None).await.unwrap();
     assert_eq!(counts.get(&first), Some(&3));
     assert_eq!(counts.get(&second), Some(&1));
 
-    let capped = repo.firsts(&[first], 1, None, RowScope::All).await.unwrap();
+    let capped = repo.firsts(&[first], 1, None).await.unwrap();
     assert_eq!(capped.len(), 1);
     assert_eq!(capped[0].body_json, early);
 });
@@ -413,7 +401,7 @@ on_both!(deleting_a_media_removes_its_notes, |pool| {
     assert_eq!(found.len(), 1);
 
     assert!(MediaRepo::<Db>::new(pool).delete(media).await.unwrap());
-    assert_eq!(repo.total(media, None, RowScope::All).await.unwrap(), 0);
+    assert_eq!(repo.total(media, None).await.unwrap(), 0);
     let found = repo
         .search(&anonymous(), item, &query, 0, 10)
         .await
@@ -457,15 +445,13 @@ on_both!(a_page_filters_by_motivation, |pool| {
         .await
         .unwrap();
 
-    assert_eq!(repo.total(media, None, RowScope::All).await.unwrap(), 2);
+    assert_eq!(repo.total(media, None).await.unwrap(), 2);
     assert_eq!(
-        repo.total(media, Some(&["supplementing"]), RowScope::All)
-            .await
-            .unwrap(),
+        repo.total(media, Some(&["supplementing"])).await.unwrap(),
         1
     );
     let captions = repo
-        .page(media, 0, 10, Some(&["supplementing"]), RowScope::All)
+        .page(media, 0, 10, Some(&["supplementing"]))
         .await
         .unwrap();
     assert_eq!(captions.len(), 1);

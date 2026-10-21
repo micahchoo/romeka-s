@@ -348,6 +348,10 @@ pub enum Problem {
     NoTextBody,
     #[error("A caption note needs a time range.")]
     CaptionNeedsTime,
+    #[error("This media has no timeline.")]
+    NoTimeline,
+    #[error("A caption language must be a tag such as en or pt-BR.")]
+    BadLanguage,
     #[error("A note's extension properties may hold at most 8 KiB.")]
     ExtensionsTooLarge,
 }

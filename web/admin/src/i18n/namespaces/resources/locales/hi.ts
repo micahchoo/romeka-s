@@ -125,4 +125,5 @@ export const hi: ResourcesMessages = {
   'place.invalid':
     '-90 से 90 के बीच अक्षांश, एक अल्पविराम, और -180 से 180 के बीच देशांतर टाइप करें।',
   'place.unavailable': 'मैप लोड नहीं हो सका। स्थान को "lat, lng" के रूप में टाइप करें।',
+  'media.loadingNotes': 'नोट्स लोड हो रहे हैं...',
 };

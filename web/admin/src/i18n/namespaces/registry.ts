@@ -35,4 +35,5 @@ export const NAMESPACES: readonly NamespaceRecord[] = [
   { id: 'import-simple', what: 'Import page Simple screen messages', type: 'ImportSimpleMessages' },
   { id: 'import-advanced', what: 'Import Advanced screen messages', type: 'ImportAdvancedMessages' },
   { id: 'import-run', what: 'import run screen messages', type: 'ImportRunMessages' },
+  { id: 'annotations', what: 'media notes panel messages', type: 'AnnotationsMessages' },
 ];

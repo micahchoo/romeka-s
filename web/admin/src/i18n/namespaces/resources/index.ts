@@ -128,6 +128,8 @@ export const en = {
   'place.add': 'Add a place',
   'place.invalid': 'Type a latitude from -90 to 90, a comma, and a longitude from -180 to 180.',
   'place.unavailable': 'The map could not load. Type the place as "lat, lng".',
+  // The notes panel (A-3) mounts beside the media stage on the media page.
+  'media.loadingNotes': 'Loading notes...',
 } as const;
 
 /** A complete table of this namespace, in one locale. */

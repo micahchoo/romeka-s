@@ -15,8 +15,8 @@ use flate2::Compression;
 use flate2::write::GzEncoder;
 
 use omeka_api::annotation::{
-    Annotation, AnnotationError, AnnotationId, Annotations, Body, ExtentSource, Page, Selector,
-    Summary,
+    Annotation, AnnotationError, AnnotationId, Annotations, Body, ExtentSource, Iris, Page,
+    Selector, Summary,
 };
 use omeka_api::jsonld::BaseUrl;
 use omeka_api::read::catalog::Catalog;
@@ -34,9 +34,9 @@ use omeka_db::DbPool;
 use omeka_db::ids as db;
 use omeka_db::repos::{
     AssetRepo, ClassRepo, FulltextRepo, ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo,
-    MediaExtentRepo, MediaFilter, MediaRepo, MediaVisibility, Paging, ResourceRepo,
-    SiteBlockAttachmentRepo, SiteFilter, SiteRepo, TemplateRepo, ValueRepo, compare_opt_text_ci,
-    compare_text_ci,
+    MediaAnnotationRepo, MediaExtentRepo, MediaFilter, MediaRepo, MediaVisibility, Paging,
+    ResourceRepo, SiteBlockAttachmentRepo, SiteFilter, SiteRepo, TemplateRepo, ValueRepo,
+    compare_opt_text_ci, compare_text_ci,
 };
 use omeka_db::rows::{
     AssetRow, ItemRow, ItemSetRow, MediaRow, ResourceRow, SiteBlockRow, SitePageRow, SiteRow,
@@ -611,6 +611,16 @@ impl<'a> Loader<'a> {
         let title = media_display_title(row, self.messages());
         let mut core = media_core(row, alt_text.clone());
         core.core.title = Some(title.clone());
+        // The kind and the caption languages are read before the media view is
+        // built: a `MediaView` is not `Send`, so nothing may await while it is
+        // alive.
+        let kind = MediaKind::of(&KindInput {
+            renderer: &row.renderer,
+            ingester: &row.ingester,
+            media_type: row.media_type.as_deref(),
+            has_thumbnails: row.has_thumbnails,
+        });
+        let tracks = self.caption_tracks(row, kind).await?;
         let view = MediaView::new(
             core,
             MediaData::parse(&row.ingester, row.data.as_ref()).unwrap_or(MediaData::None),
@@ -630,12 +640,7 @@ impl<'a> Loader<'a> {
         // A 3D file gets the viewer only on the page that shows it, and the
         // reader starts the download: the renderer emits a facade, and the
         // theme's script loads the library when the button is pressed.
-        let is_model = MediaKind::of(&KindInput {
-            renderer: &row.renderer,
-            ingester: &row.ingester,
-            media_type: row.media_type.as_deref(),
-            has_thumbnails: row.has_thumbnails,
-        }) == MediaKind::Model3d;
+        let is_model = kind == MediaKind::Model3d;
         let mut options = options.clone();
         if is_model {
             options.model_reader = self.model_reader();
@@ -648,6 +653,9 @@ impl<'a> Loader<'a> {
             &view,
             &options,
         );
+        // A recording's caption languages are `<track>` elements inside the
+        // renderer's own player, so a media with none keeps its exact markup.
+        let rendered = omeka_site::annotation::with_tracks(&rendered, &tracks);
         // `Renderer/IIIF.php` appends OpenSeadragon to `headScript`; the theme
         // owns the head here, so the embed loads the library it calls. The 3D
         // facade is a theme script for the same reason: no inline code and no
@@ -770,6 +778,32 @@ impl<'a> Loader<'a> {
             .await?,
         );
         Ok(view)
+    }
+
+    /// The caption languages of a recording, as the `<track>` elements the
+    /// embed plays. A kind with no timeline asks no question and runs no query.
+    async fn caption_tracks(
+        &self,
+        row: &MediaRow,
+        kind: MediaKind,
+    ) -> Result<Vec<omeka_site::annotation::TrackLink>, DbError> {
+        if !matches!(kind, MediaKind::Audio | MediaKind::Video) {
+            return Ok(Vec::new());
+        }
+        let counts = with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
+            .track_langs(&[row.id()])
+            .await)?;
+        let tracks: Vec<(Option<String>, u32)> = counts
+            .into_iter()
+            .map(|(_, lang, cues)| (lang, cues))
+            .collect();
+        let iris = Iris::new(self.base.as_str());
+        Ok(omeka_site::annotation::tracks(
+            &tracks,
+            self.settings.locale().tag(),
+            &iris.captions(row.id(), None),
+            self.messages().kind_captions,
+        ))
     }
 
     /// The notes one media page shows: a page of a hundred, or the page a cited

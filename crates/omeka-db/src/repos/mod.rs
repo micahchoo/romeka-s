@@ -72,7 +72,7 @@ pub use jobs::{JobFilter, JobRepo};
 pub use media::{MediaFileOwner, MediaFilter, MediaRepo};
 pub use media_annotations::{
     ChangeOutcome, Cue, FtsQuery, InsertOutcome, MediaAnnotationRepo, MediaAnnotationRow,
-    MediaAnnotationWrite, RowScope, SearchScope, TrackOutcome,
+    MediaAnnotationWrite, SearchScope, TrackOutcome,
 };
 pub use media_extents::{ExtentRow, MediaExtentRepo};
 pub use modules::ModuleRepo;

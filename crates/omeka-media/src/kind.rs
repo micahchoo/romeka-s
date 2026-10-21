@@ -7,7 +7,30 @@
 //! needs a rule about a kind adds a variant here; it does not test the media
 //! type or the renderer name itself.
 
-use crate::thumbnailer::SOURCE_MEDIA_TYPES;
+/// The stored types whose derivatives are a still image for display: every
+/// type the thumbnailer decodes, plus the camera RAW formats, whose embedded
+/// preview makes the derivatives. This is the one list [`MediaKind::of_file`]
+/// and the SQL mirror in `omeka-db` both read.
+pub const DISPLAY_IMAGE_MEDIA_TYPES: [&str; 18] = [
+    "image/gif",
+    "image/jpeg",
+    "image/jp2",
+    "image/png",
+    "image/svg+xml",
+    "image/tiff",
+    "image/webp",
+    "image/x-adobe-dng",
+    "image/x-canon-cr2",
+    "image/x-canon-cr3",
+    "image/x-fuji-raf",
+    "image/x-nikon-nef",
+    "image/x-olympus-orf",
+    "image/x-panasonic-rw2",
+    "image/x-pentax-pef",
+    "image/x-samsung-srw",
+    "image/x-sigma-x3f",
+    "image/x-sony-arw",
+];
 
 /// A media as stored, reduced to what decides its kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -101,7 +124,7 @@ impl MediaKind {
         let Some(media_type) = media_type else {
             return Self::OtherFile;
         };
-        if has_thumbnails && SOURCE_MEDIA_TYPES.contains(&media_type) {
+        if has_thumbnails && DISPLAY_IMAGE_MEDIA_TYPES.contains(&media_type) {
             return Self::LocalImage;
         }
         match media_type {
@@ -199,6 +222,7 @@ mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used)]
 
     use super::*;
+    use crate::thumbnailer::SOURCE_MEDIA_TYPES;
 
     /// Every variant's name comes back from `from_name` as the same kind, and no
     /// two variants share a name.
@@ -241,5 +265,27 @@ mod tests {
         assert_eq!(MediaKind::from_name("AUDIO"), None);
         assert_eq!(MediaKind::from_name("document"), None);
         assert_eq!(MediaKind::from_name(""), None);
+    }
+
+    /// Every type the thumbnailer decodes is a display image, and a RAW file is
+    /// one once its preview made the derivatives.
+    #[test]
+    fn a_raw_file_with_derivatives_is_a_display_image() {
+        for media_type in SOURCE_MEDIA_TYPES {
+            assert!(
+                DISPLAY_IMAGE_MEDIA_TYPES.contains(&media_type),
+                "{media_type}"
+            );
+        }
+        let raw = |has_thumbnails| {
+            MediaKind::of(&KindInput {
+                renderer: "file",
+                ingester: "upload",
+                media_type: Some("image/x-nikon-nef"),
+                has_thumbnails,
+            })
+        };
+        assert_eq!(raw(true), MediaKind::LocalImage);
+        assert_eq!(raw(false), MediaKind::OtherFile);
     }
 }
