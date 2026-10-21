@@ -20,11 +20,12 @@ use std::path::{Path, PathBuf};
 
 use axum::Router;
 use axum::body::Body;
-use axum::http::{Request, StatusCode};
+use axum::http::{HeaderMap, Request, StatusCode};
 use common::{
     Answer, Seed, append_key, get, header, json_request, multipart_asset_request,
     router_with_store, seeded_pool, send,
 };
+use http_body_util::BodyExt;
 use omeka_db::DbPool;
 use omeka_db::repos::{ExtentRow, MediaExtentRepo};
 use omeka_db::with_db;
@@ -32,6 +33,7 @@ use omeka_media::image_metadata::image_metadata;
 use omeka_media::store::{FileStore, Store};
 use omeka_media::thumbnailer::ImageThumbnailer;
 use serde_json::{Value, json};
+use tower::ServiceExt;
 
 /// The seeded site every corpus item is attached to, so its card reaches the
 /// public item browse.
@@ -81,6 +83,7 @@ enum Cell {
     SiteMediaPage,
     SiteNotes,
     SiteItemCard,
+    SiteDownload,
     Iiif,
     IiifNotes,
     Safe,
@@ -95,6 +98,7 @@ const CELLS: &[Cell] = &[
     Cell::SiteMediaPage,
     Cell::SiteNotes,
     Cell::SiteItemCard,
+    Cell::SiteDownload,
     Cell::Iiif,
     Cell::IiifNotes,
     Cell::Safe,
@@ -111,6 +115,7 @@ impl Cell {
             Self::SiteMediaPage => "site-media-page",
             Self::SiteNotes => "site-notes",
             Self::SiteItemCard => "site-item-card",
+            Self::SiteDownload => "site-download",
             Self::Iiif => "iiif",
             Self::IiifNotes => "iiif-notes",
             Self::Safe => "safe",
@@ -340,6 +345,8 @@ struct Observed {
     /// manifest named it.
     notes_page: Option<Value>,
     original: Option<Vec<u8>>,
+    /// The answer to the media page's own download route, read as bytes.
+    download: Option<Download>,
     bytes: Vec<u8>,
     /// The answer to each `<track src>` the media page holds.
     tracks: Vec<Answer>,
@@ -673,6 +680,7 @@ async fn upload(app: &Router, store: &FileStore, seed: &Seed, fixture: &Fixture)
         manifest: None,
         notes_page: None,
         original: None,
+        download: None,
         bytes,
         tracks: Vec::new(),
     };
@@ -716,6 +724,13 @@ async fn upload(app: &Router, store: &FileStore, seed: &Seed, fixture: &Fixture)
             observed.tracks = track_answers(app, &page).await;
         }
         observed.page = Some(page);
+        observed.download = Some(
+            download_answer(
+                app.clone(),
+                get(&format!("{SITE}/media/{media_id}/download"), false),
+            )
+            .await,
+        );
     }
     observed.manifest = Some(
         send(
@@ -882,6 +897,7 @@ fn judge(
         Cell::SiteMediaPage => Some(site_media_page(fixture, seen, css)),
         Cell::SiteNotes => Some(site_notes(fixture, seen)),
         Cell::SiteItemCard => Some(site_item_card(seen, browse)),
+        Cell::SiteDownload => Some(site_download(fixture, seen)),
         Cell::Iiif => Some(iiif(fixture, seen)),
         Cell::IiifNotes => iiif_notes(seen),
         Cell::Safe => (fixture.file == "hostile.svg").then(|| safe(seen)),
@@ -1151,6 +1167,53 @@ fn has_file_link(page: &str, doc: &Value) -> bool {
         .any(|tag| {
             tag.contains("href=\"") && tag.contains("/files/original/") && tag.contains(filename)
         })
+}
+
+/// The media page's download route answers the stored original as an
+/// attachment named from the media's source, which for a corpus upload is the
+/// fixture's own file name.
+fn site_download(fixture: &Fixture, seen: &Observed) -> bool {
+    let Some(answer) = &seen.download else {
+        return false;
+    };
+    answer.status == StatusCode::OK
+        && download_header(answer, "content-type") == Some(fixture.media_type)
+        && download_header(answer, "content-disposition")
+            .is_some_and(|value| value.contains(&format!("filename*=UTF-8''{}", fixture.file)))
+        && answer.bytes == seen.original.as_deref().unwrap_or(&seen.bytes)
+}
+
+/// A download's answer as bytes: its body is the original, which a text read
+/// would refuse.
+struct Download {
+    status: StatusCode,
+    headers: HeaderMap,
+    bytes: Vec<u8>,
+}
+
+async fn download_answer(app: Router, request: Request<Body>) -> Download {
+    let response = app.oneshot(request).await.expect("the download answers");
+    let status = response.status();
+    let headers = response.headers().clone();
+    let bytes = response
+        .into_body()
+        .collect()
+        .await
+        .expect("the download body")
+        .to_bytes()
+        .to_vec();
+    Download {
+        status,
+        headers,
+        bytes,
+    }
+}
+
+fn download_header<'a>(answer: &'a Download, name: &str) -> Option<&'a str> {
+    answer
+        .headers
+        .get(name)
+        .and_then(|value| value.to_str().ok())
 }
 
 /// The public media page lists every note a visitor may see, and a picture
@@ -1476,4 +1539,43 @@ fn baseline_document(rows: &[Row], red: &BTreeSet<(&str, &str)>) -> String {
         }
     }
     out
+}
+
+/// A recording's "Use elsewhere" block names its captions files and its notes
+/// container, and the head names the media manifest. Each link is the route
+/// the server answers, read from the page rather than restated.
+#[tokio::test]
+async fn the_media_page_shares_its_captions_and_notes() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let store = FileStore::new(dir.path(), "/files");
+    let (pool, seed) = seeded_pool().await;
+    let app = router_with_store(pool, store.clone());
+    let video = FIXTURES
+        .iter()
+        .find(|fixture| fixture.file == "video.mp4")
+        .expect("video.mp4 in the corpus");
+    let seen = upload(&app, &store, &seed, video).await;
+    let media = seen.media.expect("the video's media");
+
+    let page = send(app.clone(), get(&format!("{SITE}/media/{media}"), false))
+        .await
+        .body;
+    assert!(
+        page.contains(&format!(
+            "<li class=\"use-elsewhere-captions\"><a href=\"http://localhost/annotations/media/{media}/captions.vtt?lang="
+        )),
+        "{page}"
+    );
+    assert!(
+        page.contains(&format!(
+            "<li class=\"use-elsewhere-notes\"><a href=\"http://localhost/annotations/media/{media}/\">Notes as data</a>"
+        )),
+        "{page}"
+    );
+    assert!(
+        page.contains(&format!(
+            "<link rel=\"alternate\" type=\"application/ld+json;profile=&quot;http://iiif.io/api/presentation/3/context.json&quot;\" href=\"http://localhost/iiif/3/media/{media}/manifest\">"
+        )),
+        "{page}"
+    );
 }

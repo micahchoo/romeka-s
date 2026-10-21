@@ -52,6 +52,21 @@ export interface TrackSummary {
   readonly cues: number;
   readonly imported: string | null;
   readonly handEdited: number;
+  /** The edition one undo would bring back (G6), if there is one. */
+  readonly undo: KeptSummary | null;
+}
+
+/** The size and import time of the caption edition an undo brings back. */
+export interface KeptSummary {
+  readonly cues: number;
+  readonly imported: string | null;
+}
+
+/** The answer to an undo: the edition now live again (G6). */
+export interface TrackUndo {
+  readonly lang: string | null;
+  readonly cues: number;
+  readonly imported: string | null;
 }
 
 /** The answer to an import (contract 6.5). */
@@ -135,13 +150,26 @@ const captionType = (file: Blob): string => {
   return file.type === '' ? VTT : file.type;
 };
 
+const parseKept = (raw: unknown, path: Path): KeptSummary => {
+  const kept = asRecord(raw, path);
+  return {
+    cues: asNumber(field(kept, 'cues', path), [...path, 'cues']),
+    imported: typeof kept['imported'] === 'string' ? kept['imported'] : null,
+  };
+};
+
 const parseTrackSummary = (raw: unknown, path: Path): TrackSummary => {
   const track = asRecord(raw, path);
+  const undo = track['undo'];
   return {
     lang: asString(field(track, 'lang', path), [...path, 'lang']),
     cues: asNumber(field(track, 'cues', path), [...path, 'cues']),
     imported: typeof track['imported'] === 'string' ? track['imported'] : null,
     handEdited: asNumber(field(track, 'handEdited', path), [...path, 'handEdited']),
+    undo:
+      undo === undefined || undo === null
+        ? null
+        : parseKept(undo, [...path, 'undo']),
   };
 };
 
@@ -344,6 +372,28 @@ export class NotesClient {
     if (!response.ok) {
       throw await refusal(response);
     }
+  }
+
+  /**
+   * Bring back the edition the last import of `lang` replaced (G6). A 409 means
+   * there is nothing left to bring back: someone undid it already, or a later
+   * import took its place.
+   */
+  async undoTrack(mediaId: MediaId, lang: string): Promise<TrackUndo> {
+    const query = new URLSearchParams({ lang });
+    const response = await this.fetchFn(
+      this.url(`/annotations/media/${String(mediaId)}/tracks/undo?${query.toString()}`),
+      { method: 'POST', credentials: 'same-origin' },
+    );
+    if (!response.ok) {
+      throw await refusal(response);
+    }
+    const document = asRecord(await readBody(response), []);
+    return {
+      lang: typeof document['lang'] === 'string' ? document['lang'] : null,
+      cues: asNumber(field(document, 'cues', []), ['cues']),
+      imported: typeof document['imported'] === 'string' ? document['imported'] : null,
+    };
   }
 
   /** The import's effect, with no row changed (G5). */

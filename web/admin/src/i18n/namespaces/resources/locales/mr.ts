@@ -99,6 +99,11 @@ export const mr: ResourcesMessages = {
   'media.stage.embedHeading':
     'हे माध्यम {host} वरील एक पृष्ठ आहे. जोपर्यंत तुम्ही ते उघडत नाही, तोपर्यंत त्यातून काहीही लोड होत नाही.',
   'media.stage.embedOpen': '{host} वर उघडा',
+  'media.stage.embedLoad': 'एम्बेड लोड करा',
+  'media.stage.embedFrame': '{host} कडून एम्बेड',
+  'media.stage.embedSnippetHeading':
+    'हे माध्यम HTML आहे जे सर्व्हर ते रेंडर करतो. जोपर्यंत तुम्ही ते उघडत नाही, तोपर्यंत काहीही लोड होत नाही.',
+  'media.stage.embedSnippetFrame': 'रेंडर केलेले HTML',
   'media.stage.manifestHeading': 'हे माध्यम {host} कडून IIIF मॅनिफेस्ट आहे.',
   'media.stage.manifestOpen': 'IIIF व्ह्यूअरमध्ये उघडा',
   'media.stage.manifestSource': 'मॅनिफेस्ट उघडा',

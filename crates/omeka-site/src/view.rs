@@ -146,6 +146,23 @@ pub struct ResourceView {
     /// The item's IIIF manifest URL, absolute, when the item has a media a
     /// canvas can paint. The item view links it and opens it in the viewer.
     pub iiif_manifest: Option<String>,
+    /// The file's original, for the media page's download line. `None` for a
+    /// media with no stored original, such as an embed.
+    pub download: Option<DownloadLink>,
+    /// The "Use elsewhere" block: the manifest, the viewer, the captions files,
+    /// the notes container and the citation. `None` on a resource kind whose
+    /// page does not offer one.
+    pub share: Option<crate::share::ShareView>,
+}
+
+/// A media's stored original, as the media page offers it to save.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DownloadLink {
+    /// The site route that answers the file as an attachment, relative to the
+    /// origin.
+    pub url: String,
+    /// The stored byte size, when the ingest recorded one.
+    pub size: Option<u64>,
 }
 
 impl ResourceView {
@@ -182,6 +199,8 @@ impl ResourceView {
             transcript: None,
             jsonld: None,
             iiif_manifest: None,
+            download: None,
+            share: None,
         }
     }
 }

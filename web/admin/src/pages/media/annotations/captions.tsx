@@ -7,6 +7,11 @@
  * makes a replace a decision rather than a surprise: the row's counts are the
  * server's, and the commit button names the count it will replace.
  *
+ * A replace keeps the edition it replaced, so the row offers **Undo replace**
+ * for one step, until the next import or removal of that language (G6). The row
+ * says what comes back and from when, and one click brings it back with no
+ * confirmation: the confirm is on the destructive side, not on the repair.
+ *
  * The same module carries **Use as captions of…** for a caption file, because
  * that action ends in this dialog too: the file attached to the item is posted
  * to a recording beside it.
@@ -15,14 +20,14 @@ import type { ReactElement } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../../api/client';
 import type { Media, MediaId } from '../../../api/types';
-import { formatDateTime } from '../../../app/format';
+import { formatDateTime, formatError } from '../../../app/format';
 import { languageName } from '../../../app/language';
 import { mediaKind, mediaName } from '../../../app/media';
 import { useTranslator } from '../../../i18n';
 import type { KeyOf, Translator } from '../../../i18n';
 import { annotations } from '../../../i18n/namespaces/annotations';
 import { captionsUrl, notesClient } from './client';
-import type { TrackImport, TrackSummary } from './client';
+import type { KeptSummary, TrackImport, TrackSummary } from './client';
 import { CaptionDialog } from './caption-dialog';
 import './captions.css';
 
@@ -49,11 +54,29 @@ const rowText = (
     : translate('captions.row', { cues: track.cues, when });
 };
 
+/** What one click on **Undo replace** brings back: the count, the language, when. */
+const undoText = (
+  kept: KeptSummary,
+  language: string,
+  when: string | null,
+  translate: Translator<KeyOf<typeof annotations>>['t'],
+): string => {
+  if (kept.cues === 1) {
+    return when === null
+      ? translate('captions.undoLineUndatedOne', { language })
+      : translate('captions.undoLineOne', { language, when });
+  }
+  return when === null
+    ? translate('captions.undoLineUndated', { cues: kept.cues, language })
+    : translate('captions.undoLine', { cues: kept.cues, language, when });
+};
+
 export const Captions = (props: CaptionsProps): ReactElement => {
   const translator = useTranslator(annotations);
   const { t, locale } = translator;
   const [tracks, setTracks] = useState<readonly TrackSummary[] | null>(null);
   const [error, setError] = useState<Error | null>(null);
+  const [undoFailed, setUndoFailed] = useState<Error | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [dialog, setDialog] = useState<{ readonly replace: TrackSummary | null } | null>(null);
   const [removing, setRemoving] = useState<TrackSummary | null>(null);
@@ -92,6 +115,35 @@ export const Captions = (props: CaptionsProps): ReactElement => {
         : t('captions.unchanged', { language }),
     );
     load();
+  };
+
+  const undo = (track: TrackSummary): void => {
+    if (busy) {
+      return;
+    }
+    setBusy(true);
+    setStatus(null);
+    setUndoFailed(null);
+    notesClient.undoTrack(props.mediaId, track.lang).then(
+      (undone) => {
+        setBusy(false);
+        const language =
+          undone.lang === null || undone.lang === ''
+            ? t('captions.dialog.noLanguage')
+            : languageName(undone.lang, locale);
+        setStatus(
+          undone.cues === 1
+            ? t('captions.undoneOne', { language })
+            : t('captions.undone', { language, cues: undone.cues }),
+        );
+        load();
+      },
+      (failure: unknown) => {
+        setBusy(false);
+        setUndoFailed(failure instanceof Error ? failure : new Error(String(failure)));
+        load();
+      },
+    );
   };
 
   const remove = (track: TrackSummary): void => {
@@ -149,6 +201,10 @@ export const Captions = (props: CaptionsProps): ReactElement => {
             const language =
               track.lang === '' ? t('captions.dialog.noLanguage') : languageName(track.lang, locale);
             const when = track.imported === null ? null : formatDateTime(track.imported, locale);
+            const undoWhen =
+              track.undo === null || track.undo.imported === null
+                ? null
+                : formatDateTime(track.undo.imported, locale);
             return (
               <li key={track.lang} className="caption-row">
                 <p>
@@ -161,6 +217,19 @@ export const Captions = (props: CaptionsProps): ReactElement => {
                     {t('captions.handEdited', { count: String(track.handEdited) })}
                   </p>
                 )}
+                {props.writable && track.undo !== null ? (
+                  <div className="caption-undo">
+                    <p>{undoText(track.undo, language, undoWhen, t)}</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        undo(track);
+                      }}
+                    >
+                      {t('captions.undoReplace')}
+                    </button>
+                  </div>
+                ) : null}
                 {props.writable ? (
                   <div className="caption-actions">
                     <button
@@ -229,6 +298,12 @@ export const Captions = (props: CaptionsProps): ReactElement => {
       {status === null ? null : (
         <p className="caption-status" role="status">
           {status}
+        </p>
+      )}
+
+      {undoFailed === null ? null : (
+        <p className="note-field-error" role="alert">
+          {formatError(undoFailed, translator)}
         </p>
       )}
 

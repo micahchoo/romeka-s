@@ -360,15 +360,21 @@ async fn jsonld_embed_follows_disable_jsonld_embed() {
 
     let answer = send(app.clone(), get(&path, false)).await;
     assert!(
-        answer.body.contains("application/ld+json"),
+        answer
+            .body
+            .contains("<script type=\"application/ld+json\">"),
         "{}",
         answer.body
     );
 
     set(&pool, site, "disable_jsonld_embed", json!(true)).await;
     let answer = send(app, get(&path, false)).await;
+    // The manifest link also names `application/ld+json`, in its profile
+    // parameter; this setting governs the embedded resource script only.
     assert!(
-        !answer.body.contains("application/ld+json"),
+        !answer
+            .body
+            .contains("<script type=\"application/ld+json\">"),
         "{}",
         answer.body
     );

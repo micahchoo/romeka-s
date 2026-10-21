@@ -33,6 +33,10 @@ pub struct Download {
     pub media_type: Option<String>,
     /// The name a "save as" offers, from the media's `o:source`.
     pub filename: Option<String>,
+    /// Whether the browser saves the file instead of drawing it. A player or a
+    /// viewer fetches an original inline; the site's download route names it
+    /// an attachment.
+    pub attachment: bool,
 }
 
 impl Download {
@@ -43,13 +47,28 @@ impl Download {
         Self {
             media_type: media_type.map(str::to_string),
             filename: Some(download_name(source, stored_name)),
+            attachment: false,
+        }
+    }
+
+    /// The same facts, answered as an attachment a browser saves.
+    #[must_use]
+    pub fn attachment(media_type: Option<&str>, source: Option<&str>, stored_name: &str) -> Self {
+        Self {
+            attachment: true,
+            ..Self::of(media_type, source, stored_name)
         }
     }
 
     /// The `Content-Disposition` value for this download.
     #[must_use]
     pub fn disposition(&self) -> String {
-        content_disposition(self.filename.as_deref().unwrap_or("download"))
+        let name = self.filename.as_deref().unwrap_or("download");
+        if self.attachment {
+            attachment_disposition(name)
+        } else {
+            content_disposition(name)
+        }
     }
 
     /// The type the download answers with: the media's stored type.
@@ -68,6 +87,8 @@ impl Download {
 /// when the source names one, otherwise the stored file name.
 ///
 /// A URL source is read as a URL, so a percent-encoded name arrives decoded.
+/// A path is split on both slash kinds, because a source can be a Windows path
+/// (`C:\Users\a\scan 1.pdf`) as easily as a URL.
 #[must_use]
 pub fn download_name(source: Option<&str>, stored_name: &str) -> String {
     let Some(source) = source.map(str::trim).filter(|source| !source.is_empty()) else {
@@ -78,11 +99,13 @@ pub fn download_name(source: Option<&str>, stored_name: &str) -> String {
             .path_segments()
             .and_then(|mut segments| segments.next_back())
         && !last.is_empty()
+        && let Some(name) = last.rsplit(['/', '\\']).next().map(str::trim)
+        && !name.is_empty()
     {
-        return decode_percent(last);
+        return decode_percent(name);
     }
     let path = source.split(['?', '#']).next().unwrap_or_default();
-    match path.rsplit('/').next().map(str::trim) {
+    match path.rsplit(['/', '\\']).next().map(str::trim) {
         Some(name) if !name.is_empty() => name.to_string(),
         _ => stored_name.to_string(),
     }
@@ -114,24 +137,51 @@ fn decode_percent(text: &str) -> String {
 /// one.
 #[must_use]
 pub fn content_disposition(name: &str) -> String {
-    // A source is arbitrary text, and a header is bounded: 255 characters is
-    // the longest name a filesystem accepts anyway.
-    let name: String = name.chars().filter(|c| !c.is_control()).take(255).collect();
-    let name = name.trim();
-    let name = if name.is_empty() { "download" } else { name };
-    let fallback: String = name
-        .chars()
-        .map(|c| if c.is_ascii() { c } else { '_' })
-        .collect();
-    let quoted = fallback.replace('\\', "\\\\").replace('"', "\\\"");
+    let name = header_name(name);
+    let quoted = ascii_fallback(&name);
     if name.is_ascii() {
         format!("inline; filename=\"{quoted}\"")
     } else {
         format!(
             "inline; filename=\"{quoted}\"; filename*=UTF-8''{}",
-            encode_attr(name)
+            encode_attr(&name)
         )
     }
+}
+
+/// The `Content-Disposition` of a saved file: always `filename*`, so the name
+/// survives an accent or a space, and an ASCII `filename` for a client that
+/// reads only the older form.
+#[must_use]
+pub fn attachment_disposition(name: &str) -> String {
+    let name = header_name(name);
+    format!(
+        "attachment; filename=\"{}\"; filename*=UTF-8''{}",
+        ascii_fallback(&name),
+        encode_attr(&name)
+    )
+}
+
+/// A source is arbitrary text, and a header is bounded: 255 characters is the
+/// longest name a filesystem accepts anyway. Control characters are dropped
+/// because no header may carry one.
+fn header_name(name: &str) -> String {
+    let name: String = name.chars().filter(|c| !c.is_control()).take(255).collect();
+    let name = name.trim();
+    if name.is_empty() {
+        "download".to_string()
+    } else {
+        name.to_string()
+    }
+}
+
+/// The ASCII `filename` fallback, with a non-ASCII character as `_`.
+fn ascii_fallback(name: &str) -> String {
+    let fallback: String = name
+        .chars()
+        .map(|c| if c.is_ascii() { c } else { '_' })
+        .collect();
+    fallback.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
 /// RFC 5987 `attr-char`, everything else percent-encoded from the UTF-8 bytes.
@@ -333,6 +383,14 @@ mod tests {
             download_name(Some("/tmp/clip.webm"), "abc.webm"),
             "clip.webm"
         );
+        assert_eq!(
+            download_name(Some("C:\\Users\\a\\scan 1.pdf"), "abc.pdf"),
+            "scan 1.pdf"
+        );
+        assert_eq!(
+            download_name(Some("C:/Users/a/scan 1.pdf"), "abc.pdf"),
+            "scan 1.pdf"
+        );
         assert_eq!(download_name(Some("   "), "abc.webm"), "abc.webm");
         assert_eq!(download_name(None, "abc.webm"), "abc.webm");
     }
@@ -361,6 +419,35 @@ mod tests {
         assert!(
             !long.contains(&"a".repeat(256)),
             "truncated to a name a filesystem accepts"
+        );
+    }
+
+    #[test]
+    fn an_attachment_names_the_file_for_a_save_as() {
+        assert_eq!(
+            attachment_disposition("scan 1.pdf"),
+            "attachment; filename=\"scan 1.pdf\"; filename*=UTF-8''scan%201.pdf"
+        );
+        assert_eq!(
+            attachment_disposition("caf\u{e9}.mp4"),
+            "attachment; filename=\"caf_.mp4\"; filename*=UTF-8''caf%C3%A9.mp4"
+        );
+        assert_eq!(
+            attachment_disposition("a\r\nb.pdf"),
+            "attachment; filename=\"ab.pdf\"; filename*=UTF-8''ab.pdf"
+        );
+        assert_eq!(
+            Download::attachment(
+                Some("application/pdf"),
+                Some("C:\\Users\\a\\scan 1.pdf"),
+                "x"
+            )
+            .disposition(),
+            "attachment; filename=\"scan 1.pdf\"; filename*=UTF-8''scan%201.pdf"
+        );
+        assert_eq!(
+            Download::of(Some("application/pdf"), Some("scan 1.pdf"), "x").disposition(),
+            "inline; filename=\"scan 1.pdf\""
         );
     }
 

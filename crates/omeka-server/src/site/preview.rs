@@ -143,10 +143,10 @@ pub(crate) async fn run(
     .await
     {
         Ok(Outcome::Html(html)) => html_response(html),
-        // The frame renders a page; a redirect here would be a bug, not a page.
-        Ok(Outcome::Redirect(_)) => crate::empty_internal_error(),
+        // The frame renders a page; a redirect or a file here would be a bug.
+        Ok(Outcome::Redirect(_) | Outcome::File(_)) => crate::empty_internal_error(),
         Ok(Outcome::NotFound(_)) | Err(SiteError::NotFound) => not_found(),
-        Err(SiteError::Internal(_)) => crate::empty_internal_error(),
+        Err(SiteError::Internal(_) | SiteError::Storage(_)) => crate::empty_internal_error(),
     }
 }
 
@@ -204,9 +204,9 @@ async fn run_resource(
     .await
     {
         Ok(Outcome::Html(html)) => html_response(html),
-        Ok(Outcome::Redirect(_)) => crate::empty_internal_error(),
+        Ok(Outcome::Redirect(_) | Outcome::File(_)) => crate::empty_internal_error(),
         Ok(Outcome::NotFound(_)) | Err(SiteError::NotFound) => not_found(),
-        Err(SiteError::Internal(_)) => crate::empty_internal_error(),
+        Err(SiteError::Internal(_) | SiteError::Storage(_)) => crate::empty_internal_error(),
     }
 }
 

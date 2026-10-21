@@ -153,6 +153,13 @@ export const kn: AnnotationsMessages = {
   'captions.rowUndatedOne': '1 ಶೀರ್ಷಿಕೆ ಕಡತದಿಂದ.',
   'captions.handEdited':
     '{count} ಈ ಶೀರ್ಷಿಕೆಗಳು ಇಲ್ಲಿ ಕೈಯಾರೆ ಬದಲಾಯಿಸಲ್ಪಟ್ಟಿವೆ. ಈ ಭಾಷೆಯ ಮುಂದಿನ ಆಮದು ಅವುಗಳನ್ನು ಬದಲಾಯಿಸುತ್ತದೆ.',
+  'captions.undoReplace': 'ಬದಲಾಯಿಸುವುದನ್ನು ರದ್ದುಗೊಳಿಸಿ',
+  'captions.undoLine': '{when} ನಿಂದ {cues} {language} ಸುಳಿವುಗಳನ್ನು ಮತ್ತೆ ತನ್ನಿ.',
+  'captions.undoLineOne': '{when} ನಿಂದ 1 {language} ಸುಳಿವನ್ನು ಮತ್ತೆ ತನ್ನಿ.',
+  'captions.undoLineUndated': '{cues} {language} ಸುಳಿವುಗಳನ್ನು ಮತ್ತೆ ತನ್ನಿ.',
+  'captions.undoLineUndatedOne': '1 {language} ಸುಳಿವನ್ನು ಮತ್ತೆ ತನ್ನಿ.',
+  'captions.undone': '{language} ಶೀರ್ಷಿಕೆಗಳು: {cues} ಸುಳಿವುಗಳನ್ನು ಮತ್ತೆ ತರಲಾಗಿದೆ.',
+  'captions.undoneOne': '{language} ಶೀರ್ಷಿಕೆಗಳು: 1 ಸುಳಿವನ್ನು ಮತ್ತೆ ತರಲಾಗಿದೆ.',
   'captions.removeConfirm':
     '{cues} {language} ಶೀರ್ಷಿಕೆಗಳನ್ನು ತೆಗೆದುಹಾಕಿ? ಸಂದರ್ಶಕರು ಇನ್ನು ಮುಂದೆ {language} ಶೀರ್ಷಿಕೆಗಳನ್ನು ನೋಡುವುದಿಲ್ಲ. ನಿಮ್ಮ ಸ್ವಂತ ಟಿಪ್ಪಣಿಗಳು ಉಳಿಯುತ್ತವೆ.',
   'captions.removeDo': '{language} ಶೀರ್ಷಿಕೆಗಳನ್ನು ತೆಗೆದುಹಾಕಿ',

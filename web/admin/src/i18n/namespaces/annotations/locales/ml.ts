@@ -159,6 +159,13 @@ export const ml: AnnotationsMessages = {
   'captions.rowUndatedOne': '1 cue അടക്കുറിപ്പ് ഫയലിൽ നിന്ന്.',
   'captions.handEdited':
     '{count} cues ഇവിടെ കൈകൊണ്ട് മാറ്റപ്പെട്ടു. ഈ ഭാഷയുടെ അടുത്ത ഇറക്കുമതി അവയെ മാറ്റും.',
+  'captions.undoReplace': 'മാറ്റുന്നത് പഴയപടിയാക്കുക',
+  'captions.undoLine': '{when}-ൽ നിന്നുള്ള {cues} {language} സൂചനകൾ തിരികെ കൊണ്ടുവരിക.',
+  'captions.undoLineOne': '{when}-ൽ നിന്നുള്ള 1 {language} സൂചന തിരികെ കൊണ്ടുവരിക.',
+  'captions.undoLineUndated': '{cues} {language} സൂചനകൾ തിരികെ കൊണ്ടുവരിക.',
+  'captions.undoLineUndatedOne': '1 {language} സൂചന തിരികെ കൊണ്ടുവരിക.',
+  'captions.undone': '{language} അടിക്കുറിപ്പുകൾ: {cues} സൂചനകൾ തിരികെ കൊണ്ടുവന്നു.',
+  'captions.undoneOne': '{language} അടിക്കുറിപ്പുകൾ: 1 സൂചന തിരികെ കൊണ്ടുവന്നു.',
   'captions.removeConfirm':
     '{cues} {language} cues നീക്കം ചെയ്യണോ? സന്ദർശകർക്ക് {language} അടക്കുറിപ്പുകൾ കാണാൻ കഴിയില്ല. നിങ്ങളുടെ സ്വന്തം notes നിലനിൽക്കും.',
   'captions.removeDo': '{language} അടക്കുറിപ്പുകൾ നീക്കം ചെയ്യുക',

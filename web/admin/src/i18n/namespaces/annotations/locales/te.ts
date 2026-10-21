@@ -151,6 +151,13 @@ export const te: AnnotationsMessages = {
   'captions.rowUndatedOne': '1 cue క్యాప్షన్ ఫైల్ నుండి.',
   'captions.handEdited':
     'ఈ భాషలో ఈ {count} cues చేతితో ఇక్కడ మార్చబడ్డాయి. తదుపరి దిగుమతి వీటిని భర్తీ చేస్తుంది.',
+  'captions.undoReplace': 'భర్తీని వెనక్కి తీసుకో',
+  'captions.undoLine': '{when} నుండి {cues} {language} సంకేతాలను తిరిగి తీసుకురండి.',
+  'captions.undoLineOne': '{when} నుండి 1 {language} సంకేతాన్ని తిరిగి తీసుకురండి.',
+  'captions.undoLineUndated': '{cues} {language} సంకేతాలను తిరిగి తీసుకురండి.',
+  'captions.undoLineUndatedOne': '1 {language} సంకేతాన్ని తిరిగి తీసుకురండి.',
+  'captions.undone': '{language} శీర్షికలు: {cues} సంకేతాలు తిరిగి వచ్చాయి.',
+  'captions.undoneOne': '{language} శీర్షికలు: 1 సంకేతం తిరిగి వచ్చింది.',
   'captions.removeConfirm':
     '{cues} {language} cues తొలగించాలా? సందర్శకులు ఇకపై {language} క్యాప్షన్‌లను చూడలేరు. మీ స్వంత గమనికలు ఉంటాయి.',
   'captions.removeDo': '{language} క్యాప్షన్‌లను తొలగించండి',

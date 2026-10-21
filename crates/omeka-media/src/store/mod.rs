@@ -45,7 +45,9 @@ use crate::file_render::ThumbnailType;
 
 pub use file::FileStore;
 pub use s3::{S3Config, S3ConfigError, S3Store};
-pub use urls::{Download, FileKind, FileUrls, content_disposition, download_name};
+pub use urls::{
+    Download, FileKind, FileUrls, attachment_disposition, content_disposition, download_name,
+};
 
 /// How long a signed URL stays valid when the store sets nothing else: four
 /// hours, the default of `ROMEKA_S3_URL_TTL_SECS`.

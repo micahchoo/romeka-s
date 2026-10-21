@@ -9,7 +9,7 @@
  * The folders are `e2e/harness/archive.ts`'s. Every import job is a real
  * `romeka job run` child of the port, so each wait below is for the job.
  */
-import type { Download, Page } from '@playwright/test';
+import type { Download, Locator, Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 import { expect, test } from '../fixtures';
@@ -59,6 +59,20 @@ const saved = async (page: Page): Promise<void> => {
   await expect(page.getByRole('status').filter({ hasText: /^Saved$/ })).toBeVisible({ timeout: 10_000 });
 };
 
+/** A count the screen's one line of facts states, such as "Items 6": its label, then the number. */
+const fact = (page: Page, label: string, count: number): Locator => page.getByText(new RegExp(`^${label}\\s+${String(count)}$`, 'u'));
+
+/** Simple's list screen with the folder's register in use. A register that pairs no file is offered, not used, until it is ticked. */
+const listInUse = async (page: Page): Promise<void> => {
+  const use = page.getByRole('checkbox', { name: 'use this list' });
+  if (!(await use.isChecked())) {
+    // The box shows the plan, which changes once the list is read: `check()` would see no change at the click.
+    await use.click();
+  }
+  await expect(use).toBeChecked();
+  await saved(page);
+};
+
 const downloaded = async (download: Download): Promise<string> => {
   const path = await download.path();
   return readFileSync(path, 'utf8');
@@ -80,9 +94,10 @@ const itemByTitle = async (page: Page, title: string): Promise<number> => {
 test('the Simple pass adds the folder, and undo keeps the item edited since until asked', async ({ page }) => {
   const id = await startOn(page, BHC);
 
-  // What we found: one item per name, then one example that says front, back and verso are parts.
-  await expect(page.getByText(/^Right now, files are one item only when their names are the same except for the ending/)).toBeVisible();
-  await page.getByRole('link', { name: 'Show us one example' }).click();
+  // What we found: one item per name until an example is shown, then one example that says front, back and verso are parts.
+  const example = page.getByRole('link', { name: 'Show us one example' });
+  await expect(example).toBeVisible();
+  await example.click();
   await page.getByRole('searchbox', { name: 'Find a file name' }).fill('_front');
   await page.getByRole('button', { name: 'Find' }).click();
   await page.getByRole('radio', { name: 'BHC_006_AF_001_front.jpg' }).click();
@@ -94,28 +109,33 @@ test('the Simple pass adds the folder, and undo keeps the item edited since unti
       await box.check();
     }
   }
-  await expect(page.getByText(new RegExp(`^With this, your files make ${String(BHC_ITEMS)} items`))).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: new RegExp(`make ${String(BHC_ITEMS)} items`, 'u') })).toBeVisible();
   await page.getByRole('button', { name: 'Use this' }).click();
-  await expect(page.getByText(/^Files are one item when their names differ only in the part you marked/)).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`#/import/${String(id)}/simple/found$`));
+  await expect(page.getByRole('button', { name: 'Forget it' })).toBeVisible();
   await saved(page);
-  await page.getByRole('button', { name: 'Yes, use the suggested answers' }).click();
-  await expect(page.getByText('Every group is confirmed.')).toBeVisible();
+  await page.getByRole('button', { name: 'They are right' }).click();
+  await expect(page.getByText('confirmed', { exact: true })).toBeVisible();
+  await saved(page);
   await next(page);
 
   // Your list: the register is offered, read, and joined; then the list round trip.
-  await expect(page.getByRole('button', { name: 'Yes, use it', pressed: true })).toBeVisible();
-  await expect(page.getByText('Where each column goes')).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: 'use this list' })).toBeChecked();
+  await expect(page.getByRole('heading', { name: 'Where each column goes' })).toBeVisible();
   await saved(page);
+  // The round trip waits, folded, under the lists.
+  await page.locator('summary').filter({ hasText: 'Fill in a list yourself' }).click();
+  const trip = page.getByRole('region', { name: 'Fill in a list yourself' });
   const [template] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('link', { name: /^Download the list \(/ }).click(),
+    trip.getByRole('link', { name: /^Download the list \(/ }).click(),
   ]);
   const rows = (await downloaded(template)).replace(/^\uFEFF/, '').trim().split(/\r?\n/);
   expect(rows[0]).toMatch(/^Identifier,Files/);
   expect(rows.length).toBe(BHC_ITEMS + 1);
   const header = `${rows[0] ?? ''},Notes [dcterms:description]`;
   const filled = [header, ...rows.slice(1).map((row) => `${row},Seen on the shelf`)].join('\r\n');
-  await page.getByLabel('Choose the file').setInputFiles({ name: 'filled.csv', mimeType: 'text/csv', buffer: Buffer.from(filled) });
+  await trip.getByLabel('Choose the file').setInputFiles({ name: 'filled.csv', mimeType: 'text/csv', buffer: Buffer.from(filled) });
   await expect(page.getByText(`Read ${String(BHC_ITEMS)} rows from filled.csv.`)).toBeVisible();
   await expect(page.getByText(`${String(BHC_ITEMS)} belong to items of this import.`)).toBeVisible();
   await next(page);
@@ -123,16 +143,18 @@ test('the Simple pass adds the folder, and undo keeps the item edited since unti
   // Where they go, then the check's suggested answers.
   await expect(page.getByRole('combobox', { name: 'The item type comes from' })).toBeVisible();
   await next(page);
-  const accept = page.getByRole('button', { name: /^Use the \d+ suggested answers$/ });
+  await expect(fact(page, 'Items to add', BHC_ITEMS)).toBeVisible();
+  const accept = page.getByRole('button', { name: /^Use the (?:\d+ suggested answers|1 suggested answer)$/u });
   if (await accept.isVisible()) {
     await accept.click();
   }
-  await expect(page.getByText('Every question has an answer.')).toBeVisible();
+  await expect(fact(page, 'Questions open', 0)).toBeVisible();
+  await saved(page);
   await next(page);
 
   // Add: Simple's summary over the run screen's start, then the progress and the end.
   await expect(page).toHaveURL(new RegExp(`#/import/${String(id)}/simple/add$`));
-  await expect(page.getByText(/^Ready to add them as new items:/)).toBeVisible();
+  await expect(page.getByRole('definition').filter({ hasText: /^Add new items/ })).toBeVisible();
   const add = page.getByRole('button', { name: `Add ${String(BHC_ITEMS)} items to Omeka` });
   await expect(add).toBeEnabled();
   await add.click();
@@ -168,15 +190,14 @@ test('an answer given in Advanced shows in Simple', async ({ page }) => {
   await saved(page);
   await page.goto(`/#/import/${String(id)}/simple/found`);
   await expect(page.getByText('You changed how names are read in Advanced mode.')).toBeVisible();
-  await expect(page.getByText(/They make\s*5 items\./)).toBeVisible();
+  await expect(fact(page, 'Items', 5)).toBeVisible();
 });
 
 test('the pairs list pairs every row of a register that names no file', async ({ page }) => {
   const id = await startOn(page, PAIRS);
-  await expect(page.getByText(/^We looked at your/)).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Show us one example' })).toBeVisible();
   await page.goto(`/#/import/${String(id)}/simple/list`);
-  await expect(page.getByRole('button', { name: 'Yes, use it', pressed: true })).toBeVisible();
-  await saved(page);
+  await listInUse(page);
   await page.goto(`/#/import/${String(id)}/simple/pair`);
   const card = page.getByRole('region', { name: `${String(PAIRS_COUNT)} rows have no file: pair them in a spreadsheet` });
   await expect(card).toBeVisible();
@@ -198,7 +219,11 @@ test('the pairs list pairs every row of a register that names no file', async ({
     }),
   ].join('\r\n');
   await card.getByLabel('Choose the file').setInputFiles({ name: 'pairs.csv', mimeType: 'text/csv', buffer: Buffer.from(filled) });
-  await expect(card.getByText(`Paired ${String(PAIRS_COUNT)} rows.`)).toBeVisible();
+  await expect(page.getByText(`Paired ${String(PAIRS_COUNT)} rows.`)).toBeVisible();
+  await expect(page.getByRole('heading', { name: `Pairs you made (${String(PAIRS_COUNT)})` })).toBeVisible();
+  const { json } = await api(page, 'GET', `/api/romeka/imports/${String(id)}`);
+  const decisions = record(record(json, 'import')['plan'], 'plan')['decisions'];
+  expect(isArray(decisions) ? decisions.filter((one) => record(one, 'decision')['kind'] === 'pair').length : 0).toBe(PAIRS_COUNT);
 });
 
 test('a zip from this computer is unpacked into the import and counted', async ({ page }) => {
@@ -209,7 +234,7 @@ test('a zip from this computer is unpacked into the import and counted', async (
   await page.locator('input[type="file"][multiple]').setInputFiles({ name: 'box.zip', mimeType: 'application/zip', buffer: zip });
   await page.getByText('Sent: 1', { exact: true }).click({ timeout: JOB_MS });
   await expect(page.getByText('Unpacked. Its files are added.')).toBeVisible({ timeout: JOB_MS });
-  await expect(page.getByText(/^2 files: Files from this computer\.$/)).toBeVisible({ timeout: JOB_MS });
+  await expect(fact(page, 'Files', 2)).toBeVisible({ timeout: JOB_MS });
 });
 
 /** A draft over BHC_006 with its register read and joined, as Simple's list screen leaves it. */
@@ -224,8 +249,7 @@ const listed = async (page: Page): Promise<number> => {
     }, { timeout: 15_000 })
     .toBe(1);
   await page.goto(`/#/import/${String(id)}/simple/list`);
-  await expect(page.getByRole('button', { name: 'Yes, use it', pressed: true })).toBeVisible();
-  await saved(page);
+  await listInUse(page);
   return id;
 };
 
@@ -246,7 +270,7 @@ test('a delete is refused until its count is typed', async ({ page }) => {
   await page
     .locator('input[type="file"][multiple]')
     .setInputFiles(doomed.map((one) => ({ name: `${String(one)}.jpg`, mimeType: 'image/jpeg', buffer: uploadJpeg(String(one)) })));
-  await expect(page.getByText(/^2 files: Files from this computer\.$/)).toBeVisible({ timeout: JOB_MS });
+  await expect(fact(page, 'Files', 2)).toBeVisible({ timeout: JOB_MS });
   await page.goto(`/#/import/${String(id)}/advanced/existing`);
   await page.getByRole('combobox', { name: 'Match key for Items' }).selectOption('internalId');
   await page.getByRole('combobox', { name: 'Scope for Items' }).selectOption('all');
