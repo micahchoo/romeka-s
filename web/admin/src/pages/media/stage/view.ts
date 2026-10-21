@@ -67,6 +67,17 @@ export type StageView =
       readonly file: FileFacts;
     }
   | {
+      /**
+       * An oEmbed or HTML media, which only the server may render. The stage
+       * puts the server's render in a sandboxed frame on the editor's press;
+       * `host` is `null` for an HTML snippet that names no page.
+       */
+      readonly element: 'frame';
+      readonly url: string | null;
+      readonly host: string | null;
+      readonly file: FileFacts;
+    }
+  | {
       readonly element: 'manifest';
       readonly url: string;
       readonly host: string;
@@ -147,6 +158,17 @@ export const stageView = (media: Media): StageView => {
     }
     case 'embed': {
       const source = httpUrl(media.source);
+      // Only oEmbed and HTML markup needs the server's render: the admin must
+      // not decide what provider HTML is safe. A YouTube link is a player the
+      // admin can name and open, so it keeps the plain card.
+      if (media.renderer === 'oembed' || media.renderer === 'html') {
+        return {
+          element: 'frame',
+          url: source,
+          host: source === null ? null : hostOf(source),
+          file,
+        };
+      }
       return source === null
         ? { element: 'none' }
         : { element: 'outside', url: source, host: hostOf(source), file };

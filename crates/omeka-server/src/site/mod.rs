@@ -17,7 +17,7 @@
 //! checks a page write's body, renders it in memory and writes nothing.
 
 mod dispatch;
-mod load;
+pub(crate) mod load;
 mod pages;
 mod preview;
 mod provider;
