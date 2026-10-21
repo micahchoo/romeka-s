@@ -407,6 +407,55 @@ dd {
   white-space: nowrap;
 }
 
+/* A picture of a media that is not an image: the corner badge keeps a poster
+ * or a PDF page from reading as an image of the item. The frame hugs the
+ * picture, so the badge sits on the picture's corner and not the cell's. */
+.media-image-frame {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: top;
+}
+
+.media-image-frame .media-image {
+  max-width: 100%;
+}
+
+.media-image-badge {
+  position: absolute;
+  right: var(--space-1);
+  bottom: var(--space-1);
+  gap: var(--space-1);
+  padding: 0 var(--space-2) 0 var(--space-1);
+  background: var(--surface);
+}
+
+.media-image-badge .media-kind-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* The 3rem cell keeps the icon; the word stays for a screen reader and the title. */
+.media-image-frame.is-compact .media-image-badge {
+  padding: 2px;
+}
+
+.media-image-frame.is-compact .media-image-badge-word {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.media-title-cell {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
 .media-kind-badge {
   display: inline-flex;
   align-items: center;

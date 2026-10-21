@@ -225,4 +225,33 @@ export const hi: ImportListsMessages = {
     'उनका आइडेंटिफ़ायर इस आयात का हिस्सा नहीं है। क्या पहला कॉलम बदला गया था?',
   'lists.trip.andMore': 'और {count} अधिक',
   'lists.trip.remove': 'इस सूची को हटाएँ',
+  'lists.picker.title': 'आपकी फ़ोल्डर में सूचियाँ',
+  'lists.picker.lede':
+    'आपकी फ़ाइलों में से सबसे अधिक नाम वाली सूची पहले आती है। आप एक से अधिक का उपयोग कर सकते हैं।',
+  'lists.picker.folder': '{folder} फ़ोल्डर में',
+  'lists.picker.rows': '{count} पंक्तियाँ',
+  'lists.picker.rowsOne': '1 पंक्ति',
+  'lists.picker.inUse': 'उपयोग में',
+  'lists.picker.declined': 'अस्वीकार कर दिया',
+  'lists.picker.offered': 'उपयोग नहीं किया',
+  'lists.picker.unreadable': 'नहीं पढ़ा',
+  'lists.picker.names':
+    '“{column}” कॉलम द्वारा, {rows} में से {count} पंक्तियाँ आपकी किसी फ़ाइल का नाम बताती हैं।',
+  'lists.picker.codes':
+    '“{column}” कॉलम द्वारा, {rows} में से {count} पंक्तियाँ आपके किसी आइटम का कोड देती हैं।',
+  'lists.picker.folded':
+    '{count} अधिक जब बड़े अक्षर, शुरुआत में शून्य और _ - . को अनदेखा किया जाता है।',
+  'lists.picker.noPair':
+    'कोई भी पंक्ति आपकी किसी फ़ाइल या आइटम का नाम नहीं बताती, भले ही बड़े अक्षर, शुरुआत में शून्य और _ - . को अनदेखा किया जाए।',
+  'lists.picker.overlap': '{file} के समान आइटमों को जोड़ता है: {count}',
+  'lists.picker.unread': 'इस सूची को पढ़ा नहीं जा सका: {message}',
+  'lists.picker.use': 'इस सूची का उपयोग करें',
+  'lists.picker.reading': 'सूची पढ़ी जा रही है...',
+  'lists.picker.stop': 'इसका उपयोग बंद करें',
+  'lists.picker.decline': 'इन आइटमों के बारे में नहीं',
+  'lists.picker.ask':
+    'यह सूची {file} के समान {count} आइटमों को जोड़ती है। दोनों का उपयोग करें, या {file} के स्थान पर इस एक का उपयोग करें?',
+  'lists.picker.both': 'दोनों का उपयोग करें',
+  'lists.picker.instead': '{file} के स्थान पर इस एक का उपयोग करें',
+  'lists.picker.cancel': 'इसे न जोड़ें',
 };

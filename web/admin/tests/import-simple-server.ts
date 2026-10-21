@@ -9,7 +9,7 @@
  */
 import { asRecord, isRecord } from '../src/api/parse';
 import { loadFixture } from './loadFixture';
-import type { Scenario, ScenarioGroup } from './import-simple-scenarios';
+import type { Scenario, ScenarioGroup, ScenarioList } from './import-simple-scenarios';
 import { jsonResponse, listResponse, route } from './stub';
 import type { Handler } from './stub';
 
@@ -94,6 +94,33 @@ const merged = (groups: readonly ScenarioGroup[], marks: number, listed: boolean
 
 const sameFacts = (a: unknown, b: Record<string, unknown>): boolean => JSON.stringify(a) === JSON.stringify(b);
 
+/** The scenario's one `sheet` as a list of the folder, counted by its column that pairs the most. */
+const sheetList = (scenario: Scenario): ScenarioList => {
+  const paired = Math.max(0, ...scenario.sheet.columns.map((column) => Math.max(column.groupKeys, column.fileNames)));
+  return { file: scenario.sheet.file, rows: scenario.sheet.rows, paired, normalized: paired };
+};
+
+const LIST_COLUMNS = ['File', 'Title'];
+
+/** A list's `listCandidates` entry, its `inPlan` the asked plan's sheet that reads it. */
+const candidateOf = (scenario: Scenario, list: ScenarioList, sheets: readonly Record<string, unknown>[]): Record<string, unknown> => {
+  const best = scenario.lists === undefined ? scenario.sheet.columns.findIndex((column) => Math.max(column.groupKeys, column.fileNames) === list.paired) : 0;
+  const column = scenario.sheet.columns[best];
+  const header = scenario.lists === undefined ? (column?.header ?? '') : 'File';
+  const on = scenario.lists === undefined && column !== undefined && column.groupKeys > column.fileNames ? 'identifier' : 'fileName';
+  return {
+    source: 's1',
+    file: list.file,
+    inPlan: sheets.find((sheet) => sheet['source'] === 's1' && sheet['file'] === list.file)?.['id'] ?? null,
+    read: list.error === undefined ? 'ok' : { error: list.error },
+    rows: list.error === undefined ? list.rows : 0,
+    columns: scenario.lists === undefined ? scenario.sheet.columns.length : LIST_COLUMNS.length,
+    best: list.error !== undefined || list.normalized === 0 ? null : { index: best, header, on, paired: list.paired, pairedNormalized: list.normalized, empty: 0 },
+    grain: null,
+    overlaps: (list.overlaps ?? []).map((overlap) => ({ source: 's1', ...overlap })),
+  };
+};
+
 /** What the last look found in a staging source of the plan. */
 export interface StagingState {
   readonly files: number;
@@ -114,7 +141,7 @@ export const simpleServer = (scenario: Scenario, planEdits: Record<string, unkno
   let plan: Record<string, unknown> = { ...asRecord(fixture('import-draft.json')['plan'], []), ...planEdits };
   const detail = (): Record<string, unknown> => ({ ...fixture('import-draft.json'), revision, status, plan });
   const sources = (): unknown[] => [
-    { source: 's1', scanned: '2026-10-21T09:00:00+00:00', files: scenario.files, sheetFiles: [scenario.sheet.file], error: null },
+    { source: 's1', scanned: '2026-10-21T09:00:00+00:00', files: scenario.files, sheetFiles: (scenario.lists ?? [scenario.sheet]).map((list) => list.file), error: null },
     ...(staging === null ? [] : [{ source: 'up', scanned: '2026-10-21T09:00:00+00:00', files: staging.files, sheetFiles: staging.sheetFiles, error: null }]),
   ];
   const record = (id: number, group: ScenarioGroup): Record<string, unknown> => {
@@ -137,7 +164,9 @@ export const simpleServer = (scenario: Scenario, planEdits: Record<string, unkno
     return sheets.map((sheet) => {
       const read = isRecord(sheet['read']) ? sheet['read'] : {};
       const line = typeof read['headerLine'] === 'number' ? read['headerLine'] : 1;
-      const header = (scenario.sheet.lines[line - 1] ?? '').split(',');
+      const list = scenario.lists?.find((one) => one.file === sheet['file']);
+      const lines = list === undefined ? scenario.sheet.lines : [LIST_COLUMNS.join(','), `${list.file},A`];
+      const header = (lines[line - 1] ?? '').split(',');
       const listed = fixture('preview-sheets.json')['sheets'];
       const fixtureSheet = asRecord(Array.isArray(listed) ? listed[0] : null, []);
       const fixtureRead = asRecord(fixtureSheet['read'], []);
@@ -146,9 +175,9 @@ export const simpleServer = (scenario: Scenario, planEdits: Record<string, unkno
         id: sheet['id'],
         source: sheet['source'],
         file: sheet['file'],
-        lines: scenario.sheet.lines,
-        guess: { ...asRecord(fixtureSheet['guess'], []), headerLine: scenario.sheet.headerLine },
-        read: { ...fixtureRead, headerLine: line, rows: scenario.sheet.rows, notes: [], columns: header.map((name, index) => ({ header: name, index, mappable: true })) },
+        lines,
+        guess: { ...asRecord(fixtureSheet['guess'], []), headerLine: list === undefined ? scenario.sheet.headerLine : 1 },
+        read: { ...fixtureRead, headerLine: line, rows: list?.rows ?? scenario.sheet.rows, notes: [], columns: header.map((name, index) => ({ header: name, index, mappable: true })) },
       };
     });
   };
@@ -234,6 +263,14 @@ export const simpleServer = (scenario: Scenario, planEdits: Record<string, unkno
       } else if (section === 'columnMatches') {
         answer['columnMatches'] = sheetsOf(asked).map((sheet) => {
           const read = asRecord(sheet['read'], []);
+          const list = scenario.lists?.find((one) => one.file === sheet['file']);
+          if (list !== undefined) {
+            return {
+              sheet: sheet['id'],
+              rows: list.rows,
+              columns: LIST_COLUMNS.map((header, index) => ({ index, header, groupKeys: 0, fileNames: index === 0 ? list.paired : 0, empty: 0 })),
+            };
+          }
           const right = read['headerLine'] === scenario.sheet.headerLine;
           return {
             sheet: sheet['id'],
@@ -243,6 +280,11 @@ export const simpleServer = (scenario: Scenario, planEdits: Record<string, unkno
               : [{ index: 0, header: scenario.sheet.lines[0] ?? '', groupKeys: 0, fileNames: 0, empty: 0 }],
           };
         });
+      } else if (section === 'listCandidates') {
+        const sheets = Array.isArray(asked['sheets']) ? asked['sheets'].filter(isRecord) : [];
+        answer['listCandidates'] = (scenario.lists ?? [sheetList(scenario)])
+          .map((list) => candidateOf(scenario, list, sheets))
+          .sort((a, b) => (isRecord(b['best']) ? Number(b['best']['paired']) : -1) - (isRecord(a['best']) ? Number(a['best']['paired']) : -1) || String(a['file']).localeCompare(String(b['file'])));
       } else if (section === 'values') {
         const query = pageOf(body['values']);
         const types = typed ? scenario.typeValues.map(([text, count]) => ({ text, count, spellings: [text] })) : [];

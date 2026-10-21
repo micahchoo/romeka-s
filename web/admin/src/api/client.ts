@@ -192,8 +192,13 @@ export interface ResourceQuery {
   readonly sortOrder?: 'asc' | 'desc';
   readonly search?: string;
   readonly itemId?: ItemId;
-  readonly [param: string]: string | number | undefined;
+  /** A repeated parameter, such as `romeka_kind=audio&romeka_kind=video`. */
+  readonly [param: string]: string | number | readonly string[] | undefined;
 }
+
+const isRepeated = (
+  value: string | number | readonly string[],
+): value is readonly string[] => Array.isArray(value);
 
 const toSearchParams = (query: ResourceQuery): URLSearchParams => {
   const params = new URLSearchParams();
@@ -202,7 +207,13 @@ const toSearchParams = (query: ResourceQuery): URLSearchParams => {
       continue;
     }
     const name = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
-    params.set(name, String(value));
+    if (isRepeated(value)) {
+      for (const entry of value) {
+        params.append(name, entry);
+      }
+    } else {
+      params.set(name, String(value));
+    }
   }
   return params;
 };
