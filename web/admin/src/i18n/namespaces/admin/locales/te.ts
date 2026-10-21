@@ -104,9 +104,12 @@ export const te: AdminMessages = {
   'settings.defaultPrivateItemSets': 'డిఫాల్ట్‌గా ప్రైవేట్ ఐటమ్ సెట్‌లను ఎంచుకోండి',
   'settings.indexFulltextSearch': 'ఇండెక్స్ ఫుల్‌టెక్స్ట్ సెర్చ్',
   'settings.versionNotifications': 'వెర్షన్ నోటిఫికేషన్‌లు',
+  'settings.mediaAltTextProperty': 'మీడియా ఆల్ట్ టెక్స్ట్ ప్రాపర్టీ',
+  'settings.mediaAltTextPropertyInfo':
+    'మొదటి విలువ మీడియాను వివరిస్తుంది, కానీ ఆల్ట్ టెక్స్ట్ సెట్ చేయబడనప్పుడు. దీనిని ఖాళీగా ఉంచండి మరియు ఆల్ట్ టెక్స్ట్ లేని మీడియాకు ఏదీ ఉండదు.',
   'settings.saved': 'సెట్టింగ్‌లు అప్‌డేట్ చేయబడ్డాయి.',
   'settings.note':
-    'పోర్ట్ లోకేల్ మరియు భద్రతా సెట్టింగ్‌లను సేవ్ చేస్తుంది; ఇతర మార్పులు భద్రపరచబడవు.',
+    'పోర్ట్ లోకేల్, మీడియా ఆల్ట్ టెక్స్ట్ ప్రాపర్టీ మరియు సెక్యూరిటీ సెట్టింగ్‌లను సేవ్ చేస్తుంది; ఇతర మార్పులు సేవ్ చేయబడవు.',
   'settings.security': 'భద్రత',
   'settings.disableFileValidation': 'ఫైల్ వాలిడేషన్ డిసేబుల్ చేయండి',
   'settings.disableFileValidationInfo':

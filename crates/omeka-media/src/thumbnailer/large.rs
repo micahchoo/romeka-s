@@ -7,8 +7,9 @@
 //! a reduced copy is ever made. The three derivatives are then made from the
 //! copy as from any image.
 
-use std::io::{Read, Seek};
+use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 
+use image::metadata::Orientation;
 use image::{DynamicImage, RgbImage};
 use tiff::ColorType;
 use tiff::decoder::{ChunkType, Decoder, DecodingResult, Limits};
@@ -46,6 +47,12 @@ pub(super) fn tiff<R: Read + Seek>(reader: R) -> Result<DynamicImage, ThumbnailS
     if width == 0 || height == 0 {
         return Err(ThumbnailSkip::Decode("the image has no pixels".to_string()));
     }
+    let orientation = decoder
+        .find_tag_unsigned::<u16>(tiff::tags::Tag::Orientation)
+        .ok()
+        .flatten()
+        .and_then(|value| Orientation::from_exif(value.min(255) as u8))
+        .unwrap_or(Orientation::NoTransforms);
     let layout = Layout::of(decoder.colortype().map_err(decode_error)?)?;
     let mut copy = Reduced::new(width, height);
     let (chunk_width, chunk_height) = decoder.chunk_dimensions();
@@ -79,14 +86,19 @@ pub(super) fn tiff<R: Read + Seek>(reader: R) -> Result<DynamicImage, ThumbnailS
             }
         }
     }
-    Ok(DynamicImage::ImageRgb8(copy.finish()))
+    let mut image = DynamicImage::ImageRgb8(copy.finish());
+    image.apply_orientation(orientation);
+    Ok(image)
 }
 
 /// The reduced copy of a JPEG, decoded at the smallest IDCT scale whose
 /// longer side still reaches [`REDUCED`].
-pub(super) fn jpeg<R: Read>(reader: R) -> Result<DynamicImage, ThumbnailSkip> {
+pub(super) fn jpeg<R: Read + Seek>(reader: R) -> Result<DynamicImage, ThumbnailSkip> {
     use jpeg_decoder::{CodingProcess, PixelFormat};
-    let mut decoder = jpeg_decoder::Decoder::new(std::io::BufReader::new(reader));
+    let mut reader = BufReader::new(reader);
+    let orientation = exif_orientation(&mut reader);
+    reader.seek(SeekFrom::Start(0)).map_err(decode_error)?;
+    let mut decoder = jpeg_decoder::Decoder::new(reader);
     decoder.read_info().map_err(decode_error)?;
     let info = decoder
         .info()
@@ -131,9 +143,25 @@ pub(super) fn jpeg<R: Read>(reader: R) -> Result<DynamicImage, ThumbnailSkip> {
             .flat_map(|pixel| cmyk(pixel))
             .collect(),
     };
-    RgbImage::from_raw(width, height, rgb)
+    let mut image = RgbImage::from_raw(width, height, rgb)
         .map(DynamicImage::ImageRgb8)
-        .ok_or_else(|| decode_error("the scaled JPEG is short of pixels"))
+        .ok_or_else(|| decode_error("the scaled JPEG is short of pixels"))?;
+    image.apply_orientation(orientation);
+    Ok(image)
+}
+
+/// The EXIF orientation of a JPEG read from the start of `reader`. A missing
+/// or malformed block leaves the pixels as stored.
+fn exif_orientation<R: BufRead + Seek>(reader: &mut R) -> Orientation {
+    exif::Reader::new()
+        .read_from_container(reader)
+        .ok()
+        .and_then(|exif| {
+            exif.get_field(exif::Tag::Orientation, exif::In::PRIMARY)
+                .and_then(|field| field.value.get_uint(0))
+        })
+        .and_then(|value| Orientation::from_exif(value.min(255) as u8))
+        .unwrap_or(Orientation::NoTransforms)
 }
 
 fn cmyk(pixel: &[u8]) -> [u8; 3] {

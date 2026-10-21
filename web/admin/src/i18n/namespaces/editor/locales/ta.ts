@@ -633,7 +633,6 @@ export const ta: EditorMessages = {
   'region.pageGroup': 'ஒவ்வொரு பக்கத்திலும்',
   'region.pageHelp':
     'தளத்தின் தலைப்பு மற்றும் அடிக்குறிப்பு முழு தளத்தைச் சார்ந்தது. முன்னோட்டத்தில் ஒன்றைத் தேர்ந்தெடுக்கவும், அல்லது இங்கே ஒன்றைத் தேர்ந்தெடுக்கவும்.',
-  // The featured items section template.
   'sectionTemplate.featuredItems.label': 'மூன்று சிறப்பம்சங்கள்',
   'sectionTemplate.featuredItems.description':
     'ஒவ்வொரு படத்துடனும் அதன் தலைப்பு மற்றும் இணைப்பைக் கொண்ட மூன்று உருப்படி அட்டைகள் ஒரு வரிசையில்.',

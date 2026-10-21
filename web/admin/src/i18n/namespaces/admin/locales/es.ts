@@ -102,9 +102,12 @@ export const es: AdminMessages = {
   'settings.defaultPrivateItemSets': 'Conjuntos de elementos privados por defecto',
   'settings.indexFulltextSearch': 'Indexar búsqueda de texto completo',
   'settings.versionNotifications': 'Notificaciones de versión',
+  'settings.mediaAltTextProperty': 'Propiedad de texto alternativo de los medios',
+  'settings.mediaAltTextPropertyInfo':
+    'La propiedad cuyo primer valor describe un medio cuando no se ha definido un texto alternativo. Si la deja vacía, un medio sin texto alternativo no tendrá ninguno.',
   'settings.saved': 'Configuración actualizada.',
   'settings.note':
-    'El port guarda el idioma y la configuración de seguridad; los demás cambios no se guardan.',
+    'El port guarda el idioma, la propiedad de texto alternativo de los medios y la configuración de seguridad; los demás cambios no se guardan.',
   'settings.security': 'Seguridad',
   'settings.disableFileValidation': 'Deshabilitar validación de ficheros',
   'settings.disableFileValidationInfo':
