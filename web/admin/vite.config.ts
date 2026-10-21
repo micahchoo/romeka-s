@@ -56,6 +56,9 @@ export default defineConfig({
             { name: 'standards-messages', test: /i18n\/namespaces\/standards\/index\.ts$/ },
             { name: 'item-types-messages', test: /i18n\/namespaces\/item-types\/index\.ts$/ },
             { name: 'term-lists-messages', test: /i18n\/namespaces\/term-lists\/index\.ts$/ },
+            // The notes panel's table, which the panel, the region editor and the
+            // time editor all read, so no one page chunk carries it for the others.
+            { name: 'annotations-messages', test: /i18n\/namespaces\/annotations\/index\.ts$/ },
             // The lessons, which several page chunks share (PERF.md Decision 16).
             { name: 'lessons', test: /(app\/lessons\/(lesson\.tsx|messages\.ts|queue\.ts|registry\.ts|seen\.ts)|i18n\/namespaces\/lessons\/index\.ts)$/ },
             {

@@ -17,8 +17,9 @@ import { ErrorNotice } from '../../../app/errors';
 import { useTranslator } from '../../../i18n';
 import { annotations } from '../../../i18n/namespaces/annotations';
 import { common } from '../../../i18n/namespaces/common';
-import type { Note } from './wire';
-import { NoteList } from './note-list';
+import type { Editing } from './use-notes';
+import type { Note, Selector } from './wire';
+import { NoteList, placedNotes } from './note-list';
 import { useNotes } from './use-notes';
 import './annotations.css';
 
@@ -31,6 +32,26 @@ const ConflictView = lazy(() =>
   import('./conflict').then((module) => ({ default: module.ConflictView })),
 );
 const NoteForm = lazy(() => import('./note-form').then((module) => ({ default: module.NoteForm })));
+
+/** A third chunk: only a picture has a region editor, and only it fetches this. */
+const RegionEditor = lazy(() =>
+  import('./region-editor').then((module) => ({ default: module.RegionEditor })),
+);
+
+/** The open draft's shape, so the overlay draws it where the editor put it. */
+const shapeOf = (
+  editing: Editing,
+): { readonly iri: string | null; readonly selector: Selector } | null => {
+  switch (editing.kind) {
+    case 'new':
+      return { iri: null, selector: editing.draft.selector };
+    case 'edit':
+    case 'conflict':
+      return { iri: editing.note.iri, selector: editing.draft.selector };
+    default:
+      return null;
+  }
+};
 
 export const MediaNotes = ({ media }: { readonly media: Media }): ReactElement => {
   const { t } = useTranslator(annotations, common);
@@ -151,9 +172,30 @@ export const MediaNotes = ({ media }: { readonly media: Media }): ReactElement =
         </p>
       ) : null}
 
-      {/* The region editor (A-4) and the time editor (A-5) mount here. */}
+      {/* The region editor (A-4) mounts here; the time editor (A-5) joins it. */}
       {ready === null ? null : (
-        <div className="media-notes-surface" data-surface={ready.surface.kind} />
+        <div className="media-notes-surface" data-surface={ready.surface.kind}>
+          {ready.surface.kind === 'image' ? (
+            <Suspense fallback={null}>
+              <RegionEditor
+                surface={ready.surface}
+                rows={placedNotes(ready.notes)}
+                selected={notes.selected}
+                draft={shapeOf(editing)}
+                writable={ready.writable}
+                onDraw={notes.beginDraft}
+                onSelect={notes.open}
+                onMove={(note, selector) => {
+                  // A nudge edits the open draft, so Save sends the shape the
+                  // overlay shows; a note that is not open has nothing to edit.
+                  if (editing.kind === 'edit' && editing.note.iri === note.iri) {
+                    notes.changeDraft({ ...editing.draft, selector });
+                  }
+                }}
+              />
+            </Suspense>
+          ) : null}
+        </div>
       )}
 
       {notes.panelError === null ? null : <ErrorNotice error={notes.panelError} />}
