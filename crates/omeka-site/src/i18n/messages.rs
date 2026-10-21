@@ -110,6 +110,17 @@ pub struct Messages {
     /// The item page's strip heading, `%s` the item's file count. A Romeka
     /// string.
     pub files_count: &'static str,
+    /// A 3D file page's button, `%s` the viewer library's download size. A
+    /// Romeka string.
+    pub model_turn: &'static str,
+    /// A 3D file page's line for a reader without JavaScript. A Romeka string.
+    pub model_no_javascript: &'static str,
+    /// A 3D file page's button once pressed, while the viewer library loads. A
+    /// Romeka string.
+    pub model_loading: &'static str,
+    /// A 3D file page's line when the viewer library cannot load. A Romeka
+    /// string.
+    pub model_failed: &'static str,
     /// The footer's link list, as its `nav` label.
     pub footer_links: &'static str,
     /// The footer's licence line when the site keeps every right.
@@ -229,6 +240,12 @@ pub static EN: Messages = Messages {
     previous: "Previous",
     file_of: "File %s of %s",
     files_count: "%s files",
+    model_turn: "Turn the model (loads the 3D viewer, %s)",
+    model_no_javascript: "Turning the model needs JavaScript. Download it to open in a 3D \
+                          program.",
+    model_loading: "Loading the 3D viewer…",
+    model_failed: "This browser cannot show the model. Download it and open it in a 3D \
+                   program.",
     footer_links: "Footer links",
     all_rights_reserved: "All rights reserved",
     search_placeholder: "Search the collection",
@@ -318,6 +335,12 @@ pub static ES: Messages = Messages {
     previous: "Anterior",
     file_of: "Archivo %s de %s",
     files_count: "%s archivos",
+    model_turn: "Girar el modelo (carga el visor 3D, %s)",
+    model_no_javascript: "Para girar el modelo hace falta JavaScript. Descárgalo y ábrelo en un \
+                          programa 3D.",
+    model_loading: "Cargando el visor 3D…",
+    model_failed: "Este navegador no puede mostrar el modelo. Descárgalo y ábrelo en un programa \
+                   3D.",
     footer_links: "Enlaces del pie de página",
     all_rights_reserved: "Todos los derechos reservados",
     search_placeholder: "Buscar en la colección",
