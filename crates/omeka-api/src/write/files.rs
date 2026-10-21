@@ -6,8 +6,13 @@
 //! has thumbnails (`application/Module.php:323`). The port deletes the bytes
 //! before the row, so a filesystem failure answers 500 with the row intact
 //! rather than leaving bytes behind a row that is already gone.
+//!
+//! It also deletes the access copy, which upstream has no counterpart for: a
+//! derivative of the original is not a file a reader keeps once the media is
+//! gone.
 
 use omeka_db::rows::MediaRow;
+use omeka_media::access::{AccessTarget, copy_path};
 use omeka_media::file_render::ThumbnailType;
 use omeka_media::store::{Store, StorePrefix, storage_path};
 
@@ -36,6 +41,17 @@ pub fn delete_media_files(store: Option<&dyn Store>, row: &MediaRow) -> Result<(
                     storage_id,
                     Some("jpg"),
                 ))
+                .map_err(ApiError::internal)?;
+        }
+    }
+    // Both copy targets, because the row does not name the one it planned: a
+    // delete removes whatever the worker made.
+    if row.has_original
+        && let Some(storage_id) = row.storage_id.as_deref()
+    {
+        for target in [AccessTarget::Mp4, AccessTarget::M4a, AccessTarget::Jpeg] {
+            store
+                .delete(&copy_path(storage_id, target))
                 .map_err(ApiError::internal)?;
         }
     }

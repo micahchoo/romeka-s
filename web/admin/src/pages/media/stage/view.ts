@@ -19,6 +19,7 @@ import {
   mediaKind,
   mediaName,
   originalFileUrl,
+  playerUrl,
 } from '../../../app/media';
 
 /** The facts a file card states, and the link that takes the file. */
@@ -129,12 +130,18 @@ export const stageView = (media: Media): StageView => {
         file,
       };
     }
-    case 'audio':
-      return original === null ? { element: 'file', file } : { element: 'audio', url: original, file };
-    case 'video':
-      return original === null
+    case 'audio': {
+      const playable = playerUrl(media);
+      return playable === null
         ? { element: 'file', file }
-        : { element: 'video', url: original, poster: largeImageUrl(media), file };
+        : { element: 'audio', url: playable, file };
+    }
+    case 'video': {
+      const playable = playerUrl(media);
+      return playable === null
+        ? { element: 'file', file }
+        : { element: 'video', url: playable, poster: largeImageUrl(media), file };
+    }
     case 'pdf':
       return original === null
         ? { element: 'file', file }

@@ -20,6 +20,7 @@ import type {
   JsonValue,
   LessonSettings,
   Media,
+  MediaAccess,
   MediaId,
   MediaPreview,
   Module,
@@ -148,6 +149,7 @@ const ENTITY_KEYS: ReadonlySet<string> = new Set([
   'o:alt_text',
   'o:original_url',
   'o-module-romeka:preview',
+  'o-module-romeka:access',
   'o:thumbnail_urls',
   'o:local_name',
   'o:label',
@@ -276,6 +278,33 @@ const parsePreview = (object: Record<string, unknown>, path: Path): MediaPreview
     reason: optionalString(record, 'reason', fieldPath),
     progress:
       number === undefined || number === null ? null : asNumber(number, [...fieldPath, 'progress']),
+  };
+};
+
+/**
+ * The port's playable-copy state from `o-module-romeka:access`. A missing
+ * member reads as `null` (an older server), and so does a state this build does
+ * not know, so a newer server never fails the whole document.
+ */
+const parseAccess = (object: Record<string, unknown>, path: Path): MediaAccess | null => {
+  const value = object['o-module-romeka:access'];
+  if (value === undefined || value === null) {
+    return null;
+  }
+  const fieldPath = [...path, 'o-module-romeka:access'];
+  const record = asRecord(value, fieldPath);
+  const state = asString(field(record, 'state', fieldPath), [...fieldPath, 'state']);
+  if (!isPreviewState(state)) {
+    return null;
+  }
+  const number = record['progress'];
+  return {
+    state,
+    reason: optionalString(record, 'reason', fieldPath),
+    progress:
+      number === undefined || number === null ? null : asNumber(number, [...fieldPath, 'progress']),
+    url: optionalString(record, 'url', fieldPath),
+    mediaType: optionalString(record, 'media_type', fieldPath),
   };
 };
 
@@ -561,6 +590,7 @@ export const parseMedia: Parser<Media> = (raw, path = []) => {
     altText: nullableField(object, 'o:alt_text', path, asString),
     originalUrl: nullableField(object, 'o:original_url', path, asString),
     preview: parsePreview(object, path),
+    access: parseAccess(object, path),
     thumbnailUrls: parseThumbnailUrls(field(object, 'o:thumbnail_urls', path), [
       ...path,
       'o:thumbnail_urls',

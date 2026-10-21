@@ -7,20 +7,21 @@
 //! line, because the import session requires that order.
 //!
 //! Last, it starts one derivative worker when rows are queued, so a pending
-//! preview does not wait for the next media create. The worker runs in this
-//! process (`Runner`) because the sweep job has the store open and a
-//! `romeka job run` child would have to name it again. Nothing starts while an
-//! archive import is running or undoing: the derivative worker's own yield rule
-//! applies here first, and the next tick tries again.
+//! preview does not wait for the next media create. The worker runs as its own
+//! `romeka job run` process ([`JobEnv::jobs`]), never inside this one: a
+//! derivative is no longer only a still, and a transcode of a long video would
+//! hold the sweep for the length of the film. Nothing starts while an archive
+//! import is running or undoing: the derivative worker's own yield rule applies
+//! here first, and the next tick tries again.
 
 use async_trait::async_trait;
 use omeka_api::derivatives::queue_worker;
 use omeka_api::import::sweep::{Retention, SWEEP_JOB, sweep};
 use omeka_api::messages;
-use omeka_db::repos::ImportRepo;
+use omeka_db::repos::{ImportRepo, JobRepo};
 use omeka_db::with_db;
 
-use super::{Job, JobContext, JobError, Runner};
+use super::{Job, JobContext, JobError};
 
 /// `Romeka\Job\ImportSweep`.
 pub struct ImportSweep;
@@ -60,14 +61,14 @@ impl Job for ImportSweep {
     }
 }
 
-/// Start one `MediaDerivatives` worker if rows are queued, none is active and no
-/// import holds the machine.
+/// Start one `MediaDerivatives` worker in its own process if rows are queued,
+/// none is active and no import holds the machine.
 ///
 /// `queue_worker` composes the row only when the queue has work and no worker of
 /// that class is starting, running or stopping, so this is the same one-worker
-/// cap the media route uses. The row is run here rather than spawned: the sweep
-/// process has the store open and a child would need its root, its base URL and
-/// its archive root named again.
+/// cap the media route uses. The row is handed to a child process rather than
+/// run here, because a transcode outlasts this run: the sweep would be held
+/// open for the length of a film.
 async fn start_derivatives(context: &JobContext<'_>) -> Result<(), JobError> {
     if with_db!(context.pool, |db| ImportRepo::new(db).busy_id().await)?.is_some() {
         return Ok(());
@@ -75,11 +76,45 @@ async fn start_derivatives(context: &JobContext<'_>) -> Result<(), JobError> {
     let Some(worker) = queue_worker(context.pool, None).await? else {
         return Ok(());
     };
-    context
-        .log(&format!("derivatives: started worker {}", worker.0))
-        .await?;
-    Runner::with_env(context.pool, context.env.clone())
-        .run(worker)
-        .await?;
+    let Some(jobs) = &context.env.jobs else {
+        context
+            .log(&format!(
+                "derivatives: worker {} is queued, but this process was not told how to start one; \
+                 the next create or `romeka media derivatives` starts it.",
+                worker.0
+            ))
+            .await?;
+        return Ok(());
+    };
+    match jobs.spawn(worker) {
+        Ok(mut child) => {
+            // Reap the child on this thread, as `romeka serve` does, so the
+            // sweep process leaves no zombie if it outlives the run.
+            std::thread::spawn(move || {
+                let _ = child.wait();
+            });
+            context
+                .log(&format!(
+                    "derivatives: started worker {} in its own process",
+                    worker.0
+                ))
+                .await?;
+        }
+        Err(error) => {
+            // A row left `starting` would hold the one-worker cap for good.
+            let _ = with_db!(context.pool, |db| JobRepo::new(db)
+                .append_log(worker, &error.to_string())
+                .await);
+            let _ = with_db!(context.pool, |db| JobRepo::new(db)
+                .finish(worker, "error")
+                .await);
+            context
+                .log(&format!(
+                    "derivatives: cannot start worker {}: {error}",
+                    worker.0
+                ))
+                .await?;
+        }
+    }
     Ok(())
 }

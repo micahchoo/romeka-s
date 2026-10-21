@@ -170,7 +170,23 @@ export interface Media extends ResourceEntity<MediaId> {
    * send the member; the preview then reads as before.
    */
   readonly preview: MediaPreview | null;
+  /**
+   * The playable copy the port plans, from `o-module-romeka:access`: `ready`
+   * with the copy's URL when a player opens it instead of the original, and
+   * `pending` while it is made. `null` on an older server.
+   */
+  readonly access: MediaAccess | null;
   readonly thumbnailUrls: Readonly<Record<string, string>>;
+}
+
+/** Where a media's playable copy stands (`o-module-romeka:access`). */
+export interface MediaAccess {
+  readonly state: MediaPreview['state'];
+  readonly reason: string | null;
+  readonly progress: number | null;
+  /** The copy a player opens when `state` is `ready`. */
+  readonly url: string | null;
+  readonly mediaType: string | null;
 }
 
 export interface User {

@@ -369,6 +369,23 @@ export const imagePreviewUrl = (media: Media): string | null =>
 /** The stored original file, when the row still has one. */
 export const originalFileUrl = (media: Media): string | null => nonEmpty(media.originalUrl);
 
+/**
+ * The file a player opens: the access copy the server marked ready, the
+ * original otherwise. A WMA or an AVI is no container a browser opens, and the
+ * server made an M4A or an MP4 for it; the original stays the download and the
+ * link beside the player, never its source.
+ */
+export const playerUrl = (media: Media): string | null => {
+  const copy = media.access;
+  if (copy !== null && copy.state === 'ready') {
+    const url = nonEmpty(copy.url);
+    if (url !== null) {
+      return url;
+    }
+  }
+  return nonEmpty(media.originalUrl);
+};
+
 /** The file a media preview links to: the original, else the best thumbnail. */
 export const previewLinkUrl = (media: Media): string | null =>
   nonEmpty(media.originalUrl) ?? thumbnailUrl(media, CELL_ORDER);

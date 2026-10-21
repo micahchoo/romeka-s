@@ -98,6 +98,40 @@ test('a video shows its poster in a native player', async ({ page, diagnostics }
   await expectClean(diagnostics, 'video stage');
 });
 
+test('a video no browser opens plays its access copy, and the file stays the original', async ({
+  page,
+  diagnostics,
+}) => {
+  test.setTimeout(120_000);
+  const media = await uploadItem(page.request, 'mjpeg.avi', 'video/x-msvideo');
+  // The player opens the copy only once the background worker has made it. The
+  // page does not poll, so wait through the API and then reload, as an editor
+  // returning to the page does.
+  await expect
+    .poll(
+      async () => {
+        const answer = await page.request.get(`/api/media/${String(media)}`);
+        expect(answer.status(), await answer.text()).toBe(200);
+        const document: unknown = await answer.json();
+        const access = record(document, 'media')['o-module-romeka:access'];
+        return isRecord(access) ? access['state'] : null;
+      },
+      { timeout: 60_000 },
+    )
+    .toBe('ready');
+
+  await page.goto(`/#/media/${String(media)}`);
+  const player = page.locator('video.media-stage-player');
+  await expect(player).toBeVisible();
+  const src = await player.getAttribute('src');
+  expect(src?.startsWith(`${readHarness().baseUrl}/files/access/`), String(src)).toBe(true);
+  expect(src?.endsWith('.mp4'), String(src)).toBe(true);
+  const body = await page.request.get(src ?? '');
+  expect(body.status()).toBe(200);
+  await expect(player.locator('a')).toHaveAttribute('href', /\/files\/original\/.*\.avi$/);
+  await expectClean(diagnostics, 'access-copy video stage');
+});
+
 test('a PDF shows its first page, and the viewer only after the press', async ({
   page,
   diagnostics,
