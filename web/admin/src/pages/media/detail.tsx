@@ -1,30 +1,71 @@
 import type { ReactElement } from 'react';
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { api } from '../../api/client';
 import type { Media, MediaId, ThumbnailType } from '../../api/types';
 import { DeleteControl } from '../../app/delete';
 import { formatBytes, formatDateTime } from '../../app/format';
 import { ErrorNotice } from '../../app/errors';
 import { EditPanel } from '../../app/fields';
-import { MediaImage } from '../../app/media-image';
-import { largeImageUrl, mediaName, originalFileUrl } from '../../app/media';
+import { mediaName, originalFileUrl } from '../../app/media';
 import { useAsync } from '../../app/useAsync';
 import { ValuesList } from '../../app/values';
 import { useTranslator } from '../../i18n';
+import type { KeyOf, MessageKey, Translator } from '../../i18n';
 import { MediaEditForm } from './form';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
+
+/** The stage loads as its own chunk: the list route never needs a player. */
+const MediaStage = lazy(() =>
+  import('./stage/stage').then((module) => ({ default: module.MediaStage })),
+);
 
 type DerivativeKind = 'original' | ThumbnailType;
 
 const DERIVATIVE_KINDS: readonly DerivativeKind[] = ['original', 'large', 'medium', 'square'];
 
+type ResourcesKey = KeyOf<typeof resources>;
+
+type DetailTranslator = Translator<MessageKey | KeyOf<typeof common> | KeyOf<typeof resources>>;
+
+/** The renderer as words a curator uses, not the module's name. */
+const RENDERER_LABELS: Readonly<Record<string, ResourcesKey>> = {
+  file: 'media.renderer.file',
+  iiif: 'media.renderer.iiif',
+  oembed: 'media.renderer.oembed',
+  youtube: 'media.renderer.youtube',
+  html: 'media.renderer.html',
+  iiif_presentation: 'media.renderer.iiifPresentation',
+};
+
+/** The ingester as words a curator uses, not the module's name. */
+const INGESTER_LABELS: Readonly<Record<string, ResourcesKey>> = {
+  upload: 'media.ingester.upload',
+  url: 'media.ingester.url',
+  html: 'media.ingester.html',
+  iiif: 'media.ingester.iiif',
+  oembed: 'media.ingester.oembed',
+  youtube: 'media.ingester.youtube',
+  iiif_presentation: 'media.ingester.iiifPresentation',
+  fallback: 'media.ingester.fallback',
+};
+
+/** A word from the table, else the stored value itself rather than a blank. */
+const plainWord = (
+  labels: Readonly<Record<string, ResourcesKey>>,
+  value: string,
+  translator: DetailTranslator,
+): string => {
+  const key = labels[value];
+  return key === undefined ? value : translator.t(key);
+};
+
 const derivativeUrl = (media: Media, kind: DerivativeKind): string | null =>
   kind === 'original' ? originalFileUrl(media) : (media.thumbnailUrls[kind] ?? null);
 
 /**
- * `Admin/MediaController::showAction`: one media, its image at full width, the
- * metadata the API carries, the file derivatives, and its values.
+ * `Admin/MediaController::showAction`: one media, its stage, the metadata the
+ * API carries, the file derivatives, and its values.
  */
 export const MediaDetail = ({ mediaId }: { readonly mediaId: MediaId }): ReactElement => {
   const translator = useTranslator(common, resources);
@@ -49,8 +90,11 @@ export const MediaDetail = ({ mediaId }: { readonly mediaId: MediaId }): ReactEl
     <section>
       <h2>{mediaName(media) ?? t('common.untitled')}</h2>
 
-      <div className="media-hero-frame">
-        <MediaImage media={media} url={largeImageUrl(media)} className="media-hero" />
+      {/* The stage is the media; the notes panel (A-3) mounts beside it here. */}
+      <div className="media-detail-body">
+        <Suspense fallback={<p role="status">{t('loading.media')}</p>}>
+          <MediaStage media={media} />
+        </Suspense>
       </div>
 
       <dl>
@@ -72,10 +116,10 @@ export const MediaDetail = ({ mediaId }: { readonly mediaId: MediaId }): ReactEl
         <dd>{media.modified === null ? t('common.never') : formatDateTime(media.modified, locale)}</dd>
         <dt>{t('media.mimeType')}</dt>
         <dd>{media.mediaType ?? t('common.none')}</dd>
-        <dt>{t('media.renderer')}</dt>
-        <dd>{media.renderer}</dd>
-        <dt>{t('media.ingester')}</dt>
-        <dd>{media.ingester}</dd>
+        <dt>{t('media.shownAs')}</dt>
+        <dd>{plainWord(RENDERER_LABELS, media.renderer, translator)}</dd>
+        <dt>{t('media.addedBy')}</dt>
+        <dd>{plainWord(INGESTER_LABELS, media.ingester, translator)}</dd>
         <dt>{t('media.source')}</dt>
         <dd>{media.source ?? t('common.none')}</dd>
         <dt>{t('media.filename')}</dt>
@@ -98,7 +142,7 @@ export const MediaDetail = ({ mediaId }: { readonly mediaId: MediaId }): ReactEl
           {derivatives.map(({ kind, url }) => (
             <li key={kind}>
               <a href={url} target="_blank" rel="noreferrer">
-                {kind}
+                {t(`media.derivative.${kind}`)}
               </a>
             </li>
           ))}
