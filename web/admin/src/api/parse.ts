@@ -568,6 +568,26 @@ export const parseMedia: Parser<Media> = (raw, path = []) => {
   };
 };
 
+/**
+ * The provider player URL `GET /api/romeka/media/{id}/player` names, or `null`.
+ *
+ * The route's whole answer is the URL or nothing, and only an `https` URL can
+ * be framed: anything else degrades to `null`, which the stage reads as "frame
+ * the server's render instead".
+ */
+export const parseMediaPlayer: Parser<string | null> = (raw, path = []) => {
+  const object = asRecord(raw, path);
+  const url = nullableField(object, 'url', path, asString);
+  if (url === null) {
+    return null;
+  }
+  try {
+    return new URL(url).protocol === 'https:' ? url : null;
+  } catch {
+    return null;
+  }
+};
+
 export const parseUser: Parser<User> = (raw, path = []) => {
   const object = asRecord(raw, path);
   return {

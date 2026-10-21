@@ -193,6 +193,7 @@ export const kn: ImportSimpleMessages = {
     'ಉತ್ತರಿಸಲು ಏನೂ ಇಲ್ಲ. ನಿಮ್ಮ ಫೈಲ್‌ಗಳು ಮತ್ತು ನಿಮ್ಮ ಪಟ್ಟಿ ಸೇರಿಸಲು ಸಿದ್ಧವಾಗಿವೆ.',
   'guided.check.example': 'ಉದಾಹರಣೆಗೆ, {name}.',
   'guided.check.exampleOf': 'ಉದಾಹರಣೆಗೆ, {name}: “{value}”.',
+  'guided.check.omekaItem': 'ಓಮೇಕಾ ಐಟಂ {id}',
   'guided.check.another': 'ಮತ್ತೊಂದು ಉದಾಹರಣೆ',
   'guided.check.showAll': 'ಎಲ್ಲಾ {count} ತೋರಿಸಿ',
   'guided.check.pair': 'ಕೈಯಿಂದ ಜೋಡಿ ಮಾಡಿ',

@@ -192,6 +192,7 @@ export const ml: ImportSimpleMessages = {
     'ഉത്തരം നൽകാൻ ഒന്നുമില്ല. നിങ്ങളുടെ ഫയലുകളും പട്ടികയും ചേർക്കാൻ തയ്യാറാണ്.',
   'guided.check.example': 'ഉദാഹരണത്തിന്, {name}.',
   'guided.check.exampleOf': 'ഉദാഹരണത്തിന്, {name}: “{value}”.',
+  'guided.check.omekaItem': 'Omeka ഇനം {id}',
   'guided.check.another': 'മറ്റൊരു ഉദാഹരണം',
   'guided.check.showAll': 'എല്ലാ {count}-ഉം കാണിക്കുക',
   'guided.check.pair': 'കൈകൊണ്ട് ജോടിയാക്കുക',

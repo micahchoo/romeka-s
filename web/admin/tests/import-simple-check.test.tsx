@@ -4,7 +4,8 @@
  * items to add with no title, whatever their item type, and offers the item
  * code for items of many files; a file the list names and the install refuses
  * is a fact with a link and no question; and the unmatched files question
- * speaks plainly when nobody marked an example.
+ * speaks plainly when nobody marked an example; an item already in Omeka is
+ * named the way the person knows it, not by its Omeka id.
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -130,6 +131,18 @@ describe('Check: a file the list names and the install refuses', () => {
     expect(within(fact).getByRole('link', { name: /allowed file types/ })).toHaveAttribute('href', '#/settings');
     expect(within(fact).queryByRole('button')).toBeNull();
     expect(within(screen.getByRole('listbox', { name: 'Questions' })).getByRole('option', { name: 'A file your list names that Omeka does not take' })).toHaveTextContent('fact');
+  }, 20_000);
+});
+
+describe('Check: items already in Omeka', () => {
+  it('names an example by its item code and title, with the Omeka item only as a link', async () => {
+    openCheck(simpleServer({ ...scenario('bhc', 9), flags: [{ kind: 'exists', slot: null, count: 2, detail: '4192', matches: [4192] }] }, LISTED));
+    const question = await inspect('Already in Omeka', /^2 items are already in Omeka/);
+    await waitFor(() => {
+      expect(question).toHaveTextContent('For example, bhc_1: “Item 1”.');
+    });
+    expect(question).not.toHaveTextContent('For example, 4192');
+    expect(within(question).getByRole('link', { name: 'Omeka item 4192' })).toHaveAttribute('href', '#/items/4192');
   }, 20_000);
 });
 

@@ -12,7 +12,8 @@
  */
 import type { ReactElement } from 'react';
 import { useState } from 'react';
-import { defaultBaseUrl } from '../../../api/client';
+import { api, defaultBaseUrl } from '../../../api/client';
+import type { MediaId } from '../../../api/types';
 import { useTranslator } from '../../../i18n';
 import { resources } from '../../../i18n/namespaces/resources';
 
@@ -35,22 +36,54 @@ export const ThirdPartyCard = ({
 };
 
 /**
- * An oEmbed or HTML media: a facade that names the host, then the server's
- * render in a frame. The sandbox runs the provider's own script and lets it
- * present full screen; it never grants `allow-same-origin` beside
- * `allow-scripts`, which would let the frame script the admin.
+ * What the card has loaded, or what it is asking the server for. The server
+ * answers whether the render is one provider player, so the card never reads
+ * provider markup itself.
+ */
+type EmbedFrame =
+  | { readonly state: 'closed' }
+  | { readonly state: 'asking' }
+  | { readonly state: 'strict' }
+  | { readonly state: 'player'; readonly url: string };
+
+/**
+ * An oEmbed or HTML media: a facade that names the host, then a frame. The
+ * server decides which frame. When its render of the media is one allow-listed
+ * provider frame, `/player` answers that URL and the card frames the provider
+ * directly: `allow-same-origin` beside `allow-scripts` then grants the
+ * provider's own origin, never the admin's, and without it a nested provider
+ * player inherits an opaque origin and refuses to draw or play. Every other
+ * render keeps the strict frame, which runs the provider's script and presents
+ * full screen and never grants `allow-same-origin` beside `allow-scripts`.
  */
 export const EmbedCard = ({
   mediaId,
   url,
   host,
 }: {
-  readonly mediaId: number;
+  readonly mediaId: MediaId;
   readonly url: string | null;
   readonly host: string | null;
 }): ReactElement => {
   const { t } = useTranslator(resources);
-  const [shown, setShown] = useState(false);
+  const [frame, setFrame] = useState<EmbedFrame>({ state: 'closed' });
+  const title =
+    host === null
+      ? t('media.stage.embedSnippetFrame')
+      : t('media.stage.embedFrame', { host });
+  const load = (): void => {
+    setFrame({ state: 'asking' });
+    // A refused or failed answer is the strict frame, which is what this card
+    // showed before the player route existed.
+    api.getMediaPlayer(mediaId).then(
+      (player) => {
+        setFrame(player === null ? { state: 'strict' } : { state: 'player', url: player });
+      },
+      () => {
+        setFrame({ state: 'strict' });
+      },
+    );
+  };
   return (
     <div className="media-stage-outside">
       <p>
@@ -58,26 +91,26 @@ export const EmbedCard = ({
           ? t('media.stage.embedSnippetHeading')
           : t('media.stage.embedHeading', { host })}
       </p>
-      {shown ? (
+      {frame.state === 'closed' || frame.state === 'asking' ? (
+        <button type="button" disabled={frame.state === 'asking'} onClick={load}>
+          {t('media.stage.embedLoad')}
+        </button>
+      ) : frame.state === 'player' ? (
+        <iframe
+          className="media-stage-frame"
+          sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+          allow="fullscreen; picture-in-picture"
+          referrerPolicy="strict-origin-when-cross-origin"
+          src={frame.url}
+          title={title}
+        />
+      ) : (
         <iframe
           className="media-stage-frame"
           sandbox="allow-scripts allow-presentation"
           src={`${defaultBaseUrl()}/api/romeka/media/${String(mediaId)}/render`}
-          title={
-            host === null
-              ? t('media.stage.embedSnippetFrame')
-              : t('media.stage.embedFrame', { host })
-          }
+          title={title}
         />
-      ) : (
-        <button
-          type="button"
-          onClick={() => {
-            setShown(true);
-          }}
-        >
-          {t('media.stage.embedLoad')}
-        </button>
       )}
       {url === null || host === null ? null : (
         <a className="button-link" href={url} target="_blank" rel="noreferrer">

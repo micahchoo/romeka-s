@@ -1,11 +1,12 @@
-//! `GET /api/romeka/media/{id}/render`, the server's render of one embed as a
-//! frame document.
+//! `GET /api/romeka/media/{id}/render` and `/player`: the server's render of
+//! one embed as a frame document, and the provider player URL that render is.
 //!
-//! The route exists so the admin stage can show an oEmbed or HTML media the way
+//! The routes exist so the admin stage can show an oEmbed or HTML media the way
 //! the public site shows it, in one sandboxed frame, without deciding for
-//! itself what provider markup is safe. Every assertion here is what a caller
-//! of the route observes: the status, the document, and the headers that make
-//! it a frame.
+//! itself what provider markup is safe, and so the stage can frame a provider's
+//! own player directly instead of nesting it in a frame of ours. Every
+//! assertion here is what a caller of a route observes: the status, the
+//! document or URL, and the headers that make the answer a frame.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
@@ -152,6 +153,97 @@ async fn an_oembed_media_answers_the_providers_frame() {
     );
 }
 
+/// A one-frame oEmbed render names the provider player URL, which the stage
+/// frames directly, and the answer is private and carries no cookie.
+#[tokio::test]
+async fn a_one_frame_oembed_names_the_provider_player() {
+    let (pool, seed) = seeded_engine_pool().await;
+    let media = store(
+        &pool,
+        &seed,
+        Fields {
+            source: Some("https://www.youtube.com/watch?v=abc123"),
+            data: Some(json!({
+                "type": "video",
+                "title": "A talk",
+                "html": "<iframe src=\"https://www.youtube.com/embed/abc123?feature=oembed\" allowfullscreen></iframe>",
+            })),
+            ..Fields::plain("oembed", "oembed")
+        },
+    )
+    .await;
+
+    let answer = send(
+        router(pool),
+        get(&format!("/api/romeka/media/{media}/player"), false),
+    )
+    .await;
+
+    assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
+    assert_eq!(header(&answer.headers, "content-type"), "application/json");
+    assert_eq!(
+        answer.json()["url"],
+        json!("https://www.youtube.com/embed/abc123?feature=oembed")
+    );
+    assert!(header(&answer.headers, "cache-control").contains("private"));
+    assert!(
+        answer.headers.get("set-cookie").is_none(),
+        "the player answer sets a cookie"
+    );
+}
+
+/// A render with more than the frame, a plain `http` frame, a frame from a host
+/// outside the oEmbed list, and an HTML media all name no provider player.
+#[tokio::test]
+async fn a_render_that_is_not_one_allow_listed_frame_names_no_player() {
+    let (pool, seed) = seeded_engine_pool().await;
+    let cases = [
+        (
+            "a caption beside the frame",
+            "oembed",
+            Some("https://www.youtube.com/watch?v=abc123"),
+            json!({"html": "<p>Watch</p><iframe src=\"https://www.youtube.com/embed/abc123\"></iframe>"}),
+        ),
+        (
+            "a plain http frame",
+            "oembed",
+            Some("https://www.youtube.com/watch?v=abc123"),
+            json!({"html": "<iframe src=\"http://www.youtube.com/embed/abc123\"></iframe>"}),
+        ),
+        (
+            "a frame from a host outside the list",
+            "oembed",
+            Some("https://example.org/page"),
+            json!({"html": "<iframe src=\"https://example.org/embed\"></iframe>"}),
+        ),
+        (
+            "an HTML media",
+            "html",
+            None,
+            json!({"html": "<pre>Hello</pre>"}),
+        ),
+    ];
+    for (what, renderer, source, data) in cases {
+        let media = store(
+            &pool,
+            &seed,
+            Fields {
+                source,
+                data: Some(data),
+                ..Fields::plain(renderer, renderer)
+            },
+        )
+        .await;
+        let answer = send(
+            router(pool.clone()),
+            get(&format!("/api/romeka/media/{media}/player"), false),
+        )
+        .await;
+        assert_eq!(answer.status, StatusCode::OK, "{what}: {}", answer.body);
+        assert_eq!(answer.json()["url"], Value::Null, "{what}: {}", answer.body);
+    }
+}
+
 /// An HTML media answers the stored fragment, purified at render, so a row
 /// written before the write path purified it (or copied by the migrator) cannot
 /// execute. The policy names the image host the fragment uses, port and all.
@@ -215,6 +307,13 @@ async fn a_private_media_is_a_404_to_an_anonymous_caller() {
         anonymous.body
     );
     assert!(!anonymous.body.contains("Draft"), "{}", anonymous.body);
+
+    let player = send(
+        router(pool.clone()),
+        get(&format!("/api/romeka/media/{media}/player"), false),
+    )
+    .await;
+    assert_eq!(player.status, StatusCode::NOT_FOUND, "{}", player.body);
 
     let owner = send(router(pool), get_keyed(&uri, KEY_IDENTITY, KEY_CREDENTIAL)).await;
     assert_eq!(owner.status, StatusCode::OK, "{}", owner.body);
