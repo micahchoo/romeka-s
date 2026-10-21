@@ -16,7 +16,8 @@ if [ -e "$archive" ]; then
     exit 1
 fi
 
-staging="$(mktemp -d)"
+# Stage beside the archive, not in /tmp: /tmp can be a RAM disk smaller than the media store.
+staging="$(mktemp -d "$(dirname "$archive")/.backup-XXXXXX")"
 trap 'rm -rf "$staging"' EXIT
 # The container runs as its own system user, which is not the user running this
 # script, so the directory the archive is written into has to be open to it. The
