@@ -143,6 +143,8 @@ export const te: ImportSimpleMessages = {
   'guided.list.levelOut': 'వదిలివేయండి',
   'guided.list.varies': '{of} అంశాలలో {count}-లో మారుతుంది.',
   'guided.list.itemOnly': 'ఒక అంశ రకం లేదా ఒక అంశ సమితి అంశం మీద మాత్రమే ఉంటుంది.',
+  'guided.list.split': 'ఒక సెల్‌లో అనేక విలువలు, “{separator}” ద్వారా వేరు చేయబడతాయి',
+  'guided.list.splitCount': '{of} సెల్‌లలో {count}-లో.',
   'guided.list.levelLede':
     'అంశంపై: దాని అన్ని వరుసల విలువలు, ప్రతి విలువ ఒకసారి. ప్రతి ఫైల్‌పై: ఆ ఫైల్ యొక్క స్వంత వరుస విలువలు. కొన్ని అంశాలలో విలువలు భిన్నంగా ఉన్న ఫైల్‌ను, మరియు అవి ఎప్పటికీ భిన్నంగా లేని అంశాన్ని సూచించమని మేము సూచిస్తున్నాము.',
   'guided.where.setsTitle': 'అంశం సెట్లు',

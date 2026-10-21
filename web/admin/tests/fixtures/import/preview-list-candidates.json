@@ -9,6 +9,33 @@
         "paired": 4,
         "pairedNormalized": 4
       },
+      "cells": [
+        {
+          "header": "Id",
+          "index": 0,
+          "separator": null
+        },
+        {
+          "header": "Title",
+          "index": 1,
+          "separator": null
+        },
+        {
+          "header": "Date",
+          "index": 2,
+          "separator": null
+        },
+        {
+          "header": "Notes",
+          "index": 3,
+          "separator": null
+        },
+        {
+          "header": "Notes",
+          "index": 4,
+          "separator": null
+        }
+      ],
       "columns": 5,
       "file": "register.csv",
       "grain": null,

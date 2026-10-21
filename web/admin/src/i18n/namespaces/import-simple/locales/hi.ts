@@ -144,6 +144,8 @@ export const hi: ImportSimpleMessages = {
   'guided.list.levelOut': 'छोड़ें',
   'guided.list.varies': '{of} में से {count} आइटमों में भिन्न होता है।',
   'guided.list.itemOnly': 'एक आइटम प्रकार या आइटम सेट केवल आइटम पर जाता है।',
+  'guided.list.split': 'एक सेल में कई मान, “{separator}” द्वारा अलग किए गए',
+  'guided.list.splitCount': '{of} में से {count} सेल में।',
   'guided.list.levelLede':
     'आइटम पर: सभी पंक्तियों के मान, प्रत्येक मान एक बार। प्रत्येक फ़ाइल पर: उस फ़ाइल की पंक्ति के मान। हम सुझाव देते हैं कि प्रत्येक फ़ाइल वहाँ हो जहाँ मान किसी आइटम के अंदर भिन्न हों, और आइटम वहाँ हो जहाँ वे कभी नहीं होते।',
   'guided.where.setsTitle': 'आइटम सेट',

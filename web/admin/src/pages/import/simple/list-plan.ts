@@ -6,8 +6,8 @@
  * that field's label (compared as titles). Every other column waits for the
  * person.
  */
-import type { Grain, SheetColumnMatches, Varies } from '../../../api/import-sections';
-import type { SheetRead } from '../../../api/import-sheet-views';
+import type { ColumnCells, Grain, SheetColumnMatches, Varies } from '../../../api/import-sections';
+import type { SheetRead, SheetView } from '../../../api/import-sheet-views';
 import type { ColumnRef, ImportPlan, RecordKind, SheetPlan, SlotName, SlotRule, SlotRules, SourceRef, Term } from '../../../api/import-plan';
 import { isTerm } from '../../../api/import-plan';
 
@@ -188,6 +188,76 @@ export const withFileRows = (plan: ImportPlan, sheet: string, grain: Grain | nul
     withRowKind(plan, sheet, 'media'),
   );
 
+const rowKindOf = (plan: ImportPlan, sheet: string): SheetPlan['rowKind'] | undefined => plan.sheets.find((one) => one.id === sheet)?.rowKind;
+
+const gotItsFirstPlace = (before: ImportPlan, after: ImportPlan, sheet: string, index: number): boolean =>
+  levelOf(before, sheet, index) === 'out' && levelOf(after, sheet, index) !== 'out';
+
+/** What the preview counted for one list: where its columns' values vary, how many cells each fills, and the separator they hold. */
+export interface ListCounts {
+  readonly grain: Grain | null;
+  readonly matches: SheetColumnMatches | undefined;
+  readonly cells: readonly ColumnCells[];
+}
+
+export const separatorOf = (counts: ListCounts, index: number): NonNullable<ColumnCells['separator']> | null =>
+  counts.cells.find((one) => one.index === index)?.separator ?? null;
+
+export const filledOf = (counts: ListCounts, index: number): number | null => {
+  const column = counts.matches?.columns.find((one) => one.index === index);
+  return column === undefined || counts.matches === undefined ? null : counts.matches.rows - column.empty;
+};
+
+/** The split a column's cells suggest: the separator more than half of its filled cells hold. */
+export const suggestedSplit = (counts: ListCounts, index: number): string | null => {
+  const separator = separatorOf(counts, index);
+  const filled = filledOf(counts, index);
+  return separator !== null && filled !== null && separator.cells * 2 > filled ? separator.text : null;
+};
+
+export const splitOf = (plan: ImportPlan, sheet: string, index: number): string | null =>
+  plan.sheets.find((one) => one.id === sheet)?.columns.find((one) => one.column.index === index)?.options.split ?? null;
+
+/** The column's cells cut at `split` into several values, or kept whole for `null`. */
+export const withSplit = (plan: ImportPlan, sheet: string, column: ColumnRef, split: string | null): ImportPlan => ({
+  ...plan,
+  sheets: plan.sheets.map((one) => {
+    if (one.id !== sheet) {
+      return one;
+    }
+    const has = one.columns.some((each) => each.column.index === column.index);
+    return {
+      ...one,
+      columns: has
+        ? one.columns.map((each) => (each.column.index === column.index ? { ...each, options: { ...each.options, split } } : each))
+        : [...one.columns, { column, options: { split, type: 'literal' as const, lang: null, private: false } }],
+    };
+  }),
+});
+
+/**
+ * `after` is `before` with an edit that may give the column its first field.
+ * That first field takes what the counts suggest: on a list whose rows
+ * describe files, the level; and a split no one has set yet. After that only
+ * the person changes them. Simple, Advanced and the list read all map a
+ * column through this.
+ */
+export const withCounted = (before: ImportPlan, after: ImportPlan, sheet: string, column: ColumnRef, counts: ListCounts): ImportPlan => {
+  if (!gotItsFirstPlace(before, after, sheet, column.index)) {
+    return after;
+  }
+  const placed =
+    rowKindOf(after, sheet) === 'media'
+      ? withColumnLevel(after, sheet, column, suggestedLevel(variesOf(counts.grain, column.index), fileLevelAllowed(after, sheet, column.index)))
+      : after;
+  const split = suggestedSplit(counts, column.index);
+  return split !== null && splitOf(placed, sheet, column.index) === null ? withSplit(placed, sheet, column, split) : placed;
+};
+
+/** Simple's "Goes into": the column to `target`, with what its counts suggest when that is its first field. */
+export const withCountedTarget = (plan: ImportPlan, sheet: string, column: ColumnRef, target: Target, counts: ListCounts): ImportPlan =>
+  withCounted(plan, withTarget(plan, sheet, column, target), sheet, column, counts);
+
 const slotOf = (target: Exclude<Target, ''>): SlotName => {
   if (target === 'template' || target === 'sets') {
     return target;
@@ -254,19 +324,19 @@ export const withTarget = (plan: ImportPlan, sheet: string, column: ColumnRef, t
 /**
  * The list read: every column with plain options, the pairing column with the
  * most exact cells, and each column whose header is a field's label in that
- * field.
+ * field, split as its counts suggest.
  */
 export const withRead = (
   plan: ImportPlan,
   sheet: string,
   read: SheetRead,
-  matches: SheetColumnMatches | undefined,
+  counts: ListCounts,
   fields: readonly { readonly term: string; readonly label: string | null }[],
 ): ImportPlan => {
   const columns = read.columns
     .filter((column) => column.mappable)
     .map((column) => ({ column: { index: column.index, header: column.header }, options: { split: null, type: 'literal' as const, lang: null, private: false } }));
-  const pair = best(matches);
+  const pair = best(counts.matches);
   let next: ImportPlan = {
     ...plan,
     sheets: plan.sheets.map((one) =>
@@ -279,39 +349,77 @@ export const withRead = (
     }
     const field = fields.find((one) => one.label !== null && fold(one.label) === fold(column.header));
     if (field !== undefined && isTerm(field.term)) {
-      next = withTarget(next, sheet, column, `field:${field.term}`);
+      next = withCountedTarget(next, sheet, column, `field:${field.term}`, counts);
     }
   }
   return next;
 };
 
-/** The cells of one raw line, read with the list's delimiter and double quotes. */
-export const cellsOf = (line: string, delimiter: string): readonly string[] => {
-  const cells: string[] = [];
+/** One record of a sheet view's lines: the line it starts on, and its cells. */
+export interface LineRecord {
+  readonly line: number;
+  readonly cells: readonly string[];
+}
+
+/**
+ * The records of a sheet view's lines, which start at line 1, read with the
+ * list's delimiter and double quotes; a quoted cell may run onto the next
+ * line. A record the last line leaves open is cut short, so it is dropped.
+ */
+export const recordsOf = (lines: readonly string[], delimiter: string): readonly LineRecord[] => {
+  const records: LineRecord[] = [];
+  let cells: string[] = [];
   let cell = '';
   let quoted = false;
-  for (let at = 0; at < line.length; at += 1) {
-    const char = line.charAt(at);
+  let start = 1;
+  lines.forEach((line, at) => {
     if (quoted) {
-      if (char === '"' && line.charAt(at + 1) === '"') {
-        cell += '"';
-        at += 1;
-      } else if (char === '"') {
-        quoted = false;
-      } else {
-        cell += char;
-      }
-    } else if (char === '"' && cell === '') {
-      quoted = true;
-    } else if (char === delimiter) {
-      cells.push(cell);
-      cell = '';
+      cell += '\n';
     } else {
-      cell += char;
+      start = at + 1;
     }
-  }
-  cells.push(cell);
-  return cells;
+    for (let char = 0; char < line.length; char += 1) {
+      const here = line.charAt(char);
+      if (quoted) {
+        if (here === '"' && line.charAt(char + 1) === '"') {
+          cell += '"';
+          char += 1;
+        } else if (here === '"') {
+          quoted = false;
+        } else {
+          cell += here;
+        }
+      } else if (here === '"' && cell === '') {
+        quoted = true;
+      } else if (here === delimiter) {
+        cells.push(cell);
+        cell = '';
+      } else {
+        cell += here;
+      }
+    }
+    if (!quoted) {
+      cells.push(cell);
+      records.push({ line: start, cells });
+      cells = [];
+      cell = '';
+    }
+  });
+  return records;
+};
+
+/** The delimiter a sheet view's lines are written with. */
+export const delimiterOf = (view: SheetView): string => {
+  const delimiter = view.read?.delimiter ?? view.guess?.delimiter ?? ',';
+  return delimiter === 'auto' ? ',' : delimiter;
+};
+
+/** The first row under the header on `headerLine`, as the reader skips a row with no text; none when the lines stop first. */
+export const firstRowOf = (view: SheetView, headerLine: number): readonly string[] => {
+  const records = recordsOf(view.lines, delimiterOf(view));
+  const header = records.findIndex((record) => record.line === headerLine);
+  const row = header === -1 ? undefined : records.slice(header + 1).find((record) => record.cells.some((cell) => cell.trim() !== ''));
+  return row?.cells ?? [];
 };
 
 /** A `<select>` value read back as a target, or `null` for one no option has. */
