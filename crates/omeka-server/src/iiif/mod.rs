@@ -147,24 +147,6 @@ async fn item_set_collection(
     ))
 }
 
-/// Whether a media paints a canvas: a stored image the decoder reads, with
-/// its derivatives, or a media ingested from a IIIF image service. The item
-/// page offers the viewer for an item with one, and the manifest gives each
-/// one a canvas.
-pub(crate) fn paints_canvas(
-    renderer: &str,
-    ingester: &str,
-    media_type: Option<&str>,
-    has_thumbnails: bool,
-) -> bool {
-    let local_image = renderer == "file"
-        && has_thumbnails
-        && media_type.is_some_and(|media_type| {
-            omeka_media::thumbnailer::SOURCE_MEDIA_TYPES.contains(&media_type)
-        });
-    local_image || ingester == "iiif"
-}
-
 /// The search page size the collection reads with.
 const PAGE: usize = 100;
 
