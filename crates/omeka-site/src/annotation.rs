@@ -18,6 +18,9 @@ pub struct TrackLink {
     /// track carries no language.
     pub label: String,
     pub default: bool,
+    /// How many cues the language holds, for the page's language links and its
+    /// facts line.
+    pub cues: u32,
 }
 
 /// The tracks of one media, default first, then by cue count, then by tag.
@@ -60,6 +63,7 @@ pub fn tracks(
                         None => no_language.to_string(),
                     },
                     default: index == chosen,
+                    cues,
                     lang,
                 },
                 cues,
@@ -176,7 +180,7 @@ fn subtag(tag: &str) -> &str {
 mod tests {
     use super::*;
 
-    fn link(lang: Option<&str>, label: &str, default: bool) -> TrackLink {
+    fn link(lang: Option<&str>, label: &str, default: bool, cues: u32) -> TrackLink {
         TrackLink {
             src: match lang {
                 Some(tag) => format!("/annotations/media/7/captions.vtt?lang={tag}"),
@@ -185,6 +189,7 @@ mod tests {
             lang: lang.map(str::to_string),
             label: label.to_string(),
             default,
+            cues,
         }
     }
 
@@ -197,8 +202,8 @@ mod tests {
             "/annotations/media/7/captions.vtt",
             "Captions",
         );
-        assert_eq!(got[0], link(Some("fr"), "Français", true));
-        assert_eq!(got[1], link(Some("en"), "English", false));
+        assert_eq!(got[0], link(Some("fr"), "Français", true, 214));
+        assert_eq!(got[1], link(Some("en"), "English", false, 9));
     }
 
     #[test]
@@ -210,8 +215,8 @@ mod tests {
             "/annotations/media/7/captions.vtt",
             "Captions",
         );
-        assert_eq!(got[0], link(Some("fr"), "Français", true));
-        assert_eq!(got[1], link(Some("en"), "English", false));
+        assert_eq!(got[0], link(Some("fr"), "Français", true, 214));
+        assert_eq!(got[1], link(Some("en"), "English", false, 9));
     }
 
     #[test]
@@ -253,7 +258,7 @@ mod tests {
 
     #[test]
     fn the_tracks_land_inside_the_video_element() {
-        let tracks = [link(Some("en"), "English", true)];
+        let tracks = [link(Some("en"), "English", true, 1)];
         let html = with_tracks(
             "<video src=\"/v.mp4\" controls><a href=\"/v.mp4\">v</a></video>",
             &tracks,
@@ -266,7 +271,7 @@ mod tests {
 
     #[test]
     fn an_audio_element_takes_tracks_and_an_embed_without_a_player_is_unchanged() {
-        let tracks = [link(Some("en"), "English", true)];
+        let tracks = [link(Some("en"), "English", true, 1)];
         assert!(with_tracks("<audio src=\"/a.mp3\" controls></audio>", &tracks).contains("<track"));
         let image = "<img src=\"/i.jpg\">";
         assert_eq!(with_tracks(image, &tracks), image);

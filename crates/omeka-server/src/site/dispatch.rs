@@ -272,12 +272,24 @@ impl<'a> Common<'a> {
             .and_then(|(_, value)| MediaStart::parse_seconds(value))
     }
 
+    /// The caption language a `?transcript=` link asks the media page to show.
+    /// Empty is no request; the loader ignores a value the recording does not
+    /// offer.
+    fn transcript_language(&self) -> Option<&str> {
+        self.query
+            .iter()
+            .find(|(name, _)| name == "transcript")
+            .map(|(_, value)| value.as_str())
+            .filter(|value| !value.is_empty())
+    }
+
     /// A media as its own page shows it. The request's query may cue the
-    /// player; the loader holds the start inside the file's probed duration.
+    /// player and choose the transcript's language; the loader holds the start
+    /// inside the file's probed duration.
     async fn media_resource_view(&self, row: &MediaRow) -> Result<ResourceView, SiteError> {
         let view = self
             .loader
-            .media_resource_view(row, self.media_start())
+            .media_resource_view(row, self.media_start(), self.transcript_language())
             .await?;
         Ok(view)
     }

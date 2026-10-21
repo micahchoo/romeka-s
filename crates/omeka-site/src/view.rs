@@ -134,6 +134,10 @@ pub struct ResourceView {
     /// for the media page's "File 3 of 12" line and its Previous and Next
     /// links. A Romeka addition; upstream's media view has no wayfinding.
     pub media_position: Option<MediaPosition>,
+    /// A recording's transcript, for the media page's transcript section. A
+    /// Romeka addition; `None` for a file with no caption cues and for every
+    /// kind but audio and video.
+    pub transcript: Option<crate::transcript::Transcript>,
     /// The resource's embedded JSON-LD document, a compact JSON object the show
     /// and browse views print in a `application/ld+json` script (`Module.php`
     /// `view.show.after` / `view.browse.after`, honouring
@@ -175,6 +179,7 @@ impl ResourceView {
             primary_media: None,
             parent_item: None,
             media_position: None,
+            transcript: None,
             jsonld: None,
             iiif_manifest: None,
         }

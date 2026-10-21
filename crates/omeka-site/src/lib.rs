@@ -45,4 +45,5 @@ pub mod search;
 pub mod settings;
 pub mod slug;
 pub mod theme;
+pub mod transcript;
 pub mod view;

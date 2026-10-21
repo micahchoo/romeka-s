@@ -48,6 +48,7 @@ use omeka_site::resource_page::link_pretty;
 use omeka_site::search::SearchHit;
 use omeka_site::settings::SiteSettings;
 use omeka_site::slug::{controller_for, page_url, resource_show_url, site_url};
+use omeka_site::transcript::{Cue, Language, Transcript};
 use omeka_site::view::{
     BrowseQuery, BrowseView, LinkedResource, MediaIcon, MediaKindCue, MediaPosition, MediaRef,
     PageCard, ResourcePage, ResourceRef, ResourceView, SiteQuery, SiteSearch, SiteSort, SiteView,
@@ -477,7 +478,7 @@ impl<'a> Loader<'a> {
         match row {
             LoadedRow::Item(row) => self.item_resource_view(row).await,
             LoadedRow::ItemSet(row) => self.item_set_resource_view(row).await,
-            LoadedRow::Media(row) => self.media_resource_view(row, None).await,
+            LoadedRow::Media(row) => self.media_resource_view(row, None, None).await,
         }
     }
 
@@ -645,6 +646,14 @@ impl<'a> Loader<'a> {
         // A recording's caption languages are `<track>` elements inside the
         // renderer's own player, so a media with none keeps its exact markup.
         let rendered = omeka_site::annotation::with_tracks(&rendered, &tracks);
+        // A transcript line's `?t=` link names the player, so the reloaded page
+        // lands on the file it cues. One media page shows one file, so the id
+        // is unique there and is absent everywhere else.
+        let player = if options.reader && is_recording(kind) {
+            " id=\"player\""
+        } else {
+            ""
+        };
         // `Renderer/IIIF.php` appends OpenSeadragon to `headScript`; the theme
         // owns the head here, so the embed loads the library it calls. The 3D
         // facade is a theme script for the same reason: no inline code and no
@@ -666,7 +675,7 @@ impl<'a> Loader<'a> {
             media_type: row.media_type.clone(),
             thumbnail,
             embed: Some(format!(
-                "<div class=\"media-render {}\">{library}{rendered}</div>",
+                "<div class=\"media-render {}\"{player}>{library}{rendered}</div>",
                 row.renderer
             )),
         })
@@ -696,6 +705,80 @@ impl<'a> Loader<'a> {
             &iris.captions(row.id(), None),
             self.messages().kind_captions,
         ))
+    }
+
+    /// A recording's transcript: every language it offers and the cues of the
+    /// one the page shows. `requested` is the language a `?transcript=` link
+    /// asks for; a tag the recording does not offer falls back to the default
+    /// track, as the `<track>` elements do.
+    async fn media_transcript(
+        &self,
+        row: &MediaRow,
+        kind: MediaKind,
+        requested: Option<&str>,
+    ) -> Result<Option<Transcript>, DbError> {
+        if !matches!(kind, MediaKind::Audio | MediaKind::Video) {
+            return Ok(None);
+        }
+        let counts = with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
+            .track_langs(&[row.id()])
+            .await)?;
+        let counts: Vec<(Option<String>, u32)> = counts
+            .into_iter()
+            .map(|(_, lang, cues)| (lang, cues))
+            .collect();
+        let tracks = omeka_site::annotation::tracks(
+            &counts,
+            self.settings.locale().tag(),
+            &Iris::new(self.base.as_str()).captions(row.id(), None),
+            self.messages().kind_captions,
+        );
+        let languages: Vec<Language> = tracks
+            .iter()
+            .map(|track| Language {
+                lang: track.lang.clone(),
+                label: track.label.clone(),
+                cues: track.cues,
+            })
+            .collect();
+        // Most recordings carry no captions, so the cue read is skipped rather
+        // than asked and discarded.
+        if languages.is_empty() {
+            return Ok(None);
+        }
+        let current = omeka_site::transcript::requested_language(&languages, requested)
+            .map(str::to_string)
+            .or_else(|| {
+                tracks
+                    .iter()
+                    .find(|track| track.default)
+                    .and_then(|track| track.lang.clone())
+            });
+        // Every supplementing row of the language is a cue, the hand-written
+        // ones included: the transcript is the same text `captions.vtt` serves,
+        // so the two surfaces cannot disagree.
+        let rows = with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
+            .cues(row.id(), current.as_deref())
+            .await)?;
+        let cues: Vec<Cue> = rows
+            .iter()
+            .map(|row| Cue {
+                id: row.id,
+                start_ms: u64::try_from(row.t_start_ms.unwrap_or_default()).unwrap_or_default(),
+                end_ms: u64::try_from(row.t_end_ms.unwrap_or_default()).unwrap_or_default(),
+                text: omeka_site::transcript::cue_text(&row.body_json),
+            })
+            .filter(|cue| !cue.text.is_empty())
+            .collect();
+        if cues.is_empty() {
+            return Ok(None);
+        }
+        Ok(Some(Transcript {
+            languages,
+            current,
+            audio: kind == MediaKind::Audio,
+            cues,
+        }))
     }
 
     /// The 3D viewer a model file offers on the reader's press: the vendored
@@ -739,11 +822,13 @@ impl<'a> Loader<'a> {
 
     /// A public media as the media view shows it, with its parent item named.
     /// `start` is the moment a `?t=` link asks the player to open at; a probed
-    /// run time holds it inside the file.
+    /// run time holds it inside the file. `transcript` is the language a
+    /// `?transcript=` link asks for, when the recording offers it.
     pub(crate) async fn media_resource_view(
         &self,
         row: &MediaRow,
         start: Option<MediaStart>,
+        transcript: Option<&str>,
     ) -> Result<ResourceView, DbError> {
         let mut view = self.base_view(ResourceKind::Media, &row.resource).await?;
         let title = media_display_title(row, self.messages());
@@ -774,6 +859,10 @@ impl<'a> Loader<'a> {
             None => String::new(),
         };
         view.media_position = self.media_position(row).await?;
+        // The transcript is read before the renderer builds its view, for the
+        // same reason the tracks are: nothing may await while a `MediaView` is
+        // alive.
+        view.transcript = self.media_transcript(row, kind, transcript).await?;
         // `mediaRender.phtml`: `$resource->render()` on the media itself, with
         // the renderer's own defaults (the large thumbnail, linked to the
         // original). This is the file's own page, so a document may draw its

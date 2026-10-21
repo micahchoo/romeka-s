@@ -206,9 +206,9 @@ fn render_block(name: &str, resource: &ResourceView, ctx: &RenderContext<'_>) ->
         "sitePages" => site_pages(resource, ctx),
         "mediaList" => media_list(resource, ctx),
         "linkedResources" => linked_resources(resource, ctx.translator().messages()),
-        "mediaRender" => media_render(resource),
+        "mediaRender" => media_render(resource, ctx),
         "resourceClass" => resource_class(resource, ctx.translator().messages()),
-        "lightboxGallery" => lightbox_gallery(resource),
+        "lightboxGallery" => lightbox_gallery(resource, ctx),
         "map" => crate::map::item_section(resource, ctx),
         _ => String::new(),
     }
@@ -291,12 +291,29 @@ fn media_strip(resource: &ResourceView, ctx: &RenderContext<'_>) -> String {
 }
 
 /// `media-render.phtml`: the media's own renderer markup.
-fn media_render(resource: &ResourceView) -> String {
-    resource
+fn media_render(resource: &ResourceView, ctx: &RenderContext<'_>) -> String {
+    let file = resource
         .media_embeds
         .first()
         .and_then(|media| media.embed.clone())
-        .unwrap_or_default()
+        .unwrap_or_default();
+    // A recording's transcript follows the player it drives and comes before
+    // the record's values, so a reader meets its words next to its sound. It is
+    // not a configured block: a site that shows the file shows its transcript.
+    // The band, when there is one, sits immediately under the player.
+    match &resource.transcript {
+        Some(transcript) => format!(
+            "{file}{}{}",
+            crate::transcript::band(transcript),
+            crate::transcript::section(
+                transcript,
+                &ctx.current_path,
+                &ctx.asset_base,
+                ctx.translator().messages(),
+            )
+        ),
+        None => file,
+    }
 }
 
 /// `resource-class.phtml`: the class label, nothing when there is no class.
@@ -317,7 +334,7 @@ fn resource_class(resource: &ResourceView, messages: &Messages) -> String {
 /// A media page whose file is not an image falls back to `media-render.phtml`,
 /// as upstream does. Upstream's "Other Media" list under an item's gallery is
 /// not reproduced; the media list block shows every media.
-fn lightbox_gallery(resource: &ResourceView) -> String {
+fn lightbox_gallery(resource: &ResourceView, ctx: &RenderContext<'_>) -> String {
     let images: Vec<String> = resource
         .media_embeds
         .iter()
@@ -325,7 +342,7 @@ fn lightbox_gallery(resource: &ResourceView) -> String {
         .collect();
     if images.is_empty() {
         return match resource.kind {
-            ResourceKind::Media => media_render(resource),
+            ResourceKind::Media => media_render(resource, ctx),
             ResourceKind::Item | ResourceKind::ItemSet => String::new(),
         };
     }
