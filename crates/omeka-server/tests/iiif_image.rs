@@ -9,6 +9,7 @@ mod iiif_fixture;
 use axum::http::StatusCode;
 use iiif_fixture::{HEIGHT, WIDTH, get, iiif_seed, image_size, send_bytes};
 use omeka_media::store::Store;
+use serde_json::json;
 
 /// `info.json` names a level 1 `ImageService3` at its own URL, the original's
 /// size and the limits.
@@ -36,6 +37,74 @@ async fn info_json_describes_the_original() {
         (info["width"].as_u64(), info["height"].as_u64()),
         (Some(u64::from(WIDTH)), Some(u64::from(HEIGHT)))
     );
+}
+
+/// A camera RAW file's sensor data does not decode here; its embedded preview
+/// does. The canvas and the Image API name the preview-derived large
+/// derivative's upright size, and a full request answers those pixels.
+#[tokio::test]
+async fn a_raw_file_serves_its_embedded_preview() {
+    let seed = iiif_seed().await;
+    let bytes = std::fs::read(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/media-kinds/image.nef"),
+    )
+    .expect("image.nef");
+    let data = json!({
+        "o:is_public": true,
+        "o:media": [{"o:ingester": "upload", "file_index": 0, "o:is_public": true}],
+    })
+    .to_string();
+    let created = common::send(
+        seed.app.clone(),
+        common::multipart_asset_request(
+            &common::append_key("/api/items"),
+            "image.nef",
+            &bytes,
+            &data,
+        ),
+    )
+    .await;
+    assert!(created.status.is_success(), "{}", created.body);
+    let document = created.json();
+    let item = document["o:id"].as_u64().expect("the item id");
+    let media = document["o:media"][0]["o:id"]
+        .as_u64()
+        .expect("the media id");
+    let media_doc = common::send(
+        seed.app.clone(),
+        common::get(&format!("/api/media/{media}"), true),
+    )
+    .await
+    .json();
+    assert_eq!(media_doc["o:media_type"], json!("image/x-nikon-nef"));
+
+    let info = send_bytes(
+        seed.app.clone(),
+        get(&format!("/iiif/image/3/{media}/info.json")),
+    )
+    .await
+    .json();
+    assert_eq!(
+        (info["width"].as_u64(), info["height"].as_u64()),
+        (Some(80), Some(120))
+    );
+    let image = send_bytes(
+        seed.app.clone(),
+        get(&format!("/iiif/image/3/{media}/full/max/0/default.jpg")),
+    )
+    .await;
+    assert_eq!(image_size(&image.body), (80, 120));
+
+    let manifest = send_bytes(seed.app, get(&format!("/iiif/3/item/{item}/manifest")))
+        .await
+        .json();
+    let canvas = &manifest["items"][0];
+    assert_eq!(
+        (canvas["width"].as_u64(), canvas["height"].as_u64()),
+        (Some(80), Some(120))
+    );
+    assert_eq!(canvas["items"][0]["items"][0]["body"]["type"], "Image");
 }
 
 /// Each region and size form answers an image of the size the specification

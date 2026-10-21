@@ -87,7 +87,9 @@ impl StoredFile {
 /// media representation.
 struct StoredImage {
     storage_id: String,
-    original_path: String,
+    /// The file the Image API decodes: the original, or for camera RAW, whose
+    /// sensor data no decoder here reads, the preview-derived large derivative.
+    display_path: String,
     original_url: String,
     media_type: String,
     large_url: String,
@@ -108,11 +110,17 @@ impl StoredImage {
             .and_then(|urls| urls.get("square"))
             .and_then(Value::as_str)
             .map(str::to_string);
+        let media_type = file.media_type?;
+        let display_path = if omeka_media::media_type::is_raw_media_type(&media_type) {
+            format!("large/{}.jpg", file.storage_id)
+        } else {
+            file.original_path
+        };
         Some(Self {
             storage_id: file.storage_id,
-            original_path: file.original_path,
+            display_path,
             original_url: file.original_url?,
-            media_type: file.media_type?,
+            media_type,
             large_url: file.large_url?,
             square_url,
             is_public: media.get("o:is_public").and_then(Value::as_bool) == Some(true),
@@ -147,7 +155,7 @@ pub(super) async fn canvas_media(state: &AppState, media: &Value) -> Option<Canv
         MediaKind::LocalImage => {
             let image = StoredImage::of(media, kind)?;
             let extents = &state.extents;
-            let size = extents.image(&image.original_path).await?;
+            let size = extents.image(&image.display_path).await?;
             let large_size = extents.image(&image.large_path()).await?;
             Painting::Local(LocalImage {
                 original_url: image.original_url,
@@ -217,7 +225,7 @@ async fn visible_image(
     let api = super::visitor_api(state, headers).await?;
     let media = super::read(&api, "media", media).await?;
     let image = StoredImage::of(&media, kind_of(&media))?;
-    let size = state.extents.image(&image.original_path).await?;
+    let size = state.extents.image(&image.display_path).await?;
     Some((image, size))
 }
 
@@ -258,10 +266,10 @@ pub(super) async fn image(
         image.storage_id
     );
     let store = Arc::clone(&state.store);
-    let original = image.original_path.clone();
+    let display = image.display_path.clone();
     let format = request.format;
     let bytes = tokio::task::spawn_blocking(move || {
-        cached_or_rendered(store.as_ref(), &cached, &original, &plan, format)
+        cached_or_rendered(store.as_ref(), &cached, &display, &plan, format)
     })
     .await;
     match bytes {
@@ -270,13 +278,13 @@ pub(super) async fn image(
     }
 }
 
-/// The answer stored at `cached`, or a fresh one rendered from the original
-/// and stored there. A failed write still answers; the next request renders
-/// again.
+/// The answer stored at `cached`, or a fresh one rendered from the display
+/// file and stored there. A failed write still answers; the next request
+/// renders again.
 fn cached_or_rendered(
     store: &dyn Store,
     cached: &str,
-    original: &str,
+    display: &str,
     plan: &Plan,
     format: iiif_image::ImageFormat,
 ) -> Option<Vec<u8>> {
@@ -285,7 +293,7 @@ fn cached_or_rendered(
     {
         return Some(bytes);
     }
-    let source = iiif_image::decode(&store.read(original).ok()?).ok()?;
+    let source = iiif_image::decode(&store.read(display).ok()?).ok()?;
     let bytes = iiif_image::render(&source, plan, format).ok()?;
     if let Err(error) = store.put(&bytes, cached, Some(format.media_type())) {
         tracing::warn!(%error, cached, "the IIIF image cache could not keep an answer");
