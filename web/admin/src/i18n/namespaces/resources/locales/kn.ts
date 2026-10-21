@@ -26,6 +26,15 @@ export const kn: ResourcesMessages = {
   'items.empty': 'ಯಾವುದೇ ಐಟಂಗಳು ಕಂಡುಬಂದಿಲ್ಲ.',
   'items.mediaHeading': 'ಮಾಧ್ಯಮ ({count})',
   'items.noMedia': 'ಯಾವುದೇ ಮಾಧ್ಯಮವಿಲ್ಲ.',
+  'items.addMedia': 'ಮಾಧ್ಯಮವನ್ನು ಸೇರಿಸಿ',
+  'items.closeAddMedia': 'ಮುಚ್ಚಿ',
+  'items.noMediaYet':
+    'ಇನ್ನೂ ಯಾವುದೇ ಮಾಧ್ಯಮವಿಲ್ಲ. ಇಲ್ಲಿ ಫೈಲ್ ಅನ್ನು ಎಳೆಯಿರಿ, ಒಂದನ್ನು ಆರಿಸಿ ಅಥವಾ ಲಿಂಕ್ ಅನ್ನು ಪೇಸ್ಟ್ ಮಾಡಿ.',
+  'items.mayNotAdd':
+    'ನೀವು ಈ ಮಾಧ್ಯಮವನ್ನು ವೀಕ್ಷಿಸಬಹುದು. ಈ ಐಟಂ ಅನ್ನು ಎಡಿಟ್ ಮಾಡಬಹುದಾದ ಜನರು ಮಾತ್ರ ಮಾಧ್ಯಮವನ್ನು ಸೇರಿಸಬಹುದು.',
+  'items.dropToAdd': 'ಈ ಐಟಂಗೆ {count} ಫೈಲ್‌ಗಳನ್ನು ಸೇರಿಸಲು ಡ್ರಾಪ್ ಮಾಡಿ',
+  'items.dropToAddOne': 'ಈ ಐಟಂಗೆ 1 ಫೈಲ್ ಸೇರಿಸಲು ಡ್ರಾಪ್ ಮಾಡಿ',
+  'items.addMediaNextPage': 'ನೀವು ಮುಂದಿನ ಪುಟದಲ್ಲಿ ಫೈಲ್‌ಗಳು ಮತ್ತು ಲಿಂಕ್‌ಗಳನ್ನು ಸೇರಿಸುತ್ತೀರಿ.',
   'items.valuesHeading': 'ಮೌಲ್ಯಗಳು',
   'items.rowName': 'ಐಟಂ #{id}',
   'items.editLabel': 'ಈ ಐಟಂ ಅನ್ನು ಎಡಿಟ್ ಮಾಡಿ',

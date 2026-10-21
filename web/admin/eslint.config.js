@@ -5,7 +5,8 @@ import tseslint from 'typescript-eslint';
 export default tseslint.config(
   // `tests/lint/` holds files whose only purpose is to be refused by a rule
   // below; `tests/annotations-wire.test.ts` runs ESLint over them by name.
-  { ignores: ['dist/', 'tests/lint/'] },
+  // `.evidence/` holds the throwaway Playwright scripts a unit keeps its screenshots with.
+  { ignores: ['dist/', 'tests/lint/', '.evidence/'] },
   {
     files: ['**/*.{ts,tsx}'],
     extends: [js.configs.recommended, ...tseslint.configs.strictTypeChecked],

@@ -26,6 +26,15 @@ export const hi: ResourcesMessages = {
   'items.empty': 'कोई आइटम नहीं मिला।',
   'items.mediaHeading': 'मीडिया ({count})',
   'items.noMedia': 'कोई मीडिया नहीं।',
+  'items.addMedia': 'मीडिया जोड़ें',
+  'items.closeAddMedia': 'बंद करें',
+  'items.noMediaYet':
+    'अभी कोई मीडिया नहीं है। यहाँ एक फ़ाइल ड्रैग करें, एक चुनें, या एक लिंक पेस्ट करें।',
+  'items.mayNotAdd':
+    'आप इन मीडिया को देख सकते हैं। केवल वे लोग जो इस आइटम को संपादित कर सकते हैं, मीडिया जोड़ सकते हैं।',
+  'items.dropToAdd': 'इस आइटम में {count} फ़ाइलें जोड़ने के लिए ड्रैग करें',
+  'items.dropToAddOne': 'इस आइटम में 1 फ़ाइल जोड़ने के लिए ड्रैग करें',
+  'items.addMediaNextPage': 'आप अगले पृष्ठ पर फ़ाइलें और लिंक जोड़ते हैं।',
   'items.valuesHeading': 'वैल्यूज़',
   'items.rowName': 'आइटम #{id}',
   'items.editLabel': 'इस आइटम को संपादित करें',

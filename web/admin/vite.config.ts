@@ -59,6 +59,8 @@ export default defineConfig({
             // The notes panel's table, which the panel, the region editor and the
             // time editor all read, so no one page chunk carries it for the others.
             { name: 'annotations-messages', test: /i18n\/namespaces\/annotations\/index\.ts$/ },
+            // The add-media panel's table, so the panel chunk holds only the panel.
+            { name: 'media-add-messages', test: /i18n\/namespaces\/media-add\/index\.ts$/ },
             // The lessons, which several page chunks share (PERF.md Decision 16).
             { name: 'lessons', test: /(app\/lessons\/(lesson\.tsx|messages\.ts|queue\.ts|registry\.ts|seen\.ts)|i18n\/namespaces\/lessons\/index\.ts)$/ },
             {
