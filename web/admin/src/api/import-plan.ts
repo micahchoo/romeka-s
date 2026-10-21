@@ -68,6 +68,7 @@ export const FLAG_KINDS = [
   'many-values',
   'link-missing',
   'unknown-type',
+  'unknown-set',
   'unknown-kind',
   'duplicate-row',
   'unknown-term',

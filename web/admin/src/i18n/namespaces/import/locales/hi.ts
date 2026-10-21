@@ -208,6 +208,7 @@ export const hi: ImportMessages = {
   'problem.many-values': 'जहाँ Omeka एक मान रखता है, वहाँ एक से अधिक मान',
   'problem.link-missing': 'एक आइटम का लिंक जो वहाँ नहीं है',
   'problem.unknown-type': 'ऐसा आइटम प्रकार जो Omeka में नहीं है',
+  'problem.unknown-set': 'एक आइटम सेट जो वहां नहीं है',
   'problem.unknown-kind': 'एक पंक्ति जो आइटम, मीडिया या आइटम सेट नहीं है',
   'problem.duplicate-row': 'एक आइटम के लिए दो पंक्तियाँ',
   'problem.unknown-term': 'ऐसे फ़ील्ड का कॉलम जो Omeka में नहीं है',

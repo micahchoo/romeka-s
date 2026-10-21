@@ -208,6 +208,7 @@ export const te: ImportMessages = {
   'problem.many-values': 'Omeka ఒక విలువను మాత్రమే ఉంచే చోట ఒకటి కంటే ఎక్కువ విలువలు',
   'problem.link-missing': 'అక్కడ లేని అంశానికి లింక్',
   'problem.unknown-type': 'Omeka లో లేని ఐటమ్ రకం',
+  'problem.unknown-set': 'అక్కడ లేని ఒక ఐటమ్ సెట్',
   'problem.unknown-kind': 'ఐటమ్, మీడియా లేదా ఐటమ్ సెట్ కాని వరుస',
   'problem.duplicate-row': 'ఒక అంశానికి రెండు వరుసలు',
   'problem.unknown-term': 'Omeka లో లేని ఫీల్డ్ కోసం ఒక కాలమ్',

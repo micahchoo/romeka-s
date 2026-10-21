@@ -206,6 +206,7 @@ export const en = {
   'problem.many-values': 'More than one value where Omeka keeps one',
   'problem.link-missing': 'A link to an item that is not there',
   'problem.unknown-type': 'An item type that Omeka does not have',
+  'problem.unknown-set': 'An item set that is not there',
   'problem.unknown-kind': 'A row that is not an item, a media or an item set',
   'problem.duplicate-row': 'Two rows for one item',
   'problem.unknown-term': 'A column for a field Omeka does not have',
