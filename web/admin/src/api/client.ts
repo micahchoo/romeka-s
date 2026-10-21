@@ -375,13 +375,15 @@ export class ApiClient {
   }
 
   /**
-   * `PATCH /api/settings`: store the global `locale` (`''` removes it) and
-   * the file validation settings and the private URL switch.
+   * `PATCH /api/settings`: store the global `locale` (`''` removes it), the
+   * media alt text property, the file validation settings and the private URL
+   * switch.
    */
   async updateSettings(write: GlobalSettingsWrite): Promise<GlobalSettings> {
     return parseGlobalSettings(
       await this.writeJson('PATCH', '/api/settings', {
         locale: write.locale ?? '',
+        media_alt_text_property: write.mediaAltTextProperty ?? '',
         media_type_whitelist: write.mediaTypeWhitelist,
         extension_whitelist: write.extensionWhitelist,
         disable_file_validation: write.disableFileValidation,

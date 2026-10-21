@@ -566,6 +566,7 @@ export const parseGlobalSettings: Parser<GlobalSettings> = (raw, path = []) => {
     parseListOf(asString)(field(object, key, path), [...path, key]);
   return {
     locale: optionalString(object, 'locale', path),
+    mediaAltTextProperty: optionalString(object, 'media_alt_text_property', path),
     mediaTypeWhitelist: names('media_type_whitelist'),
     extensionWhitelist: names('extension_whitelist'),
     disableFileValidation: asBoolean(field(object, 'disable_file_validation', path), [

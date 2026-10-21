@@ -72,7 +72,8 @@ export const ne: ImportAdvancedMessages = {
   'adv.files.pattern.syntax': 'regex पढ्न सकिएन: {message}',
   'adv.files.fit.counting': 'गणना गर्दै...',
   'adv.files.fit.unread': 'गणनाहरू पढ्न सकिएन: {message}',
-  'adv.files.fit.count': '{files} फाइलहरूमध्ये {fit} मिल्छन्। मिल्ने फाइलहरूले {items} वस्तुहरू बनाउँछन्।',
+  'adv.files.fit.count':
+    '{files} फाइलहरूमध्ये {fit} मिल्छन्। मिल्ने फाइलहरूले {items} वस्तुहरू बनाउँछन्।',
   'adv.files.fit.unfit': '{count} मिल्दैनन्।',
   'adv.files.fit.unfitOne': '1 मिल्दैन।',
   'adv.files.fit.showUnfit': 'तिनीहरूलाई देखाउनुहोस्',

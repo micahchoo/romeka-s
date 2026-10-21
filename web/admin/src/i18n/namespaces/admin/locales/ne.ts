@@ -104,9 +104,12 @@ export const ne: AdminMessages = {
   'settings.defaultPrivateItemSets': 'पूर्वनिर्धारित रूपमा निजी वस्तु सेटहरू',
   'settings.indexFulltextSearch': 'पूर्णपाठ खोज इन्डेक्स',
   'settings.versionNotifications': 'संस्करण सूचनाहरू',
+  'settings.mediaAltTextProperty': 'मिडिया अल्टरनेटिभ टेक्स्ट प्रोपर्टी',
+  'settings.mediaAltTextPropertyInfo':
+    'जब कुनै alt text सेट गरिएको हुँदैन, तब media को वर्णन गर्ने पहिलो मान। यसलाई खाली छोड्नुहोस् र alt text बिनाको media को कुनै alt text हुँदैन।',
   'settings.saved': 'सेटिङहरू अद्यावधिक गरियो।',
   'settings.note':
-    'पोर्टले लोकेल र सुरक्षा सेटिङहरू सुरक्षित गर्छ; अन्य परिवर्तनहरू सुरक्षित हुँदैनन्।',
+    'पोर्टले लोकेल, मिडिया अल्टरनेट टेक्स्ट प्रोपर्टी र सेक्युरिटी सेटिङहरू सुरक्षित गर्छ; अन्य परिवर्तनहरू सुरक्षित हुँदैनन्।',
   'settings.security': 'सुरक्षा',
   'settings.disableFileValidation': 'फाइल प्रमाणीकरण असक्षम गर्नुहोस्',
   'settings.disableFileValidationInfo':

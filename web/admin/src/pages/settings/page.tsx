@@ -82,6 +82,7 @@ const SettingsForm = ({ stored }: { readonly stored: GlobalSettings }): ReactEle
   const [values, setValues] = useState<Readonly<Record<string, string>>>(EMPTY_VALUES);
   const [saved, setSaved] = useState(false);
   const [locale, setLocale] = useState(localeValue(stored.locale));
+  const [altTextProperty, setAltTextProperty] = useState(stored.mediaAltTextProperty ?? '');
   const [disabled, setDisabled] = useState(stored.disableFileValidation);
   const [allowPrivate, setAllowPrivate] = useState(stored.importAllowPrivateUrls);
   const [mediaTypes, setMediaTypes] = useState<ListDraft>(listText(stored.mediaTypeWhitelist));
@@ -108,6 +109,7 @@ const SettingsForm = ({ stored }: { readonly stored: GlobalSettings }): ReactEle
           save(async () => {
             const answer = await api.updateSettings({
               locale,
+              mediaAltTextProperty: altTextProperty,
               mediaTypeWhitelist: listNames(mediaTypes),
               extensionWhitelist: listNames(extensions),
               disableFileValidation: disabled,
@@ -115,6 +117,7 @@ const SettingsForm = ({ stored }: { readonly stored: GlobalSettings }): ReactEle
             });
             setMediaTypes(listText(answer.mediaTypeWhitelist));
             setExtensions(listText(answer.extensionWhitelist));
+            setAltTextProperty(answer.mediaAltTextProperty ?? '');
             setDisabled(answer.disableFileValidation);
             setAllowPrivate(answer.importAllowPrivateUrls);
             setSaved(true);
@@ -149,6 +152,22 @@ const SettingsForm = ({ stored }: { readonly stored: GlobalSettings }): ReactEle
             </p>
           ),
         )}
+        <p>
+          <label htmlFor="setting-media_alt_text_property">
+            {t('settings.mediaAltTextProperty')}
+          </label>
+          <input
+            id="setting-media_alt_text_property"
+            aria-describedby="setting-media_alt_text_property-info"
+            value={altTextProperty}
+            onChange={(event) => {
+              edited(setAltTextProperty)(event.target.value);
+            }}
+          />
+          <small id="setting-media_alt_text_property-info">
+            {t('settings.mediaAltTextPropertyInfo')}
+          </small>
+        </p>
         <fieldset>
           <legend>{t('settings.security')}</legend>
           <p>

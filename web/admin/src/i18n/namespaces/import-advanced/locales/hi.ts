@@ -73,7 +73,8 @@ export const hi: ImportAdvancedMessages = {
   'adv.files.pattern.syntax': 'रेगेक्स पढ़ा नहीं जा सकता: {message}',
   'adv.files.fit.counting': 'गणना...',
   'adv.files.fit.unread': 'गणना नहीं पढ़ी जा सकी: {message}',
-  'adv.files.fit.count': '{files} फ़ाइलों में से {fit} फिट होती हैं। फिट होने वाली फ़ाइलें {items} आइटम बनाती हैं।',
+  'adv.files.fit.count':
+    '{files} फ़ाइलों में से {fit} फिट होती हैं। फिट होने वाली फ़ाइलें {items} आइटम बनाती हैं।',
   'adv.files.fit.unfit': '{count} फिट नहीं होते।',
   'adv.files.fit.unfitOne': '1 फिट नहीं होता।',
   'adv.files.fit.showUnfit': 'उन्हें दिखाएँ',
@@ -252,7 +253,8 @@ export const hi: ImportAdvancedMessages = {
   'adv.problems.identical.name': 'समान फ़ाइलें',
   'adv.problems.identical.plain':
     'समान आकार और समान SHA-256 हैश वाली फ़ाइलें। नामों की तुलना नहीं की जाती है।',
-  'adv.problems.identical.keepOne': 'एक रखें: वह फ़ाइल जिसका नाम सूची की कोई पंक्ति देती है, अन्यथा पथ के क्रम में पहली',
+  'adv.problems.identical.keepOne':
+    'एक रखें: वह फ़ाइल जिसका नाम सूची की कोई पंक्ति देती है, अन्यथा पथ के क्रम में पहली',
   'adv.problems.identical.keepAll': 'उन सभी को रखें',
   'adv.problems.unfit.name': 'वे फ़ाइलें जो पैटर्न में फिट नहीं होतीं',
   'adv.problems.unfit.plain': 'वे फ़ाइलें जिनका पथ पैटर्न के तहत कोई पहचानकर्ता नहीं रखता है।',
@@ -286,7 +288,8 @@ export const hi: ImportAdvancedMessages = {
     'एक विलोपन ओमेका से {count} रिकॉर्ड और उनके मीडिया को हटा देता है। इसे वापस नहीं पाया जा सकता।',
   'adv.existing.deleteCountOne':
     'एक विलोपन ओमेका से 1 रिकॉर्ड और उसके मीडिया को हटा देता है। इसे वापस नहीं पाया जा सकता।',
-  'adv.existing.deleteRules': 'विलोपन में कोई फ़ील्ड नियम नहीं होते, इसलिए फ़ील्ड के तहत {count} नियम हटा दिए जाते हैं।',
+  'adv.existing.deleteRules':
+    'विलोपन में कोई फ़ील्ड नियम नहीं होते, इसलिए फ़ील्ड के तहत {count} नियम हटा दिए जाते हैं।',
   'adv.existing.deleteNothing':
     'ओमेका में कोई रिकॉर्ड मेल नहीं खाता, इसलिए विलोपन कुछ भी नहीं हटाएगा। नीचे पहले मिलान बदलें।',
   'adv.existing.deleteType': '{count} चुनने के लिए टाइप करें',

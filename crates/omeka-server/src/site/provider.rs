@@ -412,7 +412,12 @@ async fn load_image(
         };
         loaded.images.push((
             id,
-            Thumbnail::new(url, media.alt_text.clone().unwrap_or_default()),
+            Thumbnail::new(
+                url,
+                omeka_api::settings::media_alt_text(loader.pool(), loader.catalog(), &media)
+                    .await?
+                    .unwrap_or_default(),
+            ),
         ));
     }
     Ok(())

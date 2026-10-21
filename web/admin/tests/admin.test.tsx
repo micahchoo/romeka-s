@@ -151,13 +151,20 @@ describe('settings page', () => {
       target: { value: 'My Omeka' },
     });
     expect(screen.getByLabelText('Installation title')).toHaveValue('My Omeka');
+    const altTextProperty = screen.getByLabelText('Media alt text property');
+    expect(altTextProperty).toHaveValue('');
+    fireEvent.change(altTextProperty, { target: { value: 'dcterms:title' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(await screen.findByRole('status')).toHaveTextContent('Settings updated.');
     const patch = first(
       requestsFor(fetchMock, '/api/settings').filter((request) => request.init?.method === 'PATCH'),
     );
-    expect(requestBody(patch)).toEqual({ locale: 'en', ...fileSettings });
+    expect(requestBody(patch)).toEqual({
+      locale: 'en',
+      media_alt_text_property: 'dcterms:title',
+      ...fileSettings,
+    });
   });
 
   it('settings_saves_the_file_validation_lists_and_restores_a_default_with_null', async () => {
@@ -202,6 +209,7 @@ describe('settings page', () => {
     );
     expect(requestBody(patch)).toEqual({
       locale: '',
+      media_alt_text_property: '',
       media_type_whitelist: null,
       extension_whitelist: ['pdf', 'tif'],
       disable_file_validation: true,

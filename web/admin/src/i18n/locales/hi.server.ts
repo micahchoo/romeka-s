@@ -266,8 +266,10 @@ export const hiServer: ServerCatalogue = {
   'server.importZipEscapes':
     '"{name}" ज़िप में अपने फ़ोल्डर के बाहर होगा, इसलिए इसे छोड़ दिया गया।',
   'server.importZipLink': '"{name}" ज़िप में एक लिंक है, इसलिए इसे छोड़ दिया गया।',
-  'server.importZipUnusable': 'ज़िप में "{name}" का नाम उपयोग के योग्य नहीं है ({reason}), इसलिए इसे बाहर छोड़ दिया गया।',
-  'server.importZipUnsupported': 'ज़िप में "{name}" एन्क्रिप्टेड है या ऐसे ढंग से पैक किया गया है जिसे रोमका एस नहीं खोल सकता, इसलिए इसे बाहर छोड़ दिया गया।',
+  'server.importZipUnusable':
+    'ज़िप में "{name}" का नाम उपयोग के योग्य नहीं है ({reason}), इसलिए इसे बाहर छोड़ दिया गया।',
+  'server.importZipUnsupported':
+    'ज़िप में "{name}" एन्क्रिप्टेड है या ऐसे ढंग से पैक किया गया है जिसे रोमका एस नहीं खोल सकता, इसलिए इसे बाहर छोड़ दिया गया।',
   'server.importZipRenamed':
     '"{name}" ज़िप में एक नाम है जो बड़े अक्षरों को अनदेखा करने पर पहले की फ़ाइल के नाम जैसा है, इसलिए इसे "{renamed}" के रूप में जोड़ा गया।',
   'server.importZipBomb':
