@@ -86,7 +86,7 @@ enum Cell {
     Captions,
 }
 
-const CELLS: [Cell; 9] = [
+const CELLS: [Cell; 10] = [
     Cell::Ingest,
     Cell::Annotate,
     Cell::Thumbnail,
