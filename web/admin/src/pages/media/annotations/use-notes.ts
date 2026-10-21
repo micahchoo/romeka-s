@@ -27,6 +27,8 @@ import { annotations } from '../../../i18n/namespaces/annotations';
 import { common } from '../../../i18n/namespaces/common';
 import { NoteConflict, NoteGone, notesClient } from './client';
 import type { Container, Draft, Note, Selector, Surface } from './wire';
+import { defaultRange, rangeProblem } from './time-text';
+import type { TimeProblem, TimeRange } from './time-text';
 import {
   draftOf,
   editDraftKey,
@@ -96,7 +98,15 @@ export interface NotesController {
   readonly facts: string | null;
   /** The open entry's IRI, or null when no entry is open. */
   readonly selected: string | null;
+  /**
+   * The range the time editor's fields show: the open time draft's, else the
+   * range the next note starts from (the last End used).
+   */
+  readonly range: TimeRange | null;
+  /** Why that range cannot be saved, or null when it can. */
+  readonly timeProblem: TimeProblem | null;
   setAdvanced: (value: boolean) => void;
+  setRange: (startMs: number, endMs: number) => void;
   beginDraft: (selector: Selector) => void;
   open: (note: Note) => void;
   close: () => void;
@@ -163,6 +173,8 @@ export const useNotes = (media: Media): NotesController => {
   const [restored, setRestored] = useState<StoredDraft | null>(() =>
     recallDraft(newDraftKey(media.id)),
   );
+  /** Where the time editor's next range starts before any draft is open. */
+  const [nextRange, setNextRange] = useState<TimeRange | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -198,6 +210,36 @@ export const useNotes = (media: Media): NotesController => {
 
   const ready = load.status === 'ready' ? load.data : null;
   const slow = useSlow(load.status === 'loading', 1000);
+
+  /** The length `Romeka-Surface` states, for the range checks. */
+  const durationMs = ready !== null && ready.surface.kind === 'time' ? ready.surface.durationMs : null;
+  const openDraft =
+    editing.kind === 'new' || editing.kind === 'edit' || editing.kind === 'conflict'
+      ? editing.draft
+      : null;
+  const range: TimeRange | null =
+    openDraft !== null && openDraft.selector.kind === 'time'
+      ? { startMs: openDraft.selector.startMs, endMs: openDraft.selector.endMs }
+      : nextRange;
+  const timeProblem =
+    range === null ? null : rangeProblem(range.startMs, range.endMs, durationMs);
+
+  /**
+   * The fields start where the recording does, so an empty recording shows a
+   * range rather than two blank boxes; Note from here moves them to the player.
+   */
+  useEffect(() => {
+    if (ready !== null && ready.surface.kind === 'time' && nextRange === null) {
+      setNextRange(defaultRange(0, ready.surface.durationMs));
+    }
+  }, [ready, nextRange]);
+
+  /** A saved time range becomes the next note's start, as dictation does. */
+  const keepNext = (selector: Selector): void => {
+    if (selector.kind === 'time') {
+      setNextRange(defaultRange(selector.endMs, durationMs));
+    }
+  };
 
   /** The container read again after a write: the counts are the server's truth. */
   const refresh = useCallback((): void => {
@@ -273,6 +315,9 @@ export const useNotes = (media: Media): NotesController => {
     if (ready === null || !ready.writable) {
       return;
     }
+    if (selector.kind === 'time') {
+      setNextRange({ startMs: selector.startMs, endMs: selector.endMs });
+    }
     const stored = recallDraft(newDraftKey(media.id));
     setEditing({
       kind: 'new',
@@ -315,6 +360,11 @@ export const useNotes = (media: Media): NotesController => {
         if (knownMotivation(current.motivation) === null) {
           setEditing({ kind: 'locked', note: current });
           return;
+        }
+        // An imported cue is a snapshot of a caption file, and the next import
+        // replaces it, so its form opens in Advanced where that is stated.
+        if (current.fromTrack) {
+          setAdvanced(true);
         }
         const stored = recallDraft(editDraftKey(current.iri));
         const base = draftOf(current);
@@ -374,6 +424,22 @@ export const useNotes = (media: Media): NotesController => {
     });
   };
 
+  /**
+   * The Start and End fields: they edit the open time draft, so Save sends the
+   * range they show, or the range the next note will start from.
+   */
+  const setRange = (startMs: number, endMs: number): void => {
+    const draft =
+      editing.kind === 'new' || editing.kind === 'edit' || editing.kind === 'conflict'
+        ? editing.draft
+        : null;
+    if (draft !== null && draft.selector.kind === 'time') {
+      changeDraft({ ...draft, selector: { kind: 'time', startMs, endMs } });
+      return;
+    }
+    setNextRange({ startMs, endMs });
+  };
+
   const create = (draft: Draft, key: string): void => {
     if (ready === null) {
       return;
@@ -385,6 +451,7 @@ export const useNotes = (media: Media): NotesController => {
         setBusy(false);
         forgetDraft(newDraftKey(media.id));
         setRestored(null);
+        keepNext(draft.selector);
         setStatus(t('notes.saved'));
         close();
         upsertLocal(note);
@@ -404,6 +471,7 @@ export const useNotes = (media: Media): NotesController => {
       (saved) => {
         setBusy(false);
         forgetDraft(editDraftKey(note.iri));
+        keepNext(draft.selector);
         setStatus(t('notes.saved'));
         close();
         upsertLocal(saved);
@@ -466,7 +534,9 @@ export const useNotes = (media: Media): NotesController => {
   };
 
   const save = (): void => {
-    if (busy) {
+    // A range the server would refuse is already stated at its field; Save can
+    // only restate it, never hide it behind a disabled button.
+    if (busy || timeProblem !== null) {
       return;
     }
     switch (editing.kind) {
@@ -544,7 +614,10 @@ export const useNotes = (media: Media): NotesController => {
     focusedHeading,
     facts,
     selected,
+    range,
+    timeProblem,
     setAdvanced,
+    setRange,
     beginDraft,
     open,
     close,

@@ -594,6 +594,10 @@ export const parseGlobalSettings: Parser<GlobalSettings> = (raw, path = []) => {
       ...path,
       'import_allow_private_urls',
     ]),
+    annotationsPublic: asBoolean(field(object, 'romeka_annotations_public', path), [
+      ...path,
+      'romeka_annotations_public',
+    ]),
   };
 };
 

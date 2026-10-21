@@ -129,6 +129,10 @@ export const hi: AdminMessages = {
     'मीडिया और इम्पोर्ट्स इस सर्वर या इसके निजी नेटवर्क की ओर इशारा करने वाले URL को अस्वीकार करते हैं: localhost, स्थानीय नेटवर्क और क्लाउड मेटाडेटा पते। उन्हें अनुमति देने के लिए इसे चुनें।',
   'settings.allowPrivateUrlsWarning':
     'यह चालू होने पर, मीडिया जोड़ सकने वाला कोई भी व्यक्ति इस सर्वर से उसके अपने नेटवर्क से फ़ाइलें मँगवा सकता है।',
+  'settings.notesOnPublicPages': 'सार्वजनिक पृष्ठों पर नोट्स',
+  'settings.annotationsPublic': 'आगंतुकों को नोट्स दिखाएँ',
+  'settings.annotationsPublicInfo':
+    'जब यह बंद होता है, तो आगंतुक कैप्शन और फाइलें पढ़ते हैं लेकिन नोट्स नहीं। संपादक अभी भी यहाँ हर नोट देखते हैं।',
   'settings.locale': 'लोकेल',
   'settings.localeDefault': 'डिफ़ॉल्ट',
   'systemInfo.omeka': 'Omeka S',

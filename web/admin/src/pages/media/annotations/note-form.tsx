@@ -100,6 +100,10 @@ export const NoteForm = (props: NoteFormProps): ReactElement => {
         {props.note === null ? <span className="note-tag"> {t('notes.draft')}</span> : null}
       </h4>
 
+      {props.note !== null && props.note.fromTrack ? (
+        <p className="note-restored">{t('notes.fromTrack')}</p>
+      ) : null}
+
       {props.restored && props.onDiscardRestored !== null ? (
         <p className="note-restored">
           {t('notes.restoredChange')}{' '}

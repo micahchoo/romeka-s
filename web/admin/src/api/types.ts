@@ -737,6 +737,11 @@ export interface GlobalSettings {
    * may reach loopback, link-local and private addresses when `true`.
    */
   readonly importAllowPrivateUrls: boolean;
+  /**
+   * `romeka_annotations_public`, the annotation off switch: notes show to
+   * visitors when this is `true`. Captions show either way.
+   */
+  readonly annotationsPublic: boolean;
 }
 
 /**
@@ -750,6 +755,7 @@ export interface GlobalSettingsWrite {
   readonly extensionWhitelist: readonly string[] | null;
   readonly disableFileValidation: boolean;
   readonly importAllowPrivateUrls: boolean;
+  readonly annotationsPublic: boolean;
 }
 
 /**

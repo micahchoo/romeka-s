@@ -18,6 +18,7 @@ import type { Translator } from '../../../i18n';
 import { annotations } from '../../../i18n/namespaces/annotations';
 import type { KeyOf } from '../../../i18n';
 import type { Note, Selector, Surface } from './wire';
+import { clockText } from './time-text';
 
 /** Where a note sits in the media. */
 export type Place = 'region' | 'time' | 'whole';
@@ -97,20 +98,6 @@ const least = (values: readonly number[]): number =>
 const changedAt = (note: Note): number =>
   note.modified === null ? 0 : Number.isNaN(Date.parse(note.modified)) ? 0 : Date.parse(note.modified);
 
-/**
- * A time as `1:02` or `1:02.5`. The time editor (A-5) owns parsing and the
- * fuller form; the list only names a range.
- */
-const clock = (milliseconds: number): string => {
-  const seconds = Math.max(0, milliseconds) / 1000;
-  const whole = Math.floor(seconds);
-  const tenths = Math.round((seconds - whole) * 10);
-  if (tenths === 10) {
-    return clock((whole + 1) * 1000);
-  }
-  const base = `${String(Math.floor(whole / 60))}:${String(whole % 60).padStart(2, '0')}`;
-  return tenths === 0 ? base : `${base}.${String(tenths)}`;
-};
 
 /** The first line of a note, short enough for one row. */
 const firstLine = (text: string): string => {
@@ -140,8 +127,8 @@ export const placeLabel = (
     case 'time':
       return row.note.selector.kind === 'time'
         ? translator.t('notes.timeRange', {
-            start: clock(row.note.selector.startMs),
-            end: clock(row.note.selector.endMs),
+            start: clockText(row.note.selector.startMs),
+            end: clockText(row.note.selector.endMs),
           })
         : '';
     case 'whole':

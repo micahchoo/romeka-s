@@ -12,6 +12,7 @@ import { ValuesList } from '../../app/values';
 import { useTranslator } from '../../i18n';
 import type { KeyOf, MessageKey, Translator } from '../../i18n';
 import { MediaEditForm } from './form';
+import type { TrackSummary } from './annotations/client';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
 
@@ -77,6 +78,10 @@ export const MediaDetail = ({ mediaId }: { readonly mediaId: MediaId }): ReactEl
   const { t, locale } = translator;
   const state = useAsync(() => api.getMedia(mediaId), [mediaId]);
   const [edited, setEdited] = useState<Media | null>(null);
+  // One player for the page: the stage renders it, the notes panel seeks it.
+  const [player, setPlayer] = useState<HTMLMediaElement | null>(null);
+  // The caption languages, which the notes panel reads and the player offers.
+  const [tracks, setTracks] = useState<readonly TrackSummary[]>([]);
 
   if (state.status === 'loading') {
     return <p role="status">{t('loading.media')}</p>;
@@ -98,10 +103,10 @@ export const MediaDetail = ({ mediaId }: { readonly mediaId: MediaId }): ReactEl
       {/* The stage is the media; the notes panel sits beside it from 1100px. */}
       <div className="media-detail-body">
         <Suspense fallback={<p role="status">{t('loading.media')}</p>}>
-          <MediaStage media={media} />
+          <MediaStage media={media} player={setPlayer} tracks={tracks} />
         </Suspense>
         <Suspense fallback={<p role="status">{t('media.loadingNotes')}</p>}>
-          <MediaNotes key={media.id} media={media} />
+          <MediaNotes key={media.id} media={media} player={player} onTracks={setTracks} />
         </Suspense>
       </div>
 

@@ -127,6 +127,10 @@ export const es: AdminMessages = {
     'Los medios y las importaciones rechazan las URL que apuntan a este servidor o a su red privada: localhost, la red local y las direcciones de metadatos de la nube. Marque esta casilla para permitirlas.',
   'settings.allowPrivateUrlsWarning':
     'Mientras esté activado, cualquier persona que pueda añadir medios puede hacer que este servidor descargue contenido de su propia red.',
+  'settings.notesOnPublicPages': 'Notas en las páginas públicas',
+  'settings.annotationsPublic': 'Mostrar las notas a los visitantes',
+  'settings.annotationsPublicInfo':
+    'Cuando está desactivado, los visitantes leen los subtítulos y los archivos, pero no las notas. Los editores siguen viendo todas las notas aquí.',
   'settings.locale': 'Idioma',
   'settings.localeDefault': 'Predefinido',
   'systemInfo.omeka': 'Omeka S',

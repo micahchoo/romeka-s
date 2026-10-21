@@ -14,12 +14,15 @@ import type { ReactElement, ReactNode } from 'react';
 import { Suspense, lazy, useEffect, useId, useRef } from 'react';
 import type { Media } from '../../../api/types';
 import { ErrorNotice } from '../../../app/errors';
+import { mediaKind } from '../../../app/media';
 import { useTranslator } from '../../../i18n';
 import { annotations } from '../../../i18n/namespaces/annotations';
 import { common } from '../../../i18n/namespaces/common';
+import type { TrackSummary } from './client';
 import type { Editing } from './use-notes';
 import type { Note, Selector } from './wire';
 import { NoteList, placedNotes } from './note-list';
+import { seek } from './player';
 import { useNotes } from './use-notes';
 import './annotations.css';
 
@@ -38,6 +41,22 @@ const RegionEditor = lazy(() =>
   import('./region-editor').then((module) => ({ default: module.RegionEditor })),
 );
 
+/** The time editor is its own chunk, as a player's page is not an image's. */
+const TimeEditor = lazy(() =>
+  import('./time-editor').then((module) => ({ default: module.TimeEditor })),
+);
+
+/**
+ * Captions are another chunk: most media have none, and the dialog, the dry run
+ * and the remove confirmation are not needed to read a note.
+ */
+const Captions = lazy(() =>
+  import('./captions').then((module) => ({ default: module.Captions })),
+);
+const UseAsCaptions = lazy(() =>
+  import('./captions').then((module) => ({ default: module.UseAsCaptions })),
+);
+
 /** The open draft's shape, so the overlay draws it where the editor put it. */
 const shapeOf = (
   editing: Editing,
@@ -53,7 +72,17 @@ const shapeOf = (
   }
 };
 
-export const MediaNotes = ({ media }: { readonly media: Media }): ReactElement => {
+export const MediaNotes = ({
+  media,
+  player,
+  onTracks,
+}: {
+  readonly media: Media;
+  /** The stage's player element, when the media has one. */
+  readonly player?: HTMLMediaElement | null;
+  /** The caption languages, for the stage's `<track>` elements. */
+  readonly onTracks?: (tracks: readonly TrackSummary[]) => void;
+}): ReactElement => {
   const { t } = useTranslator(annotations, common);
   const headingId = useId();
   const heading = useRef<HTMLHeadingElement>(null);
@@ -194,9 +223,40 @@ export const MediaNotes = ({ media }: { readonly media: Media }): ReactElement =
                 }}
               />
             </Suspense>
+          ) : ready.surface.kind === 'time' ? (
+            <Suspense fallback={null}>
+              <TimeEditor
+                surface={ready.surface}
+                rows={placedNotes(ready.notes)}
+                selected={notes.selected}
+                draft={shapeOf(editing)}
+                writable={ready.writable}
+                player={player ?? null}
+                range={notes.range}
+                problem={notes.timeProblem}
+                onRange={notes.setRange}
+                onDraw={notes.beginDraft}
+                onSelect={notes.open}
+              />
+            </Suspense>
           ) : null}
         </div>
       )}
+
+      {ready !== null && ready.surface.kind === 'time' ? (
+        <Suspense fallback={null}>
+          <Captions
+            mediaId={media.id}
+            writable={ready.writable}
+            mediaLang={media.lang}
+            onTracks={onTracks ?? (() => undefined)}
+          />
+        </Suspense>
+      ) : mediaKind(media) === 'captions' ? (
+        <Suspense fallback={null}>
+          <UseAsCaptions media={media} />
+        </Suspense>
+      ) : null}
 
       {notes.panelError === null ? null : <ErrorNotice error={notes.panelError} />}
 
@@ -266,7 +326,14 @@ export const MediaNotes = ({ media }: { readonly media: Media }): ReactElement =
           notes={load.data.notes}
           writable={load.data.writable}
           selected={notes.selected}
-          onSelect={notes.open}
+          onSelect={(note) => {
+            // A time note's entry does what its segment does: the editor hears
+            // the moment the note is about, from either click.
+            notes.open(note);
+            if (note.selector.kind === 'time') {
+              seek(player ?? null, note.selector.startMs);
+            }
+          }}
           onAdd={() => {
             notes.beginDraft({ kind: 'whole' });
           }}

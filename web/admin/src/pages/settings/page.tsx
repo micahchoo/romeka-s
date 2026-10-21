@@ -85,6 +85,7 @@ const SettingsForm = ({ stored }: { readonly stored: GlobalSettings }): ReactEle
   const [altTextProperty, setAltTextProperty] = useState(stored.mediaAltTextProperty ?? '');
   const [disabled, setDisabled] = useState(stored.disableFileValidation);
   const [allowPrivate, setAllowPrivate] = useState(stored.importAllowPrivateUrls);
+  const [notesPublic, setNotesPublic] = useState(stored.annotationsPublic);
   const [mediaTypes, setMediaTypes] = useState<ListDraft>(listText(stored.mediaTypeWhitelist));
   const [extensions, setExtensions] = useState<ListDraft>(listText(stored.extensionWhitelist));
   const { state: saveState, save } = useSave();
@@ -114,12 +115,14 @@ const SettingsForm = ({ stored }: { readonly stored: GlobalSettings }): ReactEle
               extensionWhitelist: listNames(extensions),
               disableFileValidation: disabled,
               importAllowPrivateUrls: allowPrivate,
+              annotationsPublic: notesPublic,
             });
             setMediaTypes(listText(answer.mediaTypeWhitelist));
             setExtensions(listText(answer.extensionWhitelist));
             setAltTextProperty(answer.mediaAltTextProperty ?? '');
             setDisabled(answer.disableFileValidation);
             setAllowPrivate(answer.importAllowPrivateUrls);
+            setNotesPublic(answer.annotationsPublic);
             setSaved(true);
           });
         }}
@@ -168,6 +171,26 @@ const SettingsForm = ({ stored }: { readonly stored: GlobalSettings }): ReactEle
             {t('settings.mediaAltTextPropertyInfo')}
           </small>
         </p>
+        <fieldset>
+          <legend>{t('settings.notesOnPublicPages')}</legend>
+          <p>
+            <label>
+              <input
+                type="checkbox"
+                checked={notesPublic}
+                aria-describedby="setting-romeka_annotations_public-info"
+                onChange={(event) => {
+                  edited(setNotesPublic)(event.target.checked);
+                }}
+              />
+              {t('settings.annotationsPublic')}
+            </label>
+            <br />
+            <small id="setting-romeka_annotations_public-info">
+              {t('settings.annotationsPublicInfo')}
+            </small>
+          </p>
+        </fieldset>
         <fieldset>
           <legend>{t('settings.security')}</legend>
           <p>

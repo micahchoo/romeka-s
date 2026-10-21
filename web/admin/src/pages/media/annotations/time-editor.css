@@ -1,0 +1,159 @@
+/* The time editor's own chunk carries these, so an image's page never fetches
+ * them. The bar is a plain box with positioned segments: a native scroll bar or
+ * a tile viewer would buy nothing a range needs. */
+.time-editor {
+  margin-bottom: var(--space-3);
+}
+
+.range-bar {
+  margin-bottom: var(--space-2);
+}
+
+.range-track {
+  position: relative;
+  height: 1.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.range-track.is-flat {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  height: auto;
+  padding: var(--space-1);
+}
+
+.range-segment {
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  cursor: pointer;
+}
+
+.range-track:not(.is-flat) .range-segment {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  min-width: 4px;
+  padding: 0;
+}
+
+.range-track:not(.is-flat) .range-segment.is-selected {
+  border: 2px solid var(--accent);
+}
+
+.range-track.is-flat .range-segment {
+  min-height: 1.5rem;
+  padding: 0 var(--space-1);
+  font: inherit;
+  font-size: 0.8rem;
+}
+
+.range-track.is-flat .range-segment.is-selected {
+  outline: 2px solid var(--accent);
+}
+
+.range-draft {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  min-width: 4px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+}
+
+.range-track.is-flat .range-draft {
+  position: static;
+  height: 1.4rem;
+}
+
+.range-playhead {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--text);
+  pointer-events: none;
+}
+
+.range-draft-note {
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.range-end,
+.range-unknown {
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.range-end {
+  text-align: end;
+}
+
+.range-end-label {
+  margin-inline-end: var(--space-1);
+}
+
+.time-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.time-hint {
+  margin: 0 0 var(--space-2);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.time-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: end;
+}
+
+.time-field {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  align-items: end;
+}
+
+.time-field .note-field {
+  margin-bottom: 0;
+  flex: 0 0 6rem;
+}
+
+.time-fields input {
+  width: 100%;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.time-fields input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.time-set {
+  margin-bottom: 0;
+  padding: var(--space-1) var(--space-2);
+  font-size: 0.85rem;
+}
+
+.time-refusal {
+  margin: var(--space-1) 0 0;
+  color: var(--danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .range-segment {
+    transition: none;
+  }
+}

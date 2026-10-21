@@ -1,0 +1,132 @@
+/* The captions section and its dialog, inside the notes panel. The panel's
+ * chunk carries these rules; a media without captions never fetches them. */
+.captions {
+  margin: var(--space-3) 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.captions h3 {
+  margin: 0 0 var(--space-2);
+  font-size: 1rem;
+}
+
+.captions-empty {
+  margin: 0 0 var(--space-2);
+  color: var(--text-muted);
+}
+
+.caption-rows {
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+
+.caption-row {
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.caption-row p {
+  margin: 0 0 var(--space-1);
+}
+
+.caption-hand {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.caption-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.caption-remove-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.caption-remove-confirm > span:first-child {
+  flex-basis: 100%;
+  color: var(--danger);
+}
+
+.caption-add {
+  margin-top: var(--space-1);
+}
+
+.caption-status {
+  margin: var(--space-2) 0 0;
+  color: var(--text-muted);
+}
+
+.caption-targets {
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+
+.caption-targets li {
+  margin-bottom: var(--space-1);
+}
+
+.caption-targets button {
+  display: flex;
+  gap: var(--space-2);
+  width: 100%;
+  align-items: baseline;
+  text-align: start;
+}
+
+.caption-target-kind {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.caption-dialog {
+  width: min(32rem, 100%);
+  margin: var(--space-4) auto;
+  padding: var(--space-3);
+  border: 2px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.caption-dialog::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
+.caption-dialog h3 {
+  margin: 0 0 var(--space-2);
+}
+
+.caption-file {
+  margin: 0 0 var(--space-2);
+  color: var(--text-muted);
+}
+
+.caption-result {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.caption-result p {
+  margin: 0 0 var(--space-1);
+}
+
+.caption-result p:last-child {
+  margin-bottom: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .caption-row,
+  .caption-dialog {
+    transition: none;
+  }
+}

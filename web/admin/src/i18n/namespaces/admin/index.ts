@@ -138,6 +138,11 @@ export const en = {
     'Media and imports refuse URLs that point at this server or its private network: localhost, the local network and cloud metadata addresses. Check this to allow them.',
   'settings.allowPrivateUrlsWarning':
     'While this is on, anyone who can add media can make this server fetch from its own network.',
+  // The annotation off switch (contract 9): captions still show when it is off.
+  'settings.notesOnPublicPages': 'Notes on public pages',
+  'settings.annotationsPublic': 'Show notes to visitors',
+  'settings.annotationsPublicInfo':
+    'When this is off, visitors read the captions and the files but not the notes. Editors still see every note here.',
   // `SettingForm` and `UserForm`; "Default" is `LocaleSelectFactory`'s empty option.
   'settings.locale': 'Locale',
   'settings.localeDefault': 'Default',
