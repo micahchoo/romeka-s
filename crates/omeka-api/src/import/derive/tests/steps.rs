@@ -33,8 +33,8 @@ fn group_key_and_identifier_are_different_things() {
     assert_eq!(items.len(), 2, "one item per group key");
     let joined = item(&model, "1987.4.1");
     assert_eq!(
-        joined.origin,
-        Origin::Group(GroupKey::Pattern("A1".into())),
+        joined.origin.key(),
+        "group:A1",
         "the join used the group key"
     );
     assert_eq!(
@@ -45,7 +45,7 @@ fn group_key_and_identifier_are_different_things() {
     assert_eq!(media_paths(&model, joined).len(), 2);
     let unjoined = items
         .iter()
-        .find(|record| record.origin == Origin::Group(GroupKey::Pattern("B2".into())))
+        .find(|record| record.origin.key() == "group:B2")
         .expect("B2");
     assert_eq!(
         texts(unjoined, "dcterms:identifier"),
@@ -80,18 +80,12 @@ fn a07_the_default_pattern_takes_one_extension_or_none() {
     let files = [("README", TEXT), ("Box/scan.001.tar.gz", BINARY)];
     let plan = plan(|plan| plan["grouping"]["pattern"] = json!(crate::import::plan::NAME_ALONE));
     let model = run(&index(&files), &Sheets::new(), &plan);
-    let mut keys: Vec<Origin> = kept(&model, RecordKind::Item)
+    let mut keys: Vec<String> = kept(&model, RecordKind::Item)
         .iter()
-        .map(|record| record.origin.clone())
+        .map(|record| record.origin.key())
         .collect();
-    keys.sort_by_key(|origin| format!("{origin:?}"));
-    assert_eq!(
-        keys,
-        [
-            Origin::Group(GroupKey::Pattern("README".into())),
-            Origin::Group(GroupKey::Pattern("scan.001.tar".into())),
-        ]
-    );
+    keys.sort();
+    assert_eq!(keys, ["group:README", "group:scan.001.tar"]);
     assert!(model.entries.iter().all(|entry| !entry.unmatched));
 }
 

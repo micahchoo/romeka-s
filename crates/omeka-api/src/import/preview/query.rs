@@ -163,6 +163,8 @@ pub enum Unused {
     Identical,
     /// An item no list row joined.
     NoRow,
+    /// A file in no series' scope.
+    Outside,
     /// In no record for another reason, such as a row the join skipped.
     NoRecord,
 }
@@ -375,6 +377,7 @@ pub(super) fn unused(model: &Model, state: &EntryState) -> Option<Unused> {
         LeftBy::NoFiles => Unused::NoFiles,
         LeftBy::Identical => Unused::Identical,
         LeftBy::NoRow => Unused::NoRow,
+        LeftBy::Outside => Unused::Outside,
     };
     if let Some(left) = state.left {
         return Some(by(left));

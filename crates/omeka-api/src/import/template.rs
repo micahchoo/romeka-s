@@ -280,7 +280,13 @@ pub fn add_list(
         .find(|column| column.header.eq_ignore_ascii_case(IDENTIFIER))
         .ok_or(ListError::NoIdentifier)?;
     let source = staging_source(plan);
-    let series = plan.structure.sole();
+    // The first series takes the list until the upload names one (U6's
+    // `?series=`); the boundary refuses a plan with none.
+    let (series, _) = plan
+        .structure
+        .all_series()
+        .next()
+        .unwrap_or_else(|| unreachable!("every plan the boundary passes has a series"));
     let id = (1_u32..)
         .map(|n| SheetId(format!("list-{n}")))
         .find(|id| plan.structure.lists().all(|(_, sheet)| sheet.id != *id))

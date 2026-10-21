@@ -9,12 +9,15 @@ use super::super::grouping::Grouping;
 use super::super::join::{Joined, RowAt, SheetIn};
 use super::super::model::{LeftBy, Origin, RecordId, Subject};
 use super::super::plan::{
-    FlagKind, FlagPolicy, ItemsWithoutRowAnswer, JoinOn, RecordKind, RowKind,
+    FlagKind, FlagPolicy, ItemsWithoutRowAnswer, JoinOn, RecordKind, RowKind, SeriesIx,
 };
 
 /// A record before its slots are resolved.
 pub(crate) struct Draft {
     pub kind: RecordKind,
+    /// The series whose slot rules resolve it: its group's, or its row's
+    /// list's.
+    pub series: SeriesIx,
     pub origin: Origin,
     /// An item's kept files, a media record's file: indices into the files.
     pub files: Vec<usize>,
@@ -30,9 +33,10 @@ pub(crate) struct Draft {
 }
 
 impl Draft {
-    fn new(kind: RecordKind, origin: Origin) -> Self {
+    fn new(kind: RecordKind, series: SeriesIx, origin: Origin) -> Self {
         Self {
             kind,
+            series,
             origin,
             files: Vec::new(),
             rows: Vec::new(),
@@ -135,14 +139,19 @@ pub(crate) fn make(
     let next = |drafts: &Vec<Draft>| RecordId(u32::try_from(drafts.len()).unwrap_or(u32::MAX));
 
     for at in &joined.set_rows {
-        let mut draft = Draft::new(RecordKind::ItemSet, Origin::Row(at.entry(sheets)));
+        let mut draft = Draft::new(
+            RecordKind::ItemSet,
+            sheets[at.sheet].series,
+            Origin::Row(at.entry(sheets)),
+        );
         draft.rows.push(*at);
         drafts.push(draft);
     }
 
-    for (key, files) in &grouping.groups {
+    for (key, group) in &grouping.groups {
         let rows = joined.group_rows.get(key).cloned().unwrap_or_default();
-        let kept: Vec<usize> = files
+        let kept: Vec<usize> = group
+            .files
             .iter()
             .copied()
             .filter(|file| file_left[*file].is_none())
@@ -151,7 +160,7 @@ pub(crate) fn make(
             continue;
         }
         let item = next(&drafts);
-        let mut draft = Draft::new(RecordKind::Item, Origin::Group(key.clone()));
+        let mut draft = Draft::new(RecordKind::Item, group.series, Origin::Group(key.clone()));
         draft.identifier = Some(key.text().to_string());
         draft.rows = rows;
         draft.files.clone_from(&kept);
@@ -164,6 +173,7 @@ pub(crate) fn make(
             let media = next(&drafts);
             let mut draft = Draft::new(
                 RecordKind::Media,
+                group.series,
                 Origin::File(grouping.files[file].file.clone()),
             );
             draft.files.push(file);
@@ -176,7 +186,11 @@ pub(crate) fn make(
 
     for at in &joined.lone_items {
         let item = next(&drafts);
-        let mut draft = Draft::new(RecordKind::Item, Origin::Row(at.entry(sheets)));
+        let mut draft = Draft::new(
+            RecordKind::Item,
+            sheets[at.sheet].series,
+            Origin::Row(at.entry(sheets)),
+        );
         draft.rows.push(*at);
         let plan = sheets[at.sheet].plan;
         let key_column = plan
@@ -203,7 +217,11 @@ pub(crate) fn make(
             continue;
         }
         let id = next(&drafts);
-        let mut draft = Draft::new(RecordKind::Media, Origin::Row(media_row.at.entry(sheets)));
+        let mut draft = Draft::new(
+            RecordKind::Media,
+            sheets[media_row.at.sheet].series,
+            Origin::Row(media_row.at.entry(sheets)),
+        );
         draft.rows.push(media_row.at);
         if let Some(file) = media_row.file {
             draft.files.push(file);

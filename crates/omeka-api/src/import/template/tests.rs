@@ -150,7 +150,7 @@ fn a_filled_list_maps_its_bracketed_columns_first_and_its_values_reach_the_recor
         "Identifier, Files and Notes stay unmapped"
     );
     assert!(matches!(&plan.sources[1], SourcePlan::Staging { id } if id.0 == STAGING));
-    let series = plan.structure.series(plan.structure.sole());
+    let series = plan.structure.all_series().next().expect("a series").1;
     let title = &series.rules(RecordKind::Item)[&SlotName::parse("dcterms:title").unwrap()];
     assert!(
         matches!(&title.sources[0], SourceRef::Column { sheet, .. } if sheet.0 == "list-1"),

@@ -161,7 +161,7 @@ fn leave_leaves_out_the_items_no_row_joined_and_their_media() {
     let b2 = model
         .records
         .iter()
-        .find(|record| record.origin == Origin::Group(GroupKey::Pattern("B2".into())))
+        .find(|record| record.origin.key() == "group:B2")
         .expect("B2");
     assert_eq!(b2.fate, Fate::Left(LeftBy::NoRow));
     assert_eq!(left_of(&model, "B2.jpg"), Some(LeftBy::Parent));

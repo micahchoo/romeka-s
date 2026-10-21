@@ -144,7 +144,10 @@ pub(super) fn finish(parts: Parts<'_, '_>) -> Model {
     shape_anomalies(&records, &mut anomalies);
     let unused: Vec<EntryRef> = entries
         .iter()
-        .filter(|entry| entry.record.is_none() && !matches!(entry.left, Some(LeftBy::Decision(_))))
+        .filter(|entry| {
+            entry.record.is_none()
+                && !matches!(entry.left, Some(LeftBy::Decision(_) | LeftBy::Outside))
+        })
         .map(|entry| entry.entry.clone())
         .collect();
     if !unused.is_empty() {
@@ -244,7 +247,7 @@ fn entry_states(
             entry: EntryRef::File(file.file.clone()),
             record: file_record[at],
             left: file_left[at].or_else(|| fate_left(file_record[at])),
-            unmatched: file.groups.is_none(),
+            unmatched: file.series.is_some() && file.groups.is_none(),
             example: file.entry.sniffed != "application/octet-stream",
         })
         .collect();

@@ -10,7 +10,7 @@
 //! the import is `no-file` and makes no record. An item-set row is a record of its own. A `pair`
 //! decision joins its row to its file's group (or, for a media row, to the
 //! file) before the rule, so a rule row that would join that target is a
-//! duplicate.
+//! duplicate. A list joins only its own series' groups and files.
 
 mod pair;
 
@@ -21,14 +21,18 @@ use unicode_normalization::UnicodeNormalization;
 use super::decisions::{Decision, EntryRef, RowRef};
 use super::grouping::Grouping;
 use super::model::{GroupKey, Orphan, Subject};
-use super::plan::{FlagKind, FlagPolicy, JoinNormalize, JoinOn, RecordKind, RowKind, SheetPlan};
+use super::plan::{
+    FlagKind, FlagPolicy, JoinNormalize, JoinOn, RecordKind, RowKind, SeriesIx, SheetPlan,
+};
 use super::sheet::{Row, Sheet, key_column};
 use super::values::row_kind_from_cell;
 use crate::import::flags::FlagBook;
 
-/// A sheet the derive reads: its plan, and its rows when it was read.
+/// A sheet the derive reads: its plan, the series that holds it, and its
+/// rows when it was read.
 pub(crate) struct SheetIn<'i> {
     pub plan: &'i SheetPlan,
+    pub series: SeriesIx,
     pub sheet: Option<&'i Sheet>,
 }
 
@@ -164,14 +168,14 @@ const EXACT: JoinNormalize = JoinNormalize {
     separators: false,
 };
 
-/// `media_by_file` holds when a media row without an item key cell can
-/// attach to nothing but its file: a create import with no item-key rule
-/// for media.
+/// `media_by_file` holds for a series when a media row without an item key
+/// cell can attach to nothing but its file: a create import with no
+/// item-key rule for the series' media.
 pub(crate) fn join(
     sheets: &[SheetIn<'_>],
     grouping: &Grouping<'_>,
     decisions: &[Decision],
-    media_by_file: bool,
+    media_by_file: impl Fn(SeriesIx) -> bool,
     book: &mut FlagBook<'_>,
 ) -> Joined {
     let mut joined = Joined::default();
@@ -183,10 +187,10 @@ pub(crate) fn join(
         let plan = sheet_in.plan;
         let how = plan.join.as_ref().map_or(EXACT, |join| join.normalize);
         let by_key = plan.join.as_ref().map(|join| match join.on {
-            JoinOn::Identifier => groups_by_key(grouping, how),
-            JoinOn::FileName => files_by_name(grouping, how),
+            JoinOn::Identifier => groups_by_key(grouping, sheet_in.series, how),
+            JoinOn::FileName => files_by_name(grouping, sheet_in.series, how),
         });
-        let by_file_only = media_by_file
+        let by_file_only = media_by_file(sheet_in.series)
             && plan.item_key.is_none()
             && plan
                 .join
@@ -316,11 +320,19 @@ pub(super) enum Found {
     File(usize, Option<GroupKey>),
 }
 
-/// Each group by its normalised key. Two keys that normalise alike join
-/// the first in key order.
-fn groups_by_key(grouping: &Grouping<'_>, how: JoinNormalize) -> HashMap<String, Found> {
+/// Each group of the series by its normalised key. Two keys that normalise
+/// alike join the first in key order.
+fn groups_by_key(
+    grouping: &Grouping<'_>,
+    series: SeriesIx,
+    how: JoinNormalize,
+) -> HashMap<String, Found> {
     let mut by_key = HashMap::new();
-    for key in grouping.groups.keys() {
+    let of_series = grouping
+        .groups
+        .iter()
+        .filter(|(_, group)| group.series == series);
+    for (key, _) in of_series {
         by_key
             .entry(normalize(key.text(), how))
             .or_insert_with(|| Found::Group(key.clone()));
@@ -328,17 +340,27 @@ fn groups_by_key(grouping: &Grouping<'_>, how: JoinNormalize) -> HashMap<String,
     by_key
 }
 
-/// Each file by its normalised name and by its normalised path. A name two
-/// files share finds the first in path order; the path still finds each.
-fn files_by_name(grouping: &Grouping<'_>, how: JoinNormalize) -> HashMap<String, Found> {
+/// Each file of the series by its normalised name and by its normalised
+/// path. A name two files share finds the first in path order; the path
+/// still finds each.
+fn files_by_name(
+    grouping: &Grouping<'_>,
+    series: SeriesIx,
+    how: JoinNormalize,
+) -> HashMap<String, Found> {
     let mut group_of: HashMap<usize, GroupKey> = HashMap::new();
-    for (key, files) in &grouping.groups {
-        for file in files {
+    for (key, group) in &grouping.groups {
+        for file in &group.files {
             group_of.insert(*file, key.clone());
         }
     }
     let mut by_name = HashMap::new();
-    for (at, file) in grouping.files.iter().enumerate() {
+    let of_series = grouping
+        .files
+        .iter()
+        .enumerate()
+        .filter(|(_, file)| file.series == Some(series));
+    for (at, file) in of_series {
         let found = Found::File(at, group_of.get(&at).cloned());
         by_name.insert(normalize(file.entry.path.as_str(), how), found.clone());
         by_name

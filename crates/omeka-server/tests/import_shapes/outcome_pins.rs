@@ -5,7 +5,7 @@
 //! this file includes.
 
 #[path = "../../../omeka-api/src/import/derive/tests/outcome_pins/text.rs"]
-mod text;
+pub(super) mod text;
 
 use std::path::Path;
 
@@ -17,10 +17,20 @@ use crate::imports_fixture::fixture;
 async fn outcome_text(shape: &Shape, slots: &[&str], plan_for: fn(&mut Value)) -> String {
     let fixture = fixture().await;
     let preview = run(&fixture, shape, slots, plan_for).await;
-    let records: Vec<Value> = ["items", "media", "itemSets"]
+    let records = records_of(&preview);
+    outcome_of_records(&preview, &records)
+}
+
+/// Every record of a preview read by [`run`], any kind.
+pub(super) fn records_of(preview: &Value) -> Vec<Value> {
+    ["items", "media", "itemSets"]
         .iter()
         .flat_map(|kind| preview[*kind].as_array().cloned().unwrap_or_default())
-        .collect();
+        .collect()
+}
+
+/// The outcome text of `records` with the preview's new sets and flags.
+pub(super) fn outcome_of_records(preview: &Value, records: &[Value]) -> String {
     let new_sets = preview["check"]["newSets"].as_array().unwrap().clone();
     let flags: Vec<(Value, Value, usize)> = preview["flags"]
         .as_array()
@@ -31,7 +41,7 @@ async fn outcome_text(shape: &Shape, slots: &[&str], plan_for: fn(&mut Value)) -
             (count["kind"].clone(), count["policy"].clone(), n)
         })
         .collect();
-    text::outcome(&records, &new_sets, &flags)
+    text::outcome(records, &new_sets, &flags)
 }
 
 #[tokio::test]

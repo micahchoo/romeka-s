@@ -286,9 +286,9 @@ impl Named<'_> {
         }
     }
 
-    fn rules(&self, kind: RecordKind) -> &SlotRules {
-        let structure = &self.plan.structure;
-        structure.series(structure.sole()).rules(kind)
+    /// The slot rules of the record's series for one kind.
+    fn rules(&self, record: &Record, kind: RecordKind) -> &SlotRules {
+        self.plan.structure.series(record.series).rules(kind)
     }
 
     /// Whether `update` and `replace` write every slot the plan maps, not
@@ -302,7 +302,7 @@ impl Named<'_> {
     /// under `update` and `replace` also when the plan has a rule for it, so
     /// an empty cell clears the slot.
     fn mapped<T>(&self, record: &Record, slot: SlotName, value: T) -> Slot<T> {
-        let ruled = self.whole() && self.rules(record.kind).contains_key(&slot);
+        let ruled = self.whole() && self.rules(record, record.kind).contains_key(&slot);
         if ruled || has(record, &slot) {
             Slot::Mapped(value)
         } else {
@@ -316,7 +316,7 @@ impl Named<'_> {
     /// item type maps the item type too, as CSVImport writes its default
     /// `o:resource_template` into every row it updates.
     pub fn changed(&self, record: &Record, kind: RecordKind) -> ImportFields {
-        let rules = self.rules(kind);
+        let rules = self.rules(record, kind);
         let mapped_terms = rules
             .keys()
             .filter_map(|slot| match slot {
