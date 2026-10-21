@@ -18,7 +18,7 @@ use omeka_db::ids::ImportId;
 use omeka_media::store::Store;
 
 use crate::import::archive::{ArchiveError, SourceDir};
-use crate::import::plan::{Encoding, RelPath, SheetPlan};
+use crate::import::plan::{Encoding, ReadOptions, RelPath, SheetPlan};
 use crate::import::sheet::{self, Guess, MAX_SHEET_BYTES, Sheet, SheetError};
 use crate::import::template;
 
@@ -64,7 +64,8 @@ pub struct ReadSheet {
     pub sheet: Result<Sheet, SheetError>,
     /// What the reader would choose for this file on its own.
     pub guess: Guess,
-    /// The first lines, decoded as the sheet was.
+    /// The first lines from line 1: decoded as the sheet was, or for a
+    /// workbook its rows written as CSV lines in the sheet's delimiter.
     pub lines: Vec<String>,
 }
 
@@ -214,43 +215,68 @@ fn unread(error: SheetError) -> ReadSheet {
 fn read_bytes(bytes: &[u8], plan: &SheetPlan) -> ReadSheet {
     let head = &bytes[..bytes.len().min(HEAD_BYTES)];
     let sheet = sheet::read(bytes, &plan.read, sheet::key_column(plan));
-    let encoding = match &sheet {
-        Ok(sheet) => Some(sheet.encoding.encoding),
-        Err(_) => None,
-    };
-    // A workbook is zip or compound bytes: no line of them reads as text,
-    // so its lines are the rows the reader found.
-    let lines = match &sheet {
+    if !sheet::workbook::is_packed(head) {
+        let encoding = sheet.as_ref().ok().map(|sheet| sheet.encoding.encoding);
+        return ReadSheet {
+            guess: sheet::guess(head),
+            lines: head_lines(head, encoding),
+            sheet,
+        };
+    }
+    // Zip or compound bytes are no text, so a workbook's lines are its rows
+    // from line 1, written as a CSV of them would be. Lines above the header
+    // need a read from line 1, which also guesses the header line as a CSV's.
+    let from_top = (plan.read.header_line.get() > 1).then(|| {
+        let top = ReadOptions {
+            header_line: std::num::NonZeroU32::MIN,
+            ..plan.read.clone()
+        };
+        sheet::read(bytes, &top, None)
+    });
+    let lines = match from_top.as_ref().unwrap_or(&sheet) {
         Ok(read) if read.workbook.is_some() => row_lines(read),
-        _ if sheet::workbook::is_packed(head) => Vec::new(),
-        _ => head_lines(head, encoding),
+        _ => Vec::new(),
     };
+    let mut guess = sheet::guess(head);
+    guess.header_line = sheet::guess(lines.join("\n").as_bytes()).header_line;
     ReadSheet {
-        guess: sheet::guess(head),
+        guess,
         lines,
         sheet,
     }
 }
 
-/// A workbook's header and first rows, one line each, cells joined by tabs.
+/// A workbook's first rows from line 1, one line each, so line `n` is row
+/// `n`: cells joined by the sheet's delimiter and quoted as a CSV quotes
+/// them, a line break in a cell written as a space.
 fn row_lines(sheet: &Sheet) -> Vec<String> {
-    let tabbed = |cells: &mut dyn Iterator<Item = &str>| {
+    let delimiter = sheet.delimiter.as_char().unwrap_or(',');
+    let written = |cells: &mut dyn Iterator<Item = &str>| {
         cells
-            .map(|cell| cell.replace(['\t', '\r', '\n'], " "))
+            .map(|cell| {
+                let cell = cell.replace(['\r', '\n'], " ");
+                if cell.contains([delimiter, '"']) {
+                    format!("\"{}\"", cell.replace('"', "\"\""))
+                } else {
+                    cell
+                }
+            })
             .collect::<Vec<_>>()
-            .join("\t")
+            .join(&delimiter.to_string())
     };
-    std::iter::once(tabbed(
-        &mut sheet.columns.iter().map(|column| column.header.as_str()),
-    ))
-    .chain(
-        sheet
-            .rows
-            .iter()
-            .map(|row| tabbed(&mut row.cells.iter().map(String::as_str))),
-    )
-    .take(HEAD_LINES)
-    .collect()
+    let header = written(&mut sheet.columns.iter().map(|column| column.header.as_str()));
+    let mut lines = vec![header];
+    for row in &sheet.rows {
+        let line = row.line as usize;
+        if line > HEAD_LINES {
+            break;
+        }
+        lines.resize(line - 1, String::new());
+        lines.push(written(
+            &mut row.cells.iter().chain(&row.extra).map(String::as_str),
+        ));
+    }
+    lines
 }
 
 /// The first lines of `head`, decoded with `encoding` (lossy UTF-8 when the
@@ -309,7 +335,7 @@ mod tests {
     }
 
     #[test]
-    fn a_workbook_shows_its_first_rows_tab_joined_and_names_its_sheets() {
+    fn a_workbook_shows_its_first_rows_as_csv_lines_and_names_its_sheets() {
         let mut book = rust_xlsxwriter::Workbook::new();
         let first = book.add_worksheet().set_name("Register").unwrap();
         for (col, text) in ["Id", "Title"].into_iter().enumerate() {
@@ -324,7 +350,7 @@ mod tests {
         let read = SheetCache::default()
             .read(&plan("r.xlsx"), &source)
             .expect("read");
-        assert_eq!(read.lines, ["Id\tTitle", "A1\tLamp"]);
+        assert_eq!(read.lines, ["Id,Title", "A1,Lamp"]);
         let workbook = read.sheet.as_ref().unwrap().workbook.as_ref().unwrap();
         assert_eq!(workbook.sheets, ["Register", "Notes"]);
 
@@ -338,6 +364,52 @@ mod tests {
             "zip bytes are no lines: {:?}",
             bad.lines
         );
+    }
+
+    /// A title on line 1, the header on line 2, a blank line, an empty first
+    /// column and a cell that holds the delimiter.
+    const TITLED: [&[&str]; 5] = [
+        &["Register of BHC006"],
+        &["Sl No", "File", "Keywords", "Year"],
+        &[],
+        &["", "A1a.jpg", "Coral, Natural History, Fossil", "2017"],
+        &["", "A1b.jpg", "Say \"hi\"", "2017"],
+    ];
+    const TITLED_LINES: [&str; 5] = [
+        "Register of BHC006",
+        "Sl No,File,Keywords,Year",
+        "",
+        ",A1a.jpg,\"Coral, Natural History, Fossil\",2017",
+        ",A1b.jpg,\"Say \"\"hi\"\"\",2017",
+    ];
+
+    #[test]
+    fn a_csv_and_a_workbook_show_the_same_lines_from_line_1_whatever_the_header_line() {
+        let mut book = rust_xlsxwriter::Workbook::new();
+        let sheet = book.add_worksheet();
+        for (row, cells) in TITLED.iter().enumerate() {
+            for (col, text) in cells.iter().enumerate() {
+                if !text.is_empty() {
+                    sheet.write(row as u32, col as u16, *text).unwrap();
+                }
+            }
+        }
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("r.xlsx"), book.save_to_buffer().unwrap()).unwrap();
+        std::fs::write(dir.path().join("r.csv"), TITLED_LINES.join("\r\n")).unwrap();
+        let source = SourceDir::standalone(dir.path()).unwrap();
+        for file in ["r.csv", "r.xlsx"] {
+            for header_line in [1, 2] {
+                let mut read_as = plan(file);
+                read_as.read.header_line = std::num::NonZeroU32::new(header_line).unwrap();
+                let read = SheetCache::default().read(&read_as, &source).expect("read");
+                assert_eq!(
+                    read.lines, TITLED_LINES,
+                    "{file}, header on line {header_line}"
+                );
+                assert_eq!(read.guess.header_line.get(), 2, "{file}: line 1 is a title");
+            }
+        }
     }
 
     #[test]

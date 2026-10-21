@@ -21,7 +21,7 @@ pub struct SheetView {
     pub error: Option<String>,
     pub read: Option<SheetRead>,
     pub guess: Option<SheetGuess>,
-    /// The first lines as written.
+    /// The first lines from line 1: as written, or a workbook's rows as CSV lines in `read.delimiter`.
     pub lines: Vec<String>,
 }
 

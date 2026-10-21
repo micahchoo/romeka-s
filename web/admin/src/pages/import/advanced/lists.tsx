@@ -10,7 +10,7 @@ import { lazy, Suspense, useId } from 'react';
 import type { ReactElement } from 'react';
 import { DELIMITERS, ENCODINGS } from '../../../api/import-plan';
 import type { ColumnRef, Delimiter, Encoding, Join, Quote, ReadOptions, SheetPlan } from '../../../api/import-plan';
-import type { Grain, SheetColumnMatches } from '../../../api/import-sections';
+import type { SheetColumnMatches } from '../../../api/import-sections';
 import type { SheetView } from '../../../api/import-sheet-views';
 import { ErrorNotice } from '../../../app/errors';
 import { useDraft } from '../draft-context';
@@ -21,6 +21,7 @@ import { ColumnsTable } from './columns-table';
 import { useAdvancedText } from './messages';
 import type { AdvancedMessageKey, AdvancedTranslator } from './messages';
 import { withRowKind } from '../simple/list-plan';
+import type { ListCounts } from '../simple/list-plan';
 import { NO_NORMALIZE, setItemKey, setJoin, setJoinColumn, setRead, setRowKindColumn } from './plan-edits';
 import { Setting } from './setting';
 import './advanced.css';
@@ -345,7 +346,8 @@ export const AdvancedLists = (): ReactElement => {
       {draft.plan.sheets.map((sheet) => {
         const view = data?.sheets.find((one) => one.id === sheet.id);
         const matches = data?.columnMatches.find((one) => one.sheet === sheet.id);
-        const grain: Grain | null = data?.listCandidates.find((one) => one.inPlan === sheet.id)?.grain ?? null;
+        const candidate = data?.listCandidates.find((one) => one.inPlan === sheet.id);
+        const counts: ListCounts = { grain: candidate?.grain ?? null, matches, cells: candidate?.cells ?? [] };
         return (
           <section key={sheet.id} className="adv-sheet" aria-label={sheet.file}>
             <h4>
@@ -360,7 +362,7 @@ export const AdvancedLists = (): ReactElement => {
             <Joining sheet={sheet} matches={matches} />
             <RowKind sheet={sheet} matches={matches} />
             <h5>{t('adv.lists.columns.title')}</h5>
-            <ColumnsTable sheet={sheet} view={view} grain={grain} />
+            <ColumnsTable sheet={sheet} view={view} counts={counts} />
           </section>
         );
       })}
