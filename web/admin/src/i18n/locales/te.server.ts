@@ -288,4 +288,20 @@ export const teServer: ServerCatalogue = {
   'server.importZipUnpacked': 'ZIP విప్పబడింది: {count} ఫైల్‌లు జోడించబడ్డాయి.',
   'server.importSweepDone':
     '{imports} ఇంపోర్ట్‌ల ఫైల్‌లు తొలగించబడ్డాయి, మరియు {uploads} అసంపూర్ణ అప్‌లోడ్‌లు.',
+  'server.mediaUploadNotFound': 'ఈ ఖాతాలో "{upload}" ఐడితో ఎటువంటి స్టేజ్డ్ అప్‌లోడ్ లేదు.',
+  'server.mediaUploadBusy':
+    'ఈ అప్‌లోడ్ "{upload}" ఇప్పుడే జోడించబడుతోంది. అది పూర్తయ్యే వరకు వేచి ఉండి మళ్ళీ ప్రయత్నించండి.',
+  'server.mediaUploadIncomplete':
+    'ఈ అప్‌లోడ్‌లో {received} బైట్లు {length} లో ఉన్నాయి. దీనిని జోడించే ముందు మిగిలిన వాటిని పంపండి.',
+  'server.mediaUploadIngester': 'స్టేజ్డ్ అప్‌లోడ్ అప్‌లోడ్ ఇంజియర్‌తో జోడించబడింది.',
+  'server.mediaUploadInline':
+    'స్టేజ్డ్ అప్‌లోడ్ దాని స్వంత మీడియా క్రియేట్‌తో జోడించబడుతుంది, ఐటమ్ లోపల కాదు.',
+  'server.uploadTooLarge':
+    'ఈ ఫైల్ {limit} బైట్ల కంటే పెద్దది, ఇది ఒక మీడియా అప్‌లోడ్ తీసుకునే అతిపెద్ద ఫైల్.',
+  'server.mediaLinkInvalid': '"{url}" లింక్ http లేదా https అడ్రస్ కాదు.',
+  'server.mediaLinkUnreadable': '"{url}" లింక్‌ను చదవడం సాధ్యం కాలేదు: {reason}',
+  'server.mediaLinkStatus': '"{url}" లింక్ {status} {reason} ఇచ్చింది.',
+  'server.uploadItem': 'అప్‌లోడ్ యొక్క ఐటమ్ ఐడి, ఉనికిలో ఉన్న ఐటమ్‌ను సూచించాలి.',
+  'server.mediaUploadSweepDone':
+    '{count} స్టేజ్డ్ అప్‌లోడ్‌లు వాటి ఉంచిన సమయాన్ని దాటి తొలగించబడ్డాయి.',
 };

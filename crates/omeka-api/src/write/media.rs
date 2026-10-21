@@ -23,7 +23,7 @@ use chrono::NaiveDateTime;
 use omeka_core::ids::{ItemId as CoreItemId, MediaId as CoreMediaId};
 use omeka_core::resource::{Media as CoreMedia, Timestamp};
 use omeka_db::ids::{ItemId, MediaId, ResourceId};
-use omeka_db::repos::{ItemRepo, MediaRepo};
+use omeka_db::repos::{ItemRepo, MediaRepo, UserUploadRepo};
 use omeka_db::rows::{ItemRow, MediaRow, NewMedia, NewResource};
 use omeka_db::with_db;
 use omeka_media::data::MediaData;
@@ -74,7 +74,12 @@ const CONTROL: &[&str] = &[
     "refresh_oembed",
     "start",
     "end",
+    // The staged upload a create ingests instead of a request body (G1).
+    "o-module-romeka:upload",
 ];
+
+/// The media member that names a staged upload: `{"o-module-romeka:upload": "u_7f3"}`.
+pub const STAGED_UPLOAD: &str = "o-module-romeka:upload";
 
 /// The media columns one create's ingester produced, before a row exists.
 pub(crate) struct Prepared {
@@ -94,6 +99,10 @@ pub(crate) struct Prepared {
     lang: Option<String>,
     alt_text: Option<String>,
     names_owner_id: bool,
+    /// The stored paths a staged upload's ingest made, so a create whose row
+    /// does not commit removes them. Empty on the ingester path, which cleans
+    /// up inside `omeka_media`.
+    stored: Vec<String>,
 }
 
 pub async fn create(
@@ -102,8 +111,51 @@ pub async fn create(
     file: Option<&UploadedFile>,
 ) -> Result<ApiResponse, ApiError> {
     let item = item(api, payload).await?;
-    let prepared = prepare(api, payload, file, None).await?;
-    let row = insert(api, &item, prepared).await?;
+    // Two creates naming one upload must not both ingest its bytes. The claim is
+    // one UPDATE in the database, so only one of them can hold it; the other is
+    // a 409 until this create releases or finishes.
+    let staged = payload.str_member(STAGED_UPLOAD).map(str::to_string);
+    let user = api.actor().user();
+    let claim = match (&staged, user) {
+        (Some(upload), Some(user)) => Some(claim_upload(api, user, upload).await?),
+        _ => None,
+    };
+    let mut prepared = match prepare(api, payload, file, None).await {
+        Ok(prepared) => prepared,
+        Err(error) => {
+            release_upload(api, claim.as_ref()).await;
+            return Err(error);
+        }
+    };
+    if prepared.position.is_none() {
+        prepared.position = Some(
+            with_db!(api.pool(), |db| MediaRepo::new(db)
+                .next_position(item.id())
+                .await)
+            .map_err(db_error)?,
+        );
+    }
+    let stored = prepared.stored.clone();
+    let store = api.store().cloned();
+    let row = match insert(api, &item, prepared).await {
+        Ok(row) => row,
+        Err(error) => {
+            if let Some(store) = &store {
+                crate::import::media_in::remove(store.as_ref(), &stored);
+            }
+            release_upload(api, claim.as_ref()).await;
+            return Err(error);
+        }
+    };
+    // The media row holds the bytes now, so the staged upload has served its
+    // purpose; removing its row also drops the claim. A removal that fails
+    // leaves a claimed row the sweep removes in 24 hours.
+    if let (Some(upload), Some(user), Some(store)) = (staged, user, store) {
+        let _ = with_db!(api.pool(), |db| crate::uploads::remove(
+            db, &store, user, &upload
+        )
+        .await);
+    }
     // `Module::saveFulltext`'s media branch: the item's text includes its media.
     fulltext::reindex(api, "items", ResourceId(row.item_id.0)).await?;
     api.read_member("media", &row.resource.id.0.to_string())
@@ -114,8 +166,9 @@ pub async fn create(
 /// create can prepare every inline entry and only then write the item.
 ///
 /// `position` is the ordering the caller wants when the body names no
-/// `position` member: an inline `o:media` entry takes its index in the array,
-/// a standalone create takes none.
+/// `position` member: an inline `o:media` entry takes its index in the array.
+/// A standalone create passes none and takes the item's next free position
+/// after this returns.
 pub(crate) async fn prepare(
     api: &Api<'_>,
     payload: &Payload,
@@ -140,6 +193,16 @@ pub(crate) async fn prepare(
     let validation = crate::settings::file_validation(api.pool())
         .await
         .map_err(db_error)?;
+    if let Some(upload) = payload.str_member(STAGED_UPLOAD) {
+        if ingester != "upload" {
+            return Err(validation_error(
+                STAGED_UPLOAD,
+                messages::MEDIA_UPLOAD_INGESTER,
+            ));
+        }
+        let arrived = staged(api, store, validation, upload).await?;
+        return prepared_from(payload, &ingester, source, hydrated, arrived, position);
+    }
     let policy = crate::settings::address_policy(api.pool())
         .await
         .map_err(db_error)?;
@@ -169,6 +232,118 @@ pub(crate) async fn prepare(
             .get("o:owner")
             .and_then(Value::as_object)
             .is_some_and(|owner| owner.contains_key("o:id")),
+        stored: Vec::new(),
+    })
+}
+
+/// Ingest the bytes of the caller's staged upload, through the import's
+/// streaming path. Above 64 MiB the file never sits in memory; a failed
+/// ingest leaves the store as it was.
+async fn staged(
+    api: &Api<'_>,
+    store: Arc<dyn Store>,
+    validation: FileValidation,
+    upload: &str,
+) -> Result<crate::import::media_in::Arrived, ApiError> {
+    use crate::import::media_in::{ArrivalError, arrive_stored};
+
+    let Some(user) = api.actor().user() else {
+        return Err(upload_missing(upload));
+    };
+    let row = with_db!(api.pool(), |db| UserUploadRepo::new(db)
+        .get(user, upload)
+        .await)
+    .map_err(db_error)?
+    .ok_or_else(|| upload_missing(upload))?;
+    if !row.is_complete() {
+        return Err(ApiError::Conflict {
+            message: messages::media_upload_incomplete(row.received, row.length),
+        });
+    }
+    let stored = crate::uploads::file_path(user, &row.id);
+    let name = row.path.clone();
+    let size = row.length;
+    let arrived = tokio::task::spawn_blocking(move || {
+        arrive_stored(store.as_ref(), &validation, &stored, size, &name)
+    })
+    .await
+    .map_err(|error| ApiError::internal(format!("the staged upload did not finish: {error}")))?;
+    arrived.map_err(|error| match error {
+        ArrivalError::Refused(reason) => validation_error(STAGED_UPLOAD, &reason),
+        ArrivalError::Unreadable(reason) | ArrivalError::Store(reason) => {
+            ApiError::internal(format!("the staged upload could not be read: {reason}"))
+        }
+    })
+}
+
+/// Take the upload for this create, mapping the refusal.
+async fn claim_upload(
+    api: &Api<'_>,
+    user: omeka_db::ids::UserId,
+    upload: &str,
+) -> Result<crate::uploads::Claim, ApiError> {
+    use crate::uploads::ClaimError;
+
+    let now = chrono::Utc::now().naive_utc();
+    with_db!(api.pool(), |db| crate::uploads::claim(
+        db, user, upload, now
+    )
+    .await)
+    .map_err(|error| match error {
+        ClaimError::Missing => upload_missing(upload),
+        ClaimError::Busy => ApiError::Conflict {
+            message: messages::media_upload_busy(upload),
+        },
+        ClaimError::Db(error) => db_error(error),
+    })
+}
+
+/// Give a claimed upload back, so a failed create leaves it retryable.
+async fn release_upload(api: &Api<'_>, claim: Option<&crate::uploads::Claim>) {
+    if let Some(claim) = claim {
+        let _ = with_db!(api.pool(), |db| crate::uploads::release(db, claim).await);
+    }
+}
+
+fn upload_missing(upload: &str) -> ApiError {
+    ApiError::not_found(messages::media_upload_not_found(upload))
+}
+
+/// The media a staged upload's bytes make, with the request's own values.
+fn prepared_from(
+    payload: &Payload,
+    ingester: &str,
+    source: Option<String>,
+    hydrated: resource::Hydrated,
+    arrived: crate::import::media_in::Arrived,
+    position: Option<i64>,
+) -> Result<Prepared, ApiError> {
+    let Some(file) = arrived.file else {
+        return Err(ApiError::internal(
+            "the staged upload produced no stored file",
+        ));
+    };
+    Ok(Prepared {
+        hydrated,
+        data: arrived.data,
+        renderer: arrived.renderer,
+        ingester: ingester.to_string(),
+        source: source.or(arrived.source),
+        media_type: file.media_type,
+        storage_id: Some(file.storage_id),
+        extension: file.extension,
+        sha256: file.sha256,
+        size: file.size,
+        has_original: true,
+        has_thumbnails: file.has_thumbnails,
+        position: payload.int_member("position").or(position),
+        lang: payload.str_member("o:lang").map(str::to_string),
+        alt_text: payload.str_member("o:alt_text").map(str::to_string),
+        names_owner_id: payload
+            .get("o:owner")
+            .and_then(Value::as_object)
+            .is_some_and(|owner| owner.contains_key("o:id")),
+        stored: arrived.stored,
     })
 }
 
@@ -206,13 +381,22 @@ async fn ingest(
 /// the create branch refuses the fallback with the same 422.
 fn ingester_name(payload: &Payload) -> Result<String, ApiError> {
     if !payload.truthy("o:ingester") {
-        return Err(validation("o:ingester", messages::MEDIA_INGESTER_REQUIRED));
+        return Err(validation_error(
+            "o:ingester",
+            messages::MEDIA_INGESTER_REQUIRED,
+        ));
     }
     let Some(ingester) = payload.str_member("o:ingester").map(str::to_string) else {
-        return Err(validation("o:ingester", messages::MEDIA_INGESTER_REQUIRED));
+        return Err(validation_error(
+            "o:ingester",
+            messages::MEDIA_INGESTER_REQUIRED,
+        ));
     };
     if IngesterRegistry::with_defaults().find(&ingester).is_none() {
-        return Err(validation("o:ingester", messages::MEDIA_INGESTER_INVALID));
+        return Err(validation_error(
+            "o:ingester",
+            messages::MEDIA_INGESTER_INVALID,
+        ));
     }
     Ok(ingester)
 }
@@ -450,7 +634,7 @@ pub(crate) async fn remove(api: &Api<'_>, row: &MediaRow) -> Result<(), ApiError
 /// `isset`, so a present non-numeric value reaches the lookup and is a 404.
 async fn item(api: &Api<'_>, payload: &Payload) -> Result<ItemRow, ApiError> {
     let Some(raw) = payload.present_ref("o:item") else {
-        return Err(validation("o:item", messages::MEDIA_ITEM_REQUIRED));
+        return Err(validation_error("o:item", messages::MEDIA_ITEM_REQUIRED));
     };
     let Some(id) = ref_row(raw) else {
         return Err(ref_not_found(ITEM_CLASS, raw));
@@ -464,7 +648,7 @@ async fn item(api: &Api<'_>, payload: &Payload) -> Result<ItemRow, ApiError> {
     Ok(item)
 }
 
-fn validation(key: &str, message: &str) -> ApiError {
+fn validation_error(key: &str, message: &str) -> ApiError {
     let mut errors = ValidationErrors::new();
     errors.insert(key.to_string(), vec![message.to_string()]);
     ApiError::Validation(errors)

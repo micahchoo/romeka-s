@@ -45,7 +45,7 @@ use super::evidence::identical::identical_with;
 use super::evidence::{self, Anomalies, DecodedName, FileEntry, NameEncoding};
 use super::plan::{RelPath, RelPathError};
 
-mod parts;
+pub(crate) mod parts;
 #[cfg(test)]
 pub(crate) mod tests;
 mod walk;
@@ -53,7 +53,7 @@ mod walk;
 pub use parts::StoredReader;
 pub use walk::walk;
 
-use parts::{join_parts, write_part};
+use parts::write_part;
 
 /// How much a [`StoredReader`] asks the store for at once.
 const READ_CHUNK: u64 = 1024 * 1024;
@@ -67,17 +67,11 @@ pub fn staging_path(import: ImportId) -> String {
 /// Where a complete upload's bytes are.
 #[must_use]
 pub fn file_path(import: ImportId, upload: &str) -> String {
-    format!("{}/files/{upload}", staging_path(import))
+    parts::file_path(&staging_path(import), upload)
 }
 
 fn parts_folder(import: ImportId) -> String {
-    format!("{}/parts", staging_path(import))
-}
-
-/// Zero-padded, so the store lists the parts in offset order. An upload id
-/// is hex, so the first `.` ends it.
-fn part_path(import: ImportId, upload: &str, offset: u64) -> String {
-    format!("{}/{upload}.{offset:020}", parts_folder(import))
+    parts::parts_folder(&staging_path(import))
 }
 
 /// The parts of one upload, in offset order.
@@ -86,12 +80,7 @@ pub(crate) fn part_files(
     import: ImportId,
     upload: &str,
 ) -> Result<Vec<ListedFile>, StoreError> {
-    let prefix = format!("{}/{upload}.", parts_folder(import));
-    Ok(store
-        .list(&parts_folder(import))?
-        .into_iter()
-        .filter(|part| part.storage_path.starts_with(&prefix))
-        .collect())
+    parts::part_files(store, &staging_path(import), upload)
 }
 
 fn meta_folder(import: ImportId) -> String {
@@ -326,7 +315,7 @@ where
             received: row.received,
         });
     }
-    let part = part_path(import, upload, offset);
+    let part = parts::part_path(&staging_path(import), upload, offset);
     let left = row.length - offset;
     let written = {
         let store = Arc::clone(store);
@@ -345,7 +334,8 @@ where
         let joined = {
             let store = Arc::clone(store);
             let upload = upload.to_string();
-            blocking(move || join_parts(store.as_ref(), import, &upload, row.length)).await?
+            let root = staging_path(import);
+            blocking(move || parts::join_parts(store.as_ref(), &root, &upload, row.length)).await?
         };
         if let Err(error) = joined {
             let target = file_path(import, upload);

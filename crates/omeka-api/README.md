@@ -543,6 +543,26 @@ characters from `ApiKey::STRING_CHARLIST`, each equally likely, read from the
 operating system's CSPRNG. `Entity\PasswordCreation::setId` reuses `ApiKey`'s
 generator upstream, so the two have the same shape.
 
+## Staged uploads and adding a media
+
+`src/uploads.rs` holds a user's own resumable uploads (migration 0009), the
+bytes of which sit in the store under `uploads/<userId>/`. It reuses the import
+staging area's part mechanics (`src/import/staging/parts.rs`, which takes a
+folder root) and answers a row scoped by the user, so another account's upload
+is `UploadError::Missing`, which the routes render as 404. A media create that
+names a completed upload in `o-module-romeka:upload` first claims it with one
+`UPDATE ... WHERE claimed IS NULL` (`uploads::claim`), so two creates cannot
+both ingest the same bytes: the loser is `ClaimError::Busy` and the route answers
+409. The claim is released when the ingest fails and is reclaimable after
+`CLAIM_STALE` (one hour). The bytes then go through `src/import/media_in.rs`'s
+`arrive_stored`; the helper is the import's, called as it is.
+
+`src/media_add.rs` holds the two facts an add panel reads before it sends
+anything: the upload limits (the file size, the validation lists and the media
+kind names) and a probe of a pasted link. The probe fetches through the guarded
+client with a 10-second cap, reads at most 1 MiB, names the ingesters that could
+read the link, and writes no row.
+
 ## o-module extensions
 
 `wire::site::Site` carries an empty `extensions` map as the seam for

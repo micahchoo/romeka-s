@@ -284,4 +284,20 @@ export const hiServer: ServerCatalogue = {
     'ज़िप को अस्वीकार कर दिया गया: इसे पढ़ा नहीं जा सका ({reason})। इससे कुछ भी नहीं जोड़ा गया।',
   'server.importZipUnpacked': 'ज़िप को अनपैक किया गया: {count} फ़ाइलें जोड़ी गईं।',
   'server.importSweepDone': '{imports} आयात की फ़ाइलों को हटा दिया गया, और {uploads} अधूरे अपलोड।',
+  'server.mediaUploadNotFound': 'इस खाते में "{upload}" आईडी के साथ कोई स्टेज्ड अपलोड नहीं है।',
+  'server.mediaUploadBusy':
+    'यह अपलोड "{upload}" अभी जोड़ा जा रहा है। प्रतीक्षा करें और पुनः प्रयास करें।',
+  'server.mediaUploadIncomplete':
+    'इस अपलोड में इसके {length} बाइट्स का {received} हिस्सा है। इसे जोड़ने से पहले बाकी हिस्सा भेजें।',
+  'server.mediaUploadIngester': 'एक स्टेज्ड अपलोड अपलोड इनगेस्टर के साथ जोड़ा गया है।',
+  'server.mediaUploadInline':
+    'एक स्टेज्ड अपलोड अपनी मीडिया क्रिएशन के साथ जोड़ा गया है, न कि किसी आइटम के अंदर।',
+  'server.uploadTooLarge':
+    'यह फ़ाइल {limit} बाइट्स से बड़ी है, जो मीडिया अपलोड द्वारा लिया जा सकने वाला सबसे बड़ा फ़ाइल आकार है।',
+  'server.mediaLinkInvalid': 'लिंक "{url}" http या https पता नहीं है।',
+  'server.mediaLinkUnreadable': 'लिंक "{url}" पढ़ा नहीं जा सका: {reason}',
+  'server.mediaLinkStatus': 'लिंक "{url}" ने {status} {reason} का उत्तर दिया।',
+  'server.uploadItem': 'अपलोड की आइटम आईडी को एक ऐसी आइटम का नाम देना चाहिए जो मौजूद हो।',
+  'server.mediaUploadSweepDone':
+    '{count} स्टेज्ड अपलोड्स का रखा गया समय निकल गया और उन्हें हटा दिया गया।',
 };

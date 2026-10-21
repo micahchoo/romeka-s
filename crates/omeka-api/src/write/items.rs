@@ -254,6 +254,12 @@ async fn inline_media(
             errors.push(NestedError::Message(
                 messages::MEDIA_NOT_THIS_ITEM.to_string(),
             ));
+        } else if entry.str_member(media::STAGED_UPLOAD).is_some() {
+            // A staged upload is claimed and consumed by its own media create,
+            // so an item create cannot make one without racing another.
+            errors.push(NestedError::Message(
+                messages::MEDIA_UPLOAD_INLINE.to_string(),
+            ));
         } else {
             match media::prepare(api, &entry, file, Some(position)).await {
                 Ok(media) => prepared.push(media),

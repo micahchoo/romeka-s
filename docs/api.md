@@ -653,6 +653,7 @@ Request body members (`POST` and `PUT`).
 | `refresh_oembed` | control member | `crates/omeka-api/src/write/media.rs` |
 | `start` | control member | `crates/omeka-api/src/write/media.rs` |
 | `end` | control member | `crates/omeka-api/src/write/media.rs` |
+| `o-module-romeka:upload` | control member | `crates/omeka-api/src/write/media.rs` |
 | any property term (`prefix:local_name`) | list of value objects | `crates/omeka-api/src/write/values.rs` |
 | value object members: `property_id`, `type`, `@value`, `@id`, `value_resource_id`, `is_public`, `@language`, `o:label` | one object per value | `crates/omeka-api/src/write/values.rs` |
 

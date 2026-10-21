@@ -26,6 +26,8 @@ tracing = "0.1"
 tracing-subscriber = "0.3"
 
 [dev-dependencies]
+# The staged-upload sweep test moves the clock past an upload's 24 hours.
+chrono.workspace = true
 # Test setup only: the server reaches every table through `omeka-db`, so the
 # library itself has no `sqlx` to write a statement with.
 sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "sqlite", "mysql"] }

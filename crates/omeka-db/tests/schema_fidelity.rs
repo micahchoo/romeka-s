@@ -364,6 +364,21 @@ const ROMEKA_TABLES: &[(&str, &[&str])] = &[
             "height",
         ],
     ),
+    (
+        "romeka_user_upload",
+        &[
+            "user_id",
+            "id",
+            "item_id",
+            "path",
+            "media_type",
+            "claimed",
+            "length",
+            "received",
+            "created",
+            "expires",
+        ],
+    ),
 ];
 
 async fn columns(pool: &SqlitePool, table: &str) -> Vec<String> {

@@ -105,6 +105,26 @@ pub struct Extent {
 }
 
 impl MediaKind {
+    /// Every kind, in the order the wire and the admin read them.
+    pub const ALL: [Self; 10] = [
+        Self::LocalImage,
+        Self::IiifImage,
+        Self::Audio,
+        Self::Video,
+        Self::Pdf { first_page: false },
+        Self::Model3d,
+        Self::Captions,
+        Self::Embed,
+        Self::IiifPresentation,
+        Self::OtherFile,
+    ];
+
+    /// Every kind's [`MediaKind::name`], in [`MediaKind::ALL`] order.
+    #[must_use]
+    pub fn names() -> Vec<&'static str> {
+        Self::ALL.iter().map(|kind| kind.name()).collect()
+    }
+
     /// The kind of one media row.
     #[must_use]
     pub fn of(input: &KindInput<'_>) -> Self {
