@@ -27,6 +27,7 @@ import {
   FLAG_POLICIES,
   NAMED_SLOTS,
   RECORD_KINDS,
+  SET_NAMES,
   TAG_IDS,
   isTerm,
 } from './import-plan';
@@ -45,15 +46,22 @@ import type {
   FileRef,
   FlagKind,
   FlagPolicy,
+  FolderScope,
+  Grouping,
   ImportPlan,
+  ImportPlanV3,
   Join,
+  Level,
   MatchRule,
+  NewTerm,
   NewType,
   Quote,
   ReadOptions,
   RecordKind,
   RowRef,
   Scope,
+  SeriesScope,
+  SetSource,
   SheetPlan,
   SlotName,
   SlotRule,
@@ -463,6 +471,20 @@ const parseAnomalyAnswers: Parser<AnomalyAnswers> = (raw, path = []) => {
 
 const parseExample = dictionary(asJson);
 
+const parseGrouping: Parser<Grouping> = (raw, path = []) => {
+  const object = strict(raw, path, ['pattern', 'caseFold']);
+  return { pattern: member(object, 'pattern', path, maybeText), caseFold: flag(object, 'caseFold', path) };
+};
+
+const parseNewTerm: Parser<NewTerm> = (raw, path = []) => ({ label: text(strict(raw, path, ['label']), 'label', path) });
+
+/** The optional members both versions share, added only when the JSON has them. */
+const withAdminState = <P extends ImportPlan | ImportPlanV3>(plan: P, object: Record<string, unknown>, path: Path): P => {
+  const withAnomalies: P =
+    object['anomalies'] === undefined ? plan : { ...plan, anomalies: member(object, 'anomalies', path, parseAnomalyAnswers) };
+  return object['simple'] === undefined ? withAnomalies : { ...withAnomalies, simple: member(object, 'simple', path, parseExample) };
+};
+
 export const parseSourcesOf = list(parseSource);
 
 /**
@@ -479,14 +501,10 @@ export const parseImportPlan: Parser<ImportPlan> = (raw, path = []) => {
   if (member(object, 'version', path, asNumber) !== 2) {
     throw new ParseError([...path, 'version'], 'version 2');
   }
-  const grouping = strict(object['grouping'], [...path, 'grouping'], ['pattern', 'caseFold']);
   const plan: ImportPlan = {
     version: 2,
     sources: member(object, 'sources', path, list(parseSource)),
-    grouping: {
-      pattern: member(grouping, 'pattern', [...path, 'grouping'], maybeText),
-      caseFold: flag(grouping, 'caseFold', [...path, 'grouping']),
-    },
+    grouping: member(object, 'grouping', path, parseGrouping),
     example: member(object, 'example', path, nullable(parseExample)),
     sheets: member(object, 'sheets', path, list(parseSheet)),
     slots: member(object, 'slots', path, parseSlots),
@@ -495,10 +513,103 @@ export const parseImportPlan: Parser<ImportPlan> = (raw, path = []) => {
     flags: member(object, 'flags', path, parseFlags),
     decisions: member(object, 'decisions', path, list(parseDecision)),
     newTypes: member(object, 'newTypes', path, list(parseNewType)),
-    newTerms: member(object, 'newTerms', path, list((value, at) => ({ label: text(strict(value, at, ['label']), 'label', at) }))),
+    newTerms: member(object, 'newTerms', path, list(parseNewTerm)),
   };
-  const withAnomalies: ImportPlan =
-    object['anomalies'] === undefined ? plan : { ...plan, anomalies: member(object, 'anomalies', path, parseAnomalyAnswers) };
-  return object['simple'] === undefined ? withAnomalies : { ...withAnomalies, simple: member(object, 'simple', path, parseExample) };
+  return withAdminState(plan, object, path);
 };
 
+
+
+const parseFolderScope: Parser<FolderScope> = (raw, path = []) => {
+  const object = strict(raw, path, ['source', 'folder']);
+  return { source: text(object, 'source', path), folder: text(object, 'folder', path) };
+};
+
+const parseSeriesScope: (value: unknown, path: Path) => SeriesScope = wordOr<'all', readonly FolderScope[]>(['all'], list(parseFolderScope));
+
+/** Serde's untagged `SetSource`: the one member a shape has says which shape it is. */
+export const parseSetSource: Parser<SetSource> = (raw, path = []) => {
+  const object = asRecord(raw, path);
+  if ('id' in object) {
+    return { id: member(strict(raw, path, ['id']), 'id', path, asInteger) };
+  }
+  if ('title' in object) {
+    const only = strict(raw, path, ['title', 'description']);
+    return { title: text(only, 'title', path), description: member(only, 'description', path, maybeText) };
+  }
+  if ('each' in object) {
+    const at = [...path, 'each'];
+    const each = strict(strict(raw, path, ['each'])['each'], at, ['sources', 'combine', 'names'], ['map']);
+    const rule = {
+      sources: member(each, 'sources', at, list(parseSourceRef)),
+      combine: member(each, 'combine', at, oneOf<'first' | 'all'>(['first', 'all'])),
+    };
+    const names = member(each, 'names', at, oneOf(SET_NAMES));
+    return {
+      each: each['map'] === undefined ? { ...rule, names } : { ...rule, map: member(each, 'map', at, dictionary(asString)), names },
+    };
+  }
+  throw new ParseError(path, 'a set source: { id }, { title, description } or { each }');
+};
+
+const parseLevel: Parser<Level> = (raw, path = []) => {
+  const object = asRecord(raw, path);
+  const kind = member(object, 'kind', path, oneOf(['set', 'series'] as const));
+  if (kind === 'set') {
+    const only = strict(raw, path, ['kind', 'id', 'set', 'levels']);
+    return {
+      kind,
+      id: text(only, 'id', path),
+      set: member(only, 'set', path, parseSetSource),
+      levels: member(only, 'levels', path, list(parseLevel)),
+    };
+  }
+  const only = strict(raw, path, ['kind', 'id', 'set', 'scope', 'grouping', 'example', 'lists', 'slots']);
+  return {
+    kind,
+    id: text(only, 'id', path),
+    set: member(only, 'set', path, nullable(parseSetSource)),
+    scope: member(only, 'scope', path, parseSeriesScope),
+    grouping: member(only, 'grouping', path, parseGrouping),
+    example: member(only, 'example', path, nullable(parseExample)),
+    lists: member(only, 'lists', path, list(parseSheet)),
+    slots: member(only, 'slots', path, parseSlots),
+  };
+};
+
+/**
+ * Refuses what the server's serde types refuse: an unknown member, a wrong
+ * `kind` or `version`, a value of the wrong type, a set source of two shapes.
+ * It does not repeat the rules `ImportPlan::from_json` adds after serde
+ * (`plan/check.rs`): unique level and sheet ids, scopes that do not overlap or
+ * name a missing source, slot rules that read only their own series' lists or
+ * name `item.sets`, and titles that are not empty. The server answers those.
+ */
+export const parseImportPlanV3: Parser<ImportPlanV3> = (raw, path = []) => {
+  const object = strict(
+    raw,
+    path,
+    ['version', 'sources', 'structure', 'action', 'defaults', 'flags', 'decisions', 'newTypes', 'newTerms'],
+    ['anomalies', 'simple'],
+  );
+  if (member(object, 'version', path, asNumber) !== 3) {
+    throw new ParseError([...path, 'version'], 'version 3');
+  }
+  const at = [...path, 'structure'];
+  const structure = strict(object['structure'], at, ['levels', 'freeSets']);
+  const plan: ImportPlanV3 = {
+    version: 3,
+    sources: member(object, 'sources', path, list(parseSource)),
+    structure: {
+      levels: member(structure, 'levels', at, list(parseLevel)),
+      freeSets: member(structure, 'freeSets', at, list(parseSetSource)),
+    },
+    action: member(object, 'action', path, parseActionPlan),
+    defaults: member(object, 'defaults', path, parseDefaults),
+    flags: member(object, 'flags', path, parseFlags),
+    decisions: member(object, 'decisions', path, list(parseDecision)),
+    newTypes: member(object, 'newTypes', path, list(parseNewType)),
+    newTerms: member(object, 'newTerms', path, list(parseNewTerm)),
+  };
+  return withAdminState(plan, object, path);
+};

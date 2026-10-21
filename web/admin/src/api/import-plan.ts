@@ -1,6 +1,7 @@
 /**
  * The import plan types: the rule and the decisions the admin edits and the server
- * stores (`docs/import-v2.md`, "The plan"). Every shape here is the serde
+ * stores (`docs/import-v2.md`, "The plan"), and the v3 plan
+ * (`plan/v3.rs`). Every shape here is the serde
  * shape of `crates/omeka-api/src/import/plan` and `decisions.rs`, which
  * refuses members it does not know, so the parsers here refuse them too and
  * a parsed plan serialises back to the JSON it came from. The parsers are
@@ -338,6 +339,92 @@ export interface ImportPlan {
   /** Admin state: what Simple's screens keep. The server keeps it and never reads it; absent until Simple saves one. */
   readonly simple?: Readonly<Record<string, JsonValue>>;
 }
+
+/**
+ * The import plan, version 3 (`plan/v3.rs`): v2's `grouping`, `example`,
+ * `sheets` and `slots` move into the series of `structure`. The admin still
+ * writes v2; this is what it reads when it switches.
+ */
+export interface ImportPlanV3 {
+  readonly version: 3;
+  readonly sources: readonly SourcePlan[];
+  readonly structure: Structure;
+  readonly action: ActionPlan;
+  readonly defaults: Defaults;
+  readonly flags: ImportPlan['flags'];
+  readonly decisions: readonly Decision[];
+  readonly newTypes: readonly NewType[];
+  readonly newTerms: readonly NewTerm[];
+  readonly anomalies?: AnomalyAnswers;
+  /** Admin state keyed by level id. The server keeps it and never reads it. */
+  readonly simple?: Readonly<Record<string, JsonValue>>;
+}
+
+/** Unique in the plan; `simple` keys on it. A string, as a sheet id is. */
+export type LevelId = string;
+
+export interface Structure {
+  readonly levels: readonly Level[];
+  /** Sets every item of the import also joins, after its tree sets. */
+  readonly freeSets: readonly SetSource[];
+}
+
+export type Level = SetLevel | Series;
+
+/** Puts every item of every series under it into its set. */
+export interface SetLevel {
+  readonly kind: 'set';
+  readonly id: LevelId;
+  readonly set: SetSource;
+  readonly levels: readonly Level[];
+}
+
+/** A leaf: the files in its scope, grouped by its own pattern, described by its own lists and slots. */
+export interface Series {
+  readonly kind: 'series';
+  readonly id: LevelId;
+  readonly set: SetSource | null;
+  readonly scope: SeriesScope;
+  /** The pattern matches each path relative to the scope folder that holds it. */
+  readonly grouping: Grouping;
+  readonly example: Readonly<Record<string, JsonValue>> | null;
+  readonly lists: readonly SheetPlan[];
+  /** Never an `item.sets` rule: memberships are levels and free sets. */
+  readonly slots: Slots;
+}
+
+export type SeriesScope = 'all' | readonly FolderScope[];
+
+/** `folder: ""` is the whole source. */
+export interface FolderScope {
+  readonly source: string;
+  readonly folder: string;
+}
+
+/** The shape says what the text means: an install id, a title, or one set per value. */
+export type SetSource = SetById | SetByTitle | { readonly each: EachSet };
+
+export interface SetById {
+  readonly id: number;
+}
+
+export interface SetByTitle {
+  readonly title: string;
+  /** Written as `dcterms:description` when the run makes the set. */
+  readonly description: string | null;
+}
+
+export interface EachSet {
+  readonly sources: readonly SourceRef[];
+  readonly combine: 'first' | 'all';
+  /** Absent when empty. A value mapped to `""` adds no set. */
+  readonly map?: Readonly<Record<string, string>>;
+  readonly names: SetNames;
+}
+
+/** `text` is v2's reading (an id that exists, else a record key, else a title); only the lift writes it. */
+export type SetNames = 'title' | 'id' | 'key' | 'text';
+export const SET_NAMES: readonly SetNames[] = ['title', 'id', 'key', 'text'];
 
 export const importIdFromParam = (param: string): ImportId | null => {
   if (!/^\d+$/.test(param)) {
