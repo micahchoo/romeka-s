@@ -42,8 +42,8 @@ use omeka_site::search::SearchHit;
 use omeka_site::settings::SiteSettings;
 use omeka_site::slug::{controller_for, page_url, resource_show_url, site_url};
 use omeka_site::view::{
-    BrowseQuery, BrowseView, LinkedResource, MediaRef, PageCard, ResourcePage, ResourceRef,
-    ResourceView, SiteQuery, SiteSearch, SiteSort, SiteView, Thumbnail, ValueRef,
+    BrowseQuery, BrowseView, LinkedResource, MediaPosition, MediaRef, PageCard, ResourcePage,
+    ResourceRef, ResourceView, SiteQuery, SiteSearch, SiteSort, SiteView, Thumbnail, ValueRef,
 };
 
 use omeka_media::data::MediaData;
@@ -52,7 +52,7 @@ use omeka_media::kind::{CanvasBody, KindInput, MediaKind};
 use omeka_media::render::{
     MediaView, RenderEnv, RenderOptions, RendererRegistry, View as MediaRendererView,
 };
-use omeka_media::store::{FileKind, FileUrls};
+use omeka_media::store::{FileKind, FileUrls, download_name};
 
 use super::SiteError;
 
@@ -556,8 +556,15 @@ impl<'a> Loader<'a> {
     ) -> Result<MediaRef, DbError> {
         let media_url = resource_show_url(&self.site.slug, "media", row.id().0);
         let alt_text = omeka_api::settings::media_alt_text(self.pool, self.catalog, row).await?;
+        // The renderers read `display_title` for the link's `title` and for an
+        // iframe's name, so the media value carries the display name rather
+        // than the raw title column. `MediaView` then has no fallback of its
+        // own to take.
+        let title = media_display_title(row, self.messages());
+        let mut core = media_core(row, alt_text.clone());
+        core.core.title = Some(title.clone());
         let view = MediaView::new(
-            media_core(row, alt_text.clone()),
+            core,
             MediaData::parse(&row.ingester, row.data.as_ref()).unwrap_or(MediaData::None),
             self.render_env(),
             item_url.to_string(),
@@ -593,7 +600,7 @@ impl<'a> Loader<'a> {
         Ok(MediaRef {
             url: media_url,
             original_url: view.original_url.clone(),
-            title: view.display_title.clone(),
+            title: title.clone(),
             media_type: row.media_type.clone(),
             thumbnail,
             embed: Some(format!(
@@ -632,7 +639,9 @@ impl<'a> Loader<'a> {
         row: &MediaRow,
     ) -> Result<ResourceView, DbError> {
         let mut view = self.base_view(ResourceKind::Media, &row.resource).await?;
-        let alt = view.title.clone();
+        let title = media_display_title(row, self.messages());
+        view.title = title.clone();
+        let alt = title;
         let item = with_db!(self.pool, |db| ItemRepo::new(db).get(row.item_id).await)?;
         let item_is_public = item.as_ref().is_some_and(|item| item.resource.is_public);
         if view.thumbnail.is_none() {
@@ -650,6 +659,7 @@ impl<'a> Loader<'a> {
             }
             None => String::new(),
         };
+        view.media_position = self.media_position(row).await?;
         // `mediaRender.phtml`: `$resource->render()` on the media itself, with
         // the renderer's own defaults (the large thumbnail, linked to the
         // original).
@@ -658,6 +668,45 @@ impl<'a> Loader<'a> {
                 .await?,
         );
         Ok(view)
+    }
+
+    /// A media's place among the files of its item that the caller can see, in
+    /// the item's position order. `None` when the caller cannot see the media
+    /// itself, which the route refuses before this point anyway.
+    async fn media_position(&self, row: &MediaRow) -> Result<Option<MediaPosition>, DbError> {
+        let media = with_db!(self.pool, |db| MediaRepo::new(db)
+            .list(
+                &MediaFilter {
+                    item_id: Some(row.item_id),
+                    ..MediaFilter::default()
+                },
+                &Paging::default()
+            )
+            .await)?;
+        let visible: Vec<&MediaRow> = media
+            .iter()
+            .filter(|entry| {
+                self.access
+                    .sees_resource(entry.resource.is_public, entry.resource.owner_id)
+            })
+            .collect();
+        let Some(index) = visible.iter().position(|entry| entry.id() == row.id()) else {
+            return Ok(None);
+        };
+        let link = |entry: &MediaRow| ResourceRef {
+            url: resource_show_url(&self.site.slug, "media", entry.id().0),
+            title: media_display_title(entry, self.messages()),
+            thumbnail: None,
+        };
+        Ok(Some(MediaPosition {
+            number: index + 1,
+            total: visible.len(),
+            previous: index
+                .checked_sub(1)
+                .and_then(|i| visible.get(i))
+                .map(|e| link(e)),
+            next: visible.get(index + 1).map(|e| link(e)),
+        }))
     }
 
     /// Search public resources of one kind, as a block's `$view->api()->search()`
@@ -1281,21 +1330,24 @@ impl<'a> Loader<'a> {
                     row.id().0
                 ));
             }
-            let title = display_title(&entry.resource, self.messages());
+            let title = media_display_title(&entry, self.messages());
             view.media.push(ResourceRef {
                 url: resource_show_url(&self.site.slug, "media", entry.id().0),
                 title: title.clone(),
                 thumbnail: square_thumbnail(self.files, &entry, row.resource.is_public, &title),
             });
-            // `media-embeds.phtml`: `$media->render()` with no options, so the
-            // renderer's defaults hold: the large thumbnail, linked to the
-            // original.
+            // `media-embeds.phtml`: `$media->render()` with the renderer's own
+            // defaults, except that the file opens its media page rather than
+            // the raw original (a Romeka divergence, `docs/compat.md`).
             view.media_embeds.push(
                 self.media_ref(
                     &entry,
                     &item_url,
                     row.resource.is_public,
-                    &RenderOptions::default(),
+                    &RenderOptions {
+                        link: Some(LinkType::Media),
+                        ..RenderOptions::default()
+                    },
                 )
                 .await?,
             );
@@ -1439,7 +1491,7 @@ impl<'a> Loader<'a> {
             {
                 return Ok(None);
             }
-            let title = display_title(&row.resource, self.messages());
+            let title = media_display_title(&row, self.messages());
             let item_is_public = self.item_is_public(row.item_id).await?;
             let thumbnail = square_thumbnail(self.files, &row, item_is_public, &title);
             return Ok(Some((
@@ -1596,6 +1648,36 @@ pub(crate) fn display_title(row: &ResourceRow, messages: &Messages) -> String {
     row.title
         .clone()
         .unwrap_or_else(|| messages.untitled.to_string())
+}
+
+/// `MediaRepresentation::displayTitle`: the stored title, else the file's own
+/// name, else `[Untitled]`.
+///
+/// Upstream passes `source()` as the parent's default, so a media with no
+/// title reads as its whole source: for an upload, the file name a curator
+/// chose, and for a fetched file the entire URL. The name is the last path
+/// segment here, because the heading, the card, the item page's strip and the
+/// document title all show it, and a URL is not a name a reader can scan. The
+/// name comes from the same function that names a download, so the page and
+/// the saved file agree.
+pub(crate) fn media_display_title(row: &MediaRow, messages: &Messages) -> String {
+    let title = row
+        .resource
+        .title
+        .as_deref()
+        .map(str::trim)
+        .filter(|title| !title.is_empty());
+    if let Some(title) = title {
+        return title.to_string();
+    }
+    match row
+        .source
+        .as_deref()
+        .map(|source| download_name(Some(source), ""))
+    {
+        Some(name) if !name.trim().is_empty() => name,
+        _ => messages.untitled.to_string(),
+    }
 }
 
 /// A `media` row as the core media value the renderers read. The columns the

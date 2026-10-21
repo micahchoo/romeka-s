@@ -34,9 +34,10 @@ fn value() -> ValueRef {
     }
 }
 
-/// The default item blocks render media, values, item sets, site pages, the
-/// media list and linked resources, in that order, and the empty lists
-/// leave their blocks out.
+/// The default item blocks render media, values, item sets, site pages and
+/// linked resources, in that order. Upstream's separate media list is not a
+/// default: the media block's strip carries every file, so a second list of
+/// the same files would repeat it, and it would load every thumbnail eagerly.
 #[test]
 fn item_default_blocks_render_in_theme_order() {
     let site = site();
@@ -56,16 +57,26 @@ fn item_default_blocks_render_in_theme_order() {
     });
     let out = render_blocks(&item, &ctx);
     assert!(
+        out.contains("<div class=\"media-embeds media-empty\">"),
+        "{out}"
+    );
+    assert!(
         out.contains("<dl class=\"values\"><div class=\"property\"><dt>Title</dt>"),
         "{out}"
     );
     assert!(out.contains("<dl class=\"item-sets\">"), "{out}");
-    assert!(out.contains("<dl class=\"media-list\">"), "{out}");
-    assert!(!out.contains("<div class=\"media-embeds\">"), "{out}");
+    assert!(!out.contains("<dl class=\"media-list\">"), "{out}");
+    let media_at = out
+        .find("<div class=\"media-embeds media-empty\">")
+        .expect("media");
     let values_at = out.find("<dl class=\"values\">").expect("values");
     let sets_at = out.find("<dl class=\"item-sets\">").expect("item sets");
-    let media_at = out.find("<dl class=\"media-list\">").expect("media list");
-    assert!(values_at < sets_at && sets_at < media_at, "{out}");
+    assert!(media_at < values_at && values_at < sets_at, "{out}");
+    // The layout is still registered, so a site may configure it.
+    assert!(
+        render_configured(&item, &["mediaList"], "en").contains("<dl class=\"media-list\">"),
+        "{out}"
+    );
 }
 
 /// The media page renders its own markup, then its values.
@@ -369,4 +380,109 @@ fn the_lightbox_gallery_is_offered_for_items_and_media_only() {
         .find(|spec| spec.name == "lightboxGallery")
         .expect("the layout is registered");
     assert_eq!(spec.resources, &[ResourceKind::Item, ResourceKind::Media]);
+}
+
+/// The item page stages the first file and lists the files after it as a strip:
+/// each one a link to its media page, named, and an image that waits until it
+/// scrolls into view. The strip says how many files the item holds.
+#[test]
+fn the_item_page_stages_the_first_file_and_strips_the_rest() {
+    let mut item = resource(ResourceKind::Item);
+    item.media_embeds = vec![
+        file(
+            "first",
+            Some("image/jpeg"),
+            Some("/files/original/first.jpg"),
+            "First",
+        ),
+        file(
+            "second",
+            Some("image/png"),
+            Some("/files/original/second.png"),
+            "Second",
+        ),
+        file("third", Some("application/pdf"), None, "Third"),
+    ];
+    item.media = vec![
+        ResourceRef {
+            url: "/s/main/media/1".to_string(),
+            title: "first".to_string(),
+            thumbnail: Some(Thumbnail::new("/files/square/first.jpg", "First")),
+        },
+        ResourceRef {
+            url: "/s/main/media/2".to_string(),
+            title: "second".to_string(),
+            thumbnail: Some(Thumbnail::new("/files/square/second.jpg", "Second")),
+        },
+        ResourceRef {
+            url: "/s/main/media/3".to_string(),
+            title: "third".to_string(),
+            thumbnail: None,
+        },
+    ];
+    let out = render_configured(&item, &["mediaEmbeds"], "en");
+    assert_eq!(
+        out.matches("<div class=\"media-render file\">").count(),
+        1,
+        "one file renders whole: {out}"
+    );
+    assert!(
+        out.contains("<div class=\"media-render file\">first</div>"),
+        "the first file is the one shown whole: {out}"
+    );
+    assert!(
+        !out.contains("<div class=\"media-render file\">second</div>"),
+        "the other files appear only as strip entries: {out}"
+    );
+    assert!(
+        out.contains("<p class=\"media-files-title\">3 files</p>"),
+        "{out}"
+    );
+    assert_eq!(out.matches("<li class=\"media-file\">").count(), 2, "{out}");
+    assert!(
+        out.contains(
+            "<a class=\"media-file-link\" href=\"/s/main/media/2\"><span class=\"media-file-thumb\">\
+             <img src=\"/files/square/second.jpg\" alt=\"\" loading=\"lazy\" width=\"200\" \
+             height=\"200\"></span><span class=\"media-file-name\">second</span></a>"
+        ),
+        "{out}"
+    );
+    assert!(
+        out.contains(
+            "<a class=\"media-file-link\" href=\"/s/main/media/3\">\
+             <span class=\"media-file-thumb media-file-placeholder\">"
+        ),
+        "a file with no thumbnail gets a kind placeholder: {out}"
+    );
+    assert!(
+        out.contains("<span class=\"media-file-name\">third</span>"),
+        "each strip entry is named: {out}"
+    );
+    assert!(
+        out.contains("<div class=\"annotation-list\"></div>"),
+        "the notes list has its place after the first file: {out}"
+    );
+}
+
+/// An item with one file has nothing to strip, and says no file count.
+#[test]
+fn the_item_page_shows_no_strip_for_one_file() {
+    let mut item = resource(ResourceKind::Item);
+    item.media_embeds = vec![file(
+        "only",
+        Some("image/jpeg"),
+        Some("/files/original/only.jpg"),
+        "Only",
+    )];
+    item.media = vec![ResourceRef {
+        url: "/s/main/media/1".to_string(),
+        title: "only".to_string(),
+        thumbnail: Some(Thumbnail::new("/files/square/only.jpg", "Only")),
+    }];
+    let out = render_configured(&item, &["mediaEmbeds"], "en");
+    assert!(
+        out.contains("<div class=\"media-render file\">only</div>"),
+        "{out}"
+    );
+    assert!(!out.contains("media-files"), "{out}");
 }

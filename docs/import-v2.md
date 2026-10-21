@@ -388,6 +388,14 @@ facts**, pages lists 50 rows at a time, and acts on whatever a filter selects. T
   counts (exact text), so the person ticks the part that changes.
 - **Column matches**: for each list column, how many cells exactly equal a group key or a file
   name, so the join column is chosen by a count shown on screen.
+- **List candidates**: every list file the scan found in a folder source, read as Simple adds one
+  (automatic options, through the sheet cache), best paired first, then by path. Each has `inPlan`
+  (the plan sheet that reads it, or `null`), `read` (`"ok"` or `{ error }`; a list that does not
+  read never fails the preview), `rows`, `columns`, `best` (the column and join, `fileName` or
+  `identifier`, that pair the most rows exactly, with `pairedNormalized`, the same count with every
+  join fold on), `grain` (for a `fileName` best: the item groups more than one row meets, and the
+  rows that name another file of a group already named) and `overlaps` (the other lists that pair
+  some of the same groups, with the count). Nothing enters the plan.
 - Cells of the downloaded list that start with `=`, `+`, `-`, `@`, tab or CR get a leading `'`
   (one more when one is already there); the read of a stored list drops one `'` in bracketed
   columns and in the Identifier column (then keys the rows again), so the round trip is exact and a spreadsheet never runs a formula.
@@ -674,7 +682,7 @@ encoding guess and confidence, delimiter, header line, raw lines, counts, column
 `records` (paged by kind; filter by flag kind, slot, or text in any slot), `flags` (counts per kind
 and slot), `anomalies`, `orphans`, `check` (counts per action and kind, new sets, types, fields,
 flags by policy, blocking reasons, `canRun`, `digest`). The review-at-scale sections are `shapes`,
-`histogram`, `identical`, `unpaired`, `values`, `nameWords` and `columnMatches` (see "What the
+`histogram`, `identical`, `unpaired`, `values`, `nameWords`, `columnMatches` and `listCandidates` (see "What the
 admin screens need at scale"). A request may carry `seed` (it draws the sample records) and a
 `plan` to preview without saving it.
 

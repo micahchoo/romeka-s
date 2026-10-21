@@ -1,0 +1,315 @@
+//! The `listCandidates` section: every list file the scan found in a
+//! folder source, with how well it fits the files, so the admin ranks the
+//! lists and asks the right question about each. Nothing enters the plan.
+//!
+//! Each list is read as Simple adds one (automatic read options, no key
+//! column) through the shared [`SheetCache`](super::SheetCache), so adding
+//! it later reads warm. A list is read, counted and let go before the next,
+//! so the cache's bounds hold; a list that does not read is a candidate
+//! with its error. Its `best` column is the column and join that pair the
+//! most rows exactly, counted as `columnMatches` counts. The groups it pairs
+//! are its targets, which `grain` and `overlaps` count.
+
+use std::cmp::Reverse;
+use std::collections::{HashMap, HashSet};
+
+use serde::Serialize;
+
+use super::Derived;
+use super::columns::{Targets, column_counts, walk};
+use crate::import::archive::SourceDir;
+use crate::import::model::{GroupKey, Origin};
+use crate::import::plan::{
+    Auto, Delimiter, EncodingChoice, JoinOn, Quote, ReadOptions, RecordKind, RelPath, RowKind,
+    SheetId, SheetPlan, SourceId,
+};
+use crate::import::sheet::Sheet;
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListCandidate {
+    pub source: SourceId,
+    pub file: RelPath,
+    /// The plan sheet that reads this file.
+    pub in_plan: Option<SheetId>,
+    pub read: CandidateRead,
+    /// 0 when the list did not read.
+    pub rows: usize,
+    pub columns: usize,
+    /// `None` when no column pairs a row, even with every fold.
+    pub best: Option<BestColumn>,
+    /// Set when `best` pairs by file name.
+    pub grain: Option<Grain>,
+    /// The other candidates that pair some of the same groups, most first.
+    pub overlaps: Vec<Overlap>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum CandidateRead {
+    Ok,
+    Error(String),
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BestColumn {
+    pub index: u32,
+    pub header: String,
+    pub on: JoinOn,
+    /// Cells that exactly equal a group key (`identifier`) or a file's name
+    /// or path (`fileName`).
+    pub paired: usize,
+    /// The same, with every `JoinNormalize` fold on.
+    pub paired_normalized: usize,
+    pub empty: usize,
+}
+
+/// The evidence that rows describe files rather than items.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Grain {
+    /// Item groups that more than one paired row names a file of.
+    pub groups_with_many_rows: usize,
+    /// Rows naming a file of a group that an earlier row named another
+    /// file of.
+    pub rows_naming_other_files_of_a_group: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Overlap {
+    pub source: SourceId,
+    pub file: RelPath,
+    pub shared_targets: usize,
+}
+
+const NOT_FOUND: &str = "the file is not in its source";
+
+/// Every list of every folder source, the best paired first, then by path.
+pub(super) fn list_candidates(derived: &Derived) -> Vec<ListCandidate> {
+    let exact = Targets::exact(derived);
+    let folded = Targets::folded(derived);
+    let groups = groups_of_files(derived);
+    let mut found: Vec<(ListCandidate, HashSet<&GroupKey>)> = derived
+        .stored
+        .index
+        .sources
+        .iter()
+        .filter_map(|source| Some((source, derived.tags.dirs.get(&source.id)?)))
+        .flat_map(|(source, dir)| {
+            source
+                .walk
+                .sheets
+                .iter()
+                .map(move |entry| (source, dir, entry))
+        })
+        .map(|(source, dir, entry)| {
+            candidate(
+                derived,
+                &exact,
+                &folded,
+                &groups,
+                &source.id,
+                dir,
+                &entry.path,
+            )
+        })
+        .collect();
+    let overlaps: Vec<Vec<Overlap>> = (0..found.len()).map(|at| overlaps_of(&found, at)).collect();
+    for ((candidate, _), overlaps) in found.iter_mut().zip(overlaps) {
+        candidate.overlaps = overlaps;
+    }
+    let mut candidates: Vec<ListCandidate> =
+        found.into_iter().map(|(candidate, _)| candidate).collect();
+    candidates.sort_by(|a, b| {
+        Reverse(a.best.as_ref().map(|best| best.paired))
+            .cmp(&Reverse(b.best.as_ref().map(|best| best.paired)))
+            .then_with(|| a.file.cmp(&b.file))
+            .then_with(|| a.source.cmp(&b.source))
+    });
+    candidates
+}
+
+/// How Simple adds a list found in a folder (`simple/list-plan.ts`,
+/// `sheetOf`): the same read options make the same cache key.
+fn automatic(source: &SourceId, file: &RelPath) -> SheetPlan {
+    SheetPlan {
+        id: SheetId(String::new()),
+        source: source.clone(),
+        file: file.clone(),
+        hash: None,
+        read: ReadOptions {
+            encoding: EncodingChoice::Auto(Auto::Auto),
+            delimiter: Delimiter::Auto,
+            quote: Quote::Double,
+            header_line: std::num::NonZeroU32::MIN,
+            trim: true,
+            sheet_name: None,
+        },
+        row_kind: RowKind::All(RecordKind::Item),
+        join: None,
+        item_key: None,
+        columns: Vec::new(),
+    }
+}
+
+fn candidate<'d>(
+    derived: &'d Derived,
+    exact: &Targets<'d>,
+    folded: &Targets<'d>,
+    groups: &[Option<&'d GroupKey>],
+    source: &SourceId,
+    dir: &SourceDir,
+    file: &RelPath,
+) -> (ListCandidate, HashSet<&'d GroupKey>) {
+    let mut candidate = ListCandidate {
+        source: source.clone(),
+        file: file.clone(),
+        in_plan: derived
+            .plan
+            .sheets
+            .iter()
+            .find(|sheet| sheet.source == *source && sheet.file == *file)
+            .map(|sheet| sheet.id.clone()),
+        read: CandidateRead::Ok,
+        rows: 0,
+        columns: 0,
+        best: None,
+        grain: None,
+        overlaps: Vec::new(),
+    };
+    let read = derived
+        .tags
+        .caches
+        .sheets
+        .read(&automatic(source, file), dir);
+    let sheet = match read.as_deref().map(|read| &read.sheet) {
+        None => {
+            candidate.read = CandidateRead::Error(NOT_FOUND.to_string());
+            return (candidate, HashSet::new());
+        }
+        Some(Err(error)) => {
+            candidate.read = CandidateRead::Error(error.to_string());
+            return (candidate, HashSet::new());
+        }
+        Some(Ok(sheet)) => sheet,
+    };
+    candidate.rows = sheet.rows.len();
+    candidate.columns = sheet.columns.len();
+    candidate.best = best(sheet, exact, folded);
+    let Some(best) = &candidate.best else {
+        return (candidate, HashSet::new());
+    };
+    let (targets, grain) = targets(sheet, best, exact, groups);
+    candidate.grain = grain;
+    (candidate, targets)
+}
+
+/// The column and join that pair the most rows exactly; a tie goes to the
+/// one that pairs more folded, then to `fileName`, as Simple's join choice
+/// does, then to the first column.
+fn best(sheet: &Sheet, exact: &Targets<'_>, folded: &Targets<'_>) -> Option<BestColumn> {
+    sheet
+        .columns
+        .iter()
+        .flat_map(|column| {
+            let exact = column_counts(sheet, column, exact);
+            let folded = column_counts(sheet, column, folded);
+            [
+                (JoinOn::FileName, exact.file_names, folded.file_names),
+                (JoinOn::Identifier, exact.group_keys, folded.group_keys),
+            ]
+            .map(|(on, paired, paired_normalized)| BestColumn {
+                index: column.index,
+                header: column.header.clone(),
+                on,
+                paired,
+                paired_normalized,
+                empty: exact.empty,
+            })
+        })
+        .filter(|best| best.paired_normalized > 0)
+        .max_by_key(|best| {
+            (
+                best.paired,
+                best.paired_normalized,
+                best.on == JoinOn::FileName,
+                Reverse(best.index),
+            )
+        })
+}
+
+/// The groups `best` pairs exactly, and for a `fileName` join its grain.
+fn targets<'d>(
+    sheet: &Sheet,
+    best: &BestColumn,
+    exact: &Targets<'d>,
+    groups_of_files: &[Option<&'d GroupKey>],
+) -> (HashSet<&'d GroupKey>, Option<Grain>) {
+    let cells = exact.cells(sheet, best.index).flatten();
+    match best.on {
+        JoinOn::Identifier => (cells.filter_map(|found| found.key).collect(), None),
+        JoinOn::FileName => {
+            let mut groups: HashMap<&GroupKey, (usize, HashSet<usize>)> = HashMap::new();
+            for file in cells.filter_map(|found| found.file) {
+                if let Some(group) = groups_of_files[file] {
+                    let (rows, files) = groups.entry(group).or_default();
+                    *rows += 1;
+                    files.insert(file);
+                }
+            }
+            let grain = Grain {
+                groups_with_many_rows: groups.values().filter(|(rows, _)| *rows > 1).count(),
+                rows_naming_other_files_of_a_group: groups
+                    .values()
+                    .map(|(_, files)| files.len() - 1)
+                    .sum(),
+            };
+            (groups.into_keys().collect(), Some(grain))
+        }
+    }
+}
+
+/// Each file's item group, by its place in [`walk`]; `None` for a file in
+/// no item, such as one left out.
+fn groups_of_files(derived: &Derived) -> Vec<Option<&GroupKey>> {
+    let mut group_of: HashMap<(&str, &str), &GroupKey> = HashMap::new();
+    for record in &derived.model.records {
+        if let (RecordKind::Item, Origin::Group(key)) = (record.kind, &record.origin) {
+            for file in &record.files {
+                group_of.insert((file.source.0.as_str(), file.path.as_str()), key);
+            }
+        }
+    }
+    walk(derived)
+        .map(|(source, entry)| {
+            group_of
+                .get(&(source.0.as_str(), entry.path.as_str()))
+                .copied()
+        })
+        .collect()
+}
+
+fn overlaps_of(found: &[(ListCandidate, HashSet<&GroupKey>)], at: usize) -> Vec<Overlap> {
+    let mine = &found[at].1;
+    let mut overlaps: Vec<Overlap> = found
+        .iter()
+        .enumerate()
+        .filter(|(other, _)| *other != at)
+        .filter_map(|(_, (candidate, theirs))| {
+            let shared_targets = mine.intersection(theirs).count();
+            (shared_targets > 0).then(|| Overlap {
+                source: candidate.source.clone(),
+                file: candidate.file.clone(),
+                shared_targets,
+            })
+        })
+        .collect();
+    overlaps.sort_by(|a, b| {
+        b.shared_targets
+            .cmp(&a.shared_targets)
+            .then_with(|| a.file.cmp(&b.file))
+    });
+    overlaps
+}
