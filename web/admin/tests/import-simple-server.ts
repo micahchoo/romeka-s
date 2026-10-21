@@ -191,7 +191,14 @@ export const simpleServer = (scenario: Scenario, planEdits: Record<string, unkno
         file: sheet['file'],
         lines,
         guess: { ...asRecord(fixtureSheet['guess'], []), headerLine: list === undefined ? scenario.sheet.headerLine : (list.headerLine ?? 1) },
-        read: { ...fixtureRead, headerLine: line, rows: list?.rows ?? scenario.sheet.rows, notes: [], columns: header.map((name, index) => ({ header: name, index, mappable: true })) },
+        read: {
+          ...fixtureRead,
+          workbook: /\.(xlsx|xls|ods)$/i.test(String(sheet['file'])) ? { sheet: 'Sheet1', sheets: ['Sheet1'] } : null,
+          headerLine: line,
+          rows: list?.rows ?? scenario.sheet.rows,
+          notes: [],
+          columns: header.map((name, index) => ({ header: name, index, mappable: true })),
+        },
       };
     });
   };
@@ -350,6 +357,7 @@ export const simpleServer = (scenario: Scenario, planEdits: Record<string, unkno
     field('dcterms:type', 'Type', 8),
     field('dcterms:description', 'Description', 4),
     field('dcterms:identifier', 'Identifier', 10),
+    field('dcterms:subject', 'Subject', 3),
   ];
 
   const handler = route({

@@ -177,14 +177,31 @@ export const withRowKind = (plan: ImportPlan, sheet: string, kind: RecordKind): 
 
 export const variesOf = (grain: Grain | null, index: number): Varies | null => grain?.columns.find((column) => column.index === index)?.varies ?? null;
 
-/** The level a count suggests: on each file where the values differ inside some item, on the item where they never do. */
-export const suggestedLevel = (varies: Varies | null, fileAllowed: boolean): Exclude<Level, 'out'> =>
-  varies !== null && varies.groups > 0 && fileAllowed ? 'file' : 'item';
+/** The fields that describe a file as a file: a column mapped to one defaults to each file. Every other field describes the object. */
+const FILE_FIELDS: ReadonlySet<string> = new Set([
+  'dcterms:identifier',
+  'dcterms:format',
+  'dcterms:extent',
+  'dcterms:medium',
+  'dcterms:source',
+  'dcterms:hasFormat',
+  'dcterms:isFormatOf',
+]);
 
-/** "Each row describes one file": the rows become media rows, and each column in use goes where its count suggests. */
-export const withFileRows = (plan: ImportPlan, sheet: string, grain: Grain | null): ImportPlan =>
+/**
+ * The level a column's field suggests: on each file for a field that describes
+ * a file as a file, on the item for the rest. The count of items where its
+ * values vary is shown beside it, but does not decide.
+ */
+export const suggestedLevel = (plan: ImportPlan, sheet: string, index: number): Exclude<Level, 'out'> => {
+  const slot = placesOf(plan, sheet, index)[0]?.slot;
+  return slot !== undefined && FILE_FIELDS.has(slot) && fileLevelAllowed(plan, sheet, index) ? 'file' : 'item';
+};
+
+/** "Each row describes one file": the rows become media rows, and each column in use goes where its field suggests. */
+export const withFileRows = (plan: ImportPlan, sheet: string): ImportPlan =>
   columnsIn(plan, sheet, ['item', 'media']).reduce(
-    (edited, column) => withColumnLevel(edited, sheet, column, suggestedLevel(variesOf(grain, column.index), fileLevelAllowed(edited, sheet, column.index))),
+    (edited, column) => withColumnLevel(edited, sheet, column, suggestedLevel(edited, sheet, column.index)),
     withRowKind(plan, sheet, 'media'),
   );
 
@@ -237,7 +254,7 @@ export const withSplit = (plan: ImportPlan, sheet: string, column: ColumnRef, sp
 
 /**
  * `after` is `before` with an edit that may give the column its first field.
- * That first field takes what the counts suggest: on a list whose rows
+ * That first field takes what its field and counts suggest: on a list whose rows
  * describe files, the level; and a split no one has set yet. After that only
  * the person changes them. Simple, Advanced and the list read all map a
  * column through this.
@@ -248,7 +265,7 @@ export const withCounted = (before: ImportPlan, after: ImportPlan, sheet: string
   }
   const placed =
     rowKindOf(after, sheet) === 'media'
-      ? withColumnLevel(after, sheet, column, suggestedLevel(variesOf(counts.grain, column.index), fileLevelAllowed(after, sheet, column.index)))
+      ? withColumnLevel(after, sheet, column, suggestedLevel(after, sheet, column.index))
       : after;
   const split = suggestedSplit(counts, column.index);
   return split !== null && splitOf(placed, sheet, column.index) === null ? withSplit(placed, sheet, column, split) : placed;
