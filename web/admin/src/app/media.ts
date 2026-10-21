@@ -216,8 +216,10 @@ export const fileExtension = (media: Media): string | null => {
 /**
  * The server's kind in the admin's words, one row per `MediaKind` variant. A
  * IIIF manifest is its own word, because it is not an embed a curator can play.
- * `other-file` has no word of its own, because the server's catch-all covers
- * both a document and a plain file, and its type is what tells them apart.
+ * `other-file` has no word of its own, because that catch-all covers both a
+ * document and a plain file, and its type is what tells them apart. A server
+ * older than the `document` kind sends every office document as `other-file`,
+ * so the split stays.
  */
 const SERVER_KIND_WORDS: Readonly<Record<ServerMediaKind, MediaKind | 'by-type'>> = {
   'local-image': 'image',
@@ -225,6 +227,7 @@ const SERVER_KIND_WORDS: Readonly<Record<ServerMediaKind, MediaKind | 'by-type'>
   audio: 'audio',
   video: 'video',
   pdf: 'pdf',
+  document: 'document',
   'model-3d': 'model',
   captions: 'captions',
   embed: 'embed',
@@ -232,7 +235,7 @@ const SERVER_KIND_WORDS: Readonly<Record<ServerMediaKind, MediaKind | 'by-type'>
   'other-file': 'by-type',
 };
 
-/** The admin's word for the server's `other-file`: a document, else a file. */
+/** The admin's word for a server's `other-file`: a document, else a file. */
 const documentOrOther = (media: Media): MediaKind => {
   const type = bareType(media);
   const extension = fileExtension(media)?.toLowerCase() ?? null;

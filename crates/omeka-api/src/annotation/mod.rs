@@ -948,6 +948,7 @@ fn media_ref(row: &MediaRow, extent: Extent) -> MediaRef {
             renderer: &row.renderer,
             ingester: &row.ingester,
             media_type: row.media_type.as_deref(),
+            extension: row.extension.as_deref(),
             has_thumbnails: row.has_thumbnails,
         }),
         extent,

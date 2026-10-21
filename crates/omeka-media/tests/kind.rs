@@ -17,6 +17,7 @@ fn kind(
         renderer,
         ingester,
         media_type,
+        extension: None,
         has_thumbnails,
     })
 }
@@ -171,13 +172,42 @@ fn a_remote_presentation_takes_whole_notes_and_paints_no_canvas() {
 }
 
 #[test]
+fn an_office_document_takes_whole_notes_and_paints_no_canvas() {
+    for media_type in [
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.oasis.opendocument.text",
+    ] {
+        assert_row(
+            "file",
+            "upload",
+            Some(media_type),
+            false,
+            MediaKind::Document,
+            Surface::Whole,
+            None,
+        );
+    }
+}
+
+#[test]
+fn an_office_document_whose_type_is_its_container_is_named_by_its_extension() {
+    let kind = MediaKind::of(&KindInput {
+        renderer: "file",
+        ingester: "upload",
+        media_type: Some("application/zip"),
+        extension: Some("odt"),
+        has_thumbnails: false,
+    });
+    assert_eq!(kind, MediaKind::Document);
+    assert_eq!(kind.surface(), Surface::Whole);
+    assert_eq!(kind.canvas_body(), None);
+}
+
+#[test]
 fn any_other_file_takes_whole_notes_and_paints_no_canvas() {
     for (renderer, media_type, has_thumbnails) in [
-        (
-            "file",
-            Some("application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
-            false,
-        ),
+        ("file", Some("application/zip"), false),
         // A raster whose derivatives failed is not a local image.
         ("file", Some("image/jpeg"), false),
         ("", None, false),

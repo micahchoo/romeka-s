@@ -20,15 +20,15 @@ interface KindFilter {
 
 /**
  * The filter options, one per server kind the list can narrow to. An image is
- * two server names, so the filter sends both. The server has no document kind:
- * it answers `other-file` for a document and for a plain file alike, so the
- * filter names that one word "File" rather than promise a split it cannot make.
+ * two server names, so the filter sends both. `other-file` is the kind for a
+ * file no other name fits, so its filter keeps the word "File".
  */
 const KIND_FILTERS = [
   { kind: 'image', names: ['local-image', 'iiif-image'] },
   { kind: 'audio', names: ['audio'] },
   { kind: 'video', names: ['video'] },
   { kind: 'pdf', names: ['pdf'] },
+  { kind: 'document', names: ['document'] },
   { kind: 'model', names: ['model-3d'] },
   { kind: 'captions', names: ['captions'] },
   { kind: 'embed', names: ['embed'] },

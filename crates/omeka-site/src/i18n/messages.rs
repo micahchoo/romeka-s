@@ -154,6 +154,8 @@ pub struct Messages {
     pub kind_video: &'static str,
     /// A media card's word for a PDF.
     pub kind_pdf: &'static str,
+    /// A media card's word for an office document.
+    pub kind_document: &'static str,
     /// A media card's word for a 3D model.
     pub kind_model_3d: &'static str,
     /// A media card's word for a caption file.
@@ -363,6 +365,7 @@ pub static EN: Messages = Messages {
     kind_audio: "Audio",
     kind_video: "Video",
     kind_pdf: "PDF",
+    kind_document: "Document",
     kind_model_3d: "3D model",
     kind_captions: "Captions",
     kind_embed: "Embed",
@@ -504,6 +507,7 @@ pub static ES: Messages = Messages {
     kind_audio: "Audio",
     kind_video: "Vídeo",
     kind_pdf: "PDF",
+    kind_document: "Documento",
     kind_model_3d: "Modelo 3D",
     kind_captions: "Subtítulos",
     kind_embed: "Incrustado",
