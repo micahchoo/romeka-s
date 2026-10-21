@@ -135,12 +135,13 @@ pub struct Extent {
 
 impl MediaKind {
     /// Every kind, in the order the wire and the admin read them.
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 11] = [
         Self::LocalImage,
         Self::IiifImage,
         Self::Audio,
         Self::Video,
         Self::Pdf { first_page: false },
+        Self::Document,
         Self::Model3d,
         Self::Captions,
         Self::Embed,
@@ -291,6 +292,50 @@ impl MediaKind {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used)]
+    /// `ALL` is written by hand, so a new variant can miss it (`Document` did).
+    /// The match stops compiling when a variant is added, which points here.
+    #[test]
+    fn all_names_every_kind() {
+        let listed = |kind: super::MediaKind| {
+            assert!(
+                super::MediaKind::ALL
+                    .iter()
+                    .any(|each| each.name() == kind.name()),
+                "{} is missing from MediaKind::ALL",
+                kind.name()
+            );
+        };
+        for kind in super::MediaKind::ALL {
+            match kind {
+                super::MediaKind::LocalImage
+                | super::MediaKind::IiifImage
+                | super::MediaKind::Audio
+                | super::MediaKind::Video
+                | super::MediaKind::Pdf { .. }
+                | super::MediaKind::Document
+                | super::MediaKind::Model3d
+                | super::MediaKind::Captions
+                | super::MediaKind::Embed
+                | super::MediaKind::IiifPresentation
+                | super::MediaKind::OtherFile => {}
+            }
+        }
+        for kind in [
+            super::MediaKind::LocalImage,
+            super::MediaKind::IiifImage,
+            super::MediaKind::Audio,
+            super::MediaKind::Video,
+            super::MediaKind::Pdf { first_page: true },
+            super::MediaKind::Document,
+            super::MediaKind::Model3d,
+            super::MediaKind::Captions,
+            super::MediaKind::Embed,
+            super::MediaKind::IiifPresentation,
+            super::MediaKind::OtherFile,
+        ] {
+            listed(kind);
+        }
+    }
 
     use super::*;
     use crate::thumbnailer::SOURCE_MEDIA_TYPES;
