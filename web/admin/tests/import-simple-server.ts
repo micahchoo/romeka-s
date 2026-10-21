@@ -237,11 +237,13 @@ export const simpleServer = (scenario: Scenario, planEdits: Record<string, unkno
       } else if (section === 'entries') {
         const query = isRecord(body['entries']) ? body['entries'] : {};
         const text = typeof query['text'] === 'string' ? query['text'].toLowerCase() : null;
-        const files = query['reason'] === 'unmatched' ? [] : scenario.examples.filter((path) => text === null || path.toLowerCase().includes(text));
-        answer['entries'] = paged(
+        const unmatched = Array.from({ length: Math.min(scenario.unmatchedFiles ?? 0, 3) }, (_, at) => `stray/odd name ${String(at)}.jpg`);
+        const files = query['reason'] === 'unmatched' ? unmatched : scenario.examples.filter((path) => text === null || path.toLowerCase().includes(text));
+        const shown = paged(
           files.map((path, at) => ({ entry: { file: { source: 's1', path } }, record: at + 1, left: null, unmatched: false, example: true, flags: [] })),
           pageOf(query),
         );
+        answer['entries'] = query['reason'] === 'unmatched' ? { ...shown, total: scenario.unmatchedFiles ?? 0 } : shown;
       } else if (section === 'nameWords') {
         const query = isRecord(body['nameWords']) ? body['nameWords'] : {};
         const path = typeof query['path'] === 'string' ? query['path'] : '';

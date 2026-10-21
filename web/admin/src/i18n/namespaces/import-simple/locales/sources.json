@@ -192,12 +192,18 @@
  "guided.check.dateLeave": "Leave these dates out",
  "guided.check.noTitle": "{count} items have no title in your list.",
  "guided.check.noTitleOne": "1 item has no title in your list.",
- "guided.check.noTitleKeep": "Add them without a title. Omeka shows the identifier",
+ "guided.check.noTitleKeep": "Add them without a title. The admin lists them as untitled",
+ "guided.check.noTitleCode": "Use the item code as the title",
  "guided.check.noTitleName": "Use the file name as the title",
  "guided.check.type": "{count} items have an item type that Omeka does not have.",
  "guided.check.typeOne": "1 item has an item type that Omeka does not have.",
  "guided.check.typeWhy": "You can choose an item type for each of these values on “Where they go”.",
  "guided.check.typeKeep": "Add them with no item type",
+ "guided.check.refused": "{count} files in your list are of a type this Omeka does not accept.",
+ "guided.check.refusedOne": "1 file in your list is of a type this Omeka does not accept.",
+ "guided.check.refusedWhy": "The file settings of this Omeka refuse these types, so we leave them out.",
+ "guided.check.refusedExample": "For example: {names}",
+ "guided.check.refusedSettings": "Change the allowed file types in Settings",
  "guided.check.handled": "We took care of {count} small things",
  "guided.check.handledOne": "We took care of 1 small thing",
  "guided.check.handledSpaces": "{count} values had spaces at the start or end. We took them off.",
@@ -233,5 +239,7 @@
  "guided.add.who": "Who can see them",
  "guided.add.private": "Only signed-in staff (private)",
  "guided.add.public": "Everyone (public)",
- "guided.add.undo": "You can undo the whole import later."
+ "guided.add.undo": "You can undo the whole import later.",
+ "guided.add.titleCode": "Items with no title get their item code as the title.",
+ "guided.add.titleChange": "Change it"
 }

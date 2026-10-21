@@ -5,7 +5,7 @@
  * md-translator's checks. Until that run, every key is missing here, which is a `tsc`
  * error by design: it is typed `ImportSimpleMessages`.
  */
-import type { ImportSimpleMessages } from '../index';
+import type { ImportSimpleMessages } from "../index";
 
 export const ne: ImportSimpleMessages = {
   'guided.files.none': 'यस आयातमा अहिलेसम्म कुनै फाइलहरू छैनन्।',
@@ -226,13 +226,22 @@ export const ne: ImportSimpleMessages = {
   'guided.check.dateLeave': 'यी मितिहरूलाई बाहिर राख्नुहोस्',
   'guided.check.noTitle': '{count} वस्तुहरूमा तपाईँको सूचीमा कुनै शीर्षक छैन।',
   'guided.check.noTitleOne': '1 वस्तुमा तपाईँको सूचीमा कुनै शीर्षक छैन।',
-  'guided.check.noTitleKeep': 'शीर्षक बिना नै थप्नुहोस्। Omeka ले पहिचानकर्ता देखाउँछ',
+  'guided.check.noTitleKeep':
+    'तिनीहरूलाई शीर्षक बिना थप्नुहोस्। प्रशासकले तिनीहरूलाई “शीर्षक छैन” भनेर सूचीबद्ध गर्दछ',
+  'guided.check.noTitleCode': 'वस्तु कोडलाई शीर्षकको रूपमा प्रयोग गर्नुहोस्',
   'guided.check.noTitleName': 'फाइलको नामलाई शीर्षकको रूपमा प्रयोग गर्नुहोस्',
   'guided.check.type': '{count} वस्तुहरूमा यस्तो वस्तु प्रकार छ जुन ओमेकासँग छैन।',
   'guided.check.typeOne': '1 वस्तुमा यस्तो वस्तु प्रकार छ जुन ओमेकासँग छैन।',
   'guided.check.typeWhy':
     'तपाईँ यी मानहरूका लागि “कहाँ जाने” मा प्रत्येकका लागि वस्तु प्रकार छनोट गर्न सक्नुहुन्छ।',
   'guided.check.typeKeep': 'कुनै वस्तु प्रकार बिना नै थप्नुहोस्',
+  'guided.check.refused':
+    'तपाईँको सूचीमा {count} फाइलहरू यस्तो प्रकारका छन् जुन Omeka ले स्वीकार गर्दैन।',
+  'guided.check.refusedOne': 'तपाईँको सूचीमा 1 फाइल यस्तो प्रकारको छ जुन Omeka ले स्वीकार गर्दैन।',
+  'guided.check.refusedWhy':
+    'यस ओमेकाका फाइल सेटिङहरूले यी प्रकारहरूलाई अस्वीकार गर्दछ, त्यसैले हामी तिनीहरूलाई बाहिर राख्छौँ।',
+  'guided.check.refusedExample': 'उदाहरण: {names}',
+  'guided.check.refusedSettings': 'सेटिङ्समा अनुमति दिइएका फाइलका प्रकारहरू परिवर्तन गर्नुहोस्',
   'guided.check.handled': 'हामीले {count} वटा साना कुराहरूको हेरचाह गर्‍यौँ',
   'guided.check.handledOne': 'हामीले 1 वटा सानो कुराको हेरचाह गर्‍यौँ',
   'guided.check.handledSpaces':
@@ -273,4 +282,7 @@ export const ne: ImportSimpleMessages = {
   'guided.add.private': 'केवल साइन-इन कर्मचारी (निजी)',
   'guided.add.public': 'सबै (सार्वजनिक)',
   'guided.add.undo': 'तपाईँले पछि सम्पूर्ण आयातलाई पूर्ववत गर्न सक्नुहुन्छ।',
+  'guided.add.titleCode':
+    'शीर्षक नभएका वस्तुहरूले आफ्नो वस्तु कोडलाई शीर्षकको रूपमा प्रयोग गर्छन्।',
+  'guided.add.titleChange': 'यसलाई परिवर्तन गर्नुहोस्',
 };

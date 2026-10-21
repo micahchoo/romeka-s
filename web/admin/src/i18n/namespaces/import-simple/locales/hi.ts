@@ -5,7 +5,7 @@
  * md-translator's checks. Until that run, every key is missing here, which is a `tsc`
  * error by design: it is typed `ImportSimpleMessages`.
  */
-import type { ImportSimpleMessages } from '../index';
+import type { ImportSimpleMessages } from "../index";
 
 export const hi: ImportSimpleMessages = {
   'guided.files.none': 'इस आयात में अभी तक कोई फ़ाइल नहीं है।',
@@ -227,13 +227,22 @@ export const hi: ImportSimpleMessages = {
   'guided.check.dateLeave': 'इन तिथियों को बाहर छोड़ दें',
   'guided.check.noTitle': '{count} वस्तुओं की आपकी सूची में कोई शीर्षक नहीं है।',
   'guided.check.noTitleOne': '1 वस्तु की आपकी सूची में कोई शीर्षक नहीं है।',
-  'guided.check.noTitleKeep': 'बिना शीर्षक के उन्हें जोड़ें। ओमेका पहचानकर्ता दिखाता है',
+  'guided.check.noTitleKeep':
+    'बिना शीर्षक के उन्हें जोड़ें। एडमिन उन्हें “शीर्षक रहित” के रूप में सूचीबद्ध करता है',
+  'guided.check.noTitleCode': 'आइटम कोड को शीर्षक के रूप में उपयोग करें',
   'guided.check.noTitleName': 'फ़ाइल नाम को शीर्षक के रूप में उपयोग करें',
   'guided.check.type': '{count} वस्तुओं का आइटम प्रकार ओमेका के पास नहीं है।',
   'guided.check.typeOne': '1 वस्तु का आइटम प्रकार ओमेका के पास नहीं है।',
   'guided.check.typeWhy':
     'आप इनमें से प्रत्येक मान के लिए “वे कहाँ जाते हैं” पर एक आइटम प्रकार चुन सकते हैं।',
   'guided.check.typeKeep': 'बिना आइटम प्रकार के उन्हें जोड़ें',
+  'guided.check.refused':
+    'आपकी सूची में {count} फ़ाइलें ऐसे प्रकार की हैं जिसे ओमेका स्वीकार नहीं करता।',
+  'guided.check.refusedOne': 'आपकी सूची में 1 फ़ाइल ऐसे प्रकार की है जिसे ओमेका स्वीकार नहीं करता।',
+  'guided.check.refusedWhy':
+    'इस ओमेका की फ़ाइल सेटिंग्स इन प्रकारों को अस्वीकार करती हैं, इसलिए हम उन्हें बाहर रखते हैं।',
+  'guided.check.refusedExample': 'उदाहरण: {names}',
+  'guided.check.refusedSettings': 'अनुमत फ़ाइल प्रकारों को बदलें',
   'guided.check.handled': 'हमने {count} छोटी चीजों का ध्यान रखा',
   'guided.check.handledOne': 'हमने 1 छोटी चीज़ का ध्यान रखा',
   'guided.check.handledSpaces':
@@ -274,4 +283,6 @@ export const hi: ImportSimpleMessages = {
   'guided.add.private': 'केवल हस्ताक्षरित-इन स्टाफ (निजी)',
   'guided.add.public': 'हर कोई (सार्वजनिक)',
   'guided.add.undo': 'आप बाद में पूरे आयात को पूर्ववत कर सकते हैं।',
+  'guided.add.titleCode': 'बिना शीर्षक वाले आइटमों को उनका आइटम कोड शीर्षक के रूप में मिलता है।',
+  'guided.add.titleChange': 'इसे बदलें',
 };

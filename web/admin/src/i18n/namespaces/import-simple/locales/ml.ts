@@ -5,7 +5,7 @@
  * md-translator's checks. Until that run, every key is missing here, which is a `tsc`
  * error by design: it is typed `ImportSimpleMessages`.
  */
-import type { ImportSimpleMessages } from '../index';
+import type { ImportSimpleMessages } from "../index";
 
 export const ml: ImportSimpleMessages = {
   'guided.files.none': 'ഈ ഇറക്കുമതിയിൽ നിലവിൽ ഫയലുകൾ ഒന്നുമില്ല.',
@@ -228,13 +228,22 @@ export const ml: ImportSimpleMessages = {
   'guided.check.noTitle': '{count} ഇനങ്ങൾക്ക് നിങ്ങളുടെ പട്ടികയിൽ തലക്കെട്ടില്ല.',
   'guided.check.noTitleOne': '1 ഇനം നിങ്ങളുടെ പട്ടികയിൽ തലക്കെട്ടില്ല.',
   'guided.check.noTitleKeep':
-    'തലക്കെട്ടില്ലാതെ അവ ചേർക്കുക. ഒമേക്ക തിരിച്ചറിയൽ അടയാളം കാണിക്കുന്നു',
+    'തലക്കെട്ടില്ലാതെ അവ ചേർക്കുക. അഡ്മിൻ അവയെ “തലക്കെട്ടില്ല” എന്ന് പട്ടികപ്പെടുത്തുന്നു',
+  'guided.check.noTitleCode': 'ഐറ്റം കോഡ് തലക്കെട്ടായി ഉപയോഗിക്കുക',
   'guided.check.noTitleName': 'ഫയൽ നാമം തലക്കെട്ടായി ഉപയോഗിക്കുക',
   'guided.check.type': '{count} ഇനങ്ങൾക്ക് ഒമേക്കയിൽ ഇല്ലാത്ത ഒരു ഇനം തരം ഉണ്ട്.',
   'guided.check.typeOne': '1 ഇനം ഒമേക്കയിൽ ഇല്ലാത്ത ഒരു ഇനം തരം ഉണ്ട്.',
   'guided.check.typeWhy':
     '“എവിടെ പോകുന്നു” എന്നതിൽ ഈ മൂല്യങ്ങൾക്കായി നിങ്ങൾക്ക് ഒരു ഇനം തരം തിരഞ്ഞെടുക്കാം.',
   'guided.check.typeKeep': 'ഇനം തരം ഇല്ലാതെ അവ ചേർക്കുക',
+  'guided.check.refused':
+    'നിങ്ങളുടെ പട്ടികയിലുള്ള {count} ഫയലുകൾ ഈ Omeka സ്വീകരിക്കാത്ത തരത്തിലുള്ളവയാണ്.',
+  'guided.check.refusedOne':
+    'നിങ്ങളുടെ പട്ടികയിലുള്ള 1 ഫയൽ ഈ Omeka സ്വീകരിക്കാത്ത തരത്തിലുള്ളതാണ്.',
+  'guided.check.refusedWhy':
+    'ഈ ഒമീക്കയുടെ ഫയൽ ക്രമീകരണങ്ങൾ ഈ തരങ്ങളെ നിരസിക്കുന്നു, അതിനാൽ ഞങ്ങൾ അവ ഒഴിവാക്കുന്നു.',
+  'guided.check.refusedExample': 'ഉദാഹരണത്തിന്: {names}',
+  'guided.check.refusedSettings': 'അനുവദനീയമായ ഫയൽ തരങ്ങൾ Settings-ൽ മാറ്റുക',
   'guided.check.handled': 'ഞങ്ങൾ {count} ചെറിയ കാര്യങ്ങൾ ശ്രദ്ധിച്ചു',
   'guided.check.handledOne': 'ഞങ്ങൾ 1 ചെറിയ കാര്യം ശ്രദ്ധിച്ചു',
   'guided.check.handledSpaces':
@@ -274,4 +283,6 @@ export const ml: ImportSimpleMessages = {
   'guided.add.private': 'ഒപ്പിട്ട ജീവനക്കാർക്ക് മാത്രം (സ്വകാര്യം)',
   'guided.add.public': 'എല്ലാവർക്കും (പൊതു)',
   'guided.add.undo': 'നിങ്ങൾക്ക് പിന്നീട് മുഴുവൻ ഇംപോർട്ടും റദ്ദാക്കാം.',
+  'guided.add.titleCode': 'തലക്കെട്ടില്ലാത്ത ഇനങ്ങൾക്ക് അവയുടെ ഇനം കോഡ് തലക്കെട്ടായി ലഭിക്കും.',
+  'guided.add.titleChange': 'അത് മാറ്റുക',
 };

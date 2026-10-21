@@ -5,7 +5,7 @@
  * md-translator's checks. Until that run, every key is missing here, which is a `tsc`
  * error by design: it is typed `ImportSimpleMessages`.
  */
-import type { ImportSimpleMessages } from '../index';
+import type { ImportSimpleMessages } from "../index";
 
 export const mr: ImportSimpleMessages = {
   'guided.files.none': 'या आयातीमध्ये अद्याप कोणतीही फाईल्स नाहीत.',
@@ -226,13 +226,22 @@ export const mr: ImportSimpleMessages = {
   'guided.check.dateLeave': 'या तारखा वगळा',
   'guided.check.noTitle': '{count} घटकांचे तुमच्या सूचीमध्ये कोणतेही शीर्षक नाही.',
   'guided.check.noTitleOne': '1 घटकाचे तुमच्या सूचीमध्ये कोणतेही शीर्षक नाही.',
-  'guided.check.noTitleKeep': 'त्यांना शीर्षक नसताना जोडा. ओमेका ओळखकर्ता दर्शवते',
+  'guided.check.noTitleKeep':
+    'त्यांना शीर्षक न देता जोडा. प्रशासक त्यांना “शीर्षक नाही” म्हणून सूचीबद्ध करतो',
+  'guided.check.noTitleCode': 'आयटम कोडचा वापर शीर्षक म्हणून करा',
   'guided.check.noTitleName': 'फाईलचे नाव शीर्षक म्हणून वापरा',
   'guided.check.type': '{count} घटकांचा ओमेकाकडे नसलेला आयटम प्रकार आहे.',
   'guided.check.typeOne': '1 घटकाचा ओमेकाकडे नसलेला आयटम प्रकार आहे.',
   'guided.check.typeWhy':
     'तुम्ही या मूल्यांपैकी प्रत्येकासाठी “ते कुठे जातात” वर आयटम प्रकार निवडू शकता.',
   'guided.check.typeKeep': 'त्यांना आयटम प्रकाराशिवाय जोडा',
+  'guided.check.refused':
+    'तुमच्या सूचीतील {count} फाईल्स अशा प्रकारच्या आहेत ज्या ओमेका स्वीकारत नाही.',
+  'guided.check.refusedOne': 'तुमच्या सूचीतील 1 फाईल अशा प्रकारची आहे जी ओमेका स्वीकारत नाही.',
+  'guided.check.refusedWhy':
+    'या ओमेकाच्या फाईल सेटिंग्ज या प्रकारांना नाकारतात, म्हणून आम्ही त्यांना वगळतो.',
+  'guided.check.refusedExample': 'उदाहरण: {names}',
+  'guided.check.refusedSettings': 'सेटिंग्जमध्ये अनुमत फाईल प्रकार बदला',
   'guided.check.handled': 'आम्ही {count} लहान गोष्टींची काळजी घेतली',
   'guided.check.handledOne': 'आम्ही 1 लहान गोष्टीची काळजी घेतली',
   'guided.check.handledSpaces':
@@ -272,4 +281,6 @@ export const mr: ImportSimpleMessages = {
   'guided.add.private': 'केवळ स्वाक्षरी केलेले कर्मचारी (खाजगी)',
   'guided.add.public': 'सर्व (सार्वजनिक)',
   'guided.add.undo': 'तुम्ही नंतर संपूर्ण आयात पूर्ववत करू शकता.',
+  'guided.add.titleCode': 'शीर्षकाशिवाय असलेल्या आयटम्सना त्यांचा आयटम कोड शीर्षक म्हणून मिळतो.',
+  'guided.add.titleChange': 'ते बदला',
 };
