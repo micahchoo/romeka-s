@@ -144,6 +144,7 @@ impl Extents {
             renderer: &media.renderer,
             ingester: &media.ingester,
             media_type: media.media_type.as_deref(),
+            extension: media.extension.as_deref(),
             has_thumbnails: media.has_thumbnails,
         })
     }

@@ -34,6 +34,11 @@ fn kind_of(media: &Value) -> MediaKind {
         renderer: text("o:renderer"),
         ingester: text("o:ingester"),
         media_type: media.get("o:media_type").and_then(Value::as_str),
+        extension: media
+            .get("o:filename")
+            .and_then(Value::as_str)
+            .and_then(|filename| filename.rsplit_once('.'))
+            .map(|(_, extension)| extension),
         has_thumbnails: media
             .get("o:thumbnail_urls")
             .and_then(|urls| urls.get("large"))

@@ -29,15 +29,15 @@ use crate::store::{Download, FileKind, FileUrls};
 /// Site and server configuration a renderer may read.
 ///
 /// The values mirror what upstream reaches through `$view`: `assetUrl` for the
-/// OpenSeadragon prefix (`Renderer/IIIF.php:20`), `serverUrl` plus `basePath`
-/// for absolute fallback thumbnails (`Renderer/MediaRepresentation.php:80`),
-/// the file store's URLs, the IIIF viewer route, and the two `iiif_viewer_*`
-/// site settings (`Renderer/IiifPresentation.php:18`).
+/// OpenSeadragon prefix (`Renderer/IIIF.php:20`), `serverUrl` for absolute
+/// fallback thumbnails (`Renderer/MediaRepresentation.php:80`), the file
+/// store's URLs, the IIIF viewer route, and the two `iiif_viewer_*` site
+/// settings (`Renderer/IiifPresentation.php:18`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RenderEnv {
     /// The server URL with no trailing slash, e.g. `https://example.org`.
     pub server_url: String,
-    /// The Omeka application asset path, e.g. `/application/asset`.
+    /// Where the theme's vendored files are served, e.g. `/assets`.
     pub asset_base_path: String,
     /// The stored files' URLs: `/files/...` on the local store.
     pub files: FileUrls,
@@ -49,11 +49,16 @@ pub struct RenderEnv {
     pub iiif_viewer_theme: String,
 }
 
+/// Where upstream's application assets are served. The fallback thumbnails are
+/// the server's route at this path (`crates/omeka-server/src/assets.rs`), so a
+/// renderer links them here beside whatever prefix the theme's own files use.
+const APPLICATION_ASSET_PATH: &str = "/application/asset";
+
 impl Default for RenderEnv {
     fn default() -> Self {
         Self {
             server_url: "https://example.org".to_string(),
-            asset_base_path: "/application/asset".to_string(),
+            asset_base_path: "/assets".to_string(),
             files: FileUrls::local(""),
             viewer_url: "https://example.org/iiif-viewer".to_string(),
             iiif_viewer_sidebar: false,
@@ -193,8 +198,8 @@ fn thumbnail_url(media: &Media, env: &RenderEnv, kind: ThumbnailType, public: bo
         _ => "default.png",
     };
     format!(
-        "{}{}/thumbnails/{fallback}",
-        env.server_url, env.asset_base_path
+        "{}{APPLICATION_ASSET_PATH}/thumbnails/{fallback}",
+        env.server_url
     )
 }
 
@@ -507,6 +512,38 @@ mod tests {
             "/item/1",
             "/media/1",
         )
+    }
+
+    /// A file with no derivative of its own links upstream's fallback
+    /// thumbnail, which the server serves under `/application/asset`, not
+    /// under the theme's own `/assets` prefix.
+    #[test]
+    fn a_file_without_a_derivative_links_the_application_fallback() {
+        let mut media = crate::testing::media_row(7, "upload", "file");
+        media.media_type = Some("application/msword".into());
+        media.extension = Some("doc".into());
+        media.storage_id = Some("abc123".into());
+        media.has_original = true;
+        let env = RenderEnv {
+            asset_base_path: "/assets".into(),
+            ..RenderEnv::default()
+        };
+        let view = MediaView::new(media, MediaData::None, env, "/item/7", "/media/7");
+        let file_renderers = FileRendererRegistry::with_defaults();
+        let html = RendererRegistry::with_defaults().render(
+            "file",
+            &View {
+                file_renderers: &file_renderers,
+            },
+            &view,
+            &RenderOptions::default(),
+        );
+        assert!(
+            html.contains(
+                "<img src=\"https://example.org/application/asset/thumbnails/default.png\">"
+            ),
+            "{html}"
+        );
     }
 
     /// A page states a download's size in whole bytes, whole kilobytes, or one

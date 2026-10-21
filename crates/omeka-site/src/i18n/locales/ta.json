@@ -62,6 +62,7 @@
   "kind_audio": "ஒலி",
   "kind_video": "காணொளி",
   "kind_pdf": "PDF",
+  "kind_document": "ஆவணம்",
   "kind_model_3d": "3D மாதிரி",
   "kind_captions": "தலைப்புகள்",
   "kind_embed": "உட்பொதி",
