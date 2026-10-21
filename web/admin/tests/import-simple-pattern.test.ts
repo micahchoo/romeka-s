@@ -56,3 +56,64 @@ describe('the marks Simple makes', () => {
     expect(() => markOf('front_12.jpg', 0, { kind: 'words', words: ['front'] })).toThrow();
   });
 });
+
+/** The identifier each name gets under `pattern`, in order; `null` for a name the pattern does not fit. */
+const identifiers = (pattern: string, paths: readonly string[]): readonly (string | null)[] => paths.map((path) => key(pattern, path)?.[0] ?? null);
+
+describe('a changing part glued to the number (A04)', () => {
+  it('splits where a run of digits meets a run of letters, with nothing between the two parts', () => {
+    expect(stemParts('BHC006_GMT_AF_010a.jpg')).toEqual([
+      { text: 'BHC006', sep: '' },
+      { text: 'GMT', sep: '_' },
+      { text: 'AF', sep: '_' },
+      { text: '010', sep: '_' },
+      { text: 'a', sep: '' },
+    ]);
+    expect(stemParts('IMG_0042b.tif').map((part) => part.text)).toEqual(['IMG', '0042', 'b']);
+    expect(stemParts('p12v.jpg').map((part) => part.text)).toEqual(['p12', 'v']);
+    expect(stemParts('BHC006front.jpg').map((part) => part.text)).toEqual(['BHC006', 'front']);
+  });
+
+  it('reads any letters after the number: the views of one object are one item', () => {
+    const mark = markOf('Artifacts/BHC006_GMT_AF_010a.jpg', 4, { kind: 'letters', words: [] });
+    expect(mark).toEqual({ kind: 'letters', text: 'a', sep: '' });
+    const names = ['010a', '010b', '010c', '011a', '011b'].map((code) => `Artifacts/BHC006_GMT_AF_${code}.jpg`);
+    expect(identifiers(patternOf([mark]), names)).toEqual(['BHC006_GMT_AF_010', 'BHC006_GMT_AF_010', 'BHC006_GMT_AF_010', 'BHC006_GMT_AF_011', 'BHC006_GMT_AF_011']);
+    expect(key(patternOf([mark]), 'Artifacts/BHC006_GMT_AF_010c.jpg')).toEqual(['BHC006_GMT_AF_010', 'c']);
+  });
+
+  it('takes letters only where they follow a number, so other names stay whole', () => {
+    const pattern = patternOf([markOf('IMG_0042b.tif', 2, { kind: 'letters', words: [] })]);
+    expect(identifiers(pattern, ['IMG_0042a.tif', 'IMG_0042b.tif', 'IMG_0043.tif', 'notes.txt', 'scan_front.jpg', 'Rebecca.jpg', 'BHC006(1).jpg'])).toEqual([
+      'IMG_0042',
+      'IMG_0042',
+      'IMG_0043',
+      'notes',
+      'scan_front',
+      'Rebecca',
+      'BHC006(1)',
+    ]);
+  });
+
+  it('reads only the ticked words after the number, as in folio 12 recto and verso', () => {
+    const mark = markOf('p12v.jpg', 1, { kind: 'words', words: ['r', 'v'] });
+    expect(mark).toEqual({ kind: 'words', words: ['r', 'v'], sep: '' });
+    expect(identifiers(patternOf([mark]), ['p12r.jpg', 'p12v.jpg', 'p13r.jpg', 'p13x.jpg', 'Gustav.jpg'])).toEqual(['p12', 'p12', 'p13', 'p13x', 'Gustav']);
+  });
+
+  it('beside a mark after a separator, each mark still reads its own place', () => {
+    const pattern = patternOf([
+      markOf('IMG_0042b.tif', 2, { kind: 'letters', words: [] }),
+      markOf('letter 12 front.jpg', 2, { kind: 'words', words: ['front', 'back'] }),
+    ]);
+    expect(identifiers(pattern, ['IMG_0042b.tif', 'letter 12 back.jpg', 'photo front.jpg'])).toEqual(['IMG_0042', 'letter 12', 'photo']);
+  });
+
+  it('leaves names with no letters after a number as they were', () => {
+    expect(stemParts('scan_001.tif').map((part) => part.text)).toEqual(['scan', '001']);
+    const mark = markOf('scan_001.tif', 1, { kind: 'number', words: [] });
+    expect(mark).toEqual({ kind: 'number', text: '001', sep: '_' });
+    expect(patternOf([mark])).toBe('^(?:[^/]*/)*(?<identifier>[^/]+?)(?:_(?<part>\\d+))?(?:\\.[^./]*)?$');
+    expect(identifiers(patternOf([mark]), ['scan_001.tif', 'scan_002.tif'])).toEqual(['scan', 'scan']);
+  });
+});

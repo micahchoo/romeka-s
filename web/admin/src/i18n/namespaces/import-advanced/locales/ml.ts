@@ -49,6 +49,7 @@ export const ml: ImportAdvancedMessages = {
   'adv.files.example.file': 'അടയാളപ്പെടുത്തിയതിൽ',
   'adv.files.example.words': '{words} മാത്രം',
   'adv.files.example.number': '“{text}” സ്ഥാനത്ത് ഏതെങ്കിലും സംഖ്യ',
+  'adv.files.example.letters': '“{text}”-ന് പകരം ഏത് അക്ഷരങ്ങളും',
   'adv.files.example.remove': 'നീക്കം ചെയ്യുക',
   'adv.files.example.removeOne': '{mark} നീക്കം ചെയ്യുക',
   'adv.files.example.writes': 'പാറ്തേൺ ഇതാണ്. ഒരു പാറ്തേൺ നീക്കം ചെയ്താൽ അത് വീണ്ടും എഴുതുന്നു.',
