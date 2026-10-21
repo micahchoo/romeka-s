@@ -1,0 +1,111 @@
+/* The media stage: one control per kind, in a box as wide as a page's text
+ * column. The stage's own chunk carries these rules, so a route that does not
+ * show a media does not download them (PERF.md, Decision 5). */
+.media-stage {
+  margin: 0 0 var(--space-4);
+  max-width: 48rem;
+}
+
+.media-stage-figure {
+  margin: 0;
+}
+
+.media-stage-image {
+  display: block;
+  max-width: 100%;
+  max-height: 32rem;
+  border-radius: var(--radius);
+}
+
+/* A drawing on a checkered backdrop reads as a drawing, not as a photo. */
+.media-stage-image.is-svg {
+  background-color: var(--surface);
+  background-image:
+    linear-gradient(45deg, oklch(0 0 0 / 0.06) 25%, transparent 25%),
+    linear-gradient(-45deg, oklch(0 0 0 / 0.06) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, oklch(0 0 0 / 0.06) 75%),
+    linear-gradient(-45deg, transparent 75%, oklch(0 0 0 / 0.06) 75%);
+  background-position:
+    0 0,
+    0 8px,
+    8px -8px,
+    -8px 0;
+  background-size: 16px 16px;
+}
+
+.media-stage-player {
+  display: block;
+  width: 100%;
+  max-width: 40rem;
+}
+
+.media-stage-pdf {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.media-stage-pdf-object {
+  width: 100%;
+  height: 36rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.media-stage-text {
+  max-height: 20rem;
+  margin: 0;
+  padding: var(--space-2);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* A file, an outside page or a manifest: the stage's card for a media it
+ * cannot draw. It hugs its content, so it does not read as a missing picture. */
+.media-stage-file,
+.media-stage-outside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.media-stage-file p,
+.media-stage-outside p {
+  margin: 0;
+}
+
+.media-stage-file-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.media-stage-file-note,
+.media-stage-empty {
+  color: var(--text-muted);
+}
+
+.media-stage-file-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.media-stage-file-facts span + span::before {
+  content: '\00b7';
+  margin-right: var(--space-2);
+}

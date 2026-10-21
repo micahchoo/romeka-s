@@ -4,9 +4,11 @@
 //! viewers are vendored under `crates/omeka-site/vendor/` by
 //! `vendor/update.sh`, at the versions `NOTICE` records: Mirador for the viewer
 //! page and OpenSeadragon, with its button images, for the IIIF image block and
-//! the IIIF image media renderer; and Leaflet, with its stylesheet, for maps.
-//! They are libraries, so the document frame never links them; the view that
-//! needs one loads it. The webfonts come last, from [`super::fonts`].
+//! the IIIF image media renderer; model-viewer for a 3D file's page, which the
+//! page loads only when the reader asks to turn the model; and Leaflet, with
+//! its stylesheet, for maps. They are libraries, so the document frame never
+//! links them; the view that needs one loads it. The webfonts come last, from
+//! [`super::fonts`].
 
 use super::fonts::FONT_ASSETS;
 use super::style::{PLACEHOLDER_SVG, STYLE_CSS};
@@ -46,7 +48,7 @@ pub(super) static FILES: [ThemeAsset; OWN.len() + FONT_ASSETS.len()] = {
 };
 
 /// The theme's own sheet, placeholder and script, then the vendored files.
-const OWN: [ThemeAsset; 50] = [
+const OWN: [ThemeAsset; 52] = [
     ThemeAsset {
         path: "css/style.css",
         kind: AssetKind::Stylesheet,
@@ -77,10 +79,16 @@ const OWN: [ThemeAsset; 50] = [
         kind: AssetKind::Library,
         content: crate::blocks::carousel::SCRIPT.as_bytes(),
     },
+    ThemeAsset {
+        path: "js/model.js",
+        kind: AssetKind::Library,
+        content: crate::model_reader::SCRIPT.as_bytes(),
+    },
     vendored!(Library, "leaflet/leaflet.js"),
     vendored!(LibraryStylesheet, "leaflet/leaflet.css"),
     vendored!(Library, "mirador/mirador.min.js"),
     vendored!(Library, "openseadragon/openseadragon.min.js"),
+    vendored!(Library, "model-viewer/model-viewer-umd.min.js"),
     png!("button_grouphover.png"),
     png!("button_hover.png"),
     png!("button_pressed.png"),

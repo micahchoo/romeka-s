@@ -517,16 +517,6 @@ dd {
   font-size: 12px;
 }
 
-.media-hero-frame {
-  margin: 0 0 var(--space-4);
-}
-
-.media-hero {
-  width: 100%;
-  max-width: 40rem;
-  height: auto;
-}
-
 .derivative-list {
   display: flex;
   flex-wrap: wrap;

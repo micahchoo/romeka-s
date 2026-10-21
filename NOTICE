@@ -33,9 +33,9 @@ Tamil, Telugu, Kannada and Malayalam. They are the WOFF2 subsets Fontsource 5.3 
 unmodified. Each is licensed under the SIL Open Font License, Version 1.1; the copyright lines and
 the license text are in `crates/omeka-site/src/theme/fonts/OFL.txt`.
 
-The public site's IIIF viewers and maps are vendored under `crates/omeka-site/vendor/` by
-`crates/omeka-site/vendor/update.sh`, each beside its own license file, unmodified but for the
-removed source-map comment, and served from `/assets/vendor/`:
+The public site's IIIF viewers, 3D viewer and maps are vendored under
+`crates/omeka-site/vendor/` by `crates/omeka-site/vendor/update.sh`, each beside its own license
+file, unmodified but for the removed source-map comment, and served from `/assets/vendor/`:
 
   Mirador 4.3.0        https://github.com/ProjectMirador/mirador    Apache License 2.0
                        Copyright the Board of Trustees of the Leland Stanford Junior University
@@ -45,6 +45,10 @@ removed source-map comment, and served from `/assets/vendor/`:
                        Copyright (C) 2009 CodePlex Foundation,
                        Copyright (C) 2010-2024 OpenSeadragon contributors
                        (`build/openseadragon/openseadragon.min.js` and its button images)
+  model-viewer 4.4.0   https://github.com/google/model-viewer       Apache License 2.0
+                       Copyright 2018 Google LLC
+                       (the UMD bundle `dist/model-viewer-umd.min.js`, which carries three
+                       and its other third-party dependencies)
   Leaflet 1.9.4        https://github.com/Leaflet/Leaflet           BSD 2-Clause License
                        Copyright (c) 2010-2023, Volodymyr Agafonkin,
                        Copyright (c) 2010-2011, CloudMade

@@ -67,9 +67,10 @@ test('a media row opens its show page with the large thumbnail and the original'
   await page.getByRole('link', { name: MEDIA_FILE }).click();
   await expect(page).toHaveURL(/#\/media\/\d+$/);
 
-  const hero = page.locator('img.media-hero');
+  // The stage's picture, which is the large derivative (see the media stage spec).
+  const hero = page.locator('img.media-stage-image');
   await expect(hero).toBeVisible();
-  const src = await srcOf(hero, 'the media show page has no hero src');
+  const src = await srcOf(hero, 'the media show page has no stage src');
   expect(src.startsWith(`${readHarness().baseUrl}/files/large/`)).toBe(true);
 
   // The bytes are a real image, not just a 200 from a file store. The large
@@ -255,6 +256,125 @@ test('a PDF first page is the media list thumbnail', async ({ page, diagnostics 
   expect(pageImage.status()).toBe(200);
   expect(pageImage.headers()['content-type']).toBe('image/jpeg');
   await expectClean(diagnostics, 'PDF first page');
+});
+
+/** The only file's id on the item `item`. */
+const mediaIdOf = async (request: APIRequestContext, item: number): Promise<number> => {
+  const answer = await request.get(`/api/items/${String(item)}`);
+  expect(answer.status(), await answer.text()).toBe(200);
+  const doc = record(await answer.json(), 'item');
+  const media = doc['o:media'];
+  if (!isArray(media) || media.length === 0) {
+    throw new Error('the item has no media');
+  }
+  return numberField(record(media[0], 'media'), 'o:id', 'media');
+};
+
+/** A policy with no `unsafe-eval`: the vendored viewer must run under it. */
+const PAGE_POLICY =
+  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+  "img-src 'self' data: blob:; connect-src 'self' blob:; font-src 'self'";
+
+test('a PDF file page draws the browser reader and keeps the card for a phone', async ({
+  page,
+  diagnostics,
+}) => {
+  const item = await uploadItem(page.request, 'doc.pdf', 'application/pdf');
+  const media = await mediaIdOf(page.request, item);
+  await page.goto(`/s/${SITE_SLUG}/media/${String(media)}`);
+
+  const reader = page.locator('.pdf-object');
+  await expect(reader).toBeVisible();
+  await expect(reader).toHaveAttribute('type', 'application/pdf');
+  const source = await reader.getAttribute('data');
+  expect(source).toMatch(/\/files\/original\/[\da-f]+\.pdf$/);
+  // The harness serves the stored bytes with a generic type, where the deployed
+  // origin sends the stored `o:media_type`; the object names the type it needs.
+  const answer = await page.request.get(source ?? '');
+  expect(answer.status()).toBe(200);
+
+  // A phone cannot draw a scrollable inline PDF, so the card waits for the
+  // rule that swaps the two; on a desktop it stays out of the way.
+  await expect(page.locator('.pdf-reader-page > .pdf-card')).toBeHidden();
+  await expect(page.locator('.pdf-object .pdf-card')).toHaveCount(1);
+  await expectClean(diagnostics, 'PDF file page');
+});
+
+test.describe('on a phone', () => {
+  // Pixel 5: a coarse pointer under 40rem, which is where the card rule starts.
+  test.use({ viewport: { width: 393, height: 851 }, deviceScaleFactor: 2.75, isMobile: true, hasTouch: true });
+
+  test('a PDF file page shows the card instead of the reader', async ({ page }) => {
+    const item = await uploadItem(page.request, 'doc.pdf', 'application/pdf');
+    const media = await mediaIdOf(page.request, item);
+    await page.goto(`/s/${SITE_SLUG}/media/${String(media)}`);
+
+    await expect(page.locator('.pdf-object')).toBeHidden();
+    const card = page.locator('.pdf-reader-page > .pdf-card');
+    await expect(card).toBeVisible();
+    await expect(card).toContainText('PDF ·');
+    const href = await card.getAttribute('href');
+    const answer = await page.request.get(href ?? '');
+    expect(answer.status()).toBe(200);
+  });
+});
+
+test('a 3D file loads its viewer only when the reader asks, under the site policy', async ({
+  page,
+}) => {
+  const item = await uploadItem(page.request, 'model.glb', 'model/gltf-binary');
+  const media = await mediaIdOf(page.request, item);
+
+  const library: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/model-viewer-umd.min.js')) {
+      library.push(request.url());
+    }
+  });
+  // Chromium reports a blocked script or a refused eval as a console error, so
+  // the policy's own report is the evidence: no violation may name the viewer.
+  const reported: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') {
+      reported.push(message.text());
+    }
+  });
+  page.on('pageerror', (error) => {
+    reported.push(error.message);
+  });
+  await page.route('**/s/**', async (route) => {
+    if (route.request().resourceType() !== 'document') {
+      await route.continue();
+      return;
+    }
+    await route.continue({
+      headers: { ...route.request().headers(), 'content-security-policy': PAGE_POLICY },
+    });
+  });
+
+  await page.goto(`/s/${SITE_SLUG}/media/${String(media)}`);
+  const button = page.getByRole('button', { name: /Turn the model \(loads the 3D viewer, \d+ KB\)/ });
+  await expect(button).toBeVisible();
+  // The poster is on the page and the model's bytes are not.
+  await expect(page.locator('model-viewer')).toBeHidden();
+  expect(library, 'the viewer loaded before the reader asked').toEqual([]);
+
+  const arriving = page.waitForResponse((response) =>
+    response.url().includes('/model-viewer-umd.min.js'),
+  );
+  await button.click();
+  expect((await arriving).status()).toBe(200);
+  await expect(page.locator('model-viewer')).toBeVisible();
+  // The facade marks the reader once the model itself has loaded, which is the
+  // proof that the press downloaded the bytes and they decoded.
+  await expect(page.locator('[data-model-reader]')).toHaveAttribute('data-model-loaded', '');
+  expect(
+    await page.evaluate(() => window.customElements.get('model-viewer') !== undefined),
+  ).toBe(true);
+  const violations = reported.filter((text) =>
+    /content security policy|unsafe-eval|refused to/i.test(text),
+  );
+  expect(violations).toEqual([]);
 });
 
 test('a public item card names the kind of its first file', async ({ page, diagnostics }) => {

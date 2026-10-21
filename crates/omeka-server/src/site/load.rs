@@ -8,6 +8,11 @@
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
+use std::io::Write as _;
+use std::sync::LazyLock;
+
+use flate2::Compression;
+use flate2::write::GzEncoder;
 
 use omeka_api::jsonld::BaseUrl;
 use omeka_api::read::catalog::Catalog;
@@ -36,7 +41,7 @@ use omeka_db::rows::{
 use omeka_db::with_db;
 use omeka_site::blocks::page_card::{self, CardImage};
 use omeka_site::blocks::parse::parse_block_data;
-use omeka_site::i18n::Messages;
+use omeka_site::i18n::{Messages, sprintf1};
 use omeka_site::nav::PageRef;
 use omeka_site::resource_page::link_pretty;
 use omeka_site::search::SearchHit;
@@ -52,7 +57,8 @@ use omeka_media::data::MediaData;
 use omeka_media::file_render::{FileRendererRegistry, LinkType, ThumbnailType};
 use omeka_media::kind::{CanvasBody, KindInput, MediaKind};
 use omeka_media::render::{
-    MediaView, RenderEnv, RenderOptions, RendererRegistry, View as MediaRendererView,
+    MediaView, ModelReader, RenderEnv, RenderOptions, RendererRegistry, View as MediaRendererView,
+    human_size,
 };
 use omeka_media::store::{FileKind, FileUrls, download_name};
 
@@ -173,6 +179,29 @@ impl LoadedRow {
 
 /// Where the bundled theme's files are served (`crate::assets`).
 const ASSET_BASE: &str = "/assets";
+
+/// The vendored 3D viewer a model file's page loads when the reader presses
+/// "Turn the model".
+const MODEL_VIEWER_LIBRARY: &str = "vendor/model-viewer/model-viewer-umd.min.js";
+
+/// The viewer's download: the vendored bytes gzipped the way the asset route
+/// sends them to a browser. The bytes are compiled in, so one process pays the
+/// compression once.
+static MODEL_VIEWER_BYTES: LazyLock<u64> = LazyLock::new(|| {
+    omeka_site::theme::theme_asset(omeka_site::theme::DEFAULT_INFO.name, MODEL_VIEWER_LIBRARY)
+        .map_or(0, |asset| gzipped_len(asset.content))
+});
+
+/// The length of `bytes` after a gzip round at the level the HTTP layer uses.
+fn gzipped_len(bytes: &[u8]) -> u64 {
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+    if encoder.write_all(bytes).is_err() {
+        return bytes.len() as u64;
+    }
+    encoder
+        .finish()
+        .map_or(bytes.len() as u64, |out| out.len() as u64)
+}
 
 /// The read side of one site render: the pool, the base URL, the property
 /// catalog, the site being served, and the caller's visibility facts.
@@ -586,21 +615,38 @@ impl<'a> Loader<'a> {
         // `await` would make the site handler's future non-`Send`.
         let renderers = RendererRegistry::with_defaults();
         let file_renderers = FileRendererRegistry::with_defaults();
+        // A 3D file gets the viewer only on the page that shows it, and the
+        // reader starts the download: the renderer emits a facade, and the
+        // theme's script loads the library when the button is pressed.
+        let is_model = MediaKind::of(&KindInput {
+            renderer: &row.renderer,
+            ingester: &row.ingester,
+            media_type: row.media_type.as_deref(),
+            has_thumbnails: row.has_thumbnails,
+        }) == MediaKind::Model3d;
+        let mut options = options.clone();
+        if is_model {
+            options.model_reader = self.model_reader();
+        }
         let rendered = renderers.render(
             &row.renderer,
             &MediaRendererView {
                 file_renderers: &file_renderers,
             },
             &view,
-            options,
+            &options,
         );
         // `Renderer/IIIF.php` appends OpenSeadragon to `headScript`; the theme
-        // owns the head here, so the embed loads the library it calls.
+        // owns the head here, so the embed loads the library it calls. The 3D
+        // facade is a theme script for the same reason: no inline code and no
+        // library before the reader asks for the model.
         let library = if row.renderer == "iiif" {
             omeka_site::theme::library_script(
                 ASSET_BASE,
                 "vendor/openseadragon/openseadragon.min.js",
             )
+        } else if is_model {
+            omeka_site::theme::library_script(ASSET_BASE, "js/model.js")
         } else {
             String::new()
         };
@@ -614,6 +660,22 @@ impl<'a> Loader<'a> {
                 "<div class=\"media-render {}\">{library}{rendered}</div>",
                 row.renderer
             )),
+        })
+    }
+
+    /// The 3D viewer a model file offers on the reader's press: the vendored
+    /// library's versioned URL, the size it downloads, and the site's words for
+    /// the facade. `None` when the theme ships no such library, so the renderer
+    /// offers the file as a link rather than a button that cannot work.
+    fn model_reader(&self) -> Option<ModelReader> {
+        omeka_site::theme::theme_asset(omeka_site::theme::DEFAULT_INFO.name, MODEL_VIEWER_LIBRARY)?;
+        let messages = self.messages();
+        Some(ModelReader {
+            library_url: omeka_site::theme::library_url(ASSET_BASE, MODEL_VIEWER_LIBRARY),
+            turn: sprintf1(messages.model_turn, &human_size(*MODEL_VIEWER_BYTES)),
+            loading: messages.model_loading.to_string(),
+            failed: messages.model_failed.to_string(),
+            no_javascript: messages.model_no_javascript.to_string(),
         })
     }
 
@@ -675,10 +737,19 @@ impl<'a> Loader<'a> {
         view.media_position = self.media_position(row).await?;
         // `mediaRender.phtml`: `$resource->render()` on the media itself, with
         // the renderer's own defaults (the large thumbnail, linked to the
-        // original).
+        // original). This is the file's own page, so a document may draw its
+        // reader here and nowhere else.
         view.media_embeds.push(
-            self.media_ref(row, &item_url, item_is_public, &RenderOptions::default())
-                .await?,
+            self.media_ref(
+                row,
+                &item_url,
+                item_is_public,
+                &RenderOptions {
+                    reader: true,
+                    ..RenderOptions::default()
+                },
+            )
+            .await?,
         );
         Ok(view)
     }
