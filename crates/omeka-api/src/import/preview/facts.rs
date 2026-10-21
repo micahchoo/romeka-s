@@ -13,12 +13,12 @@ use std::collections::{BTreeSet, HashMap};
 use omeka_media::kind as media;
 use serde::{Deserialize, Serialize};
 
-use super::query::{FlagsBy, Page, PageQuery, RecordView, page};
+use super::query::{Page, PageQuery, RecordView, Views, page};
 use super::sample::sample;
 use crate::import::evidence::FileEntry;
 use crate::import::grouping::pattern::{FilePattern, PART};
 use crate::import::model::{GroupKey, Model, Origin, Record};
-use crate::import::plan::{ImportPlan, RecordKind};
+use crate::import::plan::{ImportPlan, Placement, RecordKind, Structure};
 use crate::import::scan::StoredIndex;
 
 /// The pattern group that numbers the pages of one item.
@@ -159,17 +159,25 @@ pub struct ShapeFacts {
     pub pages: Option<Vec<String>>,
 }
 
-/// What the facts read besides the model: each file's index entry, and the
-/// pattern when it has a `part` or `page` group.
+/// What the facts read besides the model: each file's index entry, the
+/// structure that places a file in its series, and each series' pattern
+/// when it has a `part` or `page` group.
 pub(super) struct Facts<'d> {
     entries: HashMap<(&'d str, &'d str), &'d FileEntry>,
-    pattern: Option<FilePattern>,
+    structure: &'d Structure,
+    /// By [`SeriesIx::index`](crate::import::plan::SeriesIx::index).
+    parts: Vec<Option<PartsOf>>,
+}
+
+/// A series' pattern and which of the `part` and `page` groups it has.
+struct PartsOf {
+    pattern: FilePattern,
     parts: bool,
     pages: bool,
 }
 
 impl<'d> Facts<'d> {
-    pub(super) fn new(plan: &ImportPlan, stored: &'d StoredIndex) -> Self {
+    pub(super) fn new(plan: &'d ImportPlan, stored: &'d StoredIndex) -> Self {
         let entries = stored
             .index
             .sources
@@ -182,27 +190,38 @@ impl<'d> Facts<'d> {
                     .map(move |entry| ((source.id.0.as_str(), entry.path.as_str()), entry))
             })
             .collect();
-        let first = plan.structure.all_series().next();
-        let pattern = first.and_then(|(_, series)| FilePattern::compile(series.pattern()).ok());
-        let has = |name: &str| {
-            pattern
-                .as_ref()
-                .is_some_and(|pattern| pattern.group_names().iter().any(|group| group == name))
-        };
-        let (parts, pages) = (has(PART), has(PAGE));
+        let parts = plan
+            .structure
+            .all_series()
+            .map(|(_, series)| {
+                let pattern = FilePattern::compile(series.pattern()).ok()?;
+                let has = |name: &str| pattern.group_names().iter().any(|group| group == name);
+                let (parts, pages) = (has(PART), has(PAGE));
+                (parts || pages).then_some(PartsOf {
+                    pattern,
+                    parts,
+                    pages,
+                })
+            })
+            .collect();
         Self {
             entries,
-            pattern: pattern.filter(|_| parts || pages),
+            structure: &plan.structure,
             parts,
-            pages,
         }
     }
 
-    /// The facts of an item record; `None` for any other kind.
+    /// The facts of an item record; `None` for any other kind. The `part`
+    /// and `page` texts are its own series' pattern's, read from each
+    /// file's path as that series' pattern matches it.
     pub(super) fn shape(&self, record: &Record) -> Option<ShapeFacts> {
         if record.kind != RecordKind::Item {
             return None;
         }
+        let read = self
+            .parts
+            .get(record.series.index())
+            .and_then(Option::as_ref);
         let mut folders = BTreeSet::new();
         let mut media = BTreeSet::new();
         let mut parts = BTreeSet::new();
@@ -213,7 +232,14 @@ impl<'d> Facts<'d> {
             if let Some(entry) = self.entries.get(&(file.source.0.as_str(), path)) {
                 media.insert(MediaKind::of(&entry.sniffed, path));
             }
-            if let Some(groups) = self.pattern.as_ref().and_then(|p| p.groups(path)) {
+            let groups =
+                read.and_then(
+                    |read| match self.structure.place(&file.source, &file.path) {
+                        Placement::Series { path, .. } => read.pattern.groups(path),
+                        Placement::Outside => None,
+                    },
+                );
+            if let Some(groups) = groups {
                 if let Some(part) = groups.get(PART) {
                     parts.insert(part.text.clone());
                 }
@@ -228,8 +254,12 @@ impl<'d> Facts<'d> {
             media: media.into_iter().collect(),
             origin: ItemOrigin::of(&record.origin),
             row: !record.rows.is_empty(),
-            parts: self.parts.then(|| parts.into_iter().collect()),
-            pages: self.pages.then(|| pages.into_iter().collect()),
+            parts: read
+                .is_some_and(|read| read.parts)
+                .then(|| parts.into_iter().collect()),
+            pages: read
+                .is_some_and(|read| read.pages)
+                .then(|| pages.into_iter().collect()),
         })
     }
 }
@@ -264,7 +294,7 @@ pub struct BucketCount {
 pub(super) fn shapes(
     model: &Model,
     facts: &Facts<'_>,
-    flags: &FlagsBy<'_>,
+    views: &Views<'_>,
     query: &PageQuery,
     seed: u64,
 ) -> Shapes {
@@ -296,7 +326,7 @@ pub(super) fn shapes(
                     SAMPLES,
                 )
                 .into_iter()
-                .map(|record| flags.record_view(record))
+                .map(|record| views.view(record))
                 .collect(),
                 facts,
                 count,

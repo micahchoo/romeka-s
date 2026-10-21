@@ -26,8 +26,8 @@ use crate::import::archive::SourceDir;
 use crate::import::join::cell;
 use crate::import::model::{GroupKey, Origin};
 use crate::import::plan::{
-    Auto, Delimiter, EncodingChoice, JoinOn, Quote, ReadOptions, RecordKind, RelPath, RowKind,
-    SheetId, SheetPlan, SourceId,
+    Auto, Delimiter, EncodingChoice, JoinOn, LevelId, Quote, ReadOptions, RecordKind, RelPath,
+    RowKind, SheetId, SheetPlan, SourceId,
 };
 use crate::import::sheet::Sheet;
 
@@ -38,6 +38,9 @@ pub struct ListCandidate {
     pub file: RelPath,
     /// The plan sheet that reads this file.
     pub in_plan: Option<SheetId>,
+    /// The series that holds that sheet; only in a plan of several series.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub series: Option<LevelId>,
     pub read: CandidateRead,
     /// 0 when the list did not read.
     pub rows: usize,
@@ -211,15 +214,15 @@ fn candidate<'d>(
     dir: &SourceDir,
     file: &RelPath,
 ) -> (ListCandidate, HashSet<&'d GroupKey>) {
+    let structure = &derived.plan.structure;
+    let held = structure
+        .lists()
+        .find(|(_, sheet)| sheet.source == *source && sheet.file == *file);
     let mut candidate = ListCandidate {
         source: source.clone(),
         file: file.clone(),
-        in_plan: derived
-            .plan
-            .structure
-            .lists()
-            .find(|(_, sheet)| sheet.source == *source && sheet.file == *file)
-            .map(|(_, sheet)| sheet.id.clone()),
+        in_plan: held.map(|(_, sheet)| sheet.id.clone()),
+        series: held.and_then(|(at, _)| structure.series_names()[at.index()].cloned()),
         read: CandidateRead::Ok,
         rows: 0,
         columns: 0,

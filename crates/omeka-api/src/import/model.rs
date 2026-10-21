@@ -66,14 +66,11 @@ pub(crate) struct PatternKeys(Vec<Option<LevelId>>);
 impl PatternKeys {
     #[must_use]
     pub(crate) fn new(structure: &Structure) -> Self {
-        let ids: Vec<&LevelId> = structure
-            .all_series()
-            .map(|(_, series)| series.id())
-            .collect();
-        let several = ids.len() > 1;
         Self(
-            ids.into_iter()
-                .map(|id| several.then(|| id.clone()))
+            structure
+                .series_names()
+                .into_iter()
+                .map(Option::<&LevelId>::cloned)
                 .collect(),
         )
     }
@@ -418,7 +415,13 @@ pub enum PatternState {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Model {
+    /// The first series' pattern state, as v2 had one.
     pub pattern: PatternState,
+    /// Each series' pattern state, by [`SeriesIx::index`]. The digest
+    /// leaves it out: the first is `pattern`, and a plan of one series
+    /// keeps v2's digest.
+    #[serde(skip)]
+    pub patterns: Vec<PatternState>,
     pub records: Vec<Record>,
     pub entries: Vec<EntryState>,
     pub new_sets: Vec<NewSet>,

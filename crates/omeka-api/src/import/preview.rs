@@ -63,11 +63,11 @@ use super::decisions::EntryRef;
 use super::derive::{FileTags, Sheets, derive};
 use super::evidence::FileEntry;
 use super::model::{Anomaly, Model, OrphanReason, PatternState};
-use super::plan::{ImportPlan, SheetId, SourceId, SourcePlan, TagId};
+use super::plan::{ImportPlan, LevelId, SheetId, SourceId, SourcePlan, TagId};
 use super::scan::{self, IndexCache, SourceState, StoredIndex};
 use super::tags::{Embedded, TagCache};
 use facts::Facts;
-use query::FlagsBy;
+use query::Views;
 
 /// How many files the `tags` section reads tags from.
 pub const TAG_SAMPLES: usize = 5;
@@ -139,13 +139,26 @@ pub struct OrphanView {
     pub entry: EntryRef,
 }
 
-/// The answer: every source's scan state and the pattern's state, then
-/// each section the request named.
+/// One series' pattern state.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SeriesPattern {
+    pub series: LevelId,
+    pub pattern: PatternState,
+}
+
+/// The answer: every source's scan state and the first series' pattern
+/// state, each series' in a plan of several, then each section the request
+/// named.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Preview {
     pub sources: Vec<SourceState>,
     pub pattern: PatternState,
+    /// Each series' pattern state, in plan order; only in a plan of several
+    /// series, so a v2 admin reads the answer it knows.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub patterns: Option<Vec<SeriesPattern>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub entries: Option<Page<EntryView>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -294,23 +307,28 @@ pub fn preview(derived: &Derived, request: &PreviewRequest) -> Preview {
     let model = &derived.model;
     let wants = |section| request.include.contains(&section);
     let seed = request.seed.unwrap_or(0);
-    let flags = (wants(Section::Entries) || wants(Section::Records) || wants(Section::Shapes))
-        .then(|| FlagsBy::new(model));
+    let views = (wants(Section::Entries) || wants(Section::Records) || wants(Section::Shapes))
+        .then(|| Views::new(model, &derived.plan.structure, &derived.catalog));
     let records_query = request.records.clone().unwrap_or_default();
     let facts = (wants(Section::Shapes)
         || (wants(Section::Records) && records_query.shape.is_some()))
     .then(|| Facts::new(&derived.plan, &derived.stored));
-    let flags_for = |section| flags.as_ref().filter(|_| wants(section));
+    let views_for = |section| views.as_ref().filter(|_| wants(section));
     Preview {
         sources: derived.stored.sources.clone(),
         pattern: model.pattern.clone(),
-        entries: flags_for(Section::Entries).map(|flags| {
-            query::entries(model, &request.entries.clone().unwrap_or_default(), flags)
+        patterns: series_patterns(&derived.plan, model),
+        entries: views_for(Section::Entries).map(|views| {
+            query::entries(
+                model,
+                &request.entries.clone().unwrap_or_default(),
+                &views.flags,
+            )
         }),
         sheets: wants(Section::Sheets).then(|| evidence::sheet_views(derived)),
         tags: wants(Section::Tags).then(|| evidence::tag_views(derived)),
-        records: flags_for(Section::Records)
-            .map(|flags| query::records(model, &records_query, flags, facts.as_ref())),
+        records: views_for(Section::Records)
+            .map(|views| query::records(model, &records_query, views, facts.as_ref())),
         flags: wants(Section::Flags).then(|| causes::flag_counts(model, seed)),
         anomalies: wants(Section::Anomalies).then(|| model.anomalies.clone()),
         orphans: wants(Section::Orphans).then(|| {
@@ -325,11 +343,11 @@ pub fn preview(derived: &Derived, request: &PreviewRequest) -> Preview {
                 .collect()
         }),
         check: wants(Section::Check).then(|| check(&derived.plan, model)),
-        shapes: flags_for(Section::Shapes)
+        shapes: views_for(Section::Shapes)
             .zip(facts.as_ref())
-            .map(|(flags, facts)| {
+            .map(|(views, facts)| {
                 let query = request.shapes.clone().unwrap_or_default();
-                facts::shapes(model, facts, flags, &query, seed)
+                facts::shapes(model, facts, views, &query, seed)
             }),
         histogram: wants(Section::Histogram).then(|| facts::histogram(model)),
         identical: wants(Section::Identical).then(|| {
@@ -352,6 +370,20 @@ pub fn preview(derived: &Derived, request: &PreviewRequest) -> Preview {
         list_candidates: wants(Section::ListCandidates)
             .then(|| candidates::list_candidates(derived)),
     }
+}
+
+fn series_patterns(plan: &ImportPlan, model: &Model) -> Option<Vec<SeriesPattern>> {
+    plan.structure
+        .series_names()
+        .into_iter()
+        .zip(&model.patterns)
+        .map(|(series, pattern)| {
+            Some(SeriesPattern {
+                series: series?.clone(),
+                pattern: pattern.clone(),
+            })
+        })
+        .collect()
 }
 
 #[cfg(test)]
