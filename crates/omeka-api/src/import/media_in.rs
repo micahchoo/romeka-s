@@ -222,7 +222,7 @@ fn stream_file(
         hasher: Sha256::new(),
     };
     let written = store
-        .put_stream(&mut reader, size, &original)
+        .put_stream(&mut reader, size, &original, Some(&media_type))
         .map_err(|error| match error {
             omeka_media::store::StoreError::Io { source, .. } if source.get_ref().is_some() => {
                 ArrivalError::Unreadable(FetchError::from_body(&source).message)

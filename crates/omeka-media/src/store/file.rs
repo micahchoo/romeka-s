@@ -61,7 +61,12 @@ impl FileStore {
 }
 
 impl Store for FileStore {
-    fn put(&self, bytes: &[u8], storage_path: &str) -> Result<(), StoreError> {
+    fn put(
+        &self,
+        bytes: &[u8],
+        storage_path: &str,
+        _media_type: Option<&str>,
+    ) -> Result<(), StoreError> {
         self.write_atomic(storage_path, |file| file.write_all(bytes))
     }
 
@@ -70,6 +75,7 @@ impl Store for FileStore {
         reader: &mut dyn Read,
         _size_hint: Option<u64>,
         storage_path: &str,
+        _media_type: Option<&str>,
     ) -> Result<u64, StoreError> {
         self.write_atomic(storage_path, |file| {
             let mut buffer = vec![0; STREAM_CHUNK];
@@ -218,7 +224,7 @@ mod tests {
             "abc123",
             Some("jpg"),
         );
-        store.put(b"thumb", &path).expect("put");
+        store.put(b"thumb", &path, None).expect("put");
         assert_eq!(store.read(&path).expect("read"), b"thumb");
         let names: Vec<String> = std::fs::read_dir(root.path().join("large"))
             .expect("directory")
@@ -248,7 +254,7 @@ mod tests {
         }
         let root = tempfile::tempdir().expect("tempdir");
         let store = FileStore::new(root.path(), "/files");
-        let result = store.put_stream(&mut Failing(false), None, "original/partial.bin");
+        let result = store.put_stream(&mut Failing(false), None, "original/partial.bin", None);
         assert!(matches!(result, Err(StoreError::Io { .. })), "{result:?}");
         assert!(!store.exists("original/partial.bin").expect("exists"));
         assert_eq!(
@@ -268,7 +274,7 @@ mod tests {
         let outside = tempfile::tempdir().expect("outside");
         std::fs::write(outside.path().join("secret"), b"x").expect("secret");
         let store = FileStore::new(root.path(), "/files");
-        store.put(b"x", "original/real.jpg").expect("put");
+        store.put(b"x", "original/real.jpg", None).expect("put");
         let original = root.path().join("original");
         std::os::unix::fs::symlink(outside.path().join("secret"), original.join("link.jpg"))
             .expect("file link");

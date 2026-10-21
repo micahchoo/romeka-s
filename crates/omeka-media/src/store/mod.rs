@@ -45,11 +45,17 @@ use crate::file_render::ThumbnailType;
 
 pub use file::FileStore;
 pub use s3::{S3Config, S3ConfigError, S3Store};
-pub use urls::{FileKind, FileUrls};
+pub use urls::{Download, FileKind, FileUrls, content_disposition, download_name};
 
-/// How long a signed URL stays valid when the store sets nothing else:
-/// 15 minutes, the default of `ROMEKA_S3_URL_TTL_SECS`.
-pub const DEFAULT_URL_TTL: Duration = Duration::from_secs(15 * 60);
+/// How long a signed URL stays valid when the store sets nothing else: four
+/// hours, the default of `ROMEKA_S3_URL_TTL_SECS`.
+///
+/// A browser plays a video by making ranged requests to the one URL the page
+/// rendered, so the URL must outlast the longest single viewing, including a
+/// pause. Four hours covers a long film or lecture with room to spare, where
+/// the previous fifteen minutes cut a seek off mid-playback. It is still
+/// bounded: a URL copied out of a document stops working the same day.
+pub const DEFAULT_URL_TTL: Duration = Duration::from_secs(4 * 60 * 60);
 
 /// Where stored bytes live. One instance serves the process, chosen at
 /// startup, so callers hold an `Arc<dyn Store>`.
@@ -61,13 +67,23 @@ pub trait Store: Send + Sync + std::fmt::Debug {
     /// Write `bytes` at `storage_path`, replacing any file there. A reader sees
     /// the old file or the new one, never a partial write (`Local::put`).
     ///
+    /// `media_type` is the object's type: an object store sends it as the
+    /// object's `Content-Type`, so a fetch without an override answers with it.
+    /// The local store keeps no metadata, so it ignores it.
+    ///
     /// # Errors
     /// [`StoreError`] when the path is illegal or the write fails.
-    fn put(&self, bytes: &[u8], storage_path: &str) -> Result<(), StoreError>;
+    fn put(
+        &self,
+        bytes: &[u8],
+        storage_path: &str,
+        media_type: Option<&str>,
+    ) -> Result<(), StoreError>;
 
     /// Write everything `reader` yields at `storage_path`, in bounded chunks,
     /// and answer the byte count. `size_hint` is the expected length when the
-    /// caller knows it. Replaces like [`Store::put`].
+    /// caller knows it. `media_type` is what [`Store::put`] takes. Replaces
+    /// like [`Store::put`].
     ///
     /// # Errors
     /// [`StoreError`] when the path is illegal, the reader fails or the write
@@ -77,6 +93,7 @@ pub trait Store: Send + Sync + std::fmt::Debug {
         reader: &mut dyn Read,
         size_hint: Option<u64>,
         storage_path: &str,
+        media_type: Option<&str>,
     ) -> Result<u64, StoreError>;
 
     /// Read a whole stored file.
@@ -116,6 +133,17 @@ pub trait Store: Send + Sync + std::fmt::Debug {
     /// The URL a client fetches the file from (`Local::getUri`).
     fn url(&self, storage_path: &str, access: Access) -> String;
 
+    /// The URL of an original, which answers with `download`'s type and name.
+    ///
+    /// An object store signs both into the URL, so a bucket stops answering
+    /// every original as `binary/octet-stream`. The local store answers a path
+    /// and the origin sets the two headers from its own lookup, so the default
+    /// is the plain URL.
+    fn download_url(&self, storage_path: &str, access: Access, download: &Download) -> String {
+        let _ = download;
+        self.url(storage_path, access)
+    }
+
     /// How long the signed URLs the API and the site render stay valid.
     fn url_ttl(&self) -> Duration {
         DEFAULT_URL_TTL
@@ -133,6 +161,10 @@ pub enum Access {
         ttl: Duration,
     },
 }
+
+/// The type of every stored thumbnail: `TempFile::storeThumbnails` always
+/// writes a JPEG, whatever the original.
+pub const THUMBNAIL_MEDIA_TYPE: &str = "image/jpeg";
 
 /// Which part of the tree a stored file belongs to
 /// (`TempFile::storeOriginal`, `storeAsset`, `storeThumbnails`).

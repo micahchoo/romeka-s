@@ -118,7 +118,7 @@ pub(super) async fn upload(
                 let file =
                     RelPath::parse(&format!("lists/{next}.{extension}")).map_err(internal)?;
                 store
-                    .put(&bytes, &staging_path(import, &file))
+                    .put(&bytes, &staging_path(import, &file), None)
                     .map_err(internal)?;
                 Ok(file)
             })

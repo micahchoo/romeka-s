@@ -352,7 +352,9 @@ mod tests {
                 .read_stored(&plan("lists/1.csv"), &store, &path)
                 .is_none()
         );
-        store.put("Id,Title\nA1,दीपक\n".as_bytes(), &path).unwrap();
+        store
+            .put("Id,Title\nA1,दीपक\n".as_bytes(), &path, None)
+            .unwrap();
         let first = cache
             .read_stored(&plan("lists/1.csv"), &store, &path)
             .expect("stored");

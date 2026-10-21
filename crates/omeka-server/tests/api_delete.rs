@@ -196,9 +196,13 @@ async fn deleting_a_media_removes_the_stored_file() {
         .iter()
         .map(|kind| storage_path(StorePrefix::Thumbnail(*kind), MEDIA_STORAGE_ID, Some("jpg")))
         .collect();
-    store.put(b"original", &original).expect("put original");
+    store
+        .put(b"original", &original, None)
+        .expect("put original");
     for path in &thumbnails {
-        store.put(b"thumbnail", path).expect("put thumbnail");
+        store
+            .put(b"thumbnail", path, Some("image/jpeg"))
+            .expect("put thumbnail");
     }
 
     let app = common::router_with_store(pool, store.clone());

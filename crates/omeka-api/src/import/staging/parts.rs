@@ -25,7 +25,7 @@ pub(super) fn write_part(
         left,
         over: Arc::clone(&over),
     };
-    match store.put_stream(&mut limited, None, part) {
+    match store.put_stream(&mut limited, None, part, None) {
         Ok(written) => Ok(written),
         Err(_) if over.load(Ordering::Relaxed) => Err(StagingError::PastLength { length }),
         Err(StoreError::Io { source, .. }) => Err(StagingError::Interrupted(source.to_string())),
@@ -70,7 +70,7 @@ pub(super) fn join_parts(
         parts: parts.into_iter(),
         current: None,
     };
-    let written = store.put_stream(&mut joined, Some(length), &file_path(import, upload))?;
+    let written = store.put_stream(&mut joined, Some(length), &file_path(import, upload), None)?;
     if written != length {
         return Err(StagingError::Store(format!(
             "the parts of upload {upload} hold {written} of its {length} bytes"

@@ -221,7 +221,7 @@ mod tests {
             .expect("item")
             .id();
         let original = storage_path(StorePrefix::Original, storage_id, Some(extension));
-        store.put(bytes, &original).expect("store original");
+        store.put(bytes, &original, None).expect("store original");
         let row = MediaRepo::new(&db.pool)
             .create(&NewMedia {
                 resource: NewResource::default(),

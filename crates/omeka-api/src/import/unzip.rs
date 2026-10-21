@@ -223,7 +223,7 @@ where
             .map_err(|error| UnzipError::Store(error.to_string()))?;
         let path = refused_path(import, upload);
         let store = Arc::clone(store);
-        tokio::task::spawn_blocking(move || store.put(&record, &path))
+        tokio::task::spawn_blocking(move || store.put(&record, &path, None))
             .await
             .map_err(|error| UnzipError::Store(error.to_string()))?
             .map_err(|error| UnzipError::Store(error.to_string()))?;
@@ -352,7 +352,7 @@ fn unpack_into(
             crc: flate2::Crc::new(),
         };
         out.written.push(target.clone());
-        let size = match store.put_stream(&mut guard, Some(entry.size), &target) {
+        let size = match store.put_stream(&mut guard, Some(entry.size), &target, None) {
             Ok(size) => size,
             Err(StoreError::Io { source, .. }) => {
                 return Err(source
@@ -379,7 +379,7 @@ fn unpack_into(
                 .map_err(|error| Refusal::Unreadable(error.to_string()))?;
             out.written.push(record.clone());
             store
-                .put(&bytes, &record)
+                .put(&bytes, &record, None)
                 .map_err(|error| Refusal::Unreadable(error.to_string()))?;
         }
         out.rows.push(NewUpload {
