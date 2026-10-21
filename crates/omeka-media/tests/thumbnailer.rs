@@ -104,7 +104,7 @@ fn a_second_run_does_not_rewrite_the_files() {
         .collect();
     let sentinel = b"sentinel".to_vec();
     temp.store
-        .put(&sentinel, &paths[0])
+        .put(&sentinel, &paths[0], None)
         .expect("write sentinel");
     let modified: Vec<_> = paths
         .iter()
@@ -148,7 +148,7 @@ fn a_partial_tree_is_completed() {
         .iter()
         .map(|kind| format!("{}/{storage_id}.jpg", kind.as_str()))
         .collect();
-    temp.store.put(b"half", &paths[0]).expect("seed");
+    temp.store.put(b"half", &paths[0], None).expect("seed");
     assert!(temp.store.exists(&paths[0]).unwrap());
     assert!(!temp.store.exists(&paths[1]).unwrap());
 

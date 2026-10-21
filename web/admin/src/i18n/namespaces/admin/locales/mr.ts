@@ -103,8 +103,12 @@ export const mr: AdminMessages = {
   'settings.defaultPrivateItemSets': 'डीफॉल्टनुसार खाजगी आयटम सेट',
   'settings.indexFulltextSearch': 'इंडेक्स फुलटेक्स्ट सर्च',
   'settings.versionNotifications': 'आवृत्ती सूचना',
+  'settings.mediaAltTextProperty': 'मीडिया ऑल्ट टेक्स्ट प्रॉपर्टी',
+  'settings.mediaAltTextPropertyInfo':
+    'ज्या गुणधर्माची पहिली व्हॅल्यू मीडियाचे वर्णन करते जेव्हा ऑल्ट टेक्स्ट सेट केलेला नसतो. ते रिकामे सोडा आणि ऑल्ट टेक्स्ट नसलेल्या मीडियाची ऑल्ट टेक्स्टही नसेल.',
   'settings.saved': 'सेटिंग्ज अपडेट केल्या.',
-  'settings.note': 'पोर्ट लोकेल आणि सुरक्षा सेटिंग्ज जतन करते; इतर बदल जतन केले जात नाहीत.',
+  'settings.note':
+    'पोर्ट लोकॅल, मीडिया ऑल्ट टेक्स्ट प्रॉपर्टी आणि सिक्युरिटी सेटिंग्ज जतन करते; इतर बदल जतन केले जात नाहीत.',
   'settings.security': 'सुरक्षा',
   'settings.disableFileValidation': 'फाईल प्रमाणीकरण अक्षम करा',
   'settings.disableFileValidationInfo':

@@ -1798,7 +1798,9 @@ header {
 
 /* The media a resource shows: a gallery of the item's media. A single file
    shows whole, never cropped. An item with no media shows a panel that says
-   so. */
+   so. Only the file the renderer emits is a target: an image inside the
+   renderer's own markup (the OpenSeadragon stage) is viewer chrome and keeps
+   its size. */
 
 .media-embeds {
   display: grid;
@@ -1811,7 +1813,8 @@ header {
   margin: 0;
 }
 
-.media-embeds img {
+.media-embeds .media-render > img,
+.media-embeds .media-render > a > img {
   aspect-ratio: 4 / 3;
   border-radius: var(--radius);
   display: block;
@@ -1819,7 +1822,8 @@ header {
   width: 100%;
 }
 
-.media-embeds > :only-child img {
+.media-embeds > .media-render:only-child > img,
+.media-embeds > .media-render:only-child > a > img {
   aspect-ratio: auto;
   margin: 0 auto;
   max-height: 70vh;
@@ -1831,6 +1835,10 @@ header {
 .media-embeds iframe {
   border-radius: var(--radius);
   width: 100%;
+}
+
+.media-embeds video {
+  height: auto;
 }
 
 .media-empty {
@@ -1871,22 +1879,56 @@ header {
 }
 
 /* The media renderer wraps its markup in `.media-render`, so the file and the
-   values are the page's two children. */
-.media-page .media-render img,
-.media-page > img,
-.media-page > a > img,
-.media-page > video,
-.media-page > iframe {
-  aspect-ratio: 4 / 3;
+   values are the page's two children. The file shows whole at any shape: the
+   sheet caps its height and contains it rather than cropping it. Only the
+   renderer's own child is a target, so an image inside `.openseadragon` or the
+   Mirador frame is never resized by this rule. */
+.media-page .media-render > img,
+.media-page .media-render > a > img {
   border-radius: var(--radius);
   display: block;
-  object-fit: cover;
+  height: auto;
+  margin: 0 auto;
+  max-height: 80vh;
+  object-fit: contain;
   width: 100%;
+}
+
+.media-page .media-render > video {
+  border-radius: var(--radius);
+  display: block;
+  height: auto;
+  width: 100%;
+}
+
+.media-page .media-render > iframe {
+  border-radius: var(--radius);
+  display: block;
 }
 
 .media-embeds .media-render,
 .media-page .media-render {
   margin: 0;
+}
+
+/* A rendered file never overflows its column. The width and height a provider
+   stores are a shape hint, not a fixed size: the cap keeps the element inside
+   the column, and the rules above let video scale with it. */
+.media-page :is(audio, embed, iframe, model-viewer, object, video),
+.media-embeds :is(audio, embed, iframe, model-viewer, object, video),
+.media-embed :is(audio, embed, iframe, model-viewer, object, video) {
+  max-width: 100%;
+}
+
+/* A video embed keeps the provider's 16:9 frame. The YouTube and Vimeo
+   renderers write a fixed 420 by 315 (or the provider's own pair), which
+   `width: 100%` would stretch and `height` would leave at 315, so the pair is
+   replaced by the ratio. */
+:is(.media-page, .media-embeds, .media-embed)
+  :is(iframe[src*="youtube.com"], iframe[src*="youtube-nocookie.com"], iframe[src*="vimeo.com"]) {
+  aspect-ratio: 16 / 9;
+  height: auto;
+  width: 100%;
 }
 
 @media (min-width: 60rem) {
@@ -2017,7 +2059,9 @@ header {
   margin-bottom: var(--space-4);
 }
 
-.media-embed .resource img {
+.media-embed .resource > a > img,
+.media-embed .resource > .media-render > a > img,
+.media-embed .resource > .media-render > img {
   aspect-ratio: 4 / 3;
   border-radius: var(--radius-sm);
   object-fit: cover;

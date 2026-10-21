@@ -58,8 +58,12 @@ FROM debian:bookworm-slim AS runtime
 COPY --from=caddy:2.11-alpine /usr/bin/caddy /usr/local/bin/caddy
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        bash ca-certificates curl libcap2-bin \
+        bash ca-certificates curl libcap2-bin media-types \
     && rm -rf /var/lib/apt/lists/*
+# `media-types` installs /etc/mime.types, which Go's mime package reads at the
+# first lookup. It is the floor under the server's stored type: a file with no
+# row type still gets a correct Content-Type for .mov, .mkv, .ogv, .glb, .avif
+# and the like, where the bare image had an empty table.
 
 # Caddy terminates TLS on :80 and :443 and the container runs as a non-root user,
 # so the low-port capability is attached to the binary. A container that runs

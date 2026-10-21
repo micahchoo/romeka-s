@@ -21,16 +21,23 @@ use omeka_api::auth::Actor;
 use omeka_api::errors::ApiError;
 use omeka_db::repos::{AssetRepo, MediaFileOwner, MediaRepo};
 use omeka_db::with_db;
-use omeka_media::store::StorePrefix;
+use omeka_media::store::{Download, StorePrefix};
 
 use crate::{AppState, actor_for, error_response};
 
 /// The header Caddy copies from a 204 onto the file's answer.
 pub(crate) const PRIVATE_HEADER: &str = "x-romeka-private";
+/// The stored type, which the origin answers with instead of guessing from the
+/// extension.
+pub(crate) const CONTENT_TYPE_HEADER: &str = "x-romeka-content-type";
+/// The `Content-Disposition` for an original, from its `o:source`.
+pub(crate) const CONTENT_DISPOSITION_HEADER: &str = "x-romeka-content-disposition";
 
 const FORWARDED_URI: &str = "x-forwarded-uri";
 const FILES_PREFIX: &str = "/files/";
 /// Every thumbnail is a JPEG, whatever the original (`TempFile::storeThumbnails`).
+const THUMBNAIL_MEDIA_TYPE: &str = "image/jpeg";
+/// The extension every stored thumbnail carries.
 const THUMBNAIL_EXTENSION: &str = "jpg";
 
 pub(crate) fn router() -> Router<AppState> {
@@ -54,12 +61,21 @@ enum StoredFile<'a> {
     },
 }
 
+/// What a 204 tells the origin about the file.
+#[derive(Debug, PartialEq, Eq)]
+struct Answer {
+    /// The file is visible only to a caller who may see its resource.
+    private: bool,
+    /// The type to answer with, when the row names one.
+    content_type: Option<String>,
+    /// The `Content-Disposition` of an original.
+    disposition: Option<String>,
+}
+
 /// What the route answers for one file.
 #[derive(Debug, PartialEq, Eq)]
 enum Verdict {
-    Public,
-    /// Not public, and the caller may see it.
-    Private,
+    Serve(Answer),
     Refused,
     Unknown,
 }
@@ -78,16 +94,27 @@ async fn allow(State(state): State<AppState>, headers: HeaderMap) -> Response {
         return status(StatusCode::FORBIDDEN);
     };
     match verdict(&state, &file, forwarded, &headers).await {
-        Ok(Verdict::Public) => status(StatusCode::NO_CONTENT),
-        Ok(Verdict::Private) => Response::builder()
-            .status(StatusCode::NO_CONTENT)
-            .header(PRIVATE_HEADER, "1")
-            .body(Body::empty())
-            .unwrap_or_else(|_| crate::empty_internal_error()),
+        Ok(Verdict::Serve(answer)) => served(&answer),
         Ok(Verdict::Refused) => status(StatusCode::FORBIDDEN),
         Ok(Verdict::Unknown) => status(StatusCode::NOT_FOUND),
         Err(error) => error_response(error),
     }
+}
+
+fn served(answer: &Answer) -> Response {
+    let mut builder = Response::builder().status(StatusCode::NO_CONTENT);
+    if answer.private {
+        builder = builder.header(PRIVATE_HEADER, "1");
+    }
+    if let Some(content_type) = &answer.content_type {
+        builder = builder.header(CONTENT_TYPE_HEADER, content_type);
+    }
+    if let Some(disposition) = &answer.disposition {
+        builder = builder.header(CONTENT_DISPOSITION_HEADER, disposition);
+    }
+    builder
+        .body(Body::empty())
+        .unwrap_or_else(|_| crate::empty_internal_error())
 }
 
 /// The file's visibility, reading the caller only when the file is not public,
@@ -122,7 +149,11 @@ async fn verdict(
                 .await)
             .map_err(ApiError::internal)?;
             return Ok(match asset {
-                Some(asset) if asset.extension.as_deref() == extension => Verdict::Public,
+                Some(asset) if asset.extension.as_deref() == extension => Verdict::Serve(Answer {
+                    private: false,
+                    content_type: header_media_type(Some(&asset.media_type)),
+                    disposition: None,
+                }),
                 _ => Verdict::Unknown,
             });
         }
@@ -130,8 +161,24 @@ async fn verdict(
     let Some(owner) = owner else {
         return Ok(Verdict::Unknown);
     };
-    if owner.media_is_public && owner.item_is_public {
-        return Ok(Verdict::Public);
+    let download = matches!(*file, StoredFile::Original { .. }).then(|| {
+        Download::of(
+            owner.media_type.as_deref(),
+            owner.source.as_deref(),
+            forwarded_name(forwarded),
+        )
+    });
+    let served = match *file {
+        StoredFile::Thumbnail { .. } => Some(THUMBNAIL_MEDIA_TYPE),
+        _ => download.as_ref().and_then(Download::served_type),
+    };
+    let answer = Answer {
+        private: !(owner.media_is_public && owner.item_is_public),
+        content_type: header_media_type(served),
+        disposition: download.as_ref().map(Download::disposition),
+    };
+    if !answer.private {
+        return Ok(Verdict::Serve(answer));
     }
     // The key pair rides in the original query string, where the API reads it.
     let Ok(uri) = Uri::try_from(forwarded) else {
@@ -139,10 +186,35 @@ async fn verdict(
     };
     let actor = actor_for(state, &uri, headers).await?;
     Ok(if sees(&actor, &owner) {
-        Verdict::Private
+        Verdict::Serve(answer)
     } else {
         Verdict::Refused
     })
+}
+
+/// The name in the forwarded path, after its last `/`, which is the stored
+/// file name the disposition falls back to.
+fn forwarded_name(forwarded: &str) -> &str {
+    let path = forwarded
+        .split_once('?')
+        .map_or(forwarded, |(path, _query)| path);
+    path.rsplit('/').next().unwrap_or_default()
+}
+
+/// A stored media type, when a header can carry it unchanged: `type/subtype`
+/// of visible ASCII tokens. The type is a boundary value, so a value with a
+/// space, a parameter or a control character is dropped and the origin falls
+/// back to the extension.
+fn header_media_type(value: Option<&str>) -> Option<String> {
+    let value = value?;
+    let (kind, subtype) = value.split_once('/')?;
+    let token = |part: &str| {
+        !part.is_empty()
+            && part
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || b"!#$&^_.+-".contains(&byte))
+    };
+    (token(kind) && token(subtype)).then(|| value.to_string())
 }
 
 async fn media_owner(

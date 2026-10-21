@@ -260,7 +260,8 @@ export const teServer: ServerCatalogue = {
   'server.importUploadMetadata':
     'ఫైల్‌ను "filename" గా మరియు బేస్64లో దాని పేరుతో "name" గా పంపండి.',
   'server.importUploadOffsetMissing': 'అప్పటికే పంపిన బైట్ల సంఖ్యతో "Upload-Offset" పంపండి.',
-  'server.importUploadContentType': 'బైట్‌లను Content-Type application/offset+octet-stream తో పంపండి.',
+  'server.importUploadContentType':
+    'బైట్‌లను Content-Type application/offset+octet-stream తో పంపండి.',
   'server.importUploadVersion':
     'ఈ సర్వర్ రీజ్యూమబుల్ అప్‌లోడ్ ప్రోటోకॉल వెర్షన్ 1.0.0ని మాట్లాడుతుంది. Tus-Resumable: 1.0.0 పంపండి.',
   'server.importUploadInterrupted':

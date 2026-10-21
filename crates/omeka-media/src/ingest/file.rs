@@ -1,9 +1,10 @@
 //! Storing one file for a media row, the port of `TempFile::mediaIngestFile`.
 
 use crate::ingest::{ErrorStore, IngestEnv, MediaDraft};
-use crate::media_type::{detected_media_type, extension_for_media_type};
+use crate::media_type::{detected_media_type_of, extension_for_media_type};
 use crate::store::{
-    StoreError, StorePrefix, extension_from_source_name, new_storage_id, sha256_hex, storage_path,
+    StoreError, StorePrefix, THUMBNAIL_MEDIA_TYPE, extension_from_source_name, new_storage_id,
+    sha256_hex, storage_path,
 };
 use crate::validation::FileRefusal;
 
@@ -83,6 +84,10 @@ pub enum IngestFileError {
     /// [`IngestEnv::validation`] refused the file; nothing was stored.
     #[error("{}", .0.iter().map(ToString::to_string).collect::<Vec<_>>().join(" "))]
     Refused(Vec<FileRefusal>),
+    /// The SVG filter could not read the file, so it was refused rather than
+    /// stored unfiltered.
+    #[error("Error storing the SVG: {0}")]
+    UnsafeSvg(#[from] crate::svg::SvgError),
     /// The store failed.
     #[error(transparent)]
     Store(#[from] StoreError),
@@ -99,6 +104,7 @@ impl IngestFileError {
                     errors.add("file", refusal.to_string());
                 }
             }
+            Self::UnsafeSvg(error) => errors.add("file", error.to_string()),
             Self::Store(error) => errors.add("error", format!("{context}: {error}")),
         }
     }
@@ -109,9 +115,13 @@ impl IngestFileError {
 ///
 /// A file whose facts are kept (`store_original` or `hydrate_metadata`) is
 /// validated first, as upstream validates it; a thumbnail-only ingest is not.
+/// An SVG is filtered before anything is stored, and the filtered bytes are
+/// the original: size, checksum, thumbnails and the stored file all describe
+/// what a reader receives.
 ///
 /// # Errors
-/// [`IngestFileError::Refused`] before anything is stored, or
+/// [`IngestFileError::Refused`] before anything is stored,
+/// [`IngestFileError::UnsafeSvg`] when the SVG filter cannot read the file, or
 /// [`IngestFileError::Store`] when the store fails.
 pub fn ingest_file(
     env: &IngestEnv<'_>,
@@ -119,18 +129,28 @@ pub fn ingest_file(
     file: IngestFile,
     flags: IngestFlags,
 ) -> Result<(), IngestFileError> {
+    // `TempFile::getExtension`: the source name's, else the media type's.
+    let source_extension = file
+        .source_name
+        .as_deref()
+        .and_then(extension_from_source_name);
     // `TempFile::getMediaType` sniffs the bytes with `finfo`; a boundary that
-    // already knows the type (a IIIF or oEmbed thumbnail) supplies it.
+    // already knows the type (a IIIF or oEmbed thumbnail) supplies it. The
+    // source extension names the formats the bytes cannot (see
+    // `EXTENSION_TYPES`).
     let media_type = file
         .media_type
         .clone()
-        .unwrap_or_else(|| detected_media_type(&file.bytes));
-    // `TempFile::getExtension`: the source name's, else the media type's.
-    let extension = file
-        .source_name
-        .as_deref()
-        .and_then(extension_from_source_name)
-        .or_else(|| extension_for_media_type(&media_type).map(str::to_string));
+        .unwrap_or_else(|| detected_media_type_of(&file.bytes, source_extension.as_deref()));
+    let extension =
+        source_extension.or_else(|| extension_for_media_type(&media_type).map(str::to_string));
+    // An SVG is a document: only the filtered bytes are stored, so no reader
+    // can reach the script the upload carried.
+    let bytes = if media_type == "image/svg+xml" {
+        crate::svg::sanitize(&file.bytes)?
+    } else {
+        file.bytes
+    };
     let keeps_facts = flags.store_original || flags.hydrate_metadata;
     if keeps_facts {
         let refusals = env.validation.refusals(
@@ -151,22 +171,23 @@ pub fn ingest_file(
     if keeps_facts {
         draft.row.extension = extension.clone();
         draft.row.media_type = Some(media_type.clone());
-        draft.row.sha256 = Some(sha256_hex(&file.bytes));
-        draft.row.size = Some(file.bytes.len() as i64);
+        draft.row.sha256 = Some(sha256_hex(&bytes));
+        draft.row.size = Some(bytes.len() as i64);
     }
 
     if flags.store_original {
         let path = storage_path(StorePrefix::Original, &storage_id, extension.as_deref());
-        env.store.put(&file.bytes, &path)?;
+        env.store.put(&bytes, &path, Some(media_type.as_str()))?;
         draft.row.has_original = true;
     }
 
     if flags.store_thumbnails {
-        let thumbnails = env.thumbnailer.thumbnails(&file.bytes, Some(&media_type));
+        let thumbnails = env.thumbnailer.thumbnails(&bytes, Some(&media_type));
         let mut made = false;
-        for (kind, bytes) in thumbnails {
+        for (kind, thumbnail) in thumbnails {
             let path = storage_path(StorePrefix::Thumbnail(kind), &storage_id, Some("jpg"));
-            env.store.put(&bytes, &path)?;
+            env.store
+                .put(&thumbnail, &path, Some(THUMBNAIL_MEDIA_TYPE))?;
             made = true;
         }
         draft.row.has_thumbnails = made;

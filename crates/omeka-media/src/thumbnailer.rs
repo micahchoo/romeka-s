@@ -13,10 +13,12 @@
 //! is idempotent.
 //!
 //! The formats that reach the decoder are the four GD decodes (gif, jpeg, png,
-//! webp), tiff and JPEG 2000. TIFF and JPEG 2000 are deliberate additions for
-//! archive masters: GD has neither decoder, so upstream makes no thumbnail for
-//! a `.tif` or a `.jp2` unless ImageMagick is configured. Anything else is a
-//! typed [`ThumbnailSkip`], never a panic.
+//! webp), tiff, JPEG 2000 and SVG. TIFF, JPEG 2000 and SVG are deliberate
+//! additions for modern masters: GD has neither decoder, so upstream makes no
+//! thumbnail for a `.tif`, `.jp2` or `.svg` unless ImageMagick is configured.
+//! An SVG is drawn by `resvg` at its own size, capped at the large derivative
+//! ([`crate::svg::rasterized`]). Anything else is a typed [`ThumbnailSkip`],
+//! never a panic.
 //!
 //! An original over 64 MB is never held whole: [`ImageThumbnailer::
 //! derivatives_from_reader`] makes a reduced copy of a TIFF or a JPEG with
@@ -25,25 +27,29 @@
 mod jp2;
 mod large;
 
-use std::io::{Read, Seek};
+use std::io::{Cursor, Read, Seek};
 
-use image::DynamicImage;
 use image::codecs::jpeg::JpegEncoder;
 use image::imageops::FilterType;
+use image::metadata::Orientation;
+use image::{DynamicImage, ImageDecoder as _};
 use thiserror::Error;
 
 use crate::file_render::ThumbnailType;
-use crate::store::{Store, StoreError, StorePrefix, Thumbnailer, storage_path};
+use crate::store::{
+    Store, StoreError, StorePrefix, THUMBNAIL_MEDIA_TYPE, Thumbnailer, storage_path,
+};
 
 /// The source media types the thumbnailer decodes: the four GD decodes
-/// (`Gd::setSource`) plus `image/tiff` and `image/jp2`, which GD cannot read
-/// (see the module docs). Any other declared type raises
+/// (`Gd::setSource`) plus `image/tiff`, `image/jp2` and `image/svg+xml`, which
+/// GD cannot read (see the module docs). Any other declared type raises
 /// `CannotCreateThumbnailException` upstream.
-pub const SOURCE_MEDIA_TYPES: [&str; 6] = [
+pub const SOURCE_MEDIA_TYPES: [&str; 7] = [
     "image/gif",
     "image/jpeg",
     "image/jp2",
     "image/png",
+    "image/svg+xml",
     "image/tiff",
     "image/webp",
 ];
@@ -105,11 +111,11 @@ impl ImageThumbnailer {
         if !SOURCE_MEDIA_TYPES.contains(&media_type) {
             return Err(ThumbnailSkip::UnsupportedType(media_type.to_string()));
         }
-        let source = if media_type == "image/jp2" {
-            jp2::decode(original)?
-        } else {
-            image::load_from_memory(original)
-                .map_err(|error| ThumbnailSkip::Decode(error.to_string()))?
+        let source = match media_type {
+            "image/jp2" => jp2::decode(original)?,
+            "image/svg+xml" => crate::svg::rasterized(original, ThumbnailType::Large.constraint())
+                .map_err(|error| ThumbnailSkip::Decode(error.to_string()))?,
+            _ => decode_oriented(original)?,
         };
         derivatives(&source)
     }
@@ -136,6 +142,23 @@ impl ImageThumbnailer {
         };
         derivatives(&source)
     }
+}
+
+/// Decode an image and turn it upright as its EXIF orientation says, the way
+/// ImageMagick's `auto-orient` does for upstream's configured thumbnailer.
+fn decode_oriented(bytes: &[u8]) -> Result<DynamicImage, ThumbnailSkip> {
+    let reader = image::ImageReader::new(Cursor::new(bytes))
+        .with_guessed_format()
+        .map_err(|error| ThumbnailSkip::Decode(error.to_string()))?;
+    let mut decoder = reader
+        .into_decoder()
+        .map_err(|error| ThumbnailSkip::Decode(error.to_string()))?;
+    // A malformed or absent EXIF block leaves the pixels as stored.
+    let orientation = decoder.orientation().unwrap_or(Orientation::NoTransforms);
+    let mut image = DynamicImage::from_decoder(decoder)
+        .map_err(|error| ThumbnailSkip::Decode(error.to_string()))?;
+    image.apply_orientation(orientation);
+    Ok(image)
 }
 
 /// The three derivatives of a decoded image, one per [`ThumbnailType::ALL`].
@@ -193,7 +216,11 @@ pub fn generate_thumbnails(
         Err(skip) => return Ok(ThumbnailOutcome::Skipped(skip)),
     };
     for (kind, bytes) in derivatives {
-        store.put(&bytes, &thumbnail_path(storage_id, kind))?;
+        store.put(
+            &bytes,
+            &thumbnail_path(storage_id, kind),
+            Some(THUMBNAIL_MEDIA_TYPE),
+        )?;
     }
     Ok(ThumbnailOutcome::Generated)
 }
@@ -217,7 +244,11 @@ pub fn generate_thumbnails_from_reader<R: Read + Seek>(
         Err(skip) => return Ok(ThumbnailOutcome::Skipped(skip)),
     };
     for (kind, bytes) in derivatives {
-        store.put(&bytes, &thumbnail_path(storage_id, kind))?;
+        store.put(
+            &bytes,
+            &thumbnail_path(storage_id, kind),
+            Some(THUMBNAIL_MEDIA_TYPE),
+        )?;
     }
     Ok(ThumbnailOutcome::Generated)
 }
@@ -327,6 +358,97 @@ mod tests {
     fn dimensions(bytes: &[u8]) -> (u32, u32) {
         let image = image::load_from_memory(bytes).expect("decode");
         (image.width(), image.height())
+    }
+
+    const RED: [u8; 3] = [255, 0, 0];
+    const BLUE: [u8; 3] = [0, 0, 255];
+
+    /// A 100 by 50 JPEG whose left half is red and right half blue, tagged
+    /// orientation 6: a camera held on its side, to be turned 90 degrees
+    /// clockwise before the derivatives are made.
+    fn oriented_jpeg() -> Vec<u8> {
+        let image = image::RgbImage::from_fn(100, 50, |x, _| {
+            if x < 50 {
+                image::Rgb(RED)
+            } else {
+                image::Rgb(BLUE)
+            }
+        });
+        let mut jpeg = Vec::new();
+        image::DynamicImage::ImageRgb8(image)
+            .write_to(
+                &mut std::io::Cursor::new(&mut jpeg),
+                image::ImageFormat::Jpeg,
+            )
+            .expect("encode jpeg");
+
+        let mut exif = b"Exif\0\0".to_vec();
+        exif.extend_from_slice(&[
+            0x49, 0x49, 0x2a, 0x00, 0x08, 0x00, 0x00, 0x00, // little-endian TIFF header
+            0x01, 0x00, // one IFD entry
+            0x12, 0x01, 0x03, 0x00, 0x01, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00,
+            0x00, // Orientation = 6
+            0x00, 0x00, 0x00, 0x00, // no next IFD
+        ]);
+        let mut segment = vec![0xff, 0xe1];
+        segment.extend_from_slice(&u16::try_from(exif.len() + 2).expect("length").to_be_bytes());
+        segment.extend_from_slice(&exif);
+        let mut tagged = jpeg[..2].to_vec();
+        tagged.extend_from_slice(&segment);
+        tagged.extend_from_slice(&jpeg[2..]);
+        tagged
+    }
+
+    fn near(pixel: image::Rgb<u8>, expected: [u8; 3]) -> bool {
+        pixel
+            .0
+            .iter()
+            .zip(expected)
+            .all(|(got, want)| got.abs_diff(want) <= 40)
+    }
+
+    /// EXIF orientation 6 turns the pixels upright before either strategy
+    /// runs: the short side becomes the height, and the left half becomes the
+    /// top. The square strategy crops the upright image, not the stored one.
+    #[test]
+    fn exif_orientation_turns_every_derivative_upright() {
+        let derivatives = ImageThumbnailer
+            .derivative_bytes(&oriented_jpeg(), Some("image/jpeg"))
+            .expect("thumbnails");
+        let decoded = |kind: ThumbnailType| {
+            let bytes = derivatives
+                .iter()
+                .find(|(k, _)| *k == kind)
+                .map(|(_, bytes)| bytes)
+                .expect("derivative");
+            image::load_from_memory(bytes).expect("decode").to_rgb8()
+        };
+
+        let large = decoded(ThumbnailType::Large);
+        assert_eq!(large.dimensions(), (50, 100));
+        assert!(near(*large.get_pixel(25, 5), RED), "{large:?}");
+        assert!(near(*large.get_pixel(25, 95), BLUE), "{large:?}");
+
+        let square = decoded(ThumbnailType::Square);
+        assert_eq!(square.dimensions(), (200, 200));
+        assert!(near(*square.get_pixel(100, 20), RED), "{square:?}");
+        assert!(near(*square.get_pixel(100, 180), BLUE), "{square:?}");
+    }
+
+    /// The reduced reader path reads the same orientation before it scales.
+    #[test]
+    fn the_reader_path_turns_a_large_jpeg_upright() {
+        let derivatives = ImageThumbnailer
+            .derivatives_from_reader(std::io::Cursor::new(oriented_jpeg()), Some("image/jpeg"))
+            .expect("thumbnails");
+        let large = derivatives
+            .iter()
+            .find(|(kind, _)| *kind == ThumbnailType::Large)
+            .map(|(_, bytes)| image::load_from_memory(bytes).expect("decode").to_rgb8())
+            .expect("large derivative");
+        assert_eq!(large.dimensions(), (50, 100));
+        assert!(near(*large.get_pixel(25, 5), RED), "{large:?}");
+        assert!(near(*large.get_pixel(25, 95), BLUE), "{large:?}");
     }
 
     /// `Gd::createDefault` for a landscape image: the long side meets the
@@ -491,6 +613,46 @@ mod tests {
             derivatives
                 .iter()
                 .all(|(_, b)| b.starts_with(&[0xFF, 0xD8]))
+        );
+    }
+
+    /// An SVG original is drawn by `resvg` and gets the three JPEG
+    /// derivatives, at the drawing's own size up to the large constraint.
+    #[test]
+    fn an_svg_original_gets_three_thumbnails() {
+        let svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="500" viewBox="0 0 1000 500">
+            <rect width="1000" height="500" fill="#c0392b"/>
+        </svg>"##;
+        assert_eq!(crate::media_type::detected_media_type(svg), "image/svg+xml");
+        let derivatives = ImageThumbnailer
+            .derivative_bytes(svg, Some("image/svg+xml"))
+            .expect("thumbnails");
+        let sizes: Vec<_> = derivatives
+            .iter()
+            .map(|(kind, bytes)| (*kind, dimensions(bytes)))
+            .collect();
+        assert_eq!(
+            sizes,
+            [
+                (ThumbnailType::Large, (800, 400)),
+                (ThumbnailType::Medium, (400, 200)),
+                (ThumbnailType::Square, (200, 200)),
+            ]
+        );
+        assert!(
+            derivatives
+                .iter()
+                .all(|(_, b)| b.starts_with(&[0xFF, 0xD8]))
+        );
+    }
+
+    /// An SVG whose bytes do not parse is a typed skip, not a panic.
+    #[test]
+    fn an_unreadable_svg_is_a_typed_skip() {
+        let result = ImageThumbnailer.derivative_bytes(b"<svg", Some("image/svg+xml"));
+        assert!(
+            matches!(result, Err(ThumbnailSkip::Decode(_))),
+            "{result:?}"
         );
     }
 }

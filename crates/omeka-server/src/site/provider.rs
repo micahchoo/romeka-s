@@ -40,7 +40,7 @@ use omeka_site::view::{
 
 use omeka_api::write::block_carrier::media_image_path;
 use omeka_api::write::site_pages::ResolvedAttachment;
-use omeka_media::store::FileKind;
+use omeka_media::store::{Download, FileKind};
 
 use super::load::{Loader, media_options, thumbnail_for_asset};
 use omeka_db::DbError;
@@ -396,19 +396,27 @@ async fn load_image(
         .as_ref()
         .is_some_and(|item| access.sees_resource(item.resource.is_public, item.resource.owner_id));
     if let Some(path) = media_image_path(&media).filter(|_| item_seen) {
-        let kind = if path.starts_with("original/") {
-            FileKind::Original
+        let url = if let Some(filename) = path.strip_prefix("original/") {
+            let download = Download::of(
+                media.media_type.as_deref(),
+                media.source.as_deref(),
+                filename,
+            );
+            loader.files().original(&path, &download)
         } else {
-            FileKind::Thumbnail {
+            let kind = FileKind::Thumbnail {
                 public: media.resource.is_public
                     && item.is_some_and(|item| item.resource.is_public),
-            }
+            };
+            loader.files().url(&path, kind)
         };
         loaded.images.push((
             id,
             Thumbnail::new(
-                loader.files().url(&path, kind),
-                media.alt_text.clone().unwrap_or_default(),
+                url,
+                omeka_api::settings::media_alt_text(loader.pool(), loader.catalog(), &media)
+                    .await?
+                    .unwrap_or_default(),
             ),
         ));
     }

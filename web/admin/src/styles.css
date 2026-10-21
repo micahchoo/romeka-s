@@ -342,8 +342,9 @@ dd {
   color: var(--text-muted);
 }
 
-/* Media previews. The port stores no thumbnails, so a browse cell shows the
- * original file scaled down, and a row with no file shows a placeholder. */
+/* Media previews. A cell shows a thumbnail or the original of an image; any
+ * other media shows a placeholder of the same box, so rows never jump and a
+ * grid never advertises a picture it does not have. */
 .media-image {
   display: block;
   background: var(--bg);
@@ -353,16 +354,70 @@ dd {
 }
 
 .media-image-empty {
+  position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: var(--space-1);
+  gap: var(--space-1);
+  aspect-ratio: 4 / 3;
+  padding: var(--space-2);
   border: 1px dashed var(--border-strong);
   background: transparent;
   outline: none;
   color: var(--text-muted);
   font-size: 11px;
   text-align: center;
+}
+
+.media-kind-icon {
+  flex: 0 0 auto;
+  width: 1.75rem;
+  height: 1.75rem;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.media-image-kind {
+  line-height: 1.2;
+}
+
+.media-image-extension {
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+}
+
+/* A box too small for words keeps the icon and the tooltip, and leaves the
+ * words to a screen reader, so the table cell still says what the row is. */
+.media-image-empty.is-compact {
+  gap: 0;
+  padding: var(--space-1);
+}
+
+.media-image-empty.is-compact .media-image-kind,
+.media-image-empty.is-compact .media-image-extension {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.media-kind-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.6;
+  white-space: nowrap;
 }
 
 .media-preview {
@@ -405,6 +460,10 @@ dd {
 }
 
 .media-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
   color: var(--text-muted);
   font-size: 12px;
 }

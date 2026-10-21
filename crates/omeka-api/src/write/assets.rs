@@ -92,7 +92,9 @@ pub async fn create(
     };
     let storage_id = new_storage_id().map_err(ApiError::internal)?;
     let path = storage_path(StorePrefix::Asset, &storage_id, extension.as_deref());
-    store.put(&file.bytes, &path).map_err(ApiError::internal)?;
+    store
+        .put(&file.bytes, &path, Some(&media_type))
+        .map_err(ApiError::internal)?;
     let row = with_db!(api.pool(), |db| AssetRepo::new(db)
         .create(&NewAsset {
             owner_id,

@@ -84,7 +84,7 @@ describe('the gallery block form', () => {
     fireEvent.click(pick);
     expect(stored()).toMatchObject({ media: [{ item: 12, media: null, caption: '' }] });
 
-    fireEvent.click(await screen.findByRole('radio', { name: 'Fixture photo' }));
+    fireEvent.click(await screen.findByRole('radio', { name: /Fixture photo/ }));
     expect(stored()).toMatchObject({ media: [{ item: 12, media: 7, caption: '' }] });
   });
 

@@ -6,7 +6,7 @@
 use serde_json::Map;
 
 use crate::data::{MediaData, OembedData};
-use crate::oembed::render_oembed;
+use crate::oembed::{OembedAllowList, render_oembed};
 use crate::render::{MediaView, RenderOptions, Renderer, View};
 use crate::text::hyperlink;
 
@@ -20,18 +20,20 @@ impl Renderer for OEmbed {
     }
 
     /// `Renderer/OEmbed.php:29`: the response markup, else a hyperlink titled by
-    /// the response title or the source.
+    /// the response title or the source. The response's `html` and a `photo`'s
+    /// alt come from [`render_oembed`].
     fn render(&self, _view: &View<'_>, media: &MediaView, _options: &RenderOptions) -> String {
         let data = match &media.data {
             MediaData::Oembed(data) => data.clone(),
             _ => OembedData { map: Map::new() },
         };
-        if let Some(markup) = render_oembed(&data) {
+        let source = media.media.source.as_deref().unwrap_or_default();
+        let providers = OembedAllowList::shipped().hosts();
+        if let Some(markup) = render_oembed(&data, source, media.alt_text.as_deref(), &providers) {
             return markup;
         }
-        let source = media.media.source.clone().unwrap_or_default();
-        let title = data.title().unwrap_or_else(|| source.clone());
-        hyperlink(Some(&title), Some(&source), &[])
+        let title = data.title().unwrap_or_else(|| source.to_string());
+        hyperlink(Some(&title), Some(source), &[])
     }
 }
 
@@ -49,19 +51,68 @@ mod tests {
 
     fn oembed_media(value: serde_json::Value) -> MediaView {
         let data = MediaData::parse("oembed", Some(&value)).expect("oembed data");
-        media_view_with_data(data)
+        let mut media = media_view_with_data(data);
+        media.media.source = Some("https://www.youtube.com/watch?v=x".to_string());
+        media
     }
 
-    /// A response with an `html` member is emitted verbatim
-    /// (`Renderer/OEmbed.php:31`).
+    /// A response with an `html` member keeps its provider frame, now with the
+    /// sandbox the sanitizer sets (`Renderer/OEmbed.php:31`).
     #[test]
-    fn oembed_renderer_returns_response_html() {
+    fn oembed_renderer_keeps_a_provider_frame_with_a_sandbox() {
         let registry = FileRendererRegistry::with_defaults();
-        let media =
-            oembed_media(serde_json::json!({"html": "<iframe src=\"https://x\"></iframe>"}));
+        let media = oembed_media(
+            serde_json::json!({"html": "<iframe src=\"https://www.youtube.com/embed/x\"></iframe>"}),
+        );
         assert_eq!(
             OEmbed.render(&view(&registry), &media, &RenderOptions::default()),
-            "<iframe src=\"https://x\"></iframe>"
+            "<iframe src=\"https://www.youtube.com/embed/x\" sandbox=\"allow-scripts allow-same-origin allow-popups allow-presentation\"></iframe>"
+        );
+    }
+
+    /// A provider response carrying a script and an event handler renders
+    /// neither, and a frame from a host the provider rules do not allow is
+    /// dropped with it.
+    #[test]
+    fn oembed_renderer_sanitizes_the_provider_html() {
+        let registry = FileRendererRegistry::with_defaults();
+        let media = oembed_media(serde_json::json!({
+            "html": "<p onmouseover=\"steal()\">Watch</p><script>alert(1)</script><iframe src=\"https://evil.example/embed\"></iframe>",
+        }));
+        let out = OEmbed.render(&view(&registry), &media, &RenderOptions::default());
+        assert_eq!(out, "<p>Watch</p>");
+    }
+
+    /// A `photo` takes its alt from the response title, else the media's
+    /// resolved alt, else nothing.
+    #[test]
+    fn oembed_renderer_takes_the_photo_alt_from_the_title_then_the_media() {
+        let registry = FileRendererRegistry::with_defaults();
+        let photo =
+            serde_json::json!({"type": "photo", "url": "https://x/y.jpg", "title": "A cat"});
+        let titled = oembed_media(photo);
+        assert!(
+            OEmbed
+                .render(&view(&registry), &titled, &RenderOptions::default())
+                .contains("alt=\"A cat\"")
+        );
+
+        let mut untitled =
+            oembed_media(serde_json::json!({"type": "photo", "url": "https://x/y.jpg"}));
+        untitled.alt_text = Some("A photo of a cat".to_string());
+        assert!(
+            OEmbed
+                .render(&view(&registry), &untitled, &RenderOptions::default())
+                .contains("alt=\"A photo of a cat\"")
+        );
+
+        let mut no_alt =
+            oembed_media(serde_json::json!({"type": "photo", "url": "https://x/y.jpg"}));
+        no_alt.alt_text = None;
+        assert!(
+            OEmbed
+                .render(&view(&registry), &no_alt, &RenderOptions::default())
+                .contains("alt=\"\"")
         );
     }
 

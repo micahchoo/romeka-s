@@ -38,7 +38,8 @@
 use omeka_db::DbError;
 use omeka_db::DbPool;
 use omeka_db::ids::UserId;
-use omeka_db::repos::{SettingRepo, UserSettingRepo};
+use omeka_db::repos::{SettingRepo, UserSettingRepo, ValueRepo};
+use omeka_db::rows::MediaRow;
 use omeka_db::with_db;
 use omeka_media::http_guard::AddressPolicy;
 use omeka_media::validation::{DEFAULT_EXTENSIONS, DEFAULT_MEDIA_TYPES, FileValidation};
@@ -47,6 +48,7 @@ use serde_json::{Map, Value};
 use crate::auth::Actor;
 use crate::errors::{ApiError, ValidationErrors};
 use crate::messages;
+use crate::read::catalog::Catalog;
 use crate::read::response::serialize;
 use crate::read::{Api, ApiResponse, db_error};
 
@@ -67,6 +69,10 @@ pub const EXTENSION_WHITELIST: &str = "extension_whitelist";
 
 /// `SettingForm`'s switch that turns file validation off.
 pub const DISABLE_FILE_VALIDATION: &str = "disable_file_validation";
+
+/// `SettingForm`'s property term (`media_alt_text_property`) whose value
+/// describes a media that stores no alt text.
+pub const MEDIA_ALT_TEXT_PROPERTY: &str = "media_alt_text_property";
 
 /// The operator's switch that lifts the URL guard's address check, so an
 /// ingester may fetch from loopback, link-local and private ranges
@@ -128,6 +134,7 @@ pub const USER_SETTINGS: &[&str] = &[LOCALE, HIDE_LESSONS, LESSONS_SEEN];
 /// The global keys the API reads and writes.
 pub const GLOBAL_SETTINGS: &[&str] = &[
     LOCALE,
+    MEDIA_ALT_TEXT_PROPERTY,
     MEDIA_TYPE_WHITELIST,
     EXTENSION_WHITELIST,
     DISABLE_FILE_VALIDATION,
@@ -171,6 +178,46 @@ pub async fn admin_locale(pool: &DbPool, user: UserId) -> Result<Option<String>,
     }
     let global = with_db!(pool, |db| SettingRepo::new(db).get(LOCALE).await).map_err(db_error)?;
     Ok(non_empty(global))
+}
+
+/// `MediaRepresentation::altTextResolved` (`MediaRepresentation.php:271`): the
+/// media's stored alt text, else its first value on the property
+/// [`MEDIA_ALT_TEXT_PROPERTY`] names, else none.
+///
+/// The fallback reads the value's own text, as the representation's `value()`
+/// does, and applies no visibility or language filter: upstream reads the first
+/// value of the term whatever its flags.
+///
+/// # Errors
+/// [`DbError`] when the setting or a value row cannot be read.
+pub async fn media_alt_text(
+    pool: &DbPool,
+    catalog: &Catalog,
+    media: &MediaRow,
+) -> Result<Option<String>, DbError> {
+    let stored = media.alt_text.clone().filter(|text| !text.is_empty());
+    if stored.is_some() {
+        return Ok(stored);
+    }
+    let term = setting(pool, MEDIA_ALT_TEXT_PROPERTY).await?;
+    let Some(term) = term
+        .as_ref()
+        .and_then(Value::as_str)
+        .filter(|t| !t.is_empty())
+    else {
+        return Ok(media.alt_text.clone());
+    };
+    let Some(property) = catalog.property_id(term) else {
+        return Ok(media.alt_text.clone());
+    };
+    let values = with_db!(pool, |db| ValueRepo::new(db)
+        .list_for_property(media.resource.id, property)
+        .await)?;
+    Ok(values
+        .into_iter()
+        .next()
+        .and_then(|value| value.value)
+        .or_else(|| media.alt_text.clone()))
 }
 
 /// A user's API settings as one map, `None` when the user stores none.
@@ -360,6 +407,12 @@ pub async fn read_global(api: &Api<'_>) -> Result<ApiResponse, ApiError> {
     let mut map = Map::new();
     if let Some(value) = setting(pool, LOCALE).await.map_err(db_error)? {
         map.insert(LOCALE.to_string(), value);
+    }
+    if let Some(value) = setting(pool, MEDIA_ALT_TEXT_PROPERTY)
+        .await
+        .map_err(db_error)?
+    {
+        map.insert(MEDIA_ALT_TEXT_PROPERTY.to_string(), value);
     }
     let files = FileSettings::load(pool).await.map_err(db_error)?;
     map.insert(MEDIA_TYPE_WHITELIST.to_string(), files.media_types.into());

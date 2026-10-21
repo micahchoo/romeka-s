@@ -214,7 +214,7 @@ mod tests {
         assert_eq!(config.access_key, "AKIDEXAMPLE");
         assert_eq!(config.secret_key, "very-secret-value");
         assert_eq!(config.public_base, None);
-        assert_eq!(config.url_ttl, Duration::from_secs(900));
+        assert_eq!(config.url_ttl, Duration::from_secs(4 * 60 * 60));
 
         let StoreConfig::S3(config) = StoreConfig::from_env(s3_env(&[
             (S3_REGION_ENV, "eu-west-1"),
@@ -244,7 +244,7 @@ mod tests {
         };
         assert_eq!(config.region, "us-east-1");
         assert_eq!(config.public_base, None);
-        assert_eq!(config.url_ttl, Duration::from_secs(900));
+        assert_eq!(config.url_ttl, Duration::from_secs(4 * 60 * 60));
     }
 
     #[test]

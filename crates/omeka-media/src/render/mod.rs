@@ -24,7 +24,7 @@ use omeka_core::resource::Media;
 
 use crate::data::MediaData;
 use crate::file_render::{FileRendererRegistry, LinkType, ThumbnailType};
-use crate::store::{FileKind, FileUrls};
+use crate::store::{Download, FileKind, FileUrls};
 
 /// Site and server configuration a renderer may read.
 ///
@@ -105,8 +105,13 @@ impl MediaView {
             .unwrap_or_else(|| "[Untitled]".to_string());
         let original_url = if media.has_original {
             media.filename().map(|filename| {
+                let download = Download::of(
+                    media.media_type.as_deref(),
+                    media.source.as_deref(),
+                    &filename,
+                );
                 env.files
-                    .url(&format!("original/{filename}"), FileKind::Original)
+                    .original(&format!("original/{filename}"), &download)
             })
         } else {
             None

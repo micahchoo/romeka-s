@@ -106,9 +106,12 @@ export const ta: AdminMessages = {
   'settings.defaultPrivateItemSets': 'இயல்பாகத் தனிப்பட்ட உருப்படித் தொகுப்புகளைப் பயன்படுத்தவும்',
   'settings.indexFulltextSearch': 'முழு உரைத் தேடல் குறியீட்டைப் புதுப்பிக்கவும்',
   'settings.versionNotifications': 'பதிப்பு அறிவிப்புகள்',
+  'settings.mediaAltTextProperty': 'ஊடக மாற்று உரை பண்பு',
+  'settings.mediaAltTextPropertyInfo':
+    'மாற்று உரை எதுவும் அமைக்கப்படாதபோது, ஒரு ஊடகத்தை விவரிக்கும் முதல் மதிப்பு. இதை காலியாக விட்டுவிடுங்கள், அப்போது மாற்று உரை இல்லாத ஒரு ஊடகத்திற்கு மாற்று உரை இருக்காது.',
   'settings.saved': 'அமைப்புகள் புதுப்பிக்கப்பட்டன.',
   'settings.note':
-    'போர்ட் இருப்பிடத்தையும் பாதுகாப்பு அமைப்புகளையும் சேமிக்கிறது; மற்ற மாற்றங்கள் சேமிக்கப்படுவதில்லை.',
+    'போர்ட் (Port) உள்ளூர் மொழி, ஊடக மாற்று உரை பண்பு மற்றும் பாதுகாப்பு அமைப்புகளைச் சேமிக்கிறது; மற்ற மாற்றங்கள் சேமிக்கப்படுவதில்லை.',
   'settings.security': 'பாதுகாப்பு',
   'settings.disableFileValidation': 'கோப்பு சரிபார்ப்பை முடக்கவும்',
   'settings.disableFileValidationInfo':

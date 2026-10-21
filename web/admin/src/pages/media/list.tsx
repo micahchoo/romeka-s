@@ -35,6 +35,7 @@ export const MediaList = (): ReactElement => {
               url={previewImageUrl(media)}
               className="media-preview"
               lazy
+              compact
             />
           ),
         },

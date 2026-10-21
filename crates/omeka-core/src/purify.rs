@@ -19,6 +19,7 @@
 //! copies the `src` onto an `<img>` that names no `alt`, has no ammonia
 //! equivalent. The allowed tags and attributes are the same set throughout.
 
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 
@@ -33,6 +34,108 @@ use ammonia::{Builder, UrlRelative};
 #[must_use]
 pub fn purify(html: &str) -> String {
     builder().clean(html).to_string()
+}
+
+/// Purify an oEmbed provider's `html` member (`Stdlib\Oembed::renderOembed`).
+///
+/// The stored-HTML purifier plus one element, `iframe`: a provider's player is
+/// a frame, and the default set drops it. A frame survives only when its `src`
+/// is `https` on the source URL's host or one of `provider_hosts` (a host
+/// matches itself and every subdomain), and every frame that survives carries
+/// [`IFRAME_SANDBOX`]. A script or an event handler is removed like any other
+/// fragment's, so a widget that needs its own script shows only its markup.
+#[must_use]
+pub fn purify_embed(html: &str, source: &str, provider_hosts: &[&str]) -> String {
+    let source_host = https_host(source);
+    let providers: Vec<String> = provider_hosts
+        .iter()
+        .map(|host| host.trim_start_matches('.').to_ascii_lowercase())
+        .collect();
+    let mut builder = configured_builder();
+    builder
+        .add_tags(&["iframe"])
+        .add_tag_attributes("iframe", IFRAME_ATTRIBUTES)
+        .set_tag_attribute_value("iframe", "sandbox", IFRAME_SANDBOX)
+        .attribute_filter(move |element, attribute, value| {
+            if element == "iframe" && attribute == "src" {
+                let allowed = https_host(value).is_some_and(|host| {
+                    source_host
+                        .as_deref()
+                        .is_some_and(|source| belongs_to(&host, source))
+                        || providers.iter().any(|provider| belongs_to(&host, provider))
+                });
+                if !allowed {
+                    return None;
+                }
+            }
+            Some(Cow::Borrowed(value))
+        });
+    drop_sourceless_iframes(&builder.clean(html).to_string())
+}
+
+/// The attributes a provider's `iframe` keeps. `class` and `style` come with
+/// [`GENERIC_ATTRIBUTES`]; `sandbox` is set, not read.
+const IFRAME_ATTRIBUTES: &[&str] = &[
+    "src",
+    "width",
+    "height",
+    "title",
+    "allow",
+    "allowfullscreen",
+    "frameborder",
+    "loading",
+    "referrerpolicy",
+];
+
+/// What a kept player frame may do: run its own script, keep its own origin so
+/// its player can call its own API, open its share popups and present full
+/// screen. It cannot script the page around it, because a provider frame is
+/// cross-origin.
+const IFRAME_SANDBOX: &str = "allow-scripts allow-same-origin allow-popups allow-presentation";
+
+/// Whether `host` is `domain` or a subdomain of it.
+fn belongs_to(host: &str, domain: &str) -> bool {
+    host == domain
+        || host
+            .strip_suffix(domain)
+            .is_some_and(|prefix| prefix.ends_with('.'))
+}
+
+/// The host of an `https` URL, lower case and without the port.
+fn https_host(url: &str) -> Option<String> {
+    let (scheme, rest) = url.split_once("://")?;
+    if !scheme.eq_ignore_ascii_case("https") {
+        return None;
+    }
+    let authority = rest.split(['/', '?', '#']).next()?;
+    let host = authority
+        .rsplit_once('@')
+        .map_or(authority, |(_, host)| host);
+    let host = host.split(':').next()?.trim_end_matches('.');
+    (!host.is_empty()).then(|| host.to_ascii_lowercase())
+}
+
+/// Drop an `iframe` whose `src` the filter refused: a provider frame outside
+/// the host rule renders nothing, not an empty player box. The input is the
+/// sanitizer's own output, so each element is closed and quoted.
+fn drop_sourceless_iframes(html: &str) -> String {
+    let mut out = String::with_capacity(html.len());
+    let mut rest = html;
+    while let Some(start) = rest.find("<iframe") {
+        out.push_str(&rest[..start]);
+        let after = &rest[start..];
+        let Some(end) = after.find("</iframe>") else {
+            out.push_str(after);
+            return out;
+        };
+        let close = end + "</iframe>".len();
+        if after[..end].contains(" src=") {
+            out.push_str(&after[..close]);
+        }
+        rest = &after[close..];
+    }
+    out.push_str(rest);
+    out
 }
 
 /// The configured `Builder`, built once.
@@ -337,6 +440,74 @@ mod tests {
         ] {
             assert_eq!(purify(input), "", "{input}");
         }
+    }
+
+    /// An oEmbed provider's frame survives the embed purifier when its host is
+    /// the source's or an allow-listed provider's, and it carries the sandbox.
+    /// The script and the event handler beside it do not survive.
+    #[test]
+    fn purify_embed_keeps_a_sandboxed_provider_frame() {
+        let out = purify_embed(
+            r#"<p onmouseover="steal()">Watch</p><iframe src="https://www.youtube.com/embed/x" width="560" allowfullscreen></iframe><script>alert(1)</script>"#,
+            "https://www.youtube.com/watch?v=x",
+            &["youtube.com"],
+        );
+        assert!(out.contains("<p>Watch</p>"), "{out}");
+        assert!(!out.contains("onmouseover"), "{out}");
+        assert!(!out.contains("<script"), "{out}");
+        assert!(
+            out.contains(r#"src="https://www.youtube.com/embed/x""#),
+            "{out}"
+        );
+        assert!(
+            out.contains(
+                r#"sandbox="allow-scripts allow-same-origin allow-popups allow-presentation""#
+            ),
+            "{out}"
+        );
+        assert!(out.contains(r#"allowfullscreen"#), "{out}");
+    }
+
+    /// A frame from a host neither the source nor a provider host names is
+    /// dropped whole, and an `http` frame is refused: only `https` loads.
+    #[test]
+    fn purify_embed_drops_a_foreign_or_plain_http_frame() {
+        for html in [
+            r#"<iframe src="https://evil.example/embed"></iframe>"#,
+            r#"<iframe src="https://notyoutube.com/embed"></iframe>"#,
+            r#"<iframe src="http://www.youtube.com/embed/x"></iframe>"#,
+            r#"<iframe src="javascript:alert(1)"></iframe>"#,
+        ] {
+            assert_eq!(
+                purify_embed(html, "https://www.youtube.com/watch?v=x", &["youtube.com"]),
+                "",
+                "{html}"
+            );
+        }
+    }
+
+    /// A provider host matches itself and its subdomains, and the source's own
+    /// host is admitted the same way, so a custom provider needs no rule.
+    #[test]
+    fn purify_embed_matches_the_host_and_its_subdomains() {
+        let frame = |source: &str, hosts: &[&str], url: &str| {
+            let html = format!(r#"<iframe src="{url}"></iframe>"#);
+            purify_embed(&html, source, hosts)
+        };
+        assert!(frame("https://vimeo.com/1", &[], "https://player.vimeo.com/1").contains("src="));
+        assert!(frame("https://ted.com/talks/x", &[], "https://embed.ted.com/x").contains("src="));
+        assert!(
+            frame(
+                "https://www.youtube.com/watch?v=x",
+                &["youtube.com"],
+                "https://youtube.com/embed/x"
+            )
+            .contains("src=")
+        );
+        assert_eq!(
+            frame("https://vimeo.com/1", &[], "https://notvimeo.com/1"),
+            ""
+        );
     }
 
     /// The kept formatting, links, tables and images match the oracle's kept

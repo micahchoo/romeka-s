@@ -263,6 +263,6 @@ fn renderer_registry_renders_a_fixed_media_row() {
     );
     assert_eq!(
         renderers.render("youtube", &view, &youtube, &RenderOptions::default()),
-        "<iframe width=\"420\" height=\"315\" src=\"https://www.youtube.com/embed/dQw4w9WgXcQ?start=30\" title=\"[Untitled]\" frameborder=\"0\" allowfullscreen></iframe>"
+        "<iframe width=\"420\" height=\"315\" src=\"https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?start=30\" title=\"[Untitled]\" frameborder=\"0\" loading=\"lazy\" allowfullscreen></iframe>"
     );
 }

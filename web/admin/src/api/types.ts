@@ -684,6 +684,11 @@ export interface GlobalSettings {
   /** The global `locale`, or `null` when none is stored. */
   readonly locale: string | null;
   /**
+   * `media_alt_text_property`: the property term whose first value describes a
+   * media that stores no alt text, or `null` when the fallback is off.
+   */
+  readonly mediaAltTextProperty: string | null;
+  /**
    * `media_type_whitelist` as it applies: the stored list, else upstream's
    * default, which the server answers in its place.
    */
@@ -705,6 +710,7 @@ export interface GlobalSettings {
  */
 export interface GlobalSettingsWrite {
   readonly locale: string | null;
+  readonly mediaAltTextProperty: string | null;
   readonly mediaTypeWhitelist: readonly string[] | null;
   readonly extensionWhitelist: readonly string[] | null;
   readonly disableFileValidation: boolean;
