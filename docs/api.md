@@ -679,6 +679,18 @@ The port's derivative state for one media (`o-module-romeka:preview`).  Upstream
 | `reason` | `reason` | `Option<String>` | omitted when unset |
 | `progress` | `progress` | `Option<u8>` | omitted when unset |
 
+Response members of `MediaAccess` (`crates/omeka-api/src/wire/media.rs`).
+
+The playable copy of a media (`o-module-romeka:access`): whether a current browser can play the original, and when it cannot, the copy that plays.  Upstream has no such member; it plays the original or shows nothing. The original is never changed, so `o:original_url` stays the preservation master and this is the file a player opens.
+
+| JSON key | Rust field | Type | Notes |
+| --- | --- | --- | --- |
+| `state` | `state` | `PreviewState` |  |
+| `reason` | `reason` | `Option<String>` | omitted when unset |
+| `progress` | `progress` | `Option<u8>` | omitted when unset |
+| `url` | `url` | `Option<String>` | omitted when unset |
+| `media_type` | `media_type` | `Option<String>` | omitted when unset |
+
 Response members of `Media` (`crates/omeka-api/src/wire/media.rs`).
 
 One media document, including the raw `data` column (`MediaRepresentation::mediaData`).
@@ -711,6 +723,7 @@ One media document, including the raw `data` column (`MediaRepresentation::media
 | `o:alt_text` | `alt_text` | `Option<String>` | null when unset |
 | `o:original_url` | `original_url` | `Option<String>` | null when unset |
 | `o-module-romeka:preview` | `preview` | `Option<MediaPreview>` | omitted when unset; The port's derivative state for this media (`PreviewState`). Upstream has no such member and reads none of it. |
+| `o-module-romeka:access` | `access` | `Option<MediaAccess>` | omitted when unset; The playable copy this media has (`MediaAccess`). Upstream has no such member and reads none of it. |
 | `o:thumbnail_urls` | `thumbnail_urls` | `ThumbnailUrls` |  |
 | `data` | `data` | `Option<serde_json::Value>` | null when unset |
 | (flattened) | `values` | `ValueMap` | flattens the value map into this object |

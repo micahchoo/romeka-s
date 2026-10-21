@@ -48,6 +48,9 @@ const KNOWN_RED: &[(&str, &str)] = &[
     ("audio.ogg", "thumbnail"),
     ("audio.opus", "thumbnail"),
     ("audio.wav", "thumbnail"),
+    // A new corpus file whose thumbnail is red for the same reason every
+    // audio file's is: nothing makes a picture from a sound.
+    ("wma.wma", "thumbnail"),
     ("captions.srt", "iiif"),
     ("captions.srt", "thumbnail"),
     ("captions.vtt", "iiif"),
@@ -81,6 +84,9 @@ enum Cell {
     Thumbnail,
     Api,
     SiteMediaPage,
+    /// The media page's player opens a type every current browser plays: an
+    /// MP4 or a copy of one, never the AVI or the WMA as stored.
+    Playable,
     SiteNotes,
     SiteItemCard,
     SiteDownload,
@@ -96,6 +102,7 @@ const CELLS: &[Cell] = &[
     Cell::Thumbnail,
     Cell::Api,
     Cell::SiteMediaPage,
+    Cell::Playable,
     Cell::SiteNotes,
     Cell::SiteItemCard,
     Cell::SiteDownload,
@@ -113,6 +120,7 @@ impl Cell {
             Self::Thumbnail => "thumbnail",
             Self::Api => "api",
             Self::SiteMediaPage => "site-media-page",
+            Self::Playable => "playable",
             Self::SiteNotes => "site-notes",
             Self::SiteItemCard => "site-item-card",
             Self::SiteDownload => "site-download",
@@ -283,6 +291,27 @@ const FIXTURES: &[Fixture] = &[
         file: "video.ogv",
         media_type: "video/ogg",
         kind: Kind::Video,
+        captions: false,
+        upright: false,
+    },
+    Fixture {
+        file: "mjpeg.avi",
+        media_type: "video/x-msvideo",
+        kind: Kind::Video,
+        captions: false,
+        upright: false,
+    },
+    Fixture {
+        file: "mpeg2.mpg",
+        media_type: "video/mpeg",
+        kind: Kind::Video,
+        captions: false,
+        upright: false,
+    },
+    Fixture {
+        file: "wma.wma",
+        media_type: "audio/x-ms-wma",
+        kind: Kind::Audio,
         captions: false,
         upright: false,
     },
@@ -904,6 +933,9 @@ fn judge(
         Cell::Thumbnail => Some(thumbnail(fixture, seen, store)),
         Cell::Api => Some(api_cell(seen)),
         Cell::SiteMediaPage => Some(site_media_page(fixture, seen, css)),
+        Cell::Playable => {
+            matches!(fixture.kind, Kind::Audio | Kind::Video).then(|| playable(seen, store))
+        }
         Cell::SiteNotes => Some(site_notes(fixture, seen)),
         Cell::SiteItemCard => Some(site_item_card(seen, browse)),
         Cell::SiteDownload => Some(site_download(fixture, seen)),
@@ -1109,6 +1141,56 @@ fn site_media_page(fixture: &Fixture, seen: &Observed, css: &str) -> bool {
     let model_only = matches!(fixture.kind, Kind::Model)
         || !(page.contains("<model-viewer") || page.contains("/assets/js/model.js"));
     element && !crop && model_only
+}
+
+/// The player on the media page opens a type every current browser plays.
+///
+/// The source is read from the rendered page, its stored file is read from the
+/// store, and the extension has to be one every current browser decodes. A
+/// video is an MP4 or a WebM (or, per D2's table, an H.264/AAC QuickTime file,
+/// which Chrome and Safari both draw); audio is an MP3, M4A, Ogg, Opus, FLAC or
+/// WAV. An AVI, an MPEG-2, a WMA or a Matroska file as the source is red, which
+/// is what the access copy exists to fix.
+fn playable(seen: &Observed, store: &FileStore) -> bool {
+    let Some(page) = &seen.page else {
+        return false;
+    };
+    let Some(doc) = &seen.media_doc else {
+        return false;
+    };
+    let tag = match doc["o:kind"].as_str() {
+        Some("audio") => "audio",
+        Some("video") => "video",
+        _ => return false,
+    };
+    let Some(source) = page
+        .split(&format!("<{tag}"))
+        .nth(1)
+        .and_then(|open| open.split('>').next())
+        .and_then(|tag_text| tag_text.split("src=\"").nth(1))
+        .and_then(|rest| rest.split('"').next())
+    else {
+        return false;
+    };
+    let path = source.split('#').next().unwrap_or(source);
+    let Some(stored) = path.split("/files/").nth(1) else {
+        return false;
+    };
+    let extension = stored
+        .rsplit_once('.')
+        .map(|(_, extension)| extension.to_ascii_lowercase())
+        .unwrap_or_default();
+    let plays = matches!(
+        (tag, extension.as_str()),
+        ("video", "mp4" | "m4v" | "webm" | "mov")
+            | (
+                "audio",
+                "mp3" | "m4a" | "mp4" | "ogg" | "oga" | "opus" | "flac" | "wav"
+            )
+    );
+    // A page that names a file the store does not hold is no player source at
+    // all, whatever its extension promises.
+    plays && store.exists(stored).unwrap_or(false)
 }
 
 /// The model page offers the vendored viewer behind a button that states the

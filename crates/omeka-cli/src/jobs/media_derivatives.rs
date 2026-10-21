@@ -1,17 +1,23 @@
-//! `Romeka\Job\MediaDerivatives`: the worker that makes a media's preview.
+//! `Romeka\Job\MediaDerivatives`: the worker that makes a media's preview and
+//! its playable copy.
 //!
 //! A create outside the archive import stores the original and queues a row
 //! (`omeka_api::derivatives`); this worker drains the queue. It claims one row
 //! at a time, makes the still from the stored original, and settles the row
-//! ready, failed or none. Upstream makes the same derivatives inside the
-//! request (`TempFile::storeThumbnails`); the archive import keeps doing that,
-//! because it already runs off the request and batches its work.
+//! ready, failed or none. An `access_copy` row whose tool is `ffmpeg` becomes a
+//! transcode instead: an H.264/AAC MP4 for video or an AAC M4A for audio, which
+//! runs on its own thread and reports its progress to the row. Upstream makes
+//! the same derivatives inside the request (`TempFile::storeThumbnails`); the
+//! archive import keeps doing that, because it already runs off the request and
+//! batches its work.
 //!
-//! The queue holds one worker per install: a still is `ffmpeg` or `pdftoppm`
-//! on a file that may be gigabytes, and the deployment is one box whose disk
-//! the import shares. A worker that finds an import running or undoing holds
-//! the queue and starts nothing until the import ends ([`YIELD_LIMIT`]), and a
-//! long run checks for a stop request between rows.
+//! The queue holds one worker per install: a still or a transcode runs on a file
+//! that may be gigabytes, and the deployment is one box whose disk the import
+//! shares. A worker that finds an import running or undoing holds the queue and
+//! starts nothing until the import ends ([`YIELD_LIMIT`]), a long run checks for
+//! a stop request between rows, and a running transcode checks between progress
+//! updates: it stops cleanly and goes back to the queue when the job is stopped
+//! or an import starts.
 //!
 //! The work itself is [`omeka_api::derivatives::settle_next`], so a test and the
 //! `romeka media derivatives` backfill drain the same queue the same way.
@@ -59,7 +65,9 @@ impl Job for MediaDerivatives {
                 }
                 continue;
             }
-            let Some(settled) = settle_next(context.pool, &context.env.store).await? else {
+            let Some(settled) =
+                settle_next(context.pool, &context.env.store, Some(context.job_id)).await?
+            else {
                 break;
             };
             match settled {
@@ -81,6 +89,15 @@ impl Job for MediaDerivatives {
                     if let Some(reason) = reason {
                         context.log(&format!("failed: {reason}")).await?;
                     }
+                }
+                Settled::Queued { reason } => {
+                    stats.left = pending(context.pool).await?;
+                    if let Some(reason) = reason {
+                        context.log(&format!("left queued: {reason}")).await?;
+                    }
+                    // The copy stopped because the machine was not free or the
+                    // job was asked to. The rows stay queued for the next worker.
+                    break;
                 }
                 Settled::Gone => {}
             }

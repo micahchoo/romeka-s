@@ -79,6 +79,44 @@ impl MediaPreview {
     }
 }
 
+/// The playable copy of a media (`o-module-romeka:access`): whether a current
+/// browser can play the original, and when it cannot, the copy that plays.
+///
+/// Upstream has no such member; it plays the original or shows nothing. The
+/// original is never changed, so `o:original_url` stays the preservation master
+/// and this is the file a player opens.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MediaAccess {
+    pub state: PreviewState,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub progress: Option<u8>,
+    /// The copy's URL, present when `state` is `ready`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    /// The copy's media type, present when `state` is `ready`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub media_type: Option<String>,
+}
+
+impl MediaAccess {
+    /// The member for one media's access row, with the copy's URL resolved
+    /// through `files`.
+    #[must_use]
+    pub fn of(copy: &crate::derivatives::AccessCopy, files: &omeka_media::store::FileUrls) -> Self {
+        let stored = copy.stored.as_ref();
+        Self {
+            state: crate::derivatives::preview_state(copy.state),
+            reason: copy.reason.clone(),
+            progress: copy.progress,
+            url: stored
+                .map(|stored| files.url(&stored.path, omeka_media::store::FileKind::Original)),
+            media_type: stored.map(|stored| stored.media_type.to_string()),
+        }
+    }
+}
+
 /// One media document, including the raw `data` column
 /// (`MediaRepresentation::mediaData`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -142,6 +180,14 @@ pub struct Media {
         skip_serializing_if = "Option::is_none"
     )]
     pub preview: Option<MediaPreview>,
+    /// The playable copy this media has (`MediaAccess`). Upstream has no such
+    /// member and reads none of it.
+    #[serde(
+        rename = "o-module-romeka:access",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub access: Option<MediaAccess>,
     #[serde(rename = "o:thumbnail_urls")]
     pub thumbnail_urls: ThumbnailUrls,
     pub data: Option<serde_json::Value>,

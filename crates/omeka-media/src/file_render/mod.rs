@@ -157,6 +157,9 @@ impl FileRendererRegistry {
         for (alias, target) in FORK_RENDERER_ALIASES {
             registry.alias(alias, target);
         }
+        for (alias, target) in ACCESS_CONTAINER_ALIASES {
+            registry.alias(alias, target);
+        }
         registry
     }
 
@@ -228,6 +231,46 @@ const FORK_RENDERER_ALIASES: &[(&str, &str)] = &[
     ("gltf", "model"),
 ];
 
+/// The audio and video containers the access-copy table names. A browser may
+/// not play one as stored, and its access copy plays; the page still needs a
+/// player element to open either, so each names `audio` or `video`. Without
+/// this a WMA page drew the fallback thumbnail instead of a player.
+const ACCESS_CONTAINER_ALIASES: &[(&str, &str)] = &[
+    ("audio/x-ms-wma", "audio"),
+    ("audio/x-ms-wax", "audio"),
+    ("audio/x-ape", "audio"),
+    ("audio/x-monkeys-audio", "audio"),
+    ("audio/x-realaudio", "audio"),
+    ("audio/amr", "audio"),
+    ("audio/x-aiff", "audio"),
+    ("video/mpeg", "video"),
+    ("video/x-ms-wmv", "video"),
+    ("video/x-ms-asf", "video"),
+    ("video/x-ms-vob", "video"),
+    ("video/x-dv", "video"),
+    ("video/x-flv", "video"),
+    ("video/divx", "video"),
+    ("video/dvd", "video"),
+    ("video/3gpp", "video"),
+    ("wma", "audio"),
+    ("wax", "audio"),
+    ("ape", "audio"),
+    ("ra", "audio"),
+    ("amr", "audio"),
+    ("aif", "audio"),
+    ("aiff", "audio"),
+    ("mpg", "video"),
+    ("mpeg", "video"),
+    ("mp2", "video"),
+    ("wmv", "video"),
+    ("asf", "video"),
+    ("vob", "video"),
+    ("dv", "video"),
+    ("flv", "video"),
+    ("divx", "video"),
+    ("3gp", "video"),
+];
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -263,6 +306,21 @@ mod tests {
             registry.get("application/ogg").map(FileRenderer::name),
             Some("video")
         );
+    }
+
+    /// A WMA, an MPEG-2, a DV and every other container the access-copy table
+    /// names reaches a player, by type and by extension, so its page opens
+    /// either the original or the copy.
+    #[test]
+    fn registry_resolves_the_containers_the_copy_table_names() {
+        let registry = FileRendererRegistry::with_defaults();
+        for (name, renderer) in ACCESS_CONTAINER_ALIASES {
+            assert_eq!(
+                registry.get(name).map(FileRenderer::name),
+                Some(*renderer),
+                "{name}"
+            );
+        }
     }
 
     /// A name upstream does not register is `None`, which is what makes

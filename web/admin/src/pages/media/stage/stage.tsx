@@ -180,7 +180,7 @@ const AudioStage = ({
     <CaptionTracks tracks={tracks} mediaId={mediaId} mediaLang={mediaLang} translator={translator} />
     <p>
       {translator.t('media.stage.playFailed')}{' '}
-      <a href={view.url}>{translator.t('media.stage.downloadFile')}</a>
+      <a href={view.file.url ?? view.url}>{translator.t('media.stage.downloadFile')}</a>
     </p>
   </audio>
 );
@@ -217,7 +217,7 @@ const VideoStage = ({
     <CaptionTracks tracks={tracks} mediaId={mediaId} mediaLang={mediaLang} translator={translator} />
     <p>
       {translator.t('media.stage.playFailed')}{' '}
-      <a href={view.url}>{translator.t('media.stage.downloadFile')}</a>
+      <a href={view.file.url ?? view.url}>{translator.t('media.stage.downloadFile')}</a>
     </p>
   </video>
 );
