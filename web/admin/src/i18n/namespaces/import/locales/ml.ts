@@ -201,6 +201,7 @@ export const ml: ImportMessages = {
   'problem.cells-count': 'തെറ്റായ എണ്ണം സെല്ലുകളുള്ള ഒരു വരി',
   'problem.no-file': 'ഈ ഇംപോർട്ടിലെ ഒരു ഫയലിന്റെയും പേരില്ലാത്ത ഒരു വരി',
   'problem.not-media': 'ഒരു ചിത്രമല്ല, ഒരു ശബ്ദമല്ല, ഒരു സിനിമയോ പിഡിഎഫോ അല്ല',
+  'problem.listed-not-media': 'നിങ്ങളുടെ ലിസ്റ്റിൽ പേരുള്ള, Omeka സ്വീകരിക്കാത്ത ഒരു ഫയൽ',
   'problem.format-mismatch': 'ഉള്ളടക്കത്തിന് അനുയോജ്യമല്ലാത്ത പേരിൽ അവസാനിക്കുന്ന ഒരു ഫയൽ',
   'problem.exists': 'Omeka-യിൽ ഇതിനകം ഉണ്ട്',
   'problem.unmatched': 'Omeka-യിൽ മാറ്റാൻ ഐറ്റങ്ങളൊന്നുമില്ല',

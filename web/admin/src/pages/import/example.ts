@@ -9,9 +9,9 @@
  * place's text with each run of digits read as any number. `sep` is the
  * character before the place.
  *
- * Both modes read and write this one example. Simple keeps its answers
- * beside it in the same object (`simple/example-state.ts`), so every change
- * here sets `path` and `marks` and keeps the other keys.
+ * Both modes read and write this one example. Simple keeps its answers in
+ * `plan.simple` (`simple/example-state.ts`). A draft saved before that
+ * member holds them in this object, so a change here moves them across.
  */
 import type { ImportPlan } from '../../api/import-plan';
 import { isRecord, isUnknownArray } from '../../api/parse';
@@ -93,19 +93,40 @@ export const patternOf = (marks: readonly Mark[]): string => {
 export const patternIsMarked = (plan: ImportPlan, example: MarkedExample): boolean =>
   plan.grouping.pattern === patternOf(example.marks);
 
+/** The keys Simple's answers had inside `example`, before `plan.simple`. */
+const LEGACY_KEYS = ['groupsOk', 'answered', 'notLists'] as const;
+
+/** Simple's answers as the plan holds them: `simple`, or else the old keys of `example`, or `null`. */
+export const simpleRecordOf = (plan: ImportPlan): Readonly<Record<string, JsonValue>> | null => {
+  if (plan.simple !== undefined) {
+    return plan.simple;
+  }
+  const old = Object.fromEntries(LEGACY_KEYS.flatMap((key) => (plan.example?.[key] === undefined ? [] : [[key, plan.example[key]] as const])));
+  return Object.keys(old).length === 0 ? null : old;
+};
+
+/** The plan's example without Simple's old answers; `null` when nothing else is in it. */
+export const withoutOldAnswers = (example: ImportPlan['example']): ImportPlan['example'] => {
+  const rest = Object.fromEntries(Object.entries(example ?? {}).filter(([key]) => !LEGACY_KEYS.some((legacy) => legacy === key)));
+  return Object.keys(rest).length === 0 ? null : rest;
+};
+
+/** Whether `example` holds something besides Simple's old answers, which is what Advanced reports as kept. */
+export const exampleKept = (plan: ImportPlan): boolean =>
+  plan.example !== null && Object.keys(plan.example).some((key) => !LEGACY_KEYS.some((legacy) => legacy === key));
+
 const marksJson = (marks: readonly Mark[]): JsonValue =>
   marks.map((mark) => (mark.kind === 'number' ? { kind: mark.kind, text: mark.text, sep: mark.sep } : { kind: mark.kind, words: [...mark.words], sep: mark.sep }));
 
 /**
- * The plan's example with these marks, the other keys kept. With no mark the
- * path and the marks go, and an example left with nothing in it is `null`.
+ * The plan with this example: the path and the marks, nothing else. With no
+ * mark the example is `null`. Simple's answers an old draft kept inside it
+ * move to `simple` first.
  */
-export const exampleWith = (plan: ImportPlan, path: string | null, marks: readonly Mark[]): ImportPlan['example'] => {
-  const kept = Object.fromEntries(Object.entries(plan.example ?? {}).filter(([key]) => key !== 'path' && key !== 'marks'));
-  if (marks.length === 0) {
-    return Object.keys(kept).length === 0 ? null : kept;
-  }
-  return { ...kept, ...(path === null ? {} : { path }), marks: marksJson(marks) };
+export const withExample = (plan: ImportPlan, path: string | null, marks: readonly Mark[]): ImportPlan => {
+  const simple = simpleRecordOf(plan);
+  const moved: ImportPlan = simple === null ? plan : { ...plan, simple };
+  return { ...moved, example: marks.length === 0 ? null : { ...(path === null ? {} : { path }), marks: marksJson(marks) } };
 };
 
 /**
@@ -120,12 +141,12 @@ export const removeMark = (plan: ImportPlan, index: number): ImportPlan => {
   }
   const marks = example.marks.filter((_, at) => at !== index);
   const pattern = patternIsMarked(plan, example) ? patternOf(marks) : plan.grouping.pattern;
-  return { ...plan, example: exampleWith(plan, example.path, marks), grouping: { ...plan.grouping, pattern } };
+  return { ...withExample(plan, example.path, marks), grouping: { ...plan.grouping, pattern } };
 };
 
 /** The plan without its example; a pattern the example wrote goes back to grouping by the name alone. */
 export const removeExample = (plan: ImportPlan): ImportPlan => {
   const example = exampleOf(plan);
   const marked = example !== null && patternIsMarked(plan, example);
-  return { ...plan, example: exampleWith(plan, null, []), grouping: { ...plan.grouping, pattern: marked ? patternOf([]) : plan.grouping.pattern } };
+  return { ...withExample(plan, null, []), grouping: { ...plan.grouping, pattern: marked ? patternOf([]) : plan.grouping.pattern } };
 };

@@ -136,7 +136,8 @@ impl FileRendererRegistry {
     }
 
     /// The four upstream invokables plus the alias table
-    /// (`application/config/module.config.php:891,897`).
+    /// (`application/config/module.config.php:891,897`), and this fork's
+    /// aliases for the formats upstream's table predates.
     #[must_use]
     pub fn with_defaults() -> Self {
         let mut registry = Self::new();
@@ -181,7 +182,9 @@ impl FileRendererRegistry {
     }
 }
 
-/// The `file_renderers.aliases` map from `application/config/module.config.php:897`.
+/// The `file_renderers.aliases` map from `application/config/module.config.php:897`,
+/// then the formats this fork accepts that upstream's table predates: FLAC and
+/// Matroska by type, and their extensions for a row that stored no type.
 const UPSTREAM_ALIASES: &[(&str, &str)] = &[
     ("audio/ogg", "audio"),
     ("audio/x-aac", "audio"),
@@ -196,6 +199,12 @@ const UPSTREAM_ALIASES: &[(&str, &str)] = &[
     ("video/ogg", "video"),
     ("video/webm", "video"),
     ("mp3", "audio"),
+    ("audio/flac", "audio"),
+    ("video/x-matroska", "video"),
+    ("flac", "audio"),
+    ("mkv", "video"),
+    ("ogv", "video"),
+    ("opus", "audio"),
 ];
 
 #[cfg(test)]
@@ -245,5 +254,28 @@ mod tests {
             registry.names(),
             vec!["audio", "fallback", "thumbnail", "video"]
         );
+    }
+
+    /// FLAC plays through the audio renderer and Matroska through the video
+    /// one, by type and by extension.
+    #[test]
+    fn registry_resolves_the_widened_formats() {
+        let registry = FileRendererRegistry::with_defaults();
+        for (name, renderer) in [
+            ("audio/flac", "audio"),
+            ("flac", "audio"),
+            ("opus", "audio"),
+            ("video/x-matroska", "video"),
+            ("mkv", "video"),
+            ("ogv", "video"),
+            ("video/ogg", "video"),
+            ("audio/ogg", "audio"),
+        ] {
+            assert_eq!(
+                registry.get(name).map(FileRenderer::name),
+                Some(renderer),
+                "{name}"
+            );
+        }
     }
 }

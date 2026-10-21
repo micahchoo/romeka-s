@@ -135,6 +135,7 @@ export const ml: ImportSimpleMessages = {
   'guided.where.setOne': '“{name}” എന്ന് പേരിട്ട്, എല്ലാത്തിനും പുതിയ ഇനം കൂട്ടം',
   'guided.where.setOld': 'Omeka-യിൽ നിലവിലുള്ള ഇനം കൂട്ടം',
   'guided.where.setWhich': 'ഏതാണ്',
+  'guided.where.setColumn': 'നിങ്ങളുടെ പട്ടികയിൽ, “{header}” എന്ന കോളം',
   'guided.where.setNone': 'ഇനങ്ങളുടെ കൂട്ടം ഇല്ല',
   'guided.where.setsNone': 'ഇനങ്ങളൊന്നും ഇനങ്ങളുടെ കൂട്ടത്തിൽ ഇല്ല.',
   'guided.where.setsMake': 'ഇത് {count} ഇനം കൂട്ടങ്ങൾ ഉണ്ടാക്കുന്നു:',
@@ -214,6 +215,10 @@ export const ml: ImportSimpleMessages = {
   'guided.check.noFit':
     '{count} ഫയലുകൾക്ക് നിങ്ങൾ അടയാളപ്പെടുത്തിയ ഉദാഹരണത്തിന് ചേരാത്ത പേര് ഉണ്ട്.',
   'guided.check.noFitOne': '1 ഫയലിന് നിങ്ങൾ അടയാളപ്പെടുത്തിയ ഉദാഹരണത്തിന് ചേരാത്ത പേര് ഉണ്ട്.',
+  'guided.check.noFitPlain':
+    '{count} ഫയലുകൾക്ക് മറ്റ് ഫയലുകൾ ഇനങ്ങൾ ആയി ഗ്രൂപ്പ് ചെയ്തിരിക്കുന്ന രീതിക്ക് ചേരാത്ത ഒരു പേര് ഉണ്ട്.',
+  'guided.check.noFitPlainOne':
+    '1 ഫയലിന് മറ്റ് ഫയലുകൾ ഇനങ്ങൾ ആയി ഗ്രൂപ്പ് ചെയ്തിരിക്കുന്ന രീതിക്ക് ചേരാത്ത ഒരു പേര് ഉണ്ട്.',
   'guided.check.noFitOwn': 'ഓരോന്നിനെയും അതിന്റെ സ്വന്തം ഇനമാക്കുക',
   'guided.check.known': '{count} ഇനങ്ങൾ ഒമേക്കയിൽ നേരത്തെ ഉണ്ട്.',
   'guided.check.knownOne': '1 ഇനം ഒമേക്കയിൽ ഉണ്ട്.',

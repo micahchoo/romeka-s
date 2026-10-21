@@ -9,7 +9,7 @@ import type { ReactElement } from 'react';
 import type { SourcePlan } from '../../../api/import-plan';
 import { ErrorNotice } from '../../../app/errors';
 import { useDraft } from '../draft-context';
-import { exampleOf, patternIsMarked, removeExample, removeMark } from '../example';
+import { exampleKept, exampleOf, patternIsMarked, removeExample, removeMark } from '../example';
 import type { Mark } from '../example';
 import { listHref } from '../lists/address';
 import { useLookAgain } from '../look-again';
@@ -68,7 +68,7 @@ const Example = (): ReactElement => {
   const { t } = useAdvancedText();
   const draft = useDraft();
   const example = exampleOf(draft.plan);
-  const stored = draft.plan.example !== null;
+  const stored = exampleKept(draft.plan);
   const followed = example !== null && patternIsMarked(draft.plan, example);
   return (
     <Setting label={t('adv.files.example.label')} plain={t('adv.files.example.plain')}>

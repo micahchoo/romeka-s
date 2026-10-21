@@ -1,13 +1,14 @@
-//! The contract's scenarios S1–S8, S15 and S16, at model level, on
+//! The contract's scenarios S1–S8 and S15–S19, at model level, on
 //! generated evidence.
 
 use serde_json::json;
 
 use super::support::*;
 use crate::import::catalog::{Catalog, Template};
+use crate::import::decisions::EntryRef;
 use crate::import::derive::{Index, NoTags, Sheets, derive};
-use crate::import::model::{Fate, Link, Model, OrphanReason, Parent, SetRef, TemplateRef};
-use crate::import::plan::{FlagKind, ImportPlanV2, RecordKind};
+use crate::import::model::{Fate, Link, Model, OrphanReason, Parent, SetRef, Subject, TemplateRef};
+use crate::import::plan::{FlagKind, FlagPolicy, ImportPlanV2, RecordKind};
 use crate::import::values::Visibility;
 use omeka_media::validation::FileValidation;
 
@@ -454,5 +455,178 @@ fn s16_after_a_resort_value_keyed_decisions_keep_their_rows_and_line_keyed_ones_
     assert!(
         unchanged.orphans.is_empty(),
         "same bytes: line keys still hold"
+    );
+}
+
+fn on_file(path: &str) -> impl Fn(&&crate::import::model::Flag) -> bool + '_ {
+    move |flag| matches!(&flag.subject, Subject::Entry(EntryRef::File(file)) if file.path.as_str() == path)
+}
+
+/// Views `a`, `b`, `c` … of one object: `X_010b.jpg` is view `b` of `X_010`.
+const VIEWS: &str = r"^(?<identifier>X_\d{3})(?<part>[a-z])\.[^.]+$";
+
+/// A sheet with one row per file, joined by file name.
+fn per_file_sheet(plan: &mut serde_json::Value) {
+    plan["grouping"]["pattern"] = json!(VIEWS);
+    plan["sheets"] = json!([sheet_plan("views", &["File", "Keywords", "By"])]);
+    plan["sheets"][0]["rowKind"] = json!("media");
+    plan["sheets"][0]["join"] = join_on("fileName", 0, "File", false, false, false);
+    plan["sheets"][0]["columns"][1]["options"]["split"] = json!(",");
+}
+
+#[test]
+fn s17_a_per_file_catalogue_gives_the_item_its_media_rows_and_each_media_its_own() {
+    let files = [
+        ("X_010a.jpg", JPEG),
+        ("X_010b.jpg", JPEG),
+        ("X_010c.jpg", JPEG),
+    ];
+    let plan = plan(|plan| {
+        per_file_sheet(plan);
+        plan["slots"]["item"]["dcterms:subject"] =
+            rule(json!([col("views", 1, "Keywords")]), "all");
+        plan["slots"]["media"]["dcterms:creator"] = rule(json!([col("views", 2, "By")]), "first");
+    });
+    let csv: &[u8] = b"File,Keywords,By\nX_010c.jpg,Side View,Asha\nX_010b.jpg,\"Back View, Lamp\",Ravi\nX_010a.jpg,\"Lamp, Front View\",Dilip\n";
+    let model = run(
+        &index(&files),
+        &read_sheets(&plan, &[("views", csv)]),
+        &plan,
+    );
+    assert_eq!(
+        kept(&model, RecordKind::Item).len(),
+        1,
+        "one item for three views"
+    );
+    let x = item(&model, "X_010");
+    assert_eq!(
+        texts(x, "dcterms:subject"),
+        ["Lamp", "Front View", "Back View", "Side View"],
+        "the union of the views' keywords, each once, in media order"
+    );
+    assert_eq!(texts(x, "dcterms:identifier"), ["X_010"]);
+    let by: Vec<Vec<&str>> = x
+        .media
+        .iter()
+        .map(|media| texts(model.record(*media), "dcterms:creator"))
+        .collect();
+    assert_eq!(
+        by,
+        [["Dilip"], ["Ravi"], ["Asha"]],
+        "each view keeps its own row"
+    );
+}
+
+#[test]
+fn s20_an_item_with_its_own_row_in_a_sheet_reads_only_that_row_of_it() {
+    let files = [
+        ("X_010a.jpg", JPEG),
+        ("X_010b.jpg", JPEG),
+        ("X_010c.jpg", JPEG),
+    ];
+    let plan = plan(|plan| {
+        plan["grouping"]["pattern"] = json!(VIEWS);
+        plan["sheets"] = json!([sheet_plan("mixed", &["Kind", "File", "Title"])]);
+        plan["sheets"][0]["rowKind"] = json!({ "column": { "index": 0, "header": "Kind" } });
+        plan["sheets"][0]["join"] = join_on("fileName", 1, "File", false, false, false);
+        plan["slots"]["item"]["dcterms:title"] = rule(json!([col("mixed", 2, "Title")]), "first");
+        plan["slots"]["media"]["dcterms:title"] = rule(json!([col("mixed", 2, "Title")]), "first");
+    });
+    let csv: &[u8] =
+        b"Kind,File,Title\nitem,X_010c.jpg,Lamp\nmedia,X_010a.jpg,Front\nmedia,X_010b.jpg,Back\n";
+    let model = run(
+        &index(&files),
+        &read_sheets(&plan, &[("mixed", csv)]),
+        &plan,
+    );
+    let x = item(&model, "X_010");
+    assert_eq!(
+        texts(x, "dcterms:title"),
+        ["Lamp"],
+        "the item's own row speaks for it; its media's rows of that sheet do not add to it"
+    );
+    assert!(
+        flags(&model, FlagKind::ManyValues).is_empty(),
+        "no many-values flag from media rows"
+    );
+}
+
+#[test]
+fn s18_an_identifier_rule_that_gives_nothing_falls_back_to_the_item_code() {
+    let files = [("A1.jpg", JPEG), ("B2.jpg", JPEG), ("C3.jpg", JPEG)];
+    let csv: &[u8] = b"Id,Code\nA1,ACC-1\nB2,\n";
+    for slot in ["dcterms:identifier", "itemKey"] {
+        let plan = plan(|plan| {
+            plan["grouping"]["pattern"] = json!(PATTERN);
+            plan["sheets"] = json!([sheet_plan("register", &["Id", "Code"])]);
+            plan["sheets"][0]["join"] = join_on("identifier", 0, "Id", false, false, false);
+            plan["slots"]["item"][slot] = rule(json!([col("register", 1, "Code")]), "first");
+        });
+        let model = run(
+            &index(&files),
+            &read_sheets(&plan, &[("register", csv)]),
+            &plan,
+        );
+        let a1 = item(&model, "ACC-1");
+        assert_eq!(
+            media_paths(&model, a1),
+            ["A1.jpg"],
+            "{slot}: a value is kept"
+        );
+        for code in ["B2", "C3"] {
+            assert_eq!(
+                texts(item(&model, code), "dcterms:identifier"),
+                [code],
+                "{slot}: an empty cell or no row gives the group key"
+            );
+        }
+    }
+}
+
+#[test]
+fn s19_a_refused_file_a_list_row_names_is_flagged_with_the_row() {
+    let files = [
+        ("X_011a.jpg", JPEG),
+        ("X_011b.NEF", BINARY),
+        ("X_012a.NEF", BINARY),
+    ];
+    let mut catalog = catalog();
+    catalog.files = FileValidation::Allow {
+        media_types: [JPEG.to_string()].into(),
+        extensions: ["jpg".to_string()].into(),
+    };
+    let plan = plan(|plan| {
+        per_file_sheet(plan);
+        plan["flags"] = json!({ "listed-not-media": "keep", "not-media": "keep" });
+        plan["decisions"] = json!([{ "kind": "flag", "entry": { "file": { "source": "s1", "path": "X_011b.NEF" } },
+                                     "flag": "listed-not-media", "slot": null, "policy": "keep" }]);
+    });
+    let csv: &[u8] = b"File,Keywords,By\nX_011a.jpg,Front,Dilip\nX_011b.NEF,Back,Dilip\n";
+    let model = derive(
+        &index(&files),
+        &read_sheets(&plan, &[("views", csv)]),
+        &plan,
+        &catalog,
+        &NoTags,
+    );
+    let listed = flags(&model, FlagKind::ListedNotMedia);
+    assert_eq!(listed.len(), 1, "{listed:?}");
+    assert!(on_file("X_011b.NEF")(&listed[0]));
+    assert_eq!(listed[0].detail.as_deref(), Some("X_011b.NEF#1 .nef"));
+    assert_eq!(
+        listed[0].policy,
+        Some(FlagPolicy::Leave),
+        "keeping it cannot work: ingest refuses the file"
+    );
+    let not_media = flags(&model, FlagKind::NotMedia);
+    assert!(not_media.iter().any(on_file("X_011b.NEF")));
+    assert!(
+        not_media.iter().any(on_file("X_012a.NEF")),
+        "a refused file no row names is only not-media"
+    );
+    assert_eq!(
+        media_paths(&model, item(&model, "X_011")),
+        ["X_011a.jpg"],
+        "the named NEF is left out"
     );
 }

@@ -40,7 +40,7 @@ use omeka_media::ingest::{
     ErrorStore, HtmlPurifier, IngestEnv, IngestFile, IngestFlags, IngestRequest, MediaDraft,
     ingest_file,
 };
-use omeka_media::media_type::{detected_media_type, extension_for_media_type};
+use omeka_media::media_type::{detected_media_type_of, extension_for_media_type};
 use omeka_media::oembed::{Oembed, OembedAllowList};
 use omeka_media::store::{
     Store, StorePrefix, extension_from_source_name, new_storage_id, storage_path,
@@ -187,6 +187,9 @@ fn arrive_whole(
             omeka_media::ingest::IngestFileError::Refused(_) => {
                 ArrivalError::Refused(error.to_string())
             }
+            omeka_media::ingest::IngestFileError::UnsafeSvg(_) => {
+                ArrivalError::Refused(error.to_string())
+            }
             omeka_media::ingest::IngestFileError::Store(error) => {
                 ArrivalError::Store(error.to_string())
             }
@@ -207,13 +210,22 @@ fn stream_file(
     size: Option<u64>,
     name: &str,
 ) -> Result<Arrived, ArrivalError> {
-    let media_type = detected_media_type(head);
-    let extension = extension_from_source_name(name)
-        .or_else(|| extension_for_media_type(&media_type).map(str::to_string));
+    let source_extension = extension_from_source_name(name);
+    let media_type = detected_media_type_of(head, source_extension.as_deref());
+    let extension =
+        source_extension.or_else(|| extension_for_media_type(&media_type).map(str::to_string));
     let refusals = validation.refusals(name, &media_type, extension.as_deref());
     if !refusals.is_empty() {
         let reasons: Vec<String> = refusals.iter().map(ToString::to_string).collect();
         return Err(ArrivalError::Refused(reasons.join(" ")));
+    }
+    // An SVG is filtered before it is stored, and the filter reads the whole
+    // document. A body this large cannot be held, so it is refused rather
+    // than stored unfiltered.
+    if media_type == "image/svg+xml" {
+        return Err(ArrivalError::Refused(
+            "Error storing the SVG: an SVG over the streaming limit cannot be filtered".to_string(),
+        ));
     }
     let storage_id = new_storage_id().map_err(|error| ArrivalError::Store(error.to_string()))?;
     let original = storage_path(StorePrefix::Original, &storage_id, extension.as_deref());

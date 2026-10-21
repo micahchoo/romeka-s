@@ -8,7 +8,7 @@ import type { ImportId, ImportPlan, SheetPlan } from '../../../api/import-plan';
 import { importApi } from '../../../api/import-routes';
 import type { SourceState } from '../../../api/import-sections';
 import { loadProperties } from '../lists/catalog';
-import { readState } from './example-state';
+import { declines, readState } from './example-state';
 import { sheetOf, withRead } from './list-plan';
 
 export interface ListFile {
@@ -31,7 +31,7 @@ export const listFiles = (plan: ImportPlan, sources: readonly SourceState[]): re
 /** Those the person did not turn down. */
 export const offered = (plan: ImportPlan, sources: readonly SourceState[]): readonly ListFile[] => {
   const { notLists } = readState(plan);
-  return listFiles(plan, sources).filter((list) => !notLists.includes(list.file));
+  return listFiles(plan, sources).filter((list) => !notLists.some((entry) => declines(entry, list.source, list.file)));
 };
 
 /**

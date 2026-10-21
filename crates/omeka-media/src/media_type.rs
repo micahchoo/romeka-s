@@ -15,10 +15,12 @@
 const OCTET_STREAM: &str = "application/octet-stream";
 
 /// The `infer` answers libmagic 5.46 names differently, measured on the
-/// oracle. `infer` reports a HEIC file as `image/heif`, and a compound file
-/// that is not a known Office document (a `Thumbs.db`) as `x-ole-storage`.
+/// oracle. `infer` reports a HEIC file as `image/heif`, an Opus file by its
+/// codec where libmagic names the Ogg container, and a compound file that is
+/// not a known Office document (a `Thumbs.db`) as `x-ole-storage`.
 const FINFO_NAMES: &[(&str, &str)] = &[
     ("image/heif", "image/heic"),
+    ("audio/opus", "audio/ogg"),
     ("audio/m4a", "audio/x-m4a"),
     ("audio/x-flac", "audio/flac"),
     (
@@ -75,13 +77,44 @@ pub fn detected_media_type(bytes: &[u8]) -> String {
     lookup(MEDIA_TYPE_ALIASES, found).to_string()
 }
 
+/// The media type of a file whose source name carries `extension`.
+///
+/// The byte read alone cannot name every format: WebVTT and SubRip are plain
+/// text, a glTF document is JSON and a GLB is a binary nothing recognises. For
+/// those the extension is the better authority, and only when the byte read
+/// answered the container (see [`EXTENSION_TYPES`]). A `.png` holding a PNG
+/// stays `image/png`, whatever the name says.
+#[must_use]
+pub fn detected_media_type_of(bytes: &[u8], extension: Option<&str>) -> String {
+    let detected = detected_media_type(bytes);
+    let Some(extension) = extension else {
+        return detected;
+    };
+    EXTENSION_TYPES
+        .iter()
+        .find(|(container, name, _)| *container == detected && *name == extension)
+        .map_or(detected, |(_, _, media_type)| (*media_type).to_string())
+}
+
+/// The types the byte read cannot tell from their container, as
+/// `(detected, extension, media type)`. The stored type is what the download
+/// answers with, and what a file renderer picks, so the correction is made
+/// here rather than at serving time.
+const EXTENSION_TYPES: &[(&str, &str, &str)] = &[
+    ("text/plain", "vtt", "text/vtt"),
+    ("text/plain", "srt", "application/x-subrip"),
+    ("application/json", "gltf", "model/gltf+json"),
+    ("application/octet-stream", "glb", "model/gltf-binary"),
+    ("audio/ogg", "ogv", "video/ogg"),
+];
+
 /// The first extension `File/TempFile`'s `$mediaTypeMap` lists for a media
 /// type (`application/data/media-types/media-type-map.php`).
 ///
 /// Upstream's map is 3,300 lines; the port carries the entries for the types
 /// [`detected_media_type`] can answer, read from the oracle's copy. A type
-/// the map has no extension for (`audio/flac`, `text/xml`) is `None`, as it is
-/// upstream.
+/// the map has no extension for (`audio/flac`, `text/vtt`, `model/gltf+json`)
+/// is `None`, as it is upstream.
 #[must_use]
 pub fn extension_for_media_type(media_type: &str) -> Option<&'static str> {
     Some(match media_type {
@@ -99,6 +132,7 @@ pub fn extension_for_media_type(media_type: &str) -> Option<&'static str> {
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" => "xlsx",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document" => "docx",
         "application/x-shockwave-flash" => "swf",
+        "application/x-subrip" => "srt",
         "application/x-tar" => "tar",
         "application/zip" => "zip",
         "audio/midi" => "mid",
@@ -108,6 +142,7 @@ pub fn extension_for_media_type(media_type: &str) -> Option<&'static str> {
         "audio/x-aac" => "aac",
         "audio/x-aiff" => "aif",
         "audio/x-wav" => "wav",
+        "image/avif" => "avif",
         "image/bmp" => "bmp",
         "image/gif" => "gif",
         "image/heic" => "heic",
@@ -121,6 +156,7 @@ pub fn extension_for_media_type(media_type: &str) -> Option<&'static str> {
         "text/plain" => "txt",
         "video/mp4" => "mp4",
         "video/mpeg" => "mpeg",
+        "video/ogg" => "ogv",
         "video/quicktime" => "qt",
         "video/webm" => "webm",
         "video/x-flv" => "flv",
@@ -229,6 +265,63 @@ mod tests {
         assert_eq!(extension_for_media_type("image/jpeg"), Some("jpeg"));
         assert_eq!(extension_for_media_type("application/pdf"), Some("pdf"));
         assert_eq!(extension_for_media_type("text/plain"), Some("txt"));
+        assert_eq!(extension_for_media_type("video/ogg"), Some("ogv"));
+        assert_eq!(extension_for_media_type("video/x-matroska"), Some("mkv"));
+        assert_eq!(
+            extension_for_media_type("application/x-subrip"),
+            Some("srt")
+        );
         assert_eq!(extension_for_media_type("audio/flac"), None);
+        assert_eq!(extension_for_media_type("text/vtt"), None);
+    }
+
+    /// The formats a byte read cannot name are read by their source
+    /// extension, and only when the bytes answered the container.
+    #[test]
+    fn the_extension_names_what_the_bytes_cannot() {
+        let vtt = b"WEBVTT\n\n00:00:00.000 --> 00:00:00.400\nA line.\n";
+        assert_eq!(detected_media_type(vtt), "text/plain");
+        assert_eq!(detected_media_type_of(vtt, Some("vtt")), "text/vtt");
+
+        let srt = b"1\n00:00:00,000 --> 00:00:00,400\nA line.\n";
+        assert_eq!(
+            detected_media_type_of(srt, Some("srt")),
+            "application/x-subrip"
+        );
+
+        let gltf = b"{\"asset\":{\"version\":\"2.0\"}}";
+        assert_eq!(detected_media_type(gltf), "application/json");
+        assert_eq!(
+            detected_media_type_of(gltf, Some("gltf")),
+            "model/gltf+json"
+        );
+
+        let glb = b"glTF\x02\x00\x00\x00\x0c\x00\x00\x00";
+        assert_eq!(
+            detected_media_type_of(glb, Some("glb")),
+            "model/gltf-binary"
+        );
+
+        let ogg = b"OggS\x00\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+        assert_eq!(detected_media_type(ogg), "audio/ogg");
+        assert_eq!(detected_media_type_of(ogg, Some("ogv")), "video/ogg");
+    }
+
+    /// A name that disagrees with the bytes does not change a type the byte
+    /// read is sure of.
+    #[test]
+    fn a_misleading_extension_does_not_override_a_signature() {
+        let png = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR";
+        assert_eq!(detected_media_type_of(png, Some("srt")), "image/png");
+        assert_eq!(detected_media_type_of(png, None), "image/png");
+    }
+
+    /// Opus rides in an Ogg container, and libmagic names the container, not
+    /// the codec.
+    #[test]
+    fn an_opus_stream_is_the_ogg_container() {
+        let mut eye = b"OggS\x00\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x13OpusHead\x01\x01\x00\x00\x80\xbb\x00\x00\x00\x00\x00".to_vec();
+        eye.extend_from_slice(&[0; 8]);
+        assert_eq!(detected_media_type(&eye), "audio/ogg");
     }
 }

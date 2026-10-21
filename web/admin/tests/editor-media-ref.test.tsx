@@ -46,6 +46,41 @@ const archive =
     return jsonResponse({ errors: { error: `Unexpected request to ${url.pathname}` } }, { status: 404 });
   };
 
+/** The one row of a one-row fixture page, which the stub can hand back as a read. */
+const firstOf = (rows: unknown): unknown => (Array.isArray(rows) ? rows[0] : null);
+
+/** The archive with an item whose media are the kinds fixture's rows. */
+const archiveOfKinds =
+  (rows: unknown, total: number) =>
+  (url: URL): Response => {
+    if (url.pathname === '/api/items') {
+      return listResponse([item], 1);
+    }
+    if (url.pathname === '/api/item_sets' || url.pathname === '/api/resource_classes') {
+      return listResponse([], 0);
+    }
+    if (url.pathname === '/api/media') {
+      return listResponse(rows, total);
+    }
+    if (url.pathname === '/api/items/1' || url.pathname === '/api/items/31') {
+      return jsonResponse(withVisibility(item, true));
+    }
+    if (url.pathname === '/api/media/961') {
+      return jsonResponse(firstOf(rows));
+    }
+    if (url.pathname === '/api/media/960') {
+      return jsonResponse(firstOf(rows));
+    }
+    return jsonResponse({ errors: { error: `Unexpected request to ${url.pathname}` } }, { status: 404 });
+  };
+
+/** The kinds fixture's rows, or only the audio one. */
+const kindRows = (onlyAudio = false): readonly unknown[] => {
+  const rows: unknown = loadFixture('media-page-kinds.json');
+  const list = Array.isArray(rows) ? rows : [];
+  return onlyAudio ? list.filter((_, index) => index === 1) : list;
+};
+
 const renderIiif = (): (() => BlockDraft) => {
   let latest: BlockDraft | null = null;
   render(
@@ -99,6 +134,32 @@ describe('the IIIF image from a media of this site', () => {
     fireEvent.change(screen.getByLabelText('Image from'), { target: { value: 'media' } });
     fireEvent.click(await screen.findByRole('option', { name: 'Fixture Item One', selected: false }));
     expect(await screen.findByRole('radio', { name: /Private/ })).toBeDisabled();
+    expect(carrierOf(block())?.settings).toEqual({ source: 'media' });
+  });
+
+  it('offers only the item media that are images', async () => {
+    installFetch(archiveOfKinds(kindRows(), kindRows().length));
+    const block = renderIiif();
+    fireEvent.change(screen.getByLabelText('Image from'), { target: { value: 'media' } });
+    fireEvent.click(await screen.findByRole('option', { name: 'Fixture Item One', selected: false }));
+
+    expect(await screen.findByRole('radio', { name: 'photo.jpg' })).toBeInTheDocument();
+    expect(screen.getAllByRole('radio')).toHaveLength(1);
+    expect(screen.queryByRole('radio', { name: /tone\.mp3/ })).toBeNull();
+    expect(screen.queryByRole('radio', { name: /report\.pdf/ })).toBeNull();
+    // The one image is public, so the control chooses it at once.
+    expect(await screen.findByRole('radio', { checked: true })).toBeInTheDocument();
+    expect(carrierOf(block())?.settings).toEqual({ source: 'media', media: 960 });
+  });
+
+  it('says the item has no image when its only media is an audio file', async () => {
+    installFetch(archiveOfKinds(kindRows(true), 1));
+    const block = renderIiif();
+    fireEvent.change(screen.getByLabelText('Image from'), { target: { value: 'media' } });
+    fireEvent.click(await screen.findByRole('option', { name: 'Fixture Item One', selected: false }));
+
+    expect(await screen.findByText('This item has no image.')).toBeInTheDocument();
+    expect(screen.queryByRole('radio')).toBeNull();
     expect(carrierOf(block())?.settings).toEqual({ source: 'media' });
   });
 });
@@ -182,6 +243,17 @@ describe('the hero background from a media of this site', () => {
       expect(document.querySelector('.media-choice input[type="radio"]')).not.toBeNull();
     });
     expect(screen.queryByText('This image is private, so visitors do not see it.')).toBeNull();
+  });
+
+  it('says a chosen media with no picture cannot take a focal point', async () => {
+    installFetch(archiveOfKinds(kindRows(true), 1));
+    render(<HeroForm initial={heroDraft({ background_source: 'media', background_media: 961 })} />);
+
+    expect(
+      await screen.findByText('This media has no image to set a focal point on.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Focal point/ })).toBeNull();
+    expect(heroSettings()).toMatchObject({ background_media: 961 });
   });
 
   it('asks for an image first when the hero has none', () => {

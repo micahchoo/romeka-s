@@ -93,6 +93,28 @@ impl MediaKind {
     }
 }
 
+/// What made an item record, as the admin words it when the item does not
+/// fit the pattern.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ItemOrigin {
+    // Declared so that `Ord` puts the items the pattern did not group first,
+    // as the `pattern: bool` it replaces did; ties in the groups sort by it.
+    Row,
+    Own,
+    Pattern,
+}
+
+impl ItemOrigin {
+    fn of(origin: &Origin) -> Self {
+        match origin {
+            Origin::Group(GroupKey::Pattern(_)) => Self::Pattern,
+            Origin::Group(GroupKey::Own(_)) => Self::Own,
+            Origin::Row(_) | Origin::File(_) => Self::Row,
+        }
+    }
+}
+
 /// The facts one item record has. The admin sends a group's facts back as
 /// the `records` filter `shape`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -104,9 +126,9 @@ pub struct ShapeFacts {
     pub folders: Vec<String>,
     /// Distinct and sorted.
     pub media: Vec<MediaKind>,
-    /// The file pattern grouped the files: not a `move … own` decision, and
-    /// not a row with no file.
-    pub pattern: bool,
+    /// Why the item exists: the pattern grouped its files, a list row made
+    /// it with no file, or a `move … own` decision gave a file its own item.
+    pub origin: ItemOrigin,
     /// A list row joined the record, or made it.
     pub row: bool,
     /// The texts of the pattern's `part` group over the files, distinct and
@@ -184,7 +206,7 @@ impl<'d> Facts<'d> {
             files: Bucket::of(record.files.len()),
             folders: folders.into_iter().map(str::to_string).collect(),
             media: media.into_iter().collect(),
-            pattern: matches!(record.origin, Origin::Group(GroupKey::Pattern(_))),
+            origin: ItemOrigin::of(&record.origin),
             row: !record.rows.is_empty(),
             parts: self.parts.then(|| parts.into_iter().collect()),
             pages: self.pages.then(|| pages.into_iter().collect()),

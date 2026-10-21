@@ -61,12 +61,16 @@ export const BUCKETS: readonly Bucket[] = ['0', '1', '2', '3', '4-6', '7+'];
 export type MediaKind = 'image' | 'pdf' | 'audio' | 'video' | 'other';
 export const MEDIA_KINDS: readonly MediaKind[] = ['image', 'pdf', 'audio', 'video', 'other'];
 
+export type ItemOrigin = 'pattern' | 'row' | 'own';
+export const ITEM_ORIGINS: readonly ItemOrigin[] = ['pattern', 'row', 'own'];
+
 /** The facts one item has; a `shapes` group's facts are sent back as the `records` filter `shape`. */
 export interface ShapeFacts {
   readonly files: Bucket;
   readonly folders: readonly string[];
   readonly media: readonly MediaKind[];
-  readonly pattern: boolean;
+  /** Why the item exists: the pattern grouped its files, a list row made it, or a file was made an item of its own. */
+  readonly origin: ItemOrigin;
   readonly row: boolean;
   /** `null` when the pattern has no `part` group. */
   readonly parts: readonly string[] | null;
@@ -265,12 +269,12 @@ export interface BucketCount {
 }
 
 const parseShapeFacts: Parser<ShapeFacts> = (raw, path = []) => {
-  const object = strict(raw, path, ['files', 'folders', 'media', 'pattern', 'row', 'parts', 'pages']);
+  const object = strict(raw, path, ['files', 'folders', 'media', 'origin', 'row', 'parts', 'pages']);
   return {
     files: member(object, 'files', path, oneOf(BUCKETS)),
     folders: member(object, 'folders', path, list(asString)),
     media: member(object, 'media', path, list(oneOf(MEDIA_KINDS))),
-    pattern: member(object, 'pattern', path, asFlag),
+    origin: member(object, 'origin', path, oneOf(ITEM_ORIGINS)),
     row: member(object, 'row', path, asFlag),
     parts: member(object, 'parts', path, nullable(list(asString))),
     pages: member(object, 'pages', path, nullable(list(asString))),

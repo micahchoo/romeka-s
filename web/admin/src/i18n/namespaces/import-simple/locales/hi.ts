@@ -136,6 +136,7 @@ export const hi: ImportSimpleMessages = {
   'guided.where.setOne': 'हर चीज़ के लिए एक नया आइटम सेट, जिसका नाम “{name}” है',
   'guided.where.setOld': 'ओमेका में पहले से मौजूद एक आइटम सेट',
   'guided.where.setWhich': 'कौन सा',
+  'guided.where.setColumn': 'आपकी सूची से, “{header}” कॉलम',
   'guided.where.setNone': 'कोई आइटम सेट नहीं',
   'guided.where.setsNone': 'आइटम किसी भी आइटम सेट में नहीं हैं।',
   'guided.where.setsMake': 'इससे {count} आइटम सेट बनते हैं:',
@@ -215,6 +216,10 @@ export const hi: ImportSimpleMessages = {
     '{count} फ़ाइलों में ऐसा नाम है जो आपके द्वारा चिह्नित उदाहरण में फिट नहीं होता है।',
   'guided.check.noFitOne':
     '1 फ़ाइल का नाम ऐसा है जो आपके द्वारा चिह्नित उदाहरण में फिट नहीं होता है.',
+  'guided.check.noFitPlain':
+    '{count} फ़ाइलों का नाम ऐसा है जो अन्य फ़ाइलों को आइटम में समूहित करने के तरीके से मेल नहीं खाता।',
+  'guided.check.noFitPlainOne':
+    '1 फ़ाइल का नाम ऐसा है जो अन्य फ़ाइलों को आइटम में समूहित करने के तरीके से मेल नहीं खाता।',
   'guided.check.noFitOwn': 'प्रत्येक को उसके अपने आइटम में बदलें',
   'guided.check.known': '{count} आइटम पहले से ही ओमेका में हैं।',
   'guided.check.knownOne': '1 आइटम पहले से ही ओमेका में है।',

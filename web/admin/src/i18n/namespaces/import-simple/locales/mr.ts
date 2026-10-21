@@ -136,6 +136,7 @@ export const mr: ImportSimpleMessages = {
   'guided.where.setOne': 'सर्वांसाठी एक नवीन वस्तू संच, ज्याचे नाव “{name}” असेल',
   'guided.where.setOld': 'Omeka मध्ये आधीच असलेला वस्तू संच',
   'guided.where.setWhich': 'कोणता',
+  'guided.where.setColumn': 'तुमच्या सूचीमधून, “{header}” स्तंभ',
   'guided.where.setNone': 'कोणतीही वस्तू संच नाही',
   'guided.where.setsNone': 'वस्तू कोणत्याही वस्तू संचामध्ये नाहीत.',
   'guided.where.setsMake': 'यामुळे {count} वस्तू संच तयार होतात:',
@@ -214,6 +215,10 @@ export const mr: ImportSimpleMessages = {
   'guided.check.noFit':
     '{count} फाईल्सना असे नाव आहे जे तुम्ही चिन्हांकित केलेल्या उदाहरणात बसत नाही.',
   'guided.check.noFitOne': '1 फाईलला असे नाव आहे जे तुम्ही चिन्हांकित केलेल्या उदाहरणात बसत नाही.',
+  'guided.check.noFitPlain':
+    '{count} फाईल्सना असे नाव आहे जे इतर फाईल्स ज्या प्रकारे आयटम्समध्ये गटबद्ध केल्या आहेत त्याशी जुळत नाही.',
+  'guided.check.noFitPlainOne':
+    '1 फाईलला असे नाव आहे जे इतर फाईल्स ज्या प्रकारे आयटम्समध्ये गटबद्ध केल्या आहेत त्याशी जुळत नाही.',
   'guided.check.noFitOwn': 'प्रत्येक एकाला स्वतःचा एक घटक बनवा',
   'guided.check.known': '{count} घटक आधीच ओमेका मध्ये आहेत.',
   'guided.check.knownOne': '1 घटक आधीच ओमेका मध्ये आहे.',

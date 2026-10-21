@@ -134,6 +134,7 @@ export const te: ImportSimpleMessages = {
   'guided.where.setOne': 'ప్రతిదానికీ ఒక కొత్త అంశం సెట్, దీనికి "{name}" అని పేరు పెట్టండి',
   'guided.where.setOld': 'Omeka లో ఇప్పటికే ఉన్న అంశం సెట్',
   'guided.where.setWhich': 'ఏది',
+  'guided.where.setColumn': 'మీ జాబితా నుండి, “{header}” కాలమ్',
   'guided.where.setNone': 'అంశం సెట్ లేదు',
   'guided.where.setsNone': 'అంశాలు ఏ అంశం సెట్‌లోనూ లేవు.',
   'guided.where.setsMake': 'ఇది {count} అంశం సెట్‌లను సృష్టిస్తుంది:',
@@ -212,6 +213,10 @@ export const te: ImportSimpleMessages = {
   'guided.check.sameBoth': 'రెండింటినీ ఉంచండి',
   'guided.check.noFit': '{count} ఫైల్‌లు మీరు గుర్తించిన ఉదాహరణకు సరిపోని పేరును కలిగి ఉన్నాయి.',
   'guided.check.noFitOne': '1 ఫైల్‌కు మీరు గుర్తించిన ఉదాహరణకు సరిపోని పేరు ఉంది.',
+  'guided.check.noFitPlain':
+    '{count} ఫైళ్లు ఒక పేరును కలిగి ఉన్నాయి, అది ఇతర ఫైళ్లను అంశాలుగా ఎలా సమూహపరిచారు అనేదానికి సరిపోదు.',
+  'guided.check.noFitPlainOne':
+    '1 ఫైల్ ఒక పేరును కలిగి ఉంది, అది ఇతర ఫైళ్లను అంశాలుగా ఎలా సమూహపరిచారు అనేదానికి సరిపోదు.',
   'guided.check.noFitOwn': 'ప్రతి దానిని దాని స్వంత అంశంగా మార్చండి',
   'guided.check.known': '{count} అంశాలు ఇప్పటికే Omekaలో ఉన్నాయి.',
   'guided.check.knownOne': '1 అంశం ఇప్పటికే Omekaలో ఉంది.',

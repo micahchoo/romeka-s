@@ -21,6 +21,7 @@ import {
 } from '../../../../app/reorder/useReorderable';
 import { useAsync } from '../../../../app/useAsync';
 import { mediaName, previewImageUrl } from '../../../../app/media';
+import { MediaKindBadge } from '../../../../app/media-image';
 import { useTranslator } from '../../../../i18n';
 import type { BlockAttachment } from '../draft';
 import { Help, helpId } from '../Labelled';
@@ -141,6 +142,7 @@ const MediaChoice = ({
               <img className="attachment-thumb" src={thumbnail} alt="" />
             )}
             <span>{mediaName(entry) ?? t('common.untitled')}</span>
+            <MediaKindBadge media={entry} />
           </label>
         );
       })}

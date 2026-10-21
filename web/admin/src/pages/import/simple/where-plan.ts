@@ -7,7 +7,7 @@
 import type { ImportPlan, SlotRule, SourceRef } from '../../../api/import-plan';
 import { fold } from './list-plan';
 
-export type SetChoice = 'leaf' | 'top' | 'one' | 'old' | 'none';
+export type SetChoice = 'leaf' | 'top' | 'one' | 'old' | 'column' | 'none';
 
 const ruleOf = (plan: ImportPlan, slot: 'sets' | 'template'): SlotRule => plan.slots.item[slot] ?? { sources: [], combine: 'first' };
 
@@ -28,10 +28,16 @@ export const folderName = (plan: ImportPlan): string => {
   return folder.path === '' ? folder.root : (folder.path.split('/').at(-1) ?? folder.path);
 };
 
+/** The header of the first list column that feeds the item set rule, if one does. */
+export const setColumnOf = (plan: ImportPlan): string | null => {
+  const source = ruleOf(plan, 'sets').sources.find((one) => one.from === 'column');
+  return source?.from === 'column' ? source.column.header : null;
+};
+
 export const setChoiceOf = (plan: ImportPlan): { readonly choice: SetChoice; readonly set: string | null } => {
   const source = own(ruleOf(plan, 'sets'));
   if (source === undefined) {
-    return { choice: 'none', set: null };
+    return setColumnOf(plan) === null ? { choice: 'none', set: null } : { choice: 'column', set: null };
   }
   if (source.from === 'folder') {
     return { choice: source.level === 'path' ? 'leaf' : 'top', set: null };
@@ -44,7 +50,7 @@ export const setChoiceOf = (plan: ImportPlan): { readonly choice: SetChoice; rea
 
 export const withSets = (plan: ImportPlan, choice: SetChoice, set: string | null): ImportPlan => {
   const rule = ruleOf(plan, 'sets');
-  const lists = rule.sources.filter((source) => source.from === 'column');
+  const lists = choice === 'none' ? [] : rule.sources.filter((source) => source.from === 'column');
   const chosen: readonly SourceRef[] =
     choice === 'leaf'
       ? [{ from: 'folder', level: 'path' }]

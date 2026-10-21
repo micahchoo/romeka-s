@@ -98,6 +98,9 @@ pub struct QueryFilter {
     pub in_sites: Option<bool>,
     /// `has_media`: items with media (true) or without (false).
     pub has_media: Option<bool>,
+    /// `has_media_kind`: items with a media of one of these port kind names
+    /// (`MediaKind::name`). `None` adds no filter; an empty list matches no item.
+    pub has_media_kind: Option<MediaKindFilter>,
     /// `site_attachments_only`: items attached to a block on a page of the
     /// `site_id` site (`ItemAdapter::buildQuery`). Only meaningful with
     /// `site_id`.
@@ -120,6 +123,7 @@ impl QueryFilter {
             && self.site_id.is_none()
             && self.in_sites.is_none()
             && self.has_media.is_none()
+            && self.has_media_kind.is_none()
             && !self.site_attachments_only
             && self.item_set_ids.is_empty()
             && self.not_item_set_ids.is_empty()
@@ -182,6 +186,16 @@ impl QueryFilter {
                        WHERE media.item_id = resource.id",
                 );
             self.push_media_visibility(statement, "mr")?;
+            statement.push(")");
+        }
+        if let Some(kinds) = &self.has_media_kind {
+            statement.push(
+                " AND EXISTS (SELECT 1 FROM media
+                   JOIN resource mr ON mr.id = media.id
+                   WHERE media.item_id = resource.id",
+            );
+            self.push_media_visibility(statement, "mr")?;
+            push_media_kind(statement, kinds)?;
             statement.push(")");
         }
         push_item_sets(statement, "item_item_set.item_id = resource.id", self)
@@ -289,6 +303,74 @@ impl QueryFilter {
         }
         Ok(())
     }
+}
+
+/// A filter on the port's media kind: the kind names to keep, and the media types the
+/// thumbnailer draws from, which decide `local-image` as `MediaKind::of` does.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MediaKindFilter {
+    pub names: Vec<String>,
+    pub local_image_types: Vec<String>,
+}
+
+/// `romeka_kind` and `has_media_kind`: the port's media kind as the wire names
+/// it, rendered as a `CASE` over the `media` columns.
+///
+/// Each branch is one row of `omeka_media::kind::MediaKind::of`, in the order
+/// that table applies them, so `other-file` is the `ELSE`. The clause is built
+/// here because this crate is the only one that writes SQL;
+/// `crates/omeka-server/tests/kind_on_wire.rs` reads every corpus file through
+/// the API and asserts the filter finds exactly the documents whose `o:kind`
+/// names it, so the mirror cannot drift unseen.
+pub(crate) fn push_media_kind<'q, DB: Backend>(
+    statement: &mut Statement<'q, DB>,
+    filter: &MediaKindFilter,
+) -> Result<(), DbError>
+where
+    for<'x> String: Encode<'x, DB> + Type<DB>,
+{
+    let names = &filter.names;
+    if names.is_empty() {
+        statement.push(" AND 1 = 0");
+        return Ok(());
+    }
+    statement.push(
+        " AND (CASE
+           WHEN media.ingester = 'iiif' THEN 'iiif-image'
+           WHEN media.ingester = 'iiif_presentation' THEN 'iiif-presentation'
+           WHEN media.renderer IN ('youtube', 'oembed', 'html') THEN 'embed'
+           WHEN media.renderer = 'file' AND media.has_thumbnails = 1
+             AND media.media_type IN (",
+    );
+    // The thumbnailer's source types, bound from the caller, so a new image format changes one list.
+    if filter.local_image_types.is_empty() {
+        statement.push("NULL");
+    }
+    for (index, media_type) in filter.local_image_types.iter().enumerate() {
+        if index > 0 {
+            statement.push(", ");
+        }
+        statement.bind(media_type.clone())?;
+    }
+    statement.push(
+        ") THEN 'local-image'
+           WHEN media.renderer = 'file' AND media.media_type = 'application/pdf' THEN 'pdf'
+           WHEN media.renderer = 'file'
+             AND media.media_type IN ('model/gltf-binary', 'model/gltf+json') THEN 'model-3d'
+           WHEN media.renderer = 'file'
+             AND media.media_type IN ('text/vtt', 'application/x-subrip') THEN 'captions'
+           WHEN media.renderer = 'file' AND media.media_type LIKE 'audio/%' THEN 'audio'
+           WHEN media.renderer = 'file' AND media.media_type LIKE 'video/%' THEN 'video'
+           ELSE 'other-file' END) IN (",
+    );
+    for (index, name) in names.iter().enumerate() {
+        if index > 0 {
+            statement.push(", ");
+        }
+        statement.bind(name.clone())?;
+    }
+    statement.push(")");
+    Ok(())
 }
 
 /// The predicate of one property row, inside its `EXISTS` subquery.
