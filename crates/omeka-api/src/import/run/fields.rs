@@ -300,9 +300,16 @@ impl Named<'_> {
     /// A named slot as a matched record writes it. It is mapped when the
     /// record holds a value for it, so `revise` leaves the others as stored;
     /// under `update` and `replace` also when the plan has a rule for it, so
-    /// an empty cell clears the slot.
+    /// an empty cell clears the slot. An item's sets are ruled by its
+    /// memberships, not by a slot rule.
     fn mapped<T>(&self, record: &Record, slot: SlotName, value: T) -> Slot<T> {
-        let ruled = self.whole() && self.rules(record, record.kind).contains_key(&slot);
+        let ruled = match slot {
+            SlotName::Sets if record.kind == RecordKind::Item => {
+                !self.plan.structure.memberships(record.series).is_empty()
+            }
+            _ => self.rules(record, record.kind).contains_key(&slot),
+        };
+        let ruled = self.whole() && ruled;
         if ruled || has(record, &slot) {
             Slot::Mapped(value)
         } else {

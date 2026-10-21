@@ -515,6 +515,7 @@ ones that would write broken data or have no defined result.
 | `many-values` | value | keep (first) | no |
 | `link-missing` | value | keep | no |
 | `unknown-type` | record | keep | no |
+| `unknown-set` (a `sets` value that names a set by id, or a row by key, that is not there; keep makes the item without that set) | record | keep | no |
 | `unknown-kind` | row | leave | no |
 | `duplicate-row` | row | leave | no |
 | `unknown-term` | plan | — | yes |

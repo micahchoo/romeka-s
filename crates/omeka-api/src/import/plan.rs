@@ -283,9 +283,6 @@ pub enum PlanError {
     SeriesSets(String),
     #[error("a set named by title has an empty title ({0})")]
     EmptySetTitle(String),
-    /// The temporary rule: what the engine cannot run until U5.
-    #[error("this server cannot run this plan yet: {0}")]
-    NotYet(NotYet),
     #[error("two sources have the id {0:?}")]
     DuplicateSource(String),
     #[error("two sheets have the id {0:?}")]
@@ -328,31 +325,6 @@ pub enum PlanError {
     },
 }
 
-/// What a plan the types accept asks of the engine that it does not do yet.
-/// Each is a rule U5 (sets) deletes.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum NotYet {
-    SetLevel(String),
-    SeriesSet(String),
-    FreeSets,
-}
-
-impl std::fmt::Display for NotYet {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::SetLevel(id) => write!(
-                f,
-                "it does not read set levels yet, and this plan has the set level {id:?}"
-            ),
-            Self::SeriesSet(id) => write!(
-                f,
-                "it does not read a series' own set yet, and series {id:?} has one"
-            ),
-            Self::FreeSets => write!(f, "it reads free sets only as a version 2 plan's sets rule"),
-        }
-    }
-}
-
 impl ImportPlan {
     /// Parse a plan sent by the admin or read from the database.
     ///
@@ -368,7 +340,7 @@ impl ImportPlan {
         let plan = match value.get("version") {
             Some(version) if version.as_u64() == Some(3) => {
                 let wire: v3::PlanV3 = serde_json::from_str(text).map_err(PlanError::ShapeV3)?;
-                Self::try_from(wire)?
+                Self::from(wire)
             }
             Some(version) if version.as_u64() != Some(2) => {
                 return Err(PlanError::Version(version.to_string()));

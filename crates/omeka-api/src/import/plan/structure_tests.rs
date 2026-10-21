@@ -146,21 +146,11 @@ fn the_design_examples_parse() {
         }
     }
 
-    for text in [BORN_DIGITAL, ARCHIVE_AS_FOUND] {
+    for text in [BHC006, ORAL_HISTORY, BORN_DIGITAL, ARCHIVE_AS_FOUND] {
         let plan = parse(text);
         assert_eq!(plan.version, PlanVersion::V3);
         assert_eq!(plan.to_json(), compact(text), "written back byte for byte");
     }
-
-    let not_yet = |text: &str| match ImportPlan::from_json(text) {
-        Err(PlanError::NotYet(why)) => why,
-        other => panic!("not refused by the temporary rule alone: {other:?}"),
-    };
-    assert_eq!(not_yet(BHC006), NotYet::SetLevel("project".into()));
-    assert_eq!(
-        not_yet(ORAL_HISTORY),
-        NotYet::SeriesSet("interviews".into())
-    );
 }
 
 #[test]
@@ -359,40 +349,25 @@ fn a_set_named_by_an_empty_title_is_refused() {
 }
 
 #[test]
-fn the_temporary_rule_names_what_the_server_cannot_run_yet() {
-    let cases = [
-        (
-            json!({ "levels": [{ "kind": "set", "id": "p", "set": { "id": 4 },
-                "levels": [series("all", json!("all"))] }], "freeSets": [] }),
-            NotYet::SetLevel("p".into()),
-        ),
-        (
-            json!({ "levels": [series("all", json!("all"))],
-                "freeSets": [{ "title": "Exhibition 2018", "description": null }] }),
-            NotYet::FreeSets,
-        ),
-        (
-            json!({ "levels": [series("all", json!("all"))], "freeSets": [{ "each": {
-                "sources": [{ "from": "constant", "value": "2018" }], "combine": "first", "names": "title"
-            } }] }),
-            NotYet::FreeSets,
-        ),
-    ];
-    for (structure, why) in cases {
-        let error = refused(|plan| plan["structure"] = structure.clone());
-        assert!(
-            matches!(&error, PlanError::NotYet(got) if *got == why),
-            "{structure}: {error:?}"
-        );
-    }
+fn set_levels_series_sets_and_free_sets_pass_the_boundary() {
     let mut set = series("all", json!("all"));
     set["set"] = json!({ "id": 4 });
-    let error = refused(|plan| plan["structure"]["levels"] = json!([set]));
-    assert_eq!(
-        error.to_string(),
-        "this server cannot run this plan yet: it does not read a series' own set yet, \
-         and series \"all\" has one"
-    );
+    let structures = [
+        json!({ "levels": [{ "kind": "set", "id": "p", "set": { "id": 4 },
+            "levels": [series("all", json!("all"))] }], "freeSets": [] }),
+        json!({ "levels": [series("all", json!("all"))],
+            "freeSets": [{ "title": "Exhibition 2018", "description": null }] }),
+        json!({ "levels": [series("all", json!("all"))], "freeSets": [{ "each": {
+            "sources": [{ "from": "constant", "value": "2018" }], "combine": "first", "names": "title"
+        } }] }),
+        json!({ "levels": [set], "freeSets": [] }),
+    ];
+    for structure in structures {
+        let mut plan: Value = serde_json::from_str(ARCHIVE_AS_FOUND).expect("fixture json");
+        plan["structure"] = structure.clone();
+        let parsed = parse(&plan.to_string());
+        assert_eq!(parsed.to_json(), plan.to_string(), "{structure}");
+    }
 }
 
 #[test]
@@ -421,7 +396,7 @@ fn the_lower_refuses_what_v2_cannot_say() {
         let mut value: Value = serde_json::from_str(ARCHIVE_AS_FOUND).expect("json");
         value["structure"] = structure.clone();
         let wire: v3::PlanV3 = serde_json::from_value(value).expect("v3 wire");
-        let plan = ImportPlan::try_from(wire).expect("no series sets");
+        let plan = ImportPlan::from(wire);
         assert!(
             matches!(v2::PlanV2::try_from(plan), Err(PlanError::NotV2(_))),
             "{structure}"

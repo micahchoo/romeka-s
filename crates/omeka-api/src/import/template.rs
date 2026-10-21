@@ -317,6 +317,11 @@ pub fn add_list(
             sheet: id.clone(),
             column: column_ref,
         };
+        if slot == SlotName::Sets {
+            plan.structure.text_sets_mut().sources.insert(0, from);
+            mapped.push(column.index);
+            continue;
+        }
         let rules = plan.structure.rules_mut(series, RecordKind::Item);
         match rules.get_mut(&slot) {
             Some(rule) => rule.sources.insert(0, from),

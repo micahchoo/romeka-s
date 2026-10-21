@@ -279,6 +279,11 @@ fn every_kind() -> Vec<Model> {
             plan["defaults"]["template"] = json!(7);
             plan["newTypes"] = json!([{ "label": "Artifact", "from": "mapping", "class": null }]);
             plan["slots"]["item"]["bibo:x"] = rule(json!([constant("x")]), "first");
+            plan["decisions"] = json!([{
+                "kind": "set", "entry": { "file": { "source": "s1", "path": "F5.jpg" } },
+                "target": "item", "slot": "sets",
+                "values": [{ "type": { "resource": "internalId" }, "text": "404", "lang": null, "label": null }]
+            }]);
         })
     };
     let csv: &[u8] = b"Id,Kind,Title,Date,Link,Vis,Type\nE1,item,  T ,c. 1890,N9,public;private,Nope\nE1,item,,,,,\nN1,thing,,,,,\nN2,item,Caf\xc3\x83\xc2\xa9,,,,\nN3,item,a,b,c,d,e,f\n";

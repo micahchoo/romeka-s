@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use super::structure::Structure;
 use super::{
     ActionPlan, AnomalyAnswers, Defaults, FlagKind, FlagPolicy, ImportPlan, NewTerm, NewType,
-    PlanError, PlanVersion, SourcePlan, WireVersion, check,
+    PlanVersion, SourcePlan, WireVersion,
 };
 use crate::import::decisions::Decision;
 
@@ -31,20 +31,13 @@ pub(super) struct PlanV3 {
     simple: Option<serde_json::Map<String, serde_json::Value>>,
 }
 
-/// The v3 plan as the engine reads it. Refused when a series holds an
-/// `item.sets` rule: in memory that place is the folded free set's
-/// ([`Structure::fold`]), so the rule is checked on the wire.
-impl TryFrom<PlanV3> for ImportPlan {
-    type Error = PlanError;
-
-    fn try_from(wire: PlanV3) -> Result<Self, PlanError> {
-        check::no_series_sets(&wire.structure)?;
-        let mut structure = wire.structure;
-        structure.fold();
-        Ok(Self {
+/// The v3 plan as the engine reads it.
+impl From<PlanV3> for ImportPlan {
+    fn from(wire: PlanV3) -> Self {
+        Self {
             version: PlanVersion::V3,
             sources: wire.sources,
-            structure,
+            structure: wire.structure,
             action: wire.action,
             defaults: wire.defaults,
             flags: wire.flags,
@@ -53,18 +46,16 @@ impl TryFrom<PlanV3> for ImportPlan {
             new_terms: wire.new_terms,
             anomalies: wire.anomalies,
             simple: wire.simple,
-        })
+        }
     }
 }
 
 impl From<ImportPlan> for PlanV3 {
     fn from(plan: ImportPlan) -> Self {
-        let mut structure = plan.structure;
-        structure.unfold();
         Self {
             version: WireVersion,
             sources: plan.sources,
-            structure,
+            structure: plan.structure,
             action: plan.action,
             defaults: plan.defaults,
             flags: plan.flags,
