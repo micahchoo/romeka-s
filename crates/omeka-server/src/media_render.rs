@@ -1,18 +1,27 @@
-//! `GET /api/romeka/media/{id}/render`: the server's own render of one embed.
+//! `GET /api/romeka/media/{id}/render` and `/player`: the server's own render of
+//! one embed, and the provider player URL that render is.
 //!
 //! The admin stage shows an oEmbed or HTML media the way the public site shows
 //! it, so the editor sees what a visitor gets, and the admin never decides for
 //! itself what provider markup is safe (media-ui-plan S3, gap G2 in
-//! `briefs/media-ui/A-admin-media.md`). This route answers that render as one
-//! complete document, which the stage puts in a sandboxed iframe.
+//! `briefs/media-ui/A-admin-media.md`). The render route answers that render as
+//! one complete document, which the stage puts in a sandboxed iframe.
 //!
-//! The route is a Romeka addition. It reads the caller the way every `/api`
-//! route does, answers 404 for a media the caller may not see, and 415 for a
-//! kind that is not an embed.
+//! A render that is exactly one provider `<iframe>` is a player the browser can
+//! load from the provider itself, and the player route answers that URL. The
+//! stage frames it directly with `allow-same-origin` beside `allow-scripts`,
+//! which grants the provider's own origin and never this one; a nested provider
+//! frame inside a sandboxed frame of ours would instead inherit an opaque origin
+//! and refuse to draw. Every other render keeps the strict frame.
 //!
-//! Every answer carries the headers that make the document a frame and nothing
-//! more: a CSP over the sources the render itself names, `X-Frame-Options` and
-//! `frame-ancestors` for this origin alone, no cookie, and no shared cache.
+//! Both routes are Romeka additions. They read the caller the way every `/api`
+//! route does, answer 404 for a media the caller may not see, and the render
+//! route answers 415 for a kind that is not an embed.
+//!
+//! Every answer carries no shared cache and no cookie, because the visibility of
+//! a private media varies by caller. The render route adds the headers that make
+//! its document a frame and nothing more: a CSP over the sources the render
+//! itself names, `X-Frame-Options` and `frame-ancestors` for this origin alone.
 
 use axum::Router;
 use axum::body::Body;
@@ -25,9 +34,11 @@ use omeka_api::messages;
 use omeka_api::read::catalog::Catalog;
 use omeka_db::ids::MediaId;
 use omeka_db::repos::{ItemRepo, MediaRepo};
+use omeka_db::rows::MediaRow;
 use omeka_db::with_db;
 use omeka_media::data::MediaData;
 use omeka_media::file_render::FileRendererRegistry;
+use omeka_media::oembed::OembedAllowList;
 use omeka_media::render::{MediaView, RenderEnv, RenderOptions, RendererRegistry, View};
 use omeka_media::text::escape_html;
 
@@ -38,12 +49,17 @@ use crate::{AppState, actor_for, error_response};
 /// build.
 const EMBED_RENDERERS: [&str; 2] = ["oembed", "html"];
 
+/// The renderer whose markup can be one provider player.
+const OEMBED_RENDERER: &str = "oembed";
+
 /// The stage's own path prefix for the bundled theme's assets. No renderer this
 /// route reaches reads it, and a media view has to carry one.
 const ASSET_BASE: &str = "/assets";
 
 pub(crate) fn router() -> Router<AppState> {
-    Router::new().route("/api/romeka/media/{id}/render", get(render))
+    Router::new()
+        .route("/api/romeka/media/{id}/render", get(render))
+        .route("/api/romeka/media/{id}/player", get(player))
 }
 
 async fn render(
@@ -68,6 +84,32 @@ async fn render(
     }
 }
 
+/// `GET /api/romeka/media/{id}/player`: the provider's own player URL, or
+/// `null` when the render is not exactly one allow-listed frame.
+///
+/// Only an oEmbed media can answer a URL, and only when its purified markup is
+/// one `https` frame on the oEmbed allow list. An HTML media and every other
+/// kind answer `null`, which the stage reads as "keep the strict frame".
+async fn player(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    uri: Uri,
+    headers: HeaderMap,
+) -> Response {
+    let result = match id.parse::<u64>() {
+        Ok(id) => provider_of(&state, MediaId::from(id), &uri, &headers).await,
+        Err(_) => Err(ApiError::not_found(messages::NOT_FOUND)),
+    };
+    match result {
+        Ok(url) => player_answer(url.as_deref()),
+        Err(error) => {
+            let mut response = error_response(error);
+            private_headers(response.headers_mut());
+            response
+        }
+    }
+}
+
 /// The frame document for one media, or the refusal it earns.
 async fn document(
     state: &AppState,
@@ -75,6 +117,71 @@ async fn document(
     uri: &Uri,
     headers: &HeaderMap,
 ) -> Result<Frame, ApiError> {
+    let visible = visible(state, id, uri, headers).await?;
+    if !EMBED_RENDERERS.contains(&visible.media.renderer.as_str()) {
+        return Err(ApiError::UnsupportedMediaType {
+            message: format!(
+                "This route answers oEmbed and HTML media only; this media's renderer is \"{}\".",
+                visible.media.renderer
+            ),
+        });
+    }
+    let fragment = visible.fragment();
+    let policy = content_security_policy(&fragment);
+    let html = document_of(
+        &escape_html(&visible.view.display_title),
+        visible.media.lang.as_deref(),
+        &visible.base,
+        &fragment,
+    );
+    Ok(Frame { html, policy })
+}
+
+/// The provider player URL for one media, or `None` for anything that is not
+/// exactly one allow-listed oEmbed frame.
+async fn provider_of(
+    state: &AppState,
+    id: MediaId,
+    uri: &Uri,
+    headers: &HeaderMap,
+) -> Result<Option<String>, ApiError> {
+    let visible = visible(state, id, uri, headers).await?;
+    if visible.media.renderer != OEMBED_RENDERER {
+        return Ok(None);
+    }
+    Ok(provider_player(&visible.fragment()))
+}
+
+/// One media the caller may see, with the view and root URL its render reads.
+struct Visible {
+    media: MediaRow,
+    view: MediaView,
+    base: String,
+}
+
+impl Visible {
+    /// The renderer's markup, purified and with no document around it.
+    fn fragment(&self) -> String {
+        let renderers = RendererRegistry::with_defaults();
+        let file_renderers = FileRendererRegistry::with_defaults();
+        renderers.render(
+            &self.media.renderer,
+            &View {
+                file_renderers: &file_renderers,
+            },
+            &self.view,
+            &RenderOptions::default(),
+        )
+    }
+}
+
+/// The media and its item the caller may see, or the 404 that hides it.
+async fn visible(
+    state: &AppState,
+    id: MediaId,
+    uri: &Uri,
+    headers: &HeaderMap,
+) -> Result<Visible, ApiError> {
     let media = with_db!(&state.pool, |db| MediaRepo::new(db).get(id).await)
         .map_err(ApiError::internal)?
         .ok_or_else(|| ApiError::not_found(messages::NOT_FOUND))?;
@@ -90,25 +197,17 @@ async fn document(
     if !sees {
         return Err(ApiError::not_found(messages::NOT_FOUND));
     }
-    if !EMBED_RENDERERS.contains(&media.renderer.as_str()) {
-        return Err(ApiError::UnsupportedMediaType {
-            message: format!(
-                "This route answers oEmbed and HTML media only; this media's renderer is \"{}\".",
-                media.renderer
-            ),
-        });
-    }
     let catalog = Catalog::load(&state.pool).await?;
     let alt_text = omeka_api::settings::media_alt_text(&state.pool, &catalog, &media)
         .await
         .map_err(ApiError::internal)?;
     let core = media_core(&media, alt_text);
-    let base = state.base.as_str();
+    let base = state.base.as_str().to_string();
     let view = MediaView::new(
         core,
         MediaData::parse(&media.ingester, media.data.as_ref()).unwrap_or(MediaData::None),
         RenderEnv {
-            server_url: base.to_string(),
+            server_url: base.clone(),
             files: state.files.clone(),
             asset_base_path: ASSET_BASE.to_string(),
             viewer_url: format!("{base}/iiif-viewer"),
@@ -117,24 +216,50 @@ async fn document(
         format!("{base}/api/items/{}", media.item_id.0),
         format!("{base}/api/media/{}", id.0),
     );
-    let renderers = RendererRegistry::with_defaults();
-    let file_renderers = FileRendererRegistry::with_defaults();
-    let fragment = renderers.render(
-        &media.renderer,
-        &View {
-            file_renderers: &file_renderers,
-        },
-        &view,
-        &RenderOptions::default(),
-    );
-    let policy = content_security_policy(&fragment);
-    let html = document_of(
-        &escape_html(&view.display_title),
-        media.lang.as_deref(),
-        base,
-        &fragment,
-    );
-    Ok(Frame { html, policy })
+    Ok(Visible { media, view, base })
+}
+
+/// The one provider player URL a purified render names.
+///
+/// The answer is the render only when it is exactly one `iframe` with nothing
+/// else around or inside it, its `src` is `https`, and that URL's host is on the
+/// shipped oEmbed allow list. A provider's script widget (Twitter's blockquote),
+/// a frame with a caption beside it, an `http` frame, and a frame from a host
+/// outside the list all answer `None`.
+fn provider_player(fragment: &str) -> Option<String> {
+    let frame = fragment.trim();
+    let open = frame.strip_prefix("<iframe")?;
+    if !open.starts_with(|c: char| c == '>' || c.is_whitespace()) {
+        return None;
+    }
+    let end = open.find('>')?;
+    let body = &open[..end];
+    let after = &open[end + 1..];
+    let close = after.find("</iframe>")?;
+    let content = &after[..close];
+    let tail = &after[close + "</iframe>".len()..];
+    if !content.trim().is_empty() || !tail.trim().is_empty() {
+        return None;
+    }
+    let src = attribute(body, "src")?;
+    let host = https_host(src)?;
+    OembedAllowList::shipped()
+        .allows_host(&host)
+        .then(|| src.to_string())
+}
+
+/// The host of an `https` URL, lower case and without a port.
+fn https_host(url: &str) -> Option<String> {
+    let (scheme, rest) = url.split_once("://")?;
+    if !scheme.eq_ignore_ascii_case("https") {
+        return None;
+    }
+    let authority = rest.split(['/', '?', '#']).next()?;
+    let host = authority
+        .rsplit_once('@')
+        .map_or(authority, |(_user, host)| host);
+    let host = host.split(':').next()?.trim_end_matches('.');
+    (!host.is_empty()).then(|| host.to_ascii_lowercase())
 }
 
 /// A frame answer: the document and the policy its response carries.
@@ -294,13 +419,21 @@ fn html_answer(frame: Frame) -> Response {
     response
 }
 
-/// The headers every answer carries: no framing outside this origin, and no
-/// shared copy, because the visibility of a private media varies by caller.
-fn frame_headers(headers: &mut HeaderMap) {
-    headers.insert(
-        header::X_FRAME_OPTIONS,
-        header::HeaderValue::from_static("SAMEORIGIN"),
-    );
+/// The player route's answer: the URL the stage frames directly, or `null`.
+fn player_answer(url: Option<&str>) -> Response {
+    let body = serde_json::json!({ "url": url }).to_string();
+    let mut response = Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(body))
+        .unwrap_or_else(|_| crate::empty_internal_error());
+    private_headers(response.headers_mut());
+    response
+}
+
+/// The headers every answer carries: no shared copy, because the visibility of
+/// a private media varies by caller.
+fn private_headers(headers: &mut HeaderMap) {
     headers.insert(
         header::CACHE_CONTROL,
         header::HeaderValue::from_static("private, no-cache"),
@@ -308,9 +441,50 @@ fn frame_headers(headers: &mut HeaderMap) {
     headers.insert(header::VARY, header::HeaderValue::from_static("Cookie"));
 }
 
+/// The headers of the frame document: private as above, and no framing outside
+/// this origin.
+fn frame_headers(headers: &mut HeaderMap) {
+    headers.insert(
+        header::X_FRAME_OPTIONS,
+        header::HeaderValue::from_static("SAMEORIGIN"),
+    );
+    private_headers(headers);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The player route's answer is the frame's own source, and only when the
+    /// whole render is one `https` frame on the oEmbed allow list.
+    #[test]
+    fn one_allow_listed_frame_names_the_provider_player() {
+        assert_eq!(
+            provider_player("<iframe src=\"https://player.vimeo.com/video/1\"></iframe>"),
+            Some("https://player.vimeo.com/video/1".to_string())
+        );
+        assert_eq!(
+            provider_player(
+                "\n <iframe width=\"560\" src=\"https://www.youtube.com/embed/x?feature=oembed\"></iframe>\n"
+            ),
+            Some("https://www.youtube.com/embed/x?feature=oembed".to_string())
+        );
+        for fragment in [
+            // A caption or a second element beside the frame.
+            "<p>Watch</p><iframe src=\"https://www.youtube.com/embed/x\"></iframe>",
+            "<iframe src=\"https://www.youtube.com/embed/x\"></iframe><p>after</p>",
+            // Text inside the frame.
+            "<iframe src=\"https://www.youtube.com/embed/x\">fallback</iframe>",
+            // A plain http frame, a host outside the list, and a bare image.
+            "<iframe src=\"http://www.youtube.com/embed/x\"></iframe>",
+            "<iframe src=\"https://example.org/embed\"></iframe>",
+            "<iframe src=\"https://notyoutube.com/embed/x\"></iframe>",
+            "<img src=\"https://www.youtube.com/embed/x\">",
+            "",
+        ] {
+            assert_eq!(provider_player(fragment), None, "{fragment}");
+        }
+    }
 
     /// A source expression names the host and the port a frame or an image
     /// loads from, and refuses a relative source or another scheme.
