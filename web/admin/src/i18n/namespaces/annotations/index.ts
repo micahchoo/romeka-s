@@ -87,6 +87,37 @@ export const en = {
   'notes.refresh': 'Refresh',
   'notes.loadFailed': 'The notes did not load.',
   'notes.retry': 'Try again',
+  'region.label': 'The picture and its regions',
+  'region.tools': 'Region tools',
+  'region.tool.move': 'Move',
+  'region.tool.rect': 'Rectangle',
+  'region.tool.polygon': 'Polygon',
+  'region.advanced': 'Advanced',
+  'region.hint.move':
+    'Pick a shape to change it. Shift and drag marks a rectangle, and the arrows move the selected shape while the picture has the focus.',
+  'region.hint.rect': 'Drag on the picture to mark a rectangle. Esc cancels.',
+  'region.hint.polygon':
+    'Click each corner. Enter or a click on the first corner closes the shape. Backspace removes the last corner.',
+  'region.zoom.in': 'Zoom in',
+  'region.zoom.out': 'Zoom out',
+  'region.zoom': '{zoom}×',
+  'region.hide': 'Hide shapes',
+  'region.show': 'Show shapes',
+  'region.canvas': 'The picture. Draw a region on it.',
+  'region.draft': 'Unsaved',
+  'region.corners': '{count} of {max} corners',
+  'region.tooMany': 'A shape can have at most {max} corners.',
+  'region.tooFew': 'A shape needs at least three corners.',
+  'region.selected': 'Region {number}: x {x}, y {y}, {width} by {height} pixels.',
+  'region.byNumbers.title': 'Add a region by numbers',
+  'region.byNumbers.hint': 'In the picture’s own pixels ({width} × {height}).',
+  'region.byNumbers.x': 'Left',
+  'region.byNumbers.y': 'Top',
+  'region.byNumbers.width': 'Width',
+  'region.byNumbers.height': 'Height',
+  'region.byNumbers.add': 'Add the region',
+  'region.byNumbers.invalid':
+    'A region needs whole numbers, at least 1 by 1 pixel, and it must fit inside the picture.',
 } as const;
 
 /** A complete table of this namespace, in one locale. */
