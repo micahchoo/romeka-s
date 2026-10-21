@@ -125,4 +125,5 @@ export const ne: ResourcesMessages = {
   'place.invalid':
     '-90 देखि 90 सम्मको अक्षांश, एउटा अल्पविराम, र -180 देखि 180 सम्मको देशान्तर टाइप गर्नुहोस्।',
   'place.unavailable': 'नक्सा लोड हुन सकेन। स्थानलाई "lat, lng" को रूपमा टाइप गर्नुहोस्।',
+  'media.loadingNotes': 'नोटहरू लोड हुँदैछ...',
 };

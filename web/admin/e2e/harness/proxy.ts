@@ -50,14 +50,17 @@ export interface RunningProxy {
 }
 
 /**
- * Paths the port answers: the API, its context, health, the public site, its
- * Logout form, the published term lists and vocabularies, the IIIF viewer,
- * manifests and images, and upstream's fallback thumbnails under
- * `/application/asset/` (which `deploy/Caddyfile` also sends to the port).
+ * Paths the port answers: the API, its context, health, the annotation
+ * container, the public site, its Logout form, the published term lists and
+ * vocabularies, the IIIF viewer, manifests and images, and upstream's fallback
+ * thumbnails under `/application/asset/` (which `deploy/Caddyfile` also sends to
+ * the port).
  */
 const portPaths = (pathname: string): boolean =>
   pathname === '/api' ||
   pathname.startsWith('/api/') ||
+  pathname === '/annotations' ||
+  pathname.startsWith('/annotations/') ||
   pathname === '/api-context' ||
   pathname === '/health' ||
   pathname === '/logout' ||
