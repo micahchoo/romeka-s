@@ -127,6 +127,8 @@ export interface NotesController {
   refresh: () => void;
   retry: () => void;
   focused: () => void;
+  /** Moves focus to a note's entry, which scrolls the list to it. */
+  focusNote: (iri: string) => void;
   clearFocusedHeading: () => void;
 }
 
@@ -648,6 +650,9 @@ export const useNotes = (media: Media): NotesController => {
     },
     focused: () => {
       setFocusedIri(null);
+    },
+    focusNote: (iri) => {
+      setFocusedIri(iri);
     },
     clearFocusedHeading: () => {
       setFocusedHeading(false);

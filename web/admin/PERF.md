@@ -891,25 +891,6 @@ same way:
 first hero each fetch one more chunk; the assets table fetches the upload
 control with its route.
 
-## Budgets
-
-`timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,
-matching `listRender` and `detailRender` (Decision 1). `bundle.jsGzipBytes` moved 102400 to 109568
-for the write surface Decision 4 measures. Decision 5 then removed that key, put the initial js
-payload back on 102400 and added a 10240 B ceiling on each lazy chunk.
-
-The other budgets stay as `uibudget` set them. Their measured medians moved with
-the machine, not with a change in the code.
-
-## What a hillclimb should do next
-
-The list render, the detail render and the create round trip are all one API
-round of about 118 ms now, and the round is `bcrypt::verify` per authenticated
-request on the server. The next step is a server-side change in
-`crates/omeka-api/src/auth.rs`, which is outside this unit and outside
-`web/admin`. On the frontend the initial payload is 88411 B gzip (Decision 6) and the rest of
-the parse on the paint path is React, which Decision 3 measures.
-
 ## Decision 29: the initial ceiling moves to 88064 for the media wire members (accepted)
 
 **Measured.** After D3 (av-access) merged with main on 2026-10-21, `npm run perf:check` read
@@ -929,3 +910,56 @@ because gzip already compresses the repeat.
 shell, if the list pages that do not show media stop parsing it eagerly. That is a structural
 change for its own unit, measured before and after.
 
+## Decision 30: the item page's notes and viewer load as their own chunks (accepted)
+
+**Change.** The item page gains each card's note count and Annotate action, the
+first file's notes summary, "All notes in this item", and a file viewer that
+shows the media page's stage over the page. None of it is eager: the summary and
+the grouped list are the `item-notes` chunk, the WAP container reader they share
+with the cards is `read`, and the viewer is `viewer`. The item route chunk keeps
+the card actions and the state that ties the three together. The actions and the
+summary read the existing `annotations` namespace, so an item page also fetches
+its `annotations-messages` chunk, which the media route already shares.
+
+**Measured.** `npm run build` then `npm run perf:check` and `npm run perf:pages`,
+gzip bytes, one build:
+
+| Asset | Before | After | Note |
+| --- | --- | --- | --- |
+| initial js | 86990 | 87006 | the route's new wiring, 34 B under 87040 |
+| initial css | 5447 | 5513 | the card action row, the aligned cards |
+| items route, own chunk | 5580 | 6649 | the actions and the viewer state |
+| `item-notes` | none | 1223 js, 443 css | the summary and the grouped list |
+| `read` | none | 296 | the container reader |
+| `viewer` | none | 1409 js, 499 css | the dialog and its camera |
+| largest chunk | 9785 | 9785 (`preview-*`) | 455 B under the ceiling |
+
+**Read cost.** The notes read is one WAP container request per file, in parallel,
+not one per page: `container(mediaId, { pages: 'first' })` stops after the first
+page, so a file with 300 notes still costs one request. The e2e item-notes spec
+measures 6 requests for 6 files, 846 ms from the navigation to the last group on
+the harness (debug server, one run, a warm machine). PERF.md's earlier
+measurement stands: parallel authenticated requests cost about one round, because
+`bcrypt::verify` dominates.
+
+**Verdict.** Accepted. No budget moved; the initial payload has 33 B of room, so
+the next eager addition has to move or split something.
+
+## Budgets
+
+`timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,
+matching `listRender` and `detailRender` (Decision 1). `bundle.jsGzipBytes` moved 102400 to 109568
+for the write surface Decision 4 measures. Decision 5 then removed that key, put the initial js
+payload back on 102400 and added a 10240 B ceiling on each lazy chunk.
+
+The other budgets stay as `uibudget` set them. Their measured medians moved with
+the machine, not with a change in the code.
+
+## What a hillclimb should do next
+
+The list render, the detail render and the create round trip are all one API
+round of about 118 ms now, and the round is `bcrypt::verify` per authenticated
+request on the server. The next step is a server-side change in
+`crates/omeka-api/src/auth.rs`, which is outside this unit and outside
+`web/admin`. On the frontend the initial payload is 88411 B gzip (Decision 6) and the rest of
+the parse on the paint path is React, which Decision 3 measures.
