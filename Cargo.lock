@@ -2064,6 +2064,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tiff",
+ "tracing",
  "ureq",
  "url",
  "uuid",

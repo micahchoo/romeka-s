@@ -247,7 +247,7 @@ fn renderer_registry_renders_a_fixed_media_row() {
 
     assert_eq!(
         renderers.render("file", &view, &media, &RenderOptions::default()),
-        "<video src=\"/files/original/abc123.mp4\" controls><a href=\"/files/original/abc123.mp4\">abc123.mp4</a></video>"
+        "<video src=\"/files/original/abc123.mp4\" preload=\"metadata\" controls><a href=\"/files/original/abc123.mp4\">abc123.mp4</a></video>"
     );
 
     let youtube = MediaView::new(

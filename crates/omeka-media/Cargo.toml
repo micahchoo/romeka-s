@@ -70,6 +70,13 @@ url = "2"
 # The S3 store's request signing (SigV4 presigned URLs) and its XML answers.
 # Sans-IO, so the blocking ureq client above sends every request. BSD-2-Clause.
 rusty-s3 = { version = "0.10", default-features = false, features = ["rustcrypto", "xml"] }
+# A still made by an external tool is written to a file the tool opens, and the
+# PDF page the tool writes is read back from one (`tool.rs`). The store benches
+# also need a temporary root. MIT OR Apache-2.0.
+tempfile = "3"
+# The one warning a missing or failing tool leaves. The server and the CLI
+# install a subscriber; a library test does not, and the macro is a no-op there.
+tracing = "0.1"
 
 [dev-dependencies]
 # Legacy Office fixtures for the media type tests: a compound file with a
@@ -80,9 +87,6 @@ uuid = "1"
 # emit the text report and the machine-readable `estimates.json` without
 # pulling a charting stack into the workspace.
 criterion = { version = "0.5", default-features = false, features = ["cargo_bench_support"] }
-# The store benches need a temporary root to write into. Already in the
-# workspace tree via `omeka-cli` and `omeka-server`.
-tempfile = "3"
 
 # One target per area benched; every one is a `harness = false` binary that
 # `criterion_main!` drives.
