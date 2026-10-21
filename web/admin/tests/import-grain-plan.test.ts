@@ -7,7 +7,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ColumnRef, ImportPlan } from '../src/api/import-plan';
 import { parseImportPlan } from '../src/api/import-plan-read';
-import type { Grain } from '../src/api/import-sections';
 import { levelOf, withColumnLevel, withFileRows, withRowKind, withTarget } from '../src/pages/import/simple/list-plan';
 import type { Level } from '../src/pages/import/simple/list-plan';
 import { loadFixture } from './loadFixture';
@@ -117,22 +116,27 @@ describe('withColumnLevel', () => {
 });
 
 describe('withFileRows', () => {
-  const grain: Grain = {
-    groupsWithManyRows: 274,
-    rowsNamingOtherFilesOfAGroup: 367,
-    columns: [
-      { index: 0, header: 'File', varies: { groups: 274, of: 274 } },
-      { index: 1, header: 'Keywords', varies: { groups: 43, of: 274 } },
-      { index: 2, header: 'Year', varies: { groups: 0, of: 274 } },
-      { index: 3, header: 'Item Type', varies: { groups: 2, of: 274 } },
-    ],
-  };
-
-  it('puts a column that varies in some item on each file, one that never varies on the item, and the item type on the item', () => {
-    const files = withFileRows(plan(), 'af', grain);
+  it('puts descriptive columns on the item, whatever their counts, and the item type on the item', () => {
+    const files = withFileRows(plan(), 'af');
     expect(sheetOf(files)?.rowKind).toBe('media');
     expect(sheetOf(files)?.join?.on).toBe('fileName');
-    expect([KEYWORDS, YEAR, TYPE].map((ref) => levelOf(files, 'af', ref.index))).toEqual(['file', 'item', 'item']);
+    expect([KEYWORDS, YEAR, TYPE].map((ref) => levelOf(files, 'af', ref.index))).toEqual(['item', 'item', 'item']);
     expect(levelOf(files, 'af', FILE.index)).toBe('out');
+  });
+
+  it('brings Keywords, already on each file, back to the item', () => {
+    const onFiles = withColumnLevel(withRowKind(plan(), 'af', 'media'), 'af', KEYWORDS, 'file');
+    expect(levelOf(onFiles, 'af', KEYWORDS.index)).toBe('file');
+    const files = withFileRows(onFiles, 'af');
+    expect(levelOf(files, 'af', KEYWORDS.index)).toBe('item');
+    expect(files.slots.item['dcterms:subject']?.sources).toEqual([column('af', KEYWORDS)]);
+    expect(files.slots.media).toEqual({});
+  });
+
+  it('puts a column in a field that describes a file as a file on each file', () => {
+    const named: ImportPlan = { ...plan(), slots: { ...plan().slots, item: { 'dcterms:format': { sources: [column('af', YEAR)], combine: 'first' } } } };
+    const files = withFileRows(named, 'af');
+    expect(levelOf(files, 'af', YEAR.index)).toBe('file');
+    expect(files.slots.media['dcterms:format']?.sources).toEqual([column('af', YEAR)]);
   });
 });
