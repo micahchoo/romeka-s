@@ -282,4 +282,19 @@ export const neServer: ServerCatalogue = {
     'ZIP लाई अस्वीकार गरियो: यसलाई पढ्न सकिएन ({reason})। यसबाट केही पनि थपिएन।',
   'server.importZipUnpacked': 'ZIP लाई खोल्दा: {count} फाइलहरू थपिए।',
   'server.importSweepDone': '{imports} आयातहरूका फाइलहरू हटाइयो, र {uploads} अपूर्ण अपलोडहरू।',
+  'server.mediaUploadNotFound': 'यस खातामा "{upload}" id को कुनै चरणबद्ध अपलोड छैन।',
+  'server.mediaUploadBusy':
+    'यो अपलोड "{upload}" अहिले थपिँदैछ। त्यसको प्रतीक्षा गर्नुहोस् र पुनः प्रयास गर्नुहोस्।',
+  'server.mediaUploadIncomplete':
+    'यो अपलोडमा {length} बाइट्स मध्ये {received} बाइट्स छन्। थप्नु अघि बाँकी भाग पठाउनुहोस्।',
+  'server.mediaUploadIngester': 'चरणबद्ध अपलोड अपलोड इन्जेस्टरसँग थपिन्छ।',
+  'server.mediaUploadInline':
+    'चरणबद्ध अपलोड यसको आफ्नै मिडिया सिर्जनाको साथ थपिन्छ, वस्तु भित्र होइन।',
+  'server.uploadTooLarge':
+    'यो फाइल {limit} बाइट्स भन्दा ठुलो छ, जुन सबैभन्दा ठुलो फाइल हो जसले मिडिया अपलोड लिन्छ।',
+  'server.mediaLinkInvalid': 'लिङ्क "{url}" http वा https ठेगाना होइन।',
+  'server.mediaLinkUnreadable': 'लिङ्क "{url}" पढ्न सकिएन: {reason}',
+  'server.mediaLinkStatus': 'लिङ्क "{url}" ले {status} {reason} को उत्तर दियो।',
+  'server.uploadItem': 'अपलोडको वस्तु id ले अस्तित्वमा रहेको वस्तुलाई नाम दिनुपर्छ।',
+  'server.mediaUploadSweepDone': '{count} चरणबद्ध अपलोडहरूले आफ्नो राखिएको समय पार गरे र हटाइयो।',
 };

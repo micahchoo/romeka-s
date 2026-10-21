@@ -347,6 +347,43 @@ Deleting the job of an import that is running or undoing answers 409
 (`JobRepo::delete_unless_held`), after the dead imports are recorded
 (`ImportRepo::settle_dead`).
 
+## Staged uploads
+
+A person's own resumable uploads live in `src/uploads.rs`; the rules are in
+`omeka_api::uploads`. The tus 1.0 pieces the two upload families share (the
+protocol header, the numeric headers, the per-upload lock) are in `src/tus.rs`.
+An upload belongs to the account that created it, so another account answers
+404 on every route. The media-create grant is required; the file limit is
+`import_upload_max_file`; a file is kept 24 hours after its last byte and the
+sweep job removes it with the import staging area.
+
+| Route | Body | Response |
+| --- | --- | --- |
+| `OPTIONS /api/romeka/uploads` | tus headers | 204, `tus-version`, `tus-max-size`, `tus-extension: creation,termination` |
+| `POST /api/romeka/uploads` | `Upload-Length`, `Upload-Metadata` (`filename`, `filetype`, optional `item`) | 201 with `Location`, `Upload-Offset: 0` and the upload; 400, 401, 403, 413 |
+| `GET /api/romeka/uploads[?item=]` | none | 200 `{uploads: [{id, path, mediaType, itemId, length, received, created, expires}]}` |
+| `HEAD /api/romeka/uploads/{upload}` | tus headers | 200 `Upload-Offset` and `Upload-Length`; 404 |
+| `PATCH /api/romeka/uploads/{upload}` | `Upload-Offset`, `application/offset+octet-stream`, at most 64 MiB | 204 `Upload-Offset`; 409 `offsetConflict`, 413 `chunkTooLarge`, 404 |
+| `DELETE /api/romeka/uploads/{upload}` | tus headers | 204; 404 |
+
+`POST /api/media` accepts a completed upload as
+`{"o:ingester": "upload", "o:item": {"o:id": 1}, "o-module-romeka:upload": "<id>"}`.
+It uses the import's streaming path (`omeka_api::import::media_in::arrive_stored`),
+so a file above 64 MiB never sits in memory, removes the upload on success and
+keeps it on failure. A create claims the upload in one `UPDATE` before it
+ingests, so a second create for the same upload answers 409 while the first
+holds it; the claim is released when the ingest fails and is reclaimable after
+an hour. A media created on an existing item without a `position` member goes
+after the item's last one.
+
+| Route | Body | Response |
+| --- | --- | --- |
+| `GET /api/romeka/upload-limits` | none | 200 `{maxFileBytes, kinds, extensions, validationOff}`; 401, 403 |
+| `POST /api/romeka/media/probe` | `{url}` | 200 `{readers, suggested, mediaType, size, title, image, canvases}`; 401, 403, 422 |
+
+The probe runs through the guarded client with a 10-second cap, reads at most
+1 MiB, and writes no row.
+
 ## Tags
 
 The tag routes are a Romeka addition (`src/tags.rs`); every decision is in

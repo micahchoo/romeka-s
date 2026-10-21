@@ -53,6 +53,7 @@ mod limits;
 mod logging;
 pub mod mail;
 mod mail_config;
+mod media_add;
 mod media_render;
 mod page_versions;
 mod publish;
@@ -62,6 +63,8 @@ pub mod settings_upgrade;
 mod site;
 mod site_items;
 mod tags;
+mod tus;
+mod uploads;
 mod vocab_import;
 
 pub use config::{Config, ConfigError, MailConfig, MailTls};
@@ -214,6 +217,8 @@ fn build_app(pool: DbPool, services: Services, config: &Config) -> Router {
         .merge(site_items::router())
         .merge(page_versions::router())
         .merge(imports::router())
+        .merge(uploads::router())
+        .merge(media_add::router())
         .merge(tags::router())
         .merge(vocab_import::router())
         .merge(settings::router())

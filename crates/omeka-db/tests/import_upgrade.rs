@@ -21,10 +21,11 @@ const V2_TABLES: [&str; 6] = [
 ];
 
 /// The tables migrations after 0006 add, empty on an upgrade.
-const LATER_TABLES: [&str; 3] = [
+const LATER_TABLES: [&str; 4] = [
     "romeka_media_annotation",
     "romeka_media_extent",
     "romeka_site_page_version",
+    "romeka_user_upload",
 ];
 
 /// A folder holding the migrations of `dir` numbered below 0006, for a [`Migrator`] that stops at

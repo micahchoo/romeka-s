@@ -255,6 +255,48 @@ impl IiifPresentationData {
             _ => None,
         }
     }
+
+    /// The canvases the document paints. A manifest names them in version 2's
+    /// `sequences[0].canvases` and version 3's `items`; a collection names
+    /// manifests instead, so it answers `None`.
+    #[must_use]
+    pub fn canvas_count(&self, version: u8) -> Option<u64> {
+        let canvases = match version {
+            2 => self
+                .value
+                .get("sequences")?
+                .as_array()?
+                .first()?
+                .get("canvases")?
+                .as_array()?,
+            3 => self.value.get("items")?.as_array()?,
+            _ => return None,
+        };
+        Some(canvases.len() as u64)
+    }
+
+    /// The document's label: the string of version 2, or the first value for
+    /// English (else `none`, else any language) of version 3's language map.
+    #[must_use]
+    pub fn label(&self) -> Option<String> {
+        let label = self.value.get("label")?;
+        if let Some(text) = label.as_str() {
+            return Some(text.to_string());
+        }
+        let map = label.as_object()?;
+        for key in ["en", "none"] {
+            if let Some(text) = map
+                .get(key)
+                .and_then(Value::as_array)
+                .and_then(|values| values.first())
+                .and_then(Value::as_str)
+            {
+                return Some(text.to_string());
+            }
+        }
+        map.values()
+            .find_map(|value| value.as_array()?.first()?.as_str().map(str::to_string))
+    }
 }
 
 fn scalar_to_string(value: &Value) -> Option<String> {

@@ -1,18 +1,59 @@
 //! The bytes of the staging area: a part written per `PATCH`, the parts
 //! joined into the file, and a stored file read back a chunk at a time.
+//!
+//! A folder root is the area's own folder in the store: `staging/<importId>`
+//! for an import, `uploads/<userId>` for a user's staged upload. The layout
+//! under it is `files/<upload>` and `parts/<upload>.<offset>` for both, so
+//! the mechanics are shared and no caller hands this module a table id.
 
 use std::io::{self, Read, Seek, SeekFrom};
 use std::ops::Range;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use omeka_db::ids::ImportId;
-use omeka_media::store::{Store, StoreError};
+use omeka_media::store::{ListedFile, Store, StoreError};
 
-use super::{READ_CHUNK, StagingError, file_path, part_files};
+use super::{READ_CHUNK, StagingError};
+
+/// Where a complete upload's bytes are, under its area's root.
+#[must_use]
+pub(crate) fn file_path(root: &str, upload: &str) -> String {
+    format!("{root}/files/{upload}")
+}
+
+/// The folder of an area's parts under its root.
+#[must_use]
+pub(crate) fn parts_folder(root: &str) -> String {
+    format!("{root}/parts")
+}
+
+/// Zero-padded, so the store lists the parts in offset order. An upload id
+/// is hex, so the first `.` ends it.
+#[must_use]
+pub(crate) fn part_path(root: &str, upload: &str, offset: u64) -> String {
+    format!("{}/{upload}.{offset:020}", parts_folder(root))
+}
+
+/// The parts of one upload, in offset order.
+///
+/// # Errors
+/// [`StoreError`] when the store cannot list the folder.
+pub(crate) fn part_files(
+    store: &dyn Store,
+    root: &str,
+    upload: &str,
+) -> Result<Vec<ListedFile>, StoreError> {
+    let folder = parts_folder(root);
+    let prefix = format!("{folder}/{upload}.");
+    Ok(store
+        .list(&folder)?
+        .into_iter()
+        .filter(|part| part.storage_path.starts_with(&prefix))
+        .collect())
+}
 
 /// Write one part; the byte count, or why the body did not arrive whole.
-pub(super) fn write_part(
+pub(crate) fn write_part(
     store: &dyn Store,
     body: Box<dyn Read + Send>,
     left: u64,
@@ -55,13 +96,13 @@ impl Read for Limited {
 
 /// Join the parts of a finished upload into its file. The parts stay until
 /// the row says the upload is complete.
-pub(super) fn join_parts(
+pub(crate) fn join_parts(
     store: &dyn Store,
-    import: ImportId,
+    root: &str,
     upload: &str,
     length: u64,
 ) -> Result<(), StagingError> {
-    let parts: Vec<String> = part_files(store, import, upload)?
+    let parts: Vec<String> = part_files(store, root, upload)?
         .into_iter()
         .map(|part| part.storage_path)
         .collect();
@@ -70,7 +111,7 @@ pub(super) fn join_parts(
         parts: parts.into_iter(),
         current: None,
     };
-    let written = store.put_stream(&mut joined, Some(length), &file_path(import, upload), None)?;
+    let written = store.put_stream(&mut joined, Some(length), &file_path(root, upload), None)?;
     if written != length {
         return Err(StagingError::Store(format!(
             "the parts of upload {upload} hold {written} of its {length} bytes"

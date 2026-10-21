@@ -566,6 +566,28 @@ messages! {
     fn import_zip_unpacked(count) = "The ZIP was unpacked: {count} files were added.";
     /// The staging sweep ended.
     fn import_sweep_done(imports, uploads) = "The files of {imports} imports were removed, and {uploads} unfinished uploads.";
+    /// A staged upload named by a media create that the caller's account does not hold.
+    fn media_upload_not_found(upload) = "This account has no staged upload with the id \"{upload}\".";
+    /// A media create naming a staged upload another create is adding right now.
+    fn media_upload_busy(upload) = "This upload \"{upload}\" is being added right now. Wait for that to finish and try again.";
+    /// A media create naming a staged upload whose bytes have not all arrived.
+    fn media_upload_incomplete(received, length) = "This upload holds {received} of its {length} bytes. Send the rest before you add it.";
+    /// A media create naming a staged upload with an ingester other than upload.
+    const MEDIA_UPLOAD_INGESTER = "A staged upload is added with the upload ingester.";
+    /// An inline `o:media` entry naming a staged upload.
+    const MEDIA_UPLOAD_INLINE = "A staged upload is added with its own media create, not inside an item.";
+    /// A staged upload larger than `import_upload_max_file`.
+    fn upload_too_large(limit) = "This file is larger than {limit} bytes, the largest file a media upload takes.";
+    /// A link that is not an absolute http(s) address.
+    fn media_link_invalid(url) = "The link \"{url}\" is not an http or https address.";
+    /// A link the guarded client could not read.
+    fn media_link_unreadable(url, reason) = "The link \"{url}\" could not be read: {reason}";
+    /// A link that answered with a status other than 2xx.
+    fn media_link_status(url, status, reason) = "The link \"{url}\" answered {status} {reason}.";
+    /// An upload whose `item` metadata is not an existing item's id.
+    const UPLOAD_ITEM = "An upload's item id must name an item that exists.";
+    /// The sweep removed staged uploads whose 24 hours had passed.
+    fn media_upload_sweep_done(count) = "{count} staged uploads passed their kept time and were removed.";
 }
 
 /// The registry as `serverMessages.json` holds it: catalogue key to pattern,

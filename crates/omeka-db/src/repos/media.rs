@@ -85,6 +85,18 @@ where
         Ok(row)
     }
 
+    /// The position after the item's last media: `max(position) + 1`, or 1 when the item holds
+    /// no media or none of them names a position. A media created on an existing item takes it, so
+    /// the new media comes after the ones already there.
+    pub async fn next_position(&self, item: ItemId) -> Result<i64, DbError> {
+        let last: Option<i64> =
+            sqlx::query_scalar("SELECT MAX(media.position) FROM media WHERE media.item_id = ?")
+                .bind(bind_id(item))
+                .fetch_one(self.pool)
+                .await?;
+        Ok(last.map_or(1, |last| last.saturating_add(1)))
+    }
+
     /// Insert a media on the caller's connection, so it can join a larger transaction.
     pub(crate) async fn insert(
         conn: &mut DB::Connection,

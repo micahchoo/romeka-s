@@ -25,7 +25,6 @@ mod progress;
 mod run;
 mod undo;
 mod uploads;
-mod uploads_body;
 mod wire;
 
 use axum::Router;
