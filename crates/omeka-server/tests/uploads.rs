@@ -706,8 +706,9 @@ async fn a_contributor_reads_the_limits_and_an_anonymous_caller_does_not() {
         .iter()
         .map(|kind| kind.as_str().unwrap())
         .collect();
-    assert_eq!(kinds.len(), 10);
+    assert_eq!(kinds.len(), omeka_media::kind::MediaKind::ALL.len());
     assert!(kinds.contains(&"video"), "{kinds:?}");
+    assert!(kinds.contains(&"document"), "{kinds:?}");
     assert!(
         limits["extensions"]
             .as_array()
