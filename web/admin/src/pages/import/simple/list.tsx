@@ -25,7 +25,7 @@ import './simple.css';
 
 const encodingWords = (view: SheetView, t: ReturnType<typeof useSimpleText>['t']): string | null => {
   const encoding = view.read?.encoding.encoding;
-  if (encoding === undefined) {
+  if (encoding === undefined || view.read?.workbook != null) {
     return null;
   }
   return encoding === 'utf-8' ? t('guided.list.utf8') : t('guided.list.notUtf8', { kind: encoding });
@@ -156,7 +156,7 @@ const RowsDescribe = ({ sheet, grain }: { readonly sheet: SheetPlan; readonly gr
             checked={sheet.rowKind === kind}
             disabled={!draft.editable}
             onChange={() => {
-              draft.change((plan) => (kind === 'media' ? withFileRows(plan, sheet.id, grain) : withRowKind(plan, sheet.id, kind)));
+              draft.change((plan) => (kind === 'media' ? withFileRows(plan, sheet.id) : withRowKind(plan, sheet.id, kind)));
             }}
           />
           <span>
