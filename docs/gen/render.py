@@ -40,6 +40,7 @@ def render_document(doc: Doc) -> str:
     resources_section(out, doc)
     shared_section(out, doc)
     errors_section(out)
+    annotations_section(out)
     return "\n".join(out).rstrip("\n") + "\n"
 
 
@@ -70,6 +71,11 @@ def sources_section(out: list[str]) -> None:
                 [
                     "`crates/omeka-api/src/write/*.rs`",
                     "the request body members each create and update handler reads",
+                ],
+                [
+                    "`crates/omeka-server/src/annotations/`",
+                    "the Web Annotation Protocol routes, which sit outside `/api` and are stated in "
+                    "the appendix below rather than parsed from `omeka-api`",
                 ],
             ],
         )
@@ -314,3 +320,65 @@ def errors_section(out: list[str]) -> None:
             "403."
         )
         out.append("")
+
+
+def annotations_section(out: list[str]) -> None:
+    out.append("## Web Annotation Protocol")
+    out.append("")
+    out.append(
+        "These routes are not `/api` and are not parsed from `omeka-api`: they are the W3C Web "
+        "Annotation Protocol server of `crates/omeka-server/src/annotations/`, over the domain "
+        "service in `crates/omeka-api/src/annotation/`. A page of a media is also the IIIF "
+        "`AnnotationPage` its canvas references, so one document serves both standards."
+    )
+    out.append("")
+    out.append(
+        table(
+            ["Method", "Route", "Answer"],
+            [
+                ["`GET`, `HEAD`", "`/annotations/media/{id}/`", "the WAP container, 200"],
+                [
+                    "`POST`",
+                    "`/annotations/media/{id}/`",
+                    "201 and the stored annotation; 200 on a replay of one `Idempotency-Key`",
+                ],
+                [
+                    "`GET`, `HEAD`",
+                    "`/annotations/media/{id}/page[?after={a}]`",
+                    "one keyset page, 200",
+                ],
+                ["`GET`, `HEAD`", "`/annotations/{a}`", "one annotation, 200"],
+                ["`PUT`", "`/annotations/{a}`", "200, `If-Match` required"],
+                ["`DELETE`", "`/annotations/{a}`", "204, `If-Match` required"],
+                ["`OPTIONS`", "`/annotations/...`", "204, the CORS preflight"],
+            ],
+        )
+    )
+    out.append("")
+    out.append(
+        "The caller is the session cookie or the `/api` key pair; reading a media reads its notes, "
+        "and holding the media-update grant writes them. Every answer carries "
+        "`Access-Control-Allow-Origin: *`, `Vary: Accept, Cookie, Prefer`, `Cache-Control: no-cache` "
+        'and a strong `ETag`: `"r<revision>"` for a note, and `"p"` with 16 hex characters of a '
+        "SHA-256 over the content type and the body for a container or page. `If-Match` compares "
+        "strongly, so a weak tag is a 412 and a missing one a 428. `If-None-Match` on a container or "
+        "page is a 304. A create replayed with the same `Idempotency-Key` is a 200 and the same row; "
+        "the key with a different draft is a 422."
+    )
+    out.append("")
+    out.append(
+        "Two headers state what the documents do not. `Romeka-Surface` is an RFC 8941 item naming "
+        "what a selector may address: `image; width=…; height=…; service=\"…\"` for a stored image, "
+        "`time[; duration=…]` for audio and video, or `whole`. `Romeka-Canvas` is the media canvas "
+        "IRI a create targets, so an empty container can still make its first note. "
+        "`Romeka-Track-Ids` lists the numeric ids of the caption rows on the page it answers, and is "
+        "absent when there are none. `Allow` says which of these methods the caller holds."
+    )
+    out.append("")
+    out.append(
+        'A 400 carries the annotation service\'s plain English sentence in the upstream error '
+        'document, `{"errors": {"error": "…"}}`: "This media takes notes about the whole file only." '
+        "for a selector the media's surface does not take, and the matching sentence for a box "
+        "outside the canvas, a time range past the duration, or a document that is not an annotation."
+    )
+    out.append("")

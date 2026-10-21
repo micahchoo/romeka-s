@@ -156,6 +156,10 @@ const ENTITY_KEYS: ReadonlySet<string> = new Set([
   'o:email',
   'o:role',
   'o:is_active',
+  // `Module::filterHtmlMediaJsonLd` adds these two strings to an html media
+  // document. Without this they match the term pattern and parse as values.
+  'o-cnt:chars',
+  'o-cnt:characterEncoding',
 ]);
 
 export function brandId<Name extends string>(value: number): Id<Name> {

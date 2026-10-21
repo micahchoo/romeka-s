@@ -21,8 +21,8 @@ use std::path::{Path, PathBuf};
 use axum::Router;
 use axum::http::StatusCode;
 use common::{
-    Seed, append_key, get, json_request, multipart_asset_request, router_with_store, seeded_pool,
-    send,
+    Answer, Seed, append_key, get, json_request, multipart_asset_request, router_with_store,
+    seeded_pool, send,
 };
 use omeka_db::DbPool;
 use omeka_db::repos::{ExtentRow, MediaExtentRepo};
@@ -75,6 +75,7 @@ enum Kind {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Cell {
     Ingest,
+    Annotate,
     Thumbnail,
     Api,
     SiteMediaPage,
@@ -83,8 +84,9 @@ enum Cell {
     Safe,
 }
 
-const CELLS: [Cell; 7] = [
+const CELLS: [Cell; 8] = [
     Cell::Ingest,
+    Cell::Annotate,
     Cell::Thumbnail,
     Cell::Api,
     Cell::SiteMediaPage,
@@ -97,6 +99,7 @@ impl Cell {
     const fn label(self) -> &'static str {
         match self {
             Self::Ingest => "ingest",
+            Self::Annotate => "annotate",
             Self::Thumbnail => "thumbnail",
             Self::Api => "api",
             Self::SiteMediaPage => "site-media-page",
@@ -312,6 +315,8 @@ struct Observed {
     item: Option<u64>,
     media: Option<u64>,
     media_doc: Option<Value>,
+    /// What the Web Annotation Protocol answered for this media.
+    notes: Option<Notes>,
     page: Option<String>,
     item_page: Option<String>,
     manifest: Option<Value>,
@@ -322,6 +327,16 @@ struct Observed {
 struct Row {
     file: &'static str,
     cells: Vec<Option<bool>>,
+}
+
+/// What the two annotation writes and the container answered.
+struct Notes {
+    /// The server's own answer to what a selector may address.
+    surface: Option<String>,
+    whole: StatusCode,
+    selector: StatusCode,
+    accepted: u32,
+    total: Option<u64>,
 }
 
 #[tokio::test]
@@ -626,6 +641,7 @@ async fn upload(app: &Router, store: &FileStore, seed: &Seed, fixture: &Fixture)
         item: None,
         media: None,
         media_doc: None,
+        notes: None,
         page: None,
         item_page: None,
         manifest: None,
@@ -651,6 +667,11 @@ async fn upload(app: &Router, store: &FileStore, seed: &Seed, fixture: &Fixture)
     );
     if fixture.captions {
         attach_captions(app, item_id).await;
+    }
+    if let Some(media_id) = media {
+        // Before the manifest and the page are read, so a later cell sees the
+        // notes this cell wrote.
+        observed.notes = Some(add_notes(app, item_id, media_id, fixture).await);
     }
     if let Some(media_id) = media {
         observed.media_doc = Some(
@@ -754,6 +775,7 @@ fn judge(
                     .and_then(|doc| doc["o:media_type"].as_str())
                     == Some(fixture.media_type),
         ),
+        Cell::Annotate => Some(annotate(fixture, seen)),
         Cell::Thumbnail => Some(thumbnail(fixture, seen, store)),
         Cell::Api => Some(api_cell(seen)),
         Cell::SiteMediaPage => Some(site_media_page(fixture, seen, css)),
@@ -761,6 +783,113 @@ fn judge(
         Cell::Iiif => Some(iiif(fixture, seen)),
         Cell::Safe => (fixture.file == "hostile.svg").then(|| safe(seen)),
     }
+}
+
+/// A whole note is accepted on every kind; then the container's `Romeka-Surface`
+/// decides the second write: a pixel box and a time range are accepted on the
+/// surface that takes them, and a kind that only takes whole-file notes answers
+/// 400. The cell reads the server's own surface, so a kind whose derivative is
+/// not made yet (an AVIF with no thumbnail, a PDF with no first page) is judged
+/// by what the server says it accepts, not by its file extension. The
+/// container's total is the number of writes the caller saw accepted.
+fn annotate(_fixture: &Fixture, seen: &Observed) -> bool {
+    let Some(notes) = &seen.notes else {
+        return false;
+    };
+    let Some(surface) = notes.surface.as_deref() else {
+        return false;
+    };
+    if notes.whole != StatusCode::CREATED {
+        return false;
+    }
+    let second = if surface.starts_with("image") || surface.starts_with("time") {
+        StatusCode::CREATED
+    } else if surface == "whole" {
+        StatusCode::BAD_REQUEST
+    } else {
+        return false;
+    };
+    notes.selector == second && notes.total == Some(u64::from(notes.accepted))
+}
+
+/// Write one whole note and one selector note through the WAP, then read the
+/// container's total.
+async fn add_notes(app: &Router, item: u64, media: u64, fixture: &Fixture) -> Notes {
+    let canvas = format!("http://localhost/iiif/3/item/{item}/canvas/{media}");
+    let whole = note(&canvas, "The whole file", None);
+    let whole = post_note(app, media, &whole).await.status;
+    let selector = match fixture.kind {
+        Kind::Image | Kind::Svg => json!({
+            "type": "FragmentSelector",
+            "conformsTo": "http://www.w3.org/TR/media-frags/",
+            "value": "xywh=pixel:1,2,10,20",
+        }),
+        Kind::Audio | Kind::Video => json!({
+            "type": "FragmentSelector",
+            "conformsTo": "http://www.w3.org/TR/media-frags/",
+            "value": "t=0,0.2",
+        }),
+        Kind::Pdf | Kind::Document | Kind::Model | Kind::Captions => json!({
+            "type": "FragmentSelector",
+            "conformsTo": "http://www.w3.org/TR/media-frags/",
+            "value": "xywh=pixel:1,2,10,20",
+        }),
+    };
+    let selector = post_note(app, media, &note(&canvas, "A second note", Some(selector)))
+        .await
+        .status;
+    let accepted =
+        u32::from(whole == StatusCode::CREATED) + u32::from(selector == StatusCode::CREATED);
+    let container = send(
+        app.clone(),
+        get(&format!("/annotations/media/{media}/"), true),
+    )
+    .await;
+    let ok = container.status == StatusCode::OK;
+    let surface = ok
+        .then(|| common::header(&container, "romeka-surface").map(str::to_string))
+        .flatten();
+    let total = ok.then(|| container.json()["total"].as_u64()).flatten();
+    Notes {
+        surface,
+        whole,
+        selector,
+        accepted,
+        total,
+    }
+}
+
+/// One WAP create as the seeded administrator, with the media canvas as target.
+async fn post_note(app: &Router, media: u64, body: &str) -> Answer {
+    send(
+        app.clone(),
+        json_request(
+            "POST",
+            &append_key(&format!("/annotations/media/{media}/")),
+            body,
+        ),
+    )
+    .await
+}
+
+/// One annotation document: a whole-object note, or one with a selector.
+fn note(canvas: &str, text: &str, selector: Option<Value>) -> String {
+    let target = match selector {
+        None => json!(canvas),
+        Some(selector) => json!({
+            "type": "SpecificResource",
+            "source": { "id": canvas },
+            "selector": selector,
+        }),
+    };
+    json!({
+        "@context": "http://www.w3.org/ns/anno.jsonld",
+        "type": "Annotation",
+        "motivation": "commenting",
+        "body": { "type": "TextualBody", "value": text, "format": "text/plain" },
+        "target": target,
+    })
+    .to_string()
 }
 
 /// `o:thumbnail_urls.large` is a stored derivative that decodes. `image.jpg`
