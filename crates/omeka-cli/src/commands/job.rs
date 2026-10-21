@@ -19,7 +19,8 @@ use omeka_server::Config;
 const ARCHIVE: &str = "archive";
 
 use crate::CliError;
-use crate::jobs::{JobEnv, JobStatus, Runner, refuse_live_hand_run};
+use crate::commands::serve::absolute;
+use crate::jobs::{JobCommand, JobEnv, JobStatus, Runner, refuse_live_hand_run};
 
 /// Run one stored job in this process (`romeka job run <id>`).
 ///
@@ -106,15 +107,25 @@ pub(crate) fn job_env(
     archive_root: Option<&Path>,
 ) -> Result<JobEnv, CliError> {
     let defaults = JobEnv::default();
-    let base_url = match base_url {
+    let parsed_base_url = match base_url {
         Some(raw) => BaseUrl::parse(raw)
             .map_err(|error| CliError::message(format!("invalid base url {raw}: {error}")))?,
         None => defaults.base_url,
     };
     Ok(JobEnv {
         store: crate::commands::file_store::open_store(database, store)?,
-        base_url,
+        base_url: parsed_base_url,
         archive_roots: archive_roots(archive_root)?,
+        jobs: Some(JobCommand {
+            program: None,
+            database: match database {
+                Location::File(path) => Location::File(absolute(path)?),
+                Location::Url(_) => database.clone(),
+            },
+            store: store.map(absolute).transpose()?,
+            base_url: base_url.map(str::to_string),
+            archive_root: archive_root.map(absolute).transpose()?,
+        }),
     })
 }
 

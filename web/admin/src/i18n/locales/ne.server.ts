@@ -282,6 +282,10 @@ export const neServer: ServerCatalogue = {
     'ZIP लाई अस्वीकार गरियो: यसलाई पढ्न सकिएन ({reason})। यसबाट केही पनि थपिएन।',
   'server.importZipUnpacked': 'ZIP लाई खोल्दा: {count} फाइलहरू थपिए।',
   'server.importSweepDone': '{imports} आयातहरूका फाइलहरू हटाइयो, र {uploads} अपूर्ण अपलोडहरू।',
+  'server.importAccessFailed':
+    'मिडिया {media} का लागि कुनै खेल्न योग्य प्रतिलिपि लाइनमा राखिएन: {reason}',
+  'server.importAccessUnread':
+    'यस आयातका लागि कुनै पनि खेल्न योग्य प्रतिलिपि लाइनमा राखिएन: {reason}',
   'server.mediaUploadNotFound': 'यस खातामा "{upload}" id को कुनै चरणबद्ध अपलोड छैन।',
   'server.mediaUploadBusy':
     'यो अपलोड "{upload}" अहिले थपिँदैछ। त्यसको प्रतीक्षा गर्नुहोस् र पुनः प्रयास गर्नुहोस्।',

@@ -20,6 +20,7 @@
 //! The plan types are pure data. The evidence, the derive and the run read
 //! the plan; none of them parses it again.
 
+pub mod access_copies;
 pub mod archive;
 pub mod catalog;
 pub mod catalog_load;

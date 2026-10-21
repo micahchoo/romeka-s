@@ -319,6 +319,7 @@ fn job_env(harness: &Harness) -> JobEnv {
         store: Arc::clone(&harness.store),
         base_url: omeka_api::jsonld::BaseUrl::parse("http://localhost").unwrap(),
         archive_roots: Default::default(),
+        jobs: None,
     }
 }
 

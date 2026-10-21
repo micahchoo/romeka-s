@@ -288,6 +288,8 @@ export const teServer: ServerCatalogue = {
   'server.importZipUnpacked': 'ZIP విప్పబడింది: {count} ఫైల్‌లు జోడించబడ్డాయి.',
   'server.importSweepDone':
     '{imports} ఇంపోర్ట్‌ల ఫైల్‌లు తొలగించబడ్డాయి, మరియు {uploads} అసంపూర్ణ అప్‌లోడ్‌లు.',
+  'server.importAccessFailed': '{media} మీడియా కోసం ఎటువంటి ప్లేయబుల్ కాపీ క్యూలో లేదు: {reason}',
+  'server.importAccessUnread': 'ఈ ఇంపోర్ట్ కోసం ఎటువంటి ప్లేయబుల్ కాపీలు క్యూలో లేవు: {reason}',
   'server.mediaUploadNotFound': 'ఈ ఖాతాలో "{upload}" ఐడితో ఎటువంటి స్టేజ్డ్ అప్‌లోడ్ లేదు.',
   'server.mediaUploadBusy':
     'ఈ అప్‌లోడ్ "{upload}" ఇప్పుడే జోడించబడుతోంది. అది పూర్తయ్యే వరకు వేచి ఉండి మళ్ళీ ప్రయత్నించండి.',

@@ -208,6 +208,8 @@
     "server.importZipUnreadable": "The ZIP was refused: it could not be read ({reason}). Nothing from it was added.",
     "server.importZipUnpacked": "The ZIP was unpacked: {count} files were added.",
     "server.importSweepDone": "The files of {imports} imports were removed, and {uploads} unfinished uploads.",
+    "server.importAccessFailed": "No playable copy was queued for media {media}: {reason}",
+    "server.importAccessUnread": "No playable copies were queued for this import: {reason}",
     "server.mediaUploadNotFound": "This account has no staged upload with the id \"{upload}\".",
     "server.mediaUploadBusy": "This upload \"{upload}\" is being added right now. Wait for that to finish and try again.",
     "server.mediaUploadIncomplete": "This upload holds {received} of its {length} bytes. Send the rest before you add it.",

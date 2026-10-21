@@ -7,6 +7,8 @@ use omeka_api::import::archive::ArchiveRoots;
 use omeka_api::jsonld::BaseUrl;
 use omeka_media::store::Store;
 
+use super::JobCommand;
+
 /// The surroundings of a job process. `romeka job run` builds it from its
 /// flags; the server's dispatcher passes the values the server itself uses.
 #[derive(Debug, Clone)]
@@ -15,6 +17,10 @@ pub struct JobEnv {
     pub base_url: BaseUrl,
     /// The roots import sources name; empty when the archive import is off.
     pub archive_roots: ArchiveRoots,
+    /// How this process starts another job in a new process, with its own
+    /// database, store and base URL. `None` where nothing may be started: a
+    /// test, or a command that runs its jobs in this process.
+    pub jobs: Option<JobCommand>,
 }
 
 /// The base URL when none is given, as `romeka serve` defaults its own.
@@ -27,6 +33,7 @@ impl Default for JobEnv {
             base_url: BaseUrl::parse(DEFAULT_BASE_URL)
                 .unwrap_or_else(|_| unreachable!("the default base URL literal parses")),
             archive_roots: ArchiveRoots::default(),
+            jobs: None,
         }
     }
 }

@@ -195,6 +195,7 @@ async fn run_worker(pool: &DbPool, store: Arc<dyn Store>) -> Result<(), CliError
         base_url: BaseUrl::parse(crate::jobs::DEFAULT_BASE_URL)
             .map_err(|error| CliError::message(error.to_string()))?,
         archive_roots: Default::default(),
+        jobs: None,
     };
     Runner::with_env(pool, env).run(job).await?;
     Ok(())
