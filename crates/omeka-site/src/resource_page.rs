@@ -11,17 +11,19 @@
 //!
 //! The theme configuration the bundled theme stands in for is the default
 //! theme's (`themes/default/config/theme.ini:47-55` at the oracle): items render
-//! `mediaEmbeds, values, itemSets, sitePages, mediaList, linkedResources`, item
-//! sets render `values`, and media render `mediaRender, values`. The manager's
+//! `mediaEmbeds, values, itemSets, sitePages, linkedResources`, item sets render
+//! `values`, and media render `mediaRender, values`. The item page leaves out
+//! upstream's `mediaList`, because its `mediaEmbeds` block carries every file as
+//! the first file whole and the rest as a strip. The manager's
 //! own `RESOURCE_PAGE_BLOCKS_DEFAULT` names `mediaLinks` instead of `mediaList`,
 //! but no layout is registered under `mediaLinks`, so it renders through the
 //! fallback and emits nothing. The oracle theme config is what a visitor sees,
-//! and the port follows it.
+//! and the port follows it except for that one omission (`docs/compat.md`).
 
 use omeka_core::resource::ResourceKind;
 
 use crate::html::{escape_html, hyperlink};
-use crate::i18n::{Messages, sprintf};
+use crate::i18n::{Messages, sprintf, sprintf1};
 use crate::settings::SiteSettings;
 use crate::view::{
     LinkedResource, MediaRef, RenderContext, ResourceRef, ResourceView, Thumbnail, ValueRef,
@@ -105,7 +107,11 @@ pub static RESOURCE_PAGE_BLOCKS: [ResourcePageBlockSpec; 10] = [
 ];
 
 /// The blocks the bundled theme renders when a site stores no override, from
-/// `themes/default/config/theme.ini`.
+/// `themes/default/config/theme.ini`, except that the item page leaves out
+/// upstream's separate `mediaList`: the `mediaEmbeds` block now carries every
+/// file, the first whole and the rest as a strip, so a second list of the same
+/// files would say nothing new and would load every thumbnail eagerly. A site
+/// that wants the list configures it.
 #[must_use]
 pub fn default_blocks(kind: ResourceKind) -> &'static [&'static str] {
     match kind {
@@ -114,7 +120,6 @@ pub fn default_blocks(kind: ResourceKind) -> &'static [&'static str] {
             "values",
             "itemSets",
             "sitePages",
-            "mediaList",
             "linkedResources",
         ],
         ResourceKind::ItemSet => &["values"],
@@ -209,9 +214,14 @@ fn render_block(name: &str, resource: &ResourceView, ctx: &RenderContext<'_>) ->
     }
 }
 
-/// `media-embeds.phtml`: each media's renderer markup inside `media-embeds`.
-/// Where upstream prints nothing for an item with no media, the theme shows a
-/// panel that says so, so the page keeps its shape.
+/// `media-embeds.phtml`, laid out the way this fork's reader moves through an
+/// item: the first file whole, then every other file as a strip of thumbnails
+/// that opens its media page. Upstream renders every file large, so a scan of
+/// 300 pages draws 300 large images; this is a deliberate difference
+/// (`docs/compat.md`).
+///
+/// The empty element after the first file is the place the notes list takes
+/// (contract unit 9). It carries no text of its own.
 fn media_embeds(resource: &ResourceView, ctx: &RenderContext<'_>) -> String {
     if resource.media_embeds.is_empty() {
         return format!(
@@ -223,12 +233,55 @@ fn media_embeds(resource: &ResourceView, ctx: &RenderContext<'_>) -> String {
         );
     }
     let mut out = String::from("<div class=\"media-embeds\">");
-    for media in &resource.media_embeds {
-        if let Some(embed) = &media.embed {
-            out.push_str(embed);
-        }
+    if let Some(embed) = resource.media_embeds[0].embed.as_deref() {
+        out.push_str(embed);
     }
+    out.push_str("<div class=\"annotation-list\"></div>");
+    out.push_str(&media_strip(resource, ctx));
     out.push_str("</div>");
+    out
+}
+
+/// The files after the first, as square thumbnails or kind placeholders, each
+/// one a link to its media page with its display name below.
+///
+/// A strip of 299 files stays light: each image is `loading="lazy"` and carries
+/// its 200 pixel size, and the row scrolls sideways instead of growing the
+/// page.
+fn media_strip(resource: &ResourceView, ctx: &RenderContext<'_>) -> String {
+    let Some(rest) = resource.media.get(1..).filter(|rest| !rest.is_empty()) else {
+        return String::new();
+    };
+    let count = sprintf1(
+        ctx.translator().messages().files_count,
+        &resource.media.len().to_string(),
+    );
+    let mut out = format!(
+        "<div class=\"media-files\"><p class=\"media-files-title\">{}</p><ul class=\"media-files-list\">",
+        escape_html(&count)
+    );
+    for entry in rest {
+        out.push_str(&format!(
+            "<li class=\"media-file\"><a class=\"media-file-link\" href=\"{}\">",
+            escape_html(&entry.url)
+        ));
+        match &entry.thumbnail {
+            Some(Thumbnail { url, .. }) => out.push_str(&format!(
+                "<span class=\"media-file-thumb\"><img src=\"{}\" alt=\"\" loading=\"lazy\" \
+                 width=\"200\" height=\"200\"></span>",
+                escape_html(url)
+            )),
+            None => out.push_str(&format!(
+                "<span class=\"media-file-thumb media-file-placeholder\">{}</span>",
+                crate::theme::cards::kind_icon(ResourceKind::Media)
+            )),
+        }
+        out.push_str(&format!(
+            "<span class=\"media-file-name\">{}</span></a></li>",
+            escape_html(&entry.title)
+        ));
+    }
+    out.push_str("</ul></div>");
     out
 }
 
