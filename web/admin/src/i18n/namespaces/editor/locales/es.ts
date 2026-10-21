@@ -566,6 +566,7 @@ export const es: EditorMessages = {
   'mediaRef.remove': 'Quitar',
   'mediaRef.changeItem': 'Elegir otro elemento',
   'focal.noImage': 'Elija primero una imagen de fondo.',
+  'focal.notAPicture': 'Este medio no tiene imagen para fijar un punto focal.',
   'focal.frame': 'Punto focal: {x} % a lo ancho, {y} % hacia abajo. Haga clic en la imagen o use las flechas para moverlo.',
   'focal.center': 'Centro',
   // The site header and footer, selected in the page editor (site-regions).

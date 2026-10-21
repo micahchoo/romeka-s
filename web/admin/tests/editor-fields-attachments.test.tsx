@@ -65,8 +65,28 @@ describe('the attachments field control', () => {
     expect(await within(rows()).findByText('Fixture Item One')).toBeInTheDocument();
     const caption = screen.getByRole('textbox', { name: 'Caption' });
     expect(caption).toHaveTextContent('A caption');
-    expect(await screen.findByRole('radio', { name: 'Fixture photo' })).toBeChecked();
+    expect(await screen.findByRole('radio', { name: /Fixture photo/ })).toBeChecked();
     expect(screen.getByRole('radio', { name: 'Main media' })).not.toBeChecked();
+  });
+
+  it('names the kind on each media tile, and shows a picture only for an image', async () => {
+    installFetch((url) => {
+      if (url.pathname === '/api/media') {
+        return listResponse(loadFixture('media-page-kinds.json'), 3);
+      }
+      return handler(url, undefined);
+    });
+    renderAttachments([rawAttachment(5, 960, '')]);
+
+    const image = await screen.findByText('Image');
+    expect(image.closest('label')?.textContent).toContain('photo.jpg');
+    expect(image.closest('label')?.querySelector('img')).not.toBeNull();
+
+    const audio = screen.getByText('Audio');
+    expect(audio.closest('label')?.textContent).toContain('tone.mp3');
+    expect(audio.closest('label')?.querySelector('img')).toBeNull();
+
+    expect(screen.getByText('PDF').closest('label')?.textContent).toContain('report.pdf');
   });
 
   it('falls back to the item id when the stored item cannot be read', async () => {
@@ -142,7 +162,7 @@ describe('the attachments field control', () => {
     installFetch(handler);
     const { dispatch, key } = renderAttachments([rawAttachment(5, null, '')]);
 
-    fireEvent.click(await screen.findByRole('radio', { name: 'Fixture photo' }));
+    fireEvent.click(await screen.findByRole('radio', { name: /Fixture photo/ }));
 
     expect(attachmentAction(dispatch)).toEqual({
       type: 'setAttachments',

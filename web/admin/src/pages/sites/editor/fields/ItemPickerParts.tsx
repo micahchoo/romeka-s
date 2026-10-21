@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { api } from '../../../../api/client';
 import type { Item, ItemId, ItemSet, ItemSetId, Media } from '../../../../api/types';
 import { mediaName, previewImageUrl } from '../../../../app/media';
+import { MediaImage } from '../../../../app/media-image';
 import { useAsync } from '../../../../app/useAsync';
 import { useTranslator } from '../../../../i18n';
 import { common } from '../../../../i18n/namespaces/common';
@@ -209,7 +210,13 @@ const MediaStrip = ({ item }: { readonly item: Item }): ReactElement | null => {
     <ul className="item-picker-media" aria-label={t('itemPicker.mediaCount', { count: item.media.length })}>
       {media.map((entry) => (
         <li key={String(entry.id)}>
-          <Thumb url={entry.thumbnailDisplayUrls.square ?? previewImageUrl(entry)} className="item-picker-media-thumb" />
+          <MediaImage
+            media={entry}
+            url={entry.thumbnailDisplayUrls.square ?? previewImageUrl(entry)}
+            className="item-picker-media-thumb"
+            compact
+            decorative
+          />
           <span className="item-picker-hidden">{mediaName(entry) ?? t('common.untitled')}</span>
         </li>
       ))}

@@ -180,11 +180,12 @@ describe('item detail', () => {
 
     expect(screen.getByRole('heading', { name: 'Media (3)', level: 2 })).toBeInTheDocument();
 
-    // Three media rows: two carry a file, one has nothing to show.
+    // Three media rows: two carry a file, one has no picture and names its kind,
+    // once in the empty slot and once as the tile's badge.
     const images = screen.getAllByRole('img');
     expect(images).toHaveLength(2);
     expect(screen.getAllByRole('figure')).toHaveLength(3);
-    expect(screen.getAllByText('No preview')).toHaveLength(1);
+    expect(screen.getAllByText('Embed')).toHaveLength(2);
 
     expect(screen.getByRole('link', { name: 'BHC006_GMT_AF_010a.jpg' })).toHaveAttribute(
       'href',

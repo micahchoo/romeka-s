@@ -587,6 +587,7 @@ export const ne: EditorMessages = {
   'mediaRef.remove': 'हटाउनुहोस्',
   'mediaRef.changeItem': 'अर्को वस्तु छान्नुहोस्',
   'focal.noImage': 'पहिले पृष्ठभूमि छवि छान्नुहोस्।',
+  'focal.notAPicture': 'यस मिडियामा सेट गर्नका लागि कुनै छवि छैन।',
   'focal.frame':
     'केन्द्र बिन्दु: {x}% चौडा, {y}% तल। छविमा क्लिक गर्नुहोस् वा यसलाई सार्नका लागि एरो कुञ्जीहरू प्रयोग गर्नुहोस्।',
   'focal.center': 'केन्द्र',
