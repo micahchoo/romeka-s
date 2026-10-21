@@ -65,11 +65,13 @@ RUN apt-get update \
 # row type still gets a correct Content-Type for .mov, .mkv, .ogv, .glb, .avif
 # and the like, where the bare image had an empty table.
 #
-# `ffmpeg` makes a video's poster and decodes AVIF and HEIC; `poppler-utils`
-# is `pdftoppm`, which makes a PDF's first page. Both are optional at runtime
-# (`crates/omeka-media/src/tool.rs`): an installation that drops them skips
-# those derivatives with the command's name as the reason, so an operator who
-# needs a smaller image removes two package names and nothing else breaks.
+# `ffmpeg` makes a video's poster and decodes AVIF and HEIC, and its `ffprobe`
+# reads the duration and frame size a time-based IIIF canvas needs;
+# `poppler-utils` is `pdftoppm`, which makes a PDF's first page. Both are
+# optional at runtime (`crates/omeka-media/src/tool.rs`): an installation that
+# drops them skips those derivatives and canvases with the command's name as the
+# reason, so an operator who needs a smaller image removes two package names and
+# nothing else breaks.
 
 # Caddy terminates TLS on :80 and :443 and the container runs as a non-root user,
 # so the low-port capability is attached to the binary. A container that runs

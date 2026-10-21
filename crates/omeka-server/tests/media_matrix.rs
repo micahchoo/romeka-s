@@ -24,6 +24,9 @@ use common::{
     Seed, append_key, get, json_request, multipart_asset_request, router_with_store, seeded_pool,
     send,
 };
+use omeka_db::DbPool;
+use omeka_db::repos::{ExtentRow, MediaExtentRepo};
+use omeka_db::with_db;
 use omeka_media::image_metadata::image_metadata;
 use omeka_media::store::{FileStore, Store};
 use omeka_media::thumbnailer::ImageThumbnailer;
@@ -36,17 +39,11 @@ const SITE: &str = "/s/museum";
 /// The cells the current server fails, as `(corpus file, cell)`. Remove a pair
 /// when a unit turns that cell green.
 const KNOWN_RED: &[(&str, &str)] = &[
-    ("audio.flac", "iiif"),
     ("audio.flac", "thumbnail"),
-    ("audio.m4a", "iiif"),
     ("audio.m4a", "thumbnail"),
-    ("audio.mp3", "iiif"),
     ("audio.mp3", "thumbnail"),
-    ("audio.ogg", "iiif"),
     ("audio.ogg", "thumbnail"),
-    ("audio.opus", "iiif"),
     ("audio.opus", "thumbnail"),
-    ("audio.wav", "iiif"),
     ("audio.wav", "thumbnail"),
     ("captions.srt", "iiif"),
     ("captions.srt", "thumbnail"),
@@ -54,24 +51,16 @@ const KNOWN_RED: &[(&str, &str)] = &[
     ("captions.vtt", "thumbnail"),
     ("doc.docx", "iiif"),
     ("doc.docx", "thumbnail"),
-    ("doc.pdf", "iiif"),
     ("doc.pdf", "site-media-page"),
-    ("hostile.svg", "iiif"),
     ("image.avif", "iiif"),
     ("image.heic", "iiif"),
-    ("image.svg", "iiif"),
     ("model.glb", "iiif"),
     ("model.glb", "site-media-page"),
     ("model.glb", "thumbnail"),
     ("model.gltf", "iiif"),
     ("model.gltf", "site-media-page"),
     ("model.gltf", "thumbnail"),
-    ("video.mkv", "iiif"),
-    ("video.mov", "iiif"),
-    ("video.mp4", "iiif"),
     ("video.mp4", "site-media-page"),
-    ("video.ogv", "iiif"),
-    ("video.webm", "iiif"),
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -408,6 +397,121 @@ async fn the_media_kind_matrix_matches_the_known_red_list() {
     }
 }
 
+/// An item with no file says "No file" where the kind would stand, and an
+/// audio item's card names its kind in words and carries the server's kind.
+#[tokio::test]
+async fn a_card_names_its_kind_and_an_item_with_no_file_says_so() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let store = FileStore::new(dir.path(), "/files");
+    let (pool, seed) = seeded_pool().await;
+    let app = router_with_store(pool, store.clone());
+    let audio = FIXTURES
+        .iter()
+        .find(|fixture| fixture.file == "audio.mp3")
+        .expect("audio.mp3 in the corpus");
+    let seen = upload(&app, &store, &seed, audio).await;
+    let audio_item = seen.item.expect("the audio item");
+    let data = json!({
+        "o:is_public": true,
+        "dcterms:title": [{"type": "literal", "@value": "No file"}],
+    })
+    .to_string();
+    let answer = send(
+        app.clone(),
+        json_request("POST", &append_key("/api/items"), &data),
+    )
+    .await;
+    assert!(answer.status.is_success(), "{}", answer.body);
+    let bare = answer.json()["o:id"].as_u64().expect("the bare item's id");
+    attach(&app, &seed, bare).await;
+    let browse = send(
+        app.clone(),
+        get(&format!("{SITE}/item?per_page=200"), false),
+    )
+    .await
+    .body;
+
+    let audio_card = card_for(&browse, audio_item).expect("the audio item's card");
+    assert_eq!(card_media_kind(audio_card), Some("audio"), "{audio_card}");
+    assert!(
+        audio_card.contains("<span class=\"resource-kind\">Audio</span>"),
+        "{audio_card}"
+    );
+
+    let bare_card = card_for(&browse, bare).expect("the bare item's card");
+    assert_eq!(card_media_kind(bare_card), None, "{bare_card}");
+    assert!(
+        bare_card.contains("<span class=\"resource-kind\">No file</span>"),
+        "{bare_card}"
+    );
+}
+
+/// A card shows a recording's run time only once `romeka_media_extent` holds a
+/// row for the original. The extent unit fills that table; this unit only
+/// reads it, and a row seeded here proves the badge waits for one.
+#[tokio::test]
+async fn a_card_shows_a_run_time_only_when_the_extent_row_exists() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let store = FileStore::new(dir.path(), "/files");
+    let (pool, seed) = seeded_pool().await;
+    let app = router_with_store(pool.clone(), store.clone());
+    let audio = FIXTURES
+        .iter()
+        .find(|fixture| fixture.file == "audio.mp3")
+        .expect("audio.mp3 in the corpus");
+    let seen = upload(&app, &store, &seed, audio).await;
+    let item = seen.item.expect("the audio item");
+    let media = seen.media.expect("the audio media");
+    let filename = seen
+        .media_doc
+        .as_ref()
+        .and_then(|doc| doc["o:filename"].as_str())
+        .expect("the stored file's name")
+        .to_string();
+
+    // `upload` reads the manifest, which probes the file and stores its extent; remove it so the card
+    // starts with no run time to show.
+    sqlx::query("DELETE FROM romeka_media_extent")
+        .execute(&pool)
+        .await
+        .expect("clear the probed extent");
+    let before = send(
+        app.clone(),
+        get(&format!("{SITE}/item?per_page=200"), false),
+    )
+    .await
+    .body;
+    let card = card_for(&before, item).expect("the audio item's card");
+    assert!(!card.contains("resource-duration"), "{card}");
+
+    let pool = DbPool::from(pool);
+    with_db!(&pool, |db| MediaExtentRepo::new(db)
+        .put(
+            omeka_db::ids::MediaId::from(media),
+            &format!("original/{filename}"),
+            &ExtentRow {
+                duration_ms: Some(222_000),
+                width: None,
+                height: None,
+            },
+        )
+        .await)
+    .expect("seed the extent row");
+
+    let after = send(
+        app.clone(),
+        get(&format!("{SITE}/item?per_page=200"), false),
+    )
+    .await
+    .body;
+    let card = card_for(&after, item).expect("the audio item's card");
+    assert!(
+        card.contains("<span class=\"resource-duration\">"),
+        "the card shows the run time: {card}"
+    );
+    assert!(card.contains("▶</span> 3:42"), "{card}");
+}
+
 fn corpus_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/media-kinds")
 }
@@ -597,6 +701,10 @@ async fn attach_captions(app: &Router, item: u64) {
         "o:is_public": true,
         "file_index": 0,
         "o:item": {"o:id": item},
+        // The video is position 0 (its index in `o:media`). A media created
+        // without a position sorts before it, so the item's card would read as
+        // captions; naming the next position keeps the video the first file.
+        "position": 1,
     })
     .to_string();
     let _ = send(
@@ -782,23 +890,27 @@ fn has_file_link(page: &str, doc: &Value) -> bool {
         })
 }
 
-/// The item's card in the public browse: a stored thumbnail or the theme's
-/// placeholder, never an `<img>` of a non-image original.
+/// The item's card in the public browse. The card carries the server's kind
+/// for its first file in `data-media-kind`, names that kind in words (in the
+/// empty slot, or on the corner badge of a picture that is not an image), and
+/// never draws a non-image original as an `<img>`. An item with no file says
+/// "No file" and carries no kind.
 fn site_item_card(seen: &Observed, browse: &str) -> bool {
     let Some(item) = seen.item else {
         return false;
     };
-    let needle = format!("{SITE}/item/{item}\"");
-    let Some(at) = browse.find(&needle) else {
+    let Some(card) = card_for(browse, item) else {
         return false;
     };
-    let Some(start) = browse[..at].rfind("<li ") else {
+    let kind = seen
+        .media_doc
+        .as_ref()
+        .and_then(|doc| doc["o:kind"].as_str())
+        .unwrap_or_default();
+    if kind.is_empty() || card_media_kind(card) != Some(kind) {
         return false;
-    };
-    let Some(end) = browse[at..].find("</li>").map(|end| at + end + 5) else {
-        return false;
-    };
-    let card = &browse[start..end];
+    }
+    let word = kind_word(kind);
     let images: Vec<&str> = card
         .split("<img")
         .skip(1)
@@ -806,10 +918,57 @@ fn site_item_card(seen: &Observed, browse: &str) -> bool {
         .filter_map(|tag| tag.split("src=\"").nth(1))
         .filter_map(|src| src.split('"').next())
         .collect();
-    if images.is_empty() {
-        return card.contains("resource-thumb-empty");
+    let picture_ok = if images.is_empty() {
+        card.contains("resource-thumb-empty")
+    } else {
+        images.iter().all(|src| image_url(src))
+    };
+    let named = names_the_kind(card, kind, word, images.is_empty());
+    picture_ok && named
+}
+
+/// The `<li>` that holds one item's card in a browse page.
+fn card_for(browse: &str, item: u64) -> Option<&str> {
+    let needle = format!("{SITE}/item/{item}\"");
+    let at = browse.find(&needle)?;
+    let start = browse[..at].rfind("<li ")?;
+    let end = browse[at..].find("</li>").map(|end| at + end + 5)?;
+    Some(&browse[start..end])
+}
+
+/// The `data-media-kind` a card carries, if any.
+fn card_media_kind(card: &str) -> Option<&str> {
+    card.split("data-media-kind=\"")
+        .nth(1)
+        .and_then(|rest| rest.split('"').next())
+}
+
+/// The kind in the site's English words, as the card must say it.
+fn kind_word(kind: &str) -> &'static str {
+    match kind {
+        "local-image" | "iiif-image" => "Image",
+        "audio" => "Audio",
+        "video" => "Video",
+        "pdf" => "PDF",
+        "model-3d" => "3D model",
+        "captions" => "Captions",
+        "embed" | "iiif-presentation" => "Embed",
+        "other-file" => "File",
+        other => panic!("the card has no word for kind {other}"),
     }
-    images.iter().all(|src| image_url(src))
+}
+
+/// Whether the card names the kind in words where a reader can see it: the
+/// empty slot's label, or the badge on a picture of a non-image file. An
+/// image's own picture is its cue, so an image card needs no badge.
+fn names_the_kind(card: &str, kind: &str, word: &str, placeholder: bool) -> bool {
+    if placeholder {
+        return card.contains(&format!("<span class=\"resource-kind\">{word}</span>"));
+    }
+    if matches!(kind, "local-image" | "iiif-image") {
+        return true;
+    }
+    card.contains("class=\"resource-badge\"") && card.contains(word)
 }
 
 /// A URL that serves an image: a derivative, the theme's placeholder, or an

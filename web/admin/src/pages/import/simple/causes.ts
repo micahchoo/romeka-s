@@ -9,9 +9,11 @@
 import type { AnomalyAnswers, FlagKind, FlagPolicy, ImportPlan, SlotRule } from '../../../api/import-plan';
 import { BLOCKING_FLAG_KINDS, FLAG_KINDS } from '../../../api/import-plan';
 import type { PatternState } from '../../../api/import-model';
-import type { BucketCount } from '../../../api/import-sections';
+import type { BucketCount, Grain, ListCandidate } from '../../../api/import-sections';
 import { exampleOf } from '../example';
 import { readState } from './example-state';
+import { withFileRows } from './list-plan';
+import { folderSheets } from './list-read';
 import type { SimpleMessageKey } from './messages';
 
 export const DEFAULT_POLICY: Readonly<Record<FlagKind, FlagPolicy>> = {
@@ -49,11 +51,39 @@ export const FACTS: readonly FlagKind[] = ['listed-not-media'];
 export interface CheckFacts {
   /** The pattern has an `identifier` group and some item has more than one file. */
   readonly itemCodeFits: boolean;
+  /** A list whose rows look like they describe files, read as one row per item. */
+  readonly fileRows: FileRows | null;
 }
+
+export interface FileRows {
+  readonly sheet: string;
+  readonly grain: Grain;
+}
+
+/**
+ * The first list in use that pairs rows with items by file name, one item a
+ * row, while some of its rows name another file of an item a row already
+ * names: there "Two rows for one item" is the shape of the list, not a fault.
+ */
+export const fileRowsOf = (plan: ImportPlan, candidates: readonly ListCandidate[]): FileRows | null => {
+  for (const sheet of folderSheets(plan)) {
+    const grain = candidates.find((candidate) => candidate.inPlan === sheet.id)?.grain ?? null;
+    if (sheet.rowKind === 'item' && sheet.join?.on === 'fileName' && grain !== null && grain.rowsNamingOtherFilesOfAGroup > 0) {
+      return { sheet: sheet.id, grain };
+    }
+  }
+  return null;
+};
 
 /** Whether the item code fits as the title: the pattern has an `identifier` group and some item has more than one file. */
 export const itemCodeFits = (pattern: PatternState, histogram: readonly BucketCount[]): boolean =>
   typeof pattern === 'object' && 'groups' in pattern && pattern.groups.includes('identifier') && histogram.some((bucket) => bucket.files !== '0' && bucket.files !== '1' && bucket.count > 0);
+
+/** The facts both Check and Add read from one preview. */
+export const checkFactsOf = (plan: ImportPlan, read: { readonly pattern: PatternState; readonly histogram: readonly BucketCount[]; readonly listCandidates: readonly ListCandidate[] }): CheckFacts => ({
+  itemCodeFits: itemCodeFits(read.pattern, read.histogram),
+  fileRows: fileRowsOf(plan, read.listCandidates),
+});
 
 export type AnomalyId = 'identical' | 'unmatchedFiles' | 'itemsWithoutRow';
 export type CauseId = FlagKind | AnomalyId;
@@ -93,6 +123,7 @@ const keepLeave = (keep: SimpleMessageKey, leave: SimpleMessageKey): readonly Op
 
 const KEEP: Option = { value: 'keep', label: 'guided.check.keep' };
 const LEAVE: Option = { value: 'leave', label: 'guided.check.leave' };
+const FILE_ROWS: Option = { value: 'fileRows', label: 'guided.check.fileRows' };
 
 const ANOMALY_WORDS: Readonly<Record<AnomalyId, CauseWords>> = {
   itemsWithoutRow: {
@@ -174,10 +205,17 @@ export const isBlocking = (id: CauseId): boolean => BLOCKING_FLAG_KINDS.some((ki
 
 const isAnomaly = (id: CauseId): id is AnomalyId => id === 'identical' || id === 'unmatchedFiles' || id === 'itemsWithoutRow';
 
-/** The words of a cause; unmatched files only mention the marked example when the person marked one. */
-export const wordsOf = (id: CauseId, plan: ImportPlan): CauseWords => {
+/**
+ * The words of a cause; unmatched files only mention the marked example when
+ * the person marked one, and two rows for one item offer first that each row
+ * describes one file where the list looks like it does.
+ */
+export const wordsOf = (id: CauseId, plan: ImportPlan, facts: CheckFacts): CauseWords => {
   if (id === 'unmatchedFiles' && (exampleOf(plan)?.marks.length ?? 0) === 0) {
     return { ...ANOMALY_WORDS.unmatchedFiles, say: 'guided.check.noFitPlain', sayOne: 'guided.check.noFitPlainOne' };
+  }
+  if (id === 'duplicate-row' && facts.fileRows !== null) {
+    return { ...generic(id), why: 'guided.check.fileRowsWhy', options: [FILE_ROWS, KEEP, LEAVE] };
   }
   return isAnomaly(id) ? ANOMALY_WORDS[id] : (FLAG_WORDS[id] ?? generic(id));
 };
@@ -209,6 +247,9 @@ export const answerOf = (plan: ImportPlan, id: CauseId, facts: CheckFacts): stri
     }
     return facts.itemCodeFits && !readState(plan).answered.includes(id) ? 'identifier' : 'keep';
   }
+  if (id === 'duplicate-row' && facts.fileRows !== null && plan.flags[id] === undefined) {
+    return FILE_ROWS.value;
+  }
   return plan.flags[id] ?? defaultPolicyOf(plan, id);
 };
 
@@ -226,12 +267,18 @@ export const suggestedOf = (plan: ImportPlan, id: CauseId, facts: CheckFacts): s
   if (id === 'empty-required') {
     return facts.itemCodeFits ? 'identifier' : 'keep';
   }
+  if (id === 'duplicate-row' && facts.fileRows !== null) {
+    return FILE_ROWS.value;
+  }
   return defaultPolicyOf(plan, id);
 };
 
 const asPolicy = (value: string): FlagPolicy | null => (value === 'keep' || value === 'leave' || value === 'repair' ? value : null);
 
-export const withAnswer = (plan: ImportPlan, id: CauseId, value: string): ImportPlan => {
+export const withAnswer = (plan: ImportPlan, id: CauseId, value: string, facts?: CheckFacts): ImportPlan => {
+  if (id === 'duplicate-row' && value === FILE_ROWS.value) {
+    return facts?.fileRows == null ? plan : withFileRows(plan, facts.fileRows.sheet, facts.fileRows.grain);
+  }
   if (isAnomaly(id)) {
     const answers = plan.anomalies ?? DEFAULT_ANOMALIES;
     const next: AnomalyAnswers =
@@ -253,3 +300,27 @@ export const withAnswer = (plan: ImportPlan, id: CauseId, value: string): Import
   const policy = asPolicy(value);
   return policy === null ? plan : { ...plan, flags: { ...plan.flags, [id]: policy } };
 };
+
+/** Causes whose suggested answer is a plan edit: the run follows it only once it is written. */
+const PLAN_EDITS: readonly CauseId[] = ['empty-required', 'duplicate-row'];
+
+export interface Suggested {
+  readonly plan: ImportPlan;
+  /** The causes whose suggestion this wrote, in `PLAN_EDITS` order. */
+  readonly applied: readonly CauseId[];
+}
+
+/**
+ * The suggestions among `open` that the run would not follow unless they are
+ * written: the item code as the title, each row as one file. Check writes them
+ * when the person takes every suggestion; Add writes them for a person who
+ * never answered, so Check's "we use its suggested answer" holds there too.
+ */
+export const withSuggestions = (plan: ImportPlan, open: readonly CauseId[], facts: CheckFacts): Suggested =>
+  PLAN_EDITS.filter((id) => open.includes(id)).reduce<Suggested>(
+    (done, id) => {
+      const writes = id === 'empty-required' ? answerOf(done.plan, id, facts) === 'identifier' && !fromCode(done.plan.slots.item[TITLE]) : answerOf(done.plan, id, facts) === FILE_ROWS.value;
+      return writes ? { plan: withAnswer(done.plan, id, suggestedOf(done.plan, id, facts), facts), applied: [...done.applied, id] } : done;
+    },
+    { plan, applied: [] },
+  );

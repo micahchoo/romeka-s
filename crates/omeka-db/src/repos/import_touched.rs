@@ -31,6 +31,13 @@ pub enum Presence {
     },
 }
 
+/// What names a property.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct PropertyUsers {
+    pub resources: Vec<ResourceId>,
+    pub templates: Vec<TemplateId>,
+}
+
 /// The reads of the touched test.
 pub struct ImportTouchRepo<'a, DB: Backend = Sqlite> {
     pool: &'a Pool<DB>,
@@ -153,39 +160,47 @@ where
         rows.iter().map(|row| DB::id(row, "import_id")).collect()
     }
 
-    /// Whether any resource names the template.
-    pub async fn template_in_use(&self, template: TemplateId) -> Result<bool, DbError> {
-        self.any(
-            &["SELECT 1 FROM resource WHERE resource_template_id = ? LIMIT 1"],
-            template.0,
-        )
-        .await
-    }
-
-    /// Whether any value, or any template, names the property.
-    pub async fn property_in_use(&self, property: PropertyId) -> Result<bool, DbError> {
-        self.any(
-            &[
-                "SELECT 1 FROM value WHERE property_id = ? LIMIT 1",
-                "SELECT 1 FROM resource_template_property WHERE property_id = ? LIMIT 1",
-                "SELECT 1 FROM resource_template WHERE title_property_id = ? LIMIT 1",
-                "SELECT 1 FROM resource_template WHERE description_property_id = ? LIMIT 1",
-            ],
-            property.0,
-        )
-        .await
-    }
-
-    async fn any(&self, statements: &[&'static str], id: u64) -> Result<bool, DbError> {
-        for sql in statements {
-            let found = sqlx::query(sql)
-                .bind(bind_id(id))
-                .fetch_optional(self.pool)
+    /// The resources that name the template.
+    pub async fn template_users(&self, template: TemplateId) -> Result<Vec<ResourceId>, DbError> {
+        let rows =
+            sqlx::query("SELECT id FROM resource WHERE resource_template_id = ? ORDER BY id")
+                .bind(bind_id(template))
+                .fetch_all(self.pool)
                 .await?;
-            if found.is_some() {
-                return Ok(true);
-            }
-        }
-        Ok(false)
+        rows.iter().map(|row| DB::id(row, "id")).collect()
+    }
+
+    /// What names the property: resources through their values, and templates through their
+    /// fields or their title and description.
+    pub async fn property_users(&self, property: PropertyId) -> Result<PropertyUsers, DbError> {
+        let valued = sqlx::query(
+            "SELECT DISTINCT resource_id AS id FROM value WHERE property_id = ? ORDER BY resource_id",
+        )
+        .bind(bind_id(property))
+        .fetch_all(self.pool)
+        .await?;
+        let templates = sqlx::query(
+            "SELECT DISTINCT id FROM (
+                 SELECT resource_template_id AS id FROM resource_template_property
+                 WHERE property_id = ?
+                 UNION SELECT id FROM resource_template WHERE title_property_id = ?
+                 UNION SELECT id FROM resource_template WHERE description_property_id = ?
+             ) AS users ORDER BY id",
+        )
+        .bind(bind_id(property))
+        .bind(bind_id(property))
+        .bind(bind_id(property))
+        .fetch_all(self.pool)
+        .await?;
+        Ok(PropertyUsers {
+            resources: valued
+                .iter()
+                .map(|row| DB::id(row, "id"))
+                .collect::<Result<_, _>>()?,
+            templates: templates
+                .iter()
+                .map(|row| DB::id(row, "id"))
+                .collect::<Result<_, _>>()?,
+        })
     }
 }

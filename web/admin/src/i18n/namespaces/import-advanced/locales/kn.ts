@@ -49,6 +49,7 @@ export const kn: ImportAdvancedMessages = {
   'adv.files.example.file': 'ಗುರುತಿಸಲಾಗಿದೆ',
   'adv.files.example.words': 'ಕೇವಲ {words} ಪದಗಳು',
   'adv.files.example.number': '“{text}” ಬದಲಿಗೆ ಯಾವುದೇ ಸಂಖ್ಯೆ',
+  'adv.files.example.letters': '“{text}” ಬದಲಿಗೆ ಯಾವುದೇ ಅಕ್ಷರಗಳು',
   'adv.files.example.remove': 'ತೆಗೆದುಹಾಕಿ',
   'adv.files.example.removeOne': 'ಗುರುತನ್ನು ತೆಗೆದುಹಾಕಿ: {mark}',
   'adv.files.example.writes':
@@ -129,6 +130,20 @@ export const kn: ImportAdvancedMessages = {
   'adv.lists.normalize.caseFold': 'ದೊಡ್ಡ ಅಕ್ಷರಗಳು (A2 ಮತ್ತು a2)',
   'adv.lists.normalize.leadingZeros': 'ಆರಂಭದಲ್ಲಿ ಸೊನ್ನೆಗಳು (007 ಮತ್ತು 7)',
   'adv.lists.normalize.separators': 'ಅಕ್ಷರಗಳು _ - . ಮತ್ತು ಸ್ಪೇಸ್ (B 4 ಮತ್ತು B_4)',
+  'adv.lists.rowKind.label': 'ಪ್ರತಿ ಸಾಲು ವಿವರಿಸುತ್ತದೆ',
+  'adv.lists.rowKind.plain':
+    'ಒಂದು ಸಾಲು ಮಾಡುವ ದಾಖಲೆಯ ವಿಧ, ಅಥವಾ ಅದರ ಕೋಶಗಳಿಗೆ ಹೆಸರಿಸುವ ಕಾಲಮ್. ಫೈಲ್‌ಗಳನ್ನು ವಿವರಿಸುವ ಸಾಲುಗಳು ಹೆಸರಿನ ಮೂಲಕ ತಮ್ಮ ಫೈಲ್ ಅನ್ನು ಕಂಡುಕೊಳ್ಳುತ್ತವೆ; ಅವುಗಳ ಐಟಂ ಆ ಫೈಲ್‌ನ ಐಟಂ ಆಗಿರುತ್ತದೆ.',
+  'adv.lists.rowKind.item': 'ಒಂದು ಐಟಂ',
+  'adv.lists.rowKind.media': 'ಒಂದು ಫೈಲ್ (ಮಾಧ್ಯಮ)',
+  'adv.lists.rowKind.itemSet': 'ಒಂದು ಐಟಂ ಸೆಟ್',
+  'adv.lists.rowKind.column': 'ಒಂದು ಕಾಲಮ್ ಏನು ಹೇಳುತ್ತದೆ',
+  'adv.lists.rowKind.columnLabel': 'ವಿಧದ ಕಾಲಮ್',
+  'adv.lists.rowKind.columnPlain':
+    'ಪ್ರತಿ ಕೋಶವು ತನ್ನ ಸಾಲಿನ ವಿಧವನ್ನು ಹೆಸರಿಸುತ್ತದೆ: ಐಟಂ, ಮಾಧ್ಯಮ ಅಥವಾ ಐಟಂ ಸೆಟ್.',
+  'adv.lists.itemKey.label': 'ಐಟಂ ಕಾಲಮ್',
+  'adv.lists.itemKey.plain':
+    'ಫೈಲ್ ಹೆಸರಿನ ಮೂಲಕ ಸೇರದ ಸಾಲುಗಳಿಗಾಗಿ: ತನ್ನ ಐಟಂನ ಗುರುತಿಸುವಿಕೆಯನ್ನು ಹೊಂದಿರುವ ಕಾಲಮ್.',
+  'adv.lists.itemKey.none': 'ಯಾವುದೂ ಇಲ್ಲ: ಸಾಲುಗಳು ಫೈಲ್ ಹೆಸರಿನ ಮೂಲಕ ಸೇರುತ್ತವೆ',
   'adv.lists.unpaired.label': 'ಸೇರ್ಪಡೆಗೊಂಡಿಲ್ಲ',
   'adv.lists.unpaired.plain':
     'ಯಾವುದೇ ಐಟಂ ಇಲ್ಲದ ಸಾಲುಗಳು, ಮತ್ತು ಸಾಲು ಇಲ್ಲದ ಐಟಂಗಳು. ನೀವು ಅವುಗಳನ್ನು ಕೈಯಾರೆ ಜೋಡಿಸಬಹುದು.',
@@ -159,6 +174,14 @@ export const kn: ImportAdvancedMessages = {
   'adv.lists.columns.joined': 'ಸೇರಿಸಿ',
   'adv.lists.columns.notMappable':
     'ಇದರ ಹೆಸರು # ನಿಂದ ಪ್ರಾರಂಭವಾಗುತ್ತದೆ, ಆದ್ದರಿಂದ ಇದನ್ನು ಎಂದಿಗೂ ಮ್ಯಾಪ್ ಮಾಡಲಾಗುವುದಿಲ್ಲ.',
+  'adv.lists.columns.level': 'ಮೌಲ್ಯಗಳು ಎಲ್ಲಿಗೆ ಹೋಗುತ್ತವೆ',
+  'adv.lists.columns.levelOf': '{column} ಮೌಲ್ಯಗಳು ಎಲ್ಲಿಗೆ ಹೋಗುತ್ತವೆ',
+  'adv.lists.columns.levelItem': 'ಐಟಂ',
+  'adv.lists.columns.levelFile': 'ಪ್ರತಿ ಫೈಲ್',
+  'adv.lists.columns.levelOut': 'ಬಿಟ್ಟುಹೋದವು',
+  'adv.lists.columns.varies': '{of} ಐಟಂಗಳಲ್ಲಿ {count} ರಲ್ಲಿ ಬದಲಾಗುತ್ತದೆ.',
+  'adv.lists.columns.suggestFile': 'ಸೂಚಿಸಲಾಗಿದೆ: ಪ್ರತಿ ಫೈಲ್.',
+  'adv.lists.columns.suggestItem': 'ಸೂಚಿಸಲಾಗಿದೆ: ಐಟಂ.',
   'adv.lists.type.literal': 'ಪಠ್ಯ',
   'adv.lists.type.uri': 'ವೆಬ್ ವಿಳಾಸ (URI)',
   'adv.lists.type.identifier': 'ಅದರ ಗುರುತಿಸುವಿಕೆಯ ಮೂಲಕ ಒಂದು ವಸ್ತುವಿಗೆ ಲಿಂಕ್',

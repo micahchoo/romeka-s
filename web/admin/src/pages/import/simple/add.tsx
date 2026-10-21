@@ -15,7 +15,7 @@ import { useDraft } from '../draft-context';
 import RunScreen from '../run/run-screen';
 import { usePreview } from '../lists/use-preview';
 import { placeHref } from '../screens';
-import { fromCode, itemCodeFits, withAnswer } from './causes';
+import { checkFactsOf, fromCode, withSuggestions } from './causes';
 import { readState, withState } from './example-state';
 import { useSimpleText } from './messages';
 import type { SimpleMessageKey } from './messages';
@@ -31,7 +31,6 @@ const ACTION_WORDS: Readonly<Record<Action, SimpleMessageKey>> = {
 };
 
 const NAMES_SHOWN = 10;
-const TITLE = 'dcterms:title';
 
 const counted = (check: Check, kind: 'item' | 'media'): number =>
   check.counts.filter((count) => count.kind === kind && count.does !== 'leave').reduce((sum, count) => sum + count.count, 0);
@@ -50,6 +49,32 @@ const Names = ({ names, one, many }: { readonly names: readonly string[]; readon
       {names.length === 1 ? t(one, { names: shown }) : t(many, { count: number(names.length), names: shown })}
       {more > 0 ? ` ${t('guided.add.andMore', { count: number(more) })}` : null}
     </li>
+  );
+};
+
+/**
+ * What the plan says about titles and about lists whose rows describe one file
+ * each, read from the plan, so the lines show on every visit, whoever wrote it.
+ */
+const PlanLines = (): ReactElement => {
+  const { t } = useSimpleText();
+  const draft = useDraft();
+  const back = <a href={placeHref(draft.id, { mode: 'simple', screen: 'check' })}>{t('guided.add.titleChange')}</a>;
+  return (
+    <>
+      {fromCode(draft.plan.slots.item['dcterms:title']) ? (
+        <li>
+          {t('guided.add.titleCode')} {back}
+        </li>
+      ) : null}
+      {draft.plan.sheets
+        .filter((sheet) => sheet.rowKind === 'media')
+        .map((sheet) => (
+          <li key={sheet.id}>
+            {t('guided.add.fileRows', { name: sheet.file })} {back}
+          </li>
+        ))}
+    </>
   );
 };
 
@@ -76,11 +101,7 @@ export const SimpleSummary = ({ check }: { readonly check: Check }): ReactElemen
         </p>
       )}
       <ul>
-        {fromCode(draft.plan.slots.item[TITLE]) ? (
-          <li>
-            {t('guided.add.titleCode')} <a href={placeHref(draft.id, { mode: 'simple', screen: 'check' })}>{t('guided.add.titleChange')}</a>
-          </li>
-        ) : null}
+        <PlanLines />
         {out === 0 ? null : <li>{out === 1 ? t('guided.add.leftOne') : t('guided.add.left', { count: number(out) })}</li>}
         <Names names={check.newSets.map((set) => set.title)} one="guided.add.newSetOne" many="guided.add.newSets" />
         <Names names={check.newTypes.map((type) => type.label)} one="guided.add.newTypeOne" many="guided.add.newTypes" />
@@ -121,16 +142,15 @@ export const SimpleSummary = ({ check }: { readonly check: Check }): ReactElemen
 };
 
 /**
- * Check promises that a skipped question gets its suggested answer, and the
- * run adds no title unless a rule gives one. So when the person never
- * answered the title question and no rule exists, visiting this screen writes
- * the suggested item code once. The run screen waits for that, so its Start
- * never counts a plan that is about to change.
+ * Check promises that a skipped question gets its suggested answer, and some
+ * suggestions are plan edits the run does not make on its own (`withSuggestions`).
+ * So this screen writes them once for the questions nobody answered, and the
+ * run screen waits for that, so its Start never counts a plan about to change.
  */
 const AddThem = (): ReactElement => {
   const { t } = useSimpleText();
   const draft = useDraft();
-  const read = usePreview(['histogram'], {}, draft.editable);
+  const read = usePreview(['flags', 'histogram', 'listCandidates'], {}, draft.editable);
   const tried = useRef(false);
   const [settled, setSettled] = useState(!draft.editable);
   useEffect(() => {
@@ -138,10 +158,14 @@ const AddThem = (): ReactElement => {
       return;
     }
     tried.current = true;
-    const rule = draft.plan.slots.item[TITLE];
-    const unasked = !readState(draft.plan).answered.includes('empty-required') && (rule === undefined || rule.sources.length === 0);
-    if (read.status === 'ready' && unasked && itemCodeFits(read.data.pattern, read.data.histogram)) {
-      draft.change((plan) => withState(withAnswer(plan, 'empty-required', 'identifier'), { answered: [...readState(plan).answered, 'empty-required'] }));
+    if (read.status === 'ready') {
+      const { answered } = readState(draft.plan);
+      const open = read.data.flags.filter((flag) => flag.count > 0 && !answered.includes(flag.kind)).map((flag) => flag.kind);
+      const facts = checkFactsOf(draft.plan, read.data);
+      const suggested = withSuggestions(draft.plan, open, facts);
+      if (suggested.applied.length > 0) {
+        draft.change((plan) => withState(withSuggestions(plan, open, facts).plan, { answered: [...readState(plan).answered, ...suggested.applied] }));
+      }
     }
     setSettled(true);
   }, [read, draft]);

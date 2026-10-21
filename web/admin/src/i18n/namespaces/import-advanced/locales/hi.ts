@@ -48,6 +48,7 @@ export const hi: ImportAdvancedMessages = {
   'adv.files.example.file': 'चिह्नित पर',
   'adv.files.example.words': 'केवल {words}',
   'adv.files.example.number': '“{text}” की जगह कोई भी संख्या',
+  'adv.files.example.letters': '“{text}” के स्थान पर कोई भी अक्षर',
   'adv.files.example.remove': 'हटाएँ',
   'adv.files.example.removeOne': 'निशान हटाएँ: {mark}',
   'adv.files.example.writes':
@@ -126,6 +127,20 @@ export const hi: ImportAdvancedMessages = {
   'adv.lists.normalize.caseFold': 'बड़े अक्षर (A2 और a2)',
   'adv.lists.normalize.leadingZeros': 'शुरुआत में शून्य (007 और 7)',
   'adv.lists.normalize.separators': 'वर्ण _ - . और स्पेस (B 4 और B_4)',
+  'adv.lists.rowKind.label': 'प्रत्येक पंक्ति वर्णन करती है',
+  'adv.lists.rowKind.plain':
+    'एक पंक्ति जो रिकॉर्ड बनाती है उसका प्रकार, या उस कॉलम की जिसके सेल उसका नाम बताते हैं। वे पंक्तियाँ जो फ़ाइलों का वर्णन करती हैं, नाम से अपनी फ़ाइल ढूँढती हैं; उनका आइटम वह फ़ाइल का आइटम है।',
+  'adv.lists.rowKind.item': 'एक आइटम',
+  'adv.lists.rowKind.media': 'एक फ़ाइल (मीडिया)',
+  'adv.lists.rowKind.itemSet': 'एक आइटम सेट',
+  'adv.lists.rowKind.column': 'एक कॉलम क्या कहता है',
+  'adv.lists.rowKind.columnLabel': 'प्रकार का कॉलम',
+  'adv.lists.rowKind.columnPlain':
+    'प्रत्येक सेल अपनी पंक्ति के प्रकार का नाम देता है: आइटम, मीडिया या आइटम सेट।',
+  'adv.lists.itemKey.label': 'आइटम कॉलम',
+  'adv.lists.itemKey.plain':
+    'उन पंक्तियों के लिए जो फ़ाइल नाम से नहीं जुड़तीं: वह कॉलम जिसके सेल उनके आइटम की पहचानकर्ता हैं।',
+  'adv.lists.itemKey.none': 'कोई नहीं: पंक्तियाँ फ़ाइल नाम से जुड़ती हैं',
   'adv.lists.unpaired.label': 'नहीं जुड़े',
   'adv.lists.unpaired.plain':
     'बिना किसी आइटम वाली पंक्तियाँ, और बिना किसी पंक्ति वाले आइटम। आप उन्हें हाथ से जोड़ सकते हैं।',
@@ -156,6 +171,14 @@ export const hi: ImportAdvancedMessages = {
   'adv.lists.columns.joined': 'जुड़ना',
   'adv.lists.columns.notMappable':
     'इसके नाम की शुरुआत # से होती है, इसलिए इसे कभी मैप नहीं किया जाता है।',
+  'adv.lists.columns.level': 'मान कहाँ जाते हैं',
+  'adv.lists.columns.levelOf': '{column} के मान कहाँ जाते हैं',
+  'adv.lists.columns.levelItem': 'आइटम',
+  'adv.lists.columns.levelFile': 'प्रत्येक फ़ाइल',
+  'adv.lists.columns.levelOut': 'छोड़ दिया गया',
+  'adv.lists.columns.varies': '{of} में से {count} आइटमों में भिन्न होता है।',
+  'adv.lists.columns.suggestFile': 'सुझाया गया: प्रत्येक फ़ाइल।',
+  'adv.lists.columns.suggestItem': 'सुझाया गया: आइटम।',
   'adv.lists.type.literal': 'टेक्स्ट',
   'adv.lists.type.uri': 'वेब पता (URI)',
   'adv.lists.type.identifier': 'इसके पहचानकर्ता द्वारा एक आइटम का लिंक',

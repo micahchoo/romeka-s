@@ -50,6 +50,7 @@ export const mr: ImportSimpleMessages = {
   'guided.found.showThem': 'त्यांना दाखवा',
   'guided.found.everyFile': 'प्रत्येक फाईल पहा',
   'guided.mark.number': '{text} च्या जागी कोणतीही संख्या वापरा',
+  'guided.mark.letters': '{text} च्या जागी कोणतीही अक्षरे',
   'guided.mark.and': '; आणि ',
   'guided.example.choose': 'एकापेक्षा जास्त फाईल्स असलेल्या घटकाची एक फाईल निवडा.',
   'guided.example.findFile': 'फाईलचे नाव शोधा',
@@ -68,6 +69,8 @@ export const mr: ImportSimpleMessages = {
   'guided.example.onlyThis': 'केवळ {text}',
   'guided.example.anyNumber': 'कोणताही क्रमांक, जसे की {text}',
   'guided.example.hasDigits': '(यात अंक आहेत)',
+  'guided.example.anyLetters': '{text} प्रमाणेच, कोणतीही अक्षरे',
+  'guided.example.afterNumber': '(ते संख्येनंतर लगेच येतात)',
   'guided.example.wordsLede':
     'या शब्दांची मांडणी या शब्दांप्रमाणेच आहे, ज्यामध्ये या शब्दांइतकेच भाग आहेत, आणि प्रत्येक फाईलमध्ये किती फाईल्स आहेत. प्रत्येक शब्दासाठी, दुसऱ्या शब्दाचा अर्थ असलेला फाईलचा भाग टिक करा.',
   'guided.example.findWord': 'एक शब्द शोधा',
@@ -121,6 +124,25 @@ export const mr: ImportSimpleMessages = {
   'guided.list.noField': 'Omeka मध्ये या नावाचे कोणतेही क्षेत्र नाही. एक निवडा, किंवा ते वगळा.',
   'guided.list.moreFields':
     'येथे तुम्ही डब्लिन कोअर क्षेत्रे पाहू शकता. इतर सर्व क्षेत्रे प्रगत मोडमध्ये आहेत.',
+  'guided.list.grainAsk': 'प्रत्येक ओळ वर्णन करते',
+  'guided.list.grainItem': 'एक आयटम',
+  'guided.list.grainFile': 'एक फाईल',
+  'guided.list.grainSet': 'एक आयटम सेट',
+  'guided.list.grainEvidence':
+    '{count} ओळी अशा आयटमच्या दुसऱ्या फाईलचे नाव देतात ज्या आयटमचे नाव एखादी ओळ आधीच देते; या ओळी प्रत्येकी एका फाईलचे वर्णन करतात असे वाटते.',
+  'guided.list.grainEvidenceOne':
+    '1 ओळ अशा आयटमच्या दुसऱ्या फाईलचे नाव देते ज्या आयटमचे नाव एखादी ओळ आधीच देते; या ओळी प्रत्येकी एका फाईलचे वर्णन करतात असे वाटते.',
+  'guided.list.grainNone':
+    'एकाच आयटमच्या फाईल्सना दोन ओळींनी नाव दिलेले नाही; या ओळी एका आयटमचे वर्णन करतात असे वाटते.',
+  'guided.list.colLevel': 'याची मूल्ये कुठे जातात',
+  'guided.list.levelOf': '{column} चे मूल्य कोठे जाते',
+  'guided.list.levelItem': 'ती वस्तू',
+  'guided.list.levelFile': 'प्रत्येक फाईल',
+  'guided.list.levelOut': 'वगळा',
+  'guided.list.varies': '{of} पैकी {count} वस्तूंमध्ये बदलते.',
+  'guided.list.itemOnly': 'आयटमचा प्रकार किंवा आयटम सेट फक्त आयटमवरच जातो.',
+  'guided.list.levelLede':
+    'आयटमवर: त्याच्या सर्व ओळींची मूल्ये, प्रत्येक मूल्य एकदा. प्रत्येक फाईलवर: त्या फाईलच्या ओळीचे मूल्य. आम्ही सुचवतो की प्रत्येक फाईल जिथे काही आयटममध्ये मूल्ये भिन्न आहेत आणि जिथे ती कधीच भिन्न नसतात, अशा आयटमवर ती ठेवावी.',
   'guided.where.setsTitle': 'वस्तू संच',
   'guided.where.setsAsk': 'प्रत्येक वस्तू कोणत्या वस्तू संचामध्ये असावी?',
   'guided.where.setsGloss': 'वस्तू संच म्हणजे Omeka मधील वस्तूंचा संग्रह होय.',
@@ -183,6 +205,9 @@ export const mr: ImportSimpleMessages = {
   'guided.check.mustFix': 'हे दुरुस्त केल्याशिवाय तुम्ही जोडू शकत नाही.',
   'guided.check.keep': 'त्यांना तसेच ठेवा',
   'guided.check.leave': 'त्यांना वगळा',
+  'guided.check.fileRows': 'प्रत्येक ओळ एका फाईलचे वर्णन करते',
+  'guided.check.fileRowsWhy':
+    'तुमच्या सूचीतील काही ओळी अशा आयटमच्या दुसऱ्या फाईलचे नाव देतात ज्या आयटमचे नाव एखादी ओळ आधीच देते. अशा सूचीमध्ये प्रत्येक फाईलसाठी एक ओळ असू शकते.',
   'guided.check.spacesRepair': 'रिकाम्या जागा काढून टाका',
   'guided.check.other': '{count} वेळा: {problem}.',
   'guided.check.otherOne': '{problem} - 1 वेळ.',
@@ -283,4 +308,5 @@ export const mr: ImportSimpleMessages = {
   'guided.add.undo': 'तुम्ही नंतर संपूर्ण आयात पूर्ववत करू शकता.',
   'guided.add.titleCode': 'शीर्षकाशिवाय असलेल्या आयटम्सना त्यांचा आयटम कोड शीर्षक म्हणून मिळतो.',
   'guided.add.titleChange': 'ते बदला',
+  'guided.add.fileRows': '“{name}” ची प्रत्येक ओळ एका फाईलचे वर्णन करते.',
 };

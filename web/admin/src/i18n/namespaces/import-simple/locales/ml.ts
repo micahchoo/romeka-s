@@ -50,6 +50,7 @@ export const ml: ImportSimpleMessages = {
   'guided.found.showThem': 'അവ കാണിക്കുക',
   'guided.found.everyFile': 'എല്ലാ ഫയലുകളും കാണുക',
   'guided.mark.number': '{text}-ന് പകരം ഏത് സംഖ്യയും',
+  'guided.mark.letters': '{text}-ന് പകരം ഏത് അക്ഷരങ്ങളും',
   'guided.mark.and': '; കൂടാതെ ',
   'guided.example.choose': 'ഒന്നിലധികം ഫയലുകളുള്ള ഒരു ഇനത്തിന്റെ ഒരു ഫയൽ തിരഞ്ഞെടുക്കുക.',
   'guided.example.findFile': 'ഒരു ഫയൽ നാമം കണ്ടെത്തുക',
@@ -68,6 +69,8 @@ export const ml: ImportSimpleMessages = {
   'guided.example.onlyThis': '{text} മാത്രം',
   'guided.example.anyNumber': '{text} പോലെ, ഏത് നമ്പറും',
   'guided.example.hasDigits': '(അക്കങ്ങൾ ഉണ്ട്)',
+  'guided.example.anyLetters': '{text} പോലെ, ഏത് അക്ഷരങ്ങളും',
+  'guided.example.afterNumber': '(അവ ഒരു സംഖ്യയ്ക്ക് തൊട്ടുപിന്നാലെ വരുന്നു)',
   'guided.example.wordsLede':
     'ഈ വാക്കുകൾ ഈ ഒരു ഭാഗത്ത് ഇനത്തിന്റെ എത്ര ഫയലുകൾ ഉണ്ടോ അത്രയും ഭാഗങ്ങളിൽ ഉണ്ട്. ഒരു ഇനത്തിന്റെ മറ്റൊരു ഫയൽ എന്ന് അർത്ഥമുള്ളവ ടിക്ക് ചെയ്യുക.',
   'guided.example.findWord': 'ഒരു വാക്ക് കണ്ടെത്തുക',
@@ -121,6 +124,25 @@ export const ml: ImportSimpleMessages = {
   'guided.list.noField':
     'Omeka-യിൽ ഈ പേരുള്ള ഫീൽഡ് ഒന്നുമില്ല. ഒന്ന് തിരഞ്ഞെടുക്കുക, അല്ലെങ്കിൽ ഒഴിവാക്കുക.',
   'guided.list.moreFields': 'ഇവിടെ ഡബ്ലിൻ കോർ ഫീൽഡുകൾ കാണാം. മറ്റ് ഫീൽഡുകൾ അഡ്വാൻസ്ഡ് മോഡിലാണ്.',
+  'guided.list.grainAsk': 'ഓരോ വരികളും വിവരിക്കുന്നു',
+  'guided.list.grainItem': 'ഒരു ഇനം',
+  'guided.list.grainFile': 'ഒരു ഫയൽ',
+  'guided.list.grainSet': 'ഒരു ഇനം സെറ്റ്',
+  'guided.list.grainEvidence':
+    '{count} വരികൾ ഒരു ഇനം ഇതിനകം പേരിട്ടിരിക്കുന്ന മറ്റൊരു ഫയലിനെ വിവരിക്കുന്നു; വരികൾ ഒരു ഫയൽ ഓരോന്നും വിവരിക്കുന്നതായി കാണപ്പെടുന്നു.',
+  'guided.list.grainEvidenceOne':
+    '1 വരി ഒരു ഇനം പേരുള്ള മറ്റൊരു ഫയലിനെ വിവരിക്കുന്നു; വരികൾ ഒരു ഫയൽ ഓരോന്നും വിവരിക്കുന്നതായി കാണപ്പെടുന്നു.',
+  'guided.list.grainNone':
+    'ഒരേ ഇനത്തിന്റെ ഫയലുകൾ രണ്ട് വരികൾ വിവരിക്കുന്നില്ല; വരികൾ ഒരു ഇനം ഓരോന്നും വിവരിക്കുന്നതായി കാണപ്പെടുന്നു.',
+  'guided.list.colLevel': 'ഇതിന്റെ മൂല്യങ്ങൾ എവിടെ പോകുന്നു',
+  'guided.list.levelOf': '{column}-ന്റെ മൂല്യങ്ങൾ എവിടെ പോകുന്നു',
+  'guided.list.levelItem': 'ഇനം',
+  'guided.list.levelFile': 'ഓരോ ഫയൽ',
+  'guided.list.levelOut': 'ഒഴിവാക്കുക',
+  'guided.list.varies': '{of} ഇനങ്ങളിൽ {count} എണ്ണത്തിൽ വ്യത്യാസപ്പെടുന്നു.',
+  'guided.list.itemOnly': 'ഒരു ഇനം തരം അല്ലെങ്കിൽ ഒരു ഇനം സെറ്റ് ഇനത്തിൽ മാത്രം പോകുന്നു.',
+  'guided.list.levelLede':
+    'ഇനത്തിൽ: അതിന്റെ എല്ലാ വരികളുടെയും മൂല്യങ്ങൾ, ഓരോ മൂല്യവും ഒരു തവണ. ഓരോ ഫയലിലും: ആ ഫയലിന്റെ വരിയുടെ മൂല്യങ്ങൾ. ചില ഇനങ്ങളിൽ മൂല്യങ്ങൾ വ്യത്യാസപ്പെടുന്ന ഫയൽ, ഇനങ്ങളിൽ ഒരിക്കലും വ്യത്യാസപ്പെടാത്തവ എന്ന് ഞങ്ങൾ നിർദ്ദേശിക്കുന്നു.',
   'guided.where.setsTitle': 'ഇനങ്ങളുടെ കൂട്ടം',
   'guided.where.setsAsk': 'ഓരോ ഇനവും ഏത് ഇനങ്ങളുടെ കൂട്ടത്തിലേക്ക് പോകണം?',
   'guided.where.setsGloss': 'ഇനങ്ങളുടെ കൂട്ടം എന്നത് Omeka-യിലെ ഇനങ്ങളുടെ ഒരു ശേഖരമാണ്.',
@@ -183,6 +205,9 @@ export const ml: ImportSimpleMessages = {
   'guided.check.mustFix': 'ഇത് ശരിയാക്കാതെ നിങ്ങൾക്ക് ചേർക്കാൻ കഴിയില്ല.',
   'guided.check.keep': 'അവ മാറ്റരുത്',
   'guided.check.leave': 'അവ ഒഴിവാക്കുക',
+  'guided.check.fileRows': 'ഓരോ വരിയും ഒരു ഫയൽ വിവരിക്കുന്നു',
+  'guided.check.fileRowsWhy':
+    'നിങ്ങളുടെ പട്ടികയിലെ ചില വരികൾ മറ്റൊരു ഇനത്തിന്റെ ഫയൽ വിവരിക്കുന്നു. അത്തരം പട്ടികയിൽ ഓരോ ഫയലിനും ഓരോ വരി ഉണ്ടാകാം.',
   'guided.check.spacesRepair': 'സ്പേസുകൾ ഒഴിവാക്കുക',
   'guided.check.other': '{count} തവണ: {problem}.',
   'guided.check.otherOne': '1 തവണ: {problem}.',
@@ -285,4 +310,5 @@ export const ml: ImportSimpleMessages = {
   'guided.add.undo': 'നിങ്ങൾക്ക് പിന്നീട് മുഴുവൻ ഇംപോർട്ടും റദ്ദാക്കാം.',
   'guided.add.titleCode': 'തലക്കെട്ടില്ലാത്ത ഇനങ്ങൾക്ക് അവയുടെ ഇനം കോഡ് തലക്കെട്ടായി ലഭിക്കും.',
   'guided.add.titleChange': 'അത് മാറ്റുക',
+  'guided.add.fileRows': '“{name}” എന്നതിലെ ഓരോ വരിയും ഒരു ഫയൽ വിവരിക്കുന്നു.',
 };

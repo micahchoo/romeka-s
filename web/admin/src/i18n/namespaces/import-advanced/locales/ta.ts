@@ -49,6 +49,7 @@ export const ta: ImportAdvancedMessages = {
   'adv.files.example.file': 'குறிக்கப்பட்டது',
   'adv.files.example.words': '{words} சொற்கள் மட்டுமே',
   'adv.files.example.number': '“{text}” என்பதற்குப் பதிலாக எந்த எண்ணையும் பயன்படுத்தலாம்',
+  'adv.files.example.letters': '“{text}” க்கு பதிலாக எந்த எழுத்துக்களும்',
   'adv.files.example.remove': 'நீக்கு',
   'adv.files.example.removeOne': 'அடையாளத்தை நீக்கு: {mark}',
   'adv.files.example.writes':
@@ -134,6 +135,20 @@ export const ta: ImportAdvancedMessages = {
   'adv.lists.normalize.caseFold': 'பெரிய எழுத்துக்கள் (A2 மற்றும் a2)',
   'adv.lists.normalize.leadingZeros': 'தொடக்கத்தில் பூஜ்ஜியங்கள் (007 மற்றும் 7)',
   'adv.lists.normalize.separators': '_ - . மற்றும் இடைவெளி எழுத்துக்கள் (B 4 மற்றும் B_4)',
+  'adv.lists.rowKind.label': 'ஒவ்வொரு வரிசையும் விவரிக்கும்',
+  'adv.lists.rowKind.plain':
+    'ஒரு வரிசை உருவாக்கும் பதிவின் வகை அல்லது அதன் நெடுவரிசைகளின் செல்கள் பெயரிடும் உருப்படியாகும். கோப்புகளை விவரிக்கும் வரிசைகள் அவற்றின் பெயரால் கோப்பைக் கண்டறியும்; அவற்றின் உருப்படி அந்த கோப்பின் உருப்படியாகும்.',
+  'adv.lists.rowKind.item': 'ஒரு உருப்படி',
+  'adv.lists.rowKind.media': 'ஒரு கோப்பு (ஊடகம்)',
+  'adv.lists.rowKind.itemSet': 'ஒரு உருப்படித் தொகுப்பு',
+  'adv.lists.rowKind.column': 'ஒரு நெடுவரிசை எதைச் சொல்கிறது',
+  'adv.lists.rowKind.columnLabel': 'வகை நெடுவரிசை',
+  'adv.lists.rowKind.columnPlain':
+    'ஒவ்வொரு செல்லும் அதன் வரிசையின் வகையை பெயரிடுகிறது: உருப்படி, ஊடகம் அல்லது உருப்படித் தொகுப்பு.',
+  'adv.lists.itemKey.label': 'உருப்படி நெடுவரிசை',
+  'adv.lists.itemKey.plain':
+    'கோப்புப் பெயரால் இணையாத வரிசைகளுக்கு: அவற்றின் உருப்படியின் அடையாளங்காட்டியைக் கொண்டுள்ள நெடுவரிசை.',
+  'adv.lists.itemKey.none': 'எதுவுமில்லை: வரிசைகள் கோப்புப் பெயரால் இணைய்கின்றன',
   'adv.lists.unpaired.label': 'இணைக்கப்படவில்லை',
   'adv.lists.unpaired.plain':
     'உருப்படிகள் இல்லாத வரிசைகள் மற்றும் வரிசைகள் இல்லாத உருப்படிகள். இவற்றை நீங்கள் கையால் இணைக்கலாம்.',
@@ -165,6 +180,14 @@ export const ta: ImportAdvancedMessages = {
   'adv.lists.columns.joined': 'இணைக்கவும்',
   'adv.lists.columns.notMappable':
     'இதன் பெயர் # இல் தொடங்குகிறது, எனவே இது ஒருபோதும் வரைபடமாக்கப்படாது.',
+  'adv.lists.columns.level': 'மதிப்புகள் எங்கே செல்கின்றன',
+  'adv.lists.columns.levelOf': '{column} மதிப்புகள் எங்கே செல்கின்றன',
+  'adv.lists.columns.levelItem': 'உருப்படி',
+  'adv.lists.columns.levelFile': 'ஒவ்வொரு கோப்பு',
+  'adv.lists.columns.levelOut': 'இடதுபுறம் விடுபட்டது',
+  'adv.lists.columns.varies': '{of} உருப்படிகளில் {count}-இல் மாறுபடுகிறது.',
+  'adv.lists.columns.suggestFile': 'பரிந்துரைக்கப்படுவது: ஒவ்வொரு கோப்பு.',
+  'adv.lists.columns.suggestItem': 'பரிந்துரைக்கப்படுவது: உருப்படி.',
   'adv.lists.type.literal': 'உரை',
   'adv.lists.type.uri': 'இணைய முகவரி (URI)',
   'adv.lists.type.identifier': 'ஒரு அடையாளங்காட்டியால் உருப்படியை இணைக்கவும்',

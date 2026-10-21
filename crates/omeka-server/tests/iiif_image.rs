@@ -103,9 +103,9 @@ async fn image_requests_outside_the_service_are_refused() {
     }
 }
 
-/// An answer is kept in the store under its request path, and a second
-/// request is served from there: with the original gone, it still answers the
-/// same bytes.
+/// An answer is kept in the store under its request path, below the cache's
+/// version segment, and a second request is served from there: with the
+/// original gone, it still answers the same bytes.
 #[tokio::test]
 async fn a_second_request_is_served_from_the_cache() {
     let seed = iiif_seed().await;
@@ -122,7 +122,7 @@ async fn a_second_request_is_served_from_the_cache() {
     let storage_id = filename.trim_end_matches(".png");
     assert!(
         seed.store
-            .exists(&format!("iiif/{storage_id}/full/600,/0/default.jpg"))
+            .exists(&format!("iiif/v2/{storage_id}/full/600,/0/default.jpg"))
             .unwrap(),
         "the answer is kept under its request path"
     );

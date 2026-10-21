@@ -50,6 +50,7 @@ export const kn: ImportSimpleMessages = {
   'guided.found.showThem': 'ಅವುಗಳನ್ನು ತೋರಿಸಿ',
   'guided.found.everyFile': 'ಪ್ರತಿ ಫೈಲ್ ಅನ್ನು ನೋಡಿ',
   'guided.mark.number': '{text} ಬದಲಿಗೆ ಯಾವುದೇ ಸಂಖ್ಯೆಯನ್ನು ಬಳಸಿ',
+  'guided.mark.letters': '{text} ಬದಲಿಗೆ ಯಾವುದೇ ಅಕ್ಷರಗಳು',
   'guided.mark.and': '; ಮತ್ತು ',
   'guided.example.choose':
     'ಒಂದು ಐಟಂ ಒಂದಕ್ಕಿಂತ ಹೆಚ್ಚು ಫೈಲ್‌ಗಳನ್ನು ಹೊಂದಿರುವಾಗ, ಆ ಐಟಂನ ಒಂದು ಫೈಲ್ ಅನ್ನು ಆರಿಸಿ.',
@@ -70,6 +71,8 @@ export const kn: ImportSimpleMessages = {
   'guided.example.onlyThis': 'ಕೇವಲ {text}',
   'guided.example.anyNumber': 'ಯಾವುದೇ ಸಂಖ್ಯೆ, ಉದಾಹರಣೆಗೆ {text}',
   'guided.example.hasDigits': '(ಇದರಲ್ಲಿ ಅಂಕಿಗಳಿವೆ)',
+  'guided.example.anyLetters': '{text} ನಂತೆ ಯಾವುದೇ ಅಕ್ಷರಗಳು',
+  'guided.example.afterNumber': '(ಅವು ಸಂಖ್ಯೆಯ ನಂತರ ಬರುತ್ತವೆ)',
   'guided.example.wordsLede':
     'ಈ ಪದಗಳು ಈ ಒಂದು ಭಾಗದಷ್ಟು ಭಾಗಗಳನ್ನು ಹೊಂದಿರುವ ಹೆಸರುಗಳಲ್ಲಿ, ಪ್ರತಿ ಫೈಲ್‌ಗೆ ಎಷ್ಟು ಫೈಲ್‌ಗಳಿವೆಯೋ ಅಷ್ಟು ಭಾಗಗಳನ್ನು ಹೊಂದಿರುವ ಹೆಸರುಗಳಲ್ಲಿ ಒಂದೇ ಸ್ಥಾನದಲ್ಲಿರುತ್ತವೆ. ಒಂದು ಐಟಂನ ಮತ್ತೊಂದು ಫೈಲ್ ಅನ್ನು ಸೂಚಿಸುವ ಪದಗಳನ್ನು ಗುರುತು ಮಾಡಿ.',
   'guided.example.findWord': 'ಒಂದು ಪದವನ್ನು ಹುಡುಕಿ',
@@ -124,6 +127,25 @@ export const kn: ImportSimpleMessages = {
     'ಒಮೆಕಾದಲ್ಲಿ ಈ ಹೆಸರಿನ ಯಾವುದೇ ಫೀಲ್ಡ್ ಇಲ್ಲ. ಒಂದನ್ನು ಆರಿಸಿ, ಅಥವಾ ಅದನ್ನು ಬಿಟ್ಟುಬಿಡಿ.',
   'guided.list.moreFields':
     'ಇಲ್ಲಿ ನೀವು ಡಬ್ಲಿನ್ ಕೋರ್ ಫೀಲ್ಡ್‌ಗಳನ್ನು ನೋಡುತ್ತೀರಿ. ಇತರ ಎಲ್ಲಾ ಫೀಲ್ಡ್‌ಗಳು ಅಡ್ವಾನ್ಸ್ಡ್ ಮೋಡ್‌ನಲ್ಲಿವೆ.',
+  'guided.list.grainAsk': 'ಪ್ರತಿ ಸಾಲು ವಿವರಿಸುತ್ತದೆ',
+  'guided.list.grainItem': 'ಒಂದು ವಸ್ತು',
+  'guided.list.grainFile': 'ಒಂದು ಫೈಲ್',
+  'guided.list.grainSet': 'ಒಂದು ವಸ್ತು ಸೆಟ್',
+  'guided.list.grainEvidence':
+    '{count} ಸಾಲುಗಳು ಒಂದು ವಸ್ತುವಿನ ಇನ್ನೊಂದು ಫೈಲ್ ಅನ್ನು ವಿವರಿಸುತ್ತವೆ, ಒಂದು ಸಾಲು ಈಗಾಗಲೇ ಹೆಸರಿಸುತ್ತದೆ; ಸಾಲುಗಳು ಪ್ರತಿ ಫೈಲ್ ಅನ್ನು ವಿವರಿಸುವಂತೆ ಕಾಣುತ್ತವೆ.',
+  'guided.list.grainEvidenceOne':
+    '1 ಸಾಲು ಒಂದು ವಸ್ತುವಿನ ಇನ್ನೊಂದು ಫೈಲ್ ಅನ್ನು ಮಾಡುತ್ತದೆ, ಒಂದು ಸಾಲು ಈಗಾಗಲೇ ಹೆಸರಿಸುತ್ತದೆ; ಸಾಲುಗಳು ಪ್ರತಿ ಫೈಲ್ ಅನ್ನು ವಿವರಿಸುವಂತೆ ಕಾಣುತ್ತವೆ.',
+  'guided.list.grainNone':
+    'ಒಂದೇ ವಸ್ತುವಿನ ಫೈಲ್‌ಗಳನ್ನು ಎರಡು ಸಾಲುಗಳು ಹೆಸರಿಸುವುದಿಲ್ಲ; ಸಾಲುಗಳು ಪ್ರತಿ ವಸ್ತುವನ್ನು ವಿವರಿಸುವಂತೆ ಕಾಣುತ್ತವೆ.',
+  'guided.list.colLevel': 'ಇದರ ಮೌಲ್ಯಗಳು ಎಲ್ಲಿಗೆ ಹೋಗುತ್ತವೆ',
+  'guided.list.levelOf': '{column} ಮೌಲ್ಯಗಳು ಎಲ್ಲಿಗೆ ಹೋಗುತ್ತವೆ',
+  'guided.list.levelItem': 'ವಸ್ತು',
+  'guided.list.levelFile': 'ಪ್ರತಿ ಫೈಲ್',
+  'guided.list.levelOut': 'ಬಿಟ್ಟುಬಿಡಿ',
+  'guided.list.varies': '{of} ಐಟಂಗಳಲ್ಲಿ {count} ರಲ್ಲಿ ಬದಲಾಗುತ್ತದೆ.',
+  'guided.list.itemOnly': 'ಒಂದು ವಸ್ತು ಅಥವಾ ಒಂದು ವಸ್ತುಗಳ ಗುಂಪು ಕೇವಲ ವಸ್ತುವಿನ ಮೇಲೆ ಹೋಗುತ್ತದೆ.',
+  'guided.list.levelLede':
+    'ವಸ್ತುವಿನ ಮೇಲೆ: ಅದರ ಎಲ್ಲಾ ಸಾಲುಗಳ ಮೌಲ್ಯಗಳು, ಪ್ರತಿ ಮೌಲ್ಯ ಒಮ್ಮೆ. ಪ್ರತಿ ಫೈಲ್ ಮೇಲೆ: ಆ ಫೈಲ್‌ನ ಸಾಲಿನ ಮೌಲ್ಯಗಳು. ಕೆಲವು ವಸ್ತುವಿನ ಒಳಗೆ ಮೌಲ್ಯಗಳು ಭಿನ್ನವಾಗಿರುವ ಮತ್ತು ವಸ್ತುವು ಎಂದಿಗೂ ಮಾಡದ ಫೈಲ್ ಅನ್ನು ನಾವು ಸೂಚಿಸುತ್ತೇವೆ.',
   'guided.where.setsTitle': 'ಐಟಂ ಸೆಟ್‌ಗಳು',
   'guided.where.setsAsk': 'ಪ್ರತಿ ಐಟಂ ಯಾವ ಐಟಂ ಸೆಟ್‌ಗೆ ಹೋಗಬೇಕು?',
   'guided.where.setsGloss': 'ಐಟಂ ಸೆಟ್ ಎಂಬುದು ಒಮೆಕಾದಲ್ಲಿರುವ ಐಟಂಗಳ ಸಂಗ್ರಹವಾಗಿದೆ.',
@@ -186,6 +208,9 @@ export const kn: ImportSimpleMessages = {
   'guided.check.mustFix': 'ಇದನ್ನು ನೀವು ಸೇರಿಸುವ ಮೊದಲು ಸರಿಪಡಿಸಬೇಕು.',
   'guided.check.keep': 'ಅವುಗಳನ್ನು ಹಾಗೆಯೇ ಇರಿಸಿ',
   'guided.check.leave': 'ಅವುಗಳನ್ನು ಹೊರಗಿಡಿ',
+  'guided.check.fileRows': 'ಪ್ರತಿ ಸಾಲು ಒಂದು ಫೈಲ್ ಅನ್ನು ವಿವರಿಸುತ್ತದೆ',
+  'guided.check.fileRowsWhy':
+    'ನಿಮ್ಮ ಪಟ್ಟಿಯಲ್ಲಿರುವ ಕೆಲವು ಸಾಲುಗಳು ಈಗಾಗಲೇ ಹೆಸರಿಸಲಾದ ವಸ್ತುವಿನ ಮತ್ತೊಂದು ವಸ್ತುವನ್ನು ವಿವರಿಸುತ್ತವೆ. ಅಂತಹ ಪಟ್ಟಿಯು ಪ್ರತಿ ಫೈಲ್‌ಗೆ ಒಂದು ಸಾಲನ್ನು ಹೊಂದಿರಬಹುದು.',
   'guided.check.spacesRepair': 'ಸ್ಪೇಸ್‌ಗಳನ್ನು ತೆಗೆದುಹಾಕಿ',
   'guided.check.other': '{count} ಬಾರಿ: {problem}.',
   'guided.check.otherOne': '1 ಬಾರಿ: {problem}.',
@@ -286,4 +311,5 @@ export const kn: ImportSimpleMessages = {
   'guided.add.undo': 'ನೀವು ನಂತರ ಇಡೀ ಆಮದನ್ನು ರದ್ದುಗೊಳಿಸಬಹುದು.',
   'guided.add.titleCode': 'ಶೀರ್ಷಿಕೆ ಇಲ್ಲದ ವಸ್ತುಗಳು ತಮ್ಮ ವಸ್ತು ಕೋಡ್ ಅನ್ನು ಶೀರ್ಷಿಕೆಯಾಗಿ ಪಡೆಯುತ್ತವೆ.',
   'guided.add.titleChange': 'ಇದನ್ನು ಬದಲಾಯಿಸಿ',
+  'guided.add.fileRows': '“{name}” ನ ಪ್ರತಿ ಸಾಲು ಒಂದು ಫೈಲ್ ಅನ್ನು ವಿವರಿಸುತ್ತದೆ.',
 };

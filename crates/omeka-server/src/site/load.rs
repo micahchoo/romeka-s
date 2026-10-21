@@ -25,8 +25,9 @@ use omeka_db::DbPool;
 use omeka_db::ids as db;
 use omeka_db::repos::{
     AssetRepo, ClassRepo, FulltextRepo, ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo,
-    MediaFilter, MediaRepo, MediaVisibility, Paging, ResourceRepo, SiteBlockAttachmentRepo,
-    SiteFilter, SiteRepo, TemplateRepo, ValueRepo, compare_opt_text_ci, compare_text_ci,
+    MediaExtentRepo, MediaFilter, MediaRepo, MediaVisibility, Paging, ResourceRepo,
+    SiteBlockAttachmentRepo, SiteFilter, SiteRepo, TemplateRepo, ValueRepo, compare_opt_text_ci,
+    compare_text_ci,
 };
 use omeka_db::rows::{
     AssetRow, ItemRow, ItemSetRow, MediaRow, ResourceRow, SiteBlockRow, SitePageRow, SiteRow,
@@ -42,8 +43,9 @@ use omeka_site::search::SearchHit;
 use omeka_site::settings::SiteSettings;
 use omeka_site::slug::{controller_for, page_url, resource_show_url, site_url};
 use omeka_site::view::{
-    BrowseQuery, BrowseView, LinkedResource, MediaPosition, MediaRef, PageCard, ResourcePage,
-    ResourceRef, ResourceView, SiteQuery, SiteSearch, SiteSort, SiteView, Thumbnail, ValueRef,
+    BrowseQuery, BrowseView, LinkedResource, MediaIcon, MediaKindCue, MediaPosition, MediaRef,
+    PageCard, ResourcePage, ResourceRef, ResourceView, SiteQuery, SiteSearch, SiteSort, SiteView,
+    Thumbnail, ValueRef,
 };
 
 use omeka_media::data::MediaData;
@@ -528,6 +530,11 @@ impl<'a> Loader<'a> {
         if let Some(media_row) = media {
             let media_id = media_row.id();
             let item_is_public = row.resource.is_public;
+            let kind = media_kind(&media_row);
+            view.media_kind = Some(media_kind_cue(kind, self.messages()));
+            if is_recording(kind) {
+                view.duration_ms = self.media_duration(&media_row).await?;
+            }
             if view.thumbnail.is_none() {
                 // The card shows the item's name as text beside this image, so
                 // the image is decorative and carries no alt.
@@ -641,6 +648,11 @@ impl<'a> Loader<'a> {
         let mut view = self.base_view(ResourceKind::Media, &row.resource).await?;
         let title = media_display_title(row, self.messages());
         view.title = title.clone();
+        let kind = media_kind(row);
+        view.media_kind = Some(media_kind_cue(kind, self.messages()));
+        if is_recording(kind) {
+            view.duration_ms = self.media_duration(row).await?;
+        }
         let alt = title;
         let item = with_db!(self.pool, |db| ItemRepo::new(db).get(row.item_id).await)?;
         let item_is_public = item.as_ref().is_some_and(|item| item.resource.is_public);
@@ -654,6 +666,7 @@ impl<'a> Loader<'a> {
                     url: url.clone(),
                     title: display_title(&item.resource, self.messages()),
                     thumbnail: None,
+                    media_kind: None,
                 });
                 url
             }
@@ -697,6 +710,7 @@ impl<'a> Loader<'a> {
             url: resource_show_url(&self.site.slug, "media", entry.id().0),
             title: media_display_title(entry, self.messages()),
             thumbnail: None,
+            media_kind: None,
         };
         Ok(Some(MediaPosition {
             number: index + 1,
@@ -1297,6 +1311,7 @@ impl<'a> Loader<'a> {
                     url: resource_show_url(&self.site.slug, "item-set", set.id().0),
                     title: display_title(&set.resource, self.messages()),
                     thumbnail: None,
+                    media_kind: None,
                 });
             }
         }
@@ -1317,12 +1332,7 @@ impl<'a> Loader<'a> {
             {
                 continue;
             }
-            let kind = MediaKind::of(&KindInput {
-                renderer: &entry.renderer,
-                ingester: &entry.ingester,
-                media_type: entry.media_type.as_deref(),
-                has_thumbnails: entry.has_thumbnails,
-            });
+            let kind = media_kind(&entry);
             if view.iiif_manifest.is_none() && kind.canvas_body() == Some(CanvasBody::Image) {
                 view.iiif_manifest = Some(format!(
                     "{}/iiif/3/item/{}/manifest",
@@ -1335,6 +1345,7 @@ impl<'a> Loader<'a> {
                 url: resource_show_url(&self.site.slug, "media", entry.id().0),
                 title: title.clone(),
                 thumbnail: square_thumbnail(self.files, &entry, row.resource.is_public, &title),
+                media_kind: Some(media_kind_cue(kind, self.messages())),
             });
             // `media-embeds.phtml`: `$media->render()` with the renderer's own
             // defaults, except that the file opens its media page rather than
@@ -1352,6 +1363,7 @@ impl<'a> Loader<'a> {
                 .await?,
             );
         }
+        view.file_count = view.media.len();
         for page in with_db!(self.pool, |db| SiteRepo::new(db)
             .list_pages_attaching_item(self.db_site_id(), row.id())
             .await)?
@@ -1361,6 +1373,7 @@ impl<'a> Loader<'a> {
                     url: page_url(&self.site.slug, &slug),
                     title: page.title.clone(),
                     thumbnail: None,
+                    media_kind: None,
                 });
             }
         }
@@ -1455,6 +1468,7 @@ impl<'a> Loader<'a> {
                     url: resource_show_url(&self.site.slug, "item", id.0),
                     title,
                     thumbnail,
+                    media_kind: None,
                 },
             )));
         }
@@ -1478,6 +1492,7 @@ impl<'a> Loader<'a> {
                     url: resource_show_url(&self.site.slug, "item-set", id.0),
                     title: display_title(&row.resource, self.messages()),
                     thumbnail,
+                    media_kind: None,
                 },
             )));
         }
@@ -1500,6 +1515,7 @@ impl<'a> Loader<'a> {
                     url: resource_show_url(&self.site.slug, "media", id.0),
                     title,
                     thumbnail,
+                    media_kind: None,
                 },
             )));
         }
@@ -1613,6 +1629,23 @@ impl<'a> Loader<'a> {
                 .and_then(|media| media_thumbnail(self.files, &media, item_is_public, alt)),
         )
     }
+
+    /// The run time `romeka_media_extent` records for a media's original,
+    /// `None` when no probe has written a row or the row is stale. A card shows
+    /// a duration only from here: the file itself is never read to guess one.
+    async fn media_duration(&self, row: &MediaRow) -> Result<Option<u64>, DbError> {
+        let Some(storage_id) = row.storage_id.as_deref() else {
+            return Ok(None);
+        };
+        let path = match row.extension.as_deref() {
+            Some(extension) => format!("original/{storage_id}.{extension}"),
+            None => format!("original/{storage_id}"),
+        };
+        Ok(with_db!(self.pool, |db| MediaExtentRepo::new(db)
+            .get(row.id(), &path)
+            .await)?
+        .and_then(|extent| extent.duration_ms))
+    }
 }
 
 /// A page row as navigation resolution needs it.
@@ -1648,6 +1681,44 @@ pub(crate) fn display_title(row: &ResourceRow, messages: &Messages) -> String {
     row.title
         .clone()
         .unwrap_or_else(|| messages.untitled.to_string())
+}
+
+/// The port's kind for a media row, from the same table the API's `o:kind` and
+/// the IIIF canvas read.
+fn media_kind(row: &MediaRow) -> MediaKind {
+    MediaKind::of(&KindInput {
+        renderer: &row.renderer,
+        ingester: &row.ingester,
+        media_type: row.media_type.as_deref(),
+        has_thumbnails: row.has_thumbnails,
+    })
+}
+
+/// The kind as a card draws it: the server's name, the kind in words and the
+/// theme's glyph. The words are the site catalogue's, so every locale names a
+/// kind in its own language.
+fn media_kind_cue(kind: MediaKind, messages: &Messages) -> MediaKindCue {
+    let (label, icon) = match kind {
+        MediaKind::LocalImage | MediaKind::IiifImage => (messages.kind_image, MediaIcon::Image),
+        MediaKind::Audio => (messages.kind_audio, MediaIcon::Audio),
+        MediaKind::Video => (messages.kind_video, MediaIcon::Video),
+        MediaKind::Pdf { .. } => (messages.kind_pdf, MediaIcon::Pdf),
+        MediaKind::Model3d => (messages.kind_model_3d, MediaIcon::Model),
+        MediaKind::Captions => (messages.kind_captions, MediaIcon::Captions),
+        MediaKind::Embed | MediaKind::IiifPresentation => (messages.kind_embed, MediaIcon::Embed),
+        MediaKind::OtherFile => (messages.kind_other_file, MediaIcon::File),
+    };
+    MediaKindCue {
+        kind: kind.name(),
+        label,
+        icon,
+    }
+}
+
+/// Whether a kind can carry a run time, and so may show one from
+/// `romeka_media_extent`.
+const fn is_recording(kind: MediaKind) -> bool {
+    matches!(kind, MediaKind::Audio | MediaKind::Video)
 }
 
 /// `MediaRepresentation::displayTitle`: the stored title, else the file's own

@@ -49,6 +49,7 @@ export const te: ImportAdvancedMessages = {
   'adv.files.example.file': 'గుర్తించినది',
   'adv.files.example.words': 'కేవలం {words} పదాలు',
   'adv.files.example.number': '“{text}” స్థానంలో ఏదైనా సంఖ్య',
+  'adv.files.example.letters': '“{text}” స్థానంలో ఏవైనా అక్షరాలు',
   'adv.files.example.remove': 'తొలగించు',
   'adv.files.example.removeOne': 'గుర్తును తొలగించు: {mark}',
   'adv.files.example.writes':
@@ -127,6 +128,20 @@ export const te: ImportAdvancedMessages = {
   'adv.lists.normalize.caseFold': 'క్యాపిటల్ లెటర్లు (A2 మరియు a2)',
   'adv.lists.normalize.leadingZeros': 'ప్రారంభ సున్నాలు (007 మరియు 7)',
   'adv.lists.normalize.separators': 'అక్షరాలు _ - . మరియు స్పేస్ (B 4 మరియు B_4)',
+  'adv.lists.rowKind.label': 'ప్రతి రో వివరిస్తుంది',
+  'adv.lists.rowKind.plain':
+    'ఒక రో ఏ రకమైన రికార్డును తయారు చేస్తుంది, లేదా దాని కాలమ్స్ పేరు పెట్టే కాలమ్. ఫైల్‌ను పేరు ద్వారా కనుగొనే రోలు వాటి ఫైల్‌ను కనుగొంటాయి; వాటి ఐటమ్ ఆ ఫైల్ యొక్క ఐటమ్.',
+  'adv.lists.rowKind.item': 'ఒక ఐటమ్',
+  'adv.lists.rowKind.media': 'ఒక ఫైల్ (మీడియా)',
+  'adv.lists.rowKind.itemSet': 'ఒక ఐటమ్ సెట్',
+  'adv.lists.rowKind.column': 'ఒక కాలమ్ ఏమి చెబుతుంది',
+  'adv.lists.rowKind.columnLabel': 'కైండ్ కాలమ్',
+  'adv.lists.rowKind.columnPlain':
+    'ప్రతి సెల్ తన రో యొక్క కైండ్‌ను సూచిస్తుంది: ఐటమ్, మీడియా లేదా ఐటమ్ సెట్.',
+  'adv.lists.itemKey.label': 'ఐటమ్ కాలమ్',
+  'adv.lists.itemKey.plain':
+    'ఫైల్ పేరు ద్వారా కలవని రోల కోసం: వాటి ఐటమ్ యొక్క ఐడెంటిఫైయర్ ఉన్న కాలమ్.',
+  'adv.lists.itemKey.none': 'ఏమీ లేవు: రోలు ఫైల్ పేరు ద్వారా కలుస్తాయి',
   'adv.lists.unpaired.label': 'జాయిన్ చేయబడలేదు',
   'adv.lists.unpaired.plain':
     'ఎటువంటి అంశం లేని వరుసలు, మరియు వరుసలు లేని అంశాలు. మీరు వాటిని చేతితో జత చేయవచ్చు.',
@@ -156,6 +171,14 @@ export const te: ImportAdvancedMessages = {
   'adv.lists.columns.unnamed': 'కాలమ్ {index} (పేరు లేదు)',
   'adv.lists.columns.joined': 'కలపండి',
   'adv.lists.columns.notMappable': 'దీని పేరు #తో మొదలవుతుంది, కాబట్టి ఇది ఎప్పుడూ మ్యాప్ చేయబడదు.',
+  'adv.lists.columns.level': 'విలువలు ఎక్కడికి వెళ్తాయి',
+  'adv.lists.columns.levelOf': '{column} యొక్క విలువలు ఎక్కడ వెళ్తాయి',
+  'adv.lists.columns.levelItem': 'ఐటమ్',
+  'adv.lists.columns.levelFile': 'ఫైల్',
+  'adv.lists.columns.levelOut': 'వదిలివేయబడిన',
+  'adv.lists.columns.varies': '{of} అంశాలలో {count}-లో మారుతుంది.',
+  'adv.lists.columns.suggestFile': 'సూచించబడినది: ప్రతి ఫైల్.',
+  'adv.lists.columns.suggestItem': 'సూచించబడినది: ఐటమ్.',
   'adv.lists.type.literal': 'టెక్స్ట్',
   'adv.lists.type.uri': 'వెబ్ అడ్రస్ (URI)',
   'adv.lists.type.identifier': 'ఐడెంటిఫైయర్ ద్వారా ఒక ఐటమ్‌కు లింక్',

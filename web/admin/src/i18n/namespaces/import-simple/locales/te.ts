@@ -49,6 +49,7 @@ export const te: ImportSimpleMessages = {
   'guided.found.showThem': 'వాటిని చూపించు',
   'guided.found.everyFile': 'ప్రతి ఫైల్‌ను చూడండి',
   'guided.mark.number': '{text} స్థానంలో ఏదైనా సంఖ్యను ఉంచండి',
+  'guided.mark.letters': '{text} స్థానంలో ఏవైనా అక్షరాలు',
   'guided.mark.and': '; మరియు ',
   'guided.example.choose':
     'ఒక వస్తువు ఒకటి కంటే ఎక్కువ ఫైల్‌లను కలిగి ఉన్నప్పుడు, ఒక ఫైల్‌ను ఎంచుకోండి.',
@@ -68,6 +69,8 @@ export const te: ImportSimpleMessages = {
   'guided.example.onlyThis': 'కేవలం {text}',
   'guided.example.anyNumber': 'ఏదైనా సంఖ్య, ఉదాహరణకు {text}',
   'guided.example.hasDigits': '(దీనికి అంకెలు ఉన్నాయి)',
+  'guided.example.anyLetters': 'ఏవైనా అక్షరాలు, ఉదాహరణకు {text}',
+  'guided.example.afterNumber': '(ఇవి ఒక సంఖ్య తర్వాత వస్తాయి)',
   'guided.example.wordsLede':
     'ఈ పదాలు ఈ ఒకటనే భాగాలుగా ఉన్న పేర్లలో, ప్రతి ఫైల్‌కు ఎన్ని ఉన్నాయో అదే స్థానంలో ఉన్నాయి. ఒక ఫైల్ యొక్క మరొక ఫైల్‌ను సూచించే పదాలను టిక్ చేయండి.',
   'guided.example.findWord': 'ఒక పదాన్ని వెతకండి',
@@ -120,6 +123,25 @@ export const te: ImportSimpleMessages = {
   'guided.list.noField': 'Omeka లో ఈ పేరుతో ఫీల్డ్ లేదు. ఒకదాన్ని ఎంచుకోండి, లేదా వదిలివేయండి.',
   'guided.list.moreFields':
     'ఇక్కడ మీరు డబ్లిన్ కోర్ ఫీల్డ్‌లను చూస్తారు. ఇతర ఫీల్డ్‌లు అడ్వాన్స్‌డ్ మోడ్‌లో ఉంటాయి.',
+  'guided.list.grainAsk': 'ప్రతి వరుస వివరిస్తుంది',
+  'guided.list.grainItem': 'ఒక అంశాన్ని',
+  'guided.list.grainFile': 'ఒక ఫైల్‌ను',
+  'guided.list.grainSet': 'ఒక అంశాల సెట్‌ను',
+  'guided.list.grainEvidence':
+    '{count} వరుసలు ఒక అంశాన్ని ఇప్పటికే పేరు పెట్టిన మరొక ఫైల్‌ను వివరిస్తాయి; ఆ వరుసలు ప్రతి ఫైల్‌కు ఒకటి చొప్పున ఉన్నట్లు కనిపిస్తాయి.',
+  'guided.list.grainEvidenceOne':
+    '1   ఒక అంశాన్ని ఇప్పటికే పేరు పెట్టిన మరొక ఫైల్‌ను వివరిస్తుంది; ఆ   లు ప్రతి ఫైల్‌కు ఒకటి చొప్పున ఉన్నట్లు కనిపిస్తాయి.',
+  'guided.list.grainNone':
+    'ఒకే అంశానికి చెందిన ఫైల్‌లకు రెండు వేర్వేరు వరుసలు పేరు పెట్టవు; ఆ వరుసలు ప్రతి అంశానికి ఒకటి చొప్పున ఉన్నట్లు కనిపిస్తాయి.',
+  'guided.list.colLevel': 'దీని విలువలు ఎక్కడికి వెళ్తాయి',
+  'guided.list.levelOf': '{column} యొక్క విలువలు ఎక్కడకు వెళ్తాయి',
+  'guided.list.levelItem': 'అంశం',
+  'guided.list.levelFile': 'ప్రతి ఫైల్',
+  'guided.list.levelOut': 'వదిలివేయండి',
+  'guided.list.varies': '{of} అంశాలలో {count}-లో మారుతుంది.',
+  'guided.list.itemOnly': 'ఒక అంశ రకం లేదా ఒక అంశ సమితి అంశం మీద మాత్రమే ఉంటుంది.',
+  'guided.list.levelLede':
+    'అంశంపై: దాని అన్ని వరుసల విలువలు, ప్రతి విలువ ఒకసారి. ప్రతి ఫైల్‌పై: ఆ ఫైల్ యొక్క స్వంత వరుస విలువలు. కొన్ని అంశాలలో విలువలు భిన్నంగా ఉన్న ఫైల్‌ను, మరియు అవి ఎప్పటికీ భిన్నంగా లేని అంశాన్ని సూచించమని మేము సూచిస్తున్నాము.',
   'guided.where.setsTitle': 'అంశం సెట్లు',
   'guided.where.setsAsk': 'ప్రతి అంశాన్ని ఏ అంశం సెట్‌లో ఉంచాలి?',
   'guided.where.setsGloss': 'అంశం సెట్ అనేది Omeka లోని అంశాల సమూహం.',
@@ -182,6 +204,9 @@ export const te: ImportSimpleMessages = {
   'guided.check.mustFix': 'దీనిని మీరు జోడించే ముందు సరిచేయాలి.',
   'guided.check.keep': 'వాటిని అలాగే ఉంచండి',
   'guided.check.leave': 'వాటిని వదిలివేయండి',
+  'guided.check.fileRows': 'ప్రతి వరుస ఒక ఫైల్‌ను వివరిస్తుంది',
+  'guided.check.fileRowsWhy':
+    'మీ జాబితాలో ఒక ఫైల్ పేరు మరొక అంశాన్ని ఇప్పటికే పేరు పెట్టిన అంశం యొక్క ఫైల్‌ను సూచిస్తుంది. అటువంటి జాబితాలో ప్రతి ఫైల్‌కు ఒక వరుస ఉండవచ్చు.',
   'guided.check.spacesRepair': 'స్పేస్‌లను తొలగించండి',
   'guided.check.other': '{count} సార్లు: {problem}.',
   'guided.check.otherOne': '1 సారి: {problem}.',
@@ -283,4 +308,5 @@ export const te: ImportSimpleMessages = {
   'guided.add.undo': 'మీరు తర్వాత మొత్తం ఇంపోర్ట్‌ను అన్‌డూ చేయవచ్చు.',
   'guided.add.titleCode': 'టైటిల్ లేని అంశాలకు వాటి అంశ కోడ్‌ను టైటిల్‌గా తీసుకుంటాయి.',
   'guided.add.titleChange': 'దానిని మార్చండి',
+  'guided.add.fileRows': '“{name}” యొక్క ప్రతి వరుస ఒక ఫైల్‌ను వివరిస్తుంది.',
 };

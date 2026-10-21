@@ -29,6 +29,15 @@ describe('one example, read by both modes', () => {
     expect(patternOf([])).toBe(draft().grouping.pattern);
   });
 
+  it('a plan saved before glued parts reads the same pattern from its marks', () => {
+    const saved = '^(?:[^/]*/)*(?<identifier>[^/]+?)(?:[_-](?<part>front|back|\\d+))?(?:\\.[^./]*)?$';
+    const old: ImportPlan = { ...draft(), grouping: { ...draft().grouping, pattern: saved }, example: { path: 'scans/a_front.tif', marks: [{ kind: 'words', words: ['front', 'back'], sep: '_' }, { kind: 'number', text: '001', sep: '-' }] } };
+    const example = exampleOf(old);
+    expect(example?.marks).toEqual([PAGE, NUMBER]);
+    expect(patternOf(example?.marks ?? [])).toBe(saved);
+    expect(readState(old).marks).toEqual([PAGE, NUMBER]);
+  });
+
   it('Advanced reads the marks Simple wrote', () => {
     const plan = simpleAnswered();
     expect(exampleOf(plan)).toEqual({ path: 'scans/a_front.tif', marks: [PAGE, NUMBER] });

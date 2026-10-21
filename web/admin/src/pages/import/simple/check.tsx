@@ -14,7 +14,7 @@ import { listHref } from '../lists/address';
 import { fileName, recordName } from '../lists/record-words';
 import { usePreview } from '../lists/use-preview';
 import { placeHref } from '../screens';
-import { CAUSE_ORDER, DEFAULT_POLICY, FACTS, HANDLED, answerOf, isBlocking, itemCodeFits, suggestedOf, withAnswer, wordsOf } from './causes';
+import { CAUSE_ORDER, DEFAULT_POLICY, FACTS, HANDLED, answerOf, checkFactsOf, isBlocking, suggestedOf, withAnswer, withSuggestions, wordsOf } from './causes';
 import type { CauseId, CheckFacts } from './causes';
 import { readState, withState } from './example-state';
 import { useSimpleText } from './messages';
@@ -54,14 +54,14 @@ const RecordExample = ({ kind, at }: { readonly kind: FlagCount['kind']; readonl
 const Card = ({ cause, facts, shown, onAnother }: { readonly cause: Cause; readonly facts: CheckFacts; readonly shown: number; readonly onAnother: () => void }): ReactElement => {
   const { t, number } = useSimpleText();
   const draft = useDraft();
-  const words = wordsOf(cause.id, draft.plan);
+  const words = wordsOf(cause.id, draft.plan, facts);
   const answered = readState(draft.plan).answered.includes(cause.id);
   const answer = answerOf(draft.plan, cause.id, facts);
   const suggested = suggestedOf(draft.plan, cause.id, facts);
   const blocking = isBlocking(cause.id);
   const example = cause.examples.length === 0 ? null : (cause.examples[shown % cause.examples.length] ?? null);
   const answer1 = (value: string): void => {
-    draft.change((plan) => withState(withAnswer(plan, cause.id, value), { answered: [...readState(plan).answered.filter((id) => id !== cause.id), cause.id] }));
+    draft.change((plan) => withState(withAnswer(plan, cause.id, value, facts), { answered: [...readState(plan).answered.filter((id) => id !== cause.id), cause.id] }));
   };
   const all = cause.kind === null ? null : listHref(draft.id, { mode: 'simple', screen: 'all-items' }, { problem: cause.kind });
   return (
@@ -143,7 +143,7 @@ export const Check = (): ReactElement => {
   const draft = useDraft();
   const [seed, setSeed] = useState(0);
   const [shown, setShown] = useState<Readonly<Record<string, number>>>({});
-  const read = usePreview(['flags', 'identical', 'unpaired', 'entries', 'check', 'histogram'], {
+  const read = usePreview(['flags', 'identical', 'unpaired', 'entries', 'check', 'histogram', 'listCandidates'], {
     identical: { perPage: 3 },
     unpaired: { rows: { perPage: 1 }, files: { perPage: 3 } },
     entries: { reason: 'unmatched', perPage: 3 },
@@ -155,10 +155,8 @@ export const Check = (): ReactElement => {
   if (read.status === 'error') {
     return <ErrorNotice error={read.error} />;
   }
-  const { flags, identical, unpaired, entries, check, histogram, pattern } = read.data;
-  const facts: CheckFacts = {
-    itemCodeFits: itemCodeFits(pattern, histogram),
-  };
+  const { flags, identical, unpaired, entries, check } = read.data;
+  const facts = checkFactsOf(draft.plan, read.data);
   const stated = flags.filter((flag) => flag.count > 0 && FACTS.includes(flag.kind));
   const byKind = new Map<FlagCount['kind'], { count: number; samples: FlagSample[] }>();
   for (const flag of flags) {
@@ -203,9 +201,8 @@ export const Check = (): ReactElement => {
             disabled={!draft.editable}
             onClick={() => {
               draft.change((plan) => {
-                // The run adds no title unless a rule gives one, so taking the suggestion writes it.
-                const titled = open.some((cause) => cause.id === 'empty-required') ? withAnswer(plan, 'empty-required', answerOf(plan, 'empty-required', facts)) : plan;
-                return withState(titled, { answered: [...new Set([...readState(plan).answered, ...open.map((cause) => cause.id)])] });
+                const { plan: suggested } = withSuggestions(plan, open.map((cause) => cause.id), facts);
+                return withState(suggested, { answered: [...new Set([...readState(plan).answered, ...open.map((cause) => cause.id)])] });
               });
             }}
           >

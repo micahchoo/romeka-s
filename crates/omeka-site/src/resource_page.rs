@@ -271,10 +271,15 @@ fn media_strip(resource: &ResourceView, ctx: &RenderContext<'_>) -> String {
                  width=\"200\" height=\"200\"></span>",
                 escape_html(url)
             )),
-            None => out.push_str(&format!(
-                "<span class=\"media-file-thumb media-file-placeholder\">{}</span>",
-                crate::theme::cards::kind_icon(ResourceKind::Media)
-            )),
+            None => {
+                let placeholder = entry.media_kind.as_ref().map_or_else(
+                    || crate::theme::cards::kind_icon(ResourceKind::Media).to_string(),
+                    crate::theme::cards::media_placeholder,
+                );
+                out.push_str(&format!(
+                    "<span class=\"media-file-thumb media-file-placeholder\">{placeholder}</span>"
+                ));
+            }
         }
         out.push_str(&format!(
             "<span class=\"media-file-name\">{}</span></a></li>",
