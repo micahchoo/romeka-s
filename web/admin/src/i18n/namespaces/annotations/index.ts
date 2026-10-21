@@ -177,7 +177,7 @@ export const en = {
   'captions.dialog.replaces': 'It replaces the {cues} {language} cues.',
   'captions.dialog.replacesOne': 'It replaces the 1 {language} cue.',
   'captions.dialog.handEdited':
-    '{count} of those were changed here by hand; those changes will be lost.',
+    '{count} of those were changed here by hand. This file replaces them; Undo replace brings them back once.',
   'captions.dialog.commitAdd': 'Add {language} captions',
   'captions.dialog.commitReplace': 'Replace {cues} {language} cues',
   'captions.dialog.commitReplaceOne': 'Replace 1 {language} cue',
