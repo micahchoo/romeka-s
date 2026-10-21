@@ -210,6 +210,12 @@ pub struct Messages {
     pub cite_this_file: &'static str,
     /// The line under a media's file that saves the original.
     pub download_original: &'static str,
+    /// The line a player stands in for while a copy this browser can play or
+    /// show is being made. A Romeka string.
+    pub access_pending: &'static str,
+    /// The line a player stands in for when that copy could not be made. A
+    /// Romeka string.
+    pub access_failed: &'static str,
     /// A browse preview of items on a site that holds no items, in the admin
     /// preview. A port addition: upstream prints an empty list.
     pub no_site_items_preview: &'static str,
@@ -390,6 +396,8 @@ pub static EN: Messages = Messages {
     cite_this_item: "Cite this item",
     cite_this_file: "Cite this file",
     download_original: "Download the original",
+    access_pending: "A copy this browser can play or show is being made. The original is still available to download.",
+    access_failed: "A copy this browser can play or show could not be made. The original is still available to download.",
     no_site_items_preview: "No items on this site yet. Add items on the Items tab.",
     no_site_items: "There are no items to show yet.",
     map: "Map",
@@ -532,6 +540,8 @@ pub static ES: Messages = Messages {
     cite_this_item: "Citar esta ficha",
     cite_this_file: "Citar este archivo",
     download_original: "Descargar el original",
+    access_pending: "Se está creando una copia que este navegador pueda reproducir o mostrar. El original sigue disponible para descargar.",
+    access_failed: "No se pudo crear una copia que este navegador pueda reproducir o mostrar. El original sigue disponible para descargar.",
     // The admin's words, because only the admin preview shows it.
     no_site_items_preview: "Este sitio aún no tiene elementos. Añade elementos en la pestaña Elementos.",
     no_site_items: "Todavía no hay fichas que mostrar.",

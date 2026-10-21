@@ -67,6 +67,24 @@ impl Default for RenderEnv {
     }
 }
 
+/// Where a media's playable copy stands, as a player reads it.
+///
+/// `Original` covers a media with no access rule and a decision that the
+/// original is what a browser plays or shows. `Pending` and `Failed` are what
+/// stop a player opening an original no browser can play.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub enum AccessCopyState {
+    /// No copy is planned, or the original is what a browser plays or shows.
+    #[default]
+    Original,
+    /// A copy is queued or being made.
+    Pending,
+    /// The copy is ready at this URL.
+    Ready(String),
+    /// The copy could not be made.
+    Failed,
+}
+
 /// Everything a renderer can observe about one media row.
 #[derive(Debug, Clone, PartialEq)]
 pub struct MediaView {
@@ -86,10 +104,10 @@ pub struct MediaView {
     /// The original file URL, present only when the row has an original
     /// (`MediaRepresentation::originalUrl`).
     pub original_url: Option<String>,
-    /// The playable copy's URL, present when an access copy is ready. A player
-    /// opens this instead of the original, which stays the preservation master
-    /// (`o-module-romeka:access`).
-    pub access_url: Option<String>,
+    /// Where the file's playable copy stands (`o-module-romeka:access`). A
+    /// player opens the copy instead of the original, which stays the
+    /// preservation master.
+    pub access: AccessCopyState,
     /// Thumbnail URLs keyed by type (`MediaRepresentation::thumbnailUrl`).
     pub thumbnails: BTreeMap<ThumbnailType, String>,
     /// The environment the renderer reads.
@@ -135,25 +153,47 @@ impl MediaView {
             item_url: item_url.into(),
             media_url: media_url.into(),
             original_url,
-            access_url: None,
+            access: AccessCopyState::Original,
             thumbnails,
             env,
         }
     }
 
     /// The same view with the access copy a player opens. The original stays
-    /// the link and the download (`crate::access`).
+    /// the link and the download (`crate::access`). A caller that read the row
+    /// states where the copy stands with [`Self::with_access_state`].
     #[must_use]
     pub fn with_access(mut self, url: Option<String>) -> Self {
-        self.access_url = url;
+        self.access = url.map_or(AccessCopyState::Original, AccessCopyState::Ready);
         self
     }
 
+    /// The same view with the state the access row reports.
+    #[must_use]
+    pub fn with_access_state(mut self, access: AccessCopyState) -> Self {
+        self.access = access;
+        self
+    }
+
+    /// The URL of a ready copy, or `None` when no copy is ready.
+    #[must_use]
+    pub fn access_url(&self) -> Option<&str> {
+        match &self.access {
+            AccessCopyState::Ready(url) => Some(url),
+            _ => None,
+        }
+    }
+
     /// The file a player opens: the access copy when it is ready, the original
-    /// otherwise. A `?t=` fragment is added by each player.
+    /// when the original is what a browser plays, and nothing while a copy is
+    /// being made or after it failed. A `?t=` fragment is added by each player.
     #[must_use]
     pub fn player_url(&self) -> Option<&str> {
-        self.access_url.as_deref().or(self.original_url.as_deref())
+        match &self.access {
+            AccessCopyState::Ready(url) => Some(url),
+            AccessCopyState::Original => self.original_url.as_deref(),
+            AccessCopyState::Pending | AccessCopyState::Failed => None,
+        }
     }
 
     /// The same view for a media whose item is public or not: a thumbnail URL
@@ -334,6 +374,10 @@ pub struct RenderOptions {
     /// the words the site renders it in. `None` on a surface that has no
     /// viewer: the renderer then links the file instead of offering a button.
     pub model_reader: Option<ModelReader>,
+    /// The sentence a player stands in for while its copy is being made, or
+    /// after the copy failed. The site layer owns the words; a surface that
+    /// leaves it `None` keeps the player the row would otherwise show.
+    pub access_wait: Option<String>,
 }
 
 /// The deferred 3D viewer: where the vendored library is served from, and the

@@ -42,6 +42,7 @@ def render_document(doc: Doc) -> str:
     errors_section(out)
     annotations_section(out)
     embed_frame_section(out)
+    derivative_retry_section(out)
     return "\n".join(out).rstrip("\n") + "\n"
 
 
@@ -452,4 +453,32 @@ def embed_frame_section(out: list[str]) -> None:
     )
     out.append("")
     out.append("No answer sets a cookie.")
+    out.append("")
+
+
+def derivative_retry_section(out: list[str]) -> None:
+    out.append("## Retrying one media's access copy")
+    out.append("")
+    out.append(
+        "`POST /api/romeka/media/{id}/derivatives/retry` re-queues one media's `access_copy` row "
+        "after the tool that makes it failed, or after a tool the decision found missing was "
+        "installed (`crates/omeka-server/src/media_derivatives.rs`). It answers the media document "
+        "the read route builds, whose `o-module-romeka:access.state` is `pending` again, and starts "
+        "the install's one derivative worker through the same dispatcher a create uses. The route "
+        "takes no body."
+    )
+    out.append("")
+    out.append(
+        "The caller needs the media update grant: a global or site administrator, an editor or a "
+        "reviewer, or an author whose own row it is; anyone else gets the 403 the media write gets. "
+        "A media the caller may not see and an id that names no media are the media read's 404. A "
+        "row that is already waiting or ready, and a row settled because the original is what the "
+        "reader gets, has nothing to make again and answers 409 `server.noDerivativeToRetry`, "
+        "because the document would not change."
+    )
+    out.append("")
+    out.append(
+        "Upstream has no such route: it makes every derivative inside the request and has nothing "
+        "to retry."
+    )
     out.append("")

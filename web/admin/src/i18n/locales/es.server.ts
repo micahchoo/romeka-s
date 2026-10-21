@@ -269,6 +269,7 @@ export const esServer: ServerCatalogue = {
   'server.mediaUploadBusy': 'La subida "{upload}" se está añadiendo en este momento. Espere a que termine e inténtelo de nuevo.',
   'server.mediaUploadIncomplete': 'Esta subida tiene {received} de sus {length} bytes. Envíe el resto antes de añadirla.',
   'server.mediaUploadIngester': 'Una subida preparada se añade con el ingester "upload".',
+  'server.noDerivativeToRetry': 'Este medio no tiene ninguna copia fallida que volver a crear.',
   'server.mediaUploadInline': 'Una subida preparada se añade con su propia creación de medio, no dentro de un elemento.',
   'server.uploadTooLarge': 'Este archivo ocupa más de {limit} bytes, el archivo más grande que admite una subida de medios.',
   'server.mediaLinkInvalid': 'El enlace "{url}" no es una dirección http o https.',
