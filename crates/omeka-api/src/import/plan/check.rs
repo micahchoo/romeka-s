@@ -46,7 +46,7 @@ fn ids(plan: &ImportPlan) -> Result<(), PlanError> {
         }
     }
     let mut sheets = BTreeSet::new();
-    for sheet in &plan.sheets {
+    for (_, sheet) in plan.structure.lists() {
         if !sheets.insert(&sheet.id) {
             return Err(PlanError::DuplicateSheet(sheet.id.0.clone()));
         }
@@ -70,15 +70,20 @@ fn ids(plan: &ImportPlan) -> Result<(), PlanError> {
 }
 
 fn slots(plan: &ImportPlan) -> Result<(), PlanError> {
-    if plan.action.action == Action::Delete && plan.slots.rules().next().is_some() {
+    let every_rule = || {
+        plan.structure
+            .all_series()
+            .flat_map(|(_, series)| series.every_rule())
+    };
+    if plan.action.action == Action::Delete && every_rule().next().is_some() {
         return Err(PlanError::SlotRulesOnDelete);
     }
-    let kinds = [
-        (RecordKind::Item, &plan.slots.item),
-        (RecordKind::Media, &plan.slots.media),
-        (RecordKind::ItemSet, &plan.slots.item_set),
-    ];
-    for (kind, rules) in kinds {
+    let kinds = [RecordKind::Item, RecordKind::Media, RecordKind::ItemSet];
+    let by_kind = plan
+        .structure
+        .all_series()
+        .flat_map(|(_, series)| kinds.map(|kind| (kind, series.rules(kind))));
+    for (kind, rules) in by_kind {
         for (slot, rule) in rules {
             if rule.combine == Combine::All && !slot.is_multi() {
                 return Err(PlanError::CombineAll {
@@ -88,7 +93,7 @@ fn slots(plan: &ImportPlan) -> Result<(), PlanError> {
             }
         }
     }
-    for (slot, rule) in plan.slots.rules() {
+    for (slot, rule) in every_rule() {
         let mut keys: BTreeMap<String, &str> = BTreeMap::new();
         for key in rule.map.keys() {
             if let Some(first) = keys.insert(fold_title(key), key) {
@@ -103,7 +108,7 @@ fn slots(plan: &ImportPlan) -> Result<(), PlanError> {
             let SourceRef::Column { sheet, column } = source else {
                 continue;
             };
-            let Some(read) = plan.sheets.iter().find(|s| &s.id == sheet) else {
+            let Some((_, read)) = plan.structure.list(sheet) else {
                 return Err(PlanError::MissingSheet(sheet.0.clone()));
             };
             if read.column(column.index).is_none() {

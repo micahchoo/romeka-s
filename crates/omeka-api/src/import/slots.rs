@@ -25,7 +25,7 @@ use super::join::{SheetIn, cell};
 use super::model::{LeftBy, RecordId, SlotValue, Subject, TemplateRef};
 use super::plan::{
     Combine, FlagKind, FlagPolicy, ImportPlan, NewType, NewTypeFrom, RecordKind, SlotName,
-    SlotRule, Term,
+    SlotRule, SlotRules, Term,
 };
 use super::values::{Value, ValueType, fold_title};
 
@@ -90,15 +90,8 @@ impl<'a, 'i> Ctx<'a, 'i> {
     }
 }
 
-pub(crate) fn rules(
-    plan: &ImportPlan,
-    kind: RecordKind,
-) -> &indexmap::IndexMap<SlotName, SlotRule> {
-    match kind {
-        RecordKind::Item => &plan.slots.item,
-        RecordKind::Media => &plan.slots.media,
-        RecordKind::ItemSet => &plan.slots.item_set,
-    }
+pub(crate) fn rules(plan: &ImportPlan, kind: RecordKind) -> &SlotRules {
+    plan.structure.series(plan.structure.sole()).rules(kind)
 }
 
 /// The `set` decisions that target each record, by slot, in plan order.

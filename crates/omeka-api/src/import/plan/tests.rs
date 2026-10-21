@@ -42,16 +42,68 @@ fn every_fixture_round_trips_to_the_same_json() {
     }
 }
 
+/// Every `plan` and `ranPlan` member under `value`.
+fn stored_plans<'v>(value: &'v Value, out: &mut Vec<&'v Value>) {
+    match value {
+        Value::Object(members) => {
+            for (key, member) in members {
+                if matches!(key.as_str(), "plan" | "ranPlan") && member.get("version").is_some() {
+                    out.push(member);
+                } else {
+                    stored_plans(member, out);
+                }
+            }
+        }
+        Value::Array(items) => items.iter().for_each(|item| stored_plans(item, out)),
+        _ => {}
+    }
+}
+
+#[test]
+fn every_plan_the_admin_is_served_is_stored_byte_for_byte() {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../web/admin/tests/fixtures/import");
+    let mut seen = 0;
+    for entry in std::fs::read_dir(&dir).expect("the admin's import fixtures") {
+        let path = entry.expect("fixture entry").path();
+        if path.extension().is_none_or(|ending| ending != "json") {
+            continue;
+        }
+        let text = std::fs::read_to_string(&path).expect("fixture text");
+        let value: Value = serde_json::from_str(&text).expect("fixture json");
+        let mut plans = Vec::new();
+        stored_plans(&value, &mut plans);
+        for served in plans {
+            let stored = parse(&served.to_string()).to_json();
+            let at = path.display();
+            assert_eq!(
+                parse(&stored).to_json(),
+                stored,
+                "{at}: the stored text is kept"
+            );
+            let written: Value = serde_json::from_str(&stored).expect("stored json");
+            assert_eq!(&written, served, "{at}: the same members");
+            seen += 1;
+        }
+    }
+    assert!(
+        seen >= 17,
+        "only {seen} stored plans found in {}",
+        dir.display()
+    );
+}
+
 #[test]
 fn the_full_fixture_reaches_every_member_typed() {
     let plan = parse(FULL);
     assert_eq!(plan.sources[0].id(), &SourceId("s1".into()));
+    let series = plan.structure.series(plan.structure.sole());
     assert_eq!(
-        plan.sheets[1].read.encoding,
+        series.lists()[1].read.encoding,
         EncodingChoice::Is(Encoding::Utf16Le)
     );
-    assert_eq!(plan.sheets[1].read.delimiter.as_char(), Some('\t'));
-    assert!(plan.slots.item.contains_key(&SlotName::Sets));
+    assert_eq!(series.lists()[1].read.delimiter.as_char(), Some('\t'));
+    assert!(series.rules(RecordKind::Item).contains_key(&SlotName::Sets));
     assert_eq!(plan.action.match_by.media.key, MatchKey::InternalId);
     assert_eq!(plan.defaults.owner, Owner::User(4));
     assert_eq!(plan.decisions.len(), 10);
@@ -60,6 +112,34 @@ fn the_full_fixture_reaches_every_member_typed() {
         Decision::Leave { entry: EntryRef::Row(row) } if row.key.as_str() == "BHC_006_AF_003 #2"
     ));
     assert!(matches!(&plan.decisions[1], Decision::Move { .. }));
+}
+
+#[test]
+fn a_v2_plan_is_one_series_that_takes_every_file_with_its_sets_rule() {
+    let plan = parse(FULL);
+    let structure = &plan.structure;
+    let sole = structure.sole();
+    assert_eq!(structure.all_series().count(), 1);
+    let path = RelPath::parse("Letters/1901/A1_p1.jpg").expect("path");
+    assert_eq!(
+        structure.place(&SourceId("s1".into()), &path),
+        Placement::Series {
+            at: sole,
+            path: "Letters/1901/A1_p1.jpg"
+        },
+        "the pattern matches the path relative to its source"
+    );
+    let item_rules = structure.series(sole).rules(RecordKind::Item);
+    assert_eq!(
+        structure.memberships(sole).collect::<Vec<_>>(),
+        [&item_rules[&SlotName::Sets]]
+    );
+    assert!(
+        structure
+            .lists()
+            .map(|(_, list)| list)
+            .eq(structure.series(sole).lists())
+    );
 }
 
 #[test]
@@ -480,7 +560,12 @@ fn a_slot_rule_value_map_round_trips_and_a_missing_map_is_empty() {
     let plan = edited(|plan| {
         plan["slots"]["item"]["template"]["map"] = json!({ "AF": "Artifact", "PH": "" });
     });
-    let map = &plan.slots.item[&SlotName::Template].map;
+    fn item_rules(plan: &ImportPlan) -> &SlotRules {
+        plan.structure
+            .series(plan.structure.sole())
+            .rules(RecordKind::Item)
+    }
+    let map = &item_rules(&plan)[&SlotName::Template].map;
     assert_eq!(map.get("AF").map(String::as_str), Some("Artifact"));
     assert_eq!(map.get("PH").map(String::as_str), Some(""));
     let written: Value = serde_json::from_str(&plan.to_json()).expect("json");
@@ -491,7 +576,7 @@ fn a_slot_rule_value_map_round_trips_and_a_missing_map_is_empty() {
     );
     assert_eq!(parse(&plan.to_json()), plan);
     let without = parse(FULL);
-    assert!(without.slots.item[&SlotName::Template].map.is_empty());
+    assert!(item_rules(&without)[&SlotName::Template].map.is_empty());
 }
 
 #[test]

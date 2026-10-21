@@ -216,10 +216,10 @@ fn candidate<'d>(
         file: file.clone(),
         in_plan: derived
             .plan
-            .sheets
-            .iter()
-            .find(|sheet| sheet.source == *source && sheet.file == *file)
-            .map(|sheet| sheet.id.clone()),
+            .structure
+            .lists()
+            .find(|(_, sheet)| sheet.source == *source && sheet.file == *file)
+            .map(|(_, sheet)| sheet.id.clone()),
         read: CandidateRead::Ok,
         rows: 0,
         columns: 0,
@@ -261,7 +261,8 @@ fn candidate<'d>(
     let plan = candidate
         .in_plan
         .as_ref()
-        .and_then(|id| derived.plan.sheets.iter().find(|sheet| sheet.id == *id));
+        .and_then(|id| derived.plan.structure.list(id))
+        .map(|(_, sheet)| sheet);
     let (targets, grain) = targets(sheet, plan, best, exact, groups);
     candidate.grain = grain;
     (candidate, targets)

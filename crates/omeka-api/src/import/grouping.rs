@@ -20,7 +20,9 @@ use super::derive::Index;
 use super::evidence::FileEntry;
 use super::join::SheetIn;
 use super::model::{GroupKey, LeftBy, Orphan, OrphanReason, PatternState};
-use super::plan::{IdenticalAnswer, ImportPlan, SourceId, UnmatchedFilesAnswer};
+use super::plan::{
+    IdenticalAnswer, ImportPlan, Placement, SeriesIx, SourceId, UnmatchedFilesAnswer,
+};
 use super::values::fold_title;
 use pattern::{FilePattern, Groups, IDENTIFIER, PatternError};
 
@@ -60,12 +62,22 @@ pub(crate) fn group<'i>(
     plan: &ImportPlan,
     sheets: &[SheetIn<'_>],
 ) -> Grouping<'i> {
-    let compiled = FilePattern::compile(plan.grouping.pattern.as_deref());
-    let pattern = match &compiled {
-        Ok(pattern) => PatternState::Groups(pattern.group_names().to_vec()),
-        Err(PatternError::Missing) => PatternState::Missing,
-        Err(PatternError::Syntax(message)) => PatternState::Syntax(message.clone()),
-        Err(PatternError::NoIdentifier) => PatternState::NoIdentifier,
+    let structure = &plan.structure;
+    let compiled: Vec<(SeriesIx, Result<FilePattern, PatternError>)> = structure
+        .all_series()
+        .map(|(at, series)| (at, FilePattern::compile(series.pattern())))
+        .collect();
+    let compiled_at = |at: SeriesIx| {
+        compiled
+            .iter()
+            .find(|(series, _)| *series == at)
+            .map(|(_, compiled)| compiled)
+    };
+    let pattern = match compiled.first().map(|(_, compiled)| compiled) {
+        Some(Ok(pattern)) => PatternState::Groups(pattern.group_names().to_vec()),
+        None | Some(Err(PatternError::Missing)) => PatternState::Missing,
+        Some(Err(PatternError::Syntax(message))) => PatternState::Syntax(message.clone()),
+        Some(Err(PatternError::NoIdentifier)) => PatternState::NoIdentifier,
     };
     let mut files: Vec<File<'i>> = index
         .sources
@@ -78,10 +90,12 @@ pub(crate) fn group<'i>(
                     source: source.id.clone(),
                     path: entry.path.clone(),
                 },
-                groups: compiled
-                    .as_ref()
-                    .ok()
-                    .and_then(|pattern| pattern.groups(entry.path.as_str())),
+                groups: match structure.place(&source.id, &entry.path) {
+                    Placement::Series { at, path } => compiled_at(at)
+                        .and_then(|compiled| compiled.as_ref().ok())
+                        .and_then(|pattern| pattern.groups(path)),
+                    Placement::Outside => None,
+                },
             })
         })
         .collect();
@@ -92,17 +106,21 @@ pub(crate) fn group<'i>(
         .map(|(at, file)| (file.file.clone(), at))
         .collect();
 
-    // With no pattern yet, no file is one a pattern does not fit.
-    let own_unmatched =
-        compiled.is_ok() && plan.anomalies.unmatched_files == UnmatchedFilesAnswer::Own;
+    let own_unmatched = plan.anomalies.unmatched_files == UnmatchedFilesAnswer::Own;
     let mut group_of: Vec<Option<GroupKey>> = files
         .iter()
         .map(|file| {
+            let Placement::Series { at, .. } = structure.place(file.source, &file.entry.path)
+            else {
+                return None;
+            };
             let Some(text) = file.group(IDENTIFIER) else {
-                return own_unmatched.then(|| GroupKey::Own(file.file.clone()));
+                // With no pattern yet, no file is one a pattern does not fit.
+                let fits = compiled_at(at).is_some_and(Result::is_ok);
+                return (own_unmatched && fits).then(|| GroupKey::Own(file.file.clone()));
             };
             let text: String = text.nfc().collect();
-            Some(GroupKey::Pattern(if plan.grouping.case_fold {
+            Some(GroupKey::Pattern(if structure.series(at).case_fold() {
                 fold_title(&text)
             } else {
                 text

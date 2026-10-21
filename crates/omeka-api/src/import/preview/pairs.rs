@@ -96,7 +96,7 @@ pub fn pairs_csv(derived: &Derived) -> Vec<u8> {
         .collect();
     let mut headers: Vec<&str> = Vec::new();
     let mut by_key: HashMap<&SheetId, HashMap<&RowKey, &[String]>> = HashMap::new();
-    for sheet in &derived.plan.sheets {
+    for (_, sheet) in derived.plan.structure.lists() {
         let Some(read) = sheets.get(&sheet.id) else {
             continue;
         };

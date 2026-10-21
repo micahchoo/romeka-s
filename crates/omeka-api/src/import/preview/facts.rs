@@ -182,7 +182,8 @@ impl<'d> Facts<'d> {
                     .map(move |entry| ((source.id.0.as_str(), entry.path.as_str()), entry))
             })
             .collect();
-        let pattern = FilePattern::compile(plan.grouping.pattern.as_deref()).ok();
+        let first = plan.structure.all_series().next();
+        let pattern = first.and_then(|(_, series)| FilePattern::compile(series.pattern()).ok());
         let has = |name: &str| {
             pattern
                 .as_ref()

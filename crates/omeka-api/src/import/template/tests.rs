@@ -150,7 +150,8 @@ fn a_filled_list_maps_its_bracketed_columns_first_and_its_values_reach_the_recor
         "Identifier, Files and Notes stay unmapped"
     );
     assert!(matches!(&plan.sources[1], SourcePlan::Staging { id } if id.0 == STAGING));
-    let title = &plan.slots.item[&SlotName::parse("dcterms:title").unwrap()];
+    let series = plan.structure.series(plan.structure.sole());
+    let title = &series.rules(RecordKind::Item)[&SlotName::parse("dcterms:title").unwrap()];
     assert!(
         matches!(&title.sources[0], SourceRef::Column { sheet, .. } if sheet.0 == "list-1"),
         "the list first"
@@ -158,7 +159,7 @@ fn a_filled_list_maps_its_bracketed_columns_first_and_its_values_reach_the_recor
     assert_eq!(title.sources.len(), 2, "the constant stays behind it");
     let plan = ImportPlan::from_json(&plan.to_json()).expect("the boundary takes the plan");
 
-    let list_plan = &plan.sheets[0];
+    let (_, list_plan) = plan.structure.lists().next().unwrap();
     let sheets: Sheets = [(
         list_plan.id.clone(),
         sheet::read(
@@ -365,7 +366,10 @@ fn an_identifier_that_starts_like_a_formula_round_trips_and_joins_its_item() {
         &catalog(),
     )
     .unwrap();
-    unescape_list(&mut sheet, sheet::key_column(&plan.sheets[0]));
+    unescape_list(
+        &mut sheet,
+        sheet::key_column(plan.structure.lists().next().unwrap().1),
+    );
     assert_eq!(sheet.rows[0].cells[0], "-001");
     assert_eq!(sheet.rows[0].key.as_str(), "-001#1");
     assert_eq!(sheet.rows[1].cells[0], "=X");

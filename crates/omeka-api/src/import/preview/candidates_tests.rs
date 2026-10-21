@@ -62,9 +62,9 @@ fn derived(
         SourceDir::standalone(dir.path()).unwrap(),
     )]);
     let read: BTreeMap<SheetId, Arc<ReadSheet>> = plan
-        .sheets
-        .iter()
-        .filter_map(|sheet| {
+        .structure
+        .lists()
+        .filter_map(|(_, sheet)| {
             Some((
                 sheet.id.clone(),
                 caches.sheets.read(sheet, dirs.get(&sheet.source)?)?,
@@ -189,7 +189,7 @@ fn every_list_is_ranked_by_the_rows_it_pairs_with_its_grain_and_its_rivals() {
     assert_eq!(other["grain"], Value::Null);
     assert_eq!(other["overlaps"], json!([]));
 
-    let simple_adds = derived.plan.sheets[0].clone();
+    let simple_adds = derived.plan.structure.lists().next().unwrap().1.clone();
     let mut stale_added = simple_adds;
     stale_added.file = RelPath::parse("lists/stale.csv").unwrap();
     let warm = derived

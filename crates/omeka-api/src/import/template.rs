@@ -280,9 +280,10 @@ pub fn add_list(
         .find(|column| column.header.eq_ignore_ascii_case(IDENTIFIER))
         .ok_or(ListError::NoIdentifier)?;
     let source = staging_source(plan);
+    let series = plan.structure.sole();
     let id = (1_u32..)
         .map(|n| SheetId(format!("list-{n}")))
-        .find(|id| plan.sheets.iter().all(|sheet| sheet.id != *id))
+        .find(|id| plan.structure.lists().all(|(_, sheet)| sheet.id != *id))
         .unwrap_or_else(|| unreachable!());
     let mut columns = Vec::new();
     let mut mapped = Vec::new();
@@ -310,10 +311,11 @@ pub fn add_list(
             sheet: id.clone(),
             column: column_ref,
         };
-        match plan.slots.item.get_mut(&slot) {
+        let rules = plan.structure.rules_mut(series, RecordKind::Item);
+        match rules.get_mut(&slot) {
             Some(rule) => rule.sources.insert(0, from),
             None => {
-                plan.slots.item.insert(
+                rules.insert(
                     slot,
                     SlotRule {
                         sources: vec![from],
@@ -325,28 +327,31 @@ pub fn add_list(
         }
         mapped.push(column.index);
     }
-    plan.sheets.push(SheetPlan {
-        id: id.clone(),
-        source,
-        file,
-        hash: Some(sheet.hash.clone()),
-        read,
-        row_kind: RowKind::All(RecordKind::Item),
-        join: Some(Join {
-            on: JoinOn::Identifier,
-            column: ColumnRef {
-                index: identifier.index,
-                header: identifier.header.clone(),
-            },
-            normalize: JoinNormalize {
-                case_fold: false,
-                leading_zeros: false,
-                separators: false,
-            },
-        }),
-        item_key: None,
-        columns,
-    });
+    plan.structure.push_list(
+        series,
+        SheetPlan {
+            id: id.clone(),
+            source,
+            file,
+            hash: Some(sheet.hash.clone()),
+            read,
+            row_kind: RowKind::All(RecordKind::Item),
+            join: Some(Join {
+                on: JoinOn::Identifier,
+                column: ColumnRef {
+                    index: identifier.index,
+                    header: identifier.header.clone(),
+                },
+                normalize: JoinNormalize {
+                    case_fold: false,
+                    leading_zeros: false,
+                    separators: false,
+                },
+            }),
+            item_key: None,
+            columns,
+        },
+    );
     Ok(ListAdded { sheet: id, mapped })
 }
 

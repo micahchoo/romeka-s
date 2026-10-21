@@ -24,7 +24,7 @@ pub(super) fn sheet_findings(
     book: &mut FlagBook<'_>,
     anomalies: &mut Vec<Anomaly>,
 ) {
-    for sheet_plan in &plan.sheets {
+    for (_, sheet_plan) in plan.structure.lists() {
         let id = sheet_plan.id.clone();
         let sheet = match sheets.get(&id) {
             None => {
