@@ -372,4 +372,6 @@ export const hi: ImportAdvancedMessages = {
   'adv.changes.orphan.lineKeyChanged':
     'सूची बदल गई है, इसलिए जिस पंक्ति का यह नाम देता है वह एक अलग पंक्ति हो सकती है।',
   'adv.changes.orphan.noGroup': 'जिस फ़ाइल का यह नाम देता है वह किसी भी आइटम में नहीं है।',
+  'adv.changes.orphan.outside':
+    'जिस फ़ाइल का यह नाम देता है वह किसी भी ऐसे फोल्डर में नहीं है जिसे आप आयात करते हैं।',
 };

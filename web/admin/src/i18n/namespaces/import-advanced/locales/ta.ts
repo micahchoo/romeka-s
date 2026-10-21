@@ -384,4 +384,5 @@ export const ta: ImportAdvancedMessages = {
   'adv.changes.orphan.lineKeyChanged':
     'பட்டியல் மாறியுள்ளது, எனவே அது பெயரிடும் வரிசை மற்றொரு வரிசையாக இருக்கலாம்.',
   'adv.changes.orphan.noGroup': 'இது பெயரிடும் கோப்பு எந்த உருப்படியிலும் இல்லை.',
+  'adv.changes.orphan.outside': 'இது பெயரிடும் கோப்பு நீங்கள் இறக்குமதி செய்யும் எந்தக் கோப்புறையிலும் இல்லை.',
 };

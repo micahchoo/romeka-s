@@ -372,4 +372,5 @@ export const te: ImportAdvancedMessages = {
   'adv.changes.orphan.wrongTarget': 'ఇది మరొక రకమైన రికార్డును సూచిస్తుంది.',
   'adv.changes.orphan.lineKeyChanged': 'జాబితా మారింది, కాబట్టి అది సూచించే లైన్ మరొక రో కావచ్చు.',
   'adv.changes.orphan.noGroup': 'ఇది సూచించే ఫైల్ ఏ ఐటమ్‌లోనూ లేదు.',
+  'adv.changes.orphan.outside': 'ఇది సూచించే ఫైల్ మీరు ఇంపోర్ట్ చేసిన ఫోల్డర్‌లో లేదు.',
 };
