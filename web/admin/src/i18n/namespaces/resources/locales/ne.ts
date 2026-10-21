@@ -104,6 +104,7 @@ export const ne: ResourcesMessages = {
   'media.stage.embedOpen': '{host} मा खोल्नुहोस्',
   'media.stage.embedLoad': 'एम्बेड लोड गर्नुहोस्',
   'media.stage.embedFrame': '{host} बाट एम्बेड',
+  'media.stage.embedPlaying': '{host} बाट सञ्चालन गर्दै',
   'media.stage.embedSnippetHeading':
     'यो मिडिया HTML हो जसलाई सर्भरले रेन्डर गर्छ। जबसम्म तपाईँ यसलाई खोल्नुहुन्न, केही पनि लोड हुँदैन।',
   'media.stage.embedSnippetFrame': 'रेन्डर गरिएको HTML',

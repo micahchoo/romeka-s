@@ -390,7 +390,14 @@ const StageBody = ({
     case 'outside':
       return <ThirdPartyCard url={view.url} host={view.host} />;
     case 'frame':
-      return <EmbedCard mediaId={mediaId} url={view.url} host={view.host} />;
+      return (
+        <EmbedCard
+          mediaId={mediaId}
+          url={view.url}
+          host={view.host}
+          fallback={view.fallback}
+        />
+      );
     case 'manifest':
       return <ManifestCard url={view.url} host={view.host} viewerUrl={view.viewerUrl} />;
     case 'file':

@@ -109,6 +109,7 @@ export const en = {
   'media.stage.embedOpen': 'Open on {host}',
   'media.stage.embedLoad': 'Load the embed',
   'media.stage.embedFrame': 'The embed from {host}',
+  'media.stage.embedPlaying': 'Playing from {host}',
   'media.stage.embedSnippetHeading':
     'This media is HTML that the server renders. Nothing loads until you open it.',
   'media.stage.embedSnippetFrame': 'The rendered HTML',

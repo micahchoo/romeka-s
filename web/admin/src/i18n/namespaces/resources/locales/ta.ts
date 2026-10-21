@@ -105,6 +105,7 @@ export const ta: ResourcesMessages = {
   'media.stage.embedOpen': '{host}-இல் திறக்கவும்',
   'media.stage.embedLoad': 'உட்பொதிவை ஏற்றவும்',
   'media.stage.embedFrame': '{host}-லிருந்து உட்பொதிவு',
+  'media.stage.embedPlaying': '{host}-லிருந்து இயக்குகிறது',
   'media.stage.embedSnippetHeading':
     'இந்த ஊடகம் HTML ஆகும், இதை சர்வர் ரெண்டர் செய்கிறது. நீங்கள் அதைத் திறக்கும் வரை எதுவும் ஏற்றப்படாது.',
   'media.stage.embedSnippetFrame': 'ரெண்டர் செய்யப்பட்ட HTML',

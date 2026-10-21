@@ -34,6 +34,12 @@ export interface FileFacts {
 }
 
 /**
+ * What an embed's card becomes when the server names no player: the strict
+ * frame of its render (`render`), or the card and its link alone (`link`).
+ */
+export type EmbedFallback = 'render' | 'link';
+
+/**
  * What the stage draws. `element` names the browser control, not the media
  * kind, because the two where the media is shown are the two an editor acts
  * on: a player, a page, a picture, a file.
@@ -68,13 +74,15 @@ export type StageView =
     }
   | {
       /**
-       * An oEmbed or HTML media, which only the server may render. The stage
-       * puts the server's render in a sandboxed frame on the editor's press;
-       * `host` is `null` for an HTML snippet that names no page.
+       * An embed the server shows: a facade that names the host, and a frame
+       * once the editor asks. `host` is `null` for an HTML snippet that names no
+       * page; `fallback` is what the card becomes when the server names no
+       * player.
        */
       readonly element: 'frame';
       readonly url: string | null;
       readonly host: string | null;
+      readonly fallback: EmbedFallback;
       readonly file: FileFacts;
     }
   | {
@@ -88,7 +96,7 @@ export type StageView =
   | { readonly element: 'none' };
 
 /** The host a link contacts, named before the editor presses it. */
-const hostOf = (url: string): string => {
+export const hostOf = (url: string): string => {
   try {
     return new URL(url).host;
   } catch {
@@ -158,14 +166,22 @@ export const stageView = (media: Media): StageView => {
     }
     case 'embed': {
       const source = httpUrl(media.source);
-      // Only oEmbed and HTML markup needs the server's render: the admin must
-      // not decide what provider HTML is safe. A YouTube link is a player the
-      // admin can name and open, so it keeps the plain card.
+      // The server names the player for an oEmbed, HTML or YouTube media, so
+      // the admin never decides what provider markup is safe. The render route
+      // refuses a YouTube renderer, so a YouTube media whose id the player route
+      // refuses keeps the card and its link, never a 415 document in a frame; a
+      // YouTube row with no source names no page to open either.
+      if (media.renderer === 'youtube') {
+        return source === null
+          ? { element: 'none' }
+          : { element: 'frame', url: source, host: hostOf(source), fallback: 'link', file };
+      }
       if (media.renderer === 'oembed' || media.renderer === 'html') {
         return {
           element: 'frame',
           url: source,
           host: source === null ? null : hostOf(source),
+          fallback: 'render',
           file,
         };
       }

@@ -104,6 +104,7 @@ export const te: ResourcesMessages = {
   'media.stage.embedOpen': '{host} పై తెరవండి',
   'media.stage.embedLoad': 'ఎంబెడ్‌ను లోడ్ చేయండి',
   'media.stage.embedFrame': '{host} నుండి ఎంబెడ్',
+  'media.stage.embedPlaying': '{host} నుండి ప్లే అవుతోంది',
   'media.stage.embedSnippetHeading':
     'ఈ మీడియా HTML, దీనిని సర్వర్ రెండర్ చేస్తుంది. మీరు దానిని తెరిచే వరకు ఏదీ లోడ్ కాదు.',
   'media.stage.embedSnippetFrame': 'రెండర్ చేయబడిన HTML',

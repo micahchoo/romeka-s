@@ -228,7 +228,7 @@ test('an HTML media loads the server render in a sandboxed frame after the press
   await expectClean(diagnostics, 'embed frame stage');
 });
 
-test('an outside player is a card that names its host and loads no frame', async ({
+test('a YouTube media loads the provider player directly, after the press', async ({
   page,
   diagnostics,
 }) => {
@@ -236,7 +236,7 @@ test('an outside player is a card that names its host and loads no frame', async
     multipart: {
       data: JSON.stringify({
         'o:is_public': true,
-        'dcterms:title': [{ type: 'literal', '@value': 'Outside player' }],
+        'dcterms:title': [{ type: 'literal', '@value': 'A YouTube media' }],
         'o:media': [
           {
             'o:ingester': 'youtube',
@@ -251,16 +251,75 @@ test('an outside player is a card that names its host and loads no frame', async
   const item: unknown = await created.json();
   const media = firstMediaId(item, 'youtube');
 
+  // The provider's own document is served from here, so this spec needs no
+  // network to prove which frame the stage opens.
+  await page.route('https://www.youtube-nocookie.com/**', (route) =>
+    route.fulfill({
+      contentType: 'text/html; charset=utf-8',
+      body: '<!doctype html><p class="player-body">The YouTube player</p>',
+    }),
+  );
+
   await page.goto(`/#/media/${String(media)}`);
-  const card = page.locator('.media-stage-outside');
-  await expect(card).toContainText('youtube.com');
-  await expect(page.locator('.media-stage iframe, .media-stage object, .media-stage embed')).toHaveCount(
-    0,
+  const stage = page.locator('.media-stage');
+  await expect(stage.locator('iframe')).toHaveCount(0);
+  await expect(stage).toContainText('is a page on www.youtube.com');
+  const link = stage.getByRole('link', { name: 'Open on www.youtube.com' });
+  await expect(link).toHaveAttribute('href', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+
+  await stage.getByRole('button', { name: 'Load the embed' }).click();
+
+  const frame = stage.locator('iframe');
+  await expect(frame).toHaveAttribute(
+    'src',
+    'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
   );
-  const link = card.getByRole('link', { name: /Open on/ });
-  await expect(link).toHaveAttribute(
+  await expect(frame).toHaveAttribute(
+    'sandbox',
+    'allow-scripts allow-same-origin allow-presentation allow-popups',
+  );
+  await expect(frame).toHaveAttribute('allow', 'fullscreen; picture-in-picture');
+  await expect(frame).toHaveAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+  await expect(stage).toContainText('Playing from www.youtube-nocookie.com');
+  await expect(frame.contentFrame().locator('.player-body')).toHaveText('The YouTube player');
+  await expect(stage.getByRole('button', { name: 'Load the embed' })).toHaveCount(0);
+  await expect(link).toBeVisible();
+  await expectClean(diagnostics, 'YouTube player stage');
+});
+
+test('a YouTube media whose id names no player keeps its card and link', async ({
+  page,
+  diagnostics,
+}) => {
+  const created = await page.request.post('/api/items', {
+    multipart: {
+      data: JSON.stringify({
+        'o:is_public': true,
+        'dcterms:title': [{ type: 'literal', '@value': 'A broken YouTube media' }],
+        'o:media': [
+          {
+            'o:ingester': 'youtube',
+            'o:source': 'https://youtu.be/',
+            'o:is_public': true,
+          },
+        ],
+      }),
+    },
+  });
+  expect(created.status(), await created.text()).toBe(200);
+  const item: unknown = await created.json();
+  const media = firstMediaId(item, 'youtube');
+
+  await page.goto(`/#/media/${String(media)}`);
+  const stage = page.locator('.media-stage');
+  await stage.getByRole('button', { name: 'Load the embed' }).click();
+
+  await expect(stage.getByRole('button', { name: 'Load the embed' })).toHaveCount(0);
+  await expect(stage.locator('iframe')).toHaveCount(0);
+  await expect(stage).toContainText('is a page on youtu.be');
+  await expect(stage.getByRole('link', { name: 'Open on youtu.be' })).toHaveAttribute(
     'href',
-    'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    'https://youtu.be/',
   );
-  await expectClean(diagnostics, 'outside player stage');
+  await expectClean(diagnostics, 'YouTube card without a player');
 });

@@ -104,6 +104,7 @@ export const hi: ResourcesMessages = {
   'media.stage.embedOpen': '{host} पर खोलें',
   'media.stage.embedLoad': 'एम्बेड लोड करें',
   'media.stage.embedFrame': '{host} से एम्बेड',
+  'media.stage.embedPlaying': '{host} से चल रहा है',
   'media.stage.embedSnippetHeading':
     'यह मीडिया HTML है जिसे सर्वर रेंडर करता है। जब तक आप इसे खोलते नहीं, तब तक कुछ भी लोड नहीं होता।',
   'media.stage.embedSnippetFrame': 'रेंडर किया गया HTML',
