@@ -110,6 +110,10 @@ const EXTENSION_TYPES: &[(&str, &str, &str)] = &[
     ("application/json", "gltf", "model/gltf+json"),
     ("application/octet-stream", "glb", "model/gltf-binary"),
     ("audio/ogg", "ogv", "video/ogg"),
+    // An ASF container's header GUID reads as WMV whatever streams it holds,
+    // so a `.wma` is the audio stream of one and not a video.
+    ("video/x-ms-wmv", "wma", "audio/x-ms-wma"),
+    ("video/x-ms-wmv", "wax", "audio/x-ms-wax"),
     ("image/tiff", "nef", "image/x-nikon-nef"),
     ("image/tiff", "cr2", "image/x-canon-cr2"),
     ("image/tiff", "arw", "image/x-sony-arw"),
@@ -389,6 +393,16 @@ mod tests {
         let png = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR";
         assert_eq!(detected_media_type_of(png, Some("srt")), "image/png");
         assert_eq!(detected_media_type_of(png, None), "image/png");
+    }
+
+    /// An ASF container's GUID names WMV for both streams; the source name says
+    /// which one the file is, so a `.wma` is audio.
+    #[test]
+    fn an_asf_container_is_audio_when_the_name_says_wma() {
+        let asf = b"0&\xb2u\x8ef\xcf\x11\xa6\xd9\x00\xaa\x00b\xce\x6c";
+        assert_eq!(detected_media_type(asf), "video/x-ms-wmv");
+        assert_eq!(detected_media_type_of(asf, Some("wma")), "audio/x-ms-wma");
+        assert_eq!(detected_media_type_of(asf, Some("wmv")), "video/x-ms-wmv");
     }
 
     /// Opus rides in an Ogg container, and libmagic names the container, not

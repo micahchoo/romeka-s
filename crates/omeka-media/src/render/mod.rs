@@ -86,6 +86,10 @@ pub struct MediaView {
     /// The original file URL, present only when the row has an original
     /// (`MediaRepresentation::originalUrl`).
     pub original_url: Option<String>,
+    /// The playable copy's URL, present when an access copy is ready. A player
+    /// opens this instead of the original, which stays the preservation master
+    /// (`o-module-romeka:access`).
+    pub access_url: Option<String>,
     /// Thumbnail URLs keyed by type (`MediaRepresentation::thumbnailUrl`).
     pub thumbnails: BTreeMap<ThumbnailType, String>,
     /// The environment the renderer reads.
@@ -131,9 +135,25 @@ impl MediaView {
             item_url: item_url.into(),
             media_url: media_url.into(),
             original_url,
+            access_url: None,
             thumbnails,
             env,
         }
+    }
+
+    /// The same view with the access copy a player opens. The original stays
+    /// the link and the download (`crate::access`).
+    #[must_use]
+    pub fn with_access(mut self, url: Option<String>) -> Self {
+        self.access_url = url;
+        self
+    }
+
+    /// The file a player opens: the access copy when it is ready, the original
+    /// otherwise. A `?t=` fragment is added by each player.
+    #[must_use]
+    pub fn player_url(&self) -> Option<&str> {
+        self.access_url.as_deref().or(self.original_url.as_deref())
     }
 
     /// The same view for a media whose item is public or not: a thumbnail URL

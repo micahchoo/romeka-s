@@ -224,7 +224,11 @@ pub fn tool_for(media_type: &str) -> Option<&'static str> {
 
 /// Copy a stored original into `file` in [`COPY_CHUNK`] pieces, so the caller
 /// holds one piece and never the whole file. Returns the byte count.
-fn copy_to(store: &dyn Store, path: &str, file: &mut std::fs::File) -> Result<u64, StoreError> {
+pub(crate) fn copy_to(
+    store: &dyn Store,
+    path: &str,
+    file: &mut std::fs::File,
+) -> Result<u64, StoreError> {
     let mut at = 0u64;
     loop {
         let chunk = store.read_range(path, at..at.saturating_add(COPY_CHUNK))?;

@@ -29,7 +29,7 @@
 //! `Still::of(media_type)` and calls `make`; it never builds an argument list.
 
 use std::ffi::{OsStr, OsString};
-use std::io::Read;
+use std::io::{BufRead, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::OnceLock;
@@ -390,6 +390,197 @@ pub fn image_jpeg_args(tool: AccessTool, source: &Path, output: &Path) -> Option
 /// Collect a borrowed argument slice into the owned list a command takes.
 fn into_args<const N: usize>(arguments: [&OsStr; N]) -> Vec<OsString> {
     arguments.into_iter().map(OsStr::to_owned).collect()
+}
+
+/// How often a running transcode looks at its stop flag and its progress pipe.
+pub const TRANSCODE_POLL: Duration = Duration::from_millis(100);
+
+/// The same argument list with `ffmpeg`'s machine-readable progress on standard
+/// output and its terminal statistics off. `-progress` is an output option, so
+/// it goes before the output path, which stays last.
+#[must_use]
+pub fn with_progress(mut args: Vec<OsString>) -> Vec<OsString> {
+    let at = args.len().saturating_sub(1);
+    args.splice(
+        at..at,
+        [
+            OsString::from("-progress"),
+            OsString::from("pipe:1"),
+            OsString::from("-nostats"),
+        ],
+    );
+    args
+}
+
+/// One line of `ffmpeg -progress` output.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProgressLine {
+    /// `out_time_us=<microseconds>` or `out_time_ms`, which the same builds
+    /// write in microseconds: how far the muxer has written.
+    OutTime(Duration),
+    /// `progress=end`: the last packet is written.
+    End,
+    /// Any other line, including a record this build does not read and the
+    /// `N/A` ffmpeg prints before it knows a time.
+    Other,
+}
+
+/// Read one `-progress` line. ffmpeg writes `key=value` records, one per line,
+/// and a `progress=continue` ends each block.
+#[must_use]
+pub fn parse_progress(line: &str) -> ProgressLine {
+    let Some((key, value)) = line.trim().split_once('=') else {
+        return ProgressLine::Other;
+    };
+    let value = value.trim();
+    match key.trim() {
+        "out_time_us" | "out_time_ms" => value
+            .parse::<u64>()
+            .ok()
+            .map(Duration::from_micros)
+            .map_or(ProgressLine::Other, ProgressLine::OutTime),
+        "progress" if value == "end" => ProgressLine::End,
+        _ => ProgressLine::Other,
+    }
+}
+
+/// How a transcode ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TranscodeEnd {
+    /// The command exited zero and wrote its output.
+    Finished,
+    /// The caller asked it to stop between progress records, and it was killed.
+    Stopped,
+}
+
+impl Tools {
+    /// Run one access copy's `ffmpeg` to completion, reporting how far it has
+    /// come and stopping when `stop` is set.
+    ///
+    /// No timeout: a two hour film takes as long as it takes, and the caller
+    /// owns the stop. `stop` is read every [`TRANSCODE_POLL`], so a running
+    /// copy that must yield ends within a tenth of a second. `report` gets the
+    /// percentage of `duration` written so far, 0 to 99; 100 is the row settling
+    /// once the copy is in the store.
+    ///
+    /// # Errors
+    /// [`ToolError::ToolMissing`] when this install has no `ffmpeg`, and
+    /// [`ToolError::Failed`] with the command's last error line when it exits
+    /// non-zero.
+    pub fn transcode(
+        &self,
+        args: &[OsString],
+        duration: Option<Duration>,
+        stop: &std::sync::atomic::AtomicBool,
+        report: &mut dyn FnMut(u8),
+    ) -> Result<TranscodeEnd, ToolError> {
+        use std::sync::atomic::Ordering;
+        use std::sync::mpsc::TryRecvError;
+
+        let ffmpeg = self.program(self.ffmpeg.as_deref(), "ffmpeg")?;
+        let mut child = Command::new(ffmpeg)
+            .args(args)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|error| match error.kind() {
+                std::io::ErrorKind::NotFound => ToolError::ToolMissing("ffmpeg"),
+                _ => ToolError::Failed("ffmpeg", error.to_string()),
+            })?;
+        let lines = progress_lines(child.stdout.take());
+        let stderr = read_apart(child.stderr.take(), STDERR_LIMIT);
+        let status = loop {
+            if stop.load(Ordering::Relaxed) {
+                let _ = child.kill();
+                let _ = child.wait();
+                let _ = stderr.join();
+                return Ok(TranscodeEnd::Stopped);
+            }
+            match lines.try_recv() {
+                Ok(line) => {
+                    if let Some(percent) = percent_of(line, duration) {
+                        report(percent);
+                    }
+                }
+                Err(TryRecvError::Empty) => thread::sleep(TRANSCODE_POLL),
+                Err(TryRecvError::Disconnected) => match child.wait() {
+                    Ok(status) => break status,
+                    Err(error) => {
+                        let _ = stderr.join();
+                        return Err(ToolError::Failed("ffmpeg", error.to_string()));
+                    }
+                },
+            }
+        };
+        let stderr = stderr.join().unwrap_or_default();
+        if !status.success() {
+            return Err(ToolError::Failed("ffmpeg", last_line(&stderr)));
+        }
+        Ok(TranscodeEnd::Finished)
+    }
+
+    /// The program to run, or the missing-tool reason.
+    fn program<'a>(
+        &self,
+        program: Option<&'a Path>,
+        name: &'static str,
+    ) -> Result<&'a Path, ToolError> {
+        program
+            .filter(|path| path.is_file())
+            .ok_or(ToolError::ToolMissing(name))
+    }
+}
+
+/// The percentage of `duration` a progress line names, 0 to 99. `None` when the
+/// line is not a time, or the duration is unknown: the row then keeps the last
+/// value it had.
+fn percent_of(line: ProgressLine, duration: Option<Duration>) -> Option<u8> {
+    let ProgressLine::OutTime(written) = line else {
+        return None;
+    };
+    let duration = duration.filter(|duration| !duration.is_zero())?;
+    let ratio = written.as_secs_f64() / duration.as_secs_f64();
+    if !ratio.is_finite() {
+        return None;
+    }
+    Some((ratio * 100.0).clamp(0.0, 99.0) as u8)
+}
+
+/// A child's standard output as progress lines, read on its own thread so a
+/// full pipe never stops the command.
+fn progress_lines<R: Read + Send + 'static>(
+    reader: Option<R>,
+) -> std::sync::mpsc::Receiver<ProgressLine> {
+    let (sender, lines) = std::sync::mpsc::channel();
+    thread::spawn(move || {
+        let Some(reader) = reader else {
+            return;
+        };
+        for line in std::io::BufReader::new(reader).lines() {
+            let Ok(line) = line else { break };
+            if sender.send(parse_progress(&line)).is_err() {
+                break;
+            }
+        }
+    });
+    lines
+}
+
+/// The last line a command wrote to standard error: the line a failure reason
+/// keeps. `ffmpeg` runs with `-v error`, so its diagnostics are all failures.
+fn last_line(stderr: &[u8]) -> String {
+    let text = String::from_utf8_lossy(stderr);
+    text.lines()
+        .rev()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .map(|line| {
+            line.chars()
+                .skip(line.chars().count().saturating_sub(400))
+                .collect()
+        })
+        .unwrap_or_else(|| "it exited non-zero and said nothing".to_string())
 }
 
 /// The commands this process may run, found once.
@@ -827,17 +1018,6 @@ impl Tools {
         ];
         let output = capture(ffmpeg, "ffmpeg", &args, self.timeout, STILL_LIMIT).ok()?;
         parse_duration(&String::from_utf8_lossy(&output.stderr))
-    }
-
-    /// The program to run, or the missing-tool reason.
-    fn program<'a>(
-        &self,
-        program: Option<&'a Path>,
-        name: &'static str,
-    ) -> Result<&'a Path, ToolError> {
-        program
-            .filter(|path| path.is_file())
-            .ok_or(ToolError::ToolMissing(name))
     }
 }
 
@@ -1457,5 +1637,89 @@ mod tests {
         args.iter()
             .map(|argument| argument.to_string_lossy().into_owned())
             .collect()
+    }
+
+    /// The progress pipe goes before the output path, which stays last so the
+    /// muxer is still picked from it.
+    #[test]
+    fn the_progress_pipe_keeps_the_output_last() {
+        let args = with_progress(video_mp4_args(Path::new("reel.avi"), Path::new("copy.mp4")));
+        let args = text(&args);
+        assert_eq!(
+            args[args.len() - 6..],
+            [
+                "-movflags",
+                "+faststart",
+                "-progress",
+                "pipe:1",
+                "-nostats",
+                "copy.mp4"
+            ],
+            "{args:?}"
+        );
+        assert_eq!(args.last().map(String::as_str), Some("copy.mp4"));
+    }
+
+    /// ffmpeg's `key=value` progress records: the microsecond clock, the end
+    /// marker, and the records this build does not read.
+    #[test]
+    fn progress_records_are_read() {
+        assert_eq!(
+            parse_progress("out_time_us=1250000"),
+            ProgressLine::OutTime(Duration::from_millis(1250))
+        );
+        assert_eq!(
+            parse_progress("out_time_ms=250000"),
+            ProgressLine::OutTime(Duration::from_millis(250))
+        );
+        assert_eq!(parse_progress("progress=end"), ProgressLine::End);
+        assert_eq!(parse_progress("progress=continue"), ProgressLine::Other);
+        assert_eq!(parse_progress("out_time_us=N/A"), ProgressLine::Other);
+        assert_eq!(parse_progress("frame=12"), ProgressLine::Other);
+        assert_eq!(parse_progress("no equals sign"), ProgressLine::Other);
+    }
+
+    /// A transcode reports the percentage ffmpeg has written, never 100 before
+    /// the row settles, and answers the command's last error line when it fails.
+    #[test]
+    fn a_transcode_reports_its_percentage_and_keeps_the_last_error() {
+        let _guard = scripted();
+        let dir = dir();
+        let ffmpeg = script(
+            dir.path(),
+            "ffmpeg",
+            "printf 'out_time_us=500000\\nprogress=continue\\n'\n\
+             printf 'out_time_us=1000000\\nprogress=continue\\n'\n\
+             printf 'progress=end\\n'\n\
+             exit 0",
+        );
+        let tools = Tools::none().with_ffmpeg(ffmpeg);
+        let stop = std::sync::atomic::AtomicBool::new(false);
+        let mut seen: Vec<u8> = Vec::new();
+        let ended = tools
+            .transcode(
+                &with_progress(video_mp4_args(Path::new("reel.avi"), Path::new("copy.mp4"))),
+                Some(Duration::from_secs(2)),
+                &stop,
+                &mut |percent| seen.push(percent),
+            )
+            .expect("a finished copy");
+        assert_eq!(ended, TranscodeEnd::Finished);
+        assert_eq!(seen, [25, 50], "each record is a quarter of two seconds");
+
+        let failing = script(
+            dir.path(),
+            "ffmpeg",
+            "printf 'first line\\n[mov,mp4 @ 0x1] moov atom not found\\n' >&2\nexit 1",
+        );
+        let tools = Tools::none().with_ffmpeg(failing);
+        let error = tools
+            .transcode(&[], None, &stop, &mut |_| {})
+            .expect_err("the command failed");
+        assert_eq!(
+            error,
+            ToolError::Failed("ffmpeg", "[mov,mp4 @ 0x1] moov atom not found".to_string()),
+            "the last error line is the reason"
+        );
     }
 }

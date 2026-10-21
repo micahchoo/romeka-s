@@ -12,13 +12,16 @@
 use std::fmt;
 
 /// `SettingForm::MEDIA_TYPE_WHITELIST` (`Form/SettingForm.php:22-83`), with
-/// this fork's additions. The stray comma in `video/x-ms-asf,` is upstream's,
-/// so an ASF file is refused by default there too.
+/// this fork's additions. Upstream's list carries a stray comma in
+/// `video/x-ms-asf,`, so an ASF file is refused there; this fork repairs it.
 ///
 /// The additions are the types `media_type` answers for the formats a modern
 /// collection holds: FLAC, Matroska, AVIF, HEIC, SVG, glTF (both forms),
-/// WebVTT, SubRip and the eleven camera RAW formats. Each is a deliberate
-/// difference from upstream's default and is listed in `docs/compat.md`.
+/// WebVTT, SubRip, the eleven camera RAW formats, and the audio and video
+/// containers the access-copy table names (`video/3gpp`, `video/x-dv`,
+/// `video/x-flv`, `video/x-ms-vob`, `audio/amr`, `audio/x-ape`,
+/// `audio/x-monkeys-audio`). Each is a deliberate difference from upstream's
+/// default and is listed in `docs/compat.md`.
 pub const DEFAULT_MEDIA_TYPES: &[&str] = &[
     "application/msword",
     "application/ogg",
@@ -46,6 +49,7 @@ pub const DEFAULT_MEDIA_TYPES: &[&str] = &[
     "application/x-subrip",
     "application/x-tar",
     "application/zip",
+    "audio/amr",
     "audio/flac",
     "audio/midi",
     "audio/mp4",
@@ -53,6 +57,8 @@ pub const DEFAULT_MEDIA_TYPES: &[&str] = &[
     "audio/ogg",
     "audio/x-aac",
     "audio/x-aiff",
+    "audio/x-ape",
+    "audio/x-monkeys-audio",
     "audio/x-ms-wma",
     "audio/x-ms-wax",
     "audio/x-realaudio",
@@ -86,31 +92,37 @@ pub const DEFAULT_MEDIA_TYPES: &[&str] = &[
     "text/plain",
     "text/richtext",
     "text/vtt",
+    "video/3gpp",
     "video/divx",
+    "video/dvd",
     "video/mp4",
     "video/mpeg",
     "video/ogg",
     "video/quicktime",
     "video/webm",
+    "video/x-dv",
+    "video/x-flv",
     "video/x-matroska",
-    "video/x-ms-asf,",
-    "video/x-msvideo",
+    "video/x-ms-asf",
+    "video/x-ms-vob",
     "video/x-ms-wmv",
+    "video/x-msvideo",
 ];
 
 /// `SettingForm::EXTENSION_WHITELIST` (`Form/SettingForm.php:89-97`), with this
-/// fork's additions (`arw`, `avif`, `cr2`, `cr3`, `dng`, `flac`, `glb`, `gltf`,
-/// `heic`, `mkv`, `nef`, `ogv`, `orf`, `pef`, `raf`, `rw2`, `srw`, `srt`, `svg`,
-/// `vtt`, `x3f`).
+/// fork's additions (`3gp`, `amr`, `ape`, `arw`, `avif`, `cr2`, `cr3`, `dng`,
+/// `dv`, `flac`, `flv`, `glb`, `gltf`, `heic`, `mkv`, `nef`, `ogv`, `orf`,
+/// `pef`, `raf`, `rw2`, `srw`, `srt`, `svg`, `vob`, `vtt`, `x3f`).
 pub const DEFAULT_EXTENSIONS: &[&str] = &[
-    "aac", "aif", "aiff", "arw", "asf", "asx", "avi", "avif", "bmp", "c", "cc", "class", "cr2",
-    "cr3", "css", "divx", "dng", "doc", "docx", "exe", "flac", "gif", "glb", "gltf", "gz", "gzip",
-    "h", "heic", "ico", "j2k", "jp2", "jpe", "jpeg", "jpg", "m4a", "m4v", "mdb", "mid", "midi",
-    "mkv", "mov", "mp2", "mp3", "mp4", "mpa", "mpe", "mpeg", "mpg", "mpp", "nef", "odb", "odc",
-    "odf", "odg", "odp", "ods", "odt", "ogg", "ogv", "opus", "orf", "pdf", "pef", "png", "pot",
-    "pps", "ppt", "pptx", "qt", "ra", "raf", "ram", "rtf", "rtx", "rw2", "srw", "srt", "svg",
-    "swf", "tar", "tif", "tiff", "txt", "vtt", "wav", "wax", "webm", "webp", "wma", "wmv", "wmx",
-    "wri", "x3f", "xla", "xls", "xlsx", "xlt", "xlw", "zip",
+    "3gp", "aac", "aif", "aiff", "amr", "ape", "arw", "asf", "asx", "avi", "avif", "bmp", "c",
+    "cc", "class", "cr2", "cr3", "css", "divx", "dng", "doc", "docx", "dv", "exe", "flac", "flv",
+    "gif", "glb", "gltf", "gz", "gzip", "h", "heic", "ico", "j2k", "jp2", "jpe", "jpeg", "jpg",
+    "m4a", "m4v", "mdb", "mid", "midi", "mkv", "mov", "mp2", "mp3", "mp4", "mpa", "mpe", "mpeg",
+    "mpg", "mpp", "nef", "odb", "odc", "odf", "odg", "odp", "ods", "odt", "ogg", "ogv", "opus",
+    "orf", "pdf", "pef", "png", "pot", "pps", "ppt", "pptx", "qt", "ra", "raf", "ram", "rtf",
+    "rtx", "rw2", "srw", "srt", "svg", "swf", "tar", "tif", "tiff", "txt", "vob", "vtt", "wav",
+    "wax", "webm", "webp", "wma", "wmv", "wmx", "wri", "x3f", "xla", "xls", "xlsx", "xlt", "xlw",
+    "zip",
 ];
 
 /// What a store may accept, the state `Omeka\File\Validator` is built with.
@@ -298,6 +310,24 @@ mod tests {
         );
     }
 
+    /// Upstream's list holds one entry with a stray comma, which refuses the
+    /// type it names. Every entry here is a bare `type/subtype`.
+    #[test]
+    fn no_default_type_carries_a_stray_character() {
+        for media_type in DEFAULT_MEDIA_TYPES {
+            let (kind, subtype) = media_type
+                .split_once('/')
+                .unwrap_or_else(|| panic!("{media_type} is not a type"));
+            assert!(!kind.is_empty() && !subtype.is_empty(), "{media_type}");
+            assert!(
+                subtype
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || b".+-".contains(&byte)),
+                "{media_type} carries a character a type does not"
+            );
+        }
+    }
+
     /// The kinds this fork adds pass the defaults under the type the byte read
     /// answers and the extension the source carries. `audio.opus` is the Ogg
     /// container, which the detector names `audio/ogg`.
@@ -316,6 +346,14 @@ mod tests {
             ("scene.gltf", "model/gltf+json", "gltf"),
             ("talk.vtt", "text/vtt", "vtt"),
             ("talk.srt", "application/x-subrip", "srt"),
+            ("clip.3gp", "video/3gpp", "3gp"),
+            ("clip.dv", "video/x-dv", "dv"),
+            ("clip.flv", "video/x-flv", "flv"),
+            ("clip.vob", "video/x-ms-vob", "vob"),
+            ("reel.asf", "video/x-ms-asf", "asf"),
+            ("talk.amr", "audio/amr", "amr"),
+            ("talk.ape", "audio/x-ape", "ape"),
+            ("talk.wma", "audio/x-ms-wma", "wma"),
             ("photo.nef", "image/x-nikon-nef", "nef"),
             ("photo.cr2", "image/x-canon-cr2", "cr2"),
             ("photo.cr3", "image/x-canon-cr3", "cr3"),

@@ -19,7 +19,7 @@ use omeka_server::Config;
 const ARCHIVE: &str = "archive";
 
 use crate::CliError;
-use crate::jobs::{JobEnv, JobStatus, Runner, refuse_live_hand_run};
+use crate::jobs::{JobCommand, JobEnv, JobStatus, Runner, refuse_live_hand_run};
 
 /// Run one stored job in this process (`romeka job run <id>`).
 ///
@@ -111,11 +111,32 @@ pub(crate) fn job_env(
             .map_err(|error| CliError::message(format!("invalid base url {raw}: {error}")))?,
         None => defaults.base_url,
     };
+    // A child starts in this process's working directory, which is not
+    // guaranteed for a job; its database, store and root are named absolutely.
+    let absolute_database = match database {
+        Location::File(path) => Location::File(absolute(path)?),
+        Location::Url(url) => Location::Url(url.clone()),
+    };
+    let store_root = store.map(absolute).transpose()?;
+    let roots = archive_roots(archive_root)?;
+    let jobs = JobCommand {
+        program: None,
+        database: absolute_database.clone(),
+        store: store_root.clone(),
+        base_url: Some(base_url.as_str().to_string()),
+        archive_root: archive_root.map(absolute).transpose()?,
+    };
     Ok(JobEnv {
-        store: crate::commands::file_store::open_store(database, store)?,
+        store: crate::commands::file_store::open_store(&absolute_database, store_root.as_deref())?,
         base_url,
-        archive_roots: archive_roots(archive_root)?,
+        archive_roots: roots,
+        jobs: Some(jobs),
     })
+}
+
+fn absolute(path: &Path) -> Result<PathBuf, CliError> {
+    std::path::absolute(path)
+        .map_err(|error| CliError::message(format!("cannot resolve {}: {error}", path.display())))
 }
 
 fn archive_roots(archive_root: Option<&Path>) -> Result<ArchiveRoots, CliError> {

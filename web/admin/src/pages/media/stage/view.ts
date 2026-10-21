@@ -21,6 +21,26 @@ import {
   originalFileUrl,
 } from '../../../app/media';
 
+const blankToNull = (text: string | null): string | null =>
+  text === null || text === '' ? null : text;
+
+/**
+ * The file a player opens: the access copy the server marked ready, the
+ * original otherwise. A WMA or an AVI is no container a browser opens, and the
+ * server made an M4A or an MP4 for it; the original stays the download and the
+ * link beside the player, never its source.
+ */
+const playerUrl = (media: Media): string | null => {
+  const copy = media.access;
+  if (copy !== null && copy.state === 'ready') {
+    const url = blankToNull(copy.url);
+    if (url !== null) {
+      return url;
+    }
+  }
+  return blankToNull(media.originalUrl);
+};
+
 /** The facts a file card states, and the link that takes the file. */
 export interface FileFacts {
   readonly name: string | null;
@@ -129,12 +149,18 @@ export const stageView = (media: Media): StageView => {
         file,
       };
     }
-    case 'audio':
-      return original === null ? { element: 'file', file } : { element: 'audio', url: original, file };
-    case 'video':
-      return original === null
+    case 'audio': {
+      const playable = playerUrl(media);
+      return playable === null
         ? { element: 'file', file }
-        : { element: 'video', url: original, poster: largeImageUrl(media), file };
+        : { element: 'audio', url: playable, file };
+    }
+    case 'video': {
+      const playable = playerUrl(media);
+      return playable === null
+        ? { element: 'file', file }
+        : { element: 'video', url: playable, poster: largeImageUrl(media), file };
+    }
     case 'pdf':
       return original === null
         ? { element: 'file', file }
