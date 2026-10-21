@@ -462,11 +462,39 @@ fn problem_on(preview: &Value, kind: &str, path: &str) -> bool {
 }
 
 #[tokio::test]
-async fn bhc006_a_row_naming_a_raw_file_is_a_problem() {
-    let (_, preview) = outcome().await;
+async fn bhc006_a_row_naming_a_raw_file_is_not_lost() {
+    let (outcome, preview) = outcome().await;
+    // AF_297's only files are five NEF exposures. Camera RAW is in the default
+    // allow list, so the object is an item with all five as its media.
+    let object = item(&outcome, "BHC_006_GMT_AF_297");
+    assert_eq!(
+        object.media_paths(),
+        [
+            "Artifacts/BHC_006_GMT_AF_297a.NEF",
+            "Artifacts/BHC_006_GMT_AF_297b.NEF",
+            "Artifacts/BHC_006_GMT_AF_297c.NEF",
+            "Artifacts/BHC_006_GMT_AF_297d.NEF",
+            "Artifacts/BHC_006_GMT_AF_297e.NEF",
+        ]
+    );
     let named = cell("BHC006_GMT_AF", "BHC_006_GMT_AF_297a.NEF", IDENTIFIER);
     assert!(
-        problem_on(&preview, NAMED_FILE_REFUSED, &format!("Artifacts/{named}")),
-        "the only files of AF_297 are NEF files its rows name, and nothing says so"
+        !problem_on(&preview, NAMED_FILE_REFUSED, &format!("Artifacts/{named}")),
+        "a RAW file is stored, so the row that names it is no problem"
     );
+    // No NEF in the archive is lost, and none is a file the settings refuse.
+    let stored: BTreeSet<&str> = outcome.items.values().flat_map(Item::media_paths).collect();
+    let nefs: Vec<&str> = listing()
+        .into_iter()
+        .map(|(path, _)| path)
+        .filter(|path| path.to_ascii_lowercase().ends_with(".nef"))
+        .collect();
+    assert!(!nefs.is_empty(), "the listing names NEF files");
+    for path in nefs {
+        assert!(stored.contains(path), "{path} made no media");
+        assert!(
+            !problem_on(&preview, NAMED_FILE_REFUSED, path),
+            "{path} is still a refused file"
+        );
+    }
 }

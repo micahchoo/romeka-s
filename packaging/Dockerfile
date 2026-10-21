@@ -58,7 +58,7 @@ FROM debian:bookworm-slim AS runtime
 COPY --from=caddy:2.11-alpine /usr/bin/caddy /usr/local/bin/caddy
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        bash ca-certificates curl ffmpeg libcap2-bin media-types poppler-utils \
+        bash ca-certificates curl ffmpeg libcap2-bin libimage-exiftool-perl media-types poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 # `media-types` installs /etc/mime.types, which Go's mime package reads at the
 # first lookup. It is the floor under the server's stored type: a file with no
@@ -67,11 +67,13 @@ RUN apt-get update \
 #
 # `ffmpeg` makes a video's poster and decodes AVIF and HEIC, and its `ffprobe`
 # reads the duration and frame size a time-based IIIF canvas needs;
-# `poppler-utils` is `pdftoppm`, which makes a PDF's first page. Both are
-# optional at runtime (`crates/omeka-media/src/tool.rs`): an installation that
-# drops them skips those derivatives and canvases with the command's name as the
-# reason, so an operator who needs a smaller image removes two package names and
-# nothing else breaks.
+# `poppler-utils` is `pdftoppm`, which makes a PDF's first page;
+# `libimage-exiftool-perl` is `exiftool`, which extracts the full-size JPEG a
+# camera RAW file embeds, so a NEF gets derivatives without decoding its sensor
+# data. All three are optional at runtime (`crates/omeka-media/src/tool.rs`): an
+# installation that drops them skips those derivatives and canvases with the
+# command's name as the reason, so an operator who needs a smaller image removes
+# three package names and nothing else breaks.
 
 # Caddy terminates TLS on :80 and :443 and the container runs as a non-root user,
 # so the low-port capability is attached to the binary. A container that runs

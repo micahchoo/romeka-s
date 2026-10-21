@@ -100,13 +100,57 @@ pub fn detected_media_type_of(bytes: &[u8], extension: Option<&str>) -> String {
 /// `(detected, extension, media type)`. The stored type is what the download
 /// answers with, and what a file renderer picks, so the correction is made
 /// here rather than at serving time.
+///
+/// A camera RAW file is a TIFF container (`image/tiff` to libmagic), or bytes
+/// nothing recognises, and carries its maker's type. The extension names it,
+/// as it names glTF, and only when the bytes answered one of those containers.
 const EXTENSION_TYPES: &[(&str, &str, &str)] = &[
     ("text/plain", "vtt", "text/vtt"),
     ("text/plain", "srt", "application/x-subrip"),
     ("application/json", "gltf", "model/gltf+json"),
     ("application/octet-stream", "glb", "model/gltf-binary"),
     ("audio/ogg", "ogv", "video/ogg"),
+    ("image/tiff", "nef", "image/x-nikon-nef"),
+    ("image/tiff", "cr2", "image/x-canon-cr2"),
+    ("image/tiff", "arw", "image/x-sony-arw"),
+    ("image/tiff", "dng", "image/x-adobe-dng"),
+    ("image/tiff", "pef", "image/x-pentax-pef"),
+    ("image/tiff", "srw", "image/x-samsung-srw"),
+    ("application/octet-stream", "nef", "image/x-nikon-nef"),
+    ("application/octet-stream", "cr2", "image/x-canon-cr2"),
+    ("application/octet-stream", "cr3", "image/x-canon-cr3"),
+    ("application/octet-stream", "arw", "image/x-sony-arw"),
+    ("application/octet-stream", "dng", "image/x-adobe-dng"),
+    ("application/octet-stream", "orf", "image/x-olympus-orf"),
+    ("application/octet-stream", "rw2", "image/x-panasonic-rw2"),
+    ("application/octet-stream", "raf", "image/x-fuji-raf"),
+    ("application/octet-stream", "pef", "image/x-pentax-pef"),
+    ("application/octet-stream", "srw", "image/x-samsung-srw"),
+    ("application/octet-stream", "x3f", "image/x-sigma-x3f"),
 ];
+
+/// The camera RAW media types this port names by extension. They display as
+/// images once the embedded preview has made their derivatives, and the
+/// thumbnailer reads no one of them directly.
+pub const RAW_MEDIA_TYPES: [&str; 11] = [
+    "image/x-adobe-dng",
+    "image/x-canon-cr2",
+    "image/x-canon-cr3",
+    "image/x-fuji-raf",
+    "image/x-nikon-nef",
+    "image/x-olympus-orf",
+    "image/x-panasonic-rw2",
+    "image/x-pentax-pef",
+    "image/x-samsung-srw",
+    "image/x-sigma-x3f",
+    "image/x-sony-arw",
+];
+
+/// Whether a stored type is a camera RAW format.
+#[must_use]
+pub fn is_raw_media_type(media_type: &str) -> bool {
+    RAW_MEDIA_TYPES.contains(&media_type)
+}
 
 /// The first extension `File/TempFile`'s `$mediaTypeMap` lists for a media
 /// type (`application/data/media-types/media-type-map.php`).
@@ -152,6 +196,17 @@ pub fn extension_for_media_type(media_type: &str) -> Option<&'static str> {
         "image/svg+xml" => "svg",
         "image/tiff" => "tiff",
         "image/webp" => "webp",
+        "image/x-adobe-dng" => "dng",
+        "image/x-canon-cr2" => "cr2",
+        "image/x-canon-cr3" => "cr3",
+        "image/x-fuji-raf" => "raf",
+        "image/x-nikon-nef" => "nef",
+        "image/x-olympus-orf" => "orf",
+        "image/x-panasonic-rw2" => "rw2",
+        "image/x-pentax-pef" => "pef",
+        "image/x-samsung-srw" => "srw",
+        "image/x-sigma-x3f" => "x3f",
+        "image/x-sony-arw" => "arw",
         "text/html" => "html",
         "text/plain" => "txt",
         "video/mp4" => "mp4",
@@ -305,6 +360,26 @@ mod tests {
         let ogg = b"OggS\x00\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
         assert_eq!(detected_media_type(ogg), "audio/ogg");
         assert_eq!(detected_media_type_of(ogg, Some("ogv")), "video/ogg");
+    }
+
+    /// A camera RAW file is a TIFF container or bytes nothing recognises; the
+    /// source extension names the maker's type, as libmagic leaves it as TIFF.
+    #[test]
+    fn the_extension_names_a_camera_raw_file() {
+        let nef = b"II*\x00\x08\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+        assert_eq!(detected_media_type(nef), "image/tiff");
+        assert_eq!(
+            detected_media_type_of(nef, Some("nef")),
+            "image/x-nikon-nef"
+        );
+        assert_eq!(
+            detected_media_type_of(b"IIU\x00\x08\x00\x00\x00", Some("rw2")),
+            "image/x-panasonic-rw2"
+        );
+        assert_eq!(
+            detected_media_type_of(b"FOVb\x00\x00\x00\x00", Some("x3f")),
+            "image/x-sigma-x3f"
+        );
     }
 
     /// A name that disagrees with the bytes does not change a type the byte

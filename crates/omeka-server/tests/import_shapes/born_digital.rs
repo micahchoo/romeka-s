@@ -128,7 +128,6 @@ pub fn plan_for_born_digital(plan: &mut Value) {
 }
 
 #[tokio::test]
-#[ignore = "a camera RAW (.NEF) is refused at the default file settings, so a RAW-only frame makes no item"]
 async fn born_digital_dump_is_taken_as_found() {
     let fixture = fixture().await;
     let shape = shape();
