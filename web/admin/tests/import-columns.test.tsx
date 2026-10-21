@@ -134,39 +134,6 @@ describe('the first value of each column', () => {
   }, 20_000);
 });
 
-describe('a column’s first field, on a list whose rows describe files', () => {
-  it('goes on each file when its values vary inside some item, and on the item when they never do, in Simple', async () => {
-    const server = open('simple/list');
-    const af = await block();
-    await choose(await goesInto(af, 'Keywords'), 'field:dcterms:description');
-    await waitFor(() => {
-      expect(sourcesOf(last(server.saved), 'media', 'dcterms:description')).toEqual([fromColumn(KEYWORDS)]);
-    }, { timeout: 3000 });
-    expect(sourcesOf(last(server.saved), 'item', 'dcterms:description')).toBeUndefined();
-    await choose(await goesInto(af, 'Year Of Digitization'), 'field:dcterms:date');
-    await waitFor(() => {
-      expect(sourcesOf(last(server.saved), 'item', 'dcterms:date')).toEqual([fromColumn(YEAR)]);
-    }, { timeout: 3000 });
-    expect(sourcesOf(last(server.saved), 'media', 'dcterms:date')).toBeUndefined();
-  }, 20_000);
-
-  it('goes to the same places in Advanced', async () => {
-    const server = open('advanced/lists');
-    const af = await block();
-    const keywords = await within(af).findByRole('combobox', { name: 'Field for Keywords' }, { timeout: 5000 });
-    await choose(keywords, 'dcterms:description');
-    await waitFor(() => {
-      expect(sourcesOf(last(server.saved), 'media', 'dcterms:description')).toEqual([fromColumn(KEYWORDS)]);
-    }, { timeout: 3000 });
-    expect(sourcesOf(last(server.saved), 'item', 'dcterms:description')).toBeUndefined();
-    await choose(within(af).getByRole('combobox', { name: 'Field for Year Of Digitization' }), 'dcterms:date');
-    await waitFor(() => {
-      expect(sourcesOf(last(server.saved), 'item', 'dcterms:date')).toEqual([fromColumn(YEAR)]);
-    }, { timeout: 3000 });
-    expect(sourcesOf(last(server.saved), 'media', 'dcterms:date')).toBeUndefined();
-  }, 20_000);
-});
-
 describe('several values in one cell, in Simple', () => {
   it('cuts Keywords at commas from its first field, as most of its cells hold one, until the person says no', async () => {
     const server = open('simple/list');
@@ -290,5 +257,56 @@ describe('several values in one cell, in Advanced', () => {
       expect(sourcesOf(last(server.saved), 'item', 'dcterms:type')).toEqual([fromColumn(DIGITIZED)]);
     }, { timeout: 3000 });
     expect(splitOf(last(server.saved), DIGITIZED)).toBeNull();
+  }, 20_000);
+});
+
+describe('a column’s first field, on a list whose rows describe files: the field decides, not the count', () => {
+  const placed = async (screenName: string, column: string, field: string): Promise<{ plan: Record<string, unknown>; af: HTMLElement }> => {
+    const server = open(screenName);
+    const af = await block();
+    const select = screenName.startsWith('advanced')
+      ? await within(af).findByRole('combobox', { name: `Field for ${column}` }, { timeout: 5000 })
+      : await goesInto(af, column);
+    await choose(select, screenName.startsWith('advanced') ? field : `field:${field}`);
+    await waitFor(() => {
+      expect(sourcesOf(last(server.saved), 'item', field) ?? sourcesOf(last(server.saved), 'media', field)).toBeDefined();
+    }, { timeout: 3000 });
+    return { plan: last(server.saved), af };
+  };
+
+  it.each(['simple/list', 'advanced/lists'])('%s: Keywords go to the item, with the count still shown', async (screenName) => {
+    const { plan, af } = await placed(screenName, 'Keywords', 'dcterms:subject');
+    expect(sourcesOf(plan, 'item', 'dcterms:subject')).toEqual([fromColumn(KEYWORDS)]);
+    expect(sourcesOf(plan, 'media', 'dcterms:subject')).toBeUndefined();
+    expect(rowOf(af, 'Keywords')).toHaveTextContent('Varies in 42 of 251 items.');
+  }, 20_000);
+
+  it.each(['simple/list', 'advanced/lists'])('%s: a column mapped to Identifier goes on each file', async (screenName) => {
+    const { plan } = await placed(screenName, 'Digitized by', 'dcterms:identifier');
+    expect(sourcesOf(plan, 'media', 'dcterms:identifier')).toEqual([fromColumn(DIGITIZED)]);
+    expect(sourcesOf(plan, 'item', 'dcterms:identifier')).toBeUndefined();
+  }, 20_000);
+});
+
+describe('what the list says about its encoding', () => {
+  it.each([AF, 'Artifacts/BHC006_GMT_AF.ods'])('%s: a workbook has no text encoding, so nothing is said', async (file) => {
+    const scene: Scenario = { ...bhc006, lists: [{ ...(bhc006.lists?.[0] ?? { file, rows: 0, paired: 0, normalized: 0 }), file }] };
+    const sheets = Array.isArray(FILE_ROWS['sheets']) ? FILE_ROWS['sheets'].map((one) => asRecord(one, [])) : [];
+    installFetch(simpleServer(scene, { ...FILE_ROWS, sheets: sheets.map((one) => ({ ...one, file })) }).handler);
+    render(<ImportPage param="1" rest={['1', 'simple', 'list']} />);
+    const list = await screen.findByRole('region', { name: file }, { timeout: 5000 });
+    await goesInto(list, 'Keywords');
+    expect(list).not.toHaveTextContent('UTF-8');
+  }, 20_000);
+
+  it('a CSV still says it is UTF-8 text', async () => {
+    const file = 'Artifacts/BHC006_GMT_AF.csv';
+    const scene: Scenario = { ...bhc006, lists: [{ ...(bhc006.lists?.[0] ?? { file, rows: 0, paired: 0, normalized: 0 }), file }] };
+    const sheets = Array.isArray(FILE_ROWS['sheets']) ? FILE_ROWS['sheets'].map((one) => asRecord(one, [])) : [];
+    installFetch(simpleServer(scene, { ...FILE_ROWS, sheets: sheets.map((one) => ({ ...one, file })) }).handler);
+    render(<ImportPage param="1" rest={['1', 'simple', 'list']} />);
+    const list = await screen.findByRole('region', { name: file }, { timeout: 5000 });
+    await goesInto(list, 'Keywords');
+    expect(list).toHaveTextContent('It is UTF-8 text.');
   }, 20_000);
 });

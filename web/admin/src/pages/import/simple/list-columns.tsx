@@ -35,7 +35,7 @@ const LevelChoice = ({ sheet, column, grain }: { readonly sheet: SheetPlan; read
   const level = levelOf(draft.plan, sheet.id, column.index);
   const fileAllowed = fileLevelAllowed(draft.plan, sheet.id, column.index);
   const varies = variesOf(grain, column.index);
-  const suggested = suggestedLevel(varies, fileAllowed);
+  const suggested = suggestedLevel(draft.plan, sheet.id, column.index);
   return (
     <td>
       <fieldset className="guided-opts" aria-label={t('guided.list.levelOf', { column: column.header })}>

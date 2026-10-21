@@ -301,7 +301,7 @@ const asPolicy = (value: string): FlagPolicy | null => (value === 'keep' || valu
 
 export const withAnswer = (plan: ImportPlan, id: CauseId, value: string, facts?: CheckFacts): ImportPlan => {
   if (id === 'duplicate-row' && value === FILE_ROWS.value) {
-    return facts?.fileRows == null ? plan : withFileRows(plan, facts.fileRows.sheet, facts.fileRows.grain);
+    return facts?.fileRows == null ? plan : withFileRows(plan, facts.fileRows.sheet);
   }
   if (isAnomaly(id)) {
     const answers = plan.anomalies ?? DEFAULT_ANOMALIES;
