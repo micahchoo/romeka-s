@@ -62,6 +62,7 @@
   "kind_audio": "ऑडियो",
   "kind_video": "वीडियो",
   "kind_pdf": "PDF",
+  "kind_document": "दस्तावेज़",
   "kind_model_3d": "3D मॉडल",
   "kind_captions": "उपशीर्षक",
   "kind_embed": "एम्बेड",

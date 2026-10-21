@@ -32,6 +32,30 @@ pub const DISPLAY_IMAGE_MEDIA_TYPES: [&str; 18] = [
     "image/x-sony-arw",
 ];
 
+/// The stored types an office document carries: the word processing,
+/// spreadsheet and presentation formats a curator uploads. OpenDocument's three
+/// types are here for a server that recorded them; the bytes of an `.odt`,
+/// `.ods` or `.odp` are a zip, so [`MediaKind::of`] also reads those extensions.
+pub const OFFICE_DOCUMENT_MEDIA_TYPES: [&str; 10] = [
+    "application/msword",
+    "application/rtf",
+    "application/vnd.ms-excel",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.oasis.opendocument.presentation",
+    "application/vnd.oasis.opendocument.spreadsheet",
+    "application/vnd.oasis.opendocument.text",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+
+/// The extensions an office document carries, lowercase. The type is the
+/// authority; these name a document whose bytes read as their container, which
+/// an OpenDocument file always does because its bytes are a zip.
+pub const OFFICE_DOCUMENT_EXTENSIONS: [&str; 10] = [
+    "doc", "docx", "odp", "ods", "odt", "ppt", "pptx", "rtf", "xls", "xlsx",
+];
+
 /// A media as stored, reduced to what decides its kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct KindInput<'a> {
@@ -43,6 +67,9 @@ pub struct KindInput<'a> {
     pub ingester: &'a str,
     /// `media.media_type`, the type the ingester recorded.
     pub media_type: Option<&'a str>,
+    /// `media.extension`, the stored extension without its dot. It names an
+    /// office document whose type is only its zip container.
+    pub extension: Option<&'a str>,
     /// Whether the three image derivatives exist.
     pub has_thumbnails: bool,
 }
@@ -62,6 +89,8 @@ pub enum MediaKind {
     Pdf {
         first_page: bool,
     },
+    /// A stored office document: word processing, spreadsheet or presentation.
+    Document,
     /// A glTF binary or JSON model.
     Model3d,
     /// A WebVTT or SRT file, which is also a caption-import source.
@@ -115,26 +144,36 @@ impl MediaKind {
         }
         match input.renderer {
             "youtube" | "oembed" | "html" => Self::Embed,
-            "file" => Self::of_file(input.media_type, input.has_thumbnails),
+            "file" => Self::of_file(input.media_type, input.extension, input.has_thumbnails),
             _ => Self::OtherFile,
         }
     }
 
-    fn of_file(media_type: Option<&str>, has_thumbnails: bool) -> Self {
-        let Some(media_type) = media_type else {
-            return Self::OtherFile;
-        };
-        if has_thumbnails && DISPLAY_IMAGE_MEDIA_TYPES.contains(&media_type) {
-            return Self::LocalImage;
+    fn of_file(media_type: Option<&str>, extension: Option<&str>, has_thumbnails: bool) -> Self {
+        if let Some(media_type) = media_type {
+            if has_thumbnails && DISPLAY_IMAGE_MEDIA_TYPES.contains(&media_type) {
+                return Self::LocalImage;
+            }
+            match media_type {
+                "application/pdf" => {
+                    return Self::Pdf {
+                        first_page: has_thumbnails,
+                    };
+                }
+                "model/gltf-binary" | "model/gltf+json" => return Self::Model3d,
+                "text/vtt" | "application/x-subrip" => return Self::Captions,
+                media_type if media_type.starts_with("audio/") => return Self::Audio,
+                media_type if media_type.starts_with("video/") => return Self::Video,
+                media_type if OFFICE_DOCUMENT_MEDIA_TYPES.contains(&media_type) => {
+                    return Self::Document;
+                }
+                _ => {}
+            }
         }
-        match media_type {
-            "application/pdf" => Self::Pdf {
-                first_page: has_thumbnails,
-            },
-            "model/gltf-binary" | "model/gltf+json" => Self::Model3d,
-            "text/vtt" | "application/x-subrip" => Self::Captions,
-            media_type if media_type.starts_with("audio/") => Self::Audio,
-            media_type if media_type.starts_with("video/") => Self::Video,
+        // An OpenDocument file's bytes are a zip, so its type is the container
+        // and only the name says it is a document.
+        match extension {
+            Some(extension) if Self::is_office_document(extension) => Self::Document,
             _ => Self::OtherFile,
         }
     }
@@ -150,6 +189,7 @@ impl MediaKind {
             Self::Audio => "audio",
             Self::Video => "video",
             Self::Pdf { .. } => "pdf",
+            Self::Document => "document",
             Self::Model3d => "model-3d",
             Self::Captions => "captions",
             Self::Embed => "embed",
@@ -169,6 +209,7 @@ impl MediaKind {
             "audio" => Self::Audio,
             "video" => Self::Video,
             "pdf" => Self::Pdf { first_page: false },
+            "document" => Self::Document,
             "model-3d" => Self::Model3d,
             "captions" => Self::Captions,
             "embed" => Self::Embed,
@@ -186,6 +227,7 @@ impl MediaKind {
             Self::LocalImage | Self::IiifImage => Surface::Image,
             Self::Audio | Self::Video => Surface::Time,
             Self::Pdf { .. }
+            | Self::Document
             | Self::Model3d
             | Self::Captions
             | Self::Embed
@@ -208,12 +250,21 @@ impl MediaKind {
             Self::Audio => Some(CanvasBody::Sound),
             Self::Video => Some(CanvasBody::Video),
             Self::Pdf { first_page: false }
+            | Self::Document
             | Self::Model3d
             | Self::Captions
             | Self::Embed
             | Self::IiifPresentation
             | Self::OtherFile => None,
         }
+    }
+
+    /// Whether an extension names an office document. Case is the caller's, so
+    /// an older row that stored `DOC` reads the same.
+    fn is_office_document(extension: &str) -> bool {
+        OFFICE_DOCUMENT_EXTENSIONS
+            .iter()
+            .any(|known| known.eq_ignore_ascii_case(extension))
     }
 }
 
@@ -235,6 +286,7 @@ mod tests {
             MediaKind::Video,
             MediaKind::Pdf { first_page: false },
             MediaKind::Pdf { first_page: true },
+            MediaKind::Document,
             MediaKind::Model3d,
             MediaKind::Captions,
             MediaKind::Embed,
@@ -256,14 +308,14 @@ mod tests {
         }
         names.sort_unstable();
         names.dedup();
-        assert_eq!(names.len(), 10, "names: {names:?}");
+        assert_eq!(names.len(), 11, "names: {names:?}");
     }
 
     /// A name this server does not know matches no kind.
     #[test]
     fn an_unknown_name_is_no_kind() {
         assert_eq!(MediaKind::from_name("AUDIO"), None);
-        assert_eq!(MediaKind::from_name("document"), None);
+        assert_eq!(MediaKind::from_name("DOCUMENT"), None);
         assert_eq!(MediaKind::from_name(""), None);
     }
 
@@ -282,10 +334,55 @@ mod tests {
                 renderer: "file",
                 ingester: "upload",
                 media_type: Some("image/x-nikon-nef"),
+                extension: Some("nef"),
                 has_thumbnails,
             })
         };
         assert_eq!(raw(true), MediaKind::LocalImage);
         assert_eq!(raw(false), MediaKind::OtherFile);
+    }
+
+    /// An office document is its own kind, by the type the sniffer recorded or,
+    /// when the bytes are only a zip, by the extension the upload kept.
+    #[test]
+    fn an_office_document_is_a_document() {
+        let kind = |media_type: Option<&str>, extension: Option<&str>| {
+            MediaKind::of(&KindInput {
+                renderer: "file",
+                ingester: "upload",
+                media_type,
+                extension,
+                has_thumbnails: false,
+            })
+        };
+        for media_type in OFFICE_DOCUMENT_MEDIA_TYPES {
+            assert_eq!(
+                kind(Some(media_type), None),
+                MediaKind::Document,
+                "{media_type}"
+            );
+        }
+        for extension in OFFICE_DOCUMENT_EXTENSIONS {
+            assert_eq!(
+                kind(Some("application/zip"), Some(extension)),
+                MediaKind::Document,
+                "{extension}"
+            );
+        }
+        assert_eq!(
+            kind(
+                Some("application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+                None
+            ),
+            MediaKind::Document
+        );
+        // An uppercase extension is the same document.
+        assert_eq!(kind(None, Some("DOCX")), MediaKind::Document);
+        // A plain archive and a plain file stay other files.
+        assert_eq!(
+            kind(Some("application/zip"), Some("zip")),
+            MediaKind::OtherFile
+        );
+        assert_eq!(kind(None, None), MediaKind::OtherFile);
     }
 }

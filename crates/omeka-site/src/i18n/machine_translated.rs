@@ -102,7 +102,7 @@ flat_catalogue! {
         transcript_languages, transcript_follow,
         transcript_captions, transcript_below, transcript_in_transcript,
         model_turn, model_no_javascript, model_loading, model_failed,
-        kind_image, kind_audio, kind_video, kind_pdf, kind_model_3d, kind_captions,
+        kind_image, kind_audio, kind_video, kind_pdf, kind_document, kind_model_3d, kind_captions,
         kind_embed, kind_other_file, no_file,
         footer_links, all_rights_reserved, search_placeholder, iiif_poster, iiif_view_in_viewer,
         iiif_manifest, use_elsewhere, use_elsewhere_hint, drag_manifest, copy, copied,
