@@ -62,6 +62,7 @@ const media = (file: FileFields = {}): Media => ({
   lang: null,
   altText: null,
   originalUrl: file.originalUrl === undefined ? ORIGINAL : file.originalUrl,
+  preview: null,
   thumbnailUrls: file.thumbnails ?? {},
 });
 

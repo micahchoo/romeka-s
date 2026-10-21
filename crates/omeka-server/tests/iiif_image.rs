@@ -66,6 +66,9 @@ async fn a_raw_file_serves_its_embedded_preview() {
     )
     .await;
     assert!(created.status.is_success(), "{}", created.body);
+    // The create deferred the preview; the canvas and Image API read it, so
+    // settle the queue as the worker would.
+    common::settle_derivatives(seed.pool.clone(), std::sync::Arc::new(seed.store.clone())).await;
     let document = created.json();
     let item = document["o:id"].as_u64().expect("the item id");
     let media = document["o:media"][0]["o:id"]

@@ -429,6 +429,12 @@ async fn write(
         Some(id) => api.update(resource, id, body, partial).await,
         None => api.create(resource, body, content_type(headers)).await,
     };
+    // A media or item create queues derivatives the request did not make
+    // (`omeka_api::derivatives`); start the one worker that drains them.
+    if id.is_none() && matches!(resource, "media" | "items") && result.is_ok() {
+        let owner = api.actor().user();
+        jobs::start_derivatives(&state.pool, state.jobs.as_ref(), owner).await;
+    }
     finish(result)
 }
 

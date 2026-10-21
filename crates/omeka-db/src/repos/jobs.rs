@@ -183,6 +183,21 @@ where
         Ok(DB::rows_affected(&done) > 0)
     }
 
+    /// Whether a job of `class` is composed or running: `starting`, `in_progress` or `stopping`.
+    ///
+    /// The derivative queue reads this to keep one worker per install, instead of starting a
+    /// process for every media a page creates.
+    pub async fn active_of_class(&self, class: &str) -> Result<bool, DbError> {
+        let count: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM job
+             WHERE class = ? AND status IN ('starting', 'in_progress', 'stopping')",
+        )
+        .bind(class)
+        .fetch_one(self.pool)
+        .await?;
+        Ok(count > 0)
+    }
+
     /// Delete the job unless an archive import that is running or undoing holds it. One statement,
     /// so no import can start between the check and the delete. False when the job is missing or held.
     pub async fn delete_unless_held(&self, id: JobId) -> Result<bool, DbError> {

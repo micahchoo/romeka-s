@@ -8,6 +8,9 @@ use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use omeka_db::Location;
 
 use omeka_cli::commands::backup::{self as backup, BackupOptions};
+use omeka_cli::commands::derivatives::{
+    self as media_derivatives_cmd, DerivativeOptions, DerivativeReport,
+};
 use omeka_cli::commands::export::{self as export, CsvOptions as ExportCsvOptions, JsonldOptions};
 use omeka_cli::commands::import::list::{self as import_list, ListOptions as ImportListOptions};
 use omeka_cli::commands::import::run::{
@@ -454,6 +457,25 @@ fn media_command<'a, 'b>() -> App<'a, 'b> {
                         .long("force")
                         .takes_value(false)
                         .help("Rebuild thumbnails that already exist"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("derivatives")
+                .about("Queue the derivatives a media is missing, then run the worker")
+                .args(&database_args())
+                .arg(optional_store_arg())
+                .arg(
+                    Arg::with_name("retry")
+                        .long("retry")
+                        .takes_value(false)
+                        .help("Queue rows a tool failed on or skipped"),
+                )
+                .arg(
+                    Arg::with_name("media")
+                        .long("media")
+                        .value_name("ID")
+                        .takes_value(true)
+                        .help("Only this media"),
                 ),
         )
         .subcommand(
@@ -979,6 +1001,24 @@ async fn run_media(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
         }
         return Ok(ExitCode::SUCCESS);
     }
+    if let ("derivatives", Some(m)) = args.subcommand() {
+        let report = media_derivatives_cmd::run(&DerivativeOptions {
+            database: location(m)?,
+            store: m.value_of("store").map(PathBuf::from),
+            retry: m.is_present("retry"),
+            media: optional_id(m, "media")?,
+        })
+        .await?;
+        print_derivative_report(&report);
+        let failed = report
+            .rows
+            .iter()
+            .filter(|row| row.state == omeka_db::rows::DerivativeState::Failed)
+            .count();
+        if failed > 0 {
+            return Ok(ExitCode::from(1));
+        }
+    }
     if let ("thumbnails", Some(m)) = args.subcommand() {
         let report = media_thumbnails::run(&ThumbnailOptions {
             database: location(m)?,
@@ -1016,6 +1056,28 @@ async fn run_media(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {
         }
     }
     Ok(ExitCode::SUCCESS)
+}
+
+/// What `romeka media derivatives` found and did, one line per media and kind.
+fn print_derivative_report(report: &DerivativeReport) {
+    for row in &report.rows {
+        let name = row.file.as_deref().unwrap_or("-");
+        let reason = row
+            .reason
+            .as_deref()
+            .map(|reason| format!(": {reason}"))
+            .unwrap_or_default();
+        println!(
+            "media {} ({name}): {} {}{reason}",
+            row.media,
+            row.kind.name(),
+            row.state.name()
+        );
+    }
+    println!(
+        "queued {}, retried {}, waiting {}, already ready {}, nothing to do {}",
+        report.queued, report.retried, report.waiting, report.ready, report.skipped
+    );
 }
 
 async fn run_backup(args: &ArgMatches<'_>) -> Result<ExitCode, CliError> {

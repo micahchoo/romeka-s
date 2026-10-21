@@ -128,6 +128,11 @@ pub async fn search_resources(api: &Api<'_>, params: &Params) -> Result<ApiRespo
     relations
         .load_owners(api, page.iter().filter_map(KindRow::media_item))
         .await?;
+    let media = page.iter().filter_map(|row| match row {
+        KindRow::Media(media) => Some(media.id()),
+        _ => None,
+    });
+    relations.load_derivatives(api, media).await?;
     let mut documents = Vec::with_capacity(page.len());
     for row in &page {
         documents.push(render(api, row, &relations)?);
@@ -163,6 +168,9 @@ pub async fn read_resource(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, A
     api.allow(kind.kind_resource_name(), Operation::Read)?;
     let mut relations = Relations::load_many(api, std::iter::once(kind.resource())).await?;
     relations.load_owners(api, kind.media_item()).await?;
+    if let KindRow::Media(media) = &kind {
+        relations.load_derivatives(api, [media.id()]).await?;
+    }
     Ok(ApiResponse::document(serialize(&render(
         api, &kind, &relations,
     )?)?))

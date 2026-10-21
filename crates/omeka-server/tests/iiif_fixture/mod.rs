@@ -165,7 +165,7 @@ pub async fn iiif_seed() -> IiifSeed {
     let dir = tempfile::tempdir().unwrap();
     let store = FileStore::new(dir.path(), "/files");
     let pool = omeka_db::DbPool::from(pool);
-    let app = router_with_store(pool.clone(), FileStore::new(dir.path(), "/files"));
+    let app = router_with_store(pool.clone(), store.clone());
     let title_id = send(
         app.clone(),
         crate::common::get("/api/properties?term=dcterms:title", false),
@@ -229,6 +229,9 @@ pub async fn iiif_seed() -> IiifSeed {
     assert_eq!(public.status, StatusCode::OK, "{}", public.body);
     let private = send(app.clone(), upload(false, "Draft chart", json!({}))).await;
     assert_eq!(private.status, StatusCode::OK, "{}", private.body);
+    // The creates deferred every derivative and the IIIF routes read them, so
+    // settle the queue as the worker would before the fixture is read.
+    crate::common::settle_derivatives(pool.clone(), std::sync::Arc::new(store.clone())).await;
     let bare = send(
         app.clone(),
         crate::common::json_request(

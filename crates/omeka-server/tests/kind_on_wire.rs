@@ -445,7 +445,7 @@ async fn an_uploaded_file_carries_its_kind_in_the_list_and_the_read() {
     let dir = tempfile::tempdir().expect("tempdir");
     let store = FileStore::new(dir.path(), "/files");
     let (pool, _seed) = seeded_engine_pool().await;
-    let app = router_with_store(pool, store);
+    let app = router_with_store(pool.clone(), store.clone());
     let bytes = std::fs::read(corpus_dir().join("image.png")).expect("image.png");
     let data = serde_json::json!({
         "o:is_public": true,
@@ -463,6 +463,7 @@ async fn an_uploaded_file_carries_its_kind_in_the_list_and_the_read() {
     )
     .await;
     assert!(answer.status.is_success(), "{}", answer.body);
+    common::settle_derivatives(pool.clone(), std::sync::Arc::new(store)).await;
     let created = answer.json();
     let media = created["o:media"][0]["o:id"].as_u64().expect("media id");
 

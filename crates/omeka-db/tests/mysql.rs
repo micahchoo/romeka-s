@@ -18,15 +18,16 @@ mod common;
 use omeka_db::ids::{ItemId, PageId, PropertyId, ResourceId, UserId};
 use omeka_db::repos::{
     ClassFilter, ClassRepo, CustomVocabRepo, FulltextRepo, ItemFilter, ItemRepo, ItemSetRepo,
-    JobRepo, MatchKind, ModuleRepo, NewPublicationVersion, Paging, PasswordCreationRepo,
-    PropertyFilter, PropertyRepo, PublicationRepo, QueryFilter, SessionRepo, SettingRepo,
-    SiteFilter, SiteRepo, SiteSettingRepo, UserRepo, UserSettingRepo, ValueQuery, ValueRepo,
-    VocabularyRepo,
+    JobRepo, MatchKind, MediaDerivativeRepo, MediaRepo, ModuleRepo, NewPublicationVersion, Paging,
+    PasswordCreationRepo, PropertyFilter, PropertyRepo, PublicationRepo, QueryFilter, SessionRepo,
+    SettingRepo, SiteFilter, SiteRepo, SiteSettingRepo, UserRepo, UserSettingRepo, ValueQuery,
+    ValueRepo, VocabularyRepo,
 };
 use omeka_db::rows::{
-    FulltextSearchRow, NewClass, NewCustomVocab, NewFirstPage, NewFirstPageBlock, NewItem,
-    NewItemSet, NewJob, NewPasswordCreation, NewProperty, NewSite, NewSiteBlock, NewSitePage,
-    NewUser, NewValue, NewVocabulary, NewWholeItem, NewWholeSite, PublicationTarget, ValueContent,
+    DerivativeKind, DerivativeState, FulltextSearchRow, NewClass, NewCustomVocab, NewDerivative,
+    NewFirstPage, NewFirstPageBlock, NewItem, NewItemSet, NewJob, NewMedia, NewPasswordCreation,
+    NewProperty, NewResource, NewSite, NewSiteBlock, NewSitePage, NewUser, NewValue, NewVocabulary,
+    NewWholeItem, NewWholeSite, PublicationTarget, ValueContent,
 };
 use serde_json::json;
 use sqlx::MySql;
@@ -142,10 +143,80 @@ async fn migrating_twice_leaves_the_schema_and_the_rows_unchanged() {
             .expect("list migrations");
     assert_eq!(
         applied,
-        [1, 2, 3, 5, 6, 7, 8],
-        "each MySQL migration file applied once; 0004 is SQLite only"
+        [1, 2, 3, 5, 6, 7, 8, 10],
+        "each MySQL migration file applied once; 0004 is SQLite only and 0009 is another branch's"
     );
 
+    db.cleanup().await;
+}
+
+#[tokio::test]
+async fn a_derivative_row_is_queued_claimed_settled_and_removed_with_its_media() {
+    let Some(db) = common::mysql().await else {
+        return;
+    };
+    let item = ItemRepo::<MySql>::new(&db.pool)
+        .create(&NewItem::default())
+        .await
+        .expect("create item");
+    let media = MediaRepo::<MySql>::new(&db.pool)
+        .create(&NewMedia {
+            resource: NewResource::default(),
+            item_id: item.id(),
+            ingester: "upload".to_string(),
+            renderer: "file".to_string(),
+            storage_id: Some("mysql-queue".to_string()),
+            extension: Some("mp4".to_string()),
+            media_type: Some("video/mp4".to_string()),
+            source: Some("reel.mp4".to_string()),
+            has_original: true,
+            ..NewMedia::default()
+        })
+        .await
+        .expect("create media");
+    let repo = MediaDerivativeRepo::<MySql>::new(&db.pool);
+    let poster = NewDerivative {
+        media_id: media.id(),
+        kind: DerivativeKind::Poster,
+    };
+
+    assert!(repo.enqueue(&poster).await.expect("queue"));
+    assert!(
+        !repo.enqueue(&poster).await.expect("second queue"),
+        "one row per pair"
+    );
+    assert_eq!(repo.pending().await.expect("count"), 1);
+
+    let claimed = repo.claim_next().await.expect("claim").expect("a row");
+    assert_eq!(claimed.state, DerivativeState::Running);
+    assert_eq!(claimed.attempts, 1);
+    assert!(
+        repo.finish(
+            media.id(),
+            DerivativeKind::Poster,
+            DerivativeState::Ready,
+            None,
+            Some("ffmpeg".to_string()),
+        )
+        .await
+        .expect("settle")
+    );
+    let settled = repo
+        .get(media.id(), DerivativeKind::Poster)
+        .await
+        .expect("read")
+        .expect("the row");
+    assert_eq!(settled.state, DerivativeState::Ready);
+    assert_eq!(settled.progress, Some(100));
+
+    MediaRepo::<MySql>::new(&db.pool)
+        .delete(media.id())
+        .await
+        .expect("delete media");
+    assert!(
+        repo.for_media(media.id()).await.expect("rows").is_empty(),
+        "the row went with the media"
+    );
     db.cleanup().await;
 }
 

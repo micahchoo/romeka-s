@@ -17,6 +17,8 @@
 //! - [`file_render`]: one module per file renderer under `Media/FileRenderer/`,
 //!   plus the file renderer trait, a registry mirroring
 //!   `Media/FileRenderer/Manager.php`, and the three thumbnail types.
+//! - [`derivative`]: the still one stored original makes and the three
+//!   thumbnails from it, which the background worker runs.
 //! - [`thumbnailer`]: the image thumbnailer (`File/Thumbnailer/Gd.php`), which
 //!   decodes gif, jpeg, png, tiff, webp, JPEG 2000 and SVG and stores the three
 //!   derivatives.
@@ -55,6 +57,7 @@
 
 pub mod av_probe;
 pub mod data;
+pub mod derivative;
 pub mod file_render;
 pub mod http;
 pub mod http_client;

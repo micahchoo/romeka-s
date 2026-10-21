@@ -657,6 +657,27 @@ Request body members (`POST` and `PUT`).
 | any property term (`prefix:local_name`) | list of value objects | `crates/omeka-api/src/write/values.rs` |
 | value object members: `property_id`, `type`, `@value`, `@id`, `value_resource_id`, `is_public`, `@language`, `o:label` | one object per value | `crates/omeka-api/src/write/values.rs` |
 
+Response members of `PreviewState` (`crates/omeka-api/src/wire/media.rs`).
+
+Where a media's derivatives stand, as `o-module-romeka:preview.state` reports them.  `pending` covers a queued row and a worker that has claimed it: from a reader's side both mean "not yet". `none` means there is nothing to wait for, either because the kind has no derivative or because a tool this install does not have makes it.
+
+| Variant | Wire value | Payload |
+| --- | --- | --- |
+| `Pending` | `pending` | `` |
+| `Ready` | `ready` | `` |
+| `Failed` | `failed` | `` |
+| `None` | `none` | `` |
+
+Response members of `MediaPreview` (`crates/omeka-api/src/wire/media.rs`).
+
+The port's derivative state for one media (`o-module-romeka:preview`).  Upstream has no such member: its admin reads `media.has_thumbnails` and shows a placeholder while a derivative is missing. The reason is the typed skip or failure a reader can show, and progress is the percentage a long derivative reports.
+
+| JSON key | Rust field | Type | Notes |
+| --- | --- | --- | --- |
+| `state` | `state` | `PreviewState` |  |
+| `reason` | `reason` | `Option<String>` | omitted when unset |
+| `progress` | `progress` | `Option<u8>` | omitted when unset |
+
 Response members of `Media` (`crates/omeka-api/src/wire/media.rs`).
 
 One media document, including the raw `data` column (`MediaRepresentation::mediaData`).
@@ -688,6 +709,7 @@ One media document, including the raw `data` column (`MediaRepresentation::media
 | `o:lang` | `lang` | `Option<String>` | null when unset |
 | `o:alt_text` | `alt_text` | `Option<String>` | null when unset |
 | `o:original_url` | `original_url` | `Option<String>` | null when unset |
+| `o-module-romeka:preview` | `preview` | `Option<MediaPreview>` | omitted when unset; The port's derivative state for this media (`PreviewState`). Upstream has no such member and reads none of it. |
 | `o:thumbnail_urls` | `thumbnail_urls` | `ThumbnailUrls` |  |
 | `data` | `data` | `Option<serde_json::Value>` | null when unset |
 | (flattened) | `values` | `ValueMap` | flattens the value map into this object |

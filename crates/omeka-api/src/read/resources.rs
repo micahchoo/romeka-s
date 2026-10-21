@@ -502,6 +502,9 @@ pub async fn search_media(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
     relations
         .load_owners(api, page.iter().map(|row| row.item_id.0))
         .await?;
+    relations
+        .load_derivatives(api, page.iter().map(MediaRow::id))
+        .await?;
     let mut documents = Vec::with_capacity(page.len());
     for row in &page {
         documents.push(media_doc(api, row, &relations));
@@ -536,6 +539,7 @@ pub(crate) async fn media_document(api: &Api<'_>, row: &MediaRow) -> Result<ApiR
     )
     .await?;
     relations.load_owners(api, [row.item_id.0]).await?;
+    relations.load_derivatives(api, [row.id()]).await?;
     Ok(ApiResponse::document(serialize(&media_doc(
         api, row, &relations,
     ))?))
@@ -599,6 +603,10 @@ pub(crate) fn media_doc(
         lang: row.lang.clone(),
         alt_text: row.alt_text.clone(),
         original_url,
+        preview: Some(crate::derivatives::preview(
+            relations.derivatives(row.id()),
+            has_thumbnails(api, row),
+        )),
         thumbnail_urls,
         // `MediaRepresentation::mediaData` returns the `data` column, which
         // Doctrine 2's `JsonArrayType` hydrates as `[]` when the column is NULL,

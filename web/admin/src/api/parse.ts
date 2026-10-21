@@ -21,6 +21,7 @@ import type {
   LessonSettings,
   Media,
   MediaId,
+  MediaPreview,
   Module,
   PageId,
   Path,
@@ -146,6 +147,7 @@ const ENTITY_KEYS: ReadonlySet<string> = new Set([
   'o:lang',
   'o:alt_text',
   'o:original_url',
+  'o-module-romeka:preview',
   'o:thumbnail_urls',
   'o:local_name',
   'o:label',
@@ -244,6 +246,37 @@ const optionalJsonValue = (
     return null;
   }
   return asJsonValue(value, [...path, key]);
+};
+
+/** The preview states the port's `o-module-romeka:preview` may name. */
+const PREVIEW_STATES = ['pending', 'ready', 'failed', 'none'] as const;
+
+const isPreviewState = (value: string): value is MediaPreview['state'] =>
+  PREVIEW_STATES.some((state) => state === value);
+
+/**
+ * The port's derivative state from `o-module-romeka:preview`. A missing member
+ * reads as `null` (an older server), and so does a state this build does not
+ * know, so a newer server's state never fails the whole document.
+ */
+const parsePreview = (object: Record<string, unknown>, path: Path): MediaPreview | null => {
+  const value = object['o-module-romeka:preview'];
+  if (value === undefined || value === null) {
+    return null;
+  }
+  const fieldPath = [...path, 'o-module-romeka:preview'];
+  const record = asRecord(value, fieldPath);
+  const state = asString(field(record, 'state', fieldPath), [...fieldPath, 'state']);
+  if (!isPreviewState(state)) {
+    return null;
+  }
+  const number = record['progress'];
+  return {
+    state,
+    reason: optionalString(record, 'reason', fieldPath),
+    progress:
+      number === undefined || number === null ? null : asNumber(number, [...fieldPath, 'progress']),
+  };
 };
 
 /**
@@ -527,6 +560,7 @@ export const parseMedia: Parser<Media> = (raw, path = []) => {
     lang: nullableField(object, 'o:lang', path, asString),
     altText: nullableField(object, 'o:alt_text', path, asString),
     originalUrl: nullableField(object, 'o:original_url', path, asString),
+    preview: parsePreview(object, path),
     thumbnailUrls: parseThumbnailUrls(field(object, 'o:thumbnail_urls', path), [
       ...path,
       'o:thumbnail_urls',

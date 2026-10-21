@@ -266,6 +266,13 @@ const ROMEKA_TABLES: &[(&str, &[&str])] = &[
         &["id", "publication_id", "version", "created", "snapshot"],
     ),
     (
+        "romeka_media_derivative",
+        &[
+            "media_id", "kind", "state", "reason", "progress", "tool", "queued", "started",
+            "finished", "attempts",
+        ],
+    ),
+    (
         "romeka_import",
         &[
             "id",

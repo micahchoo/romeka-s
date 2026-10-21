@@ -387,11 +387,11 @@ async fn the_media_kind_matrix_matches_the_known_red_list() {
     let dir = tempfile::tempdir().expect("tempdir");
     let store = FileStore::new(dir.path(), "/files");
     let (pool, seed) = seeded_pool().await;
-    let app = router_with_store(pool, store.clone());
+    let app = router_with_store(pool.clone(), store.clone());
 
     let mut observed = Vec::new();
     for fixture in FIXTURES {
-        observed.push((fixture, upload(&app, &store, &seed, fixture).await));
+        observed.push((fixture, upload(&app, &store, &seed, fixture, &pool).await));
     }
     // Every item was attached as it was created, so one browse page carries
     // every card.
@@ -450,12 +450,12 @@ async fn a_card_names_its_kind_and_an_item_with_no_file_says_so() {
     let dir = tempfile::tempdir().expect("tempdir");
     let store = FileStore::new(dir.path(), "/files");
     let (pool, seed) = seeded_pool().await;
-    let app = router_with_store(pool, store.clone());
+    let app = router_with_store(pool.clone(), store.clone());
     let audio = FIXTURES
         .iter()
         .find(|fixture| fixture.file == "audio.mp3")
         .expect("audio.mp3 in the corpus");
-    let seen = upload(&app, &store, &seed, audio).await;
+    let seen = upload(&app, &store, &seed, audio, &pool).await;
     let audio_item = seen.item.expect("the audio item");
     let data = json!({
         "o:is_public": true,
@@ -505,7 +505,7 @@ async fn a_card_shows_a_run_time_only_when_the_extent_row_exists() {
         .iter()
         .find(|fixture| fixture.file == "audio.mp3")
         .expect("audio.mp3 in the corpus");
-    let seen = upload(&app, &store, &seed, audio).await;
+    let seen = upload(&app, &store, &seed, audio, &pool).await;
     let item = seen.item.expect("the audio item");
     let media = seen.media.expect("the audio media");
     let filename = seen
@@ -651,7 +651,13 @@ fn read_fixture(name: &str) -> Vec<u8> {
 
 /// Upload one fixture as the file media of a new item, attach the item to the
 /// seeded site, and read back what the API, the site and IIIF answer.
-async fn upload(app: &Router, store: &FileStore, seed: &Seed, fixture: &Fixture) -> Observed {
+async fn upload(
+    app: &Router,
+    store: &FileStore,
+    seed: &Seed,
+    fixture: &Fixture,
+    pool: &sqlx::SqlitePool,
+) -> Observed {
     let bytes = read_fixture(fixture.file);
     let data = json!({
         "o:is_public": true,
@@ -687,6 +693,9 @@ async fn upload(app: &Router, store: &FileStore, seed: &Seed, fixture: &Fixture)
     if !answer.status.is_success() {
         return observed;
     }
+    // The create deferred the derivatives; every cell below reads them, so
+    // settle the queue as the worker would before reading anything back.
+    common::settle_derivatives(pool.clone(), std::sync::Arc::new(store.clone())).await;
     let created = answer.json();
     let item = created["o:id"].as_u64();
     let media = created["o:media"][0]["o:id"].as_u64();
@@ -1549,12 +1558,12 @@ async fn the_media_page_shares_its_captions_and_notes() {
     let dir = tempfile::tempdir().expect("tempdir");
     let store = FileStore::new(dir.path(), "/files");
     let (pool, seed) = seeded_pool().await;
-    let app = router_with_store(pool, store.clone());
+    let app = router_with_store(pool.clone(), store.clone());
     let video = FIXTURES
         .iter()
         .find(|fixture| fixture.file == "video.mp4")
         .expect("video.mp4 in the corpus");
-    let seen = upload(&app, &store, &seed, video).await;
+    let seen = upload(&app, &store, &seed, video, &pool).await;
     let media = seen.media.expect("the video's media");
 
     let page = send(app.clone(), get(&format!("{SITE}/media/{media}"), false))

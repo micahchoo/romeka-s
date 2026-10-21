@@ -16,6 +16,12 @@
 //!
 //! `Ingester\Fallback` backs every unregistered name and has no renderer, so an
 //! unknown ingester is refused the way upstream refuses the fallback.
+//!
+//! A create outside an import does not make the file's derivatives: it stores
+//! the original, queues the row (`crate::derivatives`) and answers at once with
+//! `o-module-romeka:preview` pending. Only the ingesters that store a readable
+//! original defer; the ones that fetch a thumbnail of something they do not
+//! store keep making it in the request, because no job could re-read it.
 
 use std::sync::Arc;
 
@@ -33,7 +39,7 @@ use omeka_media::ingest::{
     UploadedFile as IngestUpload,
 };
 use omeka_media::oembed::{Oembed, OembedAllowList};
-use omeka_media::store::Store;
+use omeka_media::store::{Store, Thumbnailer};
 use omeka_media::thumbnailer::ImageThumbnailer;
 use omeka_media::validation::FileValidation;
 use serde_json::Value;
@@ -134,6 +140,7 @@ pub(crate) async fn prepare(
         return Err(ApiError::internal("the media write reached no file store"));
     };
     let request = ingest_request(payload, file);
+    let defer = defers_derivatives(&ingester, payload);
     // `MediaAdapter::hydrate` sets `source` from `o:source` before the ingester
     // runs, and an ingester overwrites it only when the body named none.
     let source = payload.str_member("o:source").map(str::to_string);
@@ -144,8 +151,16 @@ pub(crate) async fn prepare(
         .await
         .map_err(db_error)?;
     let http = HttpClient::new().with_address_policy(policy);
-    let (draft, errors) =
-        ingest(store, ingester.clone(), request, source, validation, http).await?;
+    let (draft, errors) = ingest(
+        store,
+        ingester.clone(),
+        request,
+        source,
+        validation,
+        http,
+        defer,
+    )
+    .await?;
     if !errors.is_empty() {
         return Err(ingest_errors(&errors));
     }
@@ -184,6 +199,7 @@ async fn ingest(
     source: Option<String>,
     validation: FileValidation,
     http: HttpClient,
+    defer: bool,
 ) -> Result<(MediaDraft, ErrorStore), ApiError> {
     tokio::task::spawn_blocking(move || {
         run_ingester(
@@ -193,6 +209,7 @@ async fn ingest(
             source,
             &validation,
             &http,
+            defer,
         )
     })
     .await
@@ -262,7 +279,26 @@ pub(crate) async fn insert(
     )
     .await?;
     fulltext::reindex(api, "media", row.resource.id).await?;
+    // A media this build created outside an import gets its derivatives from
+    // the worker, not from this request.
+    crate::derivatives::enqueue(api.pool(), &row)
+        .await
+        .map_err(db_error)?;
     Ok(row)
+}
+
+/// Whether this create leaves its derivatives to the worker.
+///
+/// `upload` always stores the file it was given, and `url` stores the body
+/// unless the body says `store_original: false`. The other ingesters either
+/// store no original (an embed, an HTML media, a IIIF reference) or download a
+/// thumbnail of something they do not keep, which a job could not re-read.
+fn defers_derivatives(ingester: &str, payload: &Payload) -> bool {
+    match ingester {
+        "upload" => true,
+        "url" => !payload.has("store_original") || payload.truthy("store_original"),
+        _ => false,
+    }
 }
 
 /// The request the ingester reads: the body as it arrived, plus the multipart
@@ -287,6 +323,7 @@ fn run_ingester(
     source: Option<String>,
     validation: &FileValidation,
     http: &HttpClient,
+    defer: bool,
 ) -> (MediaDraft, ErrorStore) {
     let registry = IngesterRegistry::with_defaults();
     let implementation = registry.get(ingester);
@@ -299,13 +336,15 @@ fn run_ingester(
     ));
     draft.row.source = source;
     let purifier = HtmlPurifier;
-    let thumbnailer = ImageThumbnailer;
+    let image_thumbnailer = ImageThumbnailer;
+    let deferred = crate::derivatives::DeferredThumbnails;
+    let thumbnailer: &dyn Thumbnailer = if defer { &deferred } else { &image_thumbnailer };
     let oembed = Oembed::new(OembedAllowList::shipped());
     let env = IngestEnv {
         store,
         http,
         purifier: &purifier,
-        thumbnailer: &thumbnailer,
+        thumbnailer,
         oembed: &oembed,
         validation,
     };

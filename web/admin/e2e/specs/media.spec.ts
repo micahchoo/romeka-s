@@ -6,7 +6,7 @@
  * that the browser decodes the bytes, which is the check a jsdom test cannot
  * make.
  */
-import type { APIRequestContext, Locator, Page } from '@playwright/test';
+import type { APIRequestContext, Locator, Page, Route } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -564,4 +564,70 @@ test('a video with captions offers each language as a WebVTT track', async ({ pa
   }
 
   await expectClean(diagnostics, 'captions');
+});
+
+/**
+ * The derivative state a create answers before its preview exists. The list and
+ * the show page read `o-module-romeka:preview`: `pending` says "Making preview"
+ * where the row would otherwise look finished, and `failed` carries the reason
+ * the tool gave. The route override stands in for a media whose worker has not
+ * run yet, which the seeded install cannot leave behind on purpose.
+ */
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const withPreview = async (route: Route, preview: unknown): Promise<void> => {
+  const response = await route.fetch();
+  const body: unknown = await response.json();
+  const row = isArray(body) ? body[0] : body;
+  if (isRecord(row)) {
+    row['o-module-romeka:preview'] = preview;
+    row['o:thumbnail_urls'] = { large: null, medium: null, square: null };
+    row['thumbnail_display_urls'] = { large: null, medium: null, square: null };
+  }
+  await route.fulfill({ response, json: body });
+};
+
+test('a pending preview says so in the media list', async ({ page, diagnostics }) => {
+  const evidence = process.env.DERIVATIVE_EVIDENCE === '1';
+  let preview: unknown = null;
+  await page.route(/\/api\/media\?/, async (route) => {
+    await withPreview(route, preview);
+  });
+  await page.goto('/#/media');
+  await expect(page.locator('tbody tr').first()).toBeVisible();
+  if (evidence) {
+    await page.screenshot({
+      path: join(REPO_ROOT, '.evidence', 'before-media-list.png'),
+      fullPage: true,
+    });
+  }
+
+  preview = { state: 'pending' };
+  await page.reload();
+  await expect(page.locator('.media-preview-state').first()).toHaveText('Making preview');
+  if (evidence) {
+    await page.screenshot({
+      path: join(REPO_ROOT, '.evidence', 'after-media-list-pending.png'),
+      fullPage: true,
+    });
+  }
+  await expectClean(diagnostics, 'media list with a pending preview');
+});
+
+test('a failed preview carries its reason on the media page', async ({ page, diagnostics }) => {
+  const reason = 'the pdftoppm command is not on PATH';
+  await page.route(/\/api\/media\/\d+(\?|$)/, async (route) => {
+    await withPreview(route, { state: 'failed', reason });
+  });
+  await page.goto('/#/media');
+  await page.getByRole('link', { name: MEDIA_FILE }).click();
+  await expect(page.getByText(`The preview could not be made: ${reason}`)).toBeVisible();
+  if (process.env.DERIVATIVE_EVIDENCE === '1') {
+    await page.screenshot({
+      path: join(REPO_ROOT, '.evidence', 'after-media-page-failed.png'),
+      fullPage: true,
+    });
+  }
+  await expectClean(diagnostics, 'media page with a failed preview');
 });

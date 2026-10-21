@@ -812,7 +812,14 @@ mod mysql {
         .fetch_all(&db.pool)
         .await
         .unwrap();
-        assert_eq!(tables, ["romeka_media_annotation", "romeka_media_extent"]);
+        assert_eq!(
+            tables,
+            [
+                "romeka_media_annotation",
+                "romeka_media_derivative",
+                "romeka_media_extent"
+            ]
+        );
 
         let checks: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM information_schema.table_constraints

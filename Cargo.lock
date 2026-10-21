@@ -2025,6 +2025,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
+ "tower",
 ]
 
 [[package]]

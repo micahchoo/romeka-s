@@ -133,6 +133,18 @@ export interface Item extends ResourceEntity<ItemId> {
   readonly sites: readonly ResourceRef<SiteId>[];
 }
 
+/**
+ * Where a media's derivatives stand, from `o-module-romeka:preview`. A create
+ * outside an import answers `pending` and a worker makes the preview; `failed`
+ * carries the tool's reason; `none` means there is nothing to wait for.
+ */
+export interface MediaPreview {
+  readonly state: 'pending' | 'ready' | 'failed' | 'none';
+  readonly reason: string | null;
+  /** 0-100 while a long derivative runs. */
+  readonly progress: number | null;
+}
+
 export interface Media extends ResourceEntity<MediaId> {
   readonly ingester: string;
   readonly renderer: string;
@@ -151,6 +163,11 @@ export interface Media extends ResourceEntity<MediaId> {
   readonly lang: string | null;
   readonly altText: string | null;
   readonly originalUrl: string | null;
+  /**
+   * The derivative state the port adds. `null` on an older server that does not
+   * send the member; the preview then reads as before.
+   */
+  readonly preview: MediaPreview | null;
   readonly thumbnailUrls: Readonly<Record<string, string>>;
 }
 
