@@ -35,6 +35,7 @@ export const en = {
   'lists.facts.pdf': 'PDFs',
   'lists.facts.audio': 'sounds',
   'lists.facts.video': 'films',
+  'lists.facts.document': 'documents',
   'lists.facts.other': 'other files',
   'lists.facts.parts': 'with the words {parts} in the part you marked',
   'lists.facts.pages': '{count} page numbers',
