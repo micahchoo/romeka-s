@@ -213,13 +213,16 @@ export const fromW3C = (json: unknown, trackIds: ReadonlySet<string>): Note => {
     selector: selectorOf(field(document, 'target', []), ['target']),
     ...textOf(document['body']),
     modified: optionalString(document, 'modified'),
-    fromTrack: trackIds.has(annotationIdOf(iri)),
+    fromTrack: trackIds.has(noteIdOf(iri)),
     raw: json,
   };
 };
 
-/** `Romeka-Track-Ids` lists annotation ids, the last segment of each IRI. */
-const annotationIdOf = (iri: string): string => {
+/**
+ * The last segment of a note's IRI, which is its row id: what
+ * `?note=` in the admin carries (`notes` link module).
+ */
+export const noteIdOf = (iri: string): string => {
   const slash = iri.lastIndexOf('/');
   return slash < 0 ? iri : iri.slice(slash + 1);
 };

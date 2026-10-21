@@ -891,6 +891,41 @@ same way:
 first hero each fetch one more chunk; the assets table fetches the upload
 control with its route.
 
+## Decision 29: the item page's notes and viewer load as their own chunks (accepted)
+
+**Change.** The item page gains each card's note count and Annotate action, the
+first file's notes summary, "All notes in this item", and a file viewer that
+shows the media page's stage over the page. None of it is eager: the summary and
+the grouped list are the `item-notes` chunk, the WAP container reader they share
+with the cards is `read`, and the viewer is `viewer`. The item route chunk keeps
+the card actions and the state that ties the three together. The actions and the
+summary read the existing `annotations` namespace, so an item page also fetches
+its `annotations-messages` chunk, which the media route already shares.
+
+**Measured.** `npm run build` then `npm run perf:check` and `npm run perf:pages`,
+gzip bytes, one build:
+
+| Asset | Before | After | Note |
+| --- | --- | --- | --- |
+| initial js | 86990 | 87006 | the route's new wiring, 34 B under 87040 |
+| initial css | 5447 | 5513 | the card action row, the aligned cards |
+| items route, own chunk | 5580 | 6649 | the actions and the viewer state |
+| `item-notes` | none | 1223 js, 443 css | the summary and the grouped list |
+| `read` | none | 296 | the container reader |
+| `viewer` | none | 1409 js, 499 css | the dialog and its camera |
+| largest chunk | 9785 | 9785 (`preview-*`) | 455 B under the ceiling |
+
+**Read cost.** The notes read is one WAP container request per file, in parallel,
+not one per page: `container(mediaId, { pages: 'first' })` stops after the first
+page, so a file with 300 notes still costs one request. The e2e item-notes spec
+measures 6 requests for 6 files, 846 ms from the navigation to the last group on
+the harness (debug server, one run, a warm machine). PERF.md's earlier
+measurement stands: parallel authenticated requests cost about one round, because
+`bcrypt::verify` dominates.
+
+**Verdict.** Accepted. No budget moved; the initial payload has 33 B of room, so
+the next eager addition has to move or split something.
+
 ## Budgets
 
 `timings.createRoundTrip` moved 700 ms to 400 ms, which is one API round plus room for a slow box,

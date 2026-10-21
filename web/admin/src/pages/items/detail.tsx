@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { Suspense, lazy, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { api } from '../../api/client';
 import { currentUser, subscribeSession } from '../../api/session';
 import type { ClassId, Item, ItemId, Media, MediaId, User, UserId } from '../../api/types';
@@ -14,11 +14,16 @@ import { mediaName, previewImageUrl, previewLinkUrl } from '../../app/media';
 import { useAsync } from '../../app/useAsync';
 import { ValuesList } from '../../app/values';
 import { writtenItems } from '../../app/written';
+import { useHash } from '../../app/router';
 import { useTranslator } from '../../i18n';
 import { useTermLabels } from '../../i18n/termText';
 import { classLabelOf, classLabels, ownerNameOf, userNames } from './labels';
 import type { TermName } from './labels';
 import { ItemEditForm } from './form';
+import { annotateHref, mediaHref } from '../media/annotations/link';
+import { useItemNotes } from './notes/use-item-notes';
+import { itemHref, previewHref, previewIdOf } from './preview/url';
+import { annotations } from '../../i18n/namespaces/annotations';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
 
@@ -30,6 +35,16 @@ const OUTLINE_MS = 600;
  * pays none of the panel's code.
  */
 const AddMediaPanel = lazy(() => import('./add-media/panel'));
+
+/** The notes summary and the grouped list: their own chunk (`notes/`). */
+const ItemNotesSections = lazy(() =>
+  import('./notes/item-notes').then((module) => ({ default: module.ItemNotesSections })),
+);
+
+/** The file viewer: its own chunk, and the media page's stage loads inside it. */
+const MediaViewer = lazy(() =>
+  import('./preview/viewer').then((module) => ({ default: module.MediaViewer })),
+);
 
 /** The roles whose create the server accepts (`write/access.rs`), before the item check. */
 const ADDING_ROLES: readonly string[] = ['author', 'reviewer', 'editor', 'site_admin', 'global_admin'];
@@ -64,12 +79,29 @@ const NO_CLASSES: ReadonlyMap<ClassId, TermName> = new Map();
 const isFileDrag = (event: DragEvent): boolean =>
   event.dataTransfer !== null && Array.from(event.dataTransfer.types).includes('Files');
 
+const NO_MEDIA: readonly Media[] = [];
+
 /** One media of the item: the image links to the original file. */
-const MediaCard = ({ media, outlined }: { readonly media: Media; readonly outlined: boolean }): ReactElement => {
-  const { t } = useTranslator(common, resources);
+const MediaCard = ({
+  media,
+  outlined,
+  count,
+  writable,
+  onPreview,
+}: {
+  readonly media: Media;
+  readonly outlined: boolean;
+  /** The file's note count, or null while the notes read is in flight. */
+  readonly count: number | null;
+  /** Whether this reader may write this file's notes, or null while unknown. */
+  readonly writable: boolean | null;
+  readonly onPreview: (media: Media) => void;
+}): ReactElement => {
+  const { t } = useTranslator(common, resources, annotations);
   const href = previewLinkUrl(media);
   const url = previewImageUrl(media);
   const image = <MediaImage media={media} url={url} className="media-card-image" lazy />;
+  const hasNotes = count !== null && count > 0;
   return (
     <figure className={outlined ? 'media-card media-card-new' : 'media-card'}>
       {href === null || url === null ? (
@@ -84,6 +116,32 @@ const MediaCard = ({ media, outlined }: { readonly media: Media; readonly outlin
         <span className="media-card-meta">
           <MediaKindBadge media={media} />
           {media.mediaType === null ? null : <span>{media.mediaType}</span>}
+        </span>
+        <span className="media-card-actions">
+          {hasNotes ? (
+            <span className="media-card-notes">
+              {t(count === 1 ? 'notes.cardCountOne' : 'notes.cardCount', { count })}
+            </span>
+          ) : null}
+          {writable === true ? (
+            <a className="media-card-action" href={annotateHref(media.id)}>
+              {t('notes.cardAnnotate')}
+            </a>
+          ) : writable === false && hasNotes ? (
+            <a className="media-card-action" href={mediaHref(media.id)}>
+              {t('notes.cardNotes')}
+            </a>
+          ) : null}
+          <button
+            type="button"
+            className="media-card-action"
+            data-preview-for={String(media.id)}
+            onClick={() => {
+              onPreview(media);
+            }}
+          >
+            {t('notes.cardPreview')}
+          </button>
         </span>
       </figcaption>
     </figure>
@@ -152,7 +210,7 @@ const useWindowFiles = (
 };
 
 export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElement => {
-  const { t, locale } = useTranslator(common, resources);
+  const { t, locale } = useTranslator(common, resources, annotations);
   const text = useTermLabels();
   const user = useSyncExternalStore(subscribeSession, currentUser);
   // A create hands its record to this page, so the heading and the fields
@@ -207,6 +265,43 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
     setOutlined(media.id);
   }, []);
 
+  // One list for the cards, the notes read and the viewer, so a media added on
+  // this page joins all three without another read.
+  const baseMedia = readsState.status === 'ready' ? readsState.data.media : NO_MEDIA;
+  const media = useMemo(
+    () => [
+      ...baseMedia,
+      ...added.filter((entry) => !baseMedia.some((known) => known.id === entry.id)),
+    ],
+    [baseMedia, added],
+  );
+  const itemNotes = useItemNotes(media);
+
+  // The viewer is URL state: `?preview=<media>` opens it and a hash without it
+  // (Back, or the close button) closes it.
+  const hash = useHash();
+  const [preview, setPreview] = useState<MediaId | null>(() => previewIdOf(window.location.hash));
+  const lastPreview = useRef<MediaId | null>(null);
+  useEffect(() => {
+    setPreview(previewIdOf(hash));
+  }, [hash]);
+  // Closing returns the keyboard to the card the viewer opened on.
+  useEffect(() => {
+    if (preview !== null) {
+      lastPreview.current = preview;
+      return;
+    }
+    const id = lastPreview.current;
+    if (id === null) {
+      return;
+    }
+    lastPreview.current = null;
+    const trigger = document.querySelector(`[data-preview-for="${String(id)}"]`);
+    if (trigger instanceof HTMLElement) {
+      trigger.focus();
+    }
+  }, [preview]);
+
   if (itemState.status === 'loading') {
     return <p role="status">{t('list.loading', { resource: t('resource.items') })}</p>;
   }
@@ -219,8 +314,25 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
   const ownerName = ownerNameOf(reads?.ownerNames ?? NO_NAMES, item.owner);
   const classLabel = classLabelOf(reads?.classLabels ?? NO_CLASSES, item.resourceClass, text);
   const adding = mayAddMedia(item, user);
-  const media = reads === null ? [] : [...reads.media, ...added.filter((entry) => !reads.media.some((known) => known.id === entry.id))];
   const mediaTotal = reads === null ? 0 : reads.mediaTotal + Math.max(0, media.length - reads.media.length);
+
+  const openPreview = (entry: Media): void => {
+    setPreview(entry.id);
+    // A pushed entry, so Back closes the viewer (`preview/url.ts`).
+    window.location.hash = previewHref(item.id, entry.id);
+  };
+  /** Another file in the viewer: the address changes, the history entry stays. */
+  const showPreview = (id: MediaId): void => {
+    setPreview(id);
+    lastPreview.current = id;
+    window.history.replaceState(null, '', previewHref(item.id, id));
+  };
+  const closePreview = (): void => {
+    setPreview(null);
+    // The entry the viewer pushed becomes the item page's own URL again.
+    window.history.replaceState(null, '', itemHref(item.id));
+  };
+
   return (
     <section>
       <h2>{item.title ?? t('common.untitled')}</h2>
@@ -292,12 +404,47 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
             <ul className="media-grid">
               {media.map((entry) => (
                 <li key={entry.id}>
-                  <MediaCard media={entry} outlined={outlined === entry.id} />
+                  <MediaCard
+                    media={entry}
+                    outlined={outlined === entry.id}
+                    count={itemNotes.count(entry.id)}
+                    writable={itemNotes.writable(entry.id)}
+                    onPreview={openPreview}
+                  />
                 </li>
               ))}
             </ul>
           )}
+
+          {media.length === 0 ? null : (
+            <Suspense
+              fallback={
+                <p className="item-notes-status" role="status">
+                  {t('notes.loading')}
+                </p>
+              }
+            >
+              <ItemNotesSections
+                media={media}
+                state={itemNotes.state}
+                totalFiles={mediaTotal}
+                onRetry={itemNotes.retry}
+              />
+            </Suspense>
+          )}
         </div>
+      )}
+
+      {preview === null ? null : (
+        <Suspense fallback={null}>
+          <MediaViewer
+            files={media}
+            mediaId={preview}
+            writable={itemNotes.writable(preview)}
+            onShow={showPreview}
+            onClose={closePreview}
+          />
+        </Suspense>
       )}
 
       <h2>{t('items.valuesHeading')}</h2>
