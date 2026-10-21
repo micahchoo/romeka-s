@@ -111,6 +111,7 @@ export const es: ResourcesMessages = {
   'media.stage.embedOpen': 'Abrir en {host}',
   'media.stage.embedLoad': 'Cargar el contenido insertado',
   'media.stage.embedFrame': 'El contenido insertado de {host}',
+  'media.stage.embedPlaying': 'Reproduciendo desde {host}',
   'media.stage.embedSnippetHeading':
     'Este medio es HTML que el servidor renderiza. Nada se carga hasta que lo abra.',
   'media.stage.embedSnippetFrame': 'El HTML renderizado',

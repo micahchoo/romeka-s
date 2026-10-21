@@ -19,6 +19,8 @@
 //!   `Media/FileRenderer/Manager.php`, and the three thumbnail types.
 //! - [`derivative`]: the still one stored original makes and the three
 //!   thumbnails from it, which the background worker runs.
+//! - [`transcode`]: the playable copy one stored original makes, an H.264/AAC
+//!   MP4 or an AAC M4A, on its own thread with progress and a stop.
 //! - [`thumbnailer`]: the image thumbnailer (`File/Thumbnailer/Gd.php`), which
 //!   decodes gif, jpeg, png, tiff, webp, JPEG 2000 and SVG and stores the three
 //!   derivatives.
@@ -85,6 +87,7 @@ pub mod testing;
 pub mod text;
 pub mod thumbnailer;
 pub mod tool;
+pub mod transcode;
 pub mod uri;
 pub mod validation;
 

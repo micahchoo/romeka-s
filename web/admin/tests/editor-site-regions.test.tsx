@@ -10,7 +10,7 @@
  * `editor-frame.test.ts` and the click in the preview is in the e2e spec.
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { SitesPage } from '../src/pages/sites/page';
 import { loadFixture } from './loadFixture';
 import { installFetch, jsonResponse, listResponse, requestBody, requestsFor } from './stub';
@@ -82,6 +82,14 @@ const addFooterColumn = async (html: string): Promise<void> => {
 
 afterEach(() => {
   window.location.hash = '';
+});
+
+
+// The page loads this module lazily. A test that leaves before the import settles
+// tears the environment down under it, and vitest then fails the whole run, so the
+// module is loaded once here and every lazy() resolves from the module cache.
+beforeAll(async () => {
+  await import('../src/pages/sites/editor/shell/SiteRegionInspector');
 });
 
 describe('the site regions in the page editor', () => {

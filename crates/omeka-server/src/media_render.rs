@@ -8,11 +8,13 @@
 //! one complete document, which the stage puts in a sandboxed iframe.
 //!
 //! A render that is exactly one provider `<iframe>` is a player the browser can
-//! load from the provider itself, and the player route answers that URL. The
-//! stage frames it directly with `allow-same-origin` beside `allow-scripts`,
-//! which grants the provider's own origin and never this one; a nested provider
-//! frame inside a sandboxed frame of ours would instead inherit an opaque origin
-//! and refuse to draw. Every other render keeps the strict frame.
+//! load from the provider itself, and the player route answers that URL. A
+//! YouTube media names its own player too, built from the id and the times the
+//! ingester stored. The stage frames either URL directly with `allow-same-origin`
+//! beside `allow-scripts`, which grants the provider's own origin and never this
+//! one; a nested provider frame inside a sandboxed frame of ours would instead
+//! inherit an opaque origin and refuse to draw. Every other render keeps the
+//! strict frame.
 //!
 //! Both routes are Romeka additions. They read the caller the way every `/api`
 //! route does, answer 404 for a media the caller may not see, and the render
@@ -39,6 +41,7 @@ use omeka_db::with_db;
 use omeka_media::data::MediaData;
 use omeka_media::file_render::FileRendererRegistry;
 use omeka_media::oembed::OembedAllowList;
+use omeka_media::render::youtube;
 use omeka_media::render::{MediaView, RenderEnv, RenderOptions, RendererRegistry, View};
 use omeka_media::text::escape_html;
 
@@ -51,6 +54,9 @@ const EMBED_RENDERERS: [&str; 2] = ["oembed", "html"];
 
 /// The renderer whose markup can be one provider player.
 const OEMBED_RENDERER: &str = "oembed";
+
+/// The renderer whose player URL is built from its stored video id.
+const YOUTUBE_RENDERER: &str = "youtube";
 
 /// The stage's own path prefix for the bundled theme's assets. No renderer this
 /// route reaches reads it, and a media view has to carry one.
@@ -85,11 +91,12 @@ async fn render(
 }
 
 /// `GET /api/romeka/media/{id}/player`: the provider's own player URL, or
-/// `null` when the render is not exactly one allow-listed frame.
+/// `null` when the server names no player for this media.
 ///
-/// Only an oEmbed media can answer a URL, and only when its purified markup is
-/// one `https` frame on the oEmbed allow list. An HTML media and every other
-/// kind answer `null`, which the stage reads as "keep the strict frame".
+/// An oEmbed media answers when its purified markup is one `https` frame on the
+/// oEmbed allow list. A YouTube media answers the no-cookie embed URL its
+/// renderer builds, from the stored video id and times. An HTML media and every
+/// other kind answer `null`, which the stage reads as "keep the card".
 async fn player(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -137,8 +144,8 @@ async fn document(
     Ok(Frame { html, policy })
 }
 
-/// The provider player URL for one media, or `None` for anything that is not
-/// exactly one allow-listed oEmbed frame.
+/// The provider player URL for one media, or `None` for anything the server
+/// names no player for.
 async fn provider_of(
     state: &AppState,
     id: MediaId,
@@ -146,10 +153,24 @@ async fn provider_of(
     headers: &HeaderMap,
 ) -> Result<Option<String>, ApiError> {
     let visible = visible(state, id, uri, headers).await?;
-    if visible.media.renderer != OEMBED_RENDERER {
-        return Ok(None);
+    match visible.media.renderer.as_str() {
+        OEMBED_RENDERER => Ok(provider_player(&visible.fragment())),
+        YOUTUBE_RENDERER => Ok(youtube_player(&visible.view)),
+        _ => Ok(None),
     }
-    Ok(provider_player(&visible.fragment()))
+}
+
+/// The URL a YouTube media plays at.
+///
+/// The renderer owns the URL and the id rule (`omeka_media::render::youtube`),
+/// so the admin frames exactly the player the public site embeds. An id that is
+/// not one YouTube video id answers `None`: the render route refuses this
+/// renderer, so the stage must keep its card rather than open a 415 document.
+fn youtube_player(view: &MediaView) -> Option<String> {
+    match &view.data {
+        MediaData::Youtube(data) => youtube::embed_url(data),
+        _ => None,
+    }
 }
 
 /// One media the caller may see, with the view and root URL its render reads.

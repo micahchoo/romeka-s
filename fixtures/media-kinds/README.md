@@ -32,11 +32,14 @@ prints with `MEDIA_MATRIX_PRINT=1`.
 | `audio.opus` | Opus in Ogg; libmagic names the container `audio/ogg`, and the port reads the codec's answer as that container. |
 | `audio.flac` | FLAC audio, outside upstream's default allow list. |
 | `audio.wav` | PCM WAV. |
+| `wma.wma` | Windows Media Audio in an ASF container. Its header reads as WMV and the codec names it `wma`, so the access table decides by codec: an M4A copy. |
 | `video.mp4` | H.264 and AAC video, the file a captions track is attached to. |
 | `video.webm` | VP9 and Opus video. |
 | `video.mov` | H.264 and AAC in QuickTime. |
 | `video.mkv` | H.264 and AAC in Matroska, outside upstream's default allow list. |
 | `video.ogv` | Theora and Vorbis in Ogg. The bytes read as the Ogg container, `audio/ogg`; the extension names the video type, `video/ogg`. |
+| `mjpeg.avi` | MJPEG video with PCM audio in AVI, a container no browser opens, so it gets an H.264/AAC MP4 copy. |
+| `mpeg2.mpg` | MPEG-2 video with MP2 audio in an MPEG program stream, another container a browser refuses. |
 | `doc.pdf` | Two-page PDF. |
 | `doc.docx` | Word document. |
 | `model.glb` | Binary glTF with an embedded buffer. |

@@ -44,17 +44,18 @@ its own into the `media-tools` stage and the image was weighed
 
 | Variant of the tools stage | Image | Added over the base |
 | --- | --- | --- |
-| base (`exiftool`, `poppler-utils`, ffmpeg, CA certificates) | 217,092,445 B | 0 |
-| no extra command, with the binary | 282,686,013 B | 0 |
-| + `libraw-bin` | 286,710,758 B | 4.0 MB |
-| + `libvips-tools` | 441,493,775 B | 158.8 MB |
-| + `ghostscript` | 344,601,836 B | 61.9 MB |
-| all three | 503,086,810 B | 220.4 MB |
+| base (`exiftool`, `poppler-utils`, ffmpeg with x264, CA certificates) | 222,191,293 B | 0 |
+| no extra command, with the binary | 287,849,637 B | 0 |
+| + `libraw-bin` | 291,874,382 B | 4.0 MB |
+| + `libvips-tools` | 446,657,399 B | 158.8 MB |
+| + `ghostscript` | 349,765,460 B | 61.9 MB |
+| all three | 508,251,522 B | 220.4 MB |
 
 `vips` is 158.8 MB, far over the "under about 60 MB" a main-image tool has to
 clear, and `ghostscript` is 61.9 MB. `libraw` is 4.0 MB, but it cannot encode a
 JPEG without `vips`, so it travels with `vips` rather than alone. The main image
-therefore stays at **345,641,393 B** (it was 345 MB after `slim-image`): a NEF
+therefore stays at **350,842,433 B** (345 MB after `slim-image`, plus 5.2 MB for
+x264 in ffmpeg and this unit's code): a NEF
 still gets its full-size master through `exiftool`, and the odd TIFF, PSD, HEIC,
 EXR and PostScript page wait for the tools image. A type with ffmpeg-made
 thumbnails (HEIC, AVIF, BMP) is still a local image without `vips`; its canvas
@@ -96,9 +97,17 @@ It reads HEIC, which Debian 12's ffmpeg 5.1 cannot: measured on the corpus
 7.1.5 writes an 8644-byte PNG. The other stills are byte for byte what 5.1
 produced.
 
-The transcode encoders wave U8 needs are configure flags in the same stage.
-H.264 arrives with libx264, which also makes the build GPL, and AAC is native.
-That build is a call for the unit that adds the transcodes.
+The transcode encoders are built in the same stage. x264 is pinned by commit
+(`b35605ace3ddf7c1a5d67a2eb553f034aef41d55`) and archive hash, configured
+`--enable-static --enable-pic --disable-cli`, and ffmpeg is configured
+`--enable-gpl --enable-libx264`. x264 is GPL-2.0-or-later and this project is
+GPL-3.0, so the link is allowed; it makes the ffmpeg binary GPL. AAC is ffmpeg's
+own encoder.
+
+The stage ends with a self-test: the encoder arguments of `video_mp4_args` run
+on a generated second of picture and tone, and the result is probed for an
+`h264` and an `aac` stream. A build whose ffmpeg lacks an encoder those
+arguments name fails there rather than on a curator's file.
 
 ## Build caching
 
@@ -134,11 +143,12 @@ The base tools stage (`media-base`, without the SPA, the origin or the binary) i
 52 MB; a custom Caddy build with only the modules `deploy/Caddyfile` uses would
 cut the second.
 
-**After the access-copy commands (2026-10-21).** The runtime is 345,641,393 B,
-unchanged: `exiftool`, `poppler-utils` and ffmpeg are still the whole set. The
-tools image (`--target media-tools`) is 503,086,810 B: 220.4 MB of
-`libvips-tools`, `libraw-bin` and `ghostscript`, 65.6 MB for the binary it now
-carries, and the 217 MB base. Those numbers are the reason the main image keeps
+**After the access-copy commands (2026-10-21).** The runtime is 350,842,433 B,
+which is 345,641,393 B for the D4 build before the merge plus 5.2 MB for x264
+in ffmpeg (the code itself is about 13 KB). `exiftool`, `poppler-utils` and
+ffmpeg are still the whole tool set. The tools image (`--target media-tools`) is
+508,251,522 B: 220.4 MB of `libvips-tools`, `libraw-bin` and `ghostscript`,
+65.6 MB for the binary it now carries, and the 222 MB base. Those numbers are the reason the main image keeps
 its size and the heavy commands live in the second image (`packaging/README.md`,
 "The media tools").
 

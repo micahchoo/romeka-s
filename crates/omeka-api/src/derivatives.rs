@@ -7,36 +7,38 @@
 //! `o-module-romeka:preview: {"state": "pending"}`. The worker (`Romeka\Job\MediaDerivatives`)
 //! claims the row, makes the still, and settles it ready, failed or none.
 //!
-//! The worker makes two kinds of access copy. An `access_copy` row whose tool is a still-master tool
-//! (`exiftool`, `dcraw_emu`, `vips`, `gs`) is a JPEG master at the source's own size, with the three
-//! thumbnails made from it ([`settle_next_image_master`]); an `ffmpeg` row is an audio or video
-//! transcode. The row's tool says which, and each worker claims only its own, so neither settles
-//! work it cannot do.
+//! The same worker makes the audio and video access copies D2 planned: an `access_copy` row whose
+//! tool is `ffmpeg` is a transcode (H.264/AAC MP4 or AAC M4A), which runs on its own thread, writes
+//! its progress to the row and stops between progress updates when the job is asked to stop or an
+//! import starts ([`settle_next`]). A copy waiting for another tool is left for the worker that runs
+//! that tool.
 //!
 //! This module owns the decisions the create path, the worker and the CLI backfill must agree on:
-//! which kind of derivative a media needs, when to queue one, and what a media document shows for
-//! it.
+//! which kind of derivative a media needs, when to queue one, what a media document shows for it,
+//! and where its access copy is.
 
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use omeka_db::DbPool;
 use omeka_db::ids::JobId;
-use omeka_db::repos::{JobRepo, MediaDerivativeRepo};
+use omeka_db::repos::{ImportRepo, JobRepo, MediaDerivativeRepo, MediaRepo};
 use omeka_db::rows::{
     DerivativeKind, DerivativeRow, DerivativeState, MediaRow, NewDerivative, NewJob,
 };
 use omeka_db::with_db;
 use omeka_media::ThumbnailType;
-use omeka_media::access::{self, Access, Queue, StoredFile};
+use omeka_media::access::{self, Access, AccessTarget, Queue, StoredFile};
 use omeka_media::access_master::{MasterSource, MasterWork, make_master};
 use omeka_media::derivative::{DerivativeWork, PreviewSource, make_preview};
 use omeka_media::store::{Store, StorePrefix, Thumbnailer, storage_path};
-use omeka_media::thumbnailer::SOURCE_MEDIA_TYPES;
+use omeka_media::thumbnailer::{SOURCE_MEDIA_TYPES, thumbnails_stored};
 use omeka_media::tool::{Still, Tools};
+use omeka_media::transcode::{Transcode, TranscodeSource, TranscodeWork, poster_from_copy};
 
 use crate::errors::ApiError;
 use crate::read::db_error;
-use crate::wire::media::MediaPreview;
+use crate::wire::media::{MediaPreview, PreviewState};
 
 /// The `job.class` of the worker that drains the derivative queue.
 pub const DERIVATIVES_JOB: &str = "Romeka\\Job\\MediaDerivatives";
@@ -255,7 +257,12 @@ pub async fn queue_worker(
     pool: &DbPool,
     owner_id: Option<omeka_db::ids::UserId>,
 ) -> Result<Option<JobId>, omeka_db::DbError> {
-    if with_db!(pool, |db| MediaDerivativeRepo::new(db).pending().await)? == 0 {
+    let commands = Tools::on_path().derivative_commands();
+    if with_db!(pool, |db| MediaDerivativeRepo::new(db)
+        .pending(&commands)
+        .await)?
+        == 0
+    {
         return Ok(None);
     }
     if with_db!(pool, |db| JobRepo::new(db)
@@ -300,6 +307,71 @@ pub fn preview(rows: &[DerivativeRow], thumbnails_present: bool) -> MediaPreview
     }
 }
 
+/// The access copy one media has, as its document and the site read it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AccessCopy {
+    pub state: DerivativeState,
+    /// The words a reader shows for `none` or `failed`.
+    pub reason: Option<String>,
+    /// 0-100 while the transcode runs.
+    pub progress: Option<u8>,
+    /// The stored copy, when the row is ready and the type has a copy in the
+    /// `access/` prefix.
+    pub stored: Option<StoredCopy>,
+}
+
+/// Where an access copy is and what it answers with.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredCopy {
+    /// `access/<storage id>.<suffix>`, from [`omeka_media::access::copy_path`].
+    pub path: String,
+    pub media_type: &'static str,
+}
+
+/// The access decision one media recorded, or `None` when it stored none (an
+/// embed, an import-made media before the backfill, a kind with no rule).
+///
+/// The row says where the work stands; the copy's own path and type come from
+/// the stored type's target, which the row does not store.
+#[must_use]
+pub fn access_copy(
+    rows: &[DerivativeRow],
+    storage_id: Option<&str>,
+    media_type: Option<&str>,
+    extension: Option<&str>,
+) -> Option<AccessCopy> {
+    let row = rows
+        .iter()
+        .find(|row| row.kind == DerivativeKind::AccessCopy)?;
+    let stored = storage_id
+        .zip(media_type)
+        .and_then(|(storage_id, media_type)| {
+            let target = access::target_of(media_type, extension)?;
+            (row.state == DerivativeState::Ready).then(|| StoredCopy {
+                path: access::copy_path(storage_id, target),
+                media_type: target.media_type(),
+            })
+        });
+    Some(AccessCopy {
+        state: row.state,
+        reason: row.reason.clone(),
+        progress: row.progress,
+        stored,
+    })
+}
+
+/// A derivative state as the media document reports it. `running` reads as
+/// `pending`: from a reader's side both mean "not yet".
+#[must_use]
+pub const fn preview_state(state: DerivativeState) -> PreviewState {
+    match state {
+        DerivativeState::Pending | DerivativeState::Running => PreviewState::Pending,
+        DerivativeState::Ready => PreviewState::Ready,
+        DerivativeState::Failed => PreviewState::Failed,
+        DerivativeState::None => PreviewState::None,
+    }
+}
+
 /// What settling one queued row did.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Settled {
@@ -308,6 +380,9 @@ pub enum Settled {
         state: DerivativeState,
         reason: Option<String>,
     },
+    /// The row is back in the queue: another tool makes this copy, or a running
+    /// copy stopped and the next worker starts it again. Not a failure.
+    Queued { reason: Option<String> },
     /// The media row is gone, so the cascade removed the derivative row too.
     Gone,
 }
@@ -318,16 +393,36 @@ pub struct DrainStats {
     pub ready: u32,
     pub skipped: u32,
     pub failed: u32,
-    /// Rows left queued: a drain that stopped early reports them.
+    /// Rows left queued: a drain that stopped early, or a copy that went back
+    /// to the queue, reports them.
     pub left: u32,
 }
+
+/// How often a running copy writes its percentage to the row. A transcode lasts
+/// minutes and ffmpeg writes a record twice a second; one write every three
+/// seconds keeps the row current without a write per record.
+pub const COPY_PROGRESS_EVERY: Duration = Duration::from_secs(3);
+
+/// How often a running copy looks for new progress, and how often (at most) it
+/// asks the database whether it must stop.
+pub const COPY_POLL: Duration = Duration::from_millis(100);
+
+/// How often a running copy asks whether the job was stopped and whether an
+/// import started. A transcode yields to both between progress updates, so a
+/// reader waits a second at most.
+pub const COPY_STATUS_EVERY: Duration = Duration::from_secs(1);
 
 /// Claim one queued row and settle it: make the derivative, write the state,
 /// and record `media.has_thumbnails` once the files are there.
 ///
-/// `Ok(None)` when nothing is queued. The worker's stop and yield checks live
-/// above this, so a caller that only wants the work done (a test, or the
-/// `romeka media derivatives` backfill) can drain the queue without them.
+/// `job` is the worker's own row, when the caller has one: a running copy stops
+/// between progress updates when that row is asked to stop, and when an import
+/// starts, and goes back to the queue. `None` (a test, the CLI backfill) never
+/// stops a copy early.
+///
+/// `Ok(None)` when nothing is queued. The worker's yield checks between rows
+/// live above this, so a caller that only wants the work done can drain the
+/// queue without them.
 ///
 /// # Errors
 /// A database failure, or a blocking task that did not finish. A tool or a
@@ -335,19 +430,114 @@ pub struct DrainStats {
 pub async fn settle_next(
     pool: &DbPool,
     store: &Arc<dyn Store>,
+    job: Option<JobId>,
 ) -> Result<Option<Settled>, ApiError> {
-    let Some(row) =
-        with_db!(pool, |db| MediaDerivativeRepo::new(db).claim_next().await).map_err(db_error)?
-    else {
-        return settle_next_image_master(pool, store).await;
-    };
-    let media = with_db!(pool, |db| omeka_db::repos::MediaRepo::new(db)
-        .get(row.media_id)
+    settle_next_with(pool, store, Tools::on_path(), job).await
+}
+
+/// [`settle_next`] with the commands a caller names, instead of the ones this
+/// process found on `PATH`. A test drives a long copy through a stand-in
+/// `ffmpeg` this way; production passes [`Tools::on_path`].
+///
+/// # Errors
+/// As [`settle_next`].
+pub async fn settle_next_with(
+    pool: &DbPool,
+    store: &Arc<dyn Store>,
+    tools: &Tools,
+    job: Option<JobId>,
+) -> Result<Option<Settled>, ApiError> {
+    let commands = tools.derivative_commands();
+    let Some(row) = with_db!(pool, |db| MediaDerivativeRepo::new(db)
+        .claim_next(&commands)
         .await)
-    .map_err(db_error)?;
+    .map_err(db_error)?
+    else {
+        return Ok(None);
+    };
+    let media =
+        with_db!(pool, |db| MediaRepo::new(db).get(row.media_id).await).map_err(db_error)?;
     let Some(media) = media else {
         return Ok(Some(Settled::Gone));
     };
+    if row.kind == DerivativeKind::AccessCopy {
+        return settle_access(pool, store, tools, job, &row, &media).await;
+    }
+    settle_preview(pool, store, &row, &media).await
+}
+
+/// Settle one `access_copy` row with the worker its target belongs to: a video
+/// or audio copy is a transcode, and every other type's copy is a JPEG master.
+async fn settle_access(
+    pool: &DbPool,
+    store: &Arc<dyn Store>,
+    tools: &Tools,
+    job: Option<JobId>,
+    row: &DerivativeRow,
+    media: &MediaRow,
+) -> Result<Option<Settled>, ApiError> {
+    let media_type = media.media_type.clone().unwrap_or_default();
+    match access::target_of(&media_type, media.extension.as_deref()) {
+        Some(target) => settle_copy(pool, store, tools, job, row, media, target).await,
+        None => settle_image_master(pool, store, tools, row, media).await,
+    }
+}
+
+/// Settle one image `access_copy` row: the JPEG master a PSD, a camera RAW, an
+/// odd TIFF, a HEIC or a PostScript page needs, and the three thumbnails made
+/// from it. The master runs on the blocking pool; the original is never changed.
+async fn settle_image_master(
+    pool: &DbPool,
+    store: &Arc<dyn Store>,
+    tools: &Tools,
+    row: &DerivativeRow,
+    media: &MediaRow,
+) -> Result<Option<Settled>, ApiError> {
+    let source = MasterSource {
+        storage_id: media.storage_id.clone().unwrap_or_default(),
+        extension: media.extension.clone(),
+        media_type: media.media_type.clone(),
+        has_original: media.has_original,
+        size: media.size.and_then(|size| u64::try_from(size).ok()),
+    };
+    let store = Arc::clone(store);
+    let tools = tools.clone();
+    let work = tokio::task::spawn_blocking(move || make_master(store.as_ref(), &tools, &source))
+        .await
+        .map_err(|error| {
+            ApiError::internal(format!("the access master did not finish: {error}"))
+        })?;
+    let state = match &work {
+        MasterWork::Ready { .. } => DerivativeState::Ready,
+        MasterWork::Skipped { .. } => DerivativeState::None,
+        MasterWork::Failed { .. } => DerivativeState::Failed,
+    };
+    with_db!(pool, |db| MediaDerivativeRepo::new(db)
+        .finish(
+            row.media_id,
+            row.kind,
+            state,
+            work.reason().map(str::to_string),
+            work.tool().map(str::to_string),
+        )
+        .await)
+    .map_err(db_error)?;
+    if state == DerivativeState::Ready {
+        mark_thumbnails(pool, row.media_id).await?;
+    }
+    Ok(Some(Settled::State {
+        state,
+        reason: work.reason().map(str::to_string),
+    }))
+}
+
+/// Settle one preview row: make the still and record its state.
+async fn settle_preview(
+    pool: &DbPool,
+    store: &Arc<dyn Store>,
+    row: &DerivativeRow,
+    media: &MediaRow,
+) -> Result<Option<Settled>, ApiError> {
     let source = PreviewSource {
         storage_id: media.storage_id.clone().unwrap_or_default(),
         extension: media.extension.clone(),
@@ -384,73 +574,235 @@ pub async fn settle_next(
     }))
 }
 
-/// Claim and settle one queued image access copy: the JPEG master a PSD, a
-/// camera RAW, a 16-bit TIFF, a HEIC or a PostScript page needs, and the three
-/// thumbnails made from it. `Ok(None)` when no such row waits.
+/// Settle one `access_copy` row: decide the target from the stored type,
+/// re-probe a video whose create-time probe failed, transcode, and record what
+/// happened.
 ///
-/// The row's own tool names only the command the create found; the chain is
-/// read again here, so an install that lost that command falls through to the
-/// next one. The audio and video worker (D3) claims the `ffmpeg` rows, and this
-/// one never touches them.
-///
-/// # Errors
-/// A database failure, or a blocking task that did not finish. A command that
-/// refused is the row's `failed` state, not an error here.
-pub async fn settle_next_image_master(
+/// The original is never changed. A copy that stops because the worker was
+/// asked to or an import started goes back to the queue with nothing stored.
+async fn settle_copy(
     pool: &DbPool,
     store: &Arc<dyn Store>,
+    tools: &Tools,
+    job: Option<JobId>,
+    row: &DerivativeRow,
+    media: &MediaRow,
+    target: AccessTarget,
 ) -> Result<Option<Settled>, ApiError> {
-    let names = Tools::on_path().image_master_names();
-    let Some(row) = with_db!(pool, |db| MediaDerivativeRepo::new(db)
-        .claim_next_image_master(&names)
-        .await)
-    .map_err(db_error)?
-    else {
-        return Ok(None);
-    };
-    let media = with_db!(pool, |db| omeka_db::repos::MediaRepo::new(db)
-        .get(row.media_id)
-        .await)
-    .map_err(db_error)?;
-    let Some(media) = media else {
-        return Ok(Some(Settled::Gone));
-    };
-    let source = MasterSource {
-        storage_id: media.storage_id.clone().unwrap_or_default(),
+    let media_type = media.media_type.clone().unwrap_or_default();
+    let storage_id = media.storage_id.clone().unwrap_or_default();
+    if target == AccessTarget::Mp4 && replayed_as_original(store, tools, media, &storage_id).await {
+        // D2's open item: the create-time probe may have failed on a file a
+        // browser plays. Re-probing costs a bounded sample; a transcode costs
+        // the length of the file.
+        let reason = access::ORIGINAL_REASON.to_string();
+        settle_row(pool, row, DerivativeState::None, Some(reason.clone()), None).await?;
+        return Ok(Some(Settled::State {
+            state: DerivativeState::None,
+            reason: Some(reason),
+        }));
+    }
+    let source = TranscodeSource {
+        storage_id,
         extension: media.extension.clone(),
-        media_type: media.media_type.clone(),
+        media_type: Some(media_type),
         has_original: media.has_original,
+    };
+    let run = Transcode::start(Arc::clone(store), tools.clone(), source, target)
+        .map_err(ApiError::internal)?;
+    let work = wait_for_copy(pool, job, row, run).await?;
+    let (state, reason) = match &work {
+        TranscodeWork::Ready { .. } => (DerivativeState::Ready, None),
+        TranscodeWork::Skipped { reason, .. } => (DerivativeState::None, Some(reason.clone())),
+        TranscodeWork::Failed { reason, .. } => (DerivativeState::Failed, Some(reason.clone())),
+        TranscodeWork::Stopped => {
+            requeue(pool, row).await?;
+            return Ok(Some(Settled::Queued {
+                reason: Some("the copy stopped and waits for the next worker".to_string()),
+            }));
+        }
+    };
+    settle_row(pool, row, state, reason.clone(), work.tool()).await?;
+    if state == DerivativeState::Ready {
+        poster_after_copy(pool, store, row, target).await?;
+    }
+    Ok(Some(Settled::State { state, reason }))
+}
+
+/// Wait for a running copy, writing its progress and stopping it when the job
+/// is asked to stop or an import starts.
+async fn wait_for_copy(
+    pool: &DbPool,
+    job: Option<JobId>,
+    row: &DerivativeRow,
+    run: Transcode,
+) -> Result<TranscodeWork, ApiError> {
+    let mut wrote = Instant::now()
+        .checked_sub(COPY_PROGRESS_EVERY)
+        .unwrap_or_else(Instant::now);
+    let mut checked = Instant::now();
+    loop {
+        while let Some(percent) = run.try_progress() {
+            if wrote.elapsed() >= COPY_PROGRESS_EVERY {
+                with_db!(pool, |db| MediaDerivativeRepo::new(db)
+                    .set_progress(row.media_id, row.kind, percent)
+                    .await)
+                .map_err(db_error)?;
+                wrote = Instant::now();
+            }
+        }
+        if run.is_finished() {
+            return Ok(run.finish());
+        }
+        if checked.elapsed() >= COPY_STATUS_EVERY {
+            checked = Instant::now();
+            if stopping(pool, job).await?
+                || with_db!(pool, |db| ImportRepo::new(db).busy_id().await)
+                    .map_err(db_error)?
+                    .is_some()
+            {
+                run.request_stop();
+            }
+        }
+        tokio::time::sleep(COPY_POLL).await;
+    }
+}
+
+/// Whether the worker's own job row was asked to stop.
+async fn stopping(pool: &DbPool, job: Option<JobId>) -> Result<bool, ApiError> {
+    let Some(job) = job else {
+        return Ok(false);
+    };
+    Ok(with_db!(pool, |db| JobRepo::new(db).status(job).await)
+        .map_err(db_error)?
+        .as_deref()
+        == Some("stopping"))
+}
+
+/// Whether a video the table planned a copy for is in fact one a browser plays,
+/// re-probed from the stored file. Only video: the video table reads the
+/// container first, so a re-probe can only answer "the original stands" for a
+/// container a browser opens. The audio table reads the codec alone, and an
+/// ASF container with an MP3 stream is still an ASF file.
+async fn replayed_as_original(
+    store: &Arc<dyn Store>,
+    tools: &Tools,
+    media: &MediaRow,
+    storage_id: &str,
+) -> bool {
+    let file = StoredFile {
+        storage_path: &storage_path(
+            StorePrefix::Original,
+            storage_id,
+            media.extension.as_deref(),
+        ),
+        media_type: media.media_type.as_deref(),
+        extension: media.extension.as_deref(),
         size: media.size.and_then(|size| u64::try_from(size).ok()),
     };
+    let owned = (
+        file.storage_path.to_string(),
+        file.media_type.map(str::to_string),
+        file.extension.map(str::to_string),
+        file.size,
+    );
     let store = Arc::clone(store);
-    let work =
-        tokio::task::spawn_blocking(move || make_master(store.as_ref(), Tools::on_path(), &source))
-            .await
-            .map_err(|error| {
-                ApiError::internal(format!("the access master did not finish: {error}"))
-            })?;
-    let state = match &work {
-        MasterWork::Ready { .. } => DerivativeState::Ready,
-        MasterWork::Skipped { .. } => DerivativeState::None,
-        MasterWork::Failed { .. } => DerivativeState::Failed,
+    let tools = tools.clone();
+    let probed = tokio::task::spawn_blocking(move || {
+        let (path, media_type, extension, size) = &owned;
+        let file = StoredFile {
+            storage_path: path,
+            media_type: media_type.as_deref(),
+            extension: extension.as_deref(),
+            size: *size,
+        };
+        access::facts(store.as_ref(), &tools, &file)
+    })
+    .await;
+    match probed {
+        Ok(facts) => Access::of(&facts) == Some(Access::Original),
+        Err(_) => false,
+    }
+}
+
+/// The poster a copy makes when the original's own still failed or was never
+/// queued: the copy's frame becomes the three thumbnails.
+///
+/// A preview row that is queued, running or ready already answers the poster, so
+/// the work is not done twice; the copy's frame is the fallback for a media whose
+/// preview is absent or failed.
+async fn poster_after_copy(
+    pool: &DbPool,
+    store: &Arc<dyn Store>,
+    row: &DerivativeRow,
+    target: AccessTarget,
+) -> Result<(), ApiError> {
+    let Some(media) =
+        with_db!(pool, |db| MediaRepo::new(db).get(row.media_id).await).map_err(db_error)?
+    else {
+        return Ok(());
     };
+    let rows = with_db!(pool, |db| MediaDerivativeRepo::new(db)
+        .for_media(row.media_id)
+        .await)
+    .map_err(db_error)?;
+    let answered = rows.iter().any(|row| {
+        row.kind.is_preview()
+            && matches!(
+                row.state,
+                DerivativeState::Pending | DerivativeState::Running | DerivativeState::Ready
+            )
+    });
+    if answered {
+        return Ok(());
+    }
+    let Some(storage_id) = media.storage_id.clone() else {
+        return Ok(());
+    };
+    let store = Arc::clone(store);
+    let has_poster = thumbnails_stored(store.as_ref(), &storage_id).unwrap_or(false);
+    if has_poster {
+        return Ok(());
+    }
+    let copy = access::copy_path(&storage_id, target);
+    let made =
+        tokio::task::spawn_blocking(move || poster_from_copy(store.as_ref(), &storage_id, &copy))
+            .await
+            .map_err(|error| ApiError::internal(format!("the poster did not finish: {error}")))?;
+    if made {
+        mark_thumbnails(pool, row.media_id).await?;
+    }
+    Ok(())
+}
+
+/// Put a claimed row back in the queue.
+async fn requeue(pool: &DbPool, row: &DerivativeRow) -> Result<(), ApiError> {
+    with_db!(pool, |db| MediaDerivativeRepo::new(db)
+        .requeue(row.media_id, row.kind)
+        .await)
+    .map_err(db_error)?;
+    Ok(())
+}
+
+/// Settle a claimed row to one state, recording the tool the work used.
+async fn settle_row(
+    pool: &DbPool,
+    row: &DerivativeRow,
+    state: DerivativeState,
+    reason: Option<String>,
+    tool: Option<&'static str>,
+) -> Result<(), ApiError> {
     with_db!(pool, |db| MediaDerivativeRepo::new(db)
         .finish(
             row.media_id,
             row.kind,
             state,
-            work.reason().map(str::to_string),
-            work.tool().map(str::to_string),
+            reason,
+            tool.map(str::to_string),
         )
         .await)
     .map_err(db_error)?;
-    if state == DerivativeState::Ready {
-        mark_thumbnails(pool, row.media_id).await?;
-    }
-    Ok(Some(Settled::State {
-        state,
-        reason: work.reason().map(str::to_string),
-    }))
+    Ok(())
 }
 
 /// Drain every queued row, counting what each settled to.
@@ -459,7 +811,7 @@ pub async fn settle_next_image_master(
 /// Whatever [`settle_next`] returns.
 pub async fn drain(pool: &DbPool, store: &Arc<dyn Store>) -> Result<DrainStats, ApiError> {
     let mut stats = DrainStats::default();
-    while let Some(settled) = settle_next(pool, store).await? {
+    while let Some(settled) = settle_next(pool, store, None).await? {
         match settled {
             Settled::State {
                 state: DerivativeState::Ready,
@@ -470,6 +822,14 @@ pub async fn drain(pool: &DbPool, store: &Arc<dyn Store>) -> Result<DrainStats, 
                 ..
             } => stats.skipped += 1,
             Settled::State { .. } => stats.failed += 1,
+            Settled::Queued { .. } => {
+                // A copy that went back to the queue stopped because the machine
+                // was not free (an import started) or it was asked to. Claiming
+                // it again would start the same copy at once, so the drain ends
+                // and the job's own loop waits for the import.
+                stats.left += 1;
+                break;
+            }
             Settled::Gone => {}
         }
     }

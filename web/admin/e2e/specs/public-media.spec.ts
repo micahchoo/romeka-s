@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import type { APIRequestContext } from '@playwright/test';
 
 import { expect, expectClean, test } from '../fixtures';
-import { isArray, numberField, record, stringField } from '../harness/json';
+import { isArray, isRecord, numberField, record, stringField } from '../harness/json';
 import { SITE_SLUG } from '../harness/seed';
 import { REPO_ROOT, readHarness } from '../harness/state';
 
@@ -122,6 +122,45 @@ const captioned = async (
 };
 
 const mediaPage = (media: number): string => `/s/${SITE_SLUG}/media/${String(media)}`;
+
+/** Wait until the derivative worker has made the media's access copy. */
+const copied = async (request: APIRequestContext, media: number): Promise<void> => {
+  const deadline = Date.now() + 60_000;
+  for (;;) {
+    const document: unknown = await (await request.get(`/api/media/${String(media)}`)).json();
+    const access = record(document, 'media')['o-module-romeka:access'];
+    const state = isRecord(access) ? access['state'] : null;
+    if (state === 'ready') {
+      return;
+    }
+    if (Date.now() > deadline) {
+      throw new Error(`media ${String(media)} access copy stayed ${JSON.stringify(state)}`);
+    }
+    await new Promise((done) => setTimeout(done, 100));
+  }
+};
+
+test('a video no browser opens plays its access copy, and the original stays linked', async ({
+  page,
+  diagnostics,
+}) => {
+  const media = await upload(page.request, 'mjpeg.avi', 'video/x-msvideo');
+  await copied(page.request, media);
+  await page.goto(mediaPage(media));
+
+  const player = page.locator('.media-render video');
+  await expect(player).toHaveCount(1);
+  const source = await player.getAttribute('src');
+  expect(source, String(source)).toMatch(/\/files\/access\/[0-9a-f]+\.mp4$/);
+  // The link inside the player is the preservation master, not the copy.
+  await expect(player.locator('a')).toHaveAttribute('href', /\/files\/original\/[0-9a-f]+\.avi$/);
+
+  // A `?t=` link cues the copy, whose duration is the original's.
+  await page.goto(`${mediaPage(media)}?t=0.2`);
+  const cued = await page.locator('.media-render video').getAttribute('src');
+  expect(cued, String(cued)).toMatch(/\/files\/access\/[0-9a-f]+\.mp4#t=0\.2$/);
+  await expectClean(diagnostics, 'an access-copy video page');
+});
 
 test('the media page lists the captions as a transcript, each line a link to its moment', async ({
   page,

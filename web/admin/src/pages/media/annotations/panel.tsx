@@ -11,7 +11,7 @@
  * `beginDraft`. This unit starts whole-file notes only.
  */
 import type { ReactElement, ReactNode } from 'react';
-import { Suspense, lazy, useEffect, useId, useRef } from 'react';
+import { Suspense, lazy, useEffect, useId, useRef, useState } from 'react';
 import type { Media } from '../../../api/types';
 import { ErrorNotice } from '../../../app/errors';
 import { mediaKind } from '../../../app/media';
@@ -19,8 +19,10 @@ import { useTranslator } from '../../../i18n';
 import { annotations } from '../../../i18n/namespaces/annotations';
 import { common } from '../../../i18n/namespaces/common';
 import type { TrackSummary } from './client';
+import type { NotesFocus } from './link';
 import type { Editing } from './use-notes';
 import type { Note, Selector } from './wire';
+import { noteIdOf } from './wire';
 import { NoteList, placedNotes } from './note-list';
 import { seek } from './player';
 import { useNotes } from './use-notes';
@@ -75,11 +77,14 @@ const shapeOf = (
 export const MediaNotes = ({
   media,
   player,
+  focus,
   onTracks,
 }: {
   readonly media: Media;
   /** The stage's player element, when the media has one. */
   readonly player?: HTMLMediaElement | null;
+  /** The job the URL asked for, applied once per URL. */
+  readonly focus?: NotesFocus | null;
   /** The caption languages, for the stage's `<track>` elements. */
   readonly onTracks?: (tracks: readonly TrackSummary[]) => void;
 }): ReactElement => {
@@ -89,6 +94,10 @@ export const MediaNotes = ({
   const notes = useNotes(media);
   const { load, ready, editing } = notes;
   const { focusedHeading, clearFocusedHeading } = notes;
+  /** The URL job already applied, so a re-render does not open the note twice. */
+  const applied = useRef<string | null>(null);
+  /** A time note the URL opened, waiting for the stage's player to exist. */
+  const [urlSeek, setUrlSeek] = useState<number | null>(null);
 
   useEffect(() => {
     if (focusedHeading) {
@@ -96,6 +105,45 @@ export const MediaNotes = ({
       clearFocusedHeading();
     }
   }, [focusedHeading, clearFocusedHeading]);
+
+  /**
+   * A link from the item page names a note or asks for a draft. The panel opens
+   * it through the same `open` and `beginDraft` its own list calls, so a region
+   * is highlighted and a recording is seeked exactly as a click does it.
+   */
+  useEffect(() => {
+    if (focus === null || focus === undefined || ready === null) {
+      return;
+    }
+    const key = focus.kind === 'add' ? 'add' : `note:${focus.noteId}`;
+    if (applied.current === key) {
+      return;
+    }
+    if (focus.kind === 'add') {
+      applied.current = key;
+      notes.beginDraft({ kind: 'whole' });
+      return;
+    }
+    const note = ready.notes.find((entry) => noteIdOf(entry.iri) === focus.noteId);
+    if (note === undefined) {
+      return;
+    }
+    applied.current = key;
+    notes.open(note);
+    notes.focusNote(note.iri);
+    if (note.selector.kind === 'time') {
+      setUrlSeek(note.selector.startMs);
+    }
+  }, [focus, ready, notes]);
+
+  /** The player mounts after the notes read, so the seek waits for it. */
+  useEffect(() => {
+    if (urlSeek === null || player === null || player === undefined) {
+      return;
+    }
+    seek(player, urlSeek);
+    setUrlSeek(null);
+  }, [urlSeek, player]);
 
   const expanded = (note: Note): ReactNode | null => {
     switch (editing.kind) {

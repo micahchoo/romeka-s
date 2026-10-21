@@ -390,8 +390,8 @@ mod tests {
         }
     }
 
-    /// The upstream prefixes in the order its store writes them, and Romeka's
-    /// `access` after them.
+    /// The five upstream prefixes in the order its store writes them, then the
+    /// access copies this fork adds.
     #[test]
     fn all_prefixes_are_original_asset_the_thumbnail_types_and_access() {
         let names: Vec<&str> = StorePrefix::ALL

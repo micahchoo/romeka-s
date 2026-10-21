@@ -60,85 +60,95 @@ async fn a_claim_takes_the_row_once_and_counts_the_attempt() {
     let repo = MediaDerivativeRepo::new(&pool);
     repo.enqueue(&poster(second)).await.unwrap();
     repo.enqueue(&poster(first)).await.unwrap();
-    assert_eq!(repo.pending().await.unwrap(), 2);
+    assert_eq!(repo.pending(&["ffmpeg"]).await.unwrap(), 2);
 
-    let claimed = repo.claim_next().await.unwrap().expect("a row");
+    let claimed = repo.claim_next(&["ffmpeg"]).await.unwrap().expect("a row");
     assert_eq!(claimed.state, DerivativeState::Running);
     assert_eq!(claimed.attempts, 1);
     assert!(claimed.started.is_some());
 
-    let next = repo.claim_next().await.unwrap().expect("the second row");
+    let next = repo
+        .claim_next(&["ffmpeg"])
+        .await
+        .unwrap()
+        .expect("the second row");
     assert_ne!(claimed.media_id, next.media_id, "one claim per row");
-    assert_eq!(repo.pending().await.unwrap(), 0);
-    assert!(repo.claim_next().await.unwrap().is_none());
+    assert_eq!(repo.pending(&["ffmpeg"]).await.unwrap(), 0);
+    assert!(repo.claim_next(&["ffmpeg"]).await.unwrap().is_none());
 }
 
 #[tokio::test]
-async fn an_access_copy_counts_for_the_worker_that_makes_it() {
+async fn an_access_copy_is_claimed_when_ffmpeg_makes_it_and_left_otherwise() {
     let pool = common::memory().await;
-    let id = media(&pool, "queue-access").await;
+    let video = media(&pool, "queue-access").await;
+    let image = media(&pool, "queue-image").await;
     let repo = MediaDerivativeRepo::new(&pool);
-    assert!(
-        repo.plan(
-            &NewDerivative {
-                media_id: id,
-                kind: DerivativeKind::AccessCopy,
-            },
-            DerivativeState::Pending,
-            None,
-            Some("ffmpeg"),
-        )
-        .await
-        .unwrap()
-    );
-    assert_eq!(
-        repo.pending().await.unwrap(),
-        1,
-        "a copy its worker can make starts that worker"
-    );
-    assert!(
-        repo.claim_next_image_master(&["vips"])
+    for (id, tool) in [(image, "vips"), (video, "ffmpeg")] {
+        assert!(
+            repo.plan(
+                &NewDerivative {
+                    media_id: id,
+                    kind: DerivativeKind::AccessCopy,
+                },
+                DerivativeState::Pending,
+                None,
+                Some(tool),
+            )
             .await
             .unwrap()
-            .is_none(),
-        "an ffmpeg copy is the audio and video worker's"
+        );
+    }
+    assert_eq!(
+        repo.pending(&["ffmpeg"]).await.unwrap(),
+        1,
+        "only the copy whose tool this worker runs is its work"
     );
-    let row = repo
-        .get(id, DerivativeKind::AccessCopy)
+    let claimed = repo
+        .claim_next(&["ffmpeg"])
+        .await
+        .unwrap()
+        .expect("the ffmpeg copy");
+    assert_eq!(claimed.media_id, video);
+    assert_eq!(claimed.kind, DerivativeKind::AccessCopy);
+    assert!(
+        repo.claim_next(&["ffmpeg"]).await.unwrap().is_none(),
+        "the image copy waits for the worker that runs vips"
+    );
+    let waiting = repo
+        .get(image, DerivativeKind::AccessCopy)
         .await
         .unwrap()
         .expect("the row");
-    assert_eq!(row.state, DerivativeState::Pending);
-    assert_eq!(row.tool.as_deref(), Some("ffmpeg"));
-    assert!(row.finished.is_none());
+    assert_eq!(waiting.state, DerivativeState::Pending);
 
-    // A copy with no command starts no worker, and a JPEG master is the image
-    // worker's to claim.
-    let jpeg = media(&pool, "queue-master").await;
-    repo.plan(
-        &NewDerivative {
-            media_id: jpeg,
-            kind: DerivativeKind::AccessCopy,
-        },
-        DerivativeState::Pending,
-        None,
-        Some("vips"),
-    )
-    .await
-    .unwrap();
-    assert_eq!(repo.pending().await.unwrap(), 2);
-    let master = repo
-        .claim_next_image_master(&["vips"])
+    // A preview row queued behind the ffmpeg copy is claimed next.
+    repo.enqueue(&poster(video)).await.unwrap();
+    assert_eq!(
+        repo.pending(&["ffmpeg"]).await.unwrap(),
+        1,
+        "the poster is the only row this worker can still claim"
+    );
+    let next = repo
+        .claim_next(&["ffmpeg"])
         .await
         .unwrap()
-        .expect("the JPEG master");
-    assert_eq!(master.media_id, jpeg);
-    assert_eq!(master.tool.as_deref(), Some("vips"));
+        .expect("the poster");
+    assert_eq!(next.kind, DerivativeKind::Poster);
 
-    // A preview row queued behind them is still claimed first.
-    repo.enqueue(&poster(id)).await.unwrap();
-    let claimed = repo.claim_next().await.unwrap().expect("the poster");
-    assert_eq!(claimed.kind, DerivativeKind::Poster);
+    // From the other side, a worker that has `vips` claims the image copy and
+    // leaves the ffmpeg row alone. The two filters are disjoint.
+    let claimed = repo
+        .claim_next(&["exiftool", "vips"])
+        .await
+        .unwrap()
+        .expect("the image copy");
+    assert_eq!(claimed.media_id, image);
+    assert!(
+        repo.claim_next(&["exiftool", "vips"])
+            .await
+            .unwrap()
+            .is_none()
+    );
 }
 
 /// A copy settled `none` because this install lacked its command keeps the command when it is
@@ -169,11 +179,40 @@ async fn a_retried_access_copy_keeps_the_command_its_plan_named() {
     assert_eq!(row.tool.as_deref(), Some("vips"));
     assert!(row.reason.is_none());
     let claimed = repo
-        .claim_next_image_master(&["vips"])
+        .claim_next(&["vips"])
         .await
         .unwrap()
         .expect("the tools image claims it");
     assert_eq!(claimed.media_id, id);
+}
+
+#[tokio::test]
+async fn a_running_row_goes_back_to_the_queue_and_is_claimed_again() {
+    let pool = common::memory().await;
+    let id = media(&pool, "queue-requeue").await;
+    let repo = MediaDerivativeRepo::new(&pool);
+    repo.enqueue(&poster(id)).await.unwrap();
+    let claimed = repo.claim_next(&["ffmpeg"]).await.unwrap().expect("a row");
+    assert_eq!(claimed.state, DerivativeState::Running);
+
+    assert!(repo.requeue(id, DerivativeKind::Poster).await.unwrap());
+    let queued = repo
+        .get(id, DerivativeKind::Poster)
+        .await
+        .unwrap()
+        .expect("the row");
+    assert_eq!(queued.state, DerivativeState::Pending);
+    assert!(queued.started.is_none());
+    assert!(queued.progress.is_none());
+    assert_eq!(queued.attempts, 1, "the attempt it made is still counted");
+
+    let again = repo
+        .claim_next(&["ffmpeg"])
+        .await
+        .unwrap()
+        .expect("a second claim");
+    assert_eq!(again.state, DerivativeState::Running);
+    assert_eq!(again.attempts, 2);
 }
 
 #[tokio::test]
@@ -211,7 +250,7 @@ async fn a_settled_row_keeps_its_reason_and_is_not_reclaimed() {
     let id = media(&pool, "queue-4").await;
     let repo = MediaDerivativeRepo::new(&pool);
     repo.enqueue(&poster(id)).await.unwrap();
-    let claimed = repo.claim_next().await.unwrap().expect("a row");
+    let claimed = repo.claim_next(&["ffmpeg"]).await.unwrap().expect("a row");
 
     assert!(
         repo.finish(
@@ -236,7 +275,7 @@ async fn a_settled_row_keeps_its_reason_and_is_not_reclaimed() {
         Some("the ffmpeg command failed: exit status 1")
     );
     assert!(row.finished.is_some());
-    assert!(repo.claim_next().await.unwrap().is_none());
+    assert!(repo.claim_next(&["ffmpeg"]).await.unwrap().is_none());
     assert!(
         !repo
             .finish(
@@ -261,7 +300,10 @@ async fn retry_reopens_failed_and_skipped_rows_only() {
     let repo = MediaDerivativeRepo::new(&pool);
     for id in [failed, ready] {
         repo.enqueue(&poster(id)).await.unwrap();
-        repo.claim_next().await.unwrap().expect("claimed");
+        repo.claim_next(&["ffmpeg"])
+            .await
+            .unwrap()
+            .expect("claimed");
     }
     repo.finish(
         failed,

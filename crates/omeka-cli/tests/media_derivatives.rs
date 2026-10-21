@@ -22,14 +22,15 @@ use axum::http::{Method, Request, StatusCode};
 use omeka_api::derivatives::DERIVATIVES_JOB;
 use omeka_cli::commands::derivatives::{self, DerivativeOptions};
 use omeka_cli::commands::install::{InstallOptions, run as install};
-use omeka_cli::jobs::{ImportSweep, Job, JobEnv, Runner, compose_job};
+use omeka_cli::jobs::{ImportSweep, Job, JobCommand, JobEnv, Runner, compose_job};
 use omeka_db::DbPool;
 use omeka_db::ids::{ItemId, JobId, MediaId, UserId};
 use omeka_db::repos::{
     ApiKeyRepo, ImportRepo, ItemRepo, JobFilter, JobRepo, MediaDerivativeRepo, MediaRepo, Paging,
 };
 use omeka_db::rows::{
-    DerivativeKind, DerivativeState, NewApiKey, NewImport, NewItem, NewJob, NewMedia, NewResource,
+    DerivativeKind, DerivativeState, NewApiKey, NewDerivative, NewImport, NewItem, NewJob,
+    NewMedia, NewResource,
 };
 use omeka_db::with_db;
 use omeka_media::derivative::{DerivativeWork, PreviewSource, make_preview};
@@ -319,6 +320,15 @@ fn job_env(harness: &Harness) -> JobEnv {
         store: Arc::clone(&harness.store),
         base_url: omeka_api::jsonld::BaseUrl::parse("http://localhost").unwrap(),
         archive_roots: Default::default(),
+        // The sweep starts a worker in its own process, which is the built
+        // binary over this harness's database and store.
+        jobs: Some(JobCommand {
+            program: Some(PathBuf::from(env!("CARGO_BIN_EXE_romeka"))),
+            database: harness._dir.path().join("romeka.db").into(),
+            store: Some(harness._dir.path().join("files")),
+            base_url: Some("http://localhost".to_string()),
+            archive_root: None,
+        }),
     }
 }
 
@@ -584,7 +594,8 @@ async fn a_tool_that_fails_settles_failed_and_the_backfill_retries_it() {
     assert_eq!(row.attempts, 1);
 
     // The retry path: replace the broken original with a real one and run the
-    // backfill with `--retry`.
+    // backfill with `--retry`. The poster is retried, and so is the access copy
+    // the first worker failed on.
     let path = storage_path(StorePrefix::Original, &storage_id, Some("mp4"));
     harness
         .store
@@ -599,7 +610,7 @@ async fn a_tool_that_fails_settles_failed_and_the_backfill_retries_it() {
     })
     .await
     .expect("the backfill ran");
-    assert_eq!(report.retried, 1, "{report:?}");
+    assert_eq!(report.retried, 2, "{report:?}");
     assert_eq!(report.rows.len(), 2, "{report:?}");
     let preview = report
         .rows
@@ -607,6 +618,17 @@ async fn a_tool_that_fails_settles_failed_and_the_backfill_retries_it() {
         .find(|row| row.kind.is_preview())
         .expect("the poster row");
     assert_eq!(preview.state, DerivativeState::Ready, "{report:?}");
+    let copy = report
+        .rows
+        .iter()
+        .find(|row| row.kind == DerivativeKind::AccessCopy)
+        .expect("the access row");
+    assert_eq!(
+        copy.state,
+        DerivativeState::None,
+        "the replaced original is a browser-playable MP4: {report:?}"
+    );
+    assert_eq!(copy.reason.as_deref(), Some("a browser shows the original"));
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -666,6 +688,263 @@ async fn a_running_import_holds_the_worker_off_the_queue() {
     .expect("row")
     .expect("the row");
     assert_eq!(untouched.state, DerivativeState::Pending, "nothing started");
+}
+
+/// The MJPEG AVI the corpus holds: a video no browser plays.
+fn avi() -> Vec<u8> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/media-kinds/mjpeg.avi");
+    std::fs::read(&path).unwrap_or_else(|error| panic!("{}: {error}", path.display()))
+}
+
+/// An AVI created through the route gets a playable MP4 under `access/`, the
+/// media document says where it is, and the original is still there untouched.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_avi_gets_a_playable_copy_and_the_original_is_kept() {
+    if Tools::on_path().ffmpeg().is_none() || Tools::on_path().ffprobe().is_none() {
+        eprintln!("skipping: no ffmpeg or ffprobe on PATH");
+        return;
+    }
+    let harness = harness().await;
+    let document = create_media(&harness, "reel.avi", &avi()).await;
+    let id = document["o:id"].as_u64().expect("the media id");
+    let access = |id: u64| {
+        let pool = harness.pool.clone();
+        async move {
+            with_db!(&pool, |db| MediaDerivativeRepo::new(db)
+                .get(MediaId(id), DerivativeKind::AccessCopy)
+                .await)
+            .expect("the row")
+            .expect("the access row")
+        }
+    };
+    let queued = access(id).await;
+    assert_eq!(queued.state, DerivativeState::Pending);
+    assert_eq!(queued.tool.as_deref(), Some("ffmpeg"));
+
+    let jobs = harness.recorder.taken();
+    assert_eq!(jobs.len(), 1, "one worker for one create");
+    Runner::with_env(&harness.pool, job_env(&harness))
+        .run(jobs[0])
+        .await
+        .expect("the worker ran");
+
+    let media = with_db!(&harness.pool, |db| MediaRepo::new(db)
+        .get(MediaId(id))
+        .await)
+    .expect("media")
+    .expect("the row");
+    let storage_id = media.storage_id.clone().expect("a storage id");
+    let copy = format!("access/{storage_id}.mp4");
+    assert!(
+        harness.store.exists(&copy).expect("the store answers"),
+        "the copy is under its own prefix"
+    );
+    assert!(
+        harness
+            .store
+            .exists(&format!("original/{storage_id}.avi"))
+            .expect("the store answers"),
+        "the original is untouched"
+    );
+    let ready = access(id).await;
+    assert_eq!(ready.state, DerivativeState::Ready);
+    assert_eq!(ready.progress, Some(100));
+
+    let document = read_media(&harness, id).await;
+    let member = &document["o-module-romeka:access"];
+    assert_eq!(member["state"], "ready", "{document}");
+    assert_eq!(member["media_type"], "video/mp4", "{document}");
+    let url = member["url"].as_str().unwrap_or_default();
+    assert!(url.ends_with(&copy), "{url}");
+    assert!(
+        document["o:original_url"]
+            .as_str()
+            .is_some_and(|original| original.ends_with(&format!("original/{storage_id}.avi"))),
+        "the preservation master is still the original: {document}"
+    );
+}
+
+/// A running copy yields to an import: the command is killed, the row goes back
+/// to the queue and any partial copy is removed. A stand-in `ffmpeg` prints
+/// progress and sleeps, so the import starts while the copy is running.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_starting_import_sends_a_running_copy_back_to_the_queue() {
+    use omeka_api::derivatives::{Settled, settle_next_with};
+
+    let harness = harness().await;
+    let (media, storage_id) = insert_media(&harness, "video/x-msvideo", "avi", &avi()).await;
+    let row = with_db!(&harness.pool, |db| MediaRepo::new(db).get(media).await)
+        .expect("media")
+        .expect("the row");
+    omeka_api::derivatives::enqueue(&harness.pool, &harness.store, &row)
+        .await
+        .expect("queue");
+    let access = |media: MediaId| {
+        let pool = harness.pool.clone();
+        async move {
+            with_db!(&pool, |db| MediaDerivativeRepo::new(db)
+                .get(media, DerivativeKind::AccessCopy)
+                .await)
+            .expect("the row")
+            .expect("the access row")
+        }
+    };
+    assert_eq!(access(media).await.state, DerivativeState::Pending);
+
+    // A partial file from an earlier run must be gone after the stop.
+    let copy = format!("access/{storage_id}.mp4");
+    harness
+        .store
+        .put(b"half a copy", &copy, Some("video/mp4"))
+        .expect("a partial copy");
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    let ffmpeg = dir.path().join("ffmpeg");
+    std::fs::write(
+        &ffmpeg,
+        "#!/bin/sh\n\
+         for last in \"$@\"; do out=$last; done\n\
+         printf 'out_time_us=1000000\\nprogress=continue\\n'\n\
+         sleep 10\n\
+         printf 'x' > \"$out\"\n",
+    )
+    .expect("the stand-in ffmpeg");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::set_permissions(&ffmpeg, std::fs::Permissions::from_mode(0o755))
+            .expect("make it executable");
+    }
+    let ffprobe = dir.path().join("ffprobe");
+    std::fs::write(
+        &ffprobe,
+        "#!/bin/sh\nprintf '%s' '{\"streams\":[{\"codec_type\":\"video\",\"codec_name\":\"mjpeg\",\"width\":96,\"height\":64}],\"format\":{\"duration\":\"2.0\"}}'\n",
+    )
+    .expect("the stand-in ffprobe");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::set_permissions(&ffprobe, std::fs::Permissions::from_mode(0o755))
+            .expect("make it executable");
+    }
+    let tools = Tools::none().with_ffmpeg(&ffmpeg).with_ffprobe(&ffprobe);
+
+    let task = tokio::spawn({
+        let pool = harness.pool.clone();
+        let store = Arc::clone(&harness.store);
+        async move { settle_next_with(&pool, &store, &tools, None).await }
+    });
+    let started = Instant::now();
+    let running = loop {
+        let row = access(media).await;
+        if row.state == DerivativeState::Running && row.progress.is_some_and(|p| p > 0) {
+            break row;
+        }
+        assert!(
+            started.elapsed() < Duration::from_secs(20),
+            "the copy did not start: {row:?}"
+        );
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    };
+    assert_eq!(
+        running.progress,
+        Some(50),
+        "one second of a two second file"
+    );
+
+    let import = with_db!(&harness.pool, |db| ImportRepo::new(db)
+        .create_draft(&NewImport {
+            owner_id: Some(harness.user),
+            sources: json!([]),
+            plan: json!({}),
+            copied_from: None,
+        })
+        .await)
+    .expect("draft");
+    with_db!(&harness.pool, |db| ImportRepo::new(db)
+        .start_run(import.id, import.revision)
+        .await)
+    .expect("the import started");
+
+    let settled = task
+        .await
+        .expect("the worker task")
+        .expect("the worker ran");
+    assert!(
+        matches!(settled, Some(Settled::Queued { .. })),
+        "{settled:?}"
+    );
+    let queued = access(media).await;
+    assert_eq!(
+        queued.state,
+        DerivativeState::Pending,
+        "the row waits for the next worker"
+    );
+    assert!(
+        !harness.store.exists(&copy).expect("the store answers"),
+        "the partial copy was removed"
+    );
+}
+
+/// A media whose original yielded no poster takes the copy's frame: with no
+/// preview row at all, the access copy's work makes the three thumbnails.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_copy_makes_the_poster_when_the_original_yielded_none() {
+    if Tools::on_path().ffmpeg().is_none() || Tools::on_path().ffprobe().is_none() {
+        eprintln!("skipping: no ffmpeg or ffprobe on PATH");
+        return;
+    }
+    let harness = harness().await;
+    let (media, storage_id) = insert_media(&harness, "video/x-msvideo", "avi", &avi()).await;
+    // Only the copy is planned, so the still the original would have made is
+    // never queued.
+    let planned = with_db!(&harness.pool, |db| MediaDerivativeRepo::new(db)
+        .plan(
+            &NewDerivative {
+                media_id: media,
+                kind: DerivativeKind::AccessCopy,
+            },
+            DerivativeState::Pending,
+            None,
+            Some("ffmpeg"),
+        )
+        .await)
+    .expect("the access row");
+    assert!(planned);
+    let job = with_db!(&harness.pool, |db| JobRepo::new(db)
+        .create(&NewJob {
+            owner_id: None,
+            pid: None,
+            status: Some("starting".to_string()),
+            class: DERIVATIVES_JOB.to_string(),
+            args: Some(json!({})),
+            log: None,
+            started: None,
+        })
+        .await)
+    .expect("job");
+    Runner::with_env(&harness.pool, job_env(&harness))
+        .run(job.id)
+        .await
+        .expect("the worker ran");
+
+    for kind in omeka_media::file_render::ThumbnailType::ALL {
+        let path = omeka_media::thumbnailer::thumbnail_path(&storage_id, kind);
+        assert!(
+            harness.store.exists(&path).expect("the store answers"),
+            "{path} was not made from the copy"
+        );
+    }
+    let updated = with_db!(&harness.pool, |db| MediaRepo::new(db).get(media).await)
+        .expect("media")
+        .expect("the row");
+    assert!(updated.has_thumbnails, "the flag follows the files");
+    let copy = with_db!(&harness.pool, |db| MediaDerivativeRepo::new(db)
+        .get(media, DerivativeKind::AccessCopy)
+        .await)
+    .expect("the row")
+    .expect("the access row");
+    assert_eq!(copy.state, DerivativeState::Ready);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -758,8 +1037,8 @@ fn a_stored_original_with_no_local_path_is_streamed_not_read_whole() {
 }
 
 /// The hourly sweep is the queue's timer: a pending preview must not wait for
-/// the next create. It starts one worker when the queue has work and no worker
-/// holds it, and nothing while an import runs.
+/// the next create. It starts one worker in its own process when the queue has
+/// work and no worker holds it, and nothing while an import runs.
 #[tokio::test(flavor = "multi_thread")]
 async fn the_hourly_sweep_starts_one_derivative_worker_and_never_during_an_import() {
     let harness = harness().await;
@@ -791,8 +1070,42 @@ async fn the_hourly_sweep_starts_one_derivative_worker_and_never_during_an_impor
                 .expect("sweep ran")
         }
     };
+    // The sweep no longer runs its worker in this process: the row it composed
+    // is settled by the child, so wait for that child before judging the queue.
+    let wait_for_workers = || {
+        let pool = harness.pool.clone();
+        async move {
+            let started = Instant::now();
+            loop {
+                let rows = with_db!(&pool, |db| JobRepo::new(db)
+                    .list(
+                        &JobFilter {
+                            class: Some(DERIVATIVES_JOB.to_string()),
+                            ..JobFilter::default()
+                        },
+                        &Paging::default(),
+                    )
+                    .await)
+                .expect("worker rows");
+                if rows.iter().all(|row| {
+                    matches!(
+                        row.status.as_deref(),
+                        Some("completed" | "stopped" | "error")
+                    )
+                }) {
+                    return rows;
+                }
+                assert!(
+                    started.elapsed() < Duration::from_secs(60),
+                    "a derivative worker did not end: {rows:?}"
+                );
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+        }
+    };
 
-    // A queued preview and no worker: one worker starts and settles it.
+    // A queued preview and no worker: one worker starts, in its own process, and
+    // settles it.
     let (first, _) = insert_media(&harness, "image/png", "png", &png()).await;
     let row = with_db!(&harness.pool, |db| MediaRepo::new(db).get(first).await)
         .expect("media")
@@ -801,7 +1114,19 @@ async fn the_hourly_sweep_starts_one_derivative_worker_and_never_during_an_impor
         .await
         .expect("queue");
     sweep().await;
-    assert_eq!(worker_rows().await.len(), 1, "one worker");
+    let started = worker_rows().await;
+    assert_eq!(started.len(), 1, "one worker");
+    let finished = wait_for_workers().await;
+    assert_eq!(finished[0].status.as_deref(), Some("completed"));
+    assert!(
+        finished[0]
+            .log
+            .as_deref()
+            .unwrap_or_default()
+            .contains("Derivatives:"),
+        "the child did the work: {:?}",
+        finished[0].log
+    );
     let settled = with_db!(&harness.pool, |db| MediaDerivativeRepo::new(db)
         .get(first, DerivativeKind::Thumbnail)
         .await)

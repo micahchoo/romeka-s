@@ -192,6 +192,78 @@ async fn a_one_frame_oembed_names_the_provider_player() {
     );
 }
 
+/// A YouTube media answers the player its renderer embeds, built from the id
+/// and the times the ingester stored, so the admin frames exactly the player
+/// the public site shows.
+#[tokio::test]
+async fn a_youtube_media_names_the_nocookie_player() {
+    let (pool, seed) = seeded_engine_pool().await;
+    let media = store(
+        &pool,
+        &seed,
+        Fields {
+            source: Some("https://www.youtube.com/watch?v=abc123"),
+            data: Some(json!({"id": "abc123", "start": "30", "end": "60"})),
+            ..Fields::plain("youtube", "youtube")
+        },
+    )
+    .await;
+
+    let answer = send(
+        router(pool),
+        get(&format!("/api/romeka/media/{media}/player"), false),
+    )
+    .await;
+
+    assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
+    assert_eq!(header(&answer.headers, "content-type"), "application/json");
+    assert_eq!(
+        answer.json()["url"],
+        json!("https://www.youtube-nocookie.com/embed/abc123?start=30&end=60")
+    );
+    assert!(header(&answer.headers, "cache-control").contains("private"));
+}
+
+/// A stored id that is not one YouTube video id names no player, and the render
+/// route still refuses the renderer, which is why the stage keeps its card
+/// instead of opening the 415 document in the strict frame.
+#[tokio::test]
+async fn a_youtube_media_with_a_foreign_id_names_no_player() {
+    let (pool, seed) = seeded_engine_pool().await;
+    for id in ["abc/def", "abc\"def"] {
+        let media = store(
+            &pool,
+            &seed,
+            Fields {
+                source: Some("https://www.youtube.com/watch?v=abc123"),
+                data: Some(json!({"id": id})),
+                ..Fields::plain("youtube", "youtube")
+            },
+        )
+        .await;
+
+        let answer = send(
+            router(pool.clone()),
+            get(&format!("/api/romeka/media/{media}/player"), false),
+        )
+        .await;
+        assert_eq!(answer.status, StatusCode::OK, "{id}: {}", answer.body);
+        assert_eq!(answer.json()["url"], Value::Null, "{id}: {}", answer.body);
+
+        let render = send(
+            router(pool.clone()),
+            get(&format!("/api/romeka/media/{media}/render"), false),
+        )
+        .await;
+        assert_eq!(
+            render.status,
+            StatusCode::UNSUPPORTED_MEDIA_TYPE,
+            "{id}: {}",
+            render.body
+        );
+    }
+}
+
 /// A render with more than the frame, a plain `http` frame, a frame from a host
 /// outside the oEmbed list, and an HTML media all name no provider player.
 #[tokio::test]

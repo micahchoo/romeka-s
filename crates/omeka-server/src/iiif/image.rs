@@ -21,11 +21,28 @@ use omeka_media::kind::{KindInput, MediaKind};
 use omeka_media::store::Store;
 use serde_json::Value;
 
-use super::manifest::{CanvasMedia, LocalImage, Painting, Size};
+use super::manifest::{CanvasMedia, LocalImage, Original, Painting, Size};
 use crate::AppState;
 
 /// The media type of an Image API 3 `info.json`.
 const INFO_TYPE: &str = "application/ld+json;profile=\"http://iiif.io/api/image/3/context.json\"";
+
+/// The ready access copy a media representation reports: the URL to play and
+/// its type. `None` when the original is what a browser plays, the copy is
+/// still being made, or the type has no copy.
+fn access_copy(media: &Value) -> Option<(String, String)> {
+    let access = media.get("o-module-romeka:access")?;
+    if access.get("state").and_then(Value::as_str) != Some("ready") {
+        return None;
+    }
+    Some((
+        access.get("url").and_then(Value::as_str)?.to_string(),
+        access
+            .get("media_type")
+            .and_then(Value::as_str)?
+            .to_string(),
+    ))
+}
 
 /// The kind of one media representation, through the crate's one kind table.
 fn kind_of(media: &Value) -> MediaKind {
@@ -192,13 +209,23 @@ pub(super) async fn canvas_media(state: &AppState, media: &Value) -> Option<Canv
                 .av(MediaId(id), &file.original_path, file.extension.as_deref())
                 .await;
             let duration_s = extent.duration_ms? as f64 / 1000.0;
-            let url = file.original_url?;
-            let media_type = file.media_type?;
+            let original = Original {
+                url: file.original_url?,
+                media_type: file.media_type?,
+            };
+            // A ready access copy is what a viewer plays; the original stays
+            // linked through `rendering`. The duration is the probe's, which the
+            // copy keeps, so a time-based note still names a moment inside it.
+            let (url, media_type, original) = match access_copy(media) {
+                Some((url, media_type)) => (url, media_type, Some(original)),
+                None => (original.url.clone(), original.media_type.clone(), None),
+            };
             match kind {
                 MediaKind::Audio => Painting::Sound {
                     url,
                     media_type,
                     duration_s,
+                    original,
                 },
                 _ => Painting::Video {
                     url,
@@ -206,6 +233,7 @@ pub(super) async fn canvas_media(state: &AppState, media: &Value) -> Option<Canv
                     duration_s,
                     size: extent.size,
                     poster: file.large_url,
+                    original,
                 },
             }
         }

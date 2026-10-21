@@ -316,11 +316,13 @@ the server starts one `Romeka\Job\MediaDerivatives` worker
 The same create records the file's access decision as a second row, kind
 `access_copy`: `none` when a browser shows the original, `pending` when a copy
 is needed and its tool is installed, or `none` with `needs <tool>, not
-installed`. That row names the copy a later worker makes (an H.264/AAC MP4, an
-AAC M4A, a JPEG access master) and is never claimed by the preview worker: the
-image worker claims a master row whose command it has and settles it ready with
-the master and its three thumbnails, and the audio and video worker claims an
-`ffmpeg` one. A media the import made carries no row and reads its state from
+installed`. That row names the copy a later worker makes: an H.264/AAC MP4 or an
+AAC M4A, which the audio and video worker claims and transcodes
+(`omeka_media::transcode`), or a JPEG access master, which the image worker
+claims when its install has the master's command and settles with the master and
+its three thumbnails. A media document also carries `o-module-romeka:access`: the
+row's state, its progress while the copy runs, and the copy's URL and type once
+it is ready. A media the import made carries no row and reads its state from
 what the store holds, so every media document answers the member the same way.
 A read that needs the derivatives (the IIIF canvas, a test) settles the queue
 first.

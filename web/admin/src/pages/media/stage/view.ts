@@ -21,6 +21,26 @@ import {
   originalFileUrl,
 } from '../../../app/media';
 
+const blankToNull = (text: string | null): string | null =>
+  text === null || text === '' ? null : text;
+
+/**
+ * The file a player opens: the access copy the server marked ready, the
+ * original otherwise. A WMA or an AVI is no container a browser opens, and the
+ * server made an M4A or an MP4 for it; the original stays the download and the
+ * link beside the player, never its source.
+ */
+const playerUrl = (media: Media): string | null => {
+  const copy = media.access;
+  if (copy !== null && copy.state === 'ready') {
+    const url = blankToNull(copy.url);
+    if (url !== null) {
+      return url;
+    }
+  }
+  return blankToNull(media.originalUrl);
+};
+
 /** The facts a file card states, and the link that takes the file. */
 export interface FileFacts {
   readonly name: string | null;
@@ -32,6 +52,12 @@ export interface FileFacts {
   /** The row's source, when it is a web address the card may link. */
   readonly sourceUrl: string | null;
 }
+
+/**
+ * What an embed's card becomes when the server names no player: the strict
+ * frame of its render (`render`), or the card and its link alone (`link`).
+ */
+export type EmbedFallback = 'render' | 'link';
 
 /**
  * What the stage draws. `element` names the browser control, not the media
@@ -68,13 +94,15 @@ export type StageView =
     }
   | {
       /**
-       * An oEmbed or HTML media, which only the server may render. The stage
-       * puts the server's render in a sandboxed frame on the editor's press;
-       * `host` is `null` for an HTML snippet that names no page.
+       * An embed the server shows: a facade that names the host, and a frame
+       * once the editor asks. `host` is `null` for an HTML snippet that names no
+       * page; `fallback` is what the card becomes when the server names no
+       * player.
        */
       readonly element: 'frame';
       readonly url: string | null;
       readonly host: string | null;
+      readonly fallback: EmbedFallback;
       readonly file: FileFacts;
     }
   | {
@@ -88,7 +116,7 @@ export type StageView =
   | { readonly element: 'none' };
 
 /** The host a link contacts, named before the editor presses it. */
-const hostOf = (url: string): string => {
+export const hostOf = (url: string): string => {
   try {
     return new URL(url).host;
   } catch {
@@ -129,12 +157,18 @@ export const stageView = (media: Media): StageView => {
         file,
       };
     }
-    case 'audio':
-      return original === null ? { element: 'file', file } : { element: 'audio', url: original, file };
-    case 'video':
-      return original === null
+    case 'audio': {
+      const playable = playerUrl(media);
+      return playable === null
         ? { element: 'file', file }
-        : { element: 'video', url: original, poster: largeImageUrl(media), file };
+        : { element: 'audio', url: playable, file };
+    }
+    case 'video': {
+      const playable = playerUrl(media);
+      return playable === null
+        ? { element: 'file', file }
+        : { element: 'video', url: playable, poster: largeImageUrl(media), file };
+    }
     case 'pdf':
       return original === null
         ? { element: 'file', file }
@@ -158,14 +192,22 @@ export const stageView = (media: Media): StageView => {
     }
     case 'embed': {
       const source = httpUrl(media.source);
-      // Only oEmbed and HTML markup needs the server's render: the admin must
-      // not decide what provider HTML is safe. A YouTube link is a player the
-      // admin can name and open, so it keeps the plain card.
+      // The server names the player for an oEmbed, HTML or YouTube media, so
+      // the admin never decides what provider markup is safe. The render route
+      // refuses a YouTube renderer, so a YouTube media whose id the player route
+      // refuses keeps the card and its link, never a 415 document in a frame; a
+      // YouTube row with no source names no page to open either.
+      if (media.renderer === 'youtube') {
+        return source === null
+          ? { element: 'none' }
+          : { element: 'frame', url: source, host: hostOf(source), fallback: 'link', file };
+      }
       if (media.renderer === 'oembed' || media.renderer === 'html') {
         return {
           element: 'frame',
           url: source,
           host: source === null ? null : hostOf(source),
+          fallback: 'render',
           file,
         };
       }

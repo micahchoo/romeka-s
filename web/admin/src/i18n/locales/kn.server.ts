@@ -290,6 +290,10 @@ export const knServer: ServerCatalogue = {
   'server.importZipUnpacked': 'ZIP ಅನ್ನು ಬಿಡಲಾಯಿತು: {count} ಫೈಲ್‌ಗಳನ್ನು ಸೇರಿಸಲಾಯಿತು.',
   'server.importSweepDone':
     '{imports} ಇಂಪೋರ್ಟ್‌ಗಳ ಫೈಲ್‌ಗಳನ್ನು ತೆಗೆದುಹಾಕಲಾಯಿತು, ಮತ್ತು {uploads} ಅಪೂರ್ಣ ಇಂಪೋರ್ಟ್‌ಗಳು.',
+  'server.importAccessFailed':
+    '{media} ಗಾಗಿ ಯಾವುದೇ ಪ್ಲೇ ಮಾಡಬಹುದಾದ ಪ್ರತಿಯನ್ನು ಕ್ಯೂ ಮಾಡಲಾಗಿಲ್ಲ: {reason}',
+  'server.importAccessUnread':
+    'ಈ ಇಂಪೋರ್ಟ್‌ನಲ್ಲಿ ಯಾವುದೇ ಪ್ಲೇ ಮಾಡಬಹುದಾದ ಪ್ರತಿಗಳನ್ನು ಕ್ಯೂ ಮಾಡಲಾಗಿಲ್ಲ: {reason}',
   'server.mediaUploadNotFound':
     'ಈ ಖಾತೆಯಲ್ಲಿ "{upload}" ಐಡಿ ಹೊಂದಿರುವ ಯಾವುದೇ ಸಿದ್ಧಪಡಿಸಿದ ಅಪ್‌ಲೋಡ್ ಇಲ್ಲ.',
   'server.mediaUploadBusy':

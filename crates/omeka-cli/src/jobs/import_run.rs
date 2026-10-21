@@ -16,11 +16,13 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use omeka_api::import::access_copies;
 use omeka_api::import::catalog_load::Owners;
 use omeka_api::import::preview::Caches;
 use omeka_api::import::run::{RUN_JOB, RunEnd, RunEnv, Runner, SiteSync, run_import};
 use omeka_api::import::scan::{SCAN_JOB, scan_import};
 use omeka_api::import::undo::{ApiRemoval, Force, UNDO_JOB, UndoEnd, undo_import};
+use omeka_api::messages;
 use omeka_api::read::Api;
 use omeka_db::DbPool;
 use omeka_db::ids::{ImportId, ItemId, JobId};
@@ -29,7 +31,7 @@ use omeka_db::rows::{ImportEnding, ImportStatus};
 use omeka_db::with_db;
 use omeka_media::HttpClient;
 
-use super::{Job, JobContext, JobError};
+use super::{Job, JobContext, JobError, ProcessDispatch};
 use crate::system_api;
 
 fn import_id(context: &JobContext<'_>) -> Result<ImportId, JobError> {
@@ -81,8 +83,40 @@ impl Job for ImportRun {
                 import.0
             ),
         };
-        context.log(&line).await
+        context.log(&line).await?;
+        if end != RunEnd::Lost {
+            playable_copies(context, import).await?;
+        }
+        Ok(())
     }
+}
+
+/// Record the playable-copy decision of each media the import created, then
+/// start the derivative worker. The import has already ended, so neither step
+/// can fail it: a media left without a decision gets a line in this job's log,
+/// and `romeka media derivatives` decides it later.
+async fn playable_copies(context: &JobContext<'_>, import: ImportId) -> Result<(), JobError> {
+    match access_copies::queue(context.pool, &context.env.store, import).await {
+        Ok(queued) => {
+            for (media, reason) in &queued.failures {
+                context
+                    .log(&messages::import_access_failed(media.0, reason))
+                    .await?;
+            }
+        }
+        Err(error) => {
+            context.log(&messages::import_access_unread(error)).await?;
+        }
+    }
+    // A process with no command to start a job leaves the worker to the
+    // server's hourly sweep, which starts it once rows are queued.
+    let Some(command) = &context.env.jobs else {
+        return Ok(());
+    };
+    let owner = runner(context.pool, context.job_id).await?.user;
+    omeka_server::jobs::start_derivatives(context.pool, &ProcessDispatch(command.clone()), owner)
+        .await;
+    Ok(())
 }
 
 async fn run(context: &JobContext<'_>, import: ImportId) -> Result<RunEnd, JobError> {

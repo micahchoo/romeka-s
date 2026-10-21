@@ -7,7 +7,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Mock } from 'vitest';
 import { brandId } from '../src/api/parse';
-import type { Media, MediaPreview, ServerMediaKind } from '../src/api/types';
+import type { Media, MediaAccess, MediaPreview, ServerMediaKind } from '../src/api/types';
 import { MediaStage } from '../src/pages/media/stage/stage';
 import { recallPosition, rememberPosition } from '../src/pages/media/stage/play-position';
 import { installFetch, jsonResponse, route, urlsFor } from './stub';
@@ -33,6 +33,7 @@ interface MediaFields {
   readonly altText?: string | null;
   readonly thumbnails?: Readonly<Record<string, string>>;
   readonly preview?: MediaPreview | null;
+  readonly access?: MediaAccess | null;
 }
 
 const media = (fields: MediaFields = {}): Media => ({
@@ -62,6 +63,7 @@ const media = (fields: MediaFields = {}): Media => ({
   altText: fields.altText === undefined ? null : fields.altText,
   originalUrl: fields.originalUrl === undefined ? ORIGINAL : fields.originalUrl,
   preview: fields.preview ?? null,
+  access: fields.access ?? null,
   thumbnailUrls: fields.thumbnails ?? {},
 });
 
@@ -133,6 +135,58 @@ describe('a media the stage can show', () => {
     expect(player).toHaveAttribute('preload', 'metadata');
     expect(player).toHaveAttribute('poster', LARGE);
     expect(player).toHaveAttribute('src', ORIGINAL);
+  });
+
+  it('plays the access copy of a video no browser opens, and keeps the original as the file', () => {
+    const copy = 'http://localhost/files/access/7.mp4';
+    render(
+      <MediaStage
+        media={media({
+          type: 'video/x-msvideo',
+          filename: 'reel.avi',
+          thumbnails: { large: LARGE },
+          access: {
+            state: 'ready',
+            reason: null,
+            progress: null,
+            url: copy,
+            mediaType: 'video/mp4',
+          },
+        })}
+      />,
+    );
+
+    expect(document.querySelector('video')).toHaveAttribute('src', copy);
+    expect(screen.getByRole('link', { name: 'Download the file' })).toHaveAttribute(
+      'href',
+      ORIGINAL,
+    );
+    expect(screen.getByText('Video')).toBeInTheDocument();
+  });
+
+  it('plays the AAC copy of a WMA and the original while the copy is still pending', () => {
+    const copy = 'http://localhost/files/access/7.m4a';
+    const wma = (access: MediaAccess | null): Media =>
+      media({ type: 'audio/x-ms-wma', filename: 'talk.wma', access });
+
+    const { unmount } = render(<MediaStage media={wma(null)} />);
+    expect(document.querySelector('audio')).toHaveAttribute('src', ORIGINAL);
+    unmount();
+
+    const queued = render(
+      <MediaStage
+        media={wma({ state: 'pending', reason: null, progress: 40, url: null, mediaType: null })}
+      />,
+    );
+    expect(document.querySelector('audio')).toHaveAttribute('src', ORIGINAL);
+    queued.unmount();
+
+    render(
+      <MediaStage
+        media={wma({ state: 'ready', reason: null, progress: null, url: copy, mediaType: 'audio/mp4' })}
+      />,
+    );
+    expect(document.querySelector('audio')).toHaveAttribute('src', copy);
   });
 
   it('shows a PDF first page, and the browser viewer only after the press', () => {
@@ -249,7 +303,9 @@ describe('a media the stage cannot show', () => {
     );
   });
 
-  it('says an outside page opens on its host, and loads no frame', () => {
+  it('names the host of a YouTube media, and loads nothing before the press', () => {
+    const source = 'https://www.youtube.com/watch?v=abc123';
+    const fetchMock = stubPlayer('https://www.youtube-nocookie.com/embed/abc123');
     render(
       <MediaStage
         media={media({
@@ -259,17 +315,90 @@ describe('a media the stage cannot show', () => {
           type: null,
           filename: null,
           originalUrl: null,
-          source: 'https://www.youtube.com/watch?v=abc123',
+          source,
         })}
       />,
     );
 
     expect(document.querySelector('iframe')).toBeNull();
-    expect(screen.queryByRole('img')).toBeNull();
+    expect(screen.getByText(/is a page on www\.youtube\.com/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Load the embed' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open on www.youtube.com' })).toHaveAttribute(
+      'href',
+      source,
+    );
+    expect(urlsFor(fetchMock, PLAYER)).toEqual([]);
+  });
+
+  it("frames a YouTube media's own player, with the attributes of a provider frame", async () => {
+    const source = 'https://www.youtube.com/watch?v=abc123';
+    const player = 'https://www.youtube-nocookie.com/embed/abc123?start=30';
+    const fetchMock = stubPlayer(player);
+    render(
+      <MediaStage
+        media={media({
+          kind: 'embed',
+          renderer: 'youtube',
+          ingester: 'youtube',
+          type: null,
+          filename: null,
+          originalUrl: null,
+          source,
+        })}
+      />,
+    );
+
+    expect(urlsFor(fetchMock, PLAYER)).toEqual([]);
+    fireEvent.click(screen.getByRole('button', { name: 'Load the embed' }));
+
+    await waitFor(() => {
+      expect(document.querySelector('iframe')).not.toBeNull();
+    });
+    const frame = document.querySelector('iframe');
+    expect(frame).toHaveAttribute('src', player);
+    expect(frame).toHaveAttribute(
+      'sandbox',
+      'allow-scripts allow-same-origin allow-presentation allow-popups',
+    );
+    expect(frame).toHaveAttribute('allow', 'fullscreen; picture-in-picture');
+    expect(frame).toHaveAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+    expect(frame).toHaveAccessibleName('The embed from www.youtube.com');
+    expect(screen.getByText('Playing from www.youtube-nocookie.com')).toBeInTheDocument();
+    expect(screen.queryByText(/Nothing loads from it until you open it/)).toBeNull();
+    expect(urlsFor(fetchMock, PLAYER)).toHaveLength(1);
+    expect(screen.getByRole('link', { name: 'Open on www.youtube.com' })).toHaveAttribute(
+      'href',
+      source,
+    );
+  });
+
+  it('keeps a YouTube card and its link when the server names no player', async () => {
+    const source = 'https://www.youtube.com/watch?v=abc123';
+    stubPlayer(null);
+    render(
+      <MediaStage
+        media={media({
+          kind: 'embed',
+          renderer: 'youtube',
+          ingester: 'youtube',
+          type: null,
+          filename: null,
+          originalUrl: null,
+          source,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load the embed' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Load the embed' })).toBeNull();
+    });
+    expect(document.querySelector('iframe')).toBeNull();
     expect(screen.getByText(/is a page on www\.youtube\.com/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open on www.youtube.com' })).toHaveAttribute(
       'href',
-      'https://www.youtube.com/watch?v=abc123',
+      source,
     );
   });
 
@@ -340,6 +469,8 @@ describe('a media the stage cannot show', () => {
     expect(frame).toHaveAttribute('src', '/api/romeka/media/7/render');
     expect(frame).toHaveAttribute('sandbox', 'allow-scripts allow-presentation');
     expect(frame).toHaveAccessibleName('The embed from www.youtube.com');
+    expect(screen.getByText('The embed from www.youtube.com')).toBeInTheDocument();
+    expect(screen.queryByText(/Nothing loads from it until you open it/)).toBeNull();
     expect(screen.getByRole('link', { name: 'Open on www.youtube.com' })).toHaveAttribute(
       'href',
       source,

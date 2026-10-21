@@ -209,17 +209,6 @@ async fn verdict(
     })
 }
 
-/// The type an access copy with `extension` answers with. A copy is a JPEG
-/// master, an MP4 or an M4A; any other suffix is no copy the store wrote.
-fn access_media_type(extension: Option<&str>) -> Option<String> {
-    match extension? {
-        "jpg" => Some("image/jpeg".to_string()),
-        "mp4" => Some("video/mp4".to_string()),
-        "m4a" => Some("audio/mp4".to_string()),
-        _ => None,
-    }
-}
-
 /// The name in the forwarded path, after its last `/`, which is the stored
 /// file name the disposition falls back to.
 fn forwarded_name(forwarded: &str) -> &str {
@@ -227,6 +216,18 @@ fn forwarded_name(forwarded: &str) -> &str {
         .split_once('?')
         .map_or(forwarded, |(path, _query)| path);
     path.rsplit('/').next().unwrap_or_default()
+}
+
+/// The type an access copy with `extension` answers with. A copy is a JPEG
+/// master, an MP4 or an M4A in this build; any other suffix is no copy the store
+/// wrote.
+fn access_media_type(extension: Option<&str>) -> Option<String> {
+    match extension? {
+        "jpg" => Some("image/jpeg".to_string()),
+        "mp4" => Some("video/mp4".to_string()),
+        "m4a" => Some("audio/mp4".to_string()),
+        _ => None,
+    }
 }
 
 /// A stored media type, when a header can carry it unchanged: `type/subtype`
@@ -373,5 +374,26 @@ mod tests {
         );
         assert_eq!(StoredFile::parse("original", ".png"), None);
         assert_eq!(StoredFile::parse("thumbnails", "abc.jpg"), None);
+    }
+
+    /// An access copy is a prefix the store writes, and its suffix names the
+    /// type the origin answers with. Any other suffix is no copy.
+    #[test]
+    fn an_access_copy_names_its_type_by_its_suffix() {
+        assert_eq!(
+            StoredFile::parse("access", "abc123.mp4"),
+            Some(StoredFile::Access {
+                storage_id: "abc123",
+                extension: Some("mp4"),
+            })
+        );
+        assert_eq!(access_media_type(Some("mp4")).as_deref(), Some("video/mp4"));
+        assert_eq!(access_media_type(Some("m4a")).as_deref(), Some("audio/mp4"));
+        assert_eq!(
+            access_media_type(Some("jpg")).as_deref(),
+            Some("image/jpeg")
+        );
+        assert_eq!(access_media_type(Some("avi")), None);
+        assert_eq!(access_media_type(None), None);
     }
 }

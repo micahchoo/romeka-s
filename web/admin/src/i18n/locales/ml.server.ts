@@ -296,6 +296,10 @@ export const mlServer: ServerCatalogue = {
   'server.importZipUnpacked': 'സിപ്പ് അൺപാക്ക് ചെയ്തു: {count} ഫയലുകൾ ചേർത്തു.',
   'server.importSweepDone':
     '{imports} ഇംപോർട്ടുകളിലെ ഫയലുകൾ നീക്കം ചെയ്തു, {uploads} പൂർത്തിയാകാത്ത അപ്‌ലോഡുകൾ.',
+  'server.importAccessFailed':
+    '{media}-യ്ക്ക് വേണ്ടി {reason} കാരണം പ്ലേ ചെയ്യാവുന്ന കോപ്പി ഒന്നും ക്യൂവിൽ ഇല്ല.',
+  'server.importAccessUnread':
+    'ഈ ഇംപോർട്ടിനായി {reason} കാരണം പ്ലേ ചെയ്യാവുന്ന കോപ്പികൾ ഒന്നും ക്യൂവിൽ ഇല്ല.',
   'server.mediaUploadNotFound': 'ഈ അക്കൗണ്ടിൽ "{upload}" ഐഡിയുള്ള സ്റ്റേജ്ഡ് അപ്‌ലോഡ് ഇല്ല.',
   'server.mediaUploadBusy':
     'ഈ അപ്‌ലോഡ് "{upload}" ഇപ്പോൾ ചേർക്കുന്നു. അത് കഴിഞ്ഞ ശേഷം വീണ്ടും ശ്രമിക്കുക.',
