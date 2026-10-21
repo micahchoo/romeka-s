@@ -105,8 +105,8 @@ pub struct AppState {
     pub(crate) archive_roots: Arc<ArchiveRoots>,
     /// The tag, sheet and evidence index caches every preview shares.
     pub(crate) import_caches: Arc<Caches>,
-    /// The pixel size of each stored image a IIIF document has named.
-    pub(crate) iiif_dimensions: Arc<iiif::Dimensions>,
+    /// The size or duration of each stored media a IIIF document has named.
+    pub(crate) extents: Arc<iiif::Extents>,
 }
 
 /// What the process supplies beyond the pool and the [`Config`]: the file
@@ -182,6 +182,7 @@ pub fn build_router_with_services(
 fn build_app(pool: DbPool, services: Services, config: &Config) -> Router {
     let base = config.base_url.clone();
     let secure_cookies = base.as_str().starts_with("https://");
+    let extents = Arc::new(iiif::Extents::new(pool.clone(), services.store.clone()));
     let state = AppState {
         pool,
         base: base.clone(),
@@ -194,7 +195,7 @@ fn build_app(pool: DbPool, services: Services, config: &Config) -> Router {
         jobs: services.jobs,
         archive_roots: Arc::new(config.archive_roots.clone()),
         import_caches: Arc::new(Caches::default()),
-        iiif_dimensions: Arc::default(),
+        extents,
     };
     let routes = Router::new()
         .route("/health", get(health))

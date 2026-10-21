@@ -92,11 +92,6 @@ export const en = {
   'guided.list.none': 'We found no list in your folder.',
   'guided.list.what':
     'A list is a spreadsheet with one row for each item: its title, its date, and anything else you know. You can fill one in below.',
-  'guided.list.found': 'We found a list in your folder: {file}. Is it about these items?',
-  'guided.list.yes': 'Yes, use it',
-  'guided.list.no': 'No, it is not about these items',
-  'guided.list.reading': 'Reading the list...',
-  'guided.list.foundRows': 'We found a list in your folder: {file}, with {count} rows. Is it about these items?',
   'guided.list.utf8': 'It is UTF-8 text.',
   'guided.list.notUtf8': 'Its bytes are not UTF-8. They read as {kind} text. If letters look wrong, change it in Advanced.',
   'guided.list.line1': 'Line 1 has {count} cells.',
@@ -129,6 +124,22 @@ export const en = {
   'guided.list.sameName': 'A field in Omeka has the same name.',
   'guided.list.noField': 'No field in Omeka has this name. Choose one, or leave it out.',
   'guided.list.moreFields': 'Here you see the Dublin Core fields. Every other field is in Advanced mode.',
+  'guided.list.grainAsk': 'Each row describes',
+  'guided.list.grainItem': 'one item',
+  'guided.list.grainFile': 'one file',
+  'guided.list.grainSet': 'one item set',
+  'guided.list.grainEvidence': '{count} rows name another file of an item that a row already names; the rows look like they describe one file each.',
+  'guided.list.grainEvidenceOne': '1 row names another file of an item that a row already names; the rows look like they describe one file each.',
+  'guided.list.grainNone': 'No two rows name files of the same item; the rows look like they describe one item each.',
+  'guided.list.colLevel': 'Its values go on',
+  'guided.list.levelOf': 'Where the values of {column} go',
+  'guided.list.levelItem': 'The item',
+  'guided.list.levelFile': 'Each file',
+  'guided.list.levelOut': 'Leave out',
+  'guided.list.varies': 'Varies in {count} of {of} items.',
+  'guided.list.itemOnly': 'An item type or an item set goes on the item only.',
+  'guided.list.levelLede':
+    'On the item: the values of all its rows, each value once. On each file: the values of that file’s own row. We suggest each file where the values differ inside some item, and the item where they never do.',
   // Where they go.
   'guided.where.setsTitle': 'Item sets',
   'guided.where.setsAsk': 'Which item set should each item go into?',
@@ -190,6 +201,8 @@ export const en = {
   'guided.check.mustFix': 'This must be fixed before you can add.',
   'guided.check.keep': 'Keep them as they are',
   'guided.check.leave': 'Leave them out',
+  'guided.check.fileRows': 'Each row describes one file',
+  'guided.check.fileRowsWhy': 'Some rows of your list name another file of an item that a row already names. Such a list may have one row for each file.',
   'guided.check.spacesRepair': 'Take the spaces off',
   'guided.check.other': '{count} times: {problem}.',
   'guided.check.otherOne': '1 time: {problem}.',
@@ -280,6 +293,7 @@ export const en = {
   'guided.add.undo': 'You can undo the whole import later.',
   'guided.add.titleCode': 'Items with no title get their item code as the title.',
   'guided.add.titleChange': 'Change it',
+  'guided.add.fileRows': 'Each row of “{name}” describes one file.',
 } as const;
 
 /** A complete table of this namespace, in one locale. */

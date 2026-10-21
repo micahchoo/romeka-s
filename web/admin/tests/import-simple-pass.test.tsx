@@ -150,7 +150,7 @@ const pass = async (at: Scenario): Promise<{ readonly drive: Drive; readonly ser
   expect(await screen.findByText('Every group is confirmed.')).toBeInTheDocument();
   await next(drive);
 
-  expect(await screen.findByRole('button', { name: 'Yes, use it', pressed: true }, { timeout: 5000 })).toBeInTheDocument();
+  expect(await screen.findByRole('listitem', { name: at.sheet.file }, { timeout: 5000 })).toHaveTextContent('In use');
   expect(await screen.findByText('Where each column goes', {}, { timeout: 5000 })).toBeInTheDocument();
   drive.look();
   for (const [column, label] of at.mapping) {

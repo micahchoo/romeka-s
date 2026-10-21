@@ -129,6 +129,20 @@ export const ml: ImportAdvancedMessages = {
   'adv.lists.normalize.caseFold': 'വലിയ അക്ഷരങ്ങൾ (A2, a2)',
   'adv.lists.normalize.leadingZeros': 'തുടക്കത്തിലെ പൂജ്യങ്ങൾ (007, 7)',
   'adv.lists.normalize.separators': 'അക്ഷരങ്ങൾ _ - . ഉം സ്പേസും (B 4, B_4)',
+  'adv.lists.rowKind.label': 'ഓരോ വരിയും വിവരിക്കുന്നു',
+  'adv.lists.rowKind.plain':
+    'ഒരു വരിയിൽ ഉണ്ടാക്കുന്ന റെക്കോർഡിന്റെ തരം, അല്ലെങ്കിൽ അതിനെ നാമകരണം ചെയ്യുന്ന കോളത്തിന്റെ പേര്. ഫയലുകളെ വിവരിക്കുന്ന വരികൾ അവയുടെ പേരിൽ ഫയൽ കണ്ടെത്തുന്നു; അവയുടെ ഇനം ആ ഫയലിന്റെ ഇനമാണ്.',
+  'adv.lists.rowKind.item': 'ഒരു ഇനം',
+  'adv.lists.rowKind.media': 'ഒരു ഫയൽ (മീഡിയ)',
+  'adv.lists.rowKind.itemSet': 'ഒരു ഇനം കൂട്ടം',
+  'adv.lists.rowKind.column': 'ഒരു കോളം പറയുന്നത്',
+  'adv.lists.rowKind.columnLabel': 'തരം കോളം',
+  'adv.lists.rowKind.columnPlain':
+    'ഓരോ സെല്ലും അതിന്റെ വരിയുടെ തരം പറയുന്നു: ഇനം, മീഡിയ അല്ലെങ്കിൽ ഇനം കൂട്ടം.',
+  'adv.lists.itemKey.label': 'ഇനം കോളം',
+  'adv.lists.itemKey.plain':
+    'ഫയൽ നാമം വഴി യോജിക്കാത്ത വരികൾക്ക്: അതിന്റെ ഇനത്തെ തിരിച്ചറിയുന്ന സെല്ലുകൾ.',
+  'adv.lists.itemKey.none': 'ഒന്നുമില്ല: വരികൾ ഫയൽ നാമം വഴി യോജിക്കുന്നു',
   'adv.lists.unpaired.label': 'യോജിപ്പിക്കാത്തത്',
   'adv.lists.unpaired.plain':
     'ഇനങ്ങളില്ലാത്ത വരികളും, വരികളില്ലാത്ത ഇനങ്ങളും. നിങ്ങൾക്ക് അവ കൈകൊണ്ട് ജോടിയാക്കാം.',
@@ -159,6 +173,14 @@ export const ml: ImportAdvancedMessages = {
   'adv.lists.columns.joined': 'ജോയിൻ',
   'adv.lists.columns.notMappable':
     'ഇതിന്റെ പേര് #-ൽ തുടങ്ങുന്നു, അതിനാൽ ഇത് ഒരിക്കലും മാപ്പ് ചെയ്യപ്പെടില്ല.',
+  'adv.lists.columns.level': 'മൂല്യങ്ങൾ എവിടെ പോകുന്നു',
+  'adv.lists.columns.levelOf': '{column}-ലെ മൂല്യങ്ങൾ എവിടെ പോകുന്നു',
+  'adv.lists.columns.levelItem': 'ഇനം',
+  'adv.lists.columns.levelFile': 'ഓരോ ഫയൽ',
+  'adv.lists.columns.levelOut': 'ഒഴിവാക്കിയത്',
+  'adv.lists.columns.varies': '{of} ഇനങ്ങളിൽ {count} എണ്ണത്തിൽ വ്യത്യാസപ്പെടുന്നു.',
+  'adv.lists.columns.suggestFile': 'നിർദ്ദേശിക്കുന്നത്: ഓരോ ഫയൽ.',
+  'adv.lists.columns.suggestItem': 'ഇത്: ഇനം.',
   'adv.lists.type.literal': 'ടെക്സ്റ്റ്',
   'adv.lists.type.uri': 'വെബ് വിലാസം (URI)',
   'adv.lists.type.identifier': 'ഐഡന്റിഫയർ ഉപയോഗിച്ച് ഒരു ഐറ്റത്തിലേക്ക് ലിങ്ക് ചെയ്യുക',

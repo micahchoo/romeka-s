@@ -2,16 +2,21 @@
  * One list's columns: the field each feeds and how its cells become values
  * (split, type, language, private). A column feeds a field when the field's
  * rule reads it, so the Field choice here and the sources under Fields are
- * one setting seen from two sides.
+ * one setting seen from two sides. When each row describes a file, a column
+ * mapped to a field goes on the item (`slots.item`), on each file
+ * (`slots.media`) or nowhere, read from where its sources are.
  */
 import type { ReactElement } from 'react';
 import type { ColumnRef, SheetPlan, ValueType } from '../../../api/import-plan';
+import type { Grain } from '../../../api/import-sections';
 import type { SheetView } from '../../../api/import-sheet-views';
 import { TableScroll } from '../../../app/table-scroll';
 import { useDraft } from '../draft-context';
+import { fileLevelAllowed, levelOf, suggestedLevel, variesOf, withColumnLevel } from '../simple/list-plan';
+import type { Level } from '../simple/list-plan';
 import { fieldOptions, optionFor, slotWords, useProperties } from './field-names';
 import { useAdvancedText } from './messages';
-import type { AdvancedTranslator } from './messages';
+import type { AdvancedMessageKey, AdvancedTranslator } from './messages';
 import { columnOptions, columnTarget, mapColumn, setColumnOptions } from './plan-edits';
 
 interface Column extends ColumnRef {
@@ -54,16 +59,21 @@ const typeOptions = (current: ValueType, t: AdvancedTranslator['t']): readonly (
   ...(typeof current === 'object' && 'dataType' in current ? [[typeValue(current), t('adv.lists.type.dataType', { name: current.dataType })] as const] : []),
 ];
 
+const LEVELS: readonly Level[] = ['item', 'file', 'out'];
+
+const levelIn = (value: string): Level | null => LEVELS.find((one) => one === value) ?? null;
+
 /** Empty text is no value: `null` in the plan. */
 const textOrNull = (value: string): string | null => (value === '' ? null : value);
 
-export const ColumnsTable = ({ sheet, view }: { readonly sheet: SheetPlan; readonly view: SheetView | undefined }): ReactElement => {
-  const { t } = useAdvancedText();
+export const ColumnsTable = ({ sheet, view, grain }: { readonly sheet: SheetPlan; readonly view: SheetView | undefined; readonly grain: Grain | null }): ReactElement => {
+  const { t, number } = useAdvancedText();
   const draft = useDraft();
   const properties = useProperties();
   const known = properties.status === 'ready' ? properties.data : [];
   const options = fieldOptions(['sets', 'template', 'visibility'], known, t);
   const columns = columnsOf(sheet, view);
+  const perFile = sheet.rowKind === 'media';
   return (
     <TableScroll label={t('adv.lists.columns.label', { file: sheet.file })}>
       <p className="adv-plain">{t('adv.lists.columns.plain')}</p>
@@ -76,6 +86,7 @@ export const ColumnsTable = ({ sheet, view }: { readonly sheet: SheetPlan; reado
             <th scope="col">{t('adv.lists.columns.type')}</th>
             <th scope="col">{t('adv.lists.columns.lang')}</th>
             <th scope="col">{t('adv.lists.columns.private')}</th>
+            {perFile ? <th scope="col">{t('adv.lists.columns.level')}</th> : null}
           </tr>
         </thead>
         <tbody>
@@ -150,11 +161,67 @@ export const ColumnsTable = ({ sheet, view }: { readonly sheet: SheetPlan; reado
                 <td>
                   <input type="checkbox" aria-label={t('adv.lists.columns.privateOf', { column: name })} checked={own.private} disabled={locked} onChange={(event) => { set({ private: event.target.checked }); }} />
                 </td>
+                {perFile ? <LevelCell sheet={sheet} column={ref} name={name} grain={grain} locked={locked} number={number} /> : null}
               </tr>
             );
           })}
         </tbody>
       </table>
     </TableScroll>
+  );
+};
+
+const LEVEL_WORDS: Readonly<Record<Level, AdvancedMessageKey>> = {
+  item: 'adv.lists.columns.levelItem',
+  file: 'adv.lists.columns.levelFile',
+  out: 'adv.lists.columns.levelOut',
+};
+
+const LevelCell = ({
+  sheet,
+  column,
+  name,
+  grain,
+  locked,
+  number,
+}: {
+  readonly sheet: SheetPlan;
+  readonly column: ColumnRef;
+  readonly name: string;
+  readonly grain: Grain | null;
+  readonly locked: boolean;
+  readonly number: (n: number) => string;
+}): ReactElement => {
+  const { t } = useAdvancedText();
+  const draft = useDraft();
+  const level = levelOf(draft.plan, sheet.id, column.index);
+  const fileAllowed = fileLevelAllowed(draft.plan, sheet.id, column.index);
+  const varies = variesOf(grain, column.index);
+  return (
+    <td>
+      <select
+        aria-label={t('adv.lists.columns.levelOf', { column: name })}
+        value={level}
+        disabled={locked || level === 'out'}
+        onChange={(event) => {
+          const next = levelIn(event.target.value);
+          if (next !== null) {
+            draft.change((plan) => withColumnLevel(plan, sheet.id, column, next));
+          }
+        }}
+      >
+        {LEVELS.map((one) => (
+          <option key={one} value={one} disabled={one === 'file' && !fileAllowed}>
+            {t(LEVEL_WORDS[one])}
+          </option>
+        ))}
+      </select>
+      {varies === null ? null : (
+        <p className="adv-plain">
+          {t('adv.lists.columns.varies', { count: number(varies.groups), of: number(varies.of) })}{' '}
+          {level === 'out' ? null : t(suggestedLevel(varies, fileAllowed) === 'file' ? 'adv.lists.columns.suggestFile' : 'adv.lists.columns.suggestItem')}
+        </p>
+      )}
+    </td>
   );
 };

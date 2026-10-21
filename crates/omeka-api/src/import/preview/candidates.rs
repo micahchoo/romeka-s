@@ -8,16 +8,19 @@
 //! so the cache's bounds hold; a list that does not read is a candidate
 //! with its error. Its `best` column is the column and join that pair the
 //! most rows exactly, counted as `columnMatches` counts. The groups it pairs
-//! are its targets, which `grain` and `overlaps` count.
+//! are its targets, which `grain` and `overlaps` count. `grain` also counts,
+//! for each column, in how many of the groups that several rows name those
+//! rows disagree, so the admin can suggest where each column goes.
 
 use std::cmp::Reverse;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use serde::Serialize;
 
 use super::Derived;
 use super::columns::{Targets, column_counts, walk};
 use crate::import::archive::SourceDir;
+use crate::import::join::cell;
 use crate::import::model::{GroupKey, Origin};
 use crate::import::plan::{
     Auto, Delimiter, EncodingChoice, JoinOn, Quote, ReadOptions, RecordKind, RelPath, RowKind,
@@ -74,6 +77,25 @@ pub struct Grain {
     /// Rows naming a file of a group that an earlier row named another
     /// file of.
     pub rows_naming_other_files_of_a_group: usize,
+    /// Every column of the list, in sheet order.
+    pub columns: Vec<ColumnGrain>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ColumnGrain {
+    pub index: u32,
+    pub header: String,
+    pub varies: Varies,
+}
+
+/// Of the `of` groups that more than one row names, the `groups` whose rows
+/// do not all hold the same values in this column.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Varies {
+    pub groups: usize,
+    pub of: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -201,7 +223,11 @@ fn candidate<'d>(
     let Some(best) = &candidate.best else {
         return (candidate, HashSet::new());
     };
-    let (targets, grain) = targets(sheet, best, exact, groups);
+    let plan = candidate
+        .in_plan
+        .as_ref()
+        .and_then(|id| derived.plan.sheets.iter().find(|sheet| sheet.id == *id));
+    let (targets, grain) = targets(sheet, plan, best, exact, groups);
     candidate.grain = grain;
     (candidate, targets)
 }
@@ -241,33 +267,88 @@ fn best(sheet: &Sheet, exact: &Targets<'_>, folded: &Targets<'_>) -> Option<Best
 }
 
 /// The groups `best` pairs exactly, and for a `fileName` join its grain.
+/// `plan` is the plan sheet that reads the list, whose columns' splits the
+/// values are cut by.
 fn targets<'d>(
     sheet: &Sheet,
+    plan: Option<&SheetPlan>,
     best: &BestColumn,
     exact: &Targets<'d>,
     groups_of_files: &[Option<&'d GroupKey>],
 ) -> (HashSet<&'d GroupKey>, Option<Grain>) {
-    let cells = exact.cells(sheet, best.index).flatten();
+    let cells = exact.cells(sheet, best.index);
     match best.on {
-        JoinOn::Identifier => (cells.filter_map(|found| found.key).collect(), None),
+        JoinOn::Identifier => (
+            cells.flatten().filter_map(|found| found.key).collect(),
+            None,
+        ),
         JoinOn::FileName => {
-            let mut groups: HashMap<&GroupKey, (usize, HashSet<usize>)> = HashMap::new();
-            for file in cells.filter_map(|found| found.file) {
-                if let Some(group) = groups_of_files[file] {
+            let mut groups: HashMap<&GroupKey, (Vec<usize>, HashSet<usize>)> = HashMap::new();
+            for (row, found) in cells.enumerate() {
+                if let Some(file) = found.and_then(|found| found.file)
+                    && let Some(group) = groups_of_files[file]
+                {
                     let (rows, files) = groups.entry(group).or_default();
-                    *rows += 1;
+                    rows.push(row);
                     files.insert(file);
                 }
             }
+            let shared: Vec<&[usize]> = groups
+                .values()
+                .map(|(rows, _)| rows.as_slice())
+                .filter(|rows| rows.len() > 1)
+                .collect();
             let grain = Grain {
-                groups_with_many_rows: groups.values().filter(|(rows, _)| *rows > 1).count(),
+                groups_with_many_rows: shared.len(),
                 rows_naming_other_files_of_a_group: groups
                     .values()
                     .map(|(_, files)| files.len() - 1)
                     .sum(),
+                columns: sheet
+                    .columns
+                    .iter()
+                    .map(|column| ColumnGrain {
+                        index: column.index,
+                        header: column.header.clone(),
+                        varies: varies(sheet, plan, column.index, &shared),
+                    })
+                    .collect(),
             };
             (groups.into_keys().collect(), Some(grain))
         }
+    }
+}
+
+/// How many of `shared` (each group's rows) hold different values in
+/// `column`. Values are cut as a column rule cuts them: by the column's
+/// split, each piece trimmed, empty pieces dropped. Order and repeats do not
+/// count, as an item keeps each value of its rows once.
+fn varies(sheet: &Sheet, plan: Option<&SheetPlan>, column: u32, shared: &[&[usize]]) -> Varies {
+    let split = plan
+        .and_then(|plan| plan.column(column))
+        .and_then(|column| column.options.split.as_deref())
+        .filter(|split| !split.is_empty());
+    let values = |row: usize| -> BTreeSet<&str> {
+        let text = cell(&sheet.rows[row], column);
+        let pieces: Vec<&str> = match split {
+            Some(split) => text.split(split).collect(),
+            None => vec![text],
+        };
+        pieces
+            .into_iter()
+            .map(str::trim)
+            .filter(|piece| !piece.is_empty())
+            .collect()
+    };
+    Varies {
+        groups: shared
+            .iter()
+            .filter(|rows| {
+                let first = values(rows[0]);
+                rows[1..].iter().any(|row| values(*row) != first)
+            })
+            .count(),
+        of: shared.len(),
     }
 }
 

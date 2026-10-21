@@ -85,13 +85,6 @@ export const mr: ImportSimpleMessages = {
   'guided.list.none': 'तुमच्या फोल्डरमध्ये आम्हाला कोणतीही सूची सापडली नाही.',
   'guided.list.what':
     'सूची ही एक स्प्रेडशीट आहे ज्यामध्ये प्रत्येक वस्तूसाठी एक ओळ असते: तिचे शीर्षक, तिची तारीख आणि तुम्हाला माहित असलेली इतर कोणतीही माहिती. तुम्ही खाली एक भरू शकता.',
-  'guided.list.found':
-    'तुमच्या फोल्डरमध्ये आम्हाला एक सूची सापडली: {file}. हे या वस्तूंबद्दल आहे का?',
-  'guided.list.yes': 'हो, याचा वापर करा',
-  'guided.list.no': 'नाही, हे या वस्तूंबद्दल नाही',
-  'guided.list.reading': 'सूची वाचत आहे...',
-  'guided.list.foundRows':
-    'तुमच्या फोल्डरमध्ये आम्हाला एक सूची सापडली: {file}, ज्यामध्ये {count} ओळी आहेत. हे या वस्तूंबद्दल आहे का?',
   'guided.list.utf8': 'हे UTF-8 मजकूर आहे.',
   'guided.list.notUtf8':
     'त्याचे बाइट्स UTF-8 नाहीत. ते {kind} मजकूर म्हणून वाचले जातात. जर अक्षरे चुकीची दिसत असतील, तर Advanced मध्ये बदल करा.',
@@ -128,6 +121,25 @@ export const mr: ImportSimpleMessages = {
   'guided.list.noField': 'Omeka मध्ये या नावाचे कोणतेही क्षेत्र नाही. एक निवडा, किंवा ते वगळा.',
   'guided.list.moreFields':
     'येथे तुम्ही डब्लिन कोअर क्षेत्रे पाहू शकता. इतर सर्व क्षेत्रे प्रगत मोडमध्ये आहेत.',
+  'guided.list.grainAsk': 'प्रत्येक ओळ वर्णन करते',
+  'guided.list.grainItem': 'एक आयटम',
+  'guided.list.grainFile': 'एक फाईल',
+  'guided.list.grainSet': 'एक आयटम सेट',
+  'guided.list.grainEvidence':
+    '{count} ओळी अशा आयटमच्या दुसऱ्या फाईलचे नाव देतात ज्या आयटमचे नाव एखादी ओळ आधीच देते; या ओळी प्रत्येकी एका फाईलचे वर्णन करतात असे वाटते.',
+  'guided.list.grainEvidenceOne':
+    '1 ओळ अशा आयटमच्या दुसऱ्या फाईलचे नाव देते ज्या आयटमचे नाव एखादी ओळ आधीच देते; या ओळी प्रत्येकी एका फाईलचे वर्णन करतात असे वाटते.',
+  'guided.list.grainNone':
+    'एकाच आयटमच्या फाईल्सना दोन ओळींनी नाव दिलेले नाही; या ओळी एका आयटमचे वर्णन करतात असे वाटते.',
+  'guided.list.colLevel': 'याची मूल्ये कुठे जातात',
+  'guided.list.levelOf': '{column} चे मूल्य कोठे जाते',
+  'guided.list.levelItem': 'ती वस्तू',
+  'guided.list.levelFile': 'प्रत्येक फाईल',
+  'guided.list.levelOut': 'वगळा',
+  'guided.list.varies': '{of} पैकी {count} वस्तूंमध्ये बदलते.',
+  'guided.list.itemOnly': 'आयटमचा प्रकार किंवा आयटम सेट फक्त आयटमवरच जातो.',
+  'guided.list.levelLede':
+    'आयटमवर: त्याच्या सर्व ओळींची मूल्ये, प्रत्येक मूल्य एकदा. प्रत्येक फाईलवर: त्या फाईलच्या ओळीचे मूल्य. आम्ही सुचवतो की प्रत्येक फाईल जिथे काही आयटममध्ये मूल्ये भिन्न आहेत आणि जिथे ती कधीच भिन्न नसतात, अशा आयटमवर ती ठेवावी.',
   'guided.where.setsTitle': 'वस्तू संच',
   'guided.where.setsAsk': 'प्रत्येक वस्तू कोणत्या वस्तू संचामध्ये असावी?',
   'guided.where.setsGloss': 'वस्तू संच म्हणजे Omeka मधील वस्तूंचा संग्रह होय.',
@@ -190,6 +202,9 @@ export const mr: ImportSimpleMessages = {
   'guided.check.mustFix': 'हे दुरुस्त केल्याशिवाय तुम्ही जोडू शकत नाही.',
   'guided.check.keep': 'त्यांना तसेच ठेवा',
   'guided.check.leave': 'त्यांना वगळा',
+  'guided.check.fileRows': 'प्रत्येक ओळ एका फाईलचे वर्णन करते',
+  'guided.check.fileRowsWhy':
+    'तुमच्या सूचीतील काही ओळी अशा आयटमच्या दुसऱ्या फाईलचे नाव देतात ज्या आयटमचे नाव एखादी ओळ आधीच देते. अशा सूचीमध्ये प्रत्येक फाईलसाठी एक ओळ असू शकते.',
   'guided.check.spacesRepair': 'रिकाम्या जागा काढून टाका',
   'guided.check.other': '{count} वेळा: {problem}.',
   'guided.check.otherOne': '{problem} - 1 वेळ.',
@@ -290,4 +305,5 @@ export const mr: ImportSimpleMessages = {
   'guided.add.undo': 'तुम्ही नंतर संपूर्ण आयात पूर्ववत करू शकता.',
   'guided.add.titleCode': 'शीर्षकाशिवाय असलेल्या आयटम्सना त्यांचा आयटम कोड शीर्षक म्हणून मिळतो.',
   'guided.add.titleChange': 'ते बदला',
+  'guided.add.fileRows': '“{name}” ची प्रत्येक ओळ एका फाईलचे वर्णन करते.',
 };

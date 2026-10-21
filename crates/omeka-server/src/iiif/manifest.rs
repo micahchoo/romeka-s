@@ -16,6 +16,11 @@
 //!   the size of the original, carries the Image API service so a viewer can
 //!   deep-zoom, and links the original through `rendering`.
 //! - A media ingested from a IIIF image service paints that remote service.
+//! - A PDF with a first-page derivative paints that still, the size of the
+//!   derivative, and links the PDF through `rendering`.
+//! - An audio or video file paints a `Sound` or `Video` body and carries its
+//!   duration, which the extent probe measured. A canvas that needs a duration
+//!   the probe did not answer is left out.
 
 use std::collections::BTreeMap;
 
@@ -53,6 +58,29 @@ pub(crate) enum Painting {
     Local(LocalImage),
     /// A media ingested from a IIIF image service: its stored `info.json`.
     Remote(Value),
+    /// A still derivative with no service, such as a PDF's first page.
+    Still {
+        /// The derivative's URL, the painted body.
+        url: String,
+        /// The derivative's size, which is also the canvas size.
+        size: Size,
+        /// The document itself, linked through `rendering`.
+        pdf_url: String,
+    },
+    /// An audio file.
+    Sound {
+        url: String,
+        media_type: String,
+        duration_s: f64,
+    },
+    /// A video file, with its frame size and poster when the extents name one.
+    Video {
+        url: String,
+        media_type: String,
+        duration_s: f64,
+        size: Option<Size>,
+        poster: Option<String>,
+    },
 }
 
 /// One media that becomes a canvas.
@@ -120,43 +148,20 @@ pub(crate) fn item_set_collection(
 
 fn canvas(base: &str, media: &CanvasMedia) -> Option<Value> {
     let canvas_id = format!("{base}/canvas/{}", media.id);
-    let (size, body, thumbnail, rendering) = match &media.painting {
-        Painting::Local(image) => (
-            image.size,
-            json!({
-                "id": image.large_url,
-                "type": "Image",
-                "format": "image/jpeg",
-                "width": image.large_size.0,
-                "height": image.large_size.1,
-                "service": [{"id": image.service, "type": "ImageService3", "profile": "level1"}],
-            }),
-            image
-                .square_url
-                .as_ref()
-                .map(|url| json!([{"id": url, "type": "Image", "format": "image/jpeg"}])),
-            Some(json!([{
-                "id": image.original_url,
-                "type": "Image",
-                "label": {"en": ["Original file"]},
-                "format": image.media_type,
-            }])),
-        ),
-        Painting::Remote(info) => {
-            let (body, size) = remote_body(info)?;
-            (size, body, None, None)
-        }
-    };
+    let painted = painted(&media.painting)?;
     let mut canvas = Map::new();
     canvas.insert("id".into(), json!(canvas_id));
     canvas.insert("type".into(), json!("Canvas"));
     canvas.insert("label".into(), none_map(&media.label));
-    canvas.insert("width".into(), json!(size.0));
-    canvas.insert("height".into(), json!(size.1));
-    if let Some(thumbnail) = thumbnail {
+    canvas.insert("width".into(), json!(painted.canvas_size.0));
+    canvas.insert("height".into(), json!(painted.canvas_size.1));
+    if let Some(duration) = painted.duration_s {
+        canvas.insert("duration".into(), json!(duration));
+    }
+    if let Some(thumbnail) = painted.thumbnail {
         canvas.insert("thumbnail".into(), thumbnail);
     }
-    if let Some(rendering) = rendering {
+    if let Some(rendering) = painted.rendering {
         canvas.insert("rendering".into(), rendering);
     }
     canvas.insert(
@@ -168,13 +173,132 @@ fn canvas(base: &str, media: &CanvasMedia) -> Option<Value> {
                 "id": format!("{base}/annotation/{}", media.id),
                 "type": "Annotation",
                 "motivation": "painting",
-                "body": body,
+                "body": painted.body,
                 "target": canvas_id,
             }],
         }]),
     );
     Some(Value::Object(canvas))
 }
+
+/// The canvas's pixel size and optionally its duration, the body it paints,
+/// and the thumbnail and `rendering` links that suit the body.
+struct Painted {
+    canvas_size: Size,
+    duration_s: Option<f64>,
+    body: Value,
+    thumbnail: Option<Value>,
+    rendering: Option<Value>,
+}
+
+/// One canvas's parts.
+///
+/// A canvas must have a size (Presentation 3.0), and a sound recording has no
+/// pixels, so it gets [`SOUND_CANVAS`], a strip its player fits. A video
+/// without a frame size gets [`VIDEO_CANVAS`]. A viewer lays a time-based
+/// canvas out from its duration.
+fn painted(painting: &Painting) -> Option<Painted> {
+    match painting {
+        Painting::Local(image) => Some(Painted {
+            canvas_size: image.size,
+            duration_s: None,
+            body: json!({
+                "id": image.large_url,
+                "type": "Image",
+                "format": "image/jpeg",
+                "width": image.large_size.0,
+                "height": image.large_size.1,
+                "service": [{"id": image.service, "type": "ImageService3", "profile": "level1"}],
+            }),
+            thumbnail: image
+                .square_url
+                .as_ref()
+                .map(|url| json!([{"id": url, "type": "Image", "format": "image/jpeg"}])),
+            rendering: Some(json!([{
+                "id": image.original_url,
+                "type": "Image",
+                "label": {"en": ["Original file"]},
+                "format": image.media_type,
+            }])),
+        }),
+        Painting::Remote(info) => {
+            let (body, size) = remote_body(info)?;
+            Some(Painted {
+                canvas_size: size,
+                duration_s: None,
+                body,
+                thumbnail: None,
+                rendering: None,
+            })
+        }
+        Painting::Still { url, size, pdf_url } => Some(Painted {
+            canvas_size: *size,
+            duration_s: None,
+            body: json!({
+                "id": url,
+                "type": "Image",
+                "format": "image/jpeg",
+                "width": size.0,
+                "height": size.1,
+            }),
+            thumbnail: None,
+            rendering: Some(json!([{
+                "id": pdf_url,
+                "type": "Text",
+                "label": {"en": ["Original file"]},
+                "format": "application/pdf",
+            }])),
+        }),
+        Painting::Sound {
+            url,
+            media_type,
+            duration_s,
+        } => Some(Painted {
+            canvas_size: SOUND_CANVAS,
+            duration_s: Some(*duration_s),
+            body: json!({
+                "id": url,
+                "type": "Sound",
+                "format": media_type,
+                "duration": duration_s,
+            }),
+            thumbnail: None,
+            rendering: None,
+        }),
+        Painting::Video {
+            url,
+            media_type,
+            duration_s,
+            size,
+            poster,
+        } => {
+            let canvas_size = size.unwrap_or(VIDEO_CANVAS);
+            Some(Painted {
+                canvas_size,
+                duration_s: Some(*duration_s),
+                body: json!({
+                    "id": url,
+                    "type": "Video",
+                    "format": media_type,
+                    "duration": duration_s,
+                    "width": canvas_size.0,
+                    "height": canvas_size.1,
+                }),
+                thumbnail: poster
+                    .as_ref()
+                    .map(|url| json!([{"id": url, "type": "Image", "format": "image/jpeg"}])),
+                rendering: None,
+            })
+        }
+    }
+}
+
+/// The size a sound recording's canvas takes: a strip with no pixels of its
+/// own, wide enough for a player's controls and timeline.
+const SOUND_CANVAS: Size = (600, 100);
+
+/// The size a video canvas takes when its probe named no frame size.
+const VIDEO_CANVAS: Size = (640, 360);
 
 /// The painted body for a remote image service, from its `info.json` in
 /// either Image API version, and the service's full size.

@@ -127,6 +127,20 @@ export const mr: ImportAdvancedMessages = {
   'adv.lists.normalize.caseFold': 'कॅपिटल अक्षरे (A2 आणि a2)',
   'adv.lists.normalize.leadingZeros': 'सुरुवातीला शून्या (007 आणि 7)',
   'adv.lists.normalize.separators': 'अक्षरे _ - . आणि स्पेस (B 4 आणि B_4)',
+  'adv.lists.rowKind.label': 'प्रत्येक ओळ वर्णन करते',
+  'adv.lists.rowKind.plain':
+    'एका ओळीने तयार केलेल्या नोंदीचा प्रकार, किंवा ज्या स्तंभातील कोष्ठक त्या नोंदीचे नाव देतात. फाईलचे वर्णन करणाऱ्या ओळी त्यांच्या नावाने फाईल शोधतात; त्यांची नोंद ही फाईलची नोंद असते.',
+  'adv.lists.rowKind.item': 'एक नोंद',
+  'adv.lists.rowKind.media': 'एक फाईल (मीडिया)',
+  'adv.lists.rowKind.itemSet': 'एक नोंद संच',
+  'adv.lists.rowKind.column': 'एक स्तंभ काय सांगतो',
+  'adv.lists.rowKind.columnLabel': 'प्रकार स्तंभ',
+  'adv.lists.rowKind.columnPlain':
+    'प्रत्येक कोष्ठक त्याच्या ओळीचा प्रकार दर्शवतो: नोंद, मीडिया किंवा नोंद संच.',
+  'adv.lists.itemKey.label': 'नोंद स्तंभ',
+  'adv.lists.itemKey.plain':
+    'फाईलच्या नावाने न जोडल्या जाणाऱ्या ओळींसाठी: त्यांच्या नोंद ओळखकर्त्याचा कोष्ठक.',
+  'adv.lists.itemKey.none': 'काहीही नाही: ओळी फाईलच्या नावाने जोडल्या जातात',
   'adv.lists.unpaired.label': 'जोडलेले नाहीत',
   'adv.lists.unpaired.plain':
     'कोणतीही वस्त नसलेल्या ओळी आणि ओळी नसलेल्या वस्तू. तुम्ही त्यांच्या जोड्या लावू शकता.',
@@ -157,6 +171,14 @@ export const mr: ImportAdvancedMessages = {
   'adv.lists.columns.joined': 'जोडणे',
   'adv.lists.columns.notMappable':
     'याची नावे # ने सुरू होतात, त्यामुळे ते कधीही मॅप केले जात नाहीत.',
+  'adv.lists.columns.level': 'मूल्ये कुठे जातात',
+  'adv.lists.columns.levelOf': '{column} मधील मूल्ये कुठे जातात',
+  'adv.lists.columns.levelItem': 'नोंद',
+  'adv.lists.columns.levelFile': 'प्रत्येक फाईल',
+  'adv.lists.columns.levelOut': 'वगळले',
+  'adv.lists.columns.varies': '{of} पैकी {count} वस्तूंमध्ये बदलते.',
+  'adv.lists.columns.suggestFile': 'सुचवलेले: प्रत्येक फाईल.',
+  'adv.lists.columns.suggestItem': 'सुचवलेले: नोंद.',
   'adv.lists.type.literal': 'मजकूर',
   'adv.lists.type.uri': 'वेब पत्ता (URI)',
   'adv.lists.type.identifier': 'आयडेंटिफायरद्वारे आयटमची लिंक',

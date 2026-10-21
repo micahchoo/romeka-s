@@ -14,7 +14,7 @@
 //! with `Access-Control-Allow-Origin: *`. That shares no private document,
 //! because a cross-origin fetch carries no cookie.
 
-mod dimensions;
+mod extent;
 mod image;
 mod manifest;
 
@@ -31,7 +31,7 @@ use serde_json::Value;
 
 use crate::AppState;
 
-pub(crate) use dimensions::Dimensions;
+pub(crate) use extent::Extents;
 
 /// The viewer page's policy. Mirador and its starter come from this origin and
 /// no inline script runs. Mirador styles itself through injected `<style>`
