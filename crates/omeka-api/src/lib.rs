@@ -11,6 +11,7 @@
 //! docs name the file each rule comes from.
 
 pub mod adapters;
+pub mod annotation;
 pub mod auth;
 pub mod auth_cache;
 pub mod errors;
