@@ -74,6 +74,78 @@ async fn a_claim_takes_the_row_once_and_counts_the_attempt() {
 }
 
 #[tokio::test]
+async fn an_access_copy_waits_for_the_worker_that_makes_it() {
+    let pool = common::memory().await;
+    let id = media(&pool, "queue-access").await;
+    let repo = MediaDerivativeRepo::new(&pool);
+    assert!(
+        repo.plan(
+            &NewDerivative {
+                media_id: id,
+                kind: DerivativeKind::AccessCopy,
+            },
+            DerivativeState::Pending,
+            None,
+            Some("ffmpeg"),
+        )
+        .await
+        .unwrap()
+    );
+    assert_eq!(
+        repo.pending().await.unwrap(),
+        0,
+        "the preview worker counts only its own work"
+    );
+    assert!(
+        repo.claim_next().await.unwrap().is_none(),
+        "an access copy is not a still the preview worker can make"
+    );
+    let row = repo
+        .get(id, DerivativeKind::AccessCopy)
+        .await
+        .unwrap()
+        .expect("the row");
+    assert_eq!(row.state, DerivativeState::Pending);
+    assert_eq!(row.tool.as_deref(), Some("ffmpeg"));
+    assert!(row.finished.is_none());
+
+    // A preview row queued behind it is still claimed first.
+    repo.enqueue(&poster(id)).await.unwrap();
+    assert_eq!(repo.pending().await.unwrap(), 1);
+    let claimed = repo.claim_next().await.unwrap().expect("the poster");
+    assert_eq!(claimed.kind, DerivativeKind::Poster);
+}
+
+#[tokio::test]
+async fn a_planned_decision_is_settled_with_its_words() {
+    let pool = common::memory().await;
+    let id = media(&pool, "queue-original").await;
+    let repo = MediaDerivativeRepo::new(&pool);
+    assert!(
+        repo.plan(
+            &NewDerivative {
+                media_id: id,
+                kind: DerivativeKind::AccessCopy,
+            },
+            DerivativeState::None,
+            Some("a browser shows the original"),
+            None,
+        )
+        .await
+        .unwrap()
+    );
+    let row = repo
+        .get(id, DerivativeKind::AccessCopy)
+        .await
+        .unwrap()
+        .expect("the row");
+    assert_eq!(row.state, DerivativeState::None);
+    assert_eq!(row.reason.as_deref(), Some("a browser shows the original"));
+    assert!(row.finished.is_some(), "a settled row says when");
+    assert_eq!(row.attempts, 0);
+}
+
+#[tokio::test]
 async fn a_settled_row_keeps_its_reason_and_is_not_reclaimed() {
     let pool = common::memory().await;
     let id = media(&pool, "queue-4").await;

@@ -36,6 +36,7 @@ use omeka_media::derivative::{DerivativeWork, PreviewSource, make_preview};
 use omeka_media::store::{
     Access, FileStore, ListedFile, Store, StoreError, StorePrefix, storage_path,
 };
+use omeka_media::tool::Tools;
 use omeka_server::{Config, DispatchError, JobDispatch, Services};
 use serde_json::{Value, json};
 use tempfile::TempDir;
@@ -333,7 +334,9 @@ async fn an_api_created_video_answers_pending_then_ready_after_the_worker_runs()
     assert_eq!(state_of(&document), "pending", "{document}");
     assert_eq!(document["o:thumbnail_urls"]["large"], Value::Null);
 
-    // The request queued one worker, and the row names the poster work.
+    // The request queued one worker, and the row names the poster work. The
+    // second row is the access decision, and the worker's queue does not
+    // include it.
     let jobs = harness.recorder.taken();
     assert_eq!(jobs.len(), 1, "one worker for one create");
     let id = document["o:id"].as_u64().expect("id");
@@ -341,9 +344,27 @@ async fn an_api_created_video_answers_pending_then_ready_after_the_worker_runs()
         .for_media(MediaId(id))
         .await)
     .expect("rows");
-    assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].kind, DerivativeKind::Poster);
-    assert_eq!(rows[0].state, DerivativeState::Pending);
+    assert_eq!(rows.len(), 2, "{rows:?}");
+    let poster = rows
+        .iter()
+        .find(|row| row.kind == DerivativeKind::Poster)
+        .expect("the poster row");
+    assert_eq!(poster.state, DerivativeState::Pending);
+    let access = rows
+        .iter()
+        .find(|row| row.kind == DerivativeKind::AccessCopy)
+        .expect("the access row");
+    if Tools::on_path().ffprobe().is_some() {
+        assert_eq!(
+            access.state,
+            DerivativeState::None,
+            "a browser plays this MP4"
+        );
+        assert_eq!(
+            access.reason.as_deref(),
+            Some("a browser shows the original")
+        );
+    }
 
     Runner::with_env(&harness.pool, job_env(&harness))
         .run(jobs[0])
@@ -362,11 +383,63 @@ async fn an_api_created_video_answers_pending_then_ready_after_the_worker_runs()
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_png_create_records_that_the_original_stands() {
+    let harness = harness().await;
+    let document = create_media(&harness, "tiny.png", &png()).await;
+    assert_eq!(state_of(&document), "pending", "{document}");
+    let id = document["o:id"].as_u64().expect("id");
+    let access = with_db!(&harness.pool, |db| MediaDerivativeRepo::new(db)
+        .get(MediaId(id), DerivativeKind::AccessCopy)
+        .await)
+    .expect("row")
+    .expect("the access row");
+    assert_eq!(access.state, DerivativeState::None);
+    assert_eq!(
+        access.reason.as_deref(),
+        Some("a browser shows the original")
+    );
+    assert!(access.tool.is_none());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_raw_create_records_the_copy_it_needs_and_the_tool() {
+    let harness = harness().await;
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/media-kinds/image.nef");
+    let bytes = std::fs::read(&path).expect("the NEF fixture");
+    let document = create_media(&harness, "photo.nef", &bytes).await;
+    let id = document["o:id"].as_u64().expect("id");
+    let access = with_db!(&harness.pool, |db| MediaDerivativeRepo::new(db)
+        .get(MediaId(id), DerivativeKind::AccessCopy)
+        .await)
+    .expect("row")
+    .expect("the access row");
+    let tools = Tools::on_path();
+    match (tools.exiftool(), tools.libraw()) {
+        (Some(_), _) => {
+            assert_eq!(access.state, DerivativeState::Pending);
+            assert_eq!(access.tool.as_deref(), Some("exiftool"));
+        }
+        (None, Some(_)) => {
+            assert_eq!(access.state, DerivativeState::Pending);
+            assert_eq!(access.tool.as_deref(), Some("dcraw_emu"));
+        }
+        (None, None) => {
+            assert_eq!(access.state, DerivativeState::None);
+            assert_eq!(
+                access.reason.as_deref(),
+                Some("needs exiftool, not installed")
+            );
+        }
+    }
+    assert!(access.finished.is_some() || access.state == DerivativeState::Pending);
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn a_tool_that_fails_settles_failed_and_the_backfill_retries_it() {
     let harness = harness().await;
     let (media, storage_id) =
         insert_media(&harness, "video/mp4", "mp4", b"this is not a video").await;
-    omeka_api::derivatives::enqueue(&harness.pool, &{
+    omeka_api::derivatives::enqueue(&harness.pool, &harness.store, &{
         with_db!(&harness.pool, |db| MediaRepo::new(db).get(media).await)
             .expect("media")
             .expect("the row")
@@ -418,8 +491,13 @@ async fn a_tool_that_fails_settles_failed_and_the_backfill_retries_it() {
     .await
     .expect("the backfill ran");
     assert_eq!(report.retried, 1, "{report:?}");
-    assert_eq!(report.rows.len(), 1);
-    assert_eq!(report.rows[0].state, DerivativeState::Ready, "{report:?}");
+    assert_eq!(report.rows.len(), 2, "{report:?}");
+    let preview = report
+        .rows
+        .iter()
+        .find(|row| row.kind.is_preview())
+        .expect("the poster row");
+    assert_eq!(preview.state, DerivativeState::Ready, "{report:?}");
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -429,7 +507,7 @@ async fn a_running_import_holds_the_worker_off_the_queue() {
     let row = with_db!(&harness.pool, |db| MediaRepo::new(db).get(media).await)
         .expect("media")
         .expect("the row");
-    omeka_api::derivatives::enqueue(&harness.pool, &row)
+    omeka_api::derivatives::enqueue(&harness.pool, &harness.store, &row)
         .await
         .expect("queue");
     let import = with_db!(&harness.pool, |db| ImportRepo::new(db)
@@ -507,8 +585,13 @@ async fn the_backfill_queues_and_makes_a_media_the_import_left_bare() {
     .await
     .expect("the backfill ran");
     assert_eq!(report.queued, 1, "{report:?}");
-    assert_eq!(report.rows.len(), 1);
-    assert_eq!(report.rows[0].state, DerivativeState::Ready, "{report:?}");
+    assert_eq!(report.rows.len(), 2, "{report:?}");
+    let preview = report
+        .rows
+        .iter()
+        .find(|row| row.kind.is_preview())
+        .expect("the poster row");
+    assert_eq!(preview.state, DerivativeState::Ready, "{report:?}");
 }
 
 #[test]
@@ -605,7 +688,7 @@ async fn the_hourly_sweep_starts_one_derivative_worker_and_never_during_an_impor
     let row = with_db!(&harness.pool, |db| MediaRepo::new(db).get(first).await)
         .expect("media")
         .expect("the row");
-    omeka_api::derivatives::enqueue(&harness.pool, &row)
+    omeka_api::derivatives::enqueue(&harness.pool, &harness.store, &row)
         .await
         .expect("queue");
     sweep().await;
@@ -622,7 +705,7 @@ async fn the_hourly_sweep_starts_one_derivative_worker_and_never_during_an_impor
     let row = with_db!(&harness.pool, |db| MediaRepo::new(db).get(second).await)
         .expect("media")
         .expect("the row");
-    omeka_api::derivatives::enqueue(&harness.pool, &row)
+    omeka_api::derivatives::enqueue(&harness.pool, &harness.store, &row)
         .await
         .expect("queue");
     let active = with_db!(&harness.pool, |db| JobRepo::new(db)
@@ -663,7 +746,7 @@ async fn the_hourly_sweep_starts_one_derivative_worker_and_never_during_an_impor
     let row = with_db!(&harness.pool, |db| MediaRepo::new(db).get(third).await)
         .expect("media")
         .expect("the row");
-    omeka_api::derivatives::enqueue(&harness.pool, &row)
+    omeka_api::derivatives::enqueue(&harness.pool, &harness.store, &row)
         .await
         .expect("queue");
     let import = with_db!(&harness.pool, |db| ImportRepo::new(db)

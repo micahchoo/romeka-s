@@ -15,7 +15,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use omeka_api::derivatives::{DERIVATIVES_JOB, preview_kind};
+use omeka_api::derivatives::{DERIVATIVES_JOB, enqueue_access, preview_kind};
 use omeka_api::jsonld::BaseUrl;
 use omeka_db::DbPool;
 use omeka_db::Location;
@@ -96,7 +96,7 @@ pub async fn run(options: &DerivativeOptions) -> Result<DerivativeReport, CliErr
     let media = selected(&pool, options.media).await?;
     let mut report = DerivativeReport::default();
     for row in &media {
-        queue(&pool, store.as_ref(), row, options.retry, &mut report).await?;
+        queue(&pool, &store, row, options.retry, &mut report).await?;
     }
     if report.queued + report.retried > 0 {
         run_worker(&pool, Arc::clone(&store)).await?;
@@ -118,14 +118,18 @@ async fn selected(pool: &DbPool, media: Option<u64>) -> Result<Vec<MediaRow>, Cl
     Ok(rows)
 }
 
-/// Queue one media's preview, or record why nothing was queued.
+/// Queue one media's preview, or record why nothing was queued, and record its
+/// access decision either way.
 async fn queue(
     pool: &DbPool,
-    store: &dyn Store,
+    store: &Arc<dyn Store>,
     media: &MediaRow,
     retry: bool,
     report: &mut DerivativeReport,
 ) -> Result<(), CliError> {
+    // An audio file has no preview kind and still has an access rule, so the
+    // decision is made before the preview returns early.
+    enqueue_access(pool, store, media).await?;
     let Some(kind) = preview_kind(media) else {
         report.skipped += 1;
         return Ok(());
@@ -135,7 +139,7 @@ async fn queue(
     let Some(row) = existing else {
         // No row: a media the import made, or one older than this table. The
         // store decides whether it needs anything.
-        if files_stored(store, media) {
+        if files_stored(store.as_ref(), media) {
             report.ready += 1;
             return Ok(());
         }
