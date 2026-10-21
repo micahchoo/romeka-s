@@ -231,10 +231,13 @@ describe('the page editor shell', () => {
         { 'o:layout': 'pageTitle', 'o:data': [], 'o:attachment': [] },
       ],
     });
-    // A saved draft is clean, so it stops guarding the route.
-    const event = new Event('beforeunload', { cancelable: true });
-    window.dispatchEvent(event);
-    expect(event.defaultPrevented).toBe(false);
+    // A saved draft is clean, so it stops guarding the route. The guard is
+    // removed by an effect after the "Saved." render, so wait for it.
+    await waitFor(() => {
+      const event = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
+    });
   });
 
   it('edits an unregistered layout as lossless JSON', async () => {
