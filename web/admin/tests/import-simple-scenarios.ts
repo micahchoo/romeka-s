@@ -55,6 +55,8 @@ export interface Scenario {
   readonly identical: number;
   readonly unpairedRows: number;
   readonly unpairedFiles: number;
+  /** Files whose names the pattern does not fit; none when absent. */
+  readonly unmatchedFiles?: number;
   /** A group the drive leaves out on "What we found", by words its facts sentence holds. */
   readonly leave: readonly string[] | null;
   /** The prototype's first pass at this size (`SCALE.md`). */

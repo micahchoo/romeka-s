@@ -14,8 +14,8 @@ import { listHref } from '../lists/address';
 import { fileName, recordName } from '../lists/record-words';
 import { usePreview } from '../lists/use-preview';
 import { placeHref } from '../screens';
-import { CAUSE_ORDER, DEFAULT_POLICY, HANDLED, answerOf, isBlocking, suggestedOf, withAnswer, wordsOf } from './causes';
-import type { CauseId } from './causes';
+import { CAUSE_ORDER, DEFAULT_POLICY, FACTS, HANDLED, answerOf, isBlocking, itemCodeFits, suggestedOf, withAnswer, wordsOf } from './causes';
+import type { CauseId, CheckFacts } from './causes';
 import { readState, withState } from './example-state';
 import { useSimpleText } from './messages';
 import './simple.css';
@@ -51,13 +51,13 @@ const RecordExample = ({ kind, at }: { readonly kind: FlagCount['kind']; readonl
   return <>{detail === null ? t('guided.check.example', { name: recordName(record) }) : t('guided.check.exampleOf', { name: recordName(record), value: detail })}</>;
 };
 
-const Card = ({ cause, shown, onAnother }: { readonly cause: Cause; readonly shown: number; readonly onAnother: () => void }): ReactElement => {
+const Card = ({ cause, facts, shown, onAnother }: { readonly cause: Cause; readonly facts: CheckFacts; readonly shown: number; readonly onAnother: () => void }): ReactElement => {
   const { t, number } = useSimpleText();
   const draft = useDraft();
   const words = wordsOf(cause.id, draft.plan);
   const answered = readState(draft.plan).answered.includes(cause.id);
-  const answer = answerOf(draft.plan, cause.id);
-  const suggested = suggestedOf(draft.plan, cause.id);
+  const answer = answerOf(draft.plan, cause.id, facts);
+  const suggested = suggestedOf(draft.plan, cause.id, facts);
   const blocking = isBlocking(cause.id);
   const example = cause.examples.length === 0 ? null : (cause.examples[shown % cause.examples.length] ?? null);
   const answer1 = (value: string): void => {
@@ -118,6 +118,23 @@ const Card = ({ cause, shown, onAnother }: { readonly cause: Cause; readonly sho
 
 const order = (id: CauseId): number => CAUSE_ORDER.indexOf(id);
 
+/** A fact Check states without a question: how many, and the examples the server drew. */
+const Fact = ({ kind, count, examples }: { readonly kind: FlagCount['kind']; readonly count: number; readonly examples: readonly string[] }): ReactElement => {
+  const { t, number } = useSimpleText();
+  const say = t(count === 1 ? 'guided.check.refusedOne' : 'guided.check.refused', { count: number(count) });
+  return (
+    <section className="guided-ask" data-decision={`fact:${kind}`} aria-label={say}>
+      <p>
+        <b>{say}</b> {t('guided.check.refusedWhy')}
+      </p>
+      <p className="import-row-actions">
+        {examples.length === 0 ? null : <span>{t('guided.check.refusedExample', { names: examples.join(', ') })}</span>}
+        <a href="#/settings">{t('guided.check.refusedSettings')}</a>
+      </p>
+    </section>
+  );
+};
+
 /** A kind the run takes care of under its default policy; with another policy it is a question again. */
 const handledBy = (flag: FlagCount): boolean => HANDLED.some((kind) => kind === flag.kind && flag.policy === DEFAULT_POLICY[kind]);
 
@@ -126,7 +143,7 @@ export const Check = (): ReactElement => {
   const draft = useDraft();
   const [seed, setSeed] = useState(0);
   const [shown, setShown] = useState<Readonly<Record<string, number>>>({});
-  const read = usePreview(['flags', 'identical', 'unpaired', 'entries', 'check'], {
+  const read = usePreview(['flags', 'identical', 'unpaired', 'entries', 'check', 'histogram'], {
     identical: { perPage: 3 },
     unpaired: { rows: { perPage: 1 }, files: { perPage: 3 } },
     entries: { reason: 'unmatched', perPage: 3 },
@@ -138,10 +155,14 @@ export const Check = (): ReactElement => {
   if (read.status === 'error') {
     return <ErrorNotice error={read.error} />;
   }
-  const { flags, identical, unpaired, entries, check } = read.data;
+  const { flags, identical, unpaired, entries, check, histogram, pattern } = read.data;
+  const facts: CheckFacts = {
+    itemCodeFits: itemCodeFits(pattern, histogram),
+  };
+  const stated = flags.filter((flag) => flag.count > 0 && FACTS.includes(flag.kind));
   const byKind = new Map<FlagCount['kind'], { count: number; samples: FlagSample[] }>();
   for (const flag of flags) {
-    if (flag.count === 0 || handledBy(flag)) {
+    if (flag.count === 0 || handledBy(flag) || FACTS.includes(flag.kind)) {
       continue;
     }
     const kept = byKind.get(flag.kind) ?? { count: 0, samples: [] };
@@ -181,7 +202,11 @@ export const Check = (): ReactElement => {
             className="import-primary"
             disabled={!draft.editable}
             onClick={() => {
-              draft.change((plan) => withState(plan, { answered: [...new Set([...readState(plan).answered, ...open.map((cause) => cause.id)])] }));
+              draft.change((plan) => {
+                // The run adds no title unless a rule gives one, so taking the suggestion writes it.
+                const titled = open.some((cause) => cause.id === 'empty-required') ? withAnswer(plan, 'empty-required', answerOf(plan, 'empty-required', facts)) : plan;
+                return withState(titled, { answered: [...new Set([...readState(plan).answered, ...open.map((cause) => cause.id)])] });
+              });
             }}
           >
             {t('guided.check.useAll', { count: number(open.length) })}
@@ -194,6 +219,7 @@ export const Check = (): ReactElement => {
           <Card
             key={cause.id}
             cause={cause}
+            facts={facts}
             shown={shown[cause.id] ?? 0}
             onAnother={() => {
               const at = (shown[cause.id] ?? 0) + 1;
@@ -205,6 +231,9 @@ export const Check = (): ReactElement => {
           />
         ))}
       </div>
+      {stated.map((flag) => (
+        <Fact key={flag.kind} kind={flag.kind} count={flag.count} examples={flag.samples.map(sampleWords).filter((words): words is string => words !== null)} />
+      ))}
       {handled.length === 0 ? null : (
         <details>
           <summary>{handled.length === 1 ? t('guided.check.handledOne') : t('guided.check.handled', { count: number(handled.length) })}</summary>

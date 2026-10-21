@@ -5,7 +5,7 @@
  * md-translator's checks. Until that run, every key is missing here, which is a `tsc`
  * error by design: it is typed `ImportSimpleMessages`.
  */
-import type { ImportSimpleMessages } from '../index';
+import type { ImportSimpleMessages } from "../index";
 
 export const kn: ImportSimpleMessages = {
   'guided.files.none': 'ಈ ಆಮದು ಇನ್ನೂ ಯಾವುದೇ ಫೈಲ್‌ಗಳನ್ನು ಹೊಂದಿಲ್ಲ.',
@@ -238,13 +238,20 @@ export const kn: ImportSimpleMessages = {
   'guided.check.noTitle': '{count} ವಸ್ತುಗಳು ನಿಮ್ಮ ಪಟ್ಟಿಯಲ್ಲಿ ಶೀರ್ಷಿಕೆಯನ್ನು ಹೊಂದಿಲ್ಲ.',
   'guided.check.noTitleOne': '1 ವಸ್ತುವಿಗೆ ನಿಮ್ಮ ಪಟ್ಟಿಯಲ್ಲಿ ಶೀರ್ಷಿಕೆ ಇಲ್ಲ.',
   'guided.check.noTitleKeep':
-    'ಶೀರ್ಷಿಕೆಯಿಲ್ಲದೆ ಅವುಗಳನ್ನು ಸೇರಿಸಿ. ಓಮೇಕಾ ಗುರುತಿಸುವಿಕೆಯನ್ನು ತೋರಿಸುತ್ತದೆ',
+    'ಶೀರ್ಷಿಕೆಯಿಲ್ಲದೆ ಅವುಗಳನ್ನು ಸೇರಿಸಿ. ಆಡಳಿತವು ಅವುಗಳನ್ನು “ಶೀರ್ಷಿಕೆ ಇಲ್ಲ” ಎಂದು ಪಟ್ಟಿ ಮಾಡುತ್ತದೆ',
+  'guided.check.noTitleCode': 'ಐಟಂ ಕೋಡ್ ಅನ್ನು ಶೀರ್ಷಿಕೆಯಾಗಿ ಬಳಸಿ',
   'guided.check.noTitleName': 'ಫೈಲ್ ಹೆಸರನ್ನು ಶೀರ್ಷಿಕೆಯಾಗಿ ಬಳಸಿ',
   'guided.check.type': '{count} ವಸ್ತುಗಳು ಓಮೇಕಾ ಹೊಂದಿರದ ಐಟಂ ಪ್ರಕಾರವನ್ನು ಹೊಂದಿವೆ.',
   'guided.check.typeOne': '1 ವಸ್ತುವಿಗೆ ಓಮೇಕಾ ಹೊಂದಿರದ ಐಟಂ ಪ್ರಕಾರವಿದೆ.',
   'guided.check.typeWhy':
     'ನೀವು ಈ ಮೌಲ್ಯಗಳಲ್ಲಿ ಪ್ರತಿಯೊಂದಕ್ಕೂ “ಅವು ಎಲ್ಲಿಗೆ ಹೋಗುತ್ತವೆ” ಎಂಬುದರಲ್ಲಿ ಐಟಂ ಪ್ರಕಾರವನ್ನು ಆಯ್ಕೆ ಮಾಡಬಹುದು.',
   'guided.check.typeKeep': 'ಯಾವುದೇ ಐಟಂ ಪ್ರಕಾರವಿಲ್ಲದೆ ಅವುಗಳನ್ನು ಸೇರಿಸಿ',
+  'guided.check.refused': 'ನಿಮ್ಮ ಪಟ್ಟಿಯಲ್ಲಿರುವ {count} ಫೈಲ್‌ಗಳು ಈ ಒಮೇಕಾ ಸ್ವೀಕರಿಸದ ವಿಧದವು.',
+  'guided.check.refusedOne': 'ನಿಮ್ಮ ಪಟ್ಟಿಯಲ್ಲಿರುವ 1 ಫೈಲ್ ಈ ಒಮೇಕಾ ಸ್ವೀಕರಿಸದ ವಿಧದದ್ದಾಗಿದೆ.',
+  'guided.check.refusedWhy':
+    'ಈ ಒಮೆಕಾದ ಫೈಲ್ ಸೆಟ್ಟಿಂಗ್‌ಗಳು ಈ ಪ್ರಕಾರಗಳನ್ನು ನಿರಾಕರಿಸುತ್ತವೆ, ಆದ್ದರಿಂದ ನಾವು ಅವುಗಳನ್ನು ಹೊರಗಿಡುತ್ತೇವೆ.',
+  'guided.check.refusedExample': 'ಉದಾಹರಣೆಗೆ: {names}',
+  'guided.check.refusedSettings': 'ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ಅನುಮತಿಸಲಾದ ಫೈಲ್ ಪ್ರಕಾರಗಳನ್ನು ಬದಲಾಯಿಸಿ',
   'guided.check.handled': 'ನಾವು {count} ಸಣ್ಣ ವಿಷಯಗಳನ್ನು ನಿರ್ವಹಿಸಿದ್ದೇವೆ',
   'guided.check.handledOne': 'ನಾವು 1 ಸಣ್ಣ ವಿಷಯವನ್ನು ನಿರ್ವಹಿಸಿದ್ದೇವೆ',
   'guided.check.handledSpaces':
@@ -284,4 +291,6 @@ export const kn: ImportSimpleMessages = {
   'guided.add.private': 'ಕೇವಲ ಸೈನ್-ಇನ್ ಸಿಬ್ಬಂದಿ (ಖಾಸಗಿ)',
   'guided.add.public': 'ಎಲ್ಲರೂ (ಸಾರ್ವಜನಿಕ)',
   'guided.add.undo': 'ನೀವು ನಂತರ ಇಡೀ ಆಮದನ್ನು ರದ್ದುಗೊಳಿಸಬಹುದು.',
+  'guided.add.titleCode': 'ಶೀರ್ಷಿಕೆ ಇಲ್ಲದ ವಸ್ತುಗಳು ತಮ್ಮ ವಸ್ತು ಕೋಡ್ ಅನ್ನು ಶೀರ್ಷಿಕೆಯಾಗಿ ಪಡೆಯುತ್ತವೆ.',
+  'guided.add.titleChange': 'ಇದನ್ನು ಬದಲಾಯಿಸಿ',
 };
