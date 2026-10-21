@@ -21,6 +21,11 @@
 //! - An audio or video file paints a `Sound` or `Video` body and carries its
 //!   duration, which the extent probe measured. A canvas that needs a duration
 //!   the probe did not answer is left out.
+//! - A canvas whose media has a note the caller may read references the media's
+//!   annotation page, so a viewer can show the notes. One with none carries no
+//!   `annotations` key at all, so an unchanged manifest stays unchanged.
+//! - An item manifest with a canvas names the item's Content Search 2.0
+//!   service, and a media manifest is the item manifest's canvas for one media.
 
 use std::collections::BTreeMap;
 
@@ -89,12 +94,21 @@ pub(crate) struct CanvasMedia {
     pub(crate) id: u64,
     pub(crate) label: String,
     pub(crate) painting: Painting,
+    /// The media's annotation page, set when the caller may read at least one
+    /// note on it.
+    pub(crate) annotation_page: Option<String>,
 }
 
 /// The manifest of one item at `manifest_id`, with one canvas per media in
 /// the order given. A remote media whose `info.json` names no size is left
-/// out, because a canvas must have one.
-pub(crate) fn item_manifest(manifest_id: &str, item: &Value, media: &[CanvasMedia]) -> Value {
+/// out, because a canvas must have one. `search` is the item's Content Search
+/// 2.0 service, advertised when the manifest has a canvas for it to search.
+pub(crate) fn item_manifest(
+    manifest_id: &str,
+    item: &Value,
+    media: &[CanvasMedia],
+    search: &str,
+) -> Value {
     let base = manifest_id.trim_end_matches("/manifest");
     let canvases: Vec<Value> = media
         .iter()
@@ -118,8 +132,58 @@ pub(crate) fn item_manifest(manifest_id: &str, item: &Value, media: &[CanvasMedi
     if let Some(thumbnail) = canvases.iter().find_map(|canvas| canvas.get("thumbnail")) {
         manifest.insert("thumbnail".into(), thumbnail.clone());
     }
+    if !canvases.is_empty() {
+        manifest.insert(
+            "service".into(),
+            json!([{"id": search, "type": "SearchService2"}]),
+        );
+    }
     manifest.insert("items".into(), Value::Array(canvases));
     Value::Object(manifest)
+}
+
+/// The media manifest at `manifest_id`: the item manifest's canvas for one
+/// media, alone, with the item's label, metadata and rights, and `partOf` the
+/// item manifest. The canvas IRI is the item manifest's, so a note made through
+/// either manifest targets the same canvas.
+///
+/// A media whose painting names no size gets no canvas here either; the route
+/// answers 404 for it through [`paints`].
+pub(crate) fn media_manifest(
+    manifest_id: &str,
+    item_manifest_id: &str,
+    item: &Value,
+    media: &CanvasMedia,
+) -> Value {
+    let base = item_manifest_id.trim_end_matches("/manifest");
+    let canvases: Vec<Value> = canvas(base, media).into_iter().collect();
+    let mut manifest = Map::new();
+    manifest.insert("@context".into(), json!(CONTEXT));
+    manifest.insert("id".into(), json!(manifest_id));
+    manifest.insert("type".into(), json!("Manifest"));
+    manifest.insert("label".into(), none_map(&title(item)));
+    let metadata = metadata(item);
+    if !metadata.is_empty() {
+        manifest.insert("metadata".into(), Value::Array(metadata));
+    }
+    if let Some(summary) = first_literal(item, "dcterms:description") {
+        manifest.insert("summary".into(), summary);
+    }
+    if let Some(rights) = rights(item) {
+        manifest.insert("rights".into(), json!(rights));
+    }
+    manifest.insert(
+        "partOf".into(),
+        json!([{"id": item_manifest_id, "type": "Manifest"}]),
+    );
+    manifest.insert("items".into(), Value::Array(canvases));
+    Value::Object(manifest)
+}
+
+/// Whether this media has a canvas to show at all: a remote service with no
+/// size has none, and a kind that paints nothing never reaches here.
+pub(crate) fn paints(media: &CanvasMedia) -> bool {
+    painted(&media.painting).is_some()
 }
 
 /// The collection of one item set at `collection_id`: one manifest reference
@@ -163,6 +227,12 @@ fn canvas(base: &str, media: &CanvasMedia) -> Option<Value> {
     }
     if let Some(rendering) = painted.rendering {
         canvas.insert("rendering".into(), rendering);
+    }
+    if let Some(page) = &media.annotation_page {
+        canvas.insert(
+            "annotations".into(),
+            json!([{"id": page, "type": "AnnotationPage"}]),
+        );
     }
     canvas.insert(
         "items".into(),

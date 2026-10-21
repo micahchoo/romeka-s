@@ -14,6 +14,7 @@
 
 mod access;
 mod model;
+mod search;
 pub mod tracks;
 mod wadm;
 

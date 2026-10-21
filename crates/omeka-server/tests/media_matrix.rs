@@ -84,10 +84,11 @@ enum Cell {
     SiteMediaPage,
     SiteItemCard,
     Iiif,
+    IiifNotes,
     Safe,
 }
 
-const CELLS: [Cell; 8] = [
+const CELLS: [Cell; 9] = [
     Cell::Ingest,
     Cell::Annotate,
     Cell::Thumbnail,
@@ -95,6 +96,7 @@ const CELLS: [Cell; 8] = [
     Cell::SiteMediaPage,
     Cell::SiteItemCard,
     Cell::Iiif,
+    Cell::IiifNotes,
     Cell::Safe,
 ];
 
@@ -108,6 +110,7 @@ impl Cell {
             Self::SiteMediaPage => "site-media-page",
             Self::SiteItemCard => "site-item-card",
             Self::Iiif => "iiif",
+            Self::IiifNotes => "iiif-notes",
             Self::Safe => "safe",
         }
     }
@@ -322,6 +325,9 @@ struct Observed {
     notes: Option<Notes>,
     page: Option<String>,
     manifest: Option<Value>,
+    /// The page the media's canvas references, read as a visitor after the
+    /// manifest named it.
+    notes_page: Option<Value>,
     original: Option<Vec<u8>>,
     bytes: Vec<u8>,
 }
@@ -646,6 +652,7 @@ async fn upload(app: &Router, store: &FileStore, seed: &Seed, fixture: &Fixture)
         notes: None,
         page: None,
         manifest: None,
+        notes_page: None,
         original: None,
         bytes,
     };
@@ -689,6 +696,9 @@ async fn upload(app: &Router, store: &FileStore, seed: &Seed, fixture: &Fixture)
         .await
         .json(),
     );
+    if let (Some(manifest), Some(media_id)) = (&observed.manifest, media) {
+        observed.notes_page = notes_page(app, manifest, media_id).await;
+    }
     observed.original = observed
         .media_doc
         .as_ref()
@@ -777,6 +787,7 @@ fn judge(
         Cell::SiteMediaPage => Some(site_media_page(fixture, seen, css)),
         Cell::SiteItemCard => Some(site_item_card(seen, browse)),
         Cell::Iiif => Some(iiif(fixture, seen)),
+        Cell::IiifNotes => iiif_notes(seen),
         Cell::Safe => (fixture.file == "hostile.svg").then(|| safe(seen)),
     }
 }
@@ -1150,6 +1161,55 @@ fn iiif(fixture: &Fixture, seen: &Observed) -> bool {
             }
         })
     })
+}
+
+/// The canvas references the page its notes live on: `annotations[0].id`
+/// dereferences to an AnnotationPage, and every item of that page targets the
+/// canvas. A kind with no canvas has no cell, and a server that wrote a canvas
+/// for a media with a note but no reference is red.
+fn iiif_notes(seen: &Observed) -> Option<bool> {
+    let Some(manifest) = &seen.manifest else {
+        return None;
+    };
+    let media = seen.media?;
+    let canvas = manifest["items"].as_array()?.iter().find(|canvas| {
+        canvas["id"]
+            .as_str()
+            .is_some_and(|id| id.ends_with(&format!("/canvas/{media}")))
+    })?;
+    let canvas_id = canvas["id"].as_str().unwrap_or_default();
+    let Some(page) = &seen.notes_page else {
+        return Some(false);
+    };
+    let items = page["items"].as_array();
+    Some(
+        page["type"] == "AnnotationPage"
+            && page["id"] == canvas["annotations"][0]["id"]
+            && items.is_some_and(|items| {
+                !items.is_empty()
+                    && items
+                        .iter()
+                        .all(|item| target_names(&item["target"], canvas_id))
+            }),
+    )
+}
+
+/// Whether a W3C target names `canvas`: a bare IRI for a whole-object note, or
+/// a `SpecificResource` whose source is the canvas.
+fn target_names(target: &Value, canvas: &str) -> bool {
+    target.as_str() == Some(canvas) || target["source"]["id"].as_str() == Some(canvas)
+}
+
+/// The page `manifest` references for `media`, read as a visitor.
+async fn notes_page(app: &Router, manifest: &Value, media: u64) -> Option<Value> {
+    let canvas = manifest["items"].as_array()?.iter().find(|canvas| {
+        canvas["id"]
+            .as_str()
+            .is_some_and(|id| id.ends_with(&format!("/canvas/{media}")))
+    })?;
+    let page = canvas["annotations"][0]["id"].as_str()?;
+    let answer = send(app.clone(), get(page, false)).await;
+    (answer.status == StatusCode::OK).then(|| answer.json())
 }
 
 /// The hostile SVG is never served with a script reachable. A file the server

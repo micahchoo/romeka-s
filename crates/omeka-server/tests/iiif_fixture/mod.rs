@@ -30,6 +30,8 @@ pub const CURATOR_PASSWORD: &str = "iiif-curator-pass-1";
 pub struct IiifSeed {
     pub app: Router,
     pub store: FileStore,
+    /// The seeded database, for a test that writes a setting or another row.
+    pub pool: omeka_db::DbPool,
     /// A public item with one public image, a description and a rights URI.
     pub item: u64,
     pub media: u64,
@@ -162,7 +164,8 @@ pub async fn iiif_seed() -> IiifSeed {
         .unwrap();
     let dir = tempfile::tempdir().unwrap();
     let store = FileStore::new(dir.path(), "/files");
-    let app = router_with_store(pool, FileStore::new(dir.path(), "/files"));
+    let pool = omeka_db::DbPool::from(pool);
+    let app = router_with_store(pool.clone(), FileStore::new(dir.path(), "/files"));
     let title_id = send(
         app.clone(),
         crate::common::get("/api/properties?term=dcterms:title", false),
@@ -255,6 +258,7 @@ pub async fn iiif_seed() -> IiifSeed {
         site: "museum".to_string(),
         app,
         store,
+        pool,
         dir,
     }
 }
@@ -280,7 +284,8 @@ fn walk(node: &Value) {
                     "Canvas" => &["id", "width", "height", "items"],
                     "AnnotationPage" => &["id", "items"],
                     "Annotation" => &["id", "motivation", "body", "target"],
-                    "Image" | "ImageService3" | "Dataset" | "Sound" | "Video" | "Text" => &["id"],
+                    "Image" | "ImageService3" | "Dataset" | "Sound" | "Video" | "Text"
+                    | "SearchService2" => &["id"],
                     other => panic!("an unknown type {other}: {node}"),
                 };
                 for property in required {
