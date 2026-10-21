@@ -98,6 +98,11 @@ export const es: ResourcesMessages = {
   'media.stage.embedHeading':
     'Este medio es una página en {host}. No se carga nada de ella hasta que la abra.',
   'media.stage.embedOpen': 'Abrir en {host}',
+  'media.stage.embedLoad': 'Cargar el contenido insertado',
+  'media.stage.embedFrame': 'El contenido insertado de {host}',
+  'media.stage.embedSnippetHeading':
+    'Este medio es HTML que el servidor renderiza. Nada se carga hasta que lo abra.',
+  'media.stage.embedSnippetFrame': 'El HTML renderizado',
   'media.stage.manifestHeading': 'Este medio es un manifiesto IIIF de {host}.',
   'media.stage.manifestOpen': 'Abrir en el visor IIIF',
   'media.stage.manifestSource': 'Abrir el manifiesto',

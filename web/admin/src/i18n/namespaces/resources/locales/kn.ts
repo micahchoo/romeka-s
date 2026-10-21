@@ -99,6 +99,11 @@ export const kn: ResourcesMessages = {
   'media.stage.embedHeading':
     'ಈ ಮಾಧ್ಯಮವು {host} ನಲ್ಲಿನ ಒಂದು ಪುಟವಾಗಿದೆ. ನೀವು ಅದನ್ನು ತೆರೆಯುವವರೆಗೆ ಅದರೊಳಗೆ ಏನೂ ಲೋಡ್ ಆಗುವುದಿಲ್ಲ.',
   'media.stage.embedOpen': '{host} ನಲ್ಲಿ ತೆರೆಯಿರಿ',
+  'media.stage.embedLoad': 'ಎಂಬೆಡ್ ಅನ್ನು ಲೋಡ್ ಮಾಡಿ',
+  'media.stage.embedFrame': '{host} ನಿಂದ ಎಂಬೆಡ್',
+  'media.stage.embedSnippetHeading':
+    'ಈ ಮಾಧ್ಯಮವು ಸರ್ವರ್ ರೆಂಡರ್ ಮಾಡುವ HTML ಆಗಿದೆ. ನೀವು ಅದನ್ನು ತೆರೆಯುವವರೆಗೆ ಏನೂ ಲೋಡ್ ಆಗುವುದಿಲ್ಲ.',
+  'media.stage.embedSnippetFrame': 'ರೆಂಡರ್ ಮಾಡಿದ HTML',
   'media.stage.manifestHeading': 'ಈ ಮಾಧ್ಯಮವು {host} ನಿಂದ ಬಂದ IIIF ಮ್ಯಾನಿಫೆಸ್ಟ್ ಆಗಿದೆ.',
   'media.stage.manifestOpen': 'IIIF ವೀಕ್ಷಕದಲ್ಲಿ ತೆರೆಯಿರಿ',
   'media.stage.manifestSource': 'ಮ್ಯಾನಿಫೆಸ್ಟ್ ಅನ್ನು ತೆರೆಯಿರಿ',
