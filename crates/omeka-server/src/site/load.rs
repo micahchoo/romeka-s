@@ -34,9 +34,9 @@ use omeka_db::DbPool;
 use omeka_db::ids as db;
 use omeka_db::repos::{
     AssetRepo, ClassRepo, FulltextRepo, ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo,
-    MediaAnnotationRepo, MediaExtentRepo, MediaFilter, MediaRepo, MediaVisibility, Paging,
-    ResourceRepo, SiteBlockAttachmentRepo, SiteFilter, SiteRepo, TemplateRepo, ValueRepo,
-    compare_opt_text_ci, compare_text_ci,
+    MediaAnnotationRepo, MediaDerivativeRepo, MediaExtentRepo, MediaFilter, MediaRepo,
+    MediaVisibility, Paging, ResourceRepo, SiteBlockAttachmentRepo, SiteFilter, SiteRepo,
+    TemplateRepo, ValueRepo, compare_opt_text_ci, compare_text_ci,
 };
 use omeka_db::rows::{
     AssetRow, ItemRow, ItemSetRow, MediaRow, ResourceRow, SiteBlockRow, SitePageRow, SiteRow,
@@ -637,6 +637,23 @@ impl<'a> Loader<'a> {
             has_thumbnails: row.has_thumbnails,
         });
         let tracks = self.caption_tracks(row, kind).await?;
+        // The access copy is read before the view is built, for the same reason
+        // the tracks are: nothing may await while a `MediaView` is alive. A
+        // player opens the copy when it is ready, and the original otherwise.
+        let rows = with_db!(&self.pool, |db| MediaDerivativeRepo::new(db)
+            .for_media(row.id())
+            .await)?;
+        let access = omeka_api::derivatives::access_copy(
+            &rows,
+            row.storage_id.as_deref(),
+            row.media_type.as_deref(),
+            row.extension.as_deref(),
+        )
+        .and_then(|copy| copy.stored)
+        .map(|copy| {
+            self.files
+                .url(&copy.path, omeka_media::store::FileKind::Original)
+        });
         let view = MediaView::new(
             core,
             MediaData::parse(&row.ingester, row.data.as_ref()).unwrap_or(MediaData::None),
@@ -644,7 +661,8 @@ impl<'a> Loader<'a> {
             item_url.to_string(),
             media_url.clone(),
         )
-        .in_item(item_is_public);
+        .in_item(item_is_public)
+        .with_access(access);
         let thumbnail = view
             .thumbnail_url(options.thumbnail_type.unwrap_or(ThumbnailType::Square))
             .map(|url| Thumbnail::new(url.to_string(), alt_text.unwrap_or_default()));

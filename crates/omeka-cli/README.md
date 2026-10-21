@@ -250,12 +250,15 @@ leaves it `failed` with the command's reason.
 
 The same command records each media's access decision, which the API's create
 also records: an `access_copy` row that says whether a browser shows the
-original (`none`, "a browser shows the original"), or which copy a later worker
-makes and with which command (`pending`, `ffmpeg` for an MP4 or M4A, `vips` for a
-TIFF layout the decoder does not read, `exiftool` or libraw for a RAW file,
-`gs` for a PostScript page), or `none` with `needs <tool>, not installed`. The
-row names a copy the worker in this build does not make, so the preview worker
-leaves it in the queue.
+original (`none`, "a browser shows the original"), or which copy a worker makes
+and with which command (`pending`, `ffmpeg` for an MP4 or M4A, `vips` for a TIFF
+layout the decoder does not read, `exiftool` or libraw for a RAW file, `gs` for a
+PostScript page), or `none` with `needs <tool>, not installed`. `--retry` also
+queues a copy that failed, or one whose tool was missing when it was decided; a
+copy settled "a browser shows the original" has no tool and stays settled. The
+worker makes the audio and video copy in this process when the backfill runs it
+(a transcode of the whole queue), and the hourly sweep starts the same worker in
+its own process.
 
 The summary line is `queued Q, retried R, waiting W, already ready A, nothing to
 do N`, one line per row after the run, and the exit code is 1 when any row ended

@@ -36,6 +36,7 @@ const media = (kind: ServerMediaKind | null, fields: Partial<Media> = {}): Media
   altText: null,
   originalUrl: null,
   preview: null,
+  access: null,
   thumbnailUrls: {},
   ...fields,
 });

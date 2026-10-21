@@ -74,46 +74,79 @@ async fn a_claim_takes_the_row_once_and_counts_the_attempt() {
 }
 
 #[tokio::test]
-async fn an_access_copy_waits_for_the_worker_that_makes_it() {
+async fn an_access_copy_is_claimed_when_ffmpeg_makes_it_and_left_otherwise() {
     let pool = common::memory().await;
-    let id = media(&pool, "queue-access").await;
+    let video = media(&pool, "queue-access").await;
+    let image = media(&pool, "queue-image").await;
     let repo = MediaDerivativeRepo::new(&pool);
-    assert!(
-        repo.plan(
-            &NewDerivative {
-                media_id: id,
-                kind: DerivativeKind::AccessCopy,
-            },
-            DerivativeState::Pending,
-            None,
-            Some("ffmpeg"),
-        )
-        .await
-        .unwrap()
-    );
+    for (id, tool) in [(image, "vips"), (video, "ffmpeg")] {
+        assert!(
+            repo.plan(
+                &NewDerivative {
+                    media_id: id,
+                    kind: DerivativeKind::AccessCopy,
+                },
+                DerivativeState::Pending,
+                None,
+                Some(tool),
+            )
+            .await
+            .unwrap()
+        );
+    }
     assert_eq!(
         repo.pending().await.unwrap(),
-        0,
-        "the preview worker counts only its own work"
+        1,
+        "only the copy whose tool this worker runs is its work"
     );
+    let claimed = repo.claim_next().await.unwrap().expect("the ffmpeg copy");
+    assert_eq!(claimed.media_id, video);
+    assert_eq!(claimed.kind, DerivativeKind::AccessCopy);
     assert!(
         repo.claim_next().await.unwrap().is_none(),
-        "an access copy is not a still the preview worker can make"
+        "the image copy waits for the worker that runs vips"
     );
-    let row = repo
-        .get(id, DerivativeKind::AccessCopy)
+    let waiting = repo
+        .get(image, DerivativeKind::AccessCopy)
         .await
         .unwrap()
         .expect("the row");
-    assert_eq!(row.state, DerivativeState::Pending);
-    assert_eq!(row.tool.as_deref(), Some("ffmpeg"));
-    assert!(row.finished.is_none());
+    assert_eq!(waiting.state, DerivativeState::Pending);
 
-    // A preview row queued behind it is still claimed first.
+    // A preview row queued behind the ffmpeg copy is claimed next.
+    repo.enqueue(&poster(video)).await.unwrap();
+    assert_eq!(
+        repo.pending().await.unwrap(),
+        1,
+        "the poster is the only row this worker can still claim"
+    );
+    let next = repo.claim_next().await.unwrap().expect("the poster");
+    assert_eq!(next.kind, DerivativeKind::Poster);
+}
+
+#[tokio::test]
+async fn a_running_row_goes_back_to_the_queue_and_is_claimed_again() {
+    let pool = common::memory().await;
+    let id = media(&pool, "queue-requeue").await;
+    let repo = MediaDerivativeRepo::new(&pool);
     repo.enqueue(&poster(id)).await.unwrap();
-    assert_eq!(repo.pending().await.unwrap(), 1);
-    let claimed = repo.claim_next().await.unwrap().expect("the poster");
-    assert_eq!(claimed.kind, DerivativeKind::Poster);
+    let claimed = repo.claim_next().await.unwrap().expect("a row");
+    assert_eq!(claimed.state, DerivativeState::Running);
+
+    assert!(repo.requeue(id, DerivativeKind::Poster).await.unwrap());
+    let queued = repo
+        .get(id, DerivativeKind::Poster)
+        .await
+        .unwrap()
+        .expect("the row");
+    assert_eq!(queued.state, DerivativeState::Pending);
+    assert!(queued.started.is_none());
+    assert!(queued.progress.is_none());
+    assert_eq!(queued.attempts, 1, "the attempt it made is still counted");
+
+    let again = repo.claim_next().await.unwrap().expect("a second claim");
+    assert_eq!(again.state, DerivativeState::Running);
+    assert_eq!(again.attempts, 2);
 }
 
 #[tokio::test]

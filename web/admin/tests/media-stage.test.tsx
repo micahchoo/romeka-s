@@ -7,7 +7,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Mock } from 'vitest';
 import { brandId } from '../src/api/parse';
-import type { Media, MediaPreview, ServerMediaKind } from '../src/api/types';
+import type { Media, MediaAccess, MediaPreview, ServerMediaKind } from '../src/api/types';
 import { MediaStage } from '../src/pages/media/stage/stage';
 import { recallPosition, rememberPosition } from '../src/pages/media/stage/play-position';
 import { installFetch, jsonResponse, route, urlsFor } from './stub';
@@ -33,6 +33,7 @@ interface MediaFields {
   readonly altText?: string | null;
   readonly thumbnails?: Readonly<Record<string, string>>;
   readonly preview?: MediaPreview | null;
+  readonly access?: MediaAccess | null;
 }
 
 const media = (fields: MediaFields = {}): Media => ({
@@ -62,6 +63,7 @@ const media = (fields: MediaFields = {}): Media => ({
   altText: fields.altText === undefined ? null : fields.altText,
   originalUrl: fields.originalUrl === undefined ? ORIGINAL : fields.originalUrl,
   preview: fields.preview ?? null,
+  access: fields.access ?? null,
   thumbnailUrls: fields.thumbnails ?? {},
 });
 
@@ -133,6 +135,58 @@ describe('a media the stage can show', () => {
     expect(player).toHaveAttribute('preload', 'metadata');
     expect(player).toHaveAttribute('poster', LARGE);
     expect(player).toHaveAttribute('src', ORIGINAL);
+  });
+
+  it('plays the access copy of a video no browser opens, and keeps the original as the file', () => {
+    const copy = 'http://localhost/files/access/7.mp4';
+    render(
+      <MediaStage
+        media={media({
+          type: 'video/x-msvideo',
+          filename: 'reel.avi',
+          thumbnails: { large: LARGE },
+          access: {
+            state: 'ready',
+            reason: null,
+            progress: null,
+            url: copy,
+            mediaType: 'video/mp4',
+          },
+        })}
+      />,
+    );
+
+    expect(document.querySelector('video')).toHaveAttribute('src', copy);
+    expect(screen.getByRole('link', { name: 'Download the file' })).toHaveAttribute(
+      'href',
+      ORIGINAL,
+    );
+    expect(screen.getByText('Video')).toBeInTheDocument();
+  });
+
+  it('plays the AAC copy of a WMA and the original while the copy is still pending', () => {
+    const copy = 'http://localhost/files/access/7.m4a';
+    const wma = (access: MediaAccess | null): Media =>
+      media({ type: 'audio/x-ms-wma', filename: 'talk.wma', access });
+
+    const { unmount } = render(<MediaStage media={wma(null)} />);
+    expect(document.querySelector('audio')).toHaveAttribute('src', ORIGINAL);
+    unmount();
+
+    const queued = render(
+      <MediaStage
+        media={wma({ state: 'pending', reason: null, progress: 40, url: null, mediaType: null })}
+      />,
+    );
+    expect(document.querySelector('audio')).toHaveAttribute('src', ORIGINAL);
+    queued.unmount();
+
+    render(
+      <MediaStage
+        media={wma({ state: 'ready', reason: null, progress: null, url: copy, mediaType: 'audio/mp4' })}
+      />,
+    );
+    expect(document.querySelector('audio')).toHaveAttribute('src', copy);
   });
 
   it('shows a PDF first page, and the browser viewer only after the press', () => {

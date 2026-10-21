@@ -130,6 +130,9 @@ async fn queue(
     // An audio file has no preview kind and still has an access rule, so the
     // decision is made before the preview returns early.
     enqueue_access(pool, store, media).await?;
+    if retry {
+        retry_copy(pool, media, report).await?;
+    }
     let Some(kind) = preview_kind(media) else {
         report.skipped += 1;
         return Ok(());
@@ -167,6 +170,33 @@ async fn queue(
     Ok(())
 }
 
+/// Put a failed access copy back in the queue for `--retry`, and one whose tool
+/// was missing when it was decided. A copy settled "a browser shows the
+/// original" has no tool, so it has nothing to wait for and stays settled.
+async fn retry_copy(
+    pool: &DbPool,
+    media: &MediaRow,
+    report: &mut DerivativeReport,
+) -> Result<(), CliError> {
+    let id = media.id();
+    let Some(row) = with_db!(pool, |db| MediaDerivativeRepo::new(db)
+        .get(id, DerivativeKind::AccessCopy)
+        .await)?
+    else {
+        return Ok(());
+    };
+    let waiting = row.state == DerivativeState::Failed
+        || (row.state == DerivativeState::None && row.tool.is_some());
+    if waiting
+        && with_db!(pool, |db| MediaDerivativeRepo::new(db)
+            .retry(id, DerivativeKind::AccessCopy)
+            .await)?
+    {
+        report.retried += 1;
+    }
+    Ok(())
+}
+
 /// Whether the three thumbnail files are in the store for this media.
 fn files_stored(store: &dyn Store, media: &MediaRow) -> bool {
     let Some(storage_id) = media.storage_id.as_deref() else {
@@ -195,6 +225,8 @@ async fn run_worker(pool: &DbPool, store: Arc<dyn Store>) -> Result<(), CliError
         base_url: BaseUrl::parse(crate::jobs::DEFAULT_BASE_URL)
             .map_err(|error| CliError::message(error.to_string()))?,
         archive_roots: Default::default(),
+        // The backfill drains its queue in this process on purpose: the operator
+        // is waiting for the report.
         jobs: None,
     };
     Runner::with_env(pool, env).run(job).await?;

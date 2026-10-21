@@ -171,3 +171,26 @@ async fn an_undone_run_leaves_no_access_copy_row() {
         "the cascade removed every derivative row"
     );
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_video_queued_for_ffmpeg_gives_the_worker_a_job() {
+    let site = site().await;
+    three_kinds(&site);
+    let id = site.draft(|_| {}).await;
+    run_to_the_end(&site, id).await;
+    let video = media_typed(&site, "video/").await;
+    let row = access_row(&site, video.id()).await.unwrap();
+    if row.state != DerivativeState::Pending {
+        // No ffmpeg on this machine: the decision is none, with its reason.
+        assert!(row.reason.is_some(), "{row:?}");
+        return;
+    }
+    assert_eq!(row.tool.as_deref(), Some("ffmpeg"), "{row:?}");
+
+    let pool = omeka_db::DbPool::from(site.pool.clone());
+    let job = omeka_api::derivatives::queue_worker(&pool, None)
+        .await
+        .unwrap();
+
+    assert!(job.is_some(), "the worker claims a pending ffmpeg access_copy row");
+}
