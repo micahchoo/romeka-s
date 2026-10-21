@@ -891,7 +891,26 @@ same way:
 first hero each fetch one more chunk; the assets table fetches the upload
 control with its route.
 
-## Decision 29: the item page's notes and viewer load as their own chunks (accepted)
+## Decision 29: the initial ceiling moves to 88064 for the media wire members (accepted)
+
+**Measured.** After D3 (av-access) merged with main on 2026-10-21, `npm run perf:check` read
+`initial js 87041 B`, 1 B over the 87040 ceiling Decision 20 set when the payload was 84680 B. The
+2.4 KB between them went to the media run: the server media kind, the preview state and now the
+access-copy state on every media document (`src/api/parse.ts`, eager because every list parses
+media), and the shared upload client.
+
+**Tried first.** Moving `playerUrl` into the lazy media stage measured 87037 B once and 87041 B
+again with the helper copied exactly: gzip noise, not a saving. Sharing one parser for the preview
+and access members measured 87098 B: the shared helper cost more than the duplicate it removed,
+because gzip already compresses the repeat.
+
+**Budget.** `bundle.initialJsGzipBytes` moves from 87040 to 88064, which leaves 1023 B.
+
+**To win it back.** The media parse could load with the first route that shows media instead of the
+shell, if the list pages that do not show media stop parsing it eagerly. That is a structural
+change for its own unit, measured before and after.
+
+## Decision 30: the item page's notes and viewer load as their own chunks (accepted)
 
 **Change.** The item page gains each card's note count and Annotate action, the
 first file's notes summary, "All notes in this item", and a file viewer that
@@ -944,23 +963,3 @@ request on the server. The next step is a server-side change in
 `crates/omeka-api/src/auth.rs`, which is outside this unit and outside
 `web/admin`. On the frontend the initial payload is 88411 B gzip (Decision 6) and the rest of
 the parse on the paint path is React, which Decision 3 measures.
-
-## Decision 29: the initial ceiling moves to 88064 for the media wire members (accepted)
-
-**Measured.** After D3 (av-access) merged with main on 2026-10-21, `npm run perf:check` read
-`initial js 87041 B`, 1 B over the 87040 ceiling Decision 20 set when the payload was 84680 B. The
-2.4 KB between them went to the media run: the server media kind, the preview state and now the
-access-copy state on every media document (`src/api/parse.ts`, eager because every list parses
-media), and the shared upload client.
-
-**Tried first.** Moving `playerUrl` into the lazy media stage measured 87037 B once and 87041 B
-again with the helper copied exactly: gzip noise, not a saving. Sharing one parser for the preview
-and access members measured 87098 B: the shared helper cost more than the duplicate it removed,
-because gzip already compresses the repeat.
-
-**Budget.** `bundle.initialJsGzipBytes` moves from 87040 to 88064, which leaves 1023 B.
-
-**To win it back.** The media parse could load with the first route that shows media instead of the
-shell, if the list pages that do not show media stop parsing it eagerly. That is a structural
-change for its own unit, measured before and after.
-
