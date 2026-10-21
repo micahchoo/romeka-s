@@ -138,3 +138,41 @@ test('a media list row for an mp3 shows the audio placeholder and no broken imag
 
   await expectClean(diagnostics, 'media list with an mp3');
 });
+
+test('the Kind filter lists one kind and keeps the filter in the URL', async ({
+  page,
+  diagnostics,
+}) => {
+  const created = await page.request.post('/api/items', {
+    multipart: {
+      data: JSON.stringify({
+        'o:is_public': true,
+        'o:media': [{ 'o:ingester': 'upload', file_index: 0, 'o:is_public': true }],
+      }),
+      file: {
+        name: 'filter-tone.mp3',
+        mimeType: 'audio/mpeg',
+        buffer: Buffer.from(MP3_BASE64, 'base64'),
+      },
+    },
+  });
+  expect(created.status(), await created.text()).toBe(200);
+
+  await page.goto('/#/media');
+  const audio = page.locator('tbody tr', { hasText: 'filter-tone.mp3' });
+  const picture = page.locator('tbody tr', { hasText: MEDIA_FILE });
+  await expect(audio).toHaveCount(1);
+  await expect(picture).toHaveCount(1);
+
+  await page.getByLabel('Kind').selectOption('audio');
+  await expect(audio).toHaveCount(1);
+  await expect(picture).toHaveCount(0);
+  await expect(page).toHaveURL(/#\/media\?kind=audio$/);
+
+  await page.reload();
+  await expect(page.getByLabel('Kind')).toHaveValue('audio');
+  await expect(audio).toHaveCount(1);
+  await expect(picture).toHaveCount(0);
+
+  await expectClean(diagnostics, 'media kind filter');
+});
