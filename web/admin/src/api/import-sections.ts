@@ -58,8 +58,8 @@ const maybeText = nullable(asString);
 /** Files per item, in the buckets the admin shows. */
 export type Bucket = '0' | '1' | '2' | '3' | '4-6' | '7+';
 export const BUCKETS: readonly Bucket[] = ['0', '1', '2', '3', '4-6', '7+'];
-export type MediaKind = 'image' | 'pdf' | 'audio' | 'video' | 'other';
-export const MEDIA_KINDS: readonly MediaKind[] = ['image', 'pdf', 'audio', 'video', 'other'];
+export type MediaKind = 'image' | 'pdf' | 'audio' | 'video' | 'document' | 'other';
+export const MEDIA_KINDS: readonly MediaKind[] = ['image', 'pdf', 'audio', 'video', 'document', 'other'];
 
 export type ItemOrigin = 'pattern' | 'row' | 'own';
 export const ITEM_ORIGINS: readonly ItemOrigin[] = ['pattern', 'row', 'own'];

@@ -31,6 +31,7 @@ export const kn: ImportListsMessages = {
   'lists.facts.pdf': 'ಪಿಡಿಎಫ್‌ಗಳು',
   'lists.facts.audio': 'ಶಬ್ದಗಳು',
   'lists.facts.video': 'ಚಲನಚಿತ್ರಗಳು',
+  'lists.facts.document': 'ದಾಖಲೆಗಳು',
   'lists.facts.other': 'ಇತರ ಫೈಲ್‌ಗಳು',
   'lists.facts.parts': 'ನೀವು ಗುರುತಿಸಿದ ಭಾಗದಲ್ಲಿ {parts} ಪದಗಳನ್ನು ಹೊಂದಿರುವ',
   'lists.facts.pages': '{count} ಪುಟ ಸಂಖ್ಯೆಗಳು',
