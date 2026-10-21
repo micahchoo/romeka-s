@@ -3107,6 +3107,25 @@ a.pdf-card:focus-visible {
   margin-top: var(--space-1);
 }
 
+/* A file that is not a picture: a slot links it by its name, with the kind
+   and the size beneath. */
+.assets .asset-file {
+  color: var(--color-link);
+  display: inline-block;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.2em;
+}
+
+.assets .asset-facts {
+  color: var(--color-muted);
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: 400;
+  margin-top: var(--space-1);
+}
+
 /* Page date and time */
 
 .page-date-time > div {

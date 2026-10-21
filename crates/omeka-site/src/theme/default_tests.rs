@@ -500,6 +500,8 @@ fn layout_renders_the_logo_and_banner_assets() {
             title: "A logo".to_string(),
             url: Some("/files/original/3.png".to_string()),
             thumbnail: None,
+            kind: crate::view::AssetKind::Image,
+            size: None,
         },
     );
     let mut ctx = context(&site, &resources);
@@ -523,6 +525,41 @@ fn layout_renders_the_logo_and_banner_assets() {
     assert!(!document.contains("site-banner-image"), "{document}");
     assert!(
         document.contains("<p class=\"site-banner-text\">Open daily &lt;10am&gt;</p>"),
+        "{document}"
+    );
+}
+
+/// A logo and a banner take images, so an asset of another kind shows
+/// neither: the header keeps no logo and the banner keeps its text, never a
+/// broken `<img>`.
+#[test]
+fn a_non_image_logo_and_banner_render_nothing() {
+    let site = site();
+    let mut resources = TestResources::default();
+    for id in [3, 4] {
+        resources.assets.insert(
+            id,
+            crate::view::AssetView {
+                id: omeka_core::ids::AssetId::new(id),
+                title: "report.pdf".to_string(),
+                url: Some("/files/asset/report.pdf".to_string()),
+                thumbnail: None,
+                kind: crate::view::AssetKind::Pdf,
+                size: Some(4096),
+            },
+        );
+    }
+    let mut ctx = context(&site, &resources);
+    ctx.theme_settings = crate::theme::ThemeSettings::from_value(&serde_json::json!({
+        "logo": 3,
+        "banner": 4,
+        "banner_text": "Open daily"
+    }));
+    let document = DefaultTheme.render(&View::Index, &ctx);
+    assert!(!document.contains("site-logo"), "{document}");
+    assert!(!document.contains("site-banner-image"), "{document}");
+    assert!(
+        document.contains("<p class=\"site-banner-text\">Open daily</p>"),
         "{document}"
     );
 }

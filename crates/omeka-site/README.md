@@ -157,7 +157,10 @@ stored query's `sort_by`, a column or a property term, as upstream's `sortQuery`
 loader orders by a property's smallest public value. A preview whose search matches nothing says so.
 The asset block (`blocks/asset.rs`) keeps each image's own shape unless the block asks for a 3:2
 frame, lays the images out stacked, in a row or in a grid, aligns the captions, and links a slot to
-a URL kept at `settings.attachments[<slot>].url` when it names no page. The list of pages
+a URL kept at `settings.attachments[<slot>].url` when it names no page. A site holds any file the
+media allow list takes, so a slot's file has a kind (`view::AssetKind`) and a size: a non-image in
+the asset block is a link to the file named by its alt text or its name, with the kind in words and
+the size, and a slot that accepts images renders nothing for another kind. The list of pages
 (`blocks/list_of_pages.rs`) may draw its pages as cards whose image and summary come from each
 page's own blocks (`blocks/page_card.rs`, `ResourceProvider::page_card`). The item with metadata
 (`blocks/item_with_metadata.rs`) may print only a chosen, ordered list of properties (the

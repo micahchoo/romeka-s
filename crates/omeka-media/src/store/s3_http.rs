@@ -32,6 +32,9 @@ pub(super) struct Http {
 pub(super) struct Sent {
     pub(super) status: u16,
     pub(super) etag: Option<String>,
+    /// The `Content-Length` header, which `HeadObject` answers with the
+    /// object's size.
+    pub(super) content_length: Option<u64>,
     pub(super) body: Vec<u8>,
 }
 
@@ -158,6 +161,11 @@ fn read(
         .get("etag")
         .and_then(|value| value.to_str().ok())
         .map(str::to_string);
+    let content_length = response
+        .headers()
+        .get("content-length")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse().ok());
     let body = response
         .body_mut()
         .with_config()
@@ -166,7 +174,12 @@ fn read(
         .map_err(|error| {
             StoreError::remote(key, format!("{action} body: {}", error_kind(&error)))
         })?;
-    Ok(Sent { status, etag, body })
+    Ok(Sent {
+        status,
+        etag,
+        content_length,
+        body,
+    })
 }
 
 /// A transport error without its URL.

@@ -122,6 +122,14 @@ pub trait Store: Send + Sync + std::fmt::Debug {
     /// [`StoreError`] when the path is illegal or the store cannot answer.
     fn exists(&self, storage_path: &str) -> Result<bool, StoreError>;
 
+    /// The number of bytes stored at `storage_path`, `None` when nothing is.
+    /// A site page prints the size of a file it links, so this reads the
+    /// object's metadata and never its body.
+    ///
+    /// # Errors
+    /// [`StoreError`] when the path is illegal or the store cannot answer.
+    fn size(&self, storage_path: &str) -> Result<Option<u64>, StoreError>;
+
     /// The files directly inside the folder `prefix` (such as `original`),
     /// sorted by storage path. Files of nested folders are not listed, and a
     /// folder that does not exist lists nothing.

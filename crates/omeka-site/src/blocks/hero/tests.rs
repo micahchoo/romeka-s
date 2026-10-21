@@ -139,6 +139,8 @@ fn rich_renders_the_background_image() {
             title: "A shelf".to_string(),
             url: Some("/files/asset/bg.png".to_string()),
             thumbnail: Some(Thumbnail::new("/files/asset/bg.png", "A shelf")),
+            kind: crate::view::AssetKind::Image,
+            size: None,
         },
     );
     let site = site();
@@ -150,6 +152,46 @@ fn rich_renders_the_background_image() {
         ),
         "{rich}"
     );
+}
+
+/// A background asset slot accepts images, so a stored PDF draws nothing: the
+/// banner keeps its text and never prints an `<img>` for a file no browser can
+/// show.
+#[test]
+fn a_non_image_asset_background_renders_no_image() {
+    let mut resources = TestResources::default();
+    resources.assets.insert(
+        3,
+        AssetView {
+            id: AssetId::new(3),
+            title: "report.pdf".to_string(),
+            url: Some("/files/asset/report.pdf".to_string()),
+            thumbnail: Some(Thumbnail::new("/files/asset/report.pdf", "")),
+            kind: crate::view::AssetKind::Pdf,
+            size: Some(4096),
+        },
+    );
+    let site = site();
+    let ctx = context(&site, &resources);
+    let rich = Hero.render(&settings(), &ctx);
+    assert!(!rich.contains("<img"), "{rich}");
+    assert!(rich.contains("romeka-hero-no-image"), "{rich}");
+    assert!(
+        rich.contains("<h2 class=\"romeka-hero-heading\">Welcome</h2>"),
+        "{rich}"
+    );
+}
+
+/// A media background the provider resolved no still for, such as audio,
+/// renders no image either.
+#[test]
+fn a_media_background_without_a_still_renders_no_image() {
+    let resources = TestResources::default();
+    let site = site();
+    let ctx = context(&site, &resources);
+    let rich = Hero.render(&media_settings(), &ctx);
+    assert!(!rich.contains("<img"), "{rich}");
+    assert!(rich.contains("romeka-hero-no-image"), "{rich}");
 }
 
 /// An edited plain rendering renders that edit, purified, not the rich

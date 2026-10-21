@@ -54,9 +54,9 @@ use omeka_site::settings::SiteSettings;
 use omeka_site::slug::{controller_for, page_url, resource_show_url, site_url};
 use omeka_site::transcript::{Cue, Language, Transcript};
 use omeka_site::view::{
-    BrowseQuery, BrowseView, LinkedResource, MediaIcon, MediaKindCue, MediaPosition, MediaRef,
-    PageCard, ResourcePage, ResourceRef, ResourceView, SiteQuery, SiteSearch, SiteSort, SiteView,
-    Thumbnail, ValueRef,
+    AssetKind, BrowseQuery, BrowseView, LinkedResource, MediaIcon, MediaKindCue, MediaPosition,
+    MediaRef, PageCard, ResourcePage, ResourceRef, ResourceView, SiteQuery, SiteSearch, SiteSort,
+    SiteView, Thumbnail, ValueRef,
 };
 
 use omeka_media::data::MediaData;
@@ -1349,10 +1349,13 @@ impl<'a> Loader<'a> {
 
     /// The thumbnail a resource or site shows when its `thumbnail_id` names an
     /// asset: the asset's own file URL and alt text
-    /// (`AbstractRepresentation::thumbnailDisplayUrl`).
+    /// (`AbstractRepresentation::thumbnailDisplayUrl`). A thumbnail is drawn as
+    /// an image, so an asset of another kind answers none: the card falls back
+    /// to its empty slot rather than a broken `<img>`.
     async fn asset_thumbnail(&self, id: db::AssetId) -> Result<Option<Thumbnail>, DbError> {
         Ok(with_db!(self.pool, |db| AssetRepo::new(db).get(id).await)?
             .as_ref()
+            .filter(|row| AssetKind::of_media_type(&row.media_type).is_image())
             .map(|row| thumbnail_for_asset(self.files, row)))
     }
 
@@ -2415,11 +2418,16 @@ pub(crate) fn thumbnail_for_asset(files: &FileUrls, row: &AssetRow) -> Thumbnail
 
 /// `AssetRepresentation::assetUrl`: the stored file under `asset/<filename>`.
 fn asset_url(files: &FileUrls, row: &AssetRow) -> String {
-    let filename = match row.extension.as_deref() {
-        Some(extension) if !extension.is_empty() => format!("{}.{extension}", row.storage_id),
-        _ => row.storage_id.clone(),
-    };
-    files.url(&format!("asset/{filename}"), FileKind::Asset)
+    files.url(&asset_storage_path(row), FileKind::Asset)
+}
+
+/// The storage path of an asset's file: `asset/<storage id>.<extension>`,
+/// where the extension is the row's when it has one.
+pub(crate) fn asset_storage_path(row: &AssetRow) -> String {
+    match row.extension.as_deref() {
+        Some(extension) if !extension.is_empty() => format!("asset/{}.{extension}", row.storage_id),
+        _ => format!("asset/{}", row.storage_id),
+    }
 }
 
 fn sort_site_rows(rows: &mut [SiteRow], sort: SiteSort) {

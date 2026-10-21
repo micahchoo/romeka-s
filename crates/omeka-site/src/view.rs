@@ -282,8 +282,10 @@ pub struct MediaRef {
     pub embed: Option<String>,
 }
 
-/// An asset, as the asset block shows it. The background of a block names an
-/// asset by id, so this carries the URL the background-image style uses.
+/// An asset, as the asset block and every image slot show it. The background
+/// of a block names an asset by id, so this carries the URL the
+/// background-image style uses, and the kind, so a slot that draws only a
+/// picture skips a file that is not one.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AssetView {
     /// The asset id.
@@ -295,6 +297,106 @@ pub struct AssetView {
     pub url: Option<String>,
     /// The square thumbnail, `None` when there is none.
     pub thumbnail: Option<Thumbnail>,
+    /// What the stored file is, from its media type.
+    pub kind: AssetKind,
+    /// The stored file's size in bytes, `None` when the caller could not read
+    /// it. The asset block prints it beside a file it links.
+    pub size: Option<u64>,
+}
+
+impl AssetView {
+    /// Whether a browser draws the file as a picture, which is the only kind an
+    /// image slot takes.
+    #[must_use]
+    pub fn is_image(&self) -> bool {
+        self.kind.is_image()
+    }
+
+    /// The name a slot gives the file: the alt text when the file carries one,
+    /// else the asset's name.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        match self
+            .thumbnail
+            .as_ref()
+            .map(|thumbnail| thumbnail.alt.as_str())
+        {
+            Some(alt) if !alt.is_empty() => alt,
+            _ => &self.title,
+        }
+    }
+
+    /// The URL of the stored file, which a slot links when the file is not a
+    /// picture. The thumbnail carries the same URL when the caller resolved
+    /// no separate one.
+    #[must_use]
+    pub fn file_url(&self) -> Option<&str> {
+        self.url.as_deref().or_else(|| {
+            self.thumbnail
+                .as_ref()
+                .map(|thumbnail| thumbnail.url.as_str())
+        })
+    }
+}
+
+/// What an asset's own file is, as a page shows it. A site may hold any file
+/// the media allow list takes, so every slot that draws an asset asks this
+/// first: only [`AssetKind::Image`] is a picture, and a slot that takes no
+/// other kind renders nothing rather than a broken `<img>`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AssetKind {
+    /// A still picture a browser draws, whatever its format.
+    Image,
+    /// A recording or a sound file.
+    Audio,
+    /// A moving picture.
+    Video,
+    /// A PDF document.
+    Pdf,
+    /// A glTF binary or JSON model.
+    Model,
+    /// A WebVTT or SubRip file.
+    Captions,
+    /// A file no other kind names.
+    File,
+}
+
+impl AssetKind {
+    /// The kind of a stored file, from the media type the upload recorded.
+    /// Every `image/*` is an image: the browser draws the stored original, and
+    /// an asset has no derivatives to decide the question.
+    #[must_use]
+    pub fn of_media_type(media_type: &str) -> Self {
+        match media_type {
+            "application/pdf" => Self::Pdf,
+            "model/gltf-binary" | "model/gltf+json" => Self::Model,
+            "text/vtt" | "application/x-subrip" => Self::Captions,
+            media_type if media_type.starts_with("image/") => Self::Image,
+            media_type if media_type.starts_with("audio/") => Self::Audio,
+            media_type if media_type.starts_with("video/") => Self::Video,
+            _ => Self::File,
+        }
+    }
+
+    /// The kind in words, as the site catalogue names it.
+    #[must_use]
+    pub fn label(self, messages: &Messages) -> &'static str {
+        match self {
+            Self::Image => messages.kind_image,
+            Self::Audio => messages.kind_audio,
+            Self::Video => messages.kind_video,
+            Self::Pdf => messages.kind_pdf,
+            Self::Model => messages.kind_model_3d,
+            Self::Captions => messages.kind_captions,
+            Self::File => messages.kind_other_file,
+        }
+    }
+
+    /// Whether a browser draws the file as a picture.
+    #[must_use]
+    pub fn is_image(self) -> bool {
+        self == Self::Image
+    }
 }
 
 /// One `site_block_attachment` row (`schema.sql:251-263`), which core leaves to
@@ -720,6 +822,28 @@ impl<'a> RenderContext<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A stored type names one kind: every `image/*` is a picture a slot may
+    /// draw, and every other kind is one a slot that takes images skips.
+    #[test]
+    fn an_asset_kind_follows_the_stored_media_type() {
+        assert_eq!(AssetKind::of_media_type("image/png"), AssetKind::Image);
+        assert_eq!(AssetKind::of_media_type("image/svg+xml"), AssetKind::Image);
+        assert_eq!(AssetKind::of_media_type("application/pdf"), AssetKind::Pdf);
+        assert_eq!(AssetKind::of_media_type("audio/mpeg"), AssetKind::Audio);
+        assert_eq!(AssetKind::of_media_type("video/mp4"), AssetKind::Video);
+        assert_eq!(
+            AssetKind::of_media_type("model/gltf-binary"),
+            AssetKind::Model
+        );
+        assert_eq!(
+            AssetKind::of_media_type("application/x-subrip"),
+            AssetKind::Captions
+        );
+        assert_eq!(AssetKind::of_media_type("application/zip"), AssetKind::File);
+        assert!(AssetKind::Image.is_image());
+        assert!(!AssetKind::Pdf.is_image());
+    }
 
     /// `NoResources` answers empty for every lookup.
     #[test]

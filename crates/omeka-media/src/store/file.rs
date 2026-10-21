@@ -126,6 +126,17 @@ impl Store for FileStore {
             .map_err(|source| StoreError::Io { path, source })
     }
 
+    /// The file's metadata, so a page that links it prints its size without
+    /// reading it.
+    fn size(&self, storage_path: &str) -> Result<Option<u64>, StoreError> {
+        let path = self.local_path(storage_path)?;
+        match std::fs::metadata(&path) {
+            Ok(metadata) => Ok(Some(metadata.len())),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(source) => Err(StoreError::Io { path, source }),
+        }
+    }
+
     /// Symlinks are never followed and never listed: neither a linked folder
     /// nor a linked file is reported, so a caller that deletes what this
     /// returns cannot reach outside the root.

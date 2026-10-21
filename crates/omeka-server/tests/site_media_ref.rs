@@ -86,6 +86,48 @@ async fn add_media(pool: &sqlx::SqlitePool, item: ItemId, owner: UserId, is_publ
         .0
 }
 
+/// A media of `item` whose file is `media_type`, for the kinds a hero may
+/// name after the curator's picker greyed them out. `has_thumbnails` says
+/// whether the thumbnailer made the large still of it.
+async fn add_kind_media(
+    pool: &sqlx::SqlitePool,
+    item: ItemId,
+    owner: UserId,
+    title: &str,
+    media_type: &str,
+    storage_id: &str,
+    has_thumbnails: bool,
+) -> u64 {
+    MediaRepo::new(pool)
+        .create(&NewMedia {
+            resource: NewResource {
+                owner_id: Some(owner),
+                title: Some(title.to_string()),
+                is_public: true,
+                ..NewResource::default()
+            },
+            item_id: item,
+            ingester: "upload".to_string(),
+            renderer: "file".to_string(),
+            data: None,
+            source: Some(storage_id.to_string()),
+            media_type: Some(media_type.to_string()),
+            storage_id: Some(storage_id.to_string()),
+            extension: None,
+            sha256: Some(storage_id.to_string()),
+            size: Some(1),
+            has_original: true,
+            has_thumbnails,
+            position: None,
+            lang: None,
+            alt_text: None,
+        })
+        .await
+        .unwrap()
+        .id()
+        .0
+}
+
 /// A hero with a public site media saves its large rendition into the plain
 /// rendering, and the public page shows that image at the focal point.
 #[tokio::test]
@@ -119,6 +161,95 @@ async fn a_hero_with_site_media_stores_and_renders_its_image() {
              alt=\"\" style=\"object-position: 30% 70%\">"
         )),
         "the media background did not render: {}",
+        page.body
+    );
+}
+
+/// A video stored as a hero background before the picker greyed a misfit: the
+/// page shows the poster derivative the thumbnailer made, never a broken
+/// `<img>` for the video itself.
+#[tokio::test]
+async fn a_video_media_background_shows_its_poster_derivative() {
+    let (pool, seed) = seeded_pool().await;
+    let app = router(pool.clone());
+    let video = add_kind_media(
+        &pool,
+        seed.item,
+        seed.user,
+        "A talk",
+        "video/mp4",
+        "talk",
+        true,
+    )
+    .await;
+    let created = send(
+        app.clone(),
+        json_request(
+            "POST",
+            &append_key("/api/site_pages"),
+            &hero_with_media(seed.site, video),
+        ),
+    )
+    .await;
+    assert_eq!(created.status, StatusCode::OK, "{}", created.body);
+    assert_eq!(
+        created.json()["o:block"][0]["o:data"]["html"],
+        "<h2>Maps</h2><img src=\"/files/large/talk.jpg\" alt=\"\">"
+    );
+
+    let page = send(app, get("/s/museum/page/media-hero", false)).await;
+    assert_eq!(page.status, StatusCode::OK, "{}", page.body);
+    assert!(
+        page.body.contains(
+            "<img class=\"romeka-hero-background\" src=\"http://localhost/files/large/talk.jpg\""
+        ),
+        "the poster did not render: {}",
+        page.body
+    );
+    assert!(
+        !page.body.contains("talk.mp4"),
+        "the video itself was named as an image: {}",
+        page.body
+    );
+}
+
+/// A media with no still at all, such as an audio file, renders no
+/// background: the banner keeps its text and there is no broken `<img>`.
+#[tokio::test]
+async fn a_media_background_without_a_still_renders_no_image() {
+    let (pool, seed) = seeded_pool().await;
+    let app = router(pool.clone());
+    let audio = add_kind_media(
+        &pool,
+        seed.item,
+        seed.user,
+        "An interview",
+        "audio/mpeg",
+        "interview",
+        false,
+    )
+    .await;
+    let created = send(
+        app.clone(),
+        json_request(
+            "POST",
+            &append_key("/api/site_pages"),
+            &hero_with_media(seed.site, audio),
+        ),
+    )
+    .await;
+    assert_eq!(created.status, StatusCode::OK, "{}", created.body);
+    assert_eq!(
+        created.json()["o:block"][0]["o:data"]["html"],
+        "<h2>Maps</h2>"
+    );
+
+    let page = send(app, get("/s/museum/page/media-hero", false)).await;
+    assert_eq!(page.status, StatusCode::OK, "{}", page.body);
+    assert!(page.body.contains("romeka-hero-no-image"), "{}", page.body);
+    assert!(
+        !page.body.contains("<img class=\"romeka-hero-background\""),
+        "an audio background drew an image: {}",
         page.body
     );
 }

@@ -315,11 +315,20 @@ impl RomkaBlock for Hero {
 }
 
 /// The background on the rendered page, with the alt text its file carries.
+///
+/// An asset slot accepts images only, so a stored file of another kind renders
+/// no background. A media that is not an image answers its poster derivative
+/// when it has one (`ResourceProvider::read_image`) and nothing when it has
+/// none, so a video chosen before the picker greyed it out still shows its
+/// frame and an audio file shows no broken `<img>`.
 fn background_image(background: Background, ctx: &RenderContext<'_>) -> Option<Thumbnail> {
     match background {
         Background::None => None,
         Background::Asset(id) => {
             let asset = ctx.resources.read_asset(id)?;
+            if !Accepts::Image.admits(asset.kind) {
+                return None;
+            }
             let url = asset.url?;
             let alt = asset
                 .thumbnail
