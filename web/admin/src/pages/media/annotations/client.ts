@@ -90,6 +90,13 @@ export interface NotesClientOptions {
   readonly fetchFn?: typeof fetch;
 }
 
+/** How much of a container to read: every page, or the first for a count. */
+export interface ContainerRead {
+  /** `first` stops after the container's first page, so a caller that needs
+   * the total and a preview pays one request rather than one per page. */
+  readonly pages?: 'all' | 'first';
+}
+
 const readBody = async (response: Response): Promise<unknown> => {
   const text = await response.text();
   if (text === '') {
@@ -219,7 +226,7 @@ export class NotesClient {
    * `Romeka-Canvas`, or from a note's target when the server sends no header:
    * a create needs it, and an empty container has no other source.
    */
-  async container(mediaId: MediaId): Promise<Container> {
+  async container(mediaId: MediaId, read: ContainerRead = {}): Promise<Container> {
     const url = this.url(`/annotations/media/${String(mediaId)}/`);
     const response = await this.fetchFn(url, {
       headers: { Accept: ANNO_PROFILE },
@@ -239,6 +246,9 @@ export class NotesClient {
       const pageDocument =
         typeof page === 'string' ? await this.pageDocument(page, trackIds) : asRecord(page, ['first']);
       notes.push(...notesOf(pageDocument, trackIds));
+      if (read.pages === 'first') {
+        break;
+      }
       page = typeof pageDocument['next'] === 'string' ? pageDocument['next'] : undefined;
     }
     const total = document['total'] === undefined ? notes.length : asNumber(document['total'], ['total']);

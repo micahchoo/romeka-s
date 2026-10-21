@@ -195,6 +195,28 @@ export const en = {
   'captions.useAsUntitled': 'Untitled',
   'captions.useAsAudio': 'audio',
   'captions.useAsVideo': 'video',
+  // The item page's route into a file's notes, and the file viewer.
+  'notes.cardAnnotate': 'Annotate',
+  'notes.cardPreview': 'Preview',
+  'notes.cardNotes': 'Read notes',
+  'notes.cardCount': '{count} notes',
+  'notes.cardCountOne': '1 note',
+  'notes.firstHeading': 'Notes on {name}',
+  'notes.firstNone': 'No notes on this file yet.',
+  'notes.firstMore': '{count} more on this file',
+  'notes.itemHeading': 'All notes in this item',
+  'notes.itemFiles': '{files} of {total} files have notes.',
+  'notes.itemCapped': 'Read the first {shown} of {total} files.',
+  'notes.itemEmpty': 'No notes on these files yet.',
+  'notes.itemFailed': 'The notes could not be read.',
+  'notes.itemMore': '{count} more on the media page',
+  'notes.itemUnread': 'The notes of {count} files could not be read.',
+  'preview.position': 'File {index} of {total}',
+  'preview.previous': 'Previous',
+  'preview.next': 'Next',
+  'preview.close': 'Close the preview',
+  'preview.loading': 'Loading the file...',
+  'preview.openPage': 'Open media page',
 } as const;
 
 /** A complete table of this namespace, in one locale. */
