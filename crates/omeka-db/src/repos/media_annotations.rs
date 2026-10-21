@@ -124,11 +124,44 @@ pub struct Cue<'a> {
     pub body_text: &'a str,
 }
 
+/// One cue a kept edition puts back: the row's own id, revision and timestamps,
+/// with the text the schema derives from `body_json` available to the insert.
+#[derive(Debug, Clone, Copy)]
+pub struct RestoredCue<'a> {
+    pub id: i64,
+    pub revision: u32,
+    pub created: chrono::NaiveDateTime,
+    pub modified: chrono::NaiveDateTime,
+    pub start_ms: i64,
+    pub end_ms: i64,
+    pub body_json: &'a str,
+    pub body_text: &'a str,
+}
+
 /// The result of a caption import.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TrackOutcome {
+    /// The file repeats the language's rows, so no row moved.
     Unchanged { cues: u32 },
-    Replaced { removed: u32, inserted: u32 },
+    /// The rows the import replaced, in id order, so the caller can keep one
+    /// edition for an undo; the cues it inserted; and the newest id among the
+    /// language's rows after the write, which names that edition.
+    Replaced {
+        kept: Vec<MediaAnnotationRow>,
+        inserted: u32,
+        live_max: i64,
+    },
+}
+
+/// The result of putting a kept edition back.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UndoOutcome {
+    Restored {
+        cues: u32,
+    },
+    /// The language's live rows are no longer the edition the kept one
+    /// replaced, so there is nothing to put back.
+    Nothing,
 }
 
 /// The columns every read lists, under the alias `a`.
@@ -418,7 +451,8 @@ where
     ///
     /// Equal cues (same times, text and order) change nothing and bump no revision, so importing
     /// the same file twice is a no-op. Hand-written rows, including hand-written `supplementing`
-    /// ones, are left alone.
+    /// ones, are left alone. The rows it deletes are handed back, because the caller keeps them
+    /// as the edition an undo brings back.
     pub async fn replace_track(
         &self,
         media: MediaId,
@@ -434,17 +468,10 @@ where
             });
         }
         let now = time::now();
-        let mut delete =
-            Statement::<DB>::new("DELETE FROM romeka_media_annotation WHERE media_id = ");
-        delete.bind(bind_id(media))?;
-        delete.push(" AND motivation = 'supplementing' AND origin = 'track' AND ");
-        push_lang(&mut delete, lang)?;
-        let (sql, arguments) = delete.into_parts();
-        let removed = sqlx::query_with::<DB, _>(&sql, arguments)
-            .execute(&mut *tx)
-            .await?;
+        delete_track::<DB>(&mut tx, media, lang).await?;
+        let mut live_max = 0;
         for cue in cues {
-            sqlx::query::<DB>(
+            let done = sqlx::query::<DB>(
                 "INSERT INTO romeka_media_annotation
                      (media_id, owner_id, revision, created, modified, motivation, origin, lang,
                       selector_kind, selector, t_start_ms, t_end_ms, body_json, body_text,
@@ -462,11 +489,65 @@ where
             .bind(cue.body_text)
             .execute(&mut *tx)
             .await?;
+            let written = DB::inserted_id(&done)?;
+            live_max = i64::try_from(written).unwrap_or(live_max);
         }
         tx.commit().await?;
         Ok(TrackOutcome::Replaced {
-            removed: u32::try_from(DB::rows_affected(&removed)).unwrap_or(u32::MAX),
+            kept: existing,
             inserted: u32::try_from(cues.len()).unwrap_or(u32::MAX),
+            live_max,
+        })
+    }
+
+    /// Put a kept edition back as the language's track rows, one transaction.
+    ///
+    /// `replaced_by` is the newest id of the edition that replaced the kept one. The restore runs
+    /// only while that edition is still live, so an undo never overwrites an import it never saw.
+    ///
+    /// The kept rows come back under their own ids when no row holds one of them now, so a cue a
+    /// browser already names is the same cue after the undo. Otherwise the rows are inserted with
+    /// fresh ids: the same times, text, revisions and import time.
+    pub async fn restore_track(
+        &self,
+        media: MediaId,
+        lang: Option<&str>,
+        kept: &[RestoredCue<'_>],
+        replaced_by: i64,
+    ) -> Result<UndoOutcome, DbError> {
+        let mut tx = self.pool.begin_with(DB::begin_write()).await?;
+        let live = track_rows::<DB>(&mut tx, media, lang, DB::for_update()).await?;
+        if live.last().map_or(0, |row| row.id) != replaced_by {
+            tx.rollback().await?;
+            return Ok(UndoOutcome::Nothing);
+        }
+        let reuse_ids = ids_are_free::<DB>(&mut tx, kept).await?;
+        delete_track::<DB>(&mut tx, media, lang).await?;
+        for row in kept {
+            sqlx::query::<DB>(
+                "INSERT INTO romeka_media_annotation
+                     (id, media_id, owner_id, revision, created, modified, motivation, origin,
+                      lang, selector_kind, selector, t_start_ms, t_end_ms, body_json, body_text,
+                      extensions, client_key)
+                 VALUES (?, ?, NULL, ?, ?, ?, 'supplementing', 'track', ?, 'time', NULL, ?, ?, ?, ?,
+                         NULL, NULL)",
+            )
+            .bind(if reuse_ids { Some(row.id) } else { None })
+            .bind(bind_id(media))
+            .bind(i64::from(row.revision))
+            .bind(row.created)
+            .bind(row.modified)
+            .bind(lang)
+            .bind(row.start_ms)
+            .bind(row.end_ms)
+            .bind(row.body_json)
+            .bind(row.body_text)
+            .execute(&mut *tx)
+            .await?;
+        }
+        tx.commit().await?;
+        Ok(UndoOutcome::Restored {
+            cues: u32::try_from(kept.len()).unwrap_or(u32::MAX),
         })
     }
 
@@ -749,6 +830,59 @@ where
         .fetch_all(&mut **tx)
         .await?;
     rows.iter().map(row_from::<DB>).collect()
+}
+
+/// Delete the track rows of one language, inside the caller's transaction.
+async fn delete_track<DB: Backend>(
+    tx: &mut Transaction<'static, DB>,
+    media: MediaId,
+    lang: Option<&str>,
+) -> Result<(), DbError>
+where
+    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
+    for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
+    for<'x> i64: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> &'x str: Encode<'x, DB> + Type<DB>,
+{
+    let mut delete = Statement::<DB>::new("DELETE FROM romeka_media_annotation WHERE media_id = ");
+    delete.bind(bind_id(media))?;
+    delete.push(" AND motivation = 'supplementing' AND origin = 'track' AND ");
+    push_lang(&mut delete, lang)?;
+    let (sql, arguments) = delete.into_parts();
+    sqlx::query_with::<DB, _>(&sql, arguments)
+        .execute(&mut **tx)
+        .await?;
+    Ok(())
+}
+
+/// Whether every kept id is unused, so a restore can go back under its own ids.
+///
+/// One query over the ids' own range, not one per id and not a bind list the size of a track.
+async fn ids_are_free<DB: Backend>(
+    tx: &mut Transaction<'static, DB>,
+    kept: &[RestoredCue<'_>],
+) -> Result<bool, DbError>
+where
+    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
+    for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
+    usize: ColumnIndex<DB::Row>,
+    for<'x> i64: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+{
+    let (Some(first), Some(last)) = (
+        kept.iter().map(|row| row.id).min(),
+        kept.iter().map(|row| row.id).max(),
+    ) else {
+        return Ok(true);
+    };
+    let mut statement = Statement::<DB>::new("SELECT id FROM romeka_media_annotation WHERE id >= ");
+    statement.bind(first)?;
+    statement.push(" AND id <= ");
+    statement.bind(last)?;
+    let (sql, arguments) = statement.into_parts();
+    let taken: Vec<i64> = sqlx::query_scalar_with::<DB, i64, _>(&sql, arguments)
+        .fetch_all(&mut **tx)
+        .await?;
+    Ok(!kept.iter().any(|row| taken.contains(&row.id)))
 }
 
 fn equal_cues(existing: &[MediaAnnotationRow], cues: &[Cue<'_>]) -> bool {

@@ -295,10 +295,64 @@ describe('caption tracks', () => {
         ]),
     ]);
     expect(await client.tracks(MEDIA)).toEqual([
-      { lang: 'en', cues: 214, imported: '2026-10-20T09:12:44Z', handEdited: 3 },
-      { lang: 'fr', cues: 12, imported: null, handEdited: 0 },
+      { lang: 'en', cues: 214, imported: '2026-10-20T09:12:44Z', handEdited: 3, undo: null },
+      { lang: 'fr', cues: 12, imported: null, handEdited: 0, undo: null },
     ]);
     expect(calls.map((call) => call.url)).toEqual(['/annotations/media/4127/tracks']);
+  });
+
+  it('reads the edition an undo would bring back (G6)', async () => {
+    const { client } = recorder([
+      () =>
+        json(200, [
+          {
+            lang: 'en',
+            cues: 220,
+            imported: '2026-10-21T08:00:00Z',
+            handEdited: 0,
+            undo: { cues: 214, imported: '2026-10-20T09:12:44Z' },
+          },
+        ]),
+    ]);
+    expect(await client.tracks(MEDIA)).toEqual([
+      {
+        lang: 'en',
+        cues: 220,
+        imported: '2026-10-21T08:00:00Z',
+        handEdited: 0,
+        undo: { cues: 214, imported: '2026-10-20T09:12:44Z' },
+      },
+    ]);
+  });
+
+  it('undoes a replace with one POST and reads the edition it brought back (G6)', async () => {
+    const { client, calls } = recorder([
+      () => json(200, { lang: 'en', cues: 214, imported: '2026-10-20T09:12:44Z' }),
+    ]);
+    expect(await client.undoTrack(MEDIA, 'en')).toEqual({
+      lang: 'en',
+      cues: 214,
+      imported: '2026-10-20T09:12:44Z',
+    });
+    expect(calls[0]?.url).toBe('/annotations/media/4127/tracks/undo?lang=en');
+    expect(calls[0]?.init.method).toBe('POST');
+  });
+
+  it('keeps the server sentence when there is nothing to bring back', async () => {
+    const { client } = recorder([
+      () =>
+        json(409, {
+          errors: {
+            error:
+              'There is no caption edition to bring back. An undo works once, until the next import of these captions.',
+          },
+        }),
+    ]);
+    const error = await rejection(client.undoTrack(MEDIA, 'en'));
+    expect(error).toBeInstanceOf(ApiError);
+    if (error instanceof ApiError) {
+      expect(error.status).toBe(409);
+    }
   });
 
   it('removes one language (G4)', async () => {

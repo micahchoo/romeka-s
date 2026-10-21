@@ -153,6 +153,13 @@ export const hi: AnnotationsMessages = {
   'captions.rowUndatedOne': '1 कैप्शन फ़ाइल से एक संकेत।',
   'captions.handEdited':
     '{count} इन संकेतों को यहाँ हाथ से बदल दिया गया था। इस भाषा के अगले आयात से वे बदल दिए जाएँगे।',
+  'captions.undoReplace': 'रिप्लेस अनडू करें',
+  'captions.undoLine': '{when} से {cues} {language} क्यूज़ को वापस लाएँ।',
+  'captions.undoLineOne': '{when} से 1 {language} क्यू वापस लाएँ।',
+  'captions.undoLineUndated': '{cues} {language} क्यूज़ को वापस लाएँ।',
+  'captions.undoLineUndatedOne': '1 {language} क्यू वापस लाएँ।',
+  'captions.undone': '{language} कैप्शन: {cues} क्यूज़ वापस लाए गए।',
+  'captions.undoneOne': '{language} कैप्शन: 1 क्यू वापस लाया गया।',
   'captions.removeConfirm':
     '{cues} {language} संकेतों को हटाएँ? आगंतुक अब {language} कैप्शन नहीं देखेंगे। आपके अपने नोट्स बने रहेंगे।',
   'captions.removeDo': '{language} कैप्शन हटाएँ',

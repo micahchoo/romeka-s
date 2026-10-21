@@ -144,6 +144,56 @@ test('an editor adds, replaces with no change, then removes English captions', a
   await expect(page.locator('video.media-stage-player track')).toHaveCount(0);
 });
 
+test('an editor replaces captions and brings the old ones back with one click', async ({
+  page,
+  baseURL,
+  diagnostics,
+}) => {
+  const { media } = await uploadItem(page.request, 'video.mp4', 'video/mp4');
+  await signIn(page, baseURL);
+  await page.goto(`/#/media/${String(media)}`);
+
+  await page.getByRole('button', { name: 'Add captions…' }).click();
+  await fillDialog(page, 'captions.vtt', 'English');
+  await page.getByRole('button', { name: 'Add English captions' }).click();
+  await expect(page.locator('.caption-status')).toHaveText('English captions: 1 cue imported.');
+  await expect(page.locator('video.media-stage-player track[srclang="en"]')).toHaveCount(1);
+
+  const replaced = Buffer.from(
+    'WEBVTT\n\n00:00:00.000 --> 00:00:00.400\nA green square, then a blue bar.\n',
+  );
+  await page.getByRole('button', { name: 'Replace…' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel(/Caption file/).setInputFiles({
+    name: 'second.vtt',
+    mimeType: 'text/vtt',
+    buffer: replaced,
+  });
+  await dialog.getByRole('button', { name: 'Replace 1 English cue' }).click();
+  await expect(page.locator('.caption-status')).toHaveText('English captions: 1 cue imported.');
+  await expect(page.locator('.caption-row')).toContainText(/Bring back the 1 English cue from/);
+
+  // The player reads the replaced cue.
+  const track = page.locator('video.media-stage-player track[srclang="en"]');
+  const source = await track.getAttribute('src');
+  if (source === null) {
+    throw new Error('the player has no English track');
+  }
+  const afterReplace = await (await page.request.get(source)).text();
+  expect(afterReplace).toContain('A green square, then a blue bar.');
+
+  // One click, no confirm, and the row and the player carry the old edition.
+  await page.getByRole('button', { name: 'Undo replace' }).click();
+  await expect(page.locator('.caption-status')).toHaveText('English captions: 1 cue brought back.');
+  await expect(page.locator('.caption-row')).toContainText('1 cue from a caption file');
+  await expect(page.getByRole('button', { name: 'Undo replace' })).toHaveCount(0);
+
+  const restored = await (await page.request.get(source)).text();
+  expect(restored).toContain('A red square, then a blue bar.');
+  expect(restored).not.toContain('A green square');
+  await expectClean(diagnostics, 'the captions an editor replaced and brought back');
+});
+
 test('a caption file on the item is posted to the recording beside it', async ({
   page,
   baseURL,
