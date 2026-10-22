@@ -41,6 +41,8 @@ mod names_tests;
 mod pairing;
 #[cfg(test)]
 mod pairing_tests;
+#[cfg(test)]
+mod results_tests;
 mod sets;
 #[cfg(test)]
 mod sets_tests;
@@ -314,6 +316,20 @@ pub enum OutsideReason {
 pub struct EditResult {
     pub edit: Edit,
     pub applied: bool,
+    /// Why the edit is not applied; `None` exactly when it is.
+    pub reason: Option<NotApplied>,
+}
+
+/// Why an edit of the plan is not applied.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum NotApplied {
+    /// The folder, list or column it names is not in the scan.
+    Gone,
+    /// What it names is there, and the proposal does not offer its choice.
+    NotOffered,
+    /// A later edit answers the same question otherwise.
+    Replaced,
 }
 
 /// The proposal for this evidence after these edits. The same evidence and
@@ -369,7 +385,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
             top_sets: Vec::new(),
             outside: found.outside,
             unattached: Vec::new(),
-            edits: results(edits, applied),
+            edits: results(evidence, edits, applied),
             matches_plan: true,
         };
     };
@@ -461,7 +477,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         edits,
         &mut applied,
     );
-    let edits = results(edits, applied);
+    let edits = results(evidence, edits, applied);
     let plan = if found_sets.top_taken.is_some()
         || found_sets.series.iter().any(|sets| {
             !sets.taken.is_empty() || sets.folder.as_ref().is_some_and(|folder| folder.chosen)
@@ -617,15 +633,121 @@ fn list_cells(evidence: &Evidence<'_>) -> HashSet<String> {
     cells
 }
 
-fn results(edits: &[Edit], applied: Vec<bool>) -> Vec<EditResult> {
+/// Each edit with whether it is applied, and why not. An applied edit is
+/// replaced when a later applied edit answers its question otherwise; an
+/// edit no detector applied is gone when the scan no longer has what it
+/// names, and not offered otherwise.
+fn results(evidence: &Evidence<'_>, edits: &[Edit], applied: Vec<bool>) -> Vec<EditResult> {
+    let reasons: Vec<Option<NotApplied>> = edits
+        .iter()
+        .zip(&applied)
+        .enumerate()
+        .map(|(at, (edit, done))| {
+            let answered_later = || {
+                edits
+                    .iter()
+                    .zip(&applied)
+                    .skip(at + 1)
+                    .any(|(later, later_done)| {
+                        *later_done && later != edit && Question::of(later) == Question::of(edit)
+                    })
+            };
+            if *done {
+                answered_later().then_some(NotApplied::Replaced)
+            } else if in_scan(evidence, edit) {
+                Some(NotApplied::NotOffered)
+            } else {
+                Some(NotApplied::Gone)
+            }
+        })
+        .collect();
     edits
         .iter()
-        .zip(applied)
-        .map(|(edit, applied)| EditResult {
+        .zip(reasons)
+        .map(|(edit, reason)| EditResult {
             edit: edit.clone(),
-            applied,
+            applied: reason.is_none(),
+            reason,
         })
         .collect()
+}
+
+/// The question of the screen an edit answers: one edit per question.
+#[derive(PartialEq, Eq)]
+enum Question<'e> {
+    Import(&'e FolderScope),
+    Items(&'e FolderScope),
+    List(&'e FolderScope),
+    Grain(&'e ListFile),
+    Set(&'e SetFrom),
+    Pair(&'e ListFile),
+    Title(&'e SetFrom),
+}
+
+impl<'e> Question<'e> {
+    fn of(edit: &'e Edit) -> Self {
+        match edit {
+            Edit::LeaveOut { scope } | Edit::Keep { scope } => Self::Import(scope),
+            Edit::Items { scope, .. } => Self::Items(scope),
+            Edit::List { scope, .. } => Self::List(scope),
+            Edit::Grain { list, .. } => Self::Grain(list),
+            Edit::AddSet { from } | Edit::DropSet { from } => Self::Set(from),
+            Edit::Pair { list, .. } => Self::Pair(list),
+            Edit::Title { from, .. } => Self::Title(from),
+        }
+    }
+}
+
+/// Whether the scan still has every folder, list and column the edit names.
+fn in_scan(evidence: &Evidence<'_>, edit: &Edit) -> bool {
+    let folder = |scope: &FolderScope| {
+        evidence
+            .index
+            .sources
+            .iter()
+            .filter(|source| source.id == scope.source)
+            .flat_map(|source| source.walk.entries.iter().chain(&source.walk.sheets))
+            .any(|entry| {
+                let mut segments = entry.path.segments();
+                scope
+                    .folder
+                    .segments()
+                    .all(|segment| segments.next() == Some(segment))
+            })
+    };
+    let files = evidence.lists.files();
+    let list = |file: &ListFile| files.contains(file);
+    let column = |file: &ListFile, column: &ColumnRef| {
+        let mut found = false;
+        if list(file) {
+            evidence.lists.read(file, &mut |sheet| {
+                found = sheet.as_ref().is_ok_and(|sheet| {
+                    sheet
+                        .columns
+                        .iter()
+                        .any(|one| one.index == column.index && one.header == column.header)
+                });
+            });
+        }
+        found
+    };
+    let set = |from: &SetFrom| match from {
+        SetFrom::Folder { scope }
+        | SetFrom::NamePlace { scope, .. }
+        | SetFrom::FolderLevel { scope, .. } => folder(scope),
+        SetFrom::Column {
+            list,
+            column: named,
+        } => column(list, named),
+    };
+    match edit {
+        Edit::LeaveOut { scope } | Edit::Keep { scope } | Edit::Items { scope, .. } => {
+            folder(scope)
+        }
+        Edit::List { scope, list: asked } => folder(scope) && asked.as_ref().is_none_or(list),
+        Edit::Grain { list: file, .. } | Edit::Pair { list: file, .. } => list(file),
+        Edit::AddSet { from } | Edit::DropSet { from } | Edit::Title { from, .. } => set(from),
+    }
 }
 
 /// What a series holds beyond its scope and pattern: its lists as the plan

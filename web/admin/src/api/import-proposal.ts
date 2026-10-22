@@ -98,6 +98,17 @@ export interface OutsideFolder extends ScopeCounts {
   readonly reason: 'noMedia' | 'edit';
 }
 
+/** Why an edit is not applied: what it names is not in the scan, its choice is not offered, or a later edit answers its question. */
+export const NOT_APPLIED = ['gone', 'notOffered', 'replaced'] as const;
+export type NotApplied = (typeof NOT_APPLIED)[number];
+
+/** An edit of the plan; `reason` is null exactly when it is applied. */
+export interface EditResult {
+  readonly edit: Edit;
+  readonly applied: boolean;
+  readonly reason: NotApplied | null;
+}
+
 /** The structure the server proposes from the scan, after the plan's edits; never stored by the server. */
 export interface Proposal {
   readonly structure: Structure;
@@ -107,7 +118,7 @@ export interface Proposal {
   readonly outside: readonly OutsideFolder[];
   readonly unattached: readonly ListCandidate[];
   /** Each edit of the plan, and whether it still found what it names. */
-  readonly edits: readonly { readonly edit: Edit; readonly applied: boolean }[];
+  readonly edits: readonly EditResult[];
   /** Whether `structure` is the plan's own. */
   readonly matchesPlan: boolean;
 }
@@ -227,9 +238,13 @@ export const parseProposal = (raw: unknown, path: Path = ['proposal']): Proposal
     const each = strict(value, at, [...SCOPE_COUNTS, 'reason']);
     return { ...scopeCounts(each, at), reason: member(each, 'reason', at, oneOf(['noMedia', 'edit'] as const)) };
   };
-  const edit = (value: unknown, at: Path): Proposal['edits'][number] => {
-    const each = strict(value, at, ['edit', 'applied']);
-    return { edit: member(each, 'edit', at, parseEdit), applied: member(each, 'applied', at, asFlag) };
+  const edit = (value: unknown, at: Path): EditResult => {
+    const each = strict(value, at, ['edit', 'applied', 'reason']);
+    return {
+      edit: member(each, 'edit', at, parseEdit),
+      applied: member(each, 'applied', at, asFlag),
+      reason: member(each, 'reason', at, nullable(oneOf(NOT_APPLIED))),
+    };
   };
   return {
     structure: member(object, 'structure', path, parseStructure),
