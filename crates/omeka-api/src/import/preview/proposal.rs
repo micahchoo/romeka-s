@@ -606,7 +606,8 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         .all_series()
         .zip(&series)
         .zip(keys.iter().zip(&names))
-        .map(|(((at, _), one), (key, names))| sets::SeriesIn {
+        .zip(&rows)
+        .map(|((((at, _), one), (key, names)), rows)| sets::SeriesIn {
             at,
             scope: one.scope(),
             places: key
@@ -614,6 +615,16 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
                 .unwrap_or_default(),
             numbered: one.numbered,
             folder: one.set.as_ref(),
+            reads: rows
+                .lists
+                .iter()
+                .map(|list| list.file.clone())
+                .chain(
+                    kept.iter()
+                        .filter(|kept| kept.at == at.index() && kept.staged)
+                        .map(|kept| list_file(kept.list)),
+                )
+                .collect(),
         })
         .collect();
     let found_sets = sets::detect(
@@ -1150,6 +1161,9 @@ struct Kept<'e> {
     at: usize,
     /// Its paired rows there, of its rows; `None` when it cannot be read.
     rows: Option<Share>,
+    /// The person uploaded it, so the series reads it. Otherwise a free set
+    /// reads it and the series only holds it.
+    staged: bool,
 }
 
 impl Kept<'_> {
@@ -1248,6 +1262,7 @@ fn kept_lists<'e>(
             Kept {
                 list,
                 at,
+                staged: staged(list),
                 rows: read.as_ref().map(|(paired, of)| Share {
                     n: paired.get(at).copied().unwrap_or_default(),
                     of: *of,

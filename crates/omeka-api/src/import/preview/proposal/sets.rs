@@ -8,13 +8,18 @@
 //!
 //! A candidate is a name place, a column of a list that describes the
 //! series, or a level of numbered folders. It is a split when it makes at
-//! least [`MIN_SETS`] sets and one of them holds [`MIN_ITEMS_PER_SET`]
-//! items. A candidate whose one set holds the items of its series is never
-//! offered: a column with one value in every row is the rival title of the
-//! series' set. A column with one value in every row of every list that
-//! describes a series is offered at the top, as one set over everything.
-//! Every other column of a series' lists is a further choice of its set,
-//! and an `addSet` edit may take it.
+//! least [`MIN_SETS`] sets, one of them holds [`MIN_ITEMS_PER_SET`] items,
+//! and at least [`MIN_GROUPED_SHARE`] of its memberships are in such sets.
+//! A column must also come from a list the series reads (detector 4's
+//! choice, or a list the person uploaded), not a list the plan keeps only
+//! for a free set, and [`MIN_ITEMS_OF_ONE_VALUE`] of the items it places
+//! must hold one of its values. A candidate that fails is a further choice ("More…"),
+//! never dropped. A candidate whose one set holds the items of its series is
+//! never offered: a column with one value in every row is the rival title
+//! of the series' set. A column with one value in every row of every list
+//! that describes a series is offered at the top, as one set over
+//! everything. Every other column of a series' lists is a further choice of
+//! its set, and an `addSet` edit may take it.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::num::NonZeroU32;
@@ -23,7 +28,7 @@ use unicode_normalization::UnicodeNormalization;
 
 use super::names::PlaceValues;
 use super::shape::KeyShape;
-use super::thresholds::{MIN_ITEMS_PER_SET, MIN_SETS};
+use super::thresholds::{MIN_GROUPED_SHARE, MIN_ITEMS_OF_ONE_VALUE, MIN_ITEMS_PER_SET, MIN_SETS};
 use super::{Pick, ScanText, SetCounts, Share};
 use crate::import::derive::Sheets;
 use crate::import::join::cell;
@@ -44,6 +49,8 @@ pub(super) struct SeriesIn<'s> {
     pub numbered: bool,
     /// The set its folder's name could make (detector 1).
     pub folder: Option<&'s SetFrom>,
+    /// The lists it reads: a column of any other list is no split.
+    pub reads: Vec<ListFile>,
 }
 
 /// A series' folder set: chosen by detector 1, or offered.
@@ -143,6 +150,18 @@ fn sorts(sets: &[(ScanText, usize)], items: usize) -> bool {
         && sets.iter().all(|(_, held)| *held < items)
 }
 
+/// Whether at least [`MIN_GROUPED_SHARE`] of the memberships of these sets
+/// are in sets of [`MIN_ITEMS_PER_SET`] items or more.
+fn groups(sets: &[(ScanText, usize)]) -> bool {
+    let all: usize = sets.iter().map(|(_, held)| held).sum();
+    let grouped: usize = sets
+        .iter()
+        .map(|(_, held)| *held)
+        .filter(|held| *held >= MIN_ITEMS_PER_SET)
+        .sum();
+    grouped * MIN_GROUPED_SHARE.of >= MIN_GROUPED_SHARE.n * all
+}
+
 /// One list of a series, as its rows describe the series' items.
 struct ListIn<'l> {
     file: ListFile,
@@ -178,16 +197,22 @@ impl ListIn<'_> {
             })
     }
 
-    /// Each filled value of `column` with the items that hold it, and the
-    /// rows that hold a value.
-    fn values(&self, column: &ColumnRef) -> (BTreeMap<String, usize>, Share) {
+    /// Each filled value of `column` with the items that hold it, the rows
+    /// that hold a value, and the items that hold one value of the items
+    /// that hold any.
+    fn values(&self, column: &ColumnRef) -> (BTreeMap<String, usize>, Share, Share) {
         let mut values: BTreeMap<String, usize> = BTreeMap::new();
+        let mut one_value = Share { n: 0, of: 0 };
         for rows in &self.rows_of_items {
             let held: BTreeSet<String> = rows
                 .iter()
                 .map(|row| text(row, column.index))
                 .filter(|value| !value.is_empty())
                 .collect();
+            if !held.is_empty() {
+                one_value.of += 1;
+                one_value.n += usize::from(held.len() == 1);
+            }
             for value in held {
                 *values.entry(value).or_default() += 1;
             }
@@ -202,7 +227,7 @@ impl ListIn<'_> {
             n: filled,
             of: self.sheet.rows.len(),
         };
-        (values, rows)
+        (values, rows, one_value)
     }
 }
 
@@ -324,7 +349,9 @@ fn candidates(
                 *sets.entry(top).or_default() += 1;
             }
         }
+        let sets = most_first(sets);
         found.push(Candidate {
+            split: groups(&sets),
             pick: Pick {
                 value: SetFrom::FolderLevel {
                     scope: FolderScope {
@@ -333,10 +360,7 @@ fn candidates(
                     },
                     depth: 1,
                 },
-                counts: SetCounts {
-                    sets: most_first(sets),
-                    rows: None,
-                },
+                counts: SetCounts { sets, rows: None },
             },
             source: SourceRef::Folder {
                 level: FolderLevel::Level(NonZeroU32::MIN),
@@ -344,7 +368,6 @@ fn candidates(
             place: None,
             column: None,
             name: NonZeroU32::MIN.to_string(),
-            split: true,
         });
     }
     for (place, values) in one.places.iter().enumerate() {
@@ -354,6 +377,7 @@ fn candidates(
         };
         if sorts(&sets, items) {
             found.push(Candidate {
+                split: groups(&sets),
                 pick: Pick {
                     value: SetFrom::NamePlace {
                         scope: one.scope.clone(),
@@ -367,14 +391,13 @@ fn candidates(
                 place: Some(values.classes.clone()),
                 column: None,
                 name: place.to_string(),
-                split: true,
             });
         }
     }
     let mut rival = None;
     for list in lists {
         for column in list.columns() {
-            let (values, rows) = list.values(&column);
+            let (values, rows, one_value) = list.values(&column);
             let sets = most_first(values);
             let pick = Pick {
                 value: SetFrom::Column {
@@ -400,7 +423,12 @@ fn candidates(
                 place: None,
                 column: Some((list.file.clone(), column.clone())),
                 name: column.header.clone(),
-                split: !one_set && sorts(&pick.counts.sets, items),
+                split: !one_set
+                    && sorts(&pick.counts.sets, items)
+                    && groups(&pick.counts.sets)
+                    && one_value.n * MIN_ITEMS_OF_ONE_VALUE.of
+                        >= MIN_ITEMS_OF_ONE_VALUE.n * one_value.of
+                    && one.reads.contains(&list.file),
                 pick,
             });
         }
