@@ -20,13 +20,13 @@ import {
   strict,
   wordOr,
 } from './import-read';
-import { parseAnomaly, parseEntryView, parseFlag, parseNewSet, parseOrphan, parsePatternState, parseRecordView, parseSubjectOf, asRecordId } from './import-model';
+import { parseAnomaly, parseEntryView, parseFlag, parseNewSet, parseOrphan, parsePatternState, parseRecordView, parseSubjectOf, asRecordId, seriesMember } from './import-model';
 import type { Anomaly, EntryView, Flag, NewSet, Orphan, PatternState, RecordId, RecordView, Subject } from './import-model';
 import { ACTIONS, FLAG_KINDS, FLAG_POLICIES, RECORD_KINDS } from './import-plan';
 import { parseSheetView, parseTagView } from './import-sheet-views';
 import type { SheetView, TagView } from './import-sheet-views';
 import { asSlotName, asTerm, parseFileRef, parseRowRef } from './import-plan-read';
-import type { Action, FileRef, FlagKind, FlagPolicy, Join, RecordKind, RowRef, SlotName, Term } from './import-plan';
+import type { Action, FileRef, FlagKind, FlagPolicy, Join, LevelId, RecordKind, RowRef, SlotName, Term } from './import-plan';
 import { ParseError, asString, isRecord } from './parse';
 import type { Parser, Path } from './types';
 import type { StarterId } from './starters';
@@ -505,6 +505,8 @@ export interface ListCandidate {
   readonly file: string;
   /** The plan sheet that reads this file. */
   readonly inPlan: string | null;
+  /** The series that holds that sheet; only in a plan of several series. */
+  readonly series?: LevelId;
   readonly read: 'ok' | { readonly error: string };
   readonly rows: number;
   readonly columns: number;
@@ -534,7 +536,7 @@ export const parseGrain = (value: unknown, at: Path): Grain => {
 };
 
 export const parseListCandidate = (raw: unknown, path: Path): ListCandidate => {
-  const object = strict(raw, path, ['source', 'file', 'inPlan', 'read', 'rows', 'columns', 'best', 'grain', 'cells', 'overlaps']);
+  const object = strict(raw, path, ['source', 'file', 'inPlan', 'read', 'rows', 'columns', 'best', 'grain', 'cells', 'overlaps'], ['series']);
   const best = (value: unknown, at: Path): BestColumn => {
     const each = strict(value, at, ['index', 'header', 'on', 'paired', 'pairedNormalized', 'empty']);
     return {
@@ -569,6 +571,7 @@ export const parseListCandidate = (raw: unknown, path: Path): ListCandidate => {
     source: text(object, 'source', path),
     file: text(object, 'file', path),
     inPlan: member(object, 'inPlan', path, maybeText),
+    ...seriesMember(object, path),
     read: member(object, 'read', path, read),
     rows: count(object, 'rows', path),
     columns: count(object, 'columns', path),
@@ -646,8 +649,27 @@ export const SECTIONS: readonly Section[] = Object.keys(PARSERS).filter(
   (name): name is Section => name in PARSERS,
 );
 
-/** Every source's scan state, the pattern's state, and the sections the request named. */
-export type Preview = { readonly sources: readonly SourceState[]; readonly pattern: PatternState } & {
+/** One series' pattern state. */
+export interface SeriesPattern {
+  readonly series: LevelId;
+  readonly pattern: PatternState;
+}
+
+const parseSeriesPattern: Parser<SeriesPattern> = (raw, path = []) => {
+  const object = strict(raw, path, ['series', 'pattern']);
+  return { series: text(object, 'series', path), pattern: member(object, 'pattern', path, parsePatternState) };
+};
+
+/**
+ * Every source's scan state, the first series' pattern state, each series'
+ * in a plan of several (`patterns`, absent in a plan of one), and the
+ * sections the request named.
+ */
+export type Preview = {
+  readonly sources: readonly SourceState[];
+  readonly pattern: PatternState;
+  readonly patterns?: readonly SeriesPattern[];
+} & {
   readonly [S in Section]?: SectionShapes[S];
 };
 
@@ -662,10 +684,11 @@ export const hasSections = <S extends Section>(
 export const parsePreview =
   <S extends Section>(include: readonly S[]): Parser<PreviewWith<S>> =>
   (raw, path = []) => {
-    const object = strict(raw, path, ['sources', 'pattern', ...include]);
+    const object = strict(raw, path, ['sources', 'pattern', ...include], ['patterns']);
     const preview: { -readonly [K in keyof Preview]: Preview[K] } = {
       sources: member(object, 'sources', path, list(parseSourceState)),
       pattern: member(object, 'pattern', path, parsePatternState),
+      ...(object['patterns'] === undefined ? {} : { patterns: member(object, 'patterns', path, list(parseSeriesPattern)) }),
     };
     for (const section of include) {
       Object.assign(preview, { [section]: member(object, section, path, PARSERS[section]) });

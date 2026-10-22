@@ -13,7 +13,7 @@ import { describe, expect, it } from 'vitest';
 import { parsePreview } from '../src/api/import-sections';
 import { parseProposal } from '../src/api/import-proposal';
 import { parseImportPlanV3 } from '../src/api/import-plan-read';
-import { ParseError } from '../src/api/parse';
+import { ParseError, isUnknownArray } from '../src/api/parse';
 import { loadFixture } from './loadFixture';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -176,6 +176,55 @@ describe('the proposal section', () => {
 });
 
 describe('the preview', () => {
+  /**
+   * The answer of a plan of two series (`preview/tests.rs`,
+   * `a_plan_of_several_series_answers_each_series_pattern`): each series'
+   * pattern, and the series of each record and of each list in a series.
+   */
+  const severalSeries = (): Record<string, unknown> => {
+    const records = object(object(loadFixture('import/preview-records.json'))['records']);
+    const lists = object(loadFixture('import/preview-list-candidates.json'));
+    const [record] = isUnknownArray(records['items']) ? records['items'] : [];
+    const [inPlan, unused] = isUnknownArray(lists['listCandidates']) ? lists['listCandidates'] : [];
+    return {
+      ...lists,
+      patterns: [
+        { series: 'letters', pattern: { groups: ['identifier', 'part'] } },
+        { series: 'photos', pattern: 'missing' },
+      ],
+      records: { ...records, items: [{ ...object(record), series: 'letters' }] },
+      listCandidates: [{ ...object(inPlan), series: 'letters' }, ...(unused === undefined ? [] : [unused])],
+    };
+  };
+
+  it('parses the preview of a plan of several series', () => {
+    const raw = severalSeries();
+    const preview = parsePreview(['records', 'listCandidates'])(raw);
+    expect(preview.patterns).toEqual([
+      { series: 'letters', pattern: { groups: ['identifier', 'part'] } },
+      { series: 'photos', pattern: 'missing' },
+    ]);
+    expect(preview.records.items.map((record) => record.series)).toEqual(['letters']);
+    expect(preview.listCandidates[0]?.series).toBe('letters');
+    expect(roundTrip(preview)).toEqual(raw);
+  });
+
+  it('answers no series member for a plan of one series', () => {
+    const preview = parsePreview(['records', 'listCandidates'])({
+      ...object(loadFixture('import/preview-list-candidates.json')),
+      records: object(loadFixture('import/preview-records.json'))['records'],
+    });
+    expect('patterns' in preview).toBe(false);
+    expect(preview.records.items.some((record) => 'series' in record)).toBe(false);
+    expect(preview.listCandidates.some((candidate) => 'series' in candidate)).toBe(false);
+  });
+
+  it('refuses a series member that is not a level id', () => {
+    const raw = severalSeries();
+    expect(() => parsePreview(['records', 'listCandidates'])({ ...raw, patterns: [{ series: 3, pattern: 'missing' }] })).toThrow(ParseError);
+    expect(() => parsePreview(['records', 'listCandidates'])({ ...raw, patterns: [{ series: 'a', pattern: 'missing', extra: 1 }] })).toThrow(ParseError);
+  });
+
   it('refuses a proposal that is not an object, and a member it was not asked for', () => {
     const raw = recorded();
     expect(() => parsePreview(['proposal'])({ ...raw, proposal: null })).toThrow(ParseError);

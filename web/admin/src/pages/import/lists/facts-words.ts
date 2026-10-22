@@ -7,6 +7,7 @@
 import type { Bucket, MediaKind, ShapeFacts } from '../../../api/import-sections';
 import type { ImportPlan } from '../../../api/import-plan';
 import type { ListsMessageKey, ListsTranslator } from './messages';
+import { seriesOf } from '../series';
 
 export const BUCKET_WORDS: Readonly<Record<Bucket, ListsMessageKey>> = {
   '0': 'lists.facts.files0',
@@ -47,7 +48,7 @@ export const factsWords = (facts: ShapeFacts, plan: ImportPlan, t: ListsTranslat
   }
   if (facts.origin === 'row') {
     parts.push(t('lists.facts.rowNoFile'));
-  } else if (plan.sheets.length > 0) {
+  } else if (seriesOf(plan).lists.length > 0) {
     parts.push(facts.row ? t('lists.facts.row') : t('lists.facts.noRow'));
   }
   return parts.join(', ');

@@ -29,6 +29,7 @@ import type { Segment } from './master-detail';
 import { useSimpleText } from './messages';
 import { folderName, setChoiceOf, setColumnOf, typeAnswerOf, typeFromOf, withSets, withTypeAnswer, withTypeFrom, withoutTypeMap } from './where-plan';
 import type { SetChoice, TypeFrom } from './where-plan';
+import { seriesOf } from '../series';
 import './simple.css';
 
 const CHIPS_SHOWN = 16;
@@ -235,8 +236,9 @@ const ItemTypes = ({ catalog }: { readonly catalog: Catalog | null }): ReactElem
   const { t } = useSimpleText();
   const draft = useDraft();
   const from = typeFromOf(draft.plan);
-  const columns = draft.plan.sheets.flatMap((sheet) => sheet.columns.map((column) => ({ sheet: sheet.id, file: sheet.file, column: column.column })));
-  const several = draft.plan.sheets.length > 1;
+  const { lists } = seriesOf(draft.plan);
+  const columns = lists.flatMap((sheet) => sheet.columns.map((column) => ({ sheet: sheet.id, file: sheet.file, column: column.column })));
+  const several = lists.length > 1;
   return (
     <section className="guided-inspector guided-inspect" aria-label={t('guided.where.typesTitle')}>
       <h4>{t('guided.where.typesTitle')}</h4>

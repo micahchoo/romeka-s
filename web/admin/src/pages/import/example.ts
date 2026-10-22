@@ -14,9 +14,10 @@
  * `plan.simple` (`simple/example-state.ts`). A draft saved before that
  * member holds them in this object, so a change here moves them across.
  */
-import type { ImportPlan } from '../../api/import-plan';
+import type { ImportPlan, Series } from '../../api/import-plan';
 import { isRecord, isUnknownArray } from '../../api/parse';
 import type { JsonValue } from '../../api/types';
+import { seriesOf, withSeries } from './series';
 
 export type Mark =
   | { readonly kind: 'words'; readonly words: readonly string[]; readonly sep: string }
@@ -50,7 +51,7 @@ const markOf = (raw: unknown): Mark | null => {
 
 /** The example's marks, or `null` when the plan holds no example in this shape. */
 export const exampleOf = (plan: ImportPlan): MarkedExample | null => {
-  const raw = plan.example;
+  const raw = seriesOf(plan).example;
   if (raw === null) {
     return null;
   }
@@ -123,7 +124,7 @@ export const patternOf = (marks: readonly Mark[]): string => {
 
 /** Whether the plan's pattern is still the one its marks write. */
 export const patternIsMarked = (plan: ImportPlan, example: MarkedExample): boolean =>
-  plan.grouping.pattern === patternOf(example.marks);
+  seriesOf(plan).grouping.pattern === patternOf(example.marks);
 
 /** The keys Simple's answers had inside `example`, before `plan.simple`. */
 const LEGACY_KEYS = ['groupsOk', 'answered', 'notLists'] as const;
@@ -133,19 +134,22 @@ export const simpleRecordOf = (plan: ImportPlan): Readonly<Record<string, JsonVa
   if (plan.simple !== undefined) {
     return plan.simple;
   }
-  const old = Object.fromEntries(LEGACY_KEYS.flatMap((key) => (plan.example?.[key] === undefined ? [] : [[key, plan.example[key]] as const])));
+  const { example } = seriesOf(plan);
+  const old = Object.fromEntries(LEGACY_KEYS.flatMap((key) => (example?.[key] === undefined ? [] : [[key, example[key]] as const])));
   return Object.keys(old).length === 0 ? null : old;
 };
 
 /** The plan's example without Simple's old answers; `null` when nothing else is in it. */
-export const withoutOldAnswers = (example: ImportPlan['example']): ImportPlan['example'] => {
+export const withoutOldAnswers = (example: Series['example']): Series['example'] => {
   const rest = Object.fromEntries(Object.entries(example ?? {}).filter(([key]) => !LEGACY_KEYS.some((legacy) => legacy === key)));
   return Object.keys(rest).length === 0 ? null : rest;
 };
 
 /** Whether `example` holds something besides Simple's old answers, which is what Advanced reports as kept. */
-export const exampleKept = (plan: ImportPlan): boolean =>
-  plan.example !== null && Object.keys(plan.example).some((key) => !LEGACY_KEYS.some((legacy) => legacy === key));
+export const exampleKept = (plan: ImportPlan): boolean => {
+  const { example } = seriesOf(plan);
+  return example !== null && Object.keys(example).some((key) => !LEGACY_KEYS.some((legacy) => legacy === key));
+};
 
 const marksJson = (marks: readonly Mark[]): JsonValue =>
   marks.map((mark) => (mark.kind === 'words' ? { kind: mark.kind, words: [...mark.words], sep: mark.sep } : { kind: mark.kind, text: mark.text, sep: mark.sep }));
@@ -158,7 +162,7 @@ const marksJson = (marks: readonly Mark[]): JsonValue =>
 export const withExample = (plan: ImportPlan, path: string | null, marks: readonly Mark[]): ImportPlan => {
   const simple = simpleRecordOf(plan);
   const moved: ImportPlan = simple === null ? plan : { ...plan, simple };
-  return { ...moved, example: marks.length === 0 ? null : { ...(path === null ? {} : { path }), marks: marksJson(marks) } };
+  return withSeries(moved, (series) => ({ ...series, example: marks.length === 0 ? null : { ...(path === null ? {} : { path }), marks: marksJson(marks) } }));
 };
 
 /**
@@ -172,13 +176,13 @@ export const removeMark = (plan: ImportPlan, index: number): ImportPlan => {
     return plan;
   }
   const marks = example.marks.filter((_, at) => at !== index);
-  const pattern = patternIsMarked(plan, example) ? patternOf(marks) : plan.grouping.pattern;
-  return { ...withExample(plan, example.path, marks), grouping: { ...plan.grouping, pattern } };
+  const pattern = patternIsMarked(plan, example) ? patternOf(marks) : seriesOf(plan).grouping.pattern;
+  return withSeries(withExample(plan, example.path, marks), (series) => ({ ...series, grouping: { ...series.grouping, pattern } }));
 };
 
 /** The plan without its example; a pattern the example wrote goes back to grouping by the name alone. */
 export const removeExample = (plan: ImportPlan): ImportPlan => {
   const example = exampleOf(plan);
   const marked = example !== null && patternIsMarked(plan, example);
-  return { ...withExample(plan, null, []), grouping: { ...plan.grouping, pattern: marked ? patternOf([]) : plan.grouping.pattern } };
+  return withSeries(withExample(plan, null, []), (series) => ({ ...series, grouping: { ...series.grouping, pattern: marked ? patternOf([]) : series.grouping.pattern } }));
 };

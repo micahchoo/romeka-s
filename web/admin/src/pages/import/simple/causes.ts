@@ -12,6 +12,7 @@ import { BLOCKING_FLAG_KINDS, FLAG_KINDS } from '../../../api/import-plan';
 import type { PatternState } from '../../../api/import-model';
 import type { BucketCount, Grain, ListCandidate } from '../../../api/import-sections';
 import { exampleOf } from '../example';
+import { seriesOf, withSeries } from '../series';
 import { readState } from './example-state';
 import { withFileRows } from './list-plan';
 import { folderSheets } from './list-read';
@@ -210,7 +211,10 @@ const UNTITLED_WORDS: CauseWords = {
 };
 
 /** Every list describes files: a row that names no file of the import makes nothing, so leaving it out is the only answer. */
-const rowsDescribeFiles = (plan: ImportPlan): boolean => plan.sheets.length > 0 && plan.sheets.every((sheet) => sheet.rowKind === 'media');
+const rowsDescribeFiles = (plan: ImportPlan): boolean => {
+  const { lists } = seriesOf(plan);
+  return lists.length > 0 && lists.every((sheet) => sheet.rowKind === 'media');
+};
 
 const generic = (kind: FlagKind): CauseWords => ({
   name: `problem.${kind}`,
@@ -270,7 +274,7 @@ export const answerOf = (plan: ImportPlan, id: CauseId, facts: CheckFacts): stri
     return (plan.anomalies ?? DEFAULT_ANOMALIES)[id];
   }
   if (id === UNTITLED) {
-    const rule = plan.slots.item[TITLE];
+    const rule = seriesOf(plan).slots.item[TITLE];
     if (fromName(rule)) {
       return 'filename';
     }
@@ -326,11 +330,11 @@ export const withAnswer = (plan: ImportPlan, id: CauseId, value: string, facts?:
   }
   if (id === UNTITLED) {
     // The item code or the file name is the title rule's last source: it applies where the list gives no title.
-    const rule = plan.slots.item[TITLE] ?? { sources: [], combine: 'first' as const };
+    const rule = seriesOf(plan).slots.item[TITLE] ?? { sources: [], combine: 'first' as const };
     const sources = rule.sources.filter((source) => !isCode(source) && !(source.from === 'file' && source.fact === 'name'));
     const last = value === 'filename' ? [{ from: 'file' as const, fact: 'name' as const }] : value === 'identifier' ? [{ from: 'group' as const, name: 'identifier' }] : [];
     const next = { ...rule, sources: [...sources, ...last] };
-    return { ...plan, slots: { ...plan.slots, item: { ...plan.slots.item, [TITLE]: next } } };
+    return withSeries(plan, (series) => ({ ...series, slots: { ...series.slots, item: { ...series.slots.item, [TITLE]: next } } }));
   }
   const policy = asPolicy(value);
   return policy === null ? plan : { ...plan, flags: { ...plan.flags, [id]: policy } };
@@ -354,7 +358,7 @@ export interface Suggested {
 export const withSuggestions = (plan: ImportPlan, open: readonly CauseId[], facts: CheckFacts): Suggested =>
   PLAN_EDITS.filter((id) => open.includes(id)).reduce<Suggested>(
     (done, id) => {
-      const writes = id === UNTITLED ? answerOf(done.plan, id, facts) === 'identifier' && !fromCode(done.plan.slots.item[TITLE]) : answerOf(done.plan, id, facts) === FILE_ROWS.value;
+      const writes = id === UNTITLED ? answerOf(done.plan, id, facts) === 'identifier' && !fromCode(seriesOf(done.plan).slots.item[TITLE]) : answerOf(done.plan, id, facts) === FILE_ROWS.value;
       return writes ? { plan: withAnswer(done.plan, id, suggestedOf(done.plan, id, facts), facts), applied: [...done.applied, id] } : done;
     },
     { plan, applied: [] },

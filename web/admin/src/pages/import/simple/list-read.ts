@@ -7,6 +7,7 @@
 import type { ImportId, ImportPlan, SheetPlan } from '../../../api/import-plan';
 import { importApi } from '../../../api/import-routes';
 import { loadProperties } from '../lists/catalog';
+import { seriesOf, withSeries } from '../series';
 import { sheetOf, withRead } from './list-plan';
 
 export interface ListFile {
@@ -16,7 +17,9 @@ export interface ListFile {
 
 /** The plan's lists from a folder, which "Your list" talks about. */
 export const folderSheets = (plan: ImportPlan): readonly SheetPlan[] =>
-  plan.sheets.filter((sheet) => plan.sources.some((source) => source.id === sheet.source && source.kind === 'folder'));
+  seriesOf(plan).lists.filter((sheet) => plan.sources.some((source) => source.id === sheet.source && source.kind === 'folder'));
+
+const withList = (plan: ImportPlan, sheet: SheetPlan): ImportPlan => withSeries(plan, (series) => ({ ...series, lists: [...series.lists, sheet] }));
 
 /**
  * The edit that adds `list` to a plan: read once with automatic options, and
@@ -24,7 +27,7 @@ export const folderSheets = (plan: ImportPlan): readonly SheetPlan[] =>
  * its counts as that read gives them.
  */
 export const listEdit = async (id: ImportId, plan: ImportPlan, list: ListFile): Promise<(now: ImportPlan) => ImportPlan> => {
-  const readWith = (sheet: SheetPlan) => importApi.preview(id, ['sheets', 'columnMatches', 'listCandidates'], { plan: { ...plan, sheets: [...plan.sheets, sheet] } });
+  const readWith = (sheet: SheetPlan) => importApi.preview(id, ['sheets', 'columnMatches', 'listCandidates'], { plan: withList(plan, sheet) });
   const first = sheetOf(plan, list.source, list.file);
   let sheet = first;
   let preview = await readWith(first);
@@ -44,5 +47,6 @@ export const listEdit = async (id: ImportId, plan: ImportPlan, list: ListFile): 
     matches: preview.columnMatches.find((one) => one.sheet === sheet.id),
     cells: preview.listCandidates.find((one) => one.inPlan === sheet.id)?.cells ?? [],
   };
-  return (now) => (now.sheets.some((one) => one.file === sheet.file && one.source === sheet.source) ? now : withRead({ ...now, sheets: [...now.sheets, sheet] }, sheet.id, read, counts, fields));
+  return (now) =>
+    seriesOf(now).lists.some((one) => one.file === sheet.file && one.source === sheet.source) ? now : withRead(withList(now, sheet), sheet.id, read, counts, fields);
 };

@@ -20,6 +20,7 @@ import type { AdvancedTranslator } from './messages';
 import { partsOf } from './pattern-parts';
 import { setAnomalies, setPattern } from './plan-edits';
 import { Setting } from './setting';
+import { seriesOf } from '../series';
 
 /** Long enough to count once per pause in typing, short enough to read as live. */
 export const TRY_DELAY_MS = 400;
@@ -95,7 +96,7 @@ const Parts = ({ pattern, path }: { readonly pattern: string; readonly path: str
 export const PatternEditor = (): ReactElement => {
   const { t, number } = useAdvancedText();
   const draft = useDraft();
-  const saved = draft.plan.grouping;
+  const saved = seriesOf(draft.plan).grouping;
   const example = exampleOf(draft.plan);
   const [text, setText] = useState(saved.pattern ?? '');
   const [caseFold, setCaseFold] = useState(saved.caseFold);
