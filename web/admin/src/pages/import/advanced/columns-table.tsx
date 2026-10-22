@@ -19,6 +19,8 @@ import { fieldOptions, optionFor, slotWords, useProperties } from './field-names
 import { useAdvancedText } from './messages';
 import type { AdvancedMessageKey, AdvancedTranslator } from './messages';
 import { columnOptions, columnTarget, mapColumn, setColumnOptions } from './plan-edits';
+import { written } from './writes';
+import { seriesHolding } from '../series';
 
 interface Column extends ColumnRef {
   readonly mappable: boolean;
@@ -207,7 +209,7 @@ const LevelCell = ({
         onChange={(event) => {
           const next = levelIn(event.target.value);
           if (next !== null) {
-            draft.change((plan) => withColumnLevel(plan, sheet.id, column, next));
+            draft.change((plan) => written(plan, 'columnLevel', seriesHolding(plan, sheet.id)?.id, (now) => withColumnLevel(now, sheet.id, column, next)));
           }
         }}
       >

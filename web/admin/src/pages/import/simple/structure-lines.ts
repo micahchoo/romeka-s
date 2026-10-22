@@ -16,7 +16,7 @@ import { importStructure } from '../../../i18n/namespaces/import-structure';
 import { BUCKET_WORDS } from '../lists/facts-words';
 import type { ListsMessageKey } from '../lists/messages';
 import type { ImportMessageKey } from '../messages';
-import { allSeries, seriesOfTree, setLevelsOf } from '../series';
+import { isAsFound, seriesOfTree } from '../series';
 
 export type StructureMessageKey = KeyOf<typeof importStructure>;
 export type StructureTranslator = Translator<MessageKey | ImportMessageKey | ListsMessageKey | StructureMessageKey>;
@@ -118,16 +118,11 @@ export const totalsOf = (proposal: Proposal): Totals => ({
  */
 export type Status = 'suggested' | 'inUse' | 'changed';
 
-const asFound = (plan: ImportPlan): boolean => {
-  const series = allSeries(plan);
-  return series.length === 1 && series[0]?.scope === 'all' && setLevelsOf(plan).length === 0;
-};
-
 export const statusOf = (plan: ImportPlan, proposal: Proposal): Status => {
   if (proposal.matchesPlan) {
     return 'inUse';
   }
-  return asFound(plan) ? 'suggested' : 'changed';
+  return isAsFound(plan) ? 'suggested' : 'changed';
 };
 
 export const itemsWords = (count: number, t: T, number: (n: number) => string): string =>

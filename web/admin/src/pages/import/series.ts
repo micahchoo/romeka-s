@@ -166,6 +166,12 @@ export const withSimple = (plan: ImportPlan, state: Readonly<Record<string, Json
   return { ...plan, simple: { ...plan.simple, ...Object.fromEntries(ids.map((id) => [id, state])) } };
 };
 
+/** Whether the plan still holds the archive as found: one series over everything, which no proposal made. */
+export const isAsFound = (plan: ImportPlan): boolean => {
+  const series = allSeries(plan);
+  return series.length === 1 && series[0]?.scope === 'all' && setLevelsOf(plan).length === 0;
+};
+
 /** The plan's one series; `null` when it has several, where only a node of the structure screen names one. */
 export const onlySeries = (plan: ImportPlan): Series | null => {
   const [only, ...more] = allSeries(plan);
