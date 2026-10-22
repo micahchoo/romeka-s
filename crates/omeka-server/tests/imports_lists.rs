@@ -783,6 +783,97 @@ async fn a_replace_that_names_no_uploaded_list_is_refused() {
     );
 }
 
+/// The Structure screen's first click (C3): the admin previews the plan with
+/// one edit, then saves the edits and the proposal's structure in one PUT.
+/// What the person made that the scan cannot see stays: the list they
+/// uploaded, where its columns go, and their free sets.
+#[tokio::test]
+async fn a_structure_click_keeps_the_uploaded_list_and_the_free_sets() {
+    let fixture = fixture().await;
+    let id = two_series(&fixture).await;
+    upload_ok(
+        &fixture,
+        &id,
+        "sheets?series=photos",
+        "Identifier,Files,Title [dcterms:title],Item sets [sets]\r\nPH_001,,Harbour,2018\r\n",
+    )
+    .await;
+    let detail = fixture
+        .call("GET", &format!("/api/romeka/imports/{id}"), None)
+        .await;
+    let saved = fixture
+        .save(&detail.json(), |plan| {
+            plan["structure"]["freeSets"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({ "title": "Donated", "description": null }));
+        })
+        .await;
+    assert_eq!(saved.status, StatusCode::OK, "{}", saved.body);
+    let before = saved.json();
+    let photos = before["plan"]["structure"]["levels"][1].clone();
+    assert_eq!(photos["lists"][0]["file"], "lists/1.csv");
+    assert!(
+        photos["slots"]["item"]["dcterms:title"].is_object(),
+        "{}",
+        photos["slots"]
+    );
+    let free_sets = before["plan"]["structure"]["freeSets"].clone();
+    assert_eq!(free_sets.as_array().map(Vec::len), Some(2), "{free_sets}");
+
+    let mut tried = before["plan"].clone();
+    tried["edits"] =
+        json!([{ "edit": "leaveOut", "scope": { "source": "s1", "folder": "Letters" } }]);
+    let preview = fixture
+        .preview(&id, &json!({ "include": ["proposal"], "plan": tried }))
+        .await;
+    assert_eq!(preview.status, StatusCode::OK, "{}", preview.body);
+    let proposal = preview.json()["proposal"].clone();
+    assert_eq!(
+        proposal["edits"][0]["applied"], true,
+        "{}",
+        proposal["edits"]
+    );
+    let saved = fixture
+        .save(&before, |plan| {
+            plan["edits"] = tried["edits"].clone();
+            plan["structure"] = proposal["structure"].clone();
+        })
+        .await;
+    assert_eq!(saved.status, StatusCode::OK, "{}", saved.body);
+
+    let after = fixture
+        .call("GET", &format!("/api/romeka/imports/{id}"), None)
+        .await
+        .json();
+    let structure = &after["plan"]["structure"];
+    let series: Vec<&Value> = structure["levels"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|level| level["kind"] == "series")
+        .collect();
+    assert!(
+        series
+            .iter()
+            .all(|one| one["scope"] != before["plan"]["structure"]["levels"][0]["scope"]),
+        "the click left Letters out: {structure}"
+    );
+    let kept = series
+        .iter()
+        .find(|one| one["scope"] == photos["scope"])
+        .unwrap_or_else(|| panic!("a series over Photos: {structure}"));
+    assert_eq!(
+        kept["lists"], photos["lists"],
+        "the uploaded list, as the person sent it"
+    );
+    assert_eq!(
+        kept["slots"]["item"]["dcterms:title"], photos["slots"]["item"]["dcterms:title"],
+        "where its title column goes"
+    );
+    assert_eq!(structure["freeSets"], free_sets, "the person's free sets");
+}
+
 /// Upload `list` as `list.csv` to `path` of import `id`, and answer the view.
 async fn upload_ok(fixture: &Fixture, id: &Value, path: &str, list: &str) -> Value {
     let answer = fixture

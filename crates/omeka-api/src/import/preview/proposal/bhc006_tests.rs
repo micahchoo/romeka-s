@@ -162,6 +162,7 @@ pub fn proposal_with_lists(edits: &[Edit]) -> Proposal {
         catalog: &catalog,
         sources: &plan.sources,
         structure: &plan.structure,
+        sheets: &Sheets::new(),
     };
     propose(&evidence, edits)
 }
@@ -177,6 +178,7 @@ pub fn proposal(edits: &[Edit]) -> Proposal {
         catalog: &catalog,
         sources: &plan.sources,
         structure: &plan.structure,
+        sheets: &Sheets::new(),
     };
     propose(&evidence, edits)
 }

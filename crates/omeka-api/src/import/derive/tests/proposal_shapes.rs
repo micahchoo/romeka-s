@@ -79,6 +79,7 @@ pub(crate) fn judge(scenario: &Scenario, edits: &[Edit]) -> (Proposal, Vec<Diffe
         catalog: &scenario.catalog,
         sources: &scenario.plan.sources,
         structure: &scenario.plan.structure,
+        sheets: &Sheets::new(),
     };
     let proposal = propose(&evidence, edits);
     let want = placed(scenario, &scenario.plan, &scenario.sheets);

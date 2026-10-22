@@ -164,6 +164,21 @@ fn pairs(sheet: &Sheet, column: u32, on: JoinOn, targets: &Targets<'_>) -> Pairs
     found
 }
 
+/// The rows of `sheet` that `join` pairs in the series at `at` of
+/// `structure`, derived into `model`: how a list the person wrote is
+/// counted, by its own join and folds.
+pub(super) fn paired_by(
+    index: &Index,
+    structure: &Structure,
+    model: &Model,
+    at: SeriesIx,
+    sheet: &Sheet,
+    join: &Join,
+) -> usize {
+    let targets = Targets::of(model, index, Some(Within { structure, at }), join.normalize);
+    pairs(sheet, join.column.index, join.on, &targets).rows
+}
+
 /// A candidate with nothing counted yet, named as `listCandidates` names it.
 fn candidate(evidence: &Evidence<'_>, file: &ListFile) -> ListCandidate {
     let held = evidence

@@ -59,6 +59,7 @@ fn s1() -> Proposal {
         catalog: &scenario.catalog,
         sources: &scenario.plan.sources,
         structure: &scenario.plan.structure,
+        sheets: &Sheets::new(),
     };
     propose(&evidence, &[])
 }
@@ -185,6 +186,7 @@ fn numbered_folders_are_one_series_with_their_level_offered() {
         catalog: &scenario.catalog,
         sources: &scenario.plan.sources,
         structure: &scenario.plan.structure,
+        sheets: &Sheets::new(),
     };
     let proposal = propose(&evidence, &[]);
     let [NodeEvidence::Series(boxes)] = proposal.nodes.as_slice() else {
@@ -268,6 +270,7 @@ fn a_file_that_is_not_media_makes_no_item() {
             catalog: &scenario.catalog,
             sources: &scenario.plan.sources,
             structure: &scenario.plan.structure,
+            sheets: &Sheets::new(),
         };
         propose(&evidence, edits)
     };

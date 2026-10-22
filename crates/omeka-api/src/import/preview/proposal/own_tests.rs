@@ -41,6 +41,7 @@ fn an_own_series_is_kept_as_written_and_counted() {
         catalog: &catalog,
         sources: &person.sources,
         structure: &person.structure,
+        sheets: &Sheets::new(),
     };
     let edits = [
         Edit::Own {

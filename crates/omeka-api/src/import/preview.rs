@@ -381,15 +381,22 @@ pub fn preview(derived: &Derived, request: &PreviewRequest) -> Preview {
 
 /// The proposal for the derived plan's scan, after the plan's edits. Every
 /// list of every folder source is read as Simple adds one; a list that is no
-/// longer on disk is not evidence.
+/// longer on disk is not evidence. The plan's own lists are read as the
+/// plan reads them, the lists uploaded to staging among them.
 fn proposal_of(derived: &Derived) -> proposal::Proposal {
     let lists = WalkLists(derived);
+    let sheets: Sheets = derived
+        .sheets
+        .iter()
+        .map(|(id, read)| (id.clone(), read.sheet.clone()))
+        .collect();
     let evidence = proposal::Evidence {
         index: &derived.stored.index,
         lists: &lists,
         catalog: &derived.catalog,
         sources: &derived.plan.sources,
         structure: &derived.plan.structure,
+        sheets: &sheets,
     };
     proposal::propose(&evidence, &derived.plan.edits)
 }
