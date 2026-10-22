@@ -19,6 +19,7 @@ import { whereWords } from '../words';
 import { useAdvancedText } from './messages';
 import { PatternEditor } from './pattern-editor';
 import { Setting } from './setting';
+import { seriesOf } from '../series';
 import './advanced.css';
 
 const IdenticalFiles = lazy(() => import('../lists/identical'));
@@ -127,7 +128,7 @@ const Example = (): ReactElement => {
 export const AdvancedFiles = (): ReactElement => {
   const { t } = useAdvancedText();
   const draft = useDraft();
-  const { pattern, caseFold } = draft.plan.grouping;
+  const { pattern, caseFold } = seriesOf(draft.plan).grouping;
   const { look, lookAgain } = useLookAgain();
   return (
     <div className="adv-section">
