@@ -324,6 +324,7 @@ pub struct EditResult {
 #[must_use]
 pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
     let mut applied = vec![false; edits.len()];
+    let none = sets::SeriesSets::default();
     let found = folders::detect(evidence, edits, &mut applied);
     let series = if found.series.is_empty() {
         as_found(evidence)
@@ -332,7 +333,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
     };
     let whole: Vec<Level> = series
         .iter()
-        .map(|one| level(one, Some(&Key::Whole), Plan::default(), &[]))
+        .map(|one| level(one, Some(&Key::Whole), Plan::default(), &none))
         .collect();
     let cuts = Structure::build(whole, found.left.clone(), evidence.sources).map(|placed| {
         let names = series_names(evidence, &placed, series.len());
@@ -351,7 +352,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         let levels = series
             .iter()
             .zip(&cuts)
-            .map(|(one, cut)| level(one, Some(&cut.chosen.key), Plan::default(), &[]))
+            .map(|(one, cut)| level(one, Some(&cut.chosen.key), Plan::default(), &none))
             .collect();
         let structure = Structure::build(levels, found.left.clone(), evidence.sources)?;
         Ok((
@@ -448,13 +449,23 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
                 .map(|key| names::place_values(names, key))
                 .unwrap_or_default(),
             numbered: one.numbered,
+            folder: one.set.as_ref(),
         })
         .collect();
-    let found_sets = sets::detect(&model, &plan.structure, &sheets, &read, edits, &mut applied);
+    let found_sets = sets::detect(
+        &model,
+        &plan.structure,
+        &sheets,
+        &read,
+        found.sets_chosen,
+        edits,
+        &mut applied,
+    );
     let edits = results(edits, applied);
     let plan = if found_sets.top_taken.is_some()
-        || found_sets.series.iter().any(|sets| !sets.taken.is_empty())
-    {
+        || found_sets.series.iter().any(|sets| {
+            !sets.taken.is_empty() || sets.folder.as_ref().is_some_and(|folder| folder.chosen)
+        }) {
         let levels = tree(&series, &keys, &rows, &found_sets);
         match Structure::build(levels, found.left.clone(), evidence.sources) {
             Ok(structure) => ImportPlan { structure, ..plan },
@@ -478,8 +489,8 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
     let each = plan
         .structure
         .all_series()
-        .zip(series.iter().zip(cuts).zip(rows).zip(scopes));
-    for ((at, level), (((one, cut), rows), scope)) in each {
+        .zip(cuts.into_iter().zip(rows).zip(scopes));
+    for ((at, level), ((cut, rows), scope)) in each {
         let here = chosen_lists.next().unwrap_or_default();
         let sets = series_sets.next().unwrap_or_default();
         let pairing = offers
@@ -504,13 +515,17 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
             counts: counted_counts(&rival.counts, scope.media),
             value: rival.item,
         });
-        let folder = one.set.clone().map(|from| Pick {
-            value: Some(from),
-            counts: SetCounts {
-                sets: vec![(folders::folder_title(one.scope()), items.items)],
-                rows: None,
-            },
-        });
+        let folder = sets
+            .folder
+            .as_ref()
+            .filter(|folder| folder.chosen)
+            .map(|folder| {
+                let pick = folder.pick();
+                Pick {
+                    value: Some(pick.value),
+                    counts: pick.counts,
+                }
+            });
         let mut taken = sets.taken.into_iter();
         let set = match folder {
             Some(folder) => Some(folder),
@@ -738,8 +753,8 @@ fn tree(
         .zip(rows)
         .enumerate()
         .map(|(at, ((one, key), rows))| {
-            let taken = &sets.series.get(at).unwrap_or(&none).taken;
-            level(one, *key, Plan::of(rows, &mut ids, taken), taken)
+            let sets = sets.series.get(at).unwrap_or(&none);
+            level(one, *key, Plan::of(rows, &mut ids, &sets.taken), sets)
         })
         .collect();
     match &sets.top_taken {
@@ -769,8 +784,9 @@ fn level(
     one: &folders::FolderSeries,
     key: Option<&Key>,
     plan: Plan,
-    taken: &[sets::Taken],
+    sets: &sets::SeriesSets,
 ) -> Level {
+    let taken = &sets.taken;
     let scope = one.scope();
     let id = if scope.folder.as_str().is_empty() {
         scope.source.0.clone()
@@ -795,12 +811,16 @@ fn level(
     for (kind, slot, rule) in plan.rules {
         series = series.with_rule(kind, slot, rule);
     }
-    let folder = one.set.as_ref().map(|_| {
-        SetSource::Title(SetByTitle {
-            title: folders::folder_title(scope).0,
-            description: None,
-        })
-    });
+    let folder = sets
+        .folder
+        .as_ref()
+        .filter(|folder| folder.chosen)
+        .map(|folder| {
+            SetSource::Title(SetByTitle {
+                title: folder.title.0.clone(),
+                description: None,
+            })
+        });
     let each = |taken: &sets::Taken| {
         SetSource::Each(EachValue {
             each: EachSet {

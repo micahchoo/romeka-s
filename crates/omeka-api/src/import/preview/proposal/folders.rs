@@ -1,9 +1,12 @@
 //! Detector 1, folder levels (design section 2): which top folders are
-//! series, which are outside, and the set of each series. It counts each
-//! top folder's files by the media table and `MediaKind`, and compares the
-//! places of sibling folder names. It reads no folder name for its meaning.
+//! series, which are outside, and the set each series' folder could make.
+//! It counts each top folder's files by the media table and `MediaKind`,
+//! and compares the places of sibling folder names. It reads no folder name
+//! for its meaning. Folder sets are chosen only when two series hold most
+//! of one kind of file: folders that each hold their own kind are kinds of
+//! file, not collections.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use super::shape::{KeyShape, places};
 use super::{
@@ -23,8 +26,9 @@ pub(super) struct FolderSeries {
     /// The scopes the plan states: the folders, or the whole source when
     /// this is the only series and nothing is outside.
     pub scopes: Vec<FolderScope>,
-    /// Its own set: its folder's name, when the archive has two series or
-    /// more and the folder has a name.
+    /// The set its folder's name could make, when the archive has two
+    /// series or more and the folder has a name. Chosen only when
+    /// [`Folders::sets_chosen`].
     pub set: Option<SetFrom>,
     /// Numbered folders offer their folder level as a split.
     pub numbered: bool,
@@ -45,6 +49,11 @@ pub(super) struct Folders {
     /// The paths inside a series' folder that no series takes: files that
     /// are not media, and what a `leaveOut` edit names below a top folder.
     pub left: Vec<FolderScope>,
+    /// Whether the series' folder sets are chosen: two series hold most of
+    /// one kind of file, so their folders sort by something else than kind.
+    /// Folders that each hold their own kind (Documents, Pictures, Music)
+    /// are kinds of file, and their sets are only offered.
+    pub sets_chosen: bool,
 }
 
 /// A first path segment of a source, `""` for the files at its top.
@@ -261,6 +270,17 @@ pub(super) fn detect(evidence: &Evidence<'_>, edits: &[Edit], applied: &mut [boo
             set: None,
         });
     }
+    let mut main_kinds = BTreeSet::new();
+    let sets_chosen = !series.iter().all(|one| {
+        let entries = tops
+            .iter()
+            .filter(|top| one.folders.contains(&top.scope))
+            .flat_map(|top| top.entries.iter().copied());
+        let main = kinds_most_first(evidence, entries)
+            .first()
+            .map(|(kind, _)| *kind);
+        main_kinds.insert(main)
+    });
     let several = series.len() > 1;
     for one in &mut series {
         let scope = &one.folders[0];
@@ -288,6 +308,7 @@ pub(super) fn detect(evidence: &Evidence<'_>, edits: &[Edit], applied: &mut [boo
         series,
         outside,
         left: left_paths,
+        sets_chosen,
     }
 }
 
