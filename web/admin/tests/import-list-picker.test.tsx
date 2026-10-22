@@ -11,12 +11,13 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { useSyncExternalStore } from 'react';
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { asRecord } from '../src/api/parse';
+import { asRecord, isRecord } from '../src/api/parse';
 import { ImportPage } from '../src/pages/import/page';
 import { AF, bhc006, CSV, D, IN_USE, LISTS, ODS, PN, RAO } from './import-bhc006-lists';
 import type { ScenarioList } from './import-simple-scenarios';
-import { simpleServer } from './import-simple-server';
-import { installFetch } from './stub';
+import { PATH, simpleServer } from './import-simple-server';
+import { loadFixture } from './loadFixture';
+import { installFetch, jsonResponse, listResponse, route } from './stub';
 
 const subscribe = (listener: () => void): (() => void) => {
   window.addEventListener('hashchange', listener);
@@ -258,5 +259,93 @@ describe('the list picker in Advanced', () => {
       expect(filesOf(last(advanced.saved))).toEqual([PN]);
     }, { timeout: 5000 });
     expect(last(advanced.saved)).toEqual(last(simple.saved));
+  }, 20_000);
+});
+
+describe('the list picker of one folder, on a plan of several folders', () => {
+  const PROPOSAL = asRecord(loadFixture('import/proposal-bhc006.json'), []);
+  const importFixture = (name: string): Record<string, unknown> => asRecord(loadFixture(`import/${name}`), []);
+  const levelsOf = (plan: Record<string, unknown>): readonly Record<string, unknown>[] => {
+    const levels: unknown = asRecord(plan['structure'], [])['levels'];
+    return (Array.isArray(levels) ? levels : []).filter(isRecord);
+  };
+  const listsOf = (level: Record<string, unknown> | undefined): readonly Record<string, unknown>[] =>
+    (Array.isArray(level?.['lists']) ? level['lists'] : []).filter(isRecord);
+  const AF_FILE = 'BHC006_GMT_AF.xlsx';
+  const D_FILE = 'BHC006_GMT_D.xlsx';
+
+  /** BHC006 after the first Structure click: Artifacts reads AF, Documents (D) reads D. The scan's candidates name the folder that reads each. */
+  const several = (): { readonly saved: Record<string, unknown>[] } => {
+    const detail = importFixture('import-draft.json');
+    let plan: Record<string, unknown> = { ...asRecord(detail['plan'], []), structure: PROPOSAL['structure'] };
+    let revision = 0;
+    const saved: Record<string, unknown>[] = [];
+    const first = (name: string, section: string): Record<string, unknown> => {
+      const all = importFixture(name)[section];
+      return asRecord(Array.isArray(all) ? all[0] : null, []);
+    };
+    const template = first('preview-sheets.json', 'sheets');
+    const candidate = first('preview-list-candidates.json', 'listCandidates');
+    installFetch(
+      route({
+        [PATH]: (_url, init) => {
+          if (init?.method === 'PUT') {
+            plan = asRecord(asRecord(JSON.parse(typeof init.body === 'string' ? init.body : '{}'), [])['plan'], []);
+            saved.push(plan);
+            revision += 1;
+          }
+          return jsonResponse({ ...detail, plan, revision });
+        },
+        [`${PATH}/preview`]: (_url, init) => {
+          const body = asRecord(JSON.parse(typeof init?.body === 'string' ? init.body : '{}'), []);
+          const include = Array.isArray(body['include']) ? body['include'].map(String) : [];
+          const sent = isRecord(body['plan']) ? body['plan'] : plan;
+          const held = levelsOf(sent).flatMap((level) => listsOf(level).map((list) => ({ list, series: level['id'] })));
+          const answer: Record<string, unknown> = { sources: importFixture('preview-check.json')['sources'], pattern: { groups: ['identifier'] } };
+          for (const section of include) {
+            if (section === 'sheets') {
+              answer[section] = held.map(({ list }) => ({ ...template, id: list['id'], source: list['source'], file: list['file'] }));
+            } else if (section === 'columnMatches') {
+              answer[section] = [];
+            } else if (section === 'listCandidates') {
+              answer[section] = [AF_FILE, D_FILE].map((file) => {
+                const holder = held.find(({ list }) => list['file'] === file);
+                return { ...candidate, file, inPlan: holder?.list['id'] ?? null, ...(holder === undefined ? {} : { series: holder.series }) };
+              });
+            } else {
+              answer[section] = section === 'proposal' ? PROPOSAL : importFixture(`preview-${section}.json`)[section];
+            }
+          }
+          return jsonResponse(answer);
+        },
+        '/api/properties': () => listResponse(loadFixture('properties-page.json'), 2),
+        '/api/item_sets': () => listResponse(loadFixture('item-sets-page.json'), 2),
+      }),
+    );
+    return { saved };
+  };
+
+  it('a list another folder uses shows as used there, with Move here and no Stop using', async () => {
+    const { saved } = several();
+    window.location.hash = '#/import/1/advanced/lists/{"series":"Artifacts"}';
+    render(<Routed />);
+    const d = await screen.findByRole('listitem', { name: D_FILE }, { timeout: 5000 });
+    expect(d).toHaveTextContent('Used by Documents (D)');
+    expect(within(d).queryByRole('button', { name: 'Stop using it' })).toBeNull();
+    const af = screen.getByRole('listitem', { name: AF_FILE });
+    expect(af).toHaveTextContent('In use');
+    expect(within(af).getByRole('button', { name: 'Stop using it' })).toBeInTheDocument();
+
+    fireEvent.click(within(d).getByRole('button', { name: 'Move here' }));
+    await waitFor(() => {
+      expect(saved).toHaveLength(1);
+    }, { timeout: 5000 });
+    const levels = levelsOf(saved[0] ?? {});
+    expect(listsOf(levels.find((level) => level['id'] === 'Artifacts')).map((list) => list['file'])).toEqual([AF_FILE, D_FILE]);
+    expect(listsOf(levels.find((level) => level['id'] === 'Documents (D)'))).toEqual([]);
+    expect(saved[0]?.['edits']).toEqual([
+      { edit: 'own', scope: { source: 's1', folder: 'Documents (D)' } },
+      { edit: 'own', scope: { source: 's1', folder: 'Artifacts' } },
+    ]);
   }, 20_000);
 });
