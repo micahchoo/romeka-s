@@ -50,7 +50,7 @@ fn derived(files: &[&str], rows: &str, row_kind: &str) -> Derived {
                         size: 10,
                         modified: None,
                         sniffed: if path.ends_with(".NEF") { RAW } else { JPEG }.into(),
-                        decoded: None,
+                        disk: None,
                     })
                     .collect(),
                 ..Walk::default()

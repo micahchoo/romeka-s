@@ -42,7 +42,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Type};
 
 use super::evidence::identical::identical_with;
-use super::evidence::{self, Anomalies, DecodedName, FileEntry, NameEncoding};
+use super::evidence::{self, Anomalies, DiskName, FileEntry, NameEncoding};
 use super::plan::{RelPath, RelPathError};
 
 pub(crate) mod parts;
@@ -560,10 +560,10 @@ pub(crate) fn entry(
     head: &[u8],
     meta: Option<&Meta>,
 ) -> Option<(FileEntry, bool)> {
-    let decoded = match meta.and_then(|meta| meta.decoded.as_ref()) {
-        Some(name) => Some(DecodedName {
-            encoding: name.encoding,
+    let disk = match meta.and_then(|meta| meta.decoded.as_ref()) {
+        Some(name) => Some(DiskName {
             raw: unhex(&name.raw)?,
+            encoding: Some(name.encoding),
         }),
         None => None,
     };
@@ -574,7 +574,7 @@ pub(crate) fn entry(
             size,
             modified: Some(system_time(created)),
             sniffed,
-            decoded,
+            disk,
         },
         is_sheet,
     ))

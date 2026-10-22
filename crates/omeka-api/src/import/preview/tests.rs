@@ -33,7 +33,7 @@ fn derived_of(plan: &serde_json::Value, paths: &[&str], catalog: Catalog) -> Der
                         size: 1,
                         modified: None,
                         sniffed: "image/jpeg".into(),
-                        decoded: None,
+                        disk: None,
                     })
                     .collect(),
                 ..Walk::default()

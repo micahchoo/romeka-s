@@ -232,11 +232,12 @@ fn candidate<'d>(
         cells: Vec::new(),
         overlaps: Vec::new(),
     };
+    let disk = derived.stored.index.disk_path(source, file);
     let read = derived
         .tags
         .caches
         .sheets
-        .read(&automatic(source, file), dir);
+        .read(&automatic(source, file), dir, &disk);
     let sheet = match read.as_deref().map(|read| &read.sheet) {
         None => {
             candidate.read = CandidateRead::Error(NOT_FOUND.to_string());
