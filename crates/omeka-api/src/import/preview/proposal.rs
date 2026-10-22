@@ -48,18 +48,20 @@ mod shape;
 pub mod thresholds;
 
 use std::cmp::Reverse;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use indexmap::IndexMap;
 
 use serde::Serialize;
 
 use super::candidates::{self, Grain, ListCandidate};
+use super::columns::EVERY_FOLD;
 use super::facts::{Bucket, BucketCount, MediaKind};
 use crate::import::catalog::{self, Catalog};
 use crate::import::derive::{Index, NoTags, Sheets, derive};
 use crate::import::evidence::FileEntry;
 use crate::import::flags::format_mismatch;
+use crate::import::join::normalize;
 use crate::import::model::{Fate, Model};
 use crate::import::plan::{
     ColumnOptions, ColumnPlan, ColumnRef, Combine, EachSet, EachValue, Edit, FolderScope, Grouping,
@@ -332,6 +334,12 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
     let cuts = Structure::build(whole, found.left.clone(), evidence.sources).map(|placed| {
         let names = series_names(evidence, &placed, series.len());
         let mut cuts: Vec<SeriesCut> = names.iter().map(|names| names::cut(names)).collect();
+        if cuts.iter().any(SeriesCut::has_folder_key) {
+            let cells = list_cells(evidence);
+            for (cut, names) in cuts.iter_mut().zip(&names) {
+                names::lead_by_lists(cut, names, &cells);
+            }
+        }
         names::same_as_sibling(&mut cuts, &names);
         names::replay(&mut cuts, &series, edits, &mut applied);
         (cuts, names)
@@ -573,6 +581,22 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
             .collect(),
         edits,
     }
+}
+
+/// Every cell of every list of the walk, folded as a join folds with every
+/// fold on.
+fn list_cells(evidence: &Evidence<'_>) -> HashSet<String> {
+    let mut cells = HashSet::new();
+    for file in evidence.lists.files() {
+        evidence.lists.read(&file, &mut |sheet| {
+            let rows = sheet.iter().flat_map(|sheet| &sheet.rows);
+            cells.extend(
+                rows.flat_map(|row| &row.cells)
+                    .map(|cell| normalize(cell, EVERY_FOLD)),
+            );
+        });
+    }
+    cells
 }
 
 fn results(edits: &[Edit], applied: Vec<bool>) -> Vec<EditResult> {

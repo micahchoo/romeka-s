@@ -3,15 +3,17 @@
 //! fewest places to the most, and keeps the first cut its counts prove. It
 //! compares places by class and parts by count, never by their text.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::path::Path;
 
 use super::folders::FolderSeries;
-use super::shape::{Key, KeyShape, Place, PlaceClass, places};
+use super::shape::{Key, KeyShape, Place, PlaceClass, SLASH, places};
 use super::thresholds::{KEY_SHAPE_FITS, MIN_ITEMS_PER_PART, MIN_RECURRING_PARTS};
 use super::{CutRule, ItemCut, ScanText};
 use crate::import::evidence::FileEntry;
+use crate::import::join::normalize;
 use crate::import::plan::{CutEdit, Edit, RelPath};
+use crate::import::preview::columns::EVERY_FOLD;
 
 /// One media file of a series, split for the cut.
 pub(super) struct Name<'e> {
@@ -73,6 +75,15 @@ pub(super) struct Counted {
 pub(super) struct SeriesCut {
     pub chosen: Cut,
     pub rival: Option<Cut>,
+}
+
+impl SeriesCut {
+    /// Whether the cut or its rival keys items by a folder.
+    pub fn has_folder_key(&self) -> bool {
+        std::iter::once(&self.chosen)
+            .chain(&self.rival)
+            .any(|cut| matches!(cut.key, Key::Folder { .. }))
+    }
 }
 
 /// One file of an item: what tells it from the item's other files.
@@ -137,7 +148,7 @@ fn group<'n>(names: &'n [Name<'_>], key: &Key) -> Grouped<'n> {
                         },
                     ))
                 }),
-            Key::Folder(depth) => (folders >= usize::from(*depth))
+            Key::Folder { depth, .. } => (folders >= usize::from(*depth))
                 .then_some(())
                 .zip(name.extension)
                 .map(|((), extension)| {
@@ -298,7 +309,7 @@ fn as_found(names: &[Name<'_>]) -> (Cut, Option<Cut>) {
         counts: group(names, &Key::Path).counted(),
         key: Key::Path,
     };
-    let key = Key::Folder(depth);
+    let key = Key::Folder { depth, lead: None };
     let folder = Cut {
         item: ItemCut::Folder { depth },
         counts: group(names, &key).counted(),
@@ -331,6 +342,71 @@ fn every_folder_restarts(names: &[Name<'_>], depth: usize) -> bool {
         .values()
         .filter(|held| held.len() > 1)
         .all(|held| held.iter().any(|name| holders[name] > 1))
+}
+
+/// A folder cut whose folder names a list names by their first places
+/// keys its items by those places. `cells` is every cell of every list,
+/// folded as a join folds with every fold on. The lead is the fewest first
+/// places of the key's last folder name that have one shape in every item,
+/// tell every item apart, and are in more cells than the whole key is.
+pub(super) fn lead_by_lists(cut: &mut SeriesCut, names: &[Name<'_>], cells: &HashSet<String>) {
+    let folder = std::iter::once(&mut cut.chosen)
+        .chain(cut.rival.as_mut())
+        .find(|cut| matches!(cut.key, Key::Folder { lead: None, .. }));
+    let Some(folder) = folder else {
+        return;
+    };
+    let Key::Folder { depth, .. } = folder.key else {
+        return;
+    };
+    let at = usize::from(depth);
+    let items: BTreeSet<&[String]> = names
+        .iter()
+        .filter(|name| name.folders.len() >= at)
+        .map(|name| &name.folders[..at])
+        .collect();
+    let named = |text: &str| cells.contains(&normalize(text, EVERY_FOLD));
+    let whole = items.iter().filter(|key| named(&key.join(SLASH))).count();
+    let lasts: Vec<(&str, Vec<Place>)> = items
+        .iter()
+        .filter_map(|key| key.last())
+        .map(|last| (last.as_str(), places(last)))
+        .collect();
+    let fewest = lasts
+        .iter()
+        .map(|(_, found)| found.len())
+        .min()
+        .unwrap_or_default();
+    let mut best: Option<(usize, KeyShape)> = None;
+    for count in 1..=fewest {
+        let shapes: BTreeSet<KeyShape> = lasts
+            .iter()
+            .map(|(_, found)| KeyShape::of(&found[..count]))
+            .collect();
+        let leads: BTreeSet<&str> = lasts
+            .iter()
+            .filter_map(|(last, found)| {
+                Some(&last[found.first()?.start..found.get(count - 1)?.end])
+            })
+            .collect();
+        let mut shapes = shapes.into_iter();
+        let (Some(shape), None) = (shapes.next(), shapes.next()) else {
+            continue;
+        };
+        if leads.len() < items.len() {
+            continue;
+        }
+        let hits = leads.iter().filter(|lead| named(lead)).count();
+        if hits > whole && best.as_ref().is_none_or(|(most, _)| hits > *most) {
+            best = Some((hits, shape));
+        }
+    }
+    if let Some((_, lead)) = best {
+        folder.key = Key::Folder {
+            depth,
+            lead: Some(lead),
+        };
+    }
 }
 
 /// Whether a key that fits `files` of `of` media fits enough of them for
@@ -366,7 +442,7 @@ pub(super) fn same_as_sibling(cuts: &mut [SeriesCut], names: &[Vec<Name<'_>>]) {
         .iter()
         .map(|cut| match &cut.chosen.key {
             Key::Places(shape) => Some(shape.clone()),
-            Key::Whole | Key::Path | Key::Folder(_) => None,
+            Key::Whole | Key::Path | Key::Folder { .. } => None,
         })
         .collect();
     for (at, cut) in cuts.iter_mut().enumerate() {
@@ -399,7 +475,7 @@ fn asks_for(cut: &Cut, edit: &CutEdit) -> bool {
     match (edit, &cut.key) {
         (CutEdit::Whole, Key::Whole | Key::Path) => true,
         (CutEdit::Places { places }, Key::Places(shape)) => shape.len() == usize::from(*places),
-        (CutEdit::Folder { depth }, Key::Folder(found)) => depth == found,
+        (CutEdit::Folder { depth }, Key::Folder { depth: found, .. }) => depth == found,
         _ => false,
     }
 }
@@ -451,7 +527,7 @@ pub(super) fn place_values<'n>(names: &'n [Name<'_>], key: &Key) -> Vec<PlaceVal
             Key::Places(shape) if shape.starts(&name.places) && name.extension.is_some() => {
                 &name.places[..shape.len()]
             }
-            Key::Places(_) | Key::Path | Key::Folder(_) => continue,
+            Key::Places(_) | Key::Path | Key::Folder { .. } => continue,
         };
         let (Some(first), Some(last)) = (held.first(), held.last()) else {
             continue;

@@ -289,7 +289,14 @@ fn a_pattern_matches_the_names_its_key_shape_fits() {
     assert_eq!(key("AB_CD"), None, "a name with no extension");
     assert_eq!(key("12_CD.jpg"), None);
 
-    let folder = FilePattern::compile(Some(&Key::Folder(2).pattern())).expect("compiles");
+    let folder = FilePattern::compile(Some(
+        &Key::Folder {
+            depth: 2,
+            lead: None,
+        }
+        .pattern(),
+    ))
+    .expect("compiles");
     let groups = folder.groups("Box 1/Folder 1/0001.tif").expect("a match");
     assert_eq!(groups["identifier"].text, "Box 1/Folder 1");
     assert_eq!(groups["part"].text, "0001");
