@@ -80,6 +80,7 @@ export const kn: ImportAdvancedMessages = {
   'adv.files.pattern.syntax': 'ರೆಜೆಕ್ಸ್ ಅನ್ನು ಓದಲಾಗುವುದಿಲ್ಲ: {message}',
   'adv.files.fit.counting': 'ಎಣಿಕೆ...',
   'adv.files.fit.unread': 'ಎಣಿಕೆಗಳನ್ನು ಓದಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ: {message}',
+  'adv.files.fit.gone': 'ಫೈಲ್‌ಗಳಲ್ಲಿ ಈಗ {folder} ಫೋಲ್ಡರ್ ಇಲ್ಲ.',
   'adv.files.fit.count':
     '{files} ಕಡತಗಳಲ್ಲಿ {fit} ಹೊಂದಿಕೆಯಾಗುತ್ತದೆ. ಹೊಂದಿಕೆಯಾಗುವ ಕಡತಗಳು {items} ಐಟಂಗಳನ್ನು ಮಾಡುತ್ತವೆ.',
   'adv.files.fit.unfit': '{count} ಹೊಂದಿಕೆಯಾಗುವುದಿಲ್ಲ.',

@@ -80,6 +80,7 @@ export const ml: ImportAdvancedMessages = {
   'adv.files.pattern.syntax': 'പാറ്റേൺ വായിക്കാൻ കഴിയില്ല: {message}',
   'adv.files.fit.counting': 'എണ്ണുന്നു...',
   'adv.files.fit.unread': 'എണ്ണമെടുക്കാൻ കഴിഞ്ഞില്ല: {message}',
+  'adv.files.fit.gone': 'ഫയലുകൾക്ക് ഇപ്പോൾ {folder} എന്ന ഫോൾഡർ ഇല്ല.',
   'adv.files.fit.count':
     '{files} ഫയലുകളിൽ {fit} എണ്ണം യോജിക്കുന്നു. യോജിക്കുന്ന ഫയലുകൾ {items} ഐറ്റങ്ങൾ ഉണ്ടാക്കുന്നു.',
   'adv.files.fit.unfit': '{count} യോജിക്കുന്നില്ല.',

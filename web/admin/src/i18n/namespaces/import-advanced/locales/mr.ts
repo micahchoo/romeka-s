@@ -81,6 +81,7 @@ export const mr: ImportAdvancedMessages = {
   'adv.files.pattern.syntax': 'रेजेक्स वाचता येत नाही: {message}',
   'adv.files.fit.counting': 'मोजणी...',
   'adv.files.fit.unread': 'मोजणी वाचता आली नाही: {message}',
+  'adv.files.fit.gone': 'फाईल्समध्ये आता {folder} फोल्डर नाही.',
   'adv.files.fit.count': '{files} फाईल्सपैकी {fit} बसतात. बसणाऱ्या फाईल्स {items} घटक तयार करतात.',
   'adv.files.fit.unfit': '{count} फाईल्स बसत नाहीत.',
   'adv.files.fit.unfitOne': '1 फाईल बसत नाही.',

@@ -25,6 +25,8 @@ import { withRowKind } from '../simple/list-plan';
 import type { ListCounts } from '../simple/list-plan';
 import { NO_NORMALIZE, setItemKey, setJoin, setJoinColumn, setRead, setRowKindColumn } from './plan-edits';
 import { Setting } from './setting';
+import { written } from './writes';
+import { seriesHolding } from '../series';
 import { usePickedSeries } from '../picked-series';
 import { NoSeries, SeriesPicker } from './series-picker';
 import './advanced.css';
@@ -271,7 +273,7 @@ const RowKind = ({ sheet, matches }: { readonly sheet: SheetPlan; readonly match
             onChange={(event) => {
               const value = event.target.value;
               if (value === 'item' || value === 'media' || value === 'itemSet') {
-                draft.change((plan) => withRowKind(plan, sheet.id, value));
+                draft.change((plan) => written(plan, 'rowKind', seriesHolding(plan, sheet.id)?.id, (now) => withRowKind(now, sheet.id, value)));
               } else if (first !== undefined) {
                 draft.change((plan) => setRowKindColumn(plan, sheet.id, first));
               }
