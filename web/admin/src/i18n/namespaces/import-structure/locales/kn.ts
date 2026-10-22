@@ -80,6 +80,7 @@ export const kn: ImportStructureMessages = {
     "{count} ಅಂಶಗಳು 2 ಅಥವಾ ಹೆಚ್ಚಿನ ಫೈಲ್‌ಗಳಿಗಾಗಿ ಸಾಲುಗಳನ್ನು ಹೊಂದಿವೆ.",
   "structure.q.set": "ಸೆಟ್",
   "structure.set.none": "ಯಾವುದೇ ಸೆಟ್ ಇಲ್ಲ",
+  "structure.set.existing": "Omeka ನಲ್ಲಿ ಅಸ್ತಿತ್ವದಲ್ಲಿರುವ ಸೆಟ್ #{id}",
   "structure.set.several": "{count} ಸೆಟ್‌ಗಳು",
   "structure.from.folder": "ಫೋಲ್ಡರ್ ಹೆಸರು",
   "structure.from.column": "ಕಾಲಮ್ {column}",

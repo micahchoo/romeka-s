@@ -277,12 +277,14 @@ fn a_dropped_set_and_a_titled_set_are_replayed() {
                 scope: scope("Photographs"),
             },
             title: "Photos, 1950s".into(),
+            description: None,
         },
         Edit::Title {
             from: SetFrom::Folder {
                 scope: scope("Artifacts"),
             },
             title: "Objects".into(),
+            description: None,
         },
     ];
     let scenario = s1();
@@ -616,4 +618,109 @@ fn a_column_of_a_list_the_series_only_holds_for_a_free_set_is_not_a_split() {
         })
     );
     assert_eq!(sets(&other.counts), [("1", 2), ("2", 1)]);
+}
+
+/// The set of the S1 series `folder` in a proposal's structure, as JSON.
+fn set_of(proposal: &Proposal, folder: &str) -> serde_json::Value {
+    let json = serde_json::to_value(&proposal.structure).expect("json");
+    json["levels"]
+        .as_array()
+        .expect("levels")
+        .iter()
+        .find(|level| level["id"] == folder)
+        .map(|level| level["set"].clone())
+        .expect("the series")
+}
+
+#[test]
+fn an_existing_edit_names_the_set_by_its_id_and_survives_a_new_proposal() {
+    let existing: Edit = serde_json::from_value(json!({
+        "edit": "existing",
+        "from": { "from": "folder", "scope": { "source": "s1", "folder": "Photographs" } },
+        "id": 42
+    }))
+    .expect("the edit as the admin sends it");
+    let s1 = S1_TO_S8[0].1();
+    let propose_on = |plan: &ImportPlan, edits: &[Edit]| {
+        let evidence = Evidence {
+            index: &s1.index,
+            lists: &Vec::<FoundList>::new(),
+            catalog: &s1.catalog,
+            sources: &plan.sources,
+            structure: &plan.structure,
+            sheets: &Sheets::new(),
+        };
+        propose(&evidence, edits)
+    };
+    let first = propose_on(&s1.plan, std::slice::from_ref(&existing));
+    assert!(first.edits[0].applied, "{:?}", first.edits);
+    assert_eq!(set_of(&first, "Photographs"), json!({ "id": 42 }));
+    assert_eq!(
+        series(&first, "Photographs").set.chosen.value,
+        Some(SetFrom::Folder {
+            scope: scope("Photographs")
+        }),
+        "the folder still says which items"
+    );
+
+    // The person saves that tree and clicks again elsewhere: the edit names
+    // the folder, not a level id, so the new proposal keeps the set.
+    let saved = ImportPlan {
+        structure: first.structure.clone(),
+        ..s1.plan.clone()
+    };
+    let leave = Edit::DropSet {
+        from: SetFrom::Folder {
+            scope: scope("Artifacts"),
+        },
+    };
+    let second = propose_on(&saved, &[existing.clone(), leave]);
+    assert!(second.edits.iter().all(|edit| edit.applied));
+    assert_eq!(set_of(&second, "Photographs"), json!({ "id": 42 }));
+    assert_eq!(set_of(&second, "Artifacts"), serde_json::Value::Null);
+
+    // A later title is a later answer to the same question.
+    let titled = Edit::Title {
+        from: SetFrom::Folder {
+            scope: scope("Photographs"),
+        },
+        title: "Photos, 1950s".into(),
+        description: Some("Prints from the family album".into()),
+    };
+    let third = propose_on(&saved, &[existing, titled]);
+    assert_eq!(
+        set_of(&third, "Photographs"),
+        json!({ "title": "Photos, 1950s", "description": "Prints from the family album" })
+    );
+    assert!(!third.edits[0].applied, "replaced by the title");
+}
+
+#[test]
+fn a_title_edit_without_a_description_reads_and_writes_as_before() {
+    let before = json!({
+        "edit": "title",
+        "from": { "from": "folder", "scope": { "source": "s1", "folder": "Photographs" } },
+        "title": "Photos, 1950s"
+    });
+    let edit: Edit = serde_json::from_value(before.clone()).expect("a title edit of P4");
+    assert_eq!(serde_json::to_value(&edit).expect("json"), before);
+}
+
+#[test]
+fn an_existing_edit_names_a_top_set_level_too() {
+    let offered = proposal_with_lists(&[]).top_sets[0].value.clone();
+    let proposal = proposal_with_lists(&[
+        Edit::AddSet {
+            from: offered.clone(),
+        },
+        Edit::Existing {
+            from: offered,
+            id: 7,
+        },
+    ]);
+    assert!(proposal.edits.iter().all(|edit| edit.applied));
+    let json = serde_json::to_value(&proposal.structure).expect("json");
+    assert_eq!(json["levels"][0]["kind"], "set");
+    assert_eq!(json["levels"][0]["id"], "Citizen Curators");
+    assert_eq!(json["levels"][0]["set"], json!({ "id": 7 }));
 }

@@ -80,6 +80,7 @@ export const hi: ImportStructureMessages = {
     "{count} आइटम में 2 या अधिक फ़ाइलों के लिए पंक्तियाँ हैं।",
   "structure.q.set": "सेट",
   "structure.set.none": "कोई सेट नहीं",
+  "structure.set.existing": "Omeka में पहले से मौजूद सेट #{id}",
   "structure.set.several": "{count} सेट",
   "structure.from.folder": "फोल्डर का नाम",
   "structure.from.column": "कॉलम {column}",

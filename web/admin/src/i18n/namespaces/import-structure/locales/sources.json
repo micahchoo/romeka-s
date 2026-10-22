@@ -66,6 +66,7 @@
  "structure.grain.many": "{count} items have rows for 2 or more files.",
  "structure.q.set": "Set",
  "structure.set.none": "No set",
+ "structure.set.existing": "Existing set #{id} in Omeka",
  "structure.set.several": "{count} sets",
  "structure.from.folder": "folder name",
  "structure.from.column": "column {column}",

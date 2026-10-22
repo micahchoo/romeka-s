@@ -46,6 +46,8 @@ const editWords = (edit: Edit, t: Words['t']): { readonly question: string; read
       return { question: t('structure.q.set'), answer: t('structure.set.none') };
     case 'title':
       return { question: t('structure.q.set'), answer: edit.title };
+    case 'existing':
+      return { question: t('structure.q.set'), answer: t('structure.set.existing', { id: String(edit.id) }) };
     case 'own':
       return { question: t('structure.hand.title'), answer: t('structure.own.mark') };
   }
@@ -73,6 +75,7 @@ const placeOf = (edit: Edit, tree: readonly TreeNode[], where: string, t: Words[
     case 'addSet':
     case 'dropSet':
     case 'title':
+    case 'existing':
       return edit.from.from === 'column' ? listName(edit.from.list) : folderName(edit.from.scope.folder, where);
   }
 };

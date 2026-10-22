@@ -79,6 +79,7 @@ export const ml: ImportStructureMessages = {
     "{count} ഇനങ്ങൾക്ക് 2 അല്ലെങ്കിൽ കൂടുതൽ ഫയലുകൾക്കായി വരികളുണ്ട്.",
   "structure.q.set": "സെറ്റ്",
   "structure.set.none": "സെറ്റ് ഇല്ല",
+  "structure.set.existing": "Omeka-യിൽ നിലവിലുള്ള സെറ്റ് #{id}",
   "structure.set.several": "{count} സെറ്റുകൾ",
   "structure.from.folder": "ഫോൾഡർ പേര്",
   "structure.from.column": "കോളം {column}",

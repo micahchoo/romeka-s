@@ -35,7 +35,7 @@ use crate::import::join::cell;
 use crate::import::model::Model;
 use crate::import::plan::{
     ColumnRef, Edit, FolderLevel, FolderScope, ListFile, RecordKind, RelPath, RowKind, SeriesIx,
-    SetFrom, SheetPlan, SourceId, SourceRef, Structure,
+    SetById, SetByTitle, SetFrom, SetSource, SheetPlan, SourceId, SourceRef, Structure,
 };
 use crate::import::sheet::{Row, Sheet};
 
@@ -53,12 +53,52 @@ pub(super) struct SeriesIn<'s> {
     pub reads: Vec<ListFile>,
 }
 
+/// What the plan writes for one set the proposal holds: a new set by a
+/// title, or a set already in Omeka (an `existing` edit).
+#[derive(Debug, Clone)]
+pub(super) enum OneSet {
+    /// The scan's name, or the title and description a `title` edit gave.
+    Title {
+        title: ScanText,
+        description: Option<String>,
+    },
+    /// `shown` is the title the counts keep showing.
+    Existing { shown: ScanText, set: SetById },
+}
+
+impl OneSet {
+    fn named(title: ScanText) -> Self {
+        Self::Title {
+            title,
+            description: None,
+        }
+    }
+
+    /// The title the counts show and a set level's id is made of.
+    pub fn shown(&self) -> &ScanText {
+        match self {
+            Self::Title { title, .. } => title,
+            Self::Existing { shown, .. } => shown,
+        }
+    }
+
+    pub fn source(&self) -> SetSource {
+        match self {
+            Self::Title { title, description } => SetSource::Title(SetByTitle {
+                title: title.0.clone(),
+                description: description.clone(),
+            }),
+            Self::Existing { set, .. } => SetSource::Id(*set),
+        }
+    }
+}
+
 /// A series' folder set: chosen by detector 1, or offered.
 #[derive(Debug, Clone)]
 pub(super) struct FolderSet {
     pub from: SetFrom,
-    /// The folder's name, or the title a `title` edit gave it.
-    pub title: ScanText,
+    /// The folder's name, or what a `title` or `existing` edit made it.
+    pub set: OneSet,
     pub chosen: bool,
     /// The items of the series.
     pub items: usize,
@@ -69,7 +109,7 @@ impl FolderSet {
         Pick {
             value: self.from.clone(),
             counts: SetCounts {
-                sets: vec![(self.title.clone(), self.items)],
+                sets: vec![(self.set.shown().clone(), self.items)],
                 rows: None,
             },
         }
@@ -113,8 +153,8 @@ pub(super) struct SeriesSets {
 pub(super) struct Sets {
     /// Sets that would hold every item, not taken.
     pub top: Vec<Pick<SetFrom, SetCounts>>,
-    /// The one top set taken, with its title.
-    pub top_taken: Option<(Pick<SetFrom, SetCounts>, ScanText)>,
+    /// The one top set taken, with what the plan writes for it.
+    pub top_taken: Option<(Pick<SetFrom, SetCounts>, OneSet)>,
     pub series: Vec<SeriesSets>,
 }
 
@@ -504,7 +544,7 @@ pub(super) fn detect(
         found.series.push(SeriesSets {
             folder: one.folder.map(|from| FolderSet {
                 from: from.clone(),
-                title: super::folders::folder_title(one.scope),
+                set: OneSet::named(super::folders::folder_title(one.scope)),
                 chosen: folder_sets,
                 items,
             }),
@@ -520,8 +560,23 @@ pub(super) fn detect(
             Edit::DropSet { from } => {
                 applied[at] = drop(&mut found, &mut top, &mut offered, series, from);
             }
-            Edit::Title { from, title } => {
-                applied[at] = retitle(&mut found, from, title);
+            Edit::Title {
+                from,
+                title,
+                description,
+            } => {
+                let set = |_: &ScanText| OneSet::Title {
+                    title: ScanText(title.clone()),
+                    description: description.clone(),
+                };
+                applied[at] = rename(&mut found, from, &set);
+            }
+            Edit::Existing { from, id } => {
+                let set = |shown: &ScanText| OneSet::Existing {
+                    shown: shown.clone(),
+                    set: SetById { id: *id },
+                };
+                applied[at] = rename(&mut found, from, &set);
             }
             _ => {}
         }
@@ -576,7 +631,7 @@ fn folder_offers(found: &Sets, series: &[SeriesIn<'_>]) -> Vec<Pick<SetFrom, Set
         .map(|(value, folders)| {
             let mut sets: Vec<(ScanText, usize)> = folders
                 .iter()
-                .map(|folder| (folder.title.clone(), folder.items))
+                .map(|folder| (folder.set.shown().clone(), folder.items))
                 .collect();
             sets.sort_by(|(a, a_items), (b, b_items)| b_items.cmp(a_items).then_with(|| a.cmp(b)));
             Pick {
@@ -632,7 +687,8 @@ fn add(
     if found.top_taken.is_none()
         && let Some(taken) = top.iter().position(|(pick, _)| pick.value == *from)
     {
-        found.top_taken = Some(top.remove(taken));
+        let (pick, title) = top.remove(taken);
+        found.top_taken = Some((pick, OneSet::named(title)));
         return true;
     }
     for (sets, candidates) in found.series.iter_mut().zip(offered) {
@@ -674,9 +730,9 @@ fn drop(
         .top_taken
         .as_ref()
         .is_some_and(|(pick, _)| pick.value == *from)
-        && let Some(taken) = found.top_taken.take()
+        && let Some((pick, set)) = found.top_taken.take()
     {
-        top.push(taken);
+        top.push((pick, set.shown().clone()));
     }
     shown |= top.iter().any(|(pick, _)| pick.value == *from);
     for (sets, candidates) in found.series.iter_mut().zip(offered) {
@@ -699,9 +755,10 @@ fn drop(
     shown
 }
 
-/// Replay one `title` edit on a folder set or the top set the proposal
-/// holds: whether it found one.
-fn retitle(found: &mut Sets, from: &SetFrom, title: &str) -> bool {
+/// Replay one `title` or `existing` edit on a folder set or the top set
+/// the proposal holds: whether it found one. `named` makes the new set
+/// from the title the counts show now.
+fn rename(found: &mut Sets, from: &SetFrom, named: &dyn Fn(&ScanText) -> OneSet) -> bool {
     let mut found_one = false;
     for sets in &mut found.series {
         if let Some(folder) = sets
@@ -709,19 +766,20 @@ fn retitle(found: &mut Sets, from: &SetFrom, title: &str) -> bool {
             .as_mut()
             .filter(|folder| folder.chosen && folder.from == *from)
         {
-            folder.title = ScanText(title.to_owned());
+            folder.set = named(folder.set.shown());
             found_one = true;
         }
     }
-    if let Some((pick, name)) = found.top_taken.as_mut()
+    if let Some((pick, set)) = found.top_taken.as_mut()
         && pick.value == *from
     {
-        *name = ScanText(title.to_owned());
+        *set = named(set.shown());
+        let shown = set.shown();
         pick.counts.sets = pick
             .counts
             .sets
             .iter()
-            .map(|(_, items)| (name.clone(), *items))
+            .map(|(_, items)| (shown.clone(), *items))
             .collect();
         found_one = true;
     }

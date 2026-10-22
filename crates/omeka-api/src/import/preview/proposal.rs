@@ -74,8 +74,8 @@ use crate::import::model::{Fate, Model};
 use crate::import::plan::{
     ColumnOptions, ColumnPlan, ColumnRef, Combine, EachSet, EachValue, Edit, FolderScope, Grouping,
     ImportPlan, Level, LevelId, ListFile, PairRule, Placement as FilePlace, RecordKind, RelPath,
-    Series, SeriesIx, SeriesScope, SetByTitle, SetFrom, SetLevel, SetNames, SetSource, SheetId,
-    SheetPlan, SlotName, SlotRule, SourcePlan, SourceRef, Structure, default_plan,
+    Series, SeriesIx, SeriesScope, SetFrom, SetLevel, SetNames, SetSource, SheetId, SheetPlan,
+    SlotName, SlotRule, SourcePlan, SourceRef, Structure, default_plan,
 };
 use crate::import::sheet::{Sheet, SheetError};
 use crate::import::values::ValueType;
@@ -687,9 +687,9 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
     let mut offers = offers.into_iter();
     let mut series_sets = found_sets.series.into_iter();
     let mut nodes = Vec::new();
-    if let Some((pick, title)) = found_sets.top_taken {
+    if let Some((pick, set)) = found_sets.top_taken {
         nodes.push(NodeEvidence::Set(SetNode {
-            level: LevelId(title.0),
+            level: LevelId(set.shown().0.clone()),
             from: pick.value,
             counts: pick.counts,
         }));
@@ -930,7 +930,7 @@ impl<'e> Question<'e> {
             Edit::Grain { list, .. } => Self::Grain(list),
             Edit::AddSet { from } | Edit::DropSet { from } => Self::Set(from),
             Edit::Pair { list, .. } => Self::Pair(list),
-            Edit::Title { from, .. } => Self::Title(from),
+            Edit::Title { from, .. } | Edit::Existing { from, .. } => Self::Title(from),
             Edit::Own { scope } => Self::Own(scope),
         }
     }
@@ -985,7 +985,10 @@ fn in_scan(evidence: &Evidence<'_>, edit: &Edit) -> bool {
         | Edit::Own { scope } => folder(scope),
         Edit::List { scope, list: asked } => folder(scope) && asked.as_ref().is_none_or(list),
         Edit::Grain { list: file, .. } | Edit::Pair { list: file, .. } => list(file),
-        Edit::AddSet { from } | Edit::DropSet { from } | Edit::Title { from, .. } => set(from),
+        Edit::AddSet { from }
+        | Edit::DropSet { from }
+        | Edit::Title { from, .. }
+        | Edit::Existing { from, .. } => set(from),
     }
 }
 
@@ -1418,12 +1421,9 @@ fn tree(
         })
         .collect();
     match &sets.top_taken {
-        Some((_, title)) => vec![Level::Set(SetLevel::new(
-            LevelId(title.0.clone()),
-            SetSource::Title(SetByTitle {
-                title: title.0.clone(),
-                description: None,
-            }),
+        Some((_, set)) => vec![Level::Set(SetLevel::new(
+            LevelId(set.shown().0.clone()),
+            set.source(),
             levels,
         ))],
         None => levels,
@@ -1475,12 +1475,7 @@ fn level(
         .folder
         .as_ref()
         .filter(|folder| folder.chosen)
-        .map(|folder| {
-            SetSource::Title(SetByTitle {
-                title: folder.title.0.clone(),
-                description: None,
-            })
-        });
+        .map(|folder| folder.set.source());
     let each = |taken: &sets::Taken| {
         SetSource::Each(EachValue {
             each: EachSet {

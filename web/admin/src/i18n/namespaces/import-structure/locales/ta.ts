@@ -81,6 +81,7 @@ export const ta: ImportStructureMessages = {
     "{count} உருப்படிகள் 2 அல்லது அதற்கு மேற்பட்ட கோப்புகளுக்கான வரிசைகளைக் கொண்டுள்ளன.",
   "structure.q.set": "தொகுப்பு",
   "structure.set.none": "தொகுப்பு இல்லை",
+  "structure.set.existing": "Omeka-வில் ஏற்கனவே உள்ள தொகுப்பு #{id}",
   "structure.set.several": "{count} தொகுப்புகள்",
   "structure.from.folder": "கோப்புறை பெயர்",
   "structure.from.column": "நிரல் {column}",
