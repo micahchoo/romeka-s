@@ -54,7 +54,8 @@ pub(super) struct SeriesRows {
     /// The grain of the series' first list, when it joins by file name,
     /// with the list's evidence; [`answers`] adds what each answer makes.
     pub grain: Option<Choice<RecordKind, Grain>>,
-    /// The roll-up of each column of the first list, when it has a grain.
+    /// The roll-up of each column of the first list, when it has a grain
+    /// and an item with rows for two files or more.
     pub columns: Vec<ColumnRollUp>,
     /// The rows that are the series' items, by their list and key column.
     pub items: Option<(ListFile, ColumnRef)>,
@@ -351,8 +352,11 @@ pub(super) fn detect(
         for (n, list) in lists.joined.iter().enumerate() {
             let (plan, choice) = grain(list);
             if n == 0 {
+                // With no item of two rows or more, a column places alike on
+                // the item and on its one file: there is no question.
                 rows.columns = choice
                     .as_ref()
+                    .filter(|choice| choice.chosen.counts.groups_with_many_rows > 0)
                     .map(|choice| choice.chosen.counts.columns.iter().map(roll_up).collect())
                     .unwrap_or_default();
                 rows.grain = choice;

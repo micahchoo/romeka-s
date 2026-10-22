@@ -1,8 +1,8 @@
 //! What an import places where, with every name left out: the oracle that
 //! judges a proposal (`briefs/import-proposer-design.md`, section 4). Two
 //! plans are equal here when they put the same files in the same items, the
-//! items in the same sets, each list on the same items, and the same rows on
-//! the same items. The comparison never reads a pattern, an id or a title.
+//! items in the same sets, each list on the same items, the same rows on
+//! the same items, and each column both place on the same level. The comparison never reads a pattern, an id or a title.
 //! Nor does it compare how items are split into series: a series is how a
 //! plan is organized and never shows in Omeka, and a series split that
 //! changes an item shows as a file, set, list or row difference.
@@ -15,7 +15,10 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use super::decisions::{EntryRef, FileRef, RowKey, RowRef};
 use super::derive::Sheets;
 use super::model::{Fate, Model, Parent, Record, RecordId};
-use super::plan::{ImportPlan, ListFile, RecordKind, RelPath, SeriesIx, SheetId, SourceId};
+use super::plan::{
+    ColumnRef, ImportPlan, ListFile, RecordKind, RelPath, SeriesIx, SheetId, SourceId, SourceRef,
+};
+use super::preview::proposal::{NodeEvidence, Proposal, RollUp};
 
 /// A file by where it is.
 pub type FileAt = (SourceId, RelPath);
@@ -54,6 +57,9 @@ pub struct Placement {
     pub set_rows: BTreeSet<RowAt>,
     /// The files in no item.
     pub left_out: BTreeSet<FileAt>,
+    /// Where each column a slot rule reads puts its values: on the item when
+    /// an item rule reads it, else on each file.
+    pub columns: BTreeMap<(ListFile, ColumnRef), RollUp>,
 }
 
 /// Each way `got` differs from `want`, with the paths that show it.
@@ -91,6 +97,12 @@ pub enum Difference {
     LeftOut {
         file: FileAt,
         want_left_out: bool,
+    },
+    /// A column both sides place, on another level than the wanted one.
+    Column {
+        list: ListFile,
+        column: ColumnRef,
+        want: RollUp,
     },
 }
 
@@ -231,6 +243,27 @@ impl Placement {
             }
         }
 
+        for (_, series) in plan.structure.all_series() {
+            for (kind, level) in [
+                (RecordKind::Media, RollUp::File),
+                (RecordKind::Item, RollUp::Item),
+            ] {
+                let read = series
+                    .rules(kind)
+                    .iter()
+                    .flat_map(|(_, rule)| &rule.sources);
+                for source in read {
+                    if let SourceRef::Column { sheet, column } = source
+                        && let Some(list) = lists.list(sheet)
+                    {
+                        placement
+                            .columns
+                            .insert((list.clone(), column.clone()), level);
+                    }
+                }
+            }
+        }
+
         let placed: BTreeSet<&FileAt> = placement.items.values().flatten().collect();
         placement.left_out = model
             .entries
@@ -242,6 +275,33 @@ impl Placement {
             .filter(|file| !placed.contains(file))
             .collect();
         placement
+    }
+}
+
+impl Placement {
+    /// With each column of `proposal`'s roll-ups that this placement does
+    /// not place yet on its pick: where the admin puts a column when the
+    /// person first gives it a field.
+    #[must_use]
+    pub fn with_picks(mut self, proposal: &Proposal) -> Self {
+        for node in &proposal.nodes {
+            let NodeEvidence::Series(series) = node else {
+                continue;
+            };
+            let Some(list) = &series.list.chosen.value else {
+                continue;
+            };
+            for roll_up in &series.columns {
+                let column = ColumnRef {
+                    index: roll_up.index,
+                    header: roll_up.header.clone(),
+                };
+                self.columns
+                    .entry((list.clone(), column))
+                    .or_insert(roll_up.pick.chosen.value);
+            }
+        }
+        self
     }
 }
 
@@ -368,6 +428,20 @@ pub fn differences(want: &Placement, got: &Placement) -> Vec<Difference> {
     }
     for row in want.set_rows.symmetric_difference(&got.set_rows) {
         found.push(Difference::Row { row: row.clone() });
+    }
+    // A column only one side places is a field the person adds by hand.
+    for ((list, column), want_level) in &want.columns {
+        if got
+            .columns
+            .get(&(list.clone(), column.clone()))
+            .is_some_and(|got_level| got_level != want_level)
+        {
+            found.push(Difference::Column {
+                list: list.clone(),
+                column: column.clone(),
+                want: *want_level,
+            });
+        }
     }
     found
 }

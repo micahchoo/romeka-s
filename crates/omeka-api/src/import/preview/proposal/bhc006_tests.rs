@@ -213,7 +213,7 @@ pub fn judge() -> impl Fn(&[Edit]) -> (Proposal, Vec<Difference>) {
             edits: edits.to_vec(),
             ..frozen.clone()
         };
-        let found = differences(&want, &placed(&plan));
+        let found = differences(&want, &placed(&plan).with_picks(&proposal));
         (proposal, found)
     }
 }

@@ -98,7 +98,7 @@ pub(crate) fn judge(scenario: &Scenario, edits: &[Edit]) -> (Proposal, Vec<Diffe
             Some((sheet.id.clone(), found.sheet.clone()))
         })
         .collect();
-    let got = placed(scenario, &plan, &sheets);
+    let got = placed(scenario, &plan, &sheets).with_picks(&proposal);
     let found = differences(&want, &got);
     (proposal, found)
 }

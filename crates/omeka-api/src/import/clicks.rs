@@ -3,13 +3,16 @@
 //! differences no offered click removes. A click is one edit; an offered
 //! click is one whose choice the proposal shows with its counts. The meter
 //! never reads an archive's pinned edits: it finds its clicks greedily, each
-//! round taking the offered edit that leaves the fewest differences.
+//! round taking the offered edit that leaves the fewest differences. A
+//! column on another level than the wanted one then takes one click when
+//! the proposal offers that level as the column's rival segment; the
+//! segment moves a slot rule's source, not the tree, so no edit records it.
 
 use std::collections::BTreeMap;
 
 use super::placement::Difference;
-use super::plan::{CutEdit, Edit};
-use super::preview::proposal::{ItemCut, NodeEvidence, Proposal};
+use super::plan::{ColumnRef, CutEdit, Edit, ListFile};
+use super::preview::proposal::{ItemCut, NodeEvidence, Proposal, RollUp};
 
 /// More clicks than any archive of the tests needs: the meter stops there.
 const MOST_CLICKS: usize = 8;
@@ -20,7 +23,7 @@ pub struct Metered {
     /// The differences of the archive as found, with no click.
     pub as_found: usize,
     /// The offered clicks, in the order the meter took them.
-    pub clicks: Vec<Edit>,
+    pub clicks: Vec<Click>,
     /// The differences that remain after them: the gaps.
     pub left: Vec<Difference>,
 }
@@ -38,6 +41,19 @@ impl Metered {
     }
 }
 
+/// One offered click.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Click {
+    /// An edit of the tree.
+    Edit(Edit),
+    /// The rival segment of a column's roll-up.
+    Column {
+        list: ListFile,
+        column: ColumnRef,
+        to: RollUp,
+    },
+}
+
 fn kind(difference: &Difference) -> &'static str {
     match difference {
         Difference::FilesSplit { .. } => "filesSplit",
@@ -47,6 +63,7 @@ fn kind(difference: &Difference) -> &'static str {
         Difference::List { .. } => "list",
         Difference::Row { .. } => "row",
         Difference::LeftOut { .. } => "leftOut",
+        Difference::Column { .. } => "column",
     }
 }
 
@@ -158,16 +175,40 @@ fn cut(item: &ItemCut) -> Option<CutEdit> {
     }
 }
 
+/// Whether `proposal` offers `to` as the rival segment of `column`'s
+/// roll-up in `list`.
+fn offers_segment(proposal: &Proposal, list: &ListFile, column: &ColumnRef, to: RollUp) -> bool {
+    proposal.nodes.iter().any(|node| {
+        let NodeEvidence::Series(series) = node else {
+            return false;
+        };
+        series.list.chosen.value.as_ref() == Some(list)
+            && series.columns.iter().any(|roll_up| {
+                roll_up.index == column.index
+                    && roll_up.header == column.header
+                    && roll_up
+                        .pick
+                        .rival
+                        .as_ref()
+                        .is_some_and(|rival| rival.value == to)
+            })
+    })
+}
+
 /// The meter on one archive. `judge` gives the proposal after some edits
 /// and how its placement differs from the wanted one.
 pub fn meter(judge: impl Fn(&[Edit]) -> (Proposal, Vec<Difference>)) -> Metered {
-    let mut clicks: Vec<Edit> = Vec::new();
-    let (mut proposal, mut left) = judge(&clicks);
+    let mut edits: Vec<Edit> = Vec::new();
+    let (mut proposal, mut left) = judge(&edits);
     let as_found = left.len();
-    while !left.is_empty() && clicks.len() < MOST_CLICKS {
+    let tree_left = |left: &[Difference]| {
+        left.iter()
+            .any(|difference| !matches!(difference, Difference::Column { .. }))
+    };
+    while tree_left(&left) && edits.len() < MOST_CLICKS {
         let mut best: Option<(Edit, Proposal, Vec<Difference>)> = None;
         for edit in offered(&proposal) {
-            let mut tried = clicks.clone();
+            let mut tried = edits.clone();
             tried.push(edit.clone());
             let (after, found) = judge(&tried);
             let took = after.edits.last().is_some_and(|result| result.applied);
@@ -179,10 +220,25 @@ pub fn meter(judge: impl Fn(&[Edit]) -> (Proposal, Vec<Difference>)) -> Metered 
         let Some((edit, after, found)) = best else {
             break;
         };
-        clicks.push(edit);
+        edits.push(edit);
         proposal = after;
         left = found;
     }
+    let mut clicks: Vec<Click> = edits.into_iter().map(Click::Edit).collect();
+    left.retain(|difference| {
+        let Difference::Column { list, column, want } = difference else {
+            return true;
+        };
+        if !offers_segment(&proposal, list, column, *want) {
+            return true;
+        }
+        clicks.push(Click::Column {
+            list: list.clone(),
+            column: column.clone(),
+            to: *want,
+        });
+        false
+    });
     Metered {
         as_found,
         clicks,

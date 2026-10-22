@@ -447,3 +447,23 @@ fn a_list_whose_rows_describe_items_has_no_roll_up() {
     );
     assert!(!series(&proposal, "Artifacts").columns.is_empty());
 }
+
+#[test]
+fn file_rows_of_items_of_one_file_have_no_roll_up() {
+    let proposal = proposal_with_lists(&[Edit::Grain {
+        list: ListFile {
+            source: SourceId("s1".into()),
+            file: RelPath::parse("BHC006_GMT_PN.xlsx").expect("a path"),
+        },
+        describes: RecordKind::Media,
+    }]);
+    let narratives = series(&proposal, "Photo Narratives (PN)");
+    assert_eq!(
+        narratives.grain.as_ref().map(|grain| grain.chosen.value),
+        Some(RecordKind::Media)
+    );
+    assert!(
+        narratives.columns.is_empty(),
+        "each PN item has one file, so a column places alike on either level"
+    );
+}
