@@ -143,6 +143,10 @@ export const es: ImportStructureMessages = {
   "structure.own.note": "Escrito por ti. No proponemos nada más aquí.",
   "structure.own.back": "Volver a nuestra propuesta",
   "structure.change.waiting": "Espera mientras escribes esta carpeta a mano.",
+  "structure.keptSet.each": "Un conjunto por valor",
+  "structure.keptSet.note":
+    "Se conserva como lo hiciste, alrededor de la carpeta que escribiste.",
+  "structure.change.kept": "Se conserva como lo hiciste.",
   "structure.kept.title": "Listas subidas",
   "structure.kept.rows":
     "{file}: tu lista subida, conservada. Se emparejan {n} de {of} filas.",

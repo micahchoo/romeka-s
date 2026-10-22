@@ -143,6 +143,9 @@ export const ne: ImportStructureMessages = {
     "तपाईँद्वारा लेखिएको। यहाँ हामी अरू केही सुझाव दिँदैनौँ।",
   "structure.own.back": "हाम्रो सुझावमा फर्कनुहोस्",
   "structure.change.waiting": "तपाईँले यो फोल्डर हातले लेख्दा पर्खिन्छ।",
+  "structure.keptSet.each": "प्रति मान एउटा सेट",
+  "structure.keptSet.note": "तपाईँले बनाउनुभएजस्तै राखिएको, तपाईँले लेख्नुभएको फोल्डरको वरिपरि।",
+  "structure.change.kept": "तपाईँले बनाउनुभएको जस्तै राखिएको।",
   "structure.kept.title": "अपलोड गरिएका सूचीहरू",
   "structure.kept.rows":
     "{file}: तपाईँले अपलोड गर्नुभएको सूची, राखिएको। {of} मध्ये {n} पङ्क्ति जोडिन्छन्।",

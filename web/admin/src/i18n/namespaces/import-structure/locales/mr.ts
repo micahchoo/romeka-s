@@ -143,6 +143,9 @@ export const mr: ImportStructureMessages = {
     "तुमच्याद्वारे लिहिलेले. आम्ही येथे अधिक काही सुचवत नाही.",
   "structure.own.back": "आमच्या सूचनेस परत जा",
   "structure.change.waiting": "हे लिहिताना तुमच्याकडून प्रतीक्षा करते.",
+  "structure.keptSet.each": "प्रत्येक मूल्यासाठी एक संच",
+  "structure.keptSet.note": "तुम्ही बनवले तसेच जतन केले, तुम्ही लिहिलेल्या फोल्डरच्या आसपास.",
+  "structure.change.kept": "जसे तुम्ही बनवले आहे तसे जतन केलेले.",
   "structure.kept.title": "अपलोड केलेल्या याद्या",
   "structure.kept.rows":
     "{file}: तुम्ही अपलोड केलेली यादी, ठेवली. {of} पैकी {n} ओळी जुळतात.",

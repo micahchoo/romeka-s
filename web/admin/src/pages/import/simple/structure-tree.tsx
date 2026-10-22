@@ -21,7 +21,7 @@ import { MasterDetail } from './master-detail';
 import type { MasterRow } from './master-detail';
 import { editsOn, useClicks } from './structure-edits';
 import type { Parse } from './structure-edits';
-import { folderName, itemsWords, kindsWords, listsIn, rowsNamingAFile, seriesItems, setName, statusOf, totalsOf, treeOf, useStructureText } from './structure-lines';
+import { folderName, itemsWords, keptSetName, kindsWords, listsIn, rowsNamingAFile, seriesItems, setName, statusOf, totalsOf, treeOf, useStructureText } from './structure-lines';
 import type { TreeNode } from './structure-lines';
 import { ScreenContext, useScreen } from './structure-parts';
 import type { Words } from './structure-parts';
@@ -70,6 +70,8 @@ const rowOf = (node: TreeNode, where: string, files: number, proposal: Proposal,
         name: setName(node.node.counts, t, number),
         facts: facts(itemsWords(node.node.counts.sets.reduce((sum, [, count]) => sum + count, 0), t, number)),
       };
+    case 'kept':
+      return { key: node.key, child: true, name: keptSetName(node.level.set, t), facts: facts(t('structure.own.line')) };
     case 'series': {
       const { scope, list } = node.node;
       const chosen = list.chosen.counts;

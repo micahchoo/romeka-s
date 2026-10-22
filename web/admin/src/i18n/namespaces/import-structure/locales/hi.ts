@@ -144,6 +144,9 @@ export const hi: ImportStructureMessages = {
   "structure.own.back": "हमारी इस सुझाव पर वापस जाएँ",
   "structure.change.waiting":
     "यह फोल्डर हाथ से लिखने में आपका प्रतीक्षा करता है।",
+  "structure.keptSet.each": "प्रति मान एक सेट",
+  "structure.keptSet.note": "जैसा आपने बनाया था वैसा ही रखा गया, आपके लिखे फोल्डर के आसपास।",
+  "structure.change.kept": "जैसा आपने बनाया था वैसा ही रखा गया।",
   "structure.kept.title": "अपलोड की गई सूचियाँ",
   "structure.kept.rows":
     "{file}: आपकी अपलोड की गई सूची, रखी गई। {of} में से {n} पंक्तियाँ जुड़ती हैं।",

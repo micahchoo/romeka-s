@@ -151,6 +151,9 @@ export const ta: ImportStructureMessages = {
   "structure.own.back": "எமது பரிந்துரைக்குத் திரும்புவோம்",
   "structure.change.waiting":
     "நீங்கள் கையால் இந்த கோப்புறையை எழுதும்போது இது காத்திருக்கும்.",
+  "structure.keptSet.each": "ஒரு மதிப்பிற்கு ஒரு தொகுப்பு",
+  "structure.keptSet.note": "நீங்கள் செய்தபடி, நீங்கள் எழுதிய கோப்புறையைச் சுற்றி வைக்கப்பட்டுள்ளது.",
+  "structure.change.kept": "நீங்கள் செய்தபடி வைக்கப்பட்டுள்ளது.",
   "structure.kept.title": "பதிவேற்றப்பட்ட பட்டியல்கள்",
   "structure.kept.rows":
     "{file}: நீங்கள் பதிவேற்றிய பட்டியல், வைக்கப்பட்டது. {of} வரிசைகளில் {n} இணைகின்றன.",

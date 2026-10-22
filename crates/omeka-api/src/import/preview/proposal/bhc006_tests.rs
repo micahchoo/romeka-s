@@ -16,7 +16,7 @@ use crate::import::derive::tests::support::catalog;
 use crate::import::derive::{Index, IndexedSource, NoTags, Sheets, derive};
 use crate::import::evidence::{FileEntry, Walk, sniff};
 use crate::import::placement::{Difference, ListFiles, Placement, differences};
-use crate::import::plan::{CutEdit, Edit, FolderScope, ListFile, RecordKind};
+use crate::import::plan::{CutEdit, Edit, FolderScope, ListFile, RecordKind, SetFrom};
 use crate::import::plan::{ImportPlan, RelPath, SourceId, SourcePlan, default_plan};
 use crate::import::preview::candidates::automatic;
 use crate::import::preview::proposal::{Evidence, FoundList, NodeEvidence, Proposal, propose};
@@ -303,12 +303,47 @@ fn marked_by_hand(edits: &[Edit]) -> Proposal {
     proposal
 }
 
+/// The proposal after the person takes Documents' name place 4, uses that
+/// tree, then writes Documents by hand (P5 design, probe P3): the set level
+/// `Documents (D)4` stays around the written series, which no set node
+/// counts.
+fn split_then_own() -> Proposal {
+    let documents = FolderScope {
+        source: SourceId("s1".into()),
+        folder: RelPath::parse("Documents (D)").expect("a folder"),
+    };
+    let split = Edit::AddSet {
+        from: SetFrom::NamePlace {
+            scope: documents.clone(),
+            place: 4,
+        },
+    };
+    let taken = proposal_with_lists(std::slice::from_ref(&split));
+    let plan = ImportPlan {
+        structure: taken.structure,
+        ..draft()
+    };
+    let index = index();
+    let catalog = install();
+    let lists = lists();
+    let evidence = Evidence {
+        index: &index,
+        lists: &lists,
+        catalog: &catalog,
+        sources: &plan.sources,
+        structure: &plan.structure,
+        sheets: &Sheets::new(),
+    };
+    propose(&evidence, &[split, Edit::Own { scope: documents }])
+}
+
 /// The admin's recorded BHC006 proposals are this replica's, as the
 /// preview's `proposal` section sends them: with no edit, after the first of
 /// the two pinned clicks (leave out `Extras`), after both (the PN list's
 /// rows describe files), after a marked example on `Artifacts`
 /// ([`marked_by_hand`]), after "each name an item" there, and with both,
-/// where the hand edit mutes the click. The structure screen's tests read them, so a change
+/// where the hand edit mutes the click, and a split taken before Documents is
+/// written by hand ([`split_then_own`]). The structure screen's tests read them, so a change
 /// of the engine's counts shows there too. `UPDATE_FIXTURES=1` writes them
 /// again.
 #[test]
@@ -331,7 +366,7 @@ fn the_admins_recorded_proposals_are_the_replicas() {
         scope: artifacts(),
         cut: CutEdit::Whole,
     };
-    let recorded: [(&str, Proposal); 6] = [
+    let recorded: [(&str, Proposal); 7] = [
         ("proposal-bhc006.json", proposal_with_lists(&[])),
         (
             "proposal-bhc006-extras.json",
@@ -353,6 +388,7 @@ fn the_admins_recorded_proposals_are_the_replicas() {
             "proposal-bhc006-own-waiting.json",
             marked_by_hand(&[whole, own]),
         ),
+        ("proposal-bhc006-own-set.json", split_then_own()),
     ];
     for (name, proposal) in recorded {
         let text = serde_json::to_string_pretty(&proposal).expect("the proposal as JSON") + "\n";
