@@ -5,16 +5,19 @@
  * list's values win by default).
  */
 import type { ImportPlan, SlotRule, SourceRef } from '../../../api/import-plan';
+import { seriesOf, withSeries } from '../series';
 import { fold } from './list-plan';
 
 export type SetChoice = 'leaf' | 'top' | 'one' | 'old' | 'column' | 'none';
 
-const ruleOf = (plan: ImportPlan, slot: 'sets' | 'template'): SlotRule => plan.slots.item[slot] ?? { sources: [], combine: 'first' };
+const ruleOf = (plan: ImportPlan, slot: 'sets' | 'template'): SlotRule => seriesOf(plan).slots.item[slot] ?? { sources: [], combine: 'first' };
 
 const withRule = (plan: ImportPlan, slot: 'sets' | 'template', rule: SlotRule): ImportPlan => {
   const empty = rule.sources.length === 0 && (rule.map === undefined || Object.keys(rule.map).length === 0);
-  const item = Object.fromEntries(Object.entries(plan.slots.item).filter(([name]) => name !== slot));
-  return { ...plan, slots: { ...plan.slots, item: empty ? item : { ...item, [slot]: rule } } };
+  return withSeries(plan, (series) => {
+    const item = Object.fromEntries(Object.entries(series.slots.item).filter(([name]) => name !== slot));
+    return { ...series, slots: { ...series.slots, item: empty ? item : { ...item, [slot]: rule } } };
+  });
 };
 
 const own = (rule: SlotRule): SourceRef | undefined => rule.sources.find((source) => source.from !== 'column');
@@ -86,25 +89,25 @@ export const withTypeFrom = (plan: ImportPlan, from: TypeFrom): ImportPlan => {
   if (from.from === 'top') {
     return withRule(plan, 'template', { ...rule, sources: [{ from: 'folder', level: 1 }] });
   }
-  const sheet = plan.sheets.find((one) => one.id === from.sheet);
+  const sheet = seriesOf(plan).lists.find((one) => one.id === from.sheet);
   const column = sheet?.columns.find((one) => one.column.index === from.index)?.column;
   return column === undefined ? plan : withRule(plan, 'template', { ...rule, sources: [{ from: 'column', sheet: from.sheet, column }] });
 };
 
 /** The plan without the template map, so the values counted are the ones written in the files and lists. */
 export const withoutTypeMap = (plan: ImportPlan): ImportPlan => {
-  const rule = plan.slots.item.template;
+  const rule = seriesOf(plan).slots.item.template;
   if (rule?.map === undefined) {
     return plan;
   }
-  return { ...plan, slots: { ...plan.slots, item: { ...plan.slots.item, template: { sources: rule.sources, combine: rule.combine } } } };
+  return withSeries(plan, (series) => ({ ...series, slots: { ...series.slots, item: { ...series.slots.item, template: { sources: rule.sources, combine: rule.combine } } } }));
 };
 
 /** What a value is mapped to: nothing chosen, no item type, or the text that names an item type. */
 export type TypeAnswer = { readonly to: 'unset' } | { readonly to: 'none' } | { readonly to: 'type'; readonly label: string };
 
 export const typeAnswerOf = (plan: ImportPlan, value: string): TypeAnswer => {
-  const map = plan.slots.item.template?.map ?? {};
+  const map = seriesOf(plan).slots.item.template?.map ?? {};
   const key = Object.keys(map).find((one) => fold(one) === fold(value));
   if (key === undefined) {
     return { to: 'unset' };

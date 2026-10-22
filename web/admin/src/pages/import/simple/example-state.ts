@@ -11,6 +11,7 @@ import type { ImportPlan } from '../../../api/import-plan';
 import { isRecord } from '../../../api/parse';
 import { exampleOf, patternOf, simpleRecordOf, withExample, withoutOldAnswers } from '../example';
 import type { Mark } from '../example';
+import { seriesOf, withSeries } from '../series';
 
 /** A list file the person said is not about these items. `source` is `''` in a draft that predates sources here: any source. */
 export interface NotList {
@@ -55,20 +56,20 @@ export const readState = (plan: ImportPlan): SimpleState => {
 
 export const withState = (plan: ImportPlan, change: Partial<Omit<SimpleState, 'marks'>>): ImportPlan => {
   const next = { ...readState(plan), ...change };
-  return {
-    ...plan,
-    // An old draft's keys inside `example` go with the first save of `simple`.
-    example: withoutOldAnswers(plan.example),
-    simple: { groupsOk: next.groupsOk, answered: [...next.answered], notLists: next.notLists.map(({ source, file }) => ({ source, file })) },
-  };
+  const simple = { groupsOk: next.groupsOk, answered: [...next.answered], notLists: next.notLists.map(({ source, file }) => ({ source, file })) };
+  // An old draft's keys inside `example` go with the first save of `simple`.
+  return withSeries({ ...plan, simple }, (series) => ({ ...series, example: withoutOldAnswers(series.example) }));
 };
 
 /** The plan read by the marks: their pattern, and the example both modes read. */
-export const withMarks = (plan: ImportPlan, marks: readonly Mark[], path: string | null): ImportPlan => ({
-  ...withExample(plan, path ?? exampleOf(plan)?.path ?? null, marks),
-  grouping: { ...plan.grouping, pattern: patternOf(marks) },
-});
+export const withMarks = (plan: ImportPlan, marks: readonly Mark[], path: string | null): ImportPlan =>
+  withSeries(withExample(plan, path ?? exampleOf(plan)?.path ?? null, marks), (series) => ({
+    ...series,
+    grouping: { ...series.grouping, pattern: patternOf(marks) },
+  }));
 
 /** Whether the plan's pattern is the one the marks make, or one typed in Advanced. */
-export const typedElsewhere = (plan: ImportPlan): boolean =>
-  plan.grouping.pattern !== null && plan.grouping.pattern !== patternOf(readState(plan).marks);
+export const typedElsewhere = (plan: ImportPlan): boolean => {
+  const { pattern } = seriesOf(plan).grouping;
+  return pattern !== null && pattern !== patternOf(readState(plan).marks);
+};
