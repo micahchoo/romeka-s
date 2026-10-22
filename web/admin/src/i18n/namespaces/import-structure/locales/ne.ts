@@ -79,6 +79,7 @@ export const ne: ImportStructureMessages = {
     "{count} वस्तुहरूमा 2 वा बढी फाइलहरूका लागि पङ्क्तिहरू छन्।",
   "structure.q.set": "सेट",
   "structure.set.none": "कुनै सेट छैन",
+  "structure.set.existing": "Omeka मा पहिले नै रहेको सेट #{id}",
   "structure.set.several": "{count} सेटहरू",
   "structure.from.folder": "फोल्डरको नाम",
   "structure.from.column": "स्तम्भ {column}",

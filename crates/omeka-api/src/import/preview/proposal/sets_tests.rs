@@ -1,11 +1,15 @@
 #![allow(clippy::expect_used, clippy::panic)]
 
+use serde_json::json;
+
 use super::bhc006_tests::{proposal, proposal_with_lists};
 use super::{
     Evidence, FoundList, NodeEvidence, Proposal, ScanText, SeriesNode, SetCounts, Share, propose,
 };
 use crate::import::derive::tests::scenarios::{S1_TO_S8, Scenario};
-use crate::import::derive::tests::support::{JPEG, catalog, index, plan};
+use crate::import::derive::tests::support::{
+    JPEG, catalog, col, index, join_on, plan, rule, sheet_plan,
+};
 use crate::import::derive::{NoTags, Sheets, derive};
 use crate::import::placement::{ListFiles, Placement};
 use crate::import::plan::{
@@ -273,12 +277,14 @@ fn a_dropped_set_and_a_titled_set_are_replayed() {
                 scope: scope("Photographs"),
             },
             title: "Photos, 1950s".into(),
+            description: None,
         },
         Edit::Title {
             from: SetFrom::Folder {
                 scope: scope("Artifacts"),
             },
             title: "Objects".into(),
+            description: None,
         },
     ];
     let scenario = s1();
@@ -423,4 +429,298 @@ fn the_rival_title_of_a_series_set_applies() {
         [(&kind, vec![("Artifact", 313)])],
         "a set level around the series"
     );
+}
+
+#[test]
+fn a_split_that_leaves_most_items_alone_is_another_choice() {
+    let found = proposal(&[]);
+    let extras = series(&found, "Extras");
+    let place = |at: u8| SetFrom::NamePlace {
+        scope: scope("Extras"),
+        place: at,
+    };
+    let splits: Vec<&SetFrom> = extras.splits.iter().map(|split| &split.value).collect();
+    assert_eq!(splits, [&place(0)], "three sets, none of one item");
+    let other = extras
+        .set
+        .others
+        .iter()
+        .find(|other| other.value.as_ref() == Some(&place(1)))
+        .expect("place 1 is still a choice, under More…");
+    let alone = other
+        .counts
+        .sets
+        .iter()
+        .filter(|(_, items)| *items == 1)
+        .count();
+    assert_eq!(
+        (other.counts.sets.len(), alone),
+        (148, 147),
+        "148 sets, 147 of them one item"
+    );
+
+    let taken = proposal(&[Edit::AddSet { from: place(1) }]);
+    assert!(taken.edits[0].applied, "an addSet still takes it");
+}
+
+#[test]
+fn a_column_whose_items_hold_several_values_is_not_a_split() {
+    let files = [
+        ("AF_001_front.jpg", JPEG),
+        ("AF_001_back.jpg", JPEG),
+        ("AF_002_front.jpg", JPEG),
+        ("AF_002_back.jpg", JPEG),
+        ("AF_003_front.jpg", JPEG),
+        ("AF_003_back.jpg", JPEG),
+        ("AF_004_front.jpg", JPEG),
+        ("AF_004_back.jpg", JPEG),
+    ];
+    let scenario = Scenario {
+        index: index(&files),
+        sheets: Sheets::new(),
+        plan: plan(|_| {}),
+        catalog: catalog(),
+    };
+    let register = ListFile {
+        source: SourceId("s1".into()),
+        file: RelPath::parse("register.csv").expect("a path"),
+    };
+    // A row per file, two files per item: a tag on each, the place the
+    // same on both.
+    let text = "File,Place,Tag\n\
+        AF_001_front.jpg,Pune,red\nAF_001_back.jpg,Pune,blue\n\
+        AF_002_front.jpg,Pune,red\nAF_002_back.jpg,Pune,blue\n\
+        AF_003_front.jpg,Goa,red\nAF_003_back.jpg,Goa,green\n\
+        AF_004_front.jpg,Goa,blue\nAF_004_back.jpg,Goa,green\n";
+    let read = automatic(&register.source, &register.file).read;
+    let lists = vec![FoundList {
+        file: register.clone(),
+        sheet: sheet::read(text.as_bytes(), &read, None),
+    }];
+    let evidence = Evidence {
+        index: &scenario.index,
+        lists: &lists,
+        catalog: &scenario.catalog,
+        sources: &scenario.plan.sources,
+        structure: &scenario.plan.structure,
+        sheets: &Sheets::new(),
+    };
+    let found = propose(&evidence, &[]);
+    let node = series(&found, "s1");
+    assert_eq!(node.items.chosen.counts.items, 4, "a front and a back");
+    let splits: Vec<Option<&str>> = node
+        .splits
+        .iter()
+        .map(|split| header(&split.value))
+        .collect();
+    assert_eq!(splits, [Some("Place")], "each item has one place");
+    let tag = node
+        .set
+        .others
+        .iter()
+        .find(|other| other.value.as_ref().and_then(header) == Some("Tag"))
+        .expect("the tags are still a choice, under More…");
+    assert_eq!(
+        sets(&tag.counts),
+        [("blue", 3), ("red", 3), ("green", 2)],
+        "every item is in two of its sets"
+    );
+}
+
+#[test]
+fn a_column_of_a_list_the_series_only_holds_for_a_free_set_is_not_a_split() {
+    let files = [
+        ("a.jpg", JPEG),
+        ("b.jpg", JPEG),
+        ("c.jpg", JPEG),
+        ("d.jpg", JPEG),
+    ];
+    // The person's plan reads a box per item from `boxes.csv`, as a free
+    // set; the proposer pairs `register.csv`, which names every file.
+    let person = plan(|plan| {
+        let mut boxes = sheet_plan("boxes", &["File", "Box"]);
+        boxes["join"] = join_on("fileName", 0, "File", false, false, false);
+        plan["sheets"] = json!([boxes]);
+        plan["slots"]["item"]["sets"] = rule(json!([col("boxes", 1, "Box")]), "first");
+    });
+    let read = |file: &str| {
+        let file = ListFile {
+            source: SourceId("s1".into()),
+            file: RelPath::parse(file).expect("a path"),
+        };
+        let plan = automatic(&file.source, &file.file);
+        (file, plan.read)
+    };
+    let (register, register_read) = read("register.csv");
+    let (boxes, boxes_read) = read("boxes.csv");
+    let lists = vec![
+        FoundList {
+            file: register,
+            sheet: sheet::read(
+                "File,Place\na.jpg,Pune\nb.jpg,Pune\nc.jpg,Goa\nd.jpg,Goa\n".as_bytes(),
+                &register_read,
+                None,
+            ),
+        },
+        FoundList {
+            file: boxes.clone(),
+            sheet: sheet::read(
+                "File,Box\na.jpg,1\nb.jpg,1\nc.jpg,2\n".as_bytes(),
+                &boxes_read,
+                None,
+            ),
+        },
+    ];
+    let scenario = Scenario {
+        index: index(&files),
+        sheets: Sheets::new(),
+        plan: person,
+        catalog: catalog(),
+    };
+    let evidence = Evidence {
+        index: &scenario.index,
+        lists: &lists,
+        catalog: &scenario.catalog,
+        sources: &scenario.plan.sources,
+        structure: &scenario.plan.structure,
+        sheets: &Sheets::new(),
+    };
+    let found = propose(&evidence, &[]);
+    let node = series(&found, "s1");
+    assert_eq!(
+        node.list
+            .chosen
+            .value
+            .as_ref()
+            .map(|list| list.file.as_str()),
+        Some("register.csv")
+    );
+    let splits: Vec<Option<&str>> = node
+        .splits
+        .iter()
+        .map(|split| header(&split.value))
+        .collect();
+    assert_eq!(splits, [Some("Place")], "the list the series reads");
+    let other = node
+        .set
+        .others
+        .iter()
+        .find(|other| other.value.as_ref().and_then(header) == Some("Box"))
+        .expect("the box is still a choice, under More…");
+    assert_eq!(
+        other.value,
+        Some(SetFrom::Column {
+            list: boxes,
+            column: ColumnRef {
+                index: 1,
+                header: "Box".into(),
+            },
+        })
+    );
+    assert_eq!(sets(&other.counts), [("1", 2), ("2", 1)]);
+}
+
+/// The set of the S1 series `folder` in a proposal's structure, as JSON.
+fn set_of(proposal: &Proposal, folder: &str) -> serde_json::Value {
+    let json = serde_json::to_value(&proposal.structure).expect("json");
+    json["levels"]
+        .as_array()
+        .expect("levels")
+        .iter()
+        .find(|level| level["id"] == folder)
+        .map(|level| level["set"].clone())
+        .expect("the series")
+}
+
+#[test]
+fn an_existing_edit_names_the_set_by_its_id_and_survives_a_new_proposal() {
+    let existing: Edit = serde_json::from_value(json!({
+        "edit": "existing",
+        "from": { "from": "folder", "scope": { "source": "s1", "folder": "Photographs" } },
+        "id": 42
+    }))
+    .expect("the edit as the admin sends it");
+    let s1 = S1_TO_S8[0].1();
+    let propose_on = |plan: &ImportPlan, edits: &[Edit]| {
+        let evidence = Evidence {
+            index: &s1.index,
+            lists: &Vec::<FoundList>::new(),
+            catalog: &s1.catalog,
+            sources: &plan.sources,
+            structure: &plan.structure,
+            sheets: &Sheets::new(),
+        };
+        propose(&evidence, edits)
+    };
+    let first = propose_on(&s1.plan, std::slice::from_ref(&existing));
+    assert!(first.edits[0].applied, "{:?}", first.edits);
+    assert_eq!(set_of(&first, "Photographs"), json!({ "id": 42 }));
+    assert_eq!(
+        series(&first, "Photographs").set.chosen.value,
+        Some(SetFrom::Folder {
+            scope: scope("Photographs")
+        }),
+        "the folder still says which items"
+    );
+
+    // The person saves that tree and clicks again elsewhere: the edit names
+    // the folder, not a level id, so the new proposal keeps the set.
+    let saved = ImportPlan {
+        structure: first.structure.clone(),
+        ..s1.plan.clone()
+    };
+    let leave = Edit::DropSet {
+        from: SetFrom::Folder {
+            scope: scope("Artifacts"),
+        },
+    };
+    let second = propose_on(&saved, &[existing.clone(), leave]);
+    assert!(second.edits.iter().all(|edit| edit.applied));
+    assert_eq!(set_of(&second, "Photographs"), json!({ "id": 42 }));
+    assert_eq!(set_of(&second, "Artifacts"), serde_json::Value::Null);
+
+    // A later title is a later answer to the same question.
+    let titled = Edit::Title {
+        from: SetFrom::Folder {
+            scope: scope("Photographs"),
+        },
+        title: "Photos, 1950s".into(),
+        description: Some("Prints from the family album".into()),
+    };
+    let third = propose_on(&saved, &[existing, titled]);
+    assert_eq!(
+        set_of(&third, "Photographs"),
+        json!({ "title": "Photos, 1950s", "description": "Prints from the family album" })
+    );
+    assert!(!third.edits[0].applied, "replaced by the title");
+}
+
+#[test]
+fn a_title_edit_without_a_description_reads_and_writes_as_before() {
+    let before = json!({
+        "edit": "title",
+        "from": { "from": "folder", "scope": { "source": "s1", "folder": "Photographs" } },
+        "title": "Photos, 1950s"
+    });
+    let edit: Edit = serde_json::from_value(before.clone()).expect("a title edit of P4");
+    assert_eq!(serde_json::to_value(&edit).expect("json"), before);
+}
+
+#[test]
+fn an_existing_edit_names_a_top_set_level_too() {
+    let offered = proposal_with_lists(&[]).top_sets[0].value.clone();
+    let proposal = proposal_with_lists(&[
+        Edit::AddSet {
+            from: offered.clone(),
+        },
+        Edit::Existing {
+            from: offered,
+            id: 7,
+        },
+    ]);
+    assert!(proposal.edits.iter().all(|edit| edit.applied));
+    let json = serde_json::to_value(&proposal.structure).expect("json");
+    assert_eq!(json["levels"][0]["kind"], "set");
+    assert_eq!(json["levels"][0]["id"], "Citizen Curators");
+    assert_eq!(json["levels"][0]["set"], json!({ "id": 7 }));
 }

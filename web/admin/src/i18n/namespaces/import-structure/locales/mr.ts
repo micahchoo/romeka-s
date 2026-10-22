@@ -80,6 +80,7 @@ export const mr: ImportStructureMessages = {
     "{count} घटकांमध्ये 2 किंवा अधिक फाईल्ससाठी ओळी आहेत.",
   "structure.q.set": "संच",
   "structure.set.none": "संच नाही",
+  "structure.set.existing": "Omeka मधील विद्यमान संच #{id}",
   "structure.set.several": "{count} संच",
   "structure.from.folder": "फोल्डर नाव",
   "structure.from.column": "स्तंभ {column}",

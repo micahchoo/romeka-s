@@ -159,7 +159,7 @@ export const parseEdit: Parser<Edit> = (raw, path = []) => {
     asRecord(raw, path),
     'edit',
     path,
-    oneOf(['leaveOut', 'keep', 'items', 'list', 'grain', 'addSet', 'dropSet', 'pair', 'title', 'own'] as const),
+    oneOf(['leaveOut', 'keep', 'items', 'list', 'grain', 'addSet', 'dropSet', 'pair', 'title', 'existing', 'own'] as const),
   );
   switch (edit) {
     case 'leaveOut':
@@ -186,8 +186,14 @@ export const parseEdit: Parser<Edit> = (raw, path = []) => {
       return { edit, list: member(only, 'list', path, parseListFile), rule: member(only, 'rule', path, parsePairRule) };
     }
     case 'title': {
-      const only = strict(raw, path, ['edit', 'from', 'title']);
-      return { edit, from: member(only, 'from', path, parseSetFrom), title: text(only, 'title', path) };
+      const only = strict(raw, path, ['edit', 'from', 'title'], ['description']);
+      const titled = { edit, from: member(only, 'from', path, parseSetFrom), title: text(only, 'title', path) };
+      const description = only['description'] === undefined ? null : member(only, 'description', path, maybeText);
+      return description === null ? titled : { ...titled, description };
+    }
+    case 'existing': {
+      const only = strict(raw, path, ['edit', 'from', 'id']);
+      return { edit, from: member(only, 'from', path, parseSetFrom), id: member(only, 'id', path, asInteger) };
     }
   }
 };

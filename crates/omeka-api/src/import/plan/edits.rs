@@ -44,9 +44,21 @@ pub enum Edit {
     DropSet { from: SetFrom },
     /// Pair the list's rows by another rule.
     Pair { list: ListFile, rule: PairRule },
-    /// Give a set the title the person typed: the only way text that no
-    /// scan read enters a proposal.
-    Title { from: SetFrom, title: String },
+    /// Give a set the title the person typed, and a description if they
+    /// typed one: the only way text that no scan read enters a proposal.
+    Title {
+        from: SetFrom,
+        title: String,
+        #[serde(
+            default,
+            deserialize_with = "crate::import::nullable",
+            skip_serializing_if = "Option::is_none"
+        )]
+        description: Option<String>,
+    },
+    /// Put the items of a set in a set already in Omeka, by its id, in
+    /// place of a new set. The same question as `title`: the later wins.
+    Existing { from: SetFrom, id: i64 },
     /// Keep the plan's series for this folder as the person wrote it. The
     /// proposer counts it and offers nothing on it while this edit stands.
     Own { scope: FolderScope },

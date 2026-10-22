@@ -39,6 +39,22 @@ pub const MIN_SETS: usize = 2;
 /// item and the split sorts nothing. S3 `AF` holds 2.
 pub const MIN_ITEMS_PER_SET: usize = 2;
 
+/// The share of a split's memberships (the sum of its set sizes) that must
+/// be in sets of [`MIN_ITEMS_PER_SET`] items or more before it is offered:
+/// a set of one item sorts nothing, so a split that leaves most of its
+/// items alone sorts most of them nothing. Half is the bar of
+/// [`MIN_SUGGESTION_SHARE`]. S3 groups 2 of 3; the BHC006 replica's
+/// `Extras` name place 1 groups 16 of 163, and goes to "More…".
+pub const MIN_GROUPED_SHARE: Share = Share { n: 1, of: 2 };
+
+/// The share of the items a column's split places that must each hold one
+/// of its values, not several, before it is offered: an item in two sets of
+/// a split is tagged, not sorted, so a column whose items mostly hold
+/// several values (a keyword per row) is tags. [`MIN_GROUPED_SHARE`] does
+/// not see it when the tags recur. Half, as there: a few items whose rows
+/// spell one value two ways (P6's value map joins them) keep a split.
+pub const MIN_ITEMS_OF_ONE_VALUE: Share = Share { n: 1, of: 2 };
+
 /// The share of a list's rows a pairing suggestion must pair, each to one
 /// file, before it is offered: below half, the rule explains a minority of
 /// the list, which is then more likely about something else. BHC006
