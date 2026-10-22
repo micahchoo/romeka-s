@@ -1,9 +1,11 @@
 #![allow(clippy::expect_used)]
 
 use super::bhc006_tests::proposal_with_lists;
-use super::{Evidence, FoundList, NodeEvidence, Proposal, SeriesNode, propose};
-use crate::import::derive::tests::support::{JPEG, catalog, index, plan};
-use crate::import::plan::{Edit, FolderScope, JoinOn, ListFile, RelPath, SourceId};
+use super::{Evidence, FoundList, ItemCut, NodeEvidence, Proposal, SeriesNode, propose};
+use crate::import::derive::tests::support::{JPEG, TIFF, catalog, index, plan};
+use crate::import::derive::{NoTags, Sheets, derive};
+use crate::import::placement::{ListFiles, Placement};
+use crate::import::plan::{Edit, FolderScope, ImportPlan, JoinOn, ListFile, RelPath, SourceId};
 use crate::import::preview::candidates::{CandidateRead, automatic};
 use crate::import::sheet;
 
@@ -197,4 +199,52 @@ fn a_list_that_pairs_two_series_alike_describes_neither() {
         Some(1),
         "its counts are shown"
     );
+}
+
+#[test]
+fn a_box_list_pairs_folders_by_the_first_places_of_their_names() {
+    let files = [
+        ("Box 1/B01-F01 Minutes 1950/0001.tif", TIFF),
+        ("Box 1/B01-F01 Minutes 1950/0002.tif", TIFF),
+        ("Box 1/B01-F02 Letters/0001.tif", TIFF),
+        ("Box 2/B02-F01 Photographs 1951/0001.tif", TIFF),
+        ("Box 2/B02-F01 Photographs 1951/0002.tif", TIFF),
+        ("Box 2/B02-F01 Photographs 1951/0003.tif", TIFF),
+    ];
+    let index = index(&files);
+    let plan = plan(|_| {});
+    let list = file("boxlist.csv");
+    let read = automatic(&list.source, &list.file).read;
+    let text = "Reference,Title\nB01-F01,Minutes\nB01-F02,Letters\nB02-F01,Photographs\n";
+    let lists = vec![FoundList {
+        sheet: sheet::read(text.as_bytes(), &read, None),
+        file: list,
+    }];
+    let catalog = catalog();
+    let evidence = Evidence {
+        index: &index,
+        lists: &lists,
+        catalog: &catalog,
+        sources: &plan.sources,
+        structure: &plan.structure,
+    };
+    let proposal = propose(&evidence, &[]);
+    let boxes = series(&proposal, "s1");
+    assert_eq!(boxes.items.chosen.value, ItemCut::Folder { depth: 2 });
+    assert_eq!(boxes.items.chosen.counts.items, 3);
+    assert_eq!(chosen(boxes), Some("boxlist.csv"));
+
+    let confirmed = ImportPlan {
+        structure: proposal.structure.clone(),
+        ..plan.clone()
+    };
+    let sheets: Sheets = confirmed
+        .structure
+        .lists()
+        .map(|(_, sheet)| (sheet.id.clone(), lists[0].sheet.clone()))
+        .collect();
+    let model = derive(&index, &sheets, &confirmed, &catalog, &NoTags);
+    let placement = Placement::of_model(&model, &confirmed, &ListFiles::new(&confirmed, &sheets));
+    assert_eq!(placement.items.len(), 3, "each folder is one item");
+    assert_eq!(placement.rows.len(), 3, "each reference names its folder");
 }

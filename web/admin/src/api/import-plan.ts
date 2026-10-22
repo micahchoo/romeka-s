@@ -372,6 +372,8 @@ export interface Structure {
   readonly levels: readonly Level[];
   /** Sets every item of the import also joins, after its tree sets. */
   readonly freeSets: readonly SetSource[];
+  /** Folders or single files under a source that no series takes. */
+  readonly outside?: readonly FolderScope[];
 }
 
 export type Level = SetLevel | Series;

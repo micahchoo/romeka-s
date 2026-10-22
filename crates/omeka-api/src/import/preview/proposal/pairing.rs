@@ -20,7 +20,6 @@ use super::grain::SeriesRows;
 use super::lists::{Counted, Found, InSeries};
 use super::thresholds::MIN_SUGGESTION_SHARE;
 use super::{Evidence, PairCounts, Pick, Share};
-use crate::import::catalog;
 use crate::import::join::cell;
 use crate::import::places::{last_places, places, stem};
 use crate::import::plan::{ColumnRef, Edit, ListFile, PairRule, Placement, Structure};
@@ -56,9 +55,7 @@ impl<'e> Media<'e> {
             .sources
             .iter()
             .flat_map(|source| source.walk.entries.iter().map(move |entry| (source, entry)))
-            .filter(|(_, entry)| {
-                catalog::refusal(&evidence.catalog.files, entry.name(), &entry.sniffed).is_none()
-            })
+            .filter(|(_, entry)| super::is_media(evidence, entry))
             .map(|(source, entry)| {
                 let series = match structure.place(&source.id, &entry.path) {
                     Placement::Series { at, .. } => Some(at.index()),

@@ -114,10 +114,19 @@ pub(crate) fn looks_misdecoded(text: &str) -> bool {
     !unmappable && std::str::from_utf8(&bytes).is_ok_and(|repaired| repaired != text)
 }
 
-/// The media types an extension names, for `format-mismatch`. Only
-/// extensions whose type the sniffer can tell are listed: a file it cannot
+/// How a file's sniffed type disagrees with its extension, for
+/// `format-mismatch`: `.<extension> <sniffed>`. A file the sniffer cannot
 /// tell (`application/octet-stream`) is never a mismatch.
-pub(crate) fn expected_types(extension: &str) -> Option<&'static [&'static str]> {
+pub(crate) fn format_mismatch(name: &str, sniffed: &str) -> Option<String> {
+    let extension = super::catalog::extension(name)?;
+    let expected = expected_types(&extension)?;
+    (sniffed != "application/octet-stream" && !expected.contains(&sniffed))
+        .then(|| format!(".{extension} {sniffed}"))
+}
+
+/// The media types an extension names. Only extensions whose type the
+/// sniffer can tell are listed.
+fn expected_types(extension: &str) -> Option<&'static [&'static str]> {
     Some(match extension {
         "jpg" | "jpeg" | "jpe" => &["image/jpeg"],
         "png" => &["image/png"],

@@ -1,13 +1,17 @@
 //! Detector 1, folder levels (design section 2): which top folders are
-//! series, which are outside, and the set of each series. It counts each
-//! top folder's files by the media table and `MediaKind`, and compares the
-//! places of sibling folder names. It reads no folder name for its meaning.
+//! series, which are outside, and the set each series' folder could make.
+//! It counts each top folder's files by the media table and `MediaKind`,
+//! and compares the places of sibling folder names. It reads no folder name
+//! for its meaning. Folder sets are chosen only when two series hold most
+//! of one kind of file: folders that each hold their own kind are kinds of
+//! file, not collections.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use super::shape::{KeyShape, places};
-use super::{OutsideFolder, OutsideReason, ScanText, ScopeCounts, kinds_most_first};
-use crate::import::catalog;
+use super::{
+    OutsideFolder, OutsideReason, ScanText, ScopeCounts, accepted, is_media, kinds_most_first,
+};
 use crate::import::evidence::FileEntry;
 use crate::import::plan::{Edit, FolderScope, RelPath, SetFrom, SourceId};
 use crate::import::preview::facts::MediaKind;
@@ -22,8 +26,9 @@ pub(super) struct FolderSeries {
     /// The scopes the plan states: the folders, or the whole source when
     /// this is the only series and nothing is outside.
     pub scopes: Vec<FolderScope>,
-    /// Its own set: its folder's name, when the archive has two series or
-    /// more and the folder has a name.
+    /// The set its folder's name could make, when the archive has two
+    /// series or more and the folder has a name. Chosen only when
+    /// [`Folders::sets_chosen`].
     pub set: Option<SetFrom>,
     /// Numbered folders offer their folder level as a split.
     pub numbered: bool,
@@ -41,6 +46,14 @@ impl FolderSeries {
 pub(super) struct Folders {
     pub series: Vec<FolderSeries>,
     pub outside: Vec<OutsideFolder>,
+    /// The paths inside a series' folder that no series takes: files that
+    /// are not media, and what a `leaveOut` edit names below a top folder.
+    pub left: Vec<FolderScope>,
+    /// Whether the series' folder sets are chosen: two series hold most of
+    /// one kind of file, so their folders sort by something else than kind.
+    /// Folders that each hold their own kind (Documents, Pictures, Music)
+    /// are kinds of file, and their sets are only offered.
+    pub sets_chosen: bool,
 }
 
 /// A first path segment of a source, `""` for the files at its top.
@@ -64,6 +77,16 @@ impl TopFolder<'_> {
 /// Whether the media pages can show a file of this kind.
 fn shown(kind: MediaKind) -> bool {
     kind != MediaKind::Other
+}
+
+/// Whether `path` is `scope`'s file, or under its folder.
+fn within(scope: &FolderScope, source: &SourceId, path: &RelPath) -> bool {
+    let mut segments = path.segments();
+    scope.source == *source
+        && scope
+            .folder
+            .segments()
+            .all(|segment| segments.next() == Some(segment))
 }
 
 fn top_folders<'e>(evidence: &Evidence<'e>) -> Vec<TopFolder<'e>> {
@@ -156,19 +179,49 @@ pub(super) fn detect(evidence: &Evidence<'_>, edits: &[Edit], applied: &mut [boo
             kept.push(top);
         }
     }
+    // A file the media pages cannot take as media makes no item, even
+    // inside a folder that is a series.
+    let mut left: Vec<OutsideFolder> = kept
+        .iter()
+        .flat_map(|top| top.entries.iter().map(|entry| (&top.scope.source, *entry)))
+        .filter(|(_, entry)| accepted(evidence, entry) && !is_media(evidence, entry))
+        .map(|(source, entry)| OutsideFolder {
+            counts: TopFolder {
+                scope: FolderScope {
+                    source: source.clone(),
+                    folder: entry.path.clone(),
+                },
+                entries: vec![entry],
+            }
+            .counts(evidence),
+            reason: OutsideReason::NoMedia,
+        })
+        .collect();
     for (at, edit) in edits.iter().enumerate() {
         match edit {
             Edit::LeaveOut { scope } => {
                 if let Some(found) = kept.iter().position(|top| top.scope == *scope) {
                     let top = kept.remove(found);
+                    left.retain(|path| {
+                        !within(scope, &path.counts.scope.source, &path.counts.scope.folder)
+                    });
                     outside.push(OutsideFolder {
                         counts: top.counts(evidence),
                         reason: OutsideReason::Edit,
                     });
+                } else if !left.iter().any(|path| path.counts.scope == *scope)
+                    && let Some(below) = below_kept(&kept, scope)
+                {
+                    left.push(OutsideFolder {
+                        counts: below.counts(evidence),
+                        reason: OutsideReason::Edit,
+                    });
                 }
-                applied[at] = outside.iter().any(|folder| {
-                    folder.counts.scope == *scope && folder.reason == OutsideReason::Edit
-                });
+                // Outside by its counts is what the person asked for too.
+                applied[at] = outside
+                    .iter()
+                    .chain(&left)
+                    .any(|folder| folder.counts.scope == *scope);
             }
             Edit::Keep { scope } => {
                 if let Some(found) = outside
@@ -180,7 +233,8 @@ pub(super) fn detect(evidence: &Evidence<'_>, edits: &[Edit], applied: &mut [boo
                         kept.push(top);
                     }
                 }
-                applied[at] = kept.iter().any(|top| top.scope == *scope);
+                left.retain(|path| path.counts.scope != *scope);
+                applied[at] = below_kept(&kept, scope).is_some();
             }
             _ => {}
         }
@@ -216,6 +270,17 @@ pub(super) fn detect(evidence: &Evidence<'_>, edits: &[Edit], applied: &mut [boo
             set: None,
         });
     }
+    let mut main_kinds = BTreeSet::new();
+    let sets_chosen = !series.iter().all(|one| {
+        let entries = tops
+            .iter()
+            .filter(|top| one.folders.contains(&top.scope))
+            .flat_map(|top| top.entries.iter().copied());
+        let main = kinds_most_first(evidence, entries)
+            .first()
+            .map(|(kind, _)| *kind);
+        main_kinds.insert(main)
+    });
     let several = series.len() > 1;
     for one in &mut series {
         let scope = &one.folders[0];
@@ -233,17 +298,38 @@ pub(super) fn detect(evidence: &Evidence<'_>, edits: &[Edit], applied: &mut [boo
             folder: RelPath::root(),
         }];
     }
+    let left_paths = left.iter().map(|path| path.counts.scope.clone()).collect();
+    outside.extend(left);
     outside.sort_by(|a, b| {
         (&a.counts.scope.source, &a.counts.scope.folder)
             .cmp(&(&b.counts.scope.source, &b.counts.scope.folder))
     });
-    Folders { series, outside }
+    Folders {
+        series,
+        outside,
+        left: left_paths,
+        sets_chosen,
+    }
+}
+
+/// The entries `scope` names inside a kept top folder, when it names any.
+fn below_kept<'e>(kept: &[&TopFolder<'e>], scope: &FolderScope) -> Option<TopFolder<'e>> {
+    let entries: Vec<&FileEntry> = kept
+        .iter()
+        .filter(|top| top.scope.source == scope.source)
+        .flat_map(|top| &top.entries)
+        .copied()
+        .filter(|entry| within(scope, &scope.source, &entry.path))
+        .collect();
+    (!entries.is_empty()).then(|| TopFolder {
+        scope: scope.clone(),
+        entries,
+    })
 }
 
 fn shows_media(evidence: &Evidence<'_>, top: &TopFolder<'_>) -> bool {
     top.entries.iter().any(|entry| {
-        catalog::refusal(&evidence.catalog.files, entry.name(), &entry.sniffed).is_none()
-            && shown(MediaKind::of(&entry.sniffed, entry.path.as_str()))
+        is_media(evidence, entry) && shown(MediaKind::of(&entry.sniffed, entry.path.as_str()))
     })
 }
 

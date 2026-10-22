@@ -1,8 +1,14 @@
 #![allow(clippy::expect_used)]
 
 use super::bhc006_tests::{proposal, proposal_with_lists};
-use super::{NodeEvidence, Proposal, ScanText, SeriesNode, SetCounts, Share};
-use crate::import::plan::{Edit, FolderScope, RelPath, SetFrom, SourceId};
+use super::{
+    Evidence, FoundList, NodeEvidence, Proposal, ScanText, SeriesNode, SetCounts, Share, propose,
+};
+use crate::import::derive::tests::scenarios::{S1_TO_S8, Scenario};
+use crate::import::derive::tests::support::{JPEG, catalog, index, plan};
+use crate::import::derive::{NoTags, Sheets, derive};
+use crate::import::placement::{ListFiles, Placement};
+use crate::import::plan::{Edit, FolderScope, ImportPlan, RelPath, SetFrom, SourceId};
 
 fn series<'p>(proposal: &'p Proposal, id: &str) -> &'p SeriesNode {
     proposal
@@ -152,4 +158,155 @@ fn an_added_split_is_a_set_level_and_an_added_top_set_holds_everything() {
     let json = serde_json::to_value(&proposal.structure).expect("json");
     assert_eq!(json["levels"].as_array().expect("levels").len(), 1);
     assert_eq!(json["levels"][0]["kind"], "set");
+}
+
+/// A proposal on media `files` in source `s1`, with no list.
+fn of(files: &[(&str, &str)], edits: &[Edit]) -> (Scenario, Proposal) {
+    let scenario = Scenario {
+        index: index(files),
+        sheets: Sheets::new(),
+        plan: plan(|_| {}),
+        catalog: catalog(),
+    };
+    let evidence = Evidence {
+        index: &scenario.index,
+        lists: &Vec::<FoundList>::new(),
+        catalog: &scenario.catalog,
+        sources: &scenario.plan.sources,
+        structure: &scenario.plan.structure,
+    };
+    let proposal = propose(&evidence, edits);
+    (scenario, proposal)
+}
+
+fn placed_sets(scenario: &Scenario, proposal: &Proposal) -> usize {
+    let plan = ImportPlan {
+        structure: proposal.structure.clone(),
+        ..scenario.plan.clone()
+    };
+    let model = derive(
+        &scenario.index,
+        &Sheets::new(),
+        &plan,
+        &scenario.catalog,
+        &NoTags,
+    );
+    Placement::of_model(&model, &plan, &ListFiles::new(&plan, &Sheets::new()))
+        .sets
+        .len()
+}
+
+const DRIVE: [(&str, &str); 5] = [
+    ("Documents/tax 2019.pdf", "application/pdf"),
+    ("Documents/lease.pdf", "application/pdf"),
+    ("Pictures/beach.jpg", JPEG),
+    ("Pictures/garden.jpg", JPEG),
+    ("Music/song.mp3", "audio/mpeg"),
+];
+
+#[test]
+fn folders_that_are_kinds_of_file_offer_their_sets() {
+    let (scenario, found) = of(&DRIVE, &[]);
+    for folder in ["Documents", "Music", "Pictures"] {
+        let node = series(&found, folder);
+        assert_eq!(
+            node.set.chosen.value, None,
+            "{folder} holds one kind of file"
+        );
+        assert_eq!(
+            node.set
+                .rival
+                .as_ref()
+                .and_then(|rival| rival.value.clone()),
+            Some(SetFrom::Folder {
+                scope: scope(folder)
+            })
+        );
+    }
+    let level = SetFrom::FolderLevel {
+        scope: scope(""),
+        depth: 1,
+    };
+    let offer = found
+        .top_sets
+        .iter()
+        .find(|top| top.value == level)
+        .expect("one set per folder, offered");
+    assert_eq!(
+        sets(&offer.counts),
+        [("Documents", 2), ("Pictures", 2), ("Music", 1)]
+    );
+    assert_eq!(placed_sets(&scenario, &found), 0);
+
+    let take = Edit::AddSet { from: level };
+    let (scenario, taken) = of(&DRIVE, &[take.clone(), take]);
+    assert!(taken.edits.iter().all(|edit| edit.applied), "twice is once");
+    assert_eq!(
+        series(&taken, "Music").set.chosen.value,
+        Some(SetFrom::Folder {
+            scope: scope("Music")
+        })
+    );
+    assert!(
+        taken.top_sets.is_empty(),
+        "a taken offer is no longer offered"
+    );
+    assert_eq!(placed_sets(&scenario, &taken), 3);
+}
+
+#[test]
+fn a_dropped_set_and_a_titled_set_are_replayed() {
+    let s1 = || S1_TO_S8[0].1();
+    let edits = [
+        Edit::DropSet {
+            from: SetFrom::Folder {
+                scope: scope("Artifacts"),
+            },
+        },
+        Edit::Title {
+            from: SetFrom::Folder {
+                scope: scope("Photographs"),
+            },
+            title: "Photos, 1950s".into(),
+        },
+        Edit::Title {
+            from: SetFrom::Folder {
+                scope: scope("Artifacts"),
+            },
+            title: "Objects".into(),
+        },
+    ];
+    let scenario = s1();
+    let evidence = Evidence {
+        index: &scenario.index,
+        lists: &Vec::<FoundList>::new(),
+        catalog: &scenario.catalog,
+        sources: &scenario.plan.sources,
+        structure: &scenario.plan.structure,
+    };
+    let proposal = propose(&evidence, &edits);
+    let applied: Vec<bool> = proposal.edits.iter().map(|edit| edit.applied).collect();
+    assert_eq!(
+        applied,
+        [true, true, false],
+        "a dropped set has no title to change"
+    );
+    assert_eq!(series(&proposal, "Artifacts").set.chosen.value, None);
+    let photographs = &series(&proposal, "Photographs").set.chosen;
+    assert_eq!(sets(&photographs.counts), [("Photos, 1950s", 4)]);
+    let json = serde_json::to_value(&proposal.structure).expect("json");
+    let titles: Vec<&serde_json::Value> = json["levels"]
+        .as_array()
+        .expect("levels")
+        .iter()
+        .map(|level| &level["set"]["title"])
+        .collect();
+    assert_eq!(
+        titles,
+        [
+            &serde_json::Value::Null,
+            &serde_json::json!("Photos, 1950s"),
+            &serde_json::json!("Scans")
+        ]
+    );
 }

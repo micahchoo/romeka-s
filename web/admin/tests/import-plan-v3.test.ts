@@ -106,6 +106,23 @@ describe("the v3 plan", () => {
     expect(() => parseImportPlanV3(raw)).toThrow("lastPlaces");
   });
 
+  it("writes back the paths a structure leaves out, and leaves the member out when empty", () => {
+    const plan = rustPlan("bhc006.json");
+    const structure = plan["structure"];
+    if (!isRecord(structure)) {
+      throw new Error("bhc006 has a structure");
+    }
+    expect(JSON.stringify(roundTrip(plan))).not.toContain("outside");
+    const raw = {
+      ...plan,
+      structure: { ...structure, outside: [{ source: "s1", folder: "Artifacts/~lock.docx" }] },
+    };
+    expect(roundTrip(raw)).toEqual(raw);
+    expect(() =>
+      parseImportPlanV3({ ...plan, structure: { ...structure, outside: [{ source: "s1" }] } }),
+    ).toThrow("outside");
+  });
+
   it("refuses a member serde does not know", () => {
     expect(() =>
       parseImportPlanV3({

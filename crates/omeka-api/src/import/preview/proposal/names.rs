@@ -3,15 +3,17 @@
 //! fewest places to the most, and keeps the first cut its counts prove. It
 //! compares places by class and parts by count, never by their text.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::path::Path;
 
 use super::folders::FolderSeries;
-use super::shape::{Key, KeyShape, Place, PlaceClass, places};
+use super::shape::{Key, KeyShape, Place, PlaceClass, SLASH, places};
 use super::thresholds::{KEY_SHAPE_FITS, MIN_ITEMS_PER_PART, MIN_RECURRING_PARTS};
 use super::{CutRule, ItemCut, ScanText};
 use crate::import::evidence::FileEntry;
+use crate::import::join::normalize;
 use crate::import::plan::{CutEdit, Edit, RelPath};
+use crate::import::preview::columns::EVERY_FOLD;
 
 /// One media file of a series, split for the cut.
 pub(super) struct Name<'e> {
@@ -75,10 +77,21 @@ pub(super) struct SeriesCut {
     pub rival: Option<Cut>,
 }
 
+impl SeriesCut {
+    /// Whether the cut or its rival keys items by a folder.
+    pub fn has_folder_key(&self) -> bool {
+        std::iter::once(&self.chosen)
+            .chain(&self.rival)
+            .any(|cut| matches!(cut.key, Key::Folder { .. }))
+    }
+}
+
 /// One file of an item: what tells it from the item's other files.
 struct Part<'n> {
     text: Option<&'n str>,
     places: usize,
+    /// The text of each part place but the last.
+    lead: Vec<&'n str>,
     extension: Option<&'n str>,
     folders: usize,
 }
@@ -95,11 +108,26 @@ fn group<'n>(names: &'n [Name<'_>], key: &Key) -> Grouped<'n> {
     for name in names {
         let folders = name.folders.len();
         let found = match key {
+            Key::Path => Some((
+                name.folders
+                    .iter()
+                    .map(String::as_str)
+                    .chain([name.stem])
+                    .collect(),
+                Part {
+                    text: None,
+                    places: 0,
+                    lead: Vec::new(),
+                    extension: name.extension,
+                    folders,
+                },
+            )),
             Key::Whole => Some((
                 vec![name.stem],
                 Part {
                     text: None,
                     places: 0,
+                    lead: Vec::new(),
                     extension: name.extension,
                     folders,
                 },
@@ -114,17 +142,26 @@ fn group<'n>(names: &'n [Name<'_>], key: &Key) -> Grouped<'n> {
                     let key = &name.stem[key.first()?.start..key.last()?.end];
                     // The rest of the name: `a (1)`, not the places alone.
                     let rest_text = rest.first().map(|place| &name.stem[place.start..]);
+                    let lead = rest
+                        .split_last()
+                        .map(|(_, lead)| {
+                            lead.iter()
+                                .map(|place| &name.stem[place.start..place.end])
+                                .collect()
+                        })
+                        .unwrap_or_default();
                     Some((
                         vec![key],
                         Part {
                             text: rest_text,
                             places: rest.len(),
+                            lead,
                             extension: Some(extension),
                             folders,
                         },
                     ))
                 }),
-            Key::Folder(depth) => (folders >= usize::from(*depth))
+            Key::Folder { depth, .. } => (folders >= usize::from(*depth))
                 .then_some(())
                 .zip(name.extension)
                 .map(|((), extension)| {
@@ -136,6 +173,7 @@ fn group<'n>(names: &'n [Name<'_>], key: &Key) -> Grouped<'n> {
                         Part {
                             text: Some(name.stem),
                             places: name.places.len(),
+                            lead: Vec::new(),
                             extension: Some(extension),
                             folders,
                         },
@@ -198,8 +236,24 @@ impl Grouped<'_> {
     }
 }
 
+/// Whether the cut makes one item whose files are its pages: the key ends
+/// in a number, and every file's parts share their places but the last
+/// (`p1`, `p2`, `p10`). Parts alone cannot recur in a series of one item, so
+/// the recurring places inside it are the count.
+fn pages_of_one(grouped: &Grouped<'_>, shape: &KeyShape) -> bool {
+    let mut items = grouped.items.values();
+    let (Some(files), None) = (items.next(), items.next()) else {
+        return false;
+    };
+    let mut leads = files.iter().map(|part| &part.lead);
+    let first = leads.next().filter(|lead| !lead.is_empty());
+    shape.last() == Some(PlaceClass::Digits)
+        && first.is_some_and(|first| leads.all(|lead| lead == first))
+}
+
 /// Which rule makes this name cut valid, if one does.
-fn valid(grouped: &Grouped<'_>, key_places: usize, counted: &Counted) -> Option<CutRule> {
+fn valid(grouped: &Grouped<'_>, shape: &KeyShape, counted: &Counted) -> Option<CutRule> {
+    let key_places = shape.len();
     let collides = grouped.collisions().next().is_some();
     let mut several = grouped.several().peekable();
     if collides || several.peek().is_none() {
@@ -218,6 +272,8 @@ fn valid(grouped: &Grouped<'_>, key_places: usize, counted: &Counted) -> Option<
         Some(CutRule::RecurringParts)
     } else if counted.names_ending_here > 0 {
         Some(CutRule::NamesEndHere)
+    } else if pages_of_one(grouped, shape) {
+        Some(CutRule::RecurringInItem)
     } else {
         None
     }
@@ -250,7 +306,7 @@ fn first_valid(names: &[Name<'_>]) -> Option<Cut> {
         for (shape, _) in shapes {
             let grouped = group(names, &Key::Places(shape.clone()));
             let counted = grouped.counted();
-            if let Some(rule) = valid(&grouped, key_places, &counted) {
+            if let Some(rule) = valid(&grouped, &shape, &counted) {
                 return Some(places_cut(shape, rule, counted));
             }
         }
@@ -258,34 +314,130 @@ fn first_valid(names: &[Name<'_>]) -> Option<Cut> {
     None
 }
 
-/// The cut of the archive as found: each name an item, or, when whole
-/// names collide, the folder the colliding files are in.
+/// The cut of the archive as found: each name an item. When whole names
+/// collide, the same name is in two folders: then the folder the colliding
+/// files are in is the item when every folder there restarts its names
+/// (each folder of several files holds a name another folder holds, as
+/// page numbers do), and is only part of each file's key otherwise (a
+/// camera counter that restarted once).
 fn as_found(names: &[Name<'_>]) -> (Cut, Option<Cut>) {
     let whole = group(names, &Key::Whole);
-    let whole = (
-        whole.counted(),
-        whole.collisions().map(|part| part.folders).min(),
-    );
-    let whole_cut = Cut {
-        item: ItemCut::Whole,
-        key: Key::Whole,
-        counts: whole.0,
-    };
     let depth = whole
-        .1
+        .collisions()
+        .map(|part| part.folders)
+        .min()
         .and_then(|depth| u8::try_from(depth).ok())
         .filter(|depth| *depth > 0);
-    match depth {
-        Some(depth) => {
-            let key = Key::Folder(depth);
-            let folder = Cut {
-                item: ItemCut::Folder { depth },
-                counts: group(names, &key).counted(),
-                key,
-            };
-            (folder, Some(whole_cut))
+    let Some(depth) = depth else {
+        let whole = Cut {
+            item: ItemCut::Whole,
+            key: Key::Whole,
+            counts: whole.counted(),
+        };
+        return (whole, None);
+    };
+    let each_file = Cut {
+        item: ItemCut::Whole,
+        counts: group(names, &Key::Path).counted(),
+        key: Key::Path,
+    };
+    let key = Key::Folder { depth, lead: None };
+    let folder = Cut {
+        item: ItemCut::Folder { depth },
+        counts: group(names, &key).counted(),
+        key,
+    };
+    if every_folder_restarts(names, usize::from(depth)) {
+        (folder, Some(each_file))
+    } else {
+        (each_file, Some(folder))
+    }
+}
+
+/// Whether each folder `depth` levels down that holds several files holds
+/// a name (with its extension) that another folder there holds too.
+fn every_folder_restarts(names: &[Name<'_>], depth: usize) -> bool {
+    let mut by_folder: BTreeMap<&[String], BTreeSet<(&str, Option<&str>)>> = BTreeMap::new();
+    for name in names.iter().filter(|name| name.folders.len() >= depth) {
+        by_folder
+            .entry(&name.folders[..depth])
+            .or_default()
+            .insert((name.stem, name.extension));
+    }
+    let mut holders: BTreeMap<(&str, Option<&str>), usize> = BTreeMap::new();
+    for held in by_folder.values() {
+        for name in held {
+            *holders.entry(*name).or_default() += 1;
         }
-        None => (whole_cut, None),
+    }
+    by_folder
+        .values()
+        .filter(|held| held.len() > 1)
+        .all(|held| held.iter().any(|name| holders[name] > 1))
+}
+
+/// A folder cut whose folder names a list names by their first places
+/// keys its items by those places. `cells` is every cell of every list,
+/// folded as a join folds with every fold on. The lead is the fewest first
+/// places of the key's last folder name that have one shape in every item,
+/// tell every item apart, and are in more cells than the whole key is.
+pub(super) fn lead_by_lists(cut: &mut SeriesCut, names: &[Name<'_>], cells: &HashSet<String>) {
+    let folder = std::iter::once(&mut cut.chosen)
+        .chain(cut.rival.as_mut())
+        .find(|cut| matches!(cut.key, Key::Folder { lead: None, .. }));
+    let Some(folder) = folder else {
+        return;
+    };
+    let Key::Folder { depth, .. } = folder.key else {
+        return;
+    };
+    let at = usize::from(depth);
+    let items: BTreeSet<&[String]> = names
+        .iter()
+        .filter(|name| name.folders.len() >= at)
+        .map(|name| &name.folders[..at])
+        .collect();
+    let named = |text: &str| cells.contains(&normalize(text, EVERY_FOLD));
+    let whole = items.iter().filter(|key| named(&key.join(SLASH))).count();
+    let lasts: Vec<(&str, Vec<Place>)> = items
+        .iter()
+        .filter_map(|key| key.last())
+        .map(|last| (last.as_str(), places(last)))
+        .collect();
+    let fewest = lasts
+        .iter()
+        .map(|(_, found)| found.len())
+        .min()
+        .unwrap_or_default();
+    let mut best: Option<(usize, KeyShape)> = None;
+    for count in 1..=fewest {
+        let shapes: BTreeSet<KeyShape> = lasts
+            .iter()
+            .map(|(_, found)| KeyShape::of(&found[..count]))
+            .collect();
+        let leads: BTreeSet<&str> = lasts
+            .iter()
+            .filter_map(|(last, found)| {
+                Some(&last[found.first()?.start..found.get(count - 1)?.end])
+            })
+            .collect();
+        let mut shapes = shapes.into_iter();
+        let (Some(shape), None) = (shapes.next(), shapes.next()) else {
+            continue;
+        };
+        if leads.len() < items.len() {
+            continue;
+        }
+        let hits = leads.iter().filter(|lead| named(lead)).count();
+        if hits > whole && best.as_ref().is_none_or(|(most, _)| hits > *most) {
+            best = Some((hits, shape));
+        }
+    }
+    if let Some((_, lead)) = best {
+        folder.key = Key::Folder {
+            depth,
+            lead: Some(lead),
+        };
     }
 }
 
@@ -322,7 +474,7 @@ pub(super) fn same_as_sibling(cuts: &mut [SeriesCut], names: &[Vec<Name<'_>>]) {
         .iter()
         .map(|cut| match &cut.chosen.key {
             Key::Places(shape) => Some(shape.clone()),
-            Key::Whole | Key::Folder(_) => None,
+            Key::Whole | Key::Path | Key::Folder { .. } => None,
         })
         .collect();
     for (at, cut) in cuts.iter_mut().enumerate() {
@@ -353,9 +505,9 @@ pub(super) fn same_as_sibling(cuts: &mut [SeriesCut], names: &[Vec<Name<'_>>]) {
 
 fn asks_for(cut: &Cut, edit: &CutEdit) -> bool {
     match (edit, &cut.key) {
-        (CutEdit::Whole, Key::Whole) => true,
+        (CutEdit::Whole, Key::Whole | Key::Path) => true,
         (CutEdit::Places { places }, Key::Places(shape)) => shape.len() == usize::from(*places),
-        (CutEdit::Folder { depth }, Key::Folder(found)) => depth == found,
+        (CutEdit::Folder { depth }, Key::Folder { depth: found, .. }) => depth == found,
         _ => false,
     }
 }
@@ -407,7 +559,7 @@ pub(super) fn place_values<'n>(names: &'n [Name<'_>], key: &Key) -> Vec<PlaceVal
             Key::Places(shape) if shape.starts(&name.places) && name.extension.is_some() => {
                 &name.places[..shape.len()]
             }
-            Key::Places(_) | Key::Folder(_) => continue,
+            Key::Places(_) | Key::Path | Key::Folder { .. } => continue,
         };
         let (Some(first), Some(last)) = (held.first(), held.last()) else {
             continue;

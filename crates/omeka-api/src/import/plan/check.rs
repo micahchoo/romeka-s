@@ -173,6 +173,13 @@ fn tree(plan: &ImportPlan) -> Result<(), PlanError> {
     }
 
     let sources: BTreeSet<_> = plan.sources.iter().map(|source| source.id()).collect();
+    if let Some(left) = structure
+        .outside
+        .iter()
+        .find(|left| !sources.contains(&left.source))
+    {
+        return Err(PlanError::OutsideSource(left.source.0.clone()));
+    }
     let mut scopes = BTreeMap::new();
     for (_, series) in structure.all_series() {
         // The lift moves a v2 `item.sets` rule to the free sets.

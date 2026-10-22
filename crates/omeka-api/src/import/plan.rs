@@ -282,6 +282,8 @@ pub enum PlanError {
     DuplicateScope { first: String, second: String },
     #[error("series {series:?} takes a folder of source {missing:?}, which the plan does not have")]
     ScopeSource { series: String, missing: String },
+    #[error("the structure leaves out a path of source {0:?}, which the plan does not have")]
+    OutsideSource(String),
     #[error("a slot of series {series:?} reads list {sheet:?}, which is a list of another series")]
     ForeignList { series: String, sheet: String },
     #[error("series {0:?} has an item.sets rule; sets are set levels and free sets")]

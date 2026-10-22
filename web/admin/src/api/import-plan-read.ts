@@ -592,11 +592,14 @@ const parseLevel: Parser<Level> = (raw, path = []) => {
 };
 
 export const parseStructure: Parser<Structure> = (raw, path = []) => {
-  const structure = strict(raw, path, ['levels', 'freeSets']);
-  return {
+  const structure = strict(raw, path, ['levels', 'freeSets'], ['outside']);
+  const tree = {
     levels: member(structure, 'levels', path, list(parseLevel)),
     freeSets: member(structure, 'freeSets', path, list(parseSetSource)),
   };
+  return structure['outside'] === undefined
+    ? tree
+    : { ...tree, outside: member(structure, 'outside', path, list(parseFolderScope)) };
 };
 
 export const parseListFile: Parser<ListFile> = (raw, path = []) => {

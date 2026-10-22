@@ -49,7 +49,7 @@ export interface ScopeCounts {
 /** Where a series' item key ends. */
 export type ItemCut =
   | { readonly cut: 'whole' }
-  | { readonly cut: 'places'; readonly places: number; readonly rule: 'recurringParts' | 'namesEndHere' | 'sameAsSibling' }
+  | { readonly cut: 'places'; readonly places: number; readonly rule: 'recurringParts' | 'namesEndHere' | 'sameAsSibling' | 'recurringInItem' }
   | { readonly cut: 'folder'; readonly depth: number }
   | { readonly cut: 'rows'; readonly list: ListFile; readonly key: ColumnRef };
 
@@ -161,7 +161,7 @@ const parseItemCut = (raw: unknown, path: Path): ItemCut => {
       return {
         cut,
         places: count(only, 'places', path),
-        rule: member(only, 'rule', path, oneOf(['recurringParts', 'namesEndHere', 'sameAsSibling'] as const)),
+        rule: member(only, 'rule', path, oneOf(['recurringParts', 'namesEndHere', 'sameAsSibling', 'recurringInItem'] as const)),
       };
     }
     case 'folder':

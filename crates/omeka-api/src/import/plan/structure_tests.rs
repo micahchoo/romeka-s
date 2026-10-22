@@ -495,6 +495,44 @@ fn a_file_goes_to_the_series_whose_folder_is_the_longest_prefix() {
     );
 }
 
+#[test]
+fn a_path_left_out_is_outside_whatever_scope_holds_it() {
+    let mut value: Value = serde_json::from_str(ARCHIVE_AS_FOUND).expect("json");
+    value["structure"]["levels"] = json!([series("letters", folder("s1", "Letters"))]);
+    value["structure"]["outside"] = json!([
+        { "source": "s1", "folder": "Letters/~lock.docx" },
+        { "source": "s1", "folder": "Letters/Drafts" }
+    ]);
+    let plan = parse(&value.to_string());
+    let place = |path: &str| {
+        let path = RelPath::parse(path).expect("path");
+        plan.structure.place(&SourceId("s1".into()), &path) == Placement::Outside
+    };
+    assert!(place("Letters/~lock.docx"), "one file");
+    assert!(place("Letters/Drafts/b.jpg"), "a folder below the scope");
+    assert!(!place("Letters/Drafts2/c.jpg"), "a whole name only");
+    assert!(!place("Letters/a.jpg"));
+
+    let written: Value = serde_json::from_str(&plan.to_json()).expect("json");
+    assert_eq!(
+        written["structure"]["outside"],
+        value["structure"]["outside"]
+    );
+    let none: Value = serde_json::from_str(&parse(ARCHIVE_AS_FOUND).to_json()).expect("json");
+    assert!(
+        none["structure"].get("outside").is_none(),
+        "left out of the wire when empty, so every fixture keeps its bytes"
+    );
+
+    let error = refused(|plan| {
+        plan["structure"]["outside"] = json!([{ "source": "s9", "folder": "a.jpg" }]);
+    });
+    assert!(
+        matches!(&error, PlanError::OutsideSource(missing) if missing == "s9"),
+        "{error:?}"
+    );
+}
+
 /// One edit of each kind, as the admin sends them.
 fn every_edit() -> Value {
     let scope = json!({ "source": "s1", "folder": "Artifacts" });

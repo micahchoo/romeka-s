@@ -5,7 +5,12 @@
 use super::bhc006_tests;
 use super::{Evidence, FoundList, NodeEvidence, OutsideFolder, OutsideReason, Proposal, propose};
 use crate::import::derive::tests::scenarios::S1_TO_S8;
-use crate::import::plan::{Edit, FolderScope, RelPath, SetFrom, SourceId};
+use crate::import::derive::tests::support::{JPEG, catalog, index, plan};
+use crate::import::derive::{NoTags, Sheets, derive};
+use crate::import::placement::{ListFiles, Placement};
+use crate::import::plan::{Edit, FolderScope, ImportPlan, RelPath, SetFrom, SourceId};
+
+const PDF: &str = "application/pdf";
 use crate::import::preview::facts::MediaKind;
 
 fn scope(folder: &str) -> FolderScope {
@@ -138,23 +143,36 @@ fn a_left_out_folder_is_outside_by_the_edit_and_a_kept_one_is_a_series() {
     assert_eq!(series(&left).len(), 5);
     assert!(outside(&left).contains(&("Extras", 293, 163, OutsideReason::Edit)));
 
-    let nothing_offers = Edit::LeaveOut {
+    let kept = bhc006_tests::proposal(&[Edit::Keep {
         scope: scope("tiny-iiif"),
-    };
-    let kept = bhc006_tests::proposal(&[
-        nothing_offers,
-        Edit::Keep {
-            scope: scope("tiny-iiif"),
-        },
-    ]);
-    let applied: Vec<bool> = kept.edits.iter().map(|edit| edit.applied).collect();
-    assert_eq!(
-        applied,
-        [false, true],
-        "a folder outside by its counts is not left out by an edit"
-    );
+    }]);
+    assert!(kept.edits[0].applied);
     assert_eq!(outside(&kept), []);
     assert_eq!(series(&kept).len(), 7);
+}
+
+#[test]
+fn an_edit_that_asks_for_what_the_proposal_does_is_applied() {
+    let already = Edit::LeaveOut {
+        scope: scope("tiny-iiif"),
+    };
+    let missing = Edit::LeaveOut {
+        scope: scope("no such folder"),
+    };
+    let proposal = bhc006_tests::proposal(&[already, missing]);
+    let applied: Vec<bool> = proposal.edits.iter().map(|edit| edit.applied).collect();
+    assert_eq!(
+        applied,
+        [true, false],
+        "the person got what they asked for; a folder that is not there is not found"
+    );
+    assert!(
+        outside(&proposal)
+            .iter()
+            .any(|(folder, _, _, reason)| *folder == "tiny-iiif"
+                && *reason == OutsideReason::NoMedia),
+        "its counts still say why it is outside"
+    );
 }
 
 #[test]
@@ -190,5 +208,108 @@ fn numbered_folders_are_one_series_with_their_level_offered() {
             scope: scope(""),
             depth: 1
         }
+    );
+}
+
+/// A folder of two reports, one empty file, one file whose bytes are not
+/// what its name says, and a sub-folder.
+fn reports() -> crate::import::derive::tests::scenarios::Scenario {
+    let mut index = index(&[
+        ("Reports/annual 2019.pdf", PDF),
+        ("Reports/annual 2020.pdf", PDF),
+        ("Reports/annual 2021.pdf", PDF),
+        ("Reports/draft.pdf", PDF),
+        ("Reports/budget.pdf", JPEG),
+        ("Reports/old/annual 2018.pdf", PDF),
+    ]);
+    for entry in &mut index.sources[0].walk.entries {
+        if entry.path.as_str() == "Reports/draft.pdf" {
+            entry.size = 0;
+        }
+    }
+    crate::import::derive::tests::scenarios::Scenario {
+        index,
+        sheets: Sheets::new(),
+        plan: plan(|_| {}),
+        catalog: catalog(),
+    }
+}
+
+fn left_out(
+    scenario: &crate::import::derive::tests::scenarios::Scenario,
+    proposal: &Proposal,
+) -> Vec<String> {
+    let plan = ImportPlan {
+        structure: proposal.structure.clone(),
+        ..scenario.plan.clone()
+    };
+    let model = derive(
+        &scenario.index,
+        &Sheets::new(),
+        &plan,
+        &scenario.catalog,
+        &NoTags,
+    );
+    let placement = Placement::of_model(&model, &plan, &ListFiles::new(&plan, &Sheets::new()));
+    placement
+        .left_out
+        .iter()
+        .map(|(_, path)| path.as_str().to_owned())
+        .collect()
+}
+
+#[test]
+fn a_file_that_is_not_media_makes_no_item() {
+    let scenario = reports();
+    let of = |edits: &[Edit]| {
+        let evidence = Evidence {
+            index: &scenario.index,
+            lists: &Vec::<FoundList>::new(),
+            catalog: &scenario.catalog,
+            sources: &scenario.plan.sources,
+            structure: &scenario.plan.structure,
+        };
+        propose(&evidence, edits)
+    };
+    let found = of(&[]);
+    assert_eq!(
+        outside(&found),
+        [
+            ("Reports/budget.pdf", 1, 0, OutsideReason::NoMedia),
+            ("Reports/draft.pdf", 1, 0, OutsideReason::NoMedia),
+        ],
+        "an empty file, and one whose bytes are another format, are not media"
+    );
+    assert_eq!(series(&found), [("", 4, 4)], "the series counts only media");
+    assert_eq!(
+        left_out(&scenario, &found),
+        ["Reports/budget.pdf", "Reports/draft.pdf"]
+    );
+
+    let edits = [
+        Edit::LeaveOut {
+            scope: scope("Reports/annual 2021.pdf"),
+        },
+        Edit::LeaveOut {
+            scope: scope("Reports/old"),
+        },
+        Edit::Keep {
+            scope: scope("Reports/draft.pdf"),
+        },
+        Edit::LeaveOut {
+            scope: scope("Reports/no such file.pdf"),
+        },
+    ];
+    let edited = of(&edits);
+    let applied: Vec<bool> = edited.edits.iter().map(|edit| edit.applied).collect();
+    assert_eq!(applied, [true, true, true, false]);
+    assert_eq!(
+        left_out(&scenario, &edited),
+        [
+            "Reports/annual 2021.pdf",
+            "Reports/budget.pdf",
+            "Reports/old/annual 2018.pdf"
+        ],
+        "one file and one folder left out by an edit; the empty file kept"
     );
 }

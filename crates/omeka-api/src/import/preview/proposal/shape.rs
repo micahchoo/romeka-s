@@ -25,7 +25,8 @@ const ENDING: &str = r"(?:\.[^./]*)?";
 
 const START: &str = "^";
 const END: &str = "$";
-const SLASH: &str = "/";
+/// Between folder names, in a pattern and in a key.
+pub const SLASH: &str = "/";
 const NAMED: &str = "(?<";
 const NAMED_END: &str = ">";
 const UNNAMED: &str = "(?:";
@@ -52,6 +53,11 @@ impl KeyShape {
         self.0.len()
     }
 
+    /// The class of its last place.
+    pub fn last(&self) -> Option<PlaceClass> {
+        self.0.last().copied()
+    }
+
     /// Whether a name with these places starts with this shape.
     pub fn starts(&self, places: &[Place]) -> bool {
         places.len() >= self.0.len()
@@ -68,10 +74,15 @@ impl KeyShape {
 pub enum Key {
     /// Each name is one item.
     Whole,
+    /// Each file is one item, keyed by its folders and its name, so the same
+    /// name in two folders is two items.
+    Path,
     /// The key is the name's first places, of this shape.
     Places(KeyShape),
-    /// The key is the folder this many levels under the scope.
-    Folder(u8),
+    /// The key is the folder `depth` levels under the scope. With `lead`,
+    /// only that folder name's first places, of this shape: a list names a
+    /// folder `B01-F03 Letters 1950` by `B01-F03`.
+    Folder { depth: u8, lead: Option<KeyShape> },
 }
 
 impl Key {
@@ -103,6 +114,12 @@ impl Key {
                     out.concat()
                 }
             },
+            // A name place cannot be read beside the folders, so a set
+            // place is not captured.
+            Self::Path => [
+                START, NAMED, IDENTIFIER, NAMED_END, FOLDERS, REST, CLOSE, ENDING, END,
+            ]
+            .concat(),
             Self::Places(shape) => {
                 let mut out = vec![START, FOLDERS, SEPARATORS, NAMED, IDENTIFIER, NAMED_END];
                 let set_at = set.and_then(|set| set.0.len().checked_sub(1));
@@ -123,13 +140,29 @@ impl Key {
                 ]);
                 out.concat()
             }
-            Self::Folder(depth) => {
+            Self::Folder { depth, lead: None } => {
                 let mut out = vec![START, NAMED, IDENTIFIER, NAMED_END, FOLDER];
                 for _ in 1..*depth {
                     out.extend([SLASH, FOLDER]);
                 }
                 out.extend([
                     CLOSE, SLASH, NAMED, PART, NAMED_END, FOLDERS, FOLDER, CLOSE, EXTENSION, END,
+                ]);
+                out.concat()
+            }
+            Self::Folder {
+                depth,
+                lead: Some(lead),
+            } => {
+                let mut out = vec![START];
+                for _ in 1..*depth {
+                    out.extend([FOLDER, SLASH]);
+                }
+                out.extend([SEPARATORS, NAMED, IDENTIFIER, NAMED_END]);
+                write_places(&mut out, &lead.0, None);
+                out.extend([
+                    CLOSE, REST, SLASH, NAMED, PART, NAMED_END, FOLDERS, FOLDER, CLOSE, EXTENSION,
+                    END,
                 ]);
                 out.concat()
             }
