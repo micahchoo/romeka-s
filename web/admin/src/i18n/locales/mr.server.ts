@@ -210,7 +210,7 @@ export const mrServer: ServerCatalogue = {
   'server.importListSeriesNeeded':
     'या योजनेत अनेक मालिका आहेत. ही सूची ज्या मालिकेसाठी आहे ती निवडा.',
   'server.importListSeriesUnknown': 'या योजनेत "{series}" ही मालिका नाही.',
-  'server.importListUnknown': 'या योजनेत "{list}" ही सूची नाही.',
+  'server.importListUnknown': 'योजनेमध्ये "{list}" ही यादी नाही.',
   'server.importListNoIdentifier':
     'सूचीमध्ये ओळखकर्ता (Identifier) स्तंभ नाही, त्यामुळे त्याच्या ओळी त्यांचे आयटम शोधू शकत नाहीत. तुम्ही डाउनलोड केलेल्या सूचीचा Identifier स्तंभ कायम ठेवा.',
   'server.importPairsColumns':
