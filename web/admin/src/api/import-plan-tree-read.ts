@@ -159,11 +159,12 @@ export const parseEdit: Parser<Edit> = (raw, path = []) => {
     asRecord(raw, path),
     'edit',
     path,
-    oneOf(['leaveOut', 'keep', 'items', 'list', 'grain', 'addSet', 'dropSet', 'pair', 'title'] as const),
+    oneOf(['leaveOut', 'keep', 'items', 'list', 'grain', 'addSet', 'dropSet', 'pair', 'title', 'own'] as const),
   );
   switch (edit) {
     case 'leaveOut':
     case 'keep':
+    case 'own':
       return { edit, scope: member(strict(raw, path, ['edit', 'scope']), 'scope', path, parseFolderScope) };
     case 'items': {
       const only = strict(raw, path, ['edit', 'scope', 'cut']);

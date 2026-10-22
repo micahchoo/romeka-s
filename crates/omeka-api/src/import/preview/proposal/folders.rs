@@ -13,7 +13,9 @@ use super::{
     OutsideFolder, OutsideReason, ScanText, ScopeCounts, accepted, is_media, kinds_most_first,
 };
 use crate::import::evidence::FileEntry;
-use crate::import::plan::{Edit, FolderScope, RelPath, SetFrom, SourceId};
+use crate::import::plan::{
+    Edit, FolderScope, ListFile, RelPath, Series, SeriesScope, SetFrom, SourceId,
+};
 use crate::import::preview::facts::MediaKind;
 
 use super::Evidence;
@@ -32,12 +34,46 @@ pub(super) struct FolderSeries {
     pub set: Option<SetFrom>,
     /// Numbered folders offer their folder level as a split.
     pub numbered: bool,
+    /// The plan's series the person wrote for these folders, kept as
+    /// written: an `own` edit names one of them.
+    pub own: Option<Series>,
 }
 
 impl FolderSeries {
     /// The scope its evidence names.
     pub fn scope(&self) -> &FolderScope {
         &self.scopes[0]
+    }
+
+    /// Whether `scope` names this series.
+    pub fn names(&self, scope: &FolderScope) -> bool {
+        self.scopes.contains(scope) || self.folders.contains(scope)
+    }
+
+    /// Whether `edit` asks for a choice on this series while the person
+    /// owns it. No choice is offered on a series written by hand, so such an
+    /// edit is not applied (design open call 4).
+    pub fn mutes(&self, edit: &Edit) -> bool {
+        let Some(own) = &self.own else {
+            return false;
+        };
+        let held = |list: &ListFile| {
+            own.lists()
+                .iter()
+                .any(|sheet| sheet.source == list.source && sheet.file == list.file)
+        };
+        match edit {
+            Edit::Items { scope, .. } | Edit::List { scope, .. } => self.names(scope),
+            Edit::Grain { list, .. } | Edit::Pair { list, .. } => held(list),
+            Edit::AddSet { from } | Edit::DropSet { from } | Edit::Title { from, .. } => match from
+            {
+                SetFrom::Folder { scope }
+                | SetFrom::NamePlace { scope, .. }
+                | SetFrom::FolderLevel { scope, .. } => self.names(scope),
+                SetFrom::Column { list, .. } => held(list),
+            },
+            Edit::LeaveOut { .. } | Edit::Keep { .. } | Edit::Own { .. } => false,
+        }
     }
 }
 
@@ -268,6 +304,7 @@ pub(super) fn detect(evidence: &Evidence<'_>, edits: &[Edit], applied: &mut [boo
             scopes: folders.clone(),
             folders,
             set: None,
+            own: None,
         });
     }
     let mut main_kinds = BTreeSet::new();
@@ -298,6 +335,7 @@ pub(super) fn detect(evidence: &Evidence<'_>, edits: &[Edit], applied: &mut [boo
             folder: RelPath::root(),
         }];
     }
+    replay_own(evidence, edits, applied, &mut series);
     let left_paths = left.iter().map(|path| path.counts.scope.clone()).collect();
     outside.extend(left);
     outside.sort_by(|a, b| {
@@ -309,6 +347,37 @@ pub(super) fn detect(evidence: &Evidence<'_>, edits: &[Edit], applied: &mut [boo
         outside,
         left: left_paths,
         sets_chosen,
+    }
+}
+
+/// Replay the `own` edits: the series an edit's folder names keeps the
+/// plan's series for that folder, and takes its folders as its scope.
+fn replay_own(
+    evidence: &Evidence<'_>,
+    edits: &[Edit],
+    applied: &mut [bool],
+    series: &mut [FolderSeries],
+) {
+    for (at, edit) in edits.iter().enumerate() {
+        let Edit::Own { scope } = edit else {
+            continue;
+        };
+        let written = evidence
+            .structure
+            .all_series()
+            .map(|(_, written)| written)
+            .find(|written| match written.scope() {
+                SeriesScope::Folders(folders) => folders.contains(scope),
+                SeriesScope::All(_) => scope.folder.as_str().is_empty(),
+            });
+        let found = series.iter_mut().find(|one| one.names(scope));
+        if let (Some(written), Some(one)) = (written, found) {
+            if let SeriesScope::Folders(folders) = written.scope() {
+                one.scopes.clone_from(folders);
+            }
+            one.own = Some(written.clone());
+            applied[at] = true;
+        }
     }
 }
 

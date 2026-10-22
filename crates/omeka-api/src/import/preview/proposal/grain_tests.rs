@@ -18,7 +18,7 @@ fn first_series(proposal: &Proposal) -> &SeriesNode {
         .iter()
         .find_map(|node| match node {
             NodeEvidence::Series(series) => Some(series),
-            NodeEvidence::Set(_) => None,
+            NodeEvidence::Set(_) | NodeEvidence::Own(_) => None,
         })
         .expect("a series")
 }

@@ -30,7 +30,7 @@ fn series(proposal: &Proposal) -> Vec<(&str, usize, usize)> {
                 series.scope.files,
                 series.scope.media,
             )),
-            NodeEvidence::Set(_) => None,
+            NodeEvidence::Set(_) | NodeEvidence::Own(_) => None,
         })
         .collect()
 }
@@ -114,7 +114,7 @@ fn each_of_several_series_is_its_folders_set() {
         .iter()
         .filter_map(|node| match node {
             NodeEvidence::Series(series) => Some(series.set.chosen.value.as_ref()),
-            NodeEvidence::Set(_) => None,
+            NodeEvidence::Set(_) | NodeEvidence::Own(_) => None,
         })
         .collect();
     assert_eq!(
