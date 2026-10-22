@@ -4,8 +4,11 @@
 
 use serde_json::{Value, json};
 
+use omeka_api::import::placement::differences;
+use omeka_api::import::plan::ImportPlan;
+
 use super::{add_terms, bhc006, materialize, placement_of, run, v3_plan, v3_plan_of};
-use crate::imports_fixture::fixture;
+use crate::imports_fixture::{self, fixture};
 
 const BHC006: &str = include_str!("../../../omeka-api/src/import/fixtures/v3/bhc006.json");
 
@@ -129,4 +132,69 @@ async fn placement_of_reads_the_frozen_bhc006_outcome() {
             "{path} is in no item"
         );
     }
+}
+
+/// The edits a person makes on BHC006's proposal, each a click it offers.
+/// No count tells an extras folder from a series. And no count tells PN's 26
+/// rows that name no file from S5's one row that makes an item, so the
+/// person takes the rival grain the proposal offers.
+fn bhc006_edits() -> Value {
+    json!([
+        { "edit": "leaveOut", "scope": { "source": "s1", "folder": "Extras" } },
+        {
+            "edit": "grain",
+            "list": { "source": "s1", "file": "BHC006_GMT_PN.xlsx" },
+            "describes": "media"
+        }
+    ])
+}
+
+#[tokio::test]
+async fn bhc006_places_as_the_frozen_outcome_after_its_edits() {
+    let shape = bhc006::shape();
+    let frozen = fixture().await;
+    let preview = run(&frozen, &shape, &bhc006::SLOTS, v3_plan(BHC006)).await;
+    let want = placement_of(&preview, &v3_plan_of(BHC006), frozen.archive.path());
+
+    let asked = fixture().await;
+    add_terms(&asked, &bhc006::SLOTS).await;
+    materialize(&shape, asked.archive.path());
+    let draft = asked.draft().await;
+    let id = draft["id"].clone();
+    let scanned = asked
+        .call("POST", &format!("/api/romeka/imports/{id}/scan"), None)
+        .await;
+    assert_eq!(scanned.status, 200, "{}", scanned.body);
+    // The draft's plan as v3, the only version that holds edits.
+    let as_found = json!([imports_fixture::v3_series("all", "")]);
+    let mut tried = imports_fixture::v3_plan(&draft["plan"], as_found);
+    tried["edits"] = bhc006_edits();
+    let answer = asked
+        .preview(&id, &json!({ "include": ["proposal"], "plan": tried }))
+        .await;
+    assert_eq!(answer.status, 200, "{}", answer.body);
+    let proposal = answer.json()["proposal"].clone();
+    let applied: Vec<&Value> = proposal["edits"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|edit| &edit["applied"])
+        .collect();
+    assert_eq!(applied, [true, true], "the proposal offers both edits");
+
+    let mut confirmed = imports_fixture::v3_plan(&draft["plan"], json!([]));
+    confirmed["structure"] = proposal["structure"].clone();
+    confirmed["edits"] = bhc006_edits();
+    let text = confirmed.to_string();
+    let plan = ImportPlan::from_json(&text).unwrap();
+    let saved = fixture().await;
+    let got_preview = run(&saved, &shape, &bhc006::SLOTS, |draft_plan: &mut Value| {
+        let mut plan: Value = serde_json::from_str(&text).unwrap();
+        plan["sources"] = draft_plan["sources"].clone();
+        *draft_plan = plan;
+    })
+    .await;
+    let got = placement_of(&got_preview, &plan, saved.archive.path());
+    let found = differences(&want, &got);
+    assert!(found.is_empty(), "{} differences: {found:#?}", found.len());
 }
