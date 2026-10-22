@@ -2,8 +2,8 @@
 //! `GET …/template.csv?columns=&series=` answers the list of one series'
 //! items to fill in, and `POST …/sheets?series=` stores a filled list (CSV,
 //! TSV, .xlsx, .xls or .ods) in the import's staging area and adds it to
-//! that series of the draft's plan. A plan of one series may leave
-//! `series` out. The rules live in
+//! that series of the draft's plan; a list the series already has takes
+//! its old place. A plan of one series may leave `series` out. The rules live in
 //! `omeka_api::import::template`; these handlers read the request, move
 //! the bytes through the store, and save the plan.
 
@@ -17,7 +17,8 @@ use omeka_api::import::plan::{ImportPlan, ReadOptions, RelPath, SeriesIx};
 use omeka_api::import::preview::staging_path;
 use omeka_api::import::sheet;
 use omeka_api::import::template::{
-    ListColumn, ListError, MAX_LIST_BYTES, add_list, list_read, list_series, template_csv,
+    ListColumn, ListError, ListPut, MAX_LIST_BYTES, list_read, list_series, put_list, staged_lists,
+    template_csv,
 };
 use omeka_api::messages;
 use omeka_db::rows::{ImportRow, ImportStatus};
@@ -113,7 +114,19 @@ pub(super) async fn upload(
 
             let store = state.store.clone();
             let import = row.id;
-            let stored = blocking(move || {
+            let lists: Vec<_> = staged_lists(&plan, series)
+                .into_iter()
+                .map(|list| (list.id.clone(), list.file.clone(), list.read.clone()))
+                .collect();
+            let (stored, staged) = blocking(move || {
+                // A staged list that no longer reads is not the upload's.
+                let staged: Vec<_> = lists
+                    .into_iter()
+                    .filter_map(|(id, file, read)| {
+                        let bytes = store.read(&staging_path(import, &file)).ok()?;
+                        Some((id, sheet::read(&bytes, &read, None).ok()?))
+                    })
+                    .collect();
                 let folder = staging_path(import, &RelPath::parse("lists").map_err(internal)?);
                 let next = store
                     .list(&folder)
@@ -131,12 +144,20 @@ pub(super) async fn upload(
                 store
                     .put(&bytes, &staging_path(import, &file), None)
                     .map_err(internal)?;
-                Ok(file)
+                Ok((file, staged))
             })
             .await?;
-            let added = add_list(&mut plan, series, stored.clone(), read, &list, &catalog);
-            let saved = match added {
-                Ok(_) => {
+            let put = put_list(
+                &mut plan,
+                series,
+                stored.clone(),
+                read,
+                &list,
+                &catalog,
+                &staged,
+            );
+            let saved = match put {
+                Ok(put) => {
                     let value: serde_json::Value = serde_json::from_str(&plan.to_json())
                         .map_err(|error| ImportError::Internal(error.to_string()))?;
                     with_db!(&state.pool, |db| draft::save(
@@ -146,15 +167,28 @@ pub(super) async fn upload(
                         row.revision
                     )
                     .await)
+                    .map(|_| put)
                     .map_err(|error| draft_error(error, row.id, false))
                 }
                 Err(error) => Err(list_error(error, &plan)),
             };
-            if let Err(error) = saved {
-                let store = state.store.clone();
-                let path = staging_path(import, &stored);
-                blocking(move || store.delete(&path).map(|_| ()).map_err(internal)).await?;
-                return Err(error);
+            match saved {
+                Err(error) => {
+                    let store = state.store.clone();
+                    let path = staging_path(import, &stored);
+                    blocking(move || store.delete(&path).map(|_| ()).map_err(internal)).await?;
+                    return Err(error);
+                }
+                Ok(ListPut::Replaced { old, .. }) => {
+                    // The plan is saved and no longer reads the old file: one
+                    // left behind is never read, so failing here would only
+                    // report a saved change as failed.
+                    let store = state.store.clone();
+                    let path = staging_path(import, &old);
+                    let _ =
+                        blocking(move || store.delete(&path).map(|_| ()).map_err(internal)).await;
+                }
+                Ok(ListPut::Added(_)) => {}
             }
             let row = load(&state, &id).await?;
             Ok(json(StatusCode::CREATED, &ImportView::of(row, true)))

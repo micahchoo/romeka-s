@@ -669,3 +669,64 @@ async fn a_plan_of_several_series_needs_series_on_the_list_round_trip() {
         "a v3 list's sets column names sets by title"
     );
 }
+
+#[tokio::test]
+async fn a_reuploaded_list_replaces_its_sheet_and_its_free_set() {
+    let fixture = fixture().await;
+    let id = two_series(&fixture).await;
+    let upload = |sets: &str| {
+        let list = format!("Identifier,Files,Item sets [sets]\r\nPH_001,,{sets}\r\n");
+        let fixture = &fixture;
+        let id = &id;
+        async move {
+            let answer = fixture
+                .upload_to(id, "sheets?series=photos", "list.csv", list.as_bytes())
+                .await;
+            assert_eq!(answer.status, StatusCode::CREATED, "{}", answer.body);
+            answer.json()
+        }
+    };
+    upload("2018").await;
+    let view = upload("2019").await;
+
+    let plan = &view["plan"];
+    let lists = &plan["structure"]["levels"][1]["lists"];
+    assert_eq!(lists.as_array().map(Vec::len), Some(1), "{lists}");
+    assert_eq!(lists[0]["file"], "lists/2.csv", "the new bytes");
+    assert_eq!(
+        plan["structure"]["freeSets"].as_array().map(Vec::len),
+        Some(1),
+        "{}",
+        plan["structure"]["freeSets"]
+    );
+    let staged = fixture.files.path().join(format!("staging/{id}/lists"));
+    assert!(!staged.join("1.csv").exists(), "the old list is gone");
+    assert!(staged.join("2.csv").is_file());
+
+    let preview = fixture.preview(&id, &json!({ "include": ["check"] })).await;
+    assert_eq!(preview.status, StatusCode::OK, "{}", preview.body);
+    let sets: Vec<String> = preview.json()["check"]["newSets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|set| set["title"].as_str().unwrap().to_string())
+        .collect();
+    assert_eq!(sets, ["2019"], "only the new list's set");
+
+    let other = fixture
+        .upload_to(
+            &id,
+            "sheets?series=photos",
+            "list.csv",
+            "Identifier,Files,Title [dcterms:title]\r\nPH_001,,Photo\r\n".as_bytes(),
+        )
+        .await;
+    assert_eq!(other.status, StatusCode::CREATED, "{}", other.body);
+    assert_eq!(
+        other.json()["plan"]["structure"]["levels"][1]["lists"]
+            .as_array()
+            .map(Vec::len),
+        Some(2),
+        "a list with other columns is another list"
+    );
+}

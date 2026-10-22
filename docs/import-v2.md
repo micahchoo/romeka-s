@@ -323,7 +323,9 @@ both answer 400 with code `seriesNeeded`. A name no series has answers 400 with 
 `unknownSeries`. Both carry `series`, the plan's series ids. The template lists that series' items
 only, and the list joins only that series' groups. In a v3 plan a list's `[sets]` column makes one
 more free set with `names: 'title'`; it gives nothing to an item of another series. In a v2 plan
-the column joins the one sets rule, read as `text`.
+the column joins the one sets rule, read as `text`. An upload whose header row is that of a list
+the series already has from staging is the same list sent again: its bytes take that list's
+place (same sheet id, columns, rules and free set), and the old staged file is deleted.
 
 **On the preview wire**, a member that names a series appears only in a plan of several series, as
 a record key does, so a v2 admin reads the answer it knows. `pattern` is the first series' state.

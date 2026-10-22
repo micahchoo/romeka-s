@@ -12,7 +12,8 @@
 //! [`add_list`] reads the upload's headers: a header that ends in a
 //! bracketed term or slot (`Title [dcterms:title]`) maps that column, with
 //! `|` as its split, ahead of every other source of the slot. Any other
-//! header stays unmapped.
+//! header stays unmapped. [`put_list`] puts a list the series already has
+//! in its old place instead.
 
 use serde::Serialize;
 
@@ -412,6 +413,75 @@ pub fn add_list(
         },
     );
     Ok(ListAdded { sheet: id, mapped })
+}
+
+/// What [`put_list`] did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ListPut {
+    /// A new list of the series.
+    Added(ListAdded),
+    /// The new bytes of a list the series already had. The list keeps its
+    /// id, its columns, and the rules and free set that read it; `old` is
+    /// the staged file it no longer reads.
+    Replaced { sheet: SheetId, old: RelPath },
+}
+
+/// The lists of `series` that the plan's staging source holds: the lists
+/// a person uploaded.
+#[must_use]
+pub fn staged_lists(plan: &ImportPlan, series: SeriesIx) -> Vec<&SheetPlan> {
+    let staging = plan.sources.iter().find_map(|source| match source {
+        SourcePlan::Staging { id } => Some(id),
+        SourcePlan::Folder { .. } => None,
+    });
+    plan.structure
+        .series(series)
+        .lists()
+        .iter()
+        .filter(|list| Some(&list.source) == staging)
+        .collect()
+}
+
+/// Put the list stored at `file` into series `series`. `staged` holds the
+/// series' [`staged_lists`] as they read now. One whose header row is the
+/// upload's is the same list sent again: both would join the same items on
+/// the same columns, and the older one could only give back values the
+/// person has since removed. So the upload takes that list's place, and
+/// keeps every choice made on it. Any other upload is added by
+/// [`add_list`].
+///
+/// # Errors
+/// As [`add_list`].
+pub fn put_list(
+    plan: &mut ImportPlan,
+    series: SeriesIx,
+    file: RelPath,
+    read: ReadOptions,
+    sheet: &Sheet,
+    catalog: &Catalog,
+    staged: &[(SheetId, Sheet)],
+) -> Result<ListPut, ListError> {
+    let headers = |sheet: &Sheet| {
+        sheet
+            .columns
+            .iter()
+            .map(|column| (column.index, column.header.clone()))
+            .collect::<Vec<_>>()
+    };
+    let same = staged
+        .iter()
+        .find(|(_, old)| headers(old) == headers(sheet))
+        .and_then(|(id, _)| plan.structure.list_mut(id));
+    let Some(list) = same else {
+        return add_list(plan, series, file, read, sheet, catalog).map(ListPut::Added);
+    };
+    let old = std::mem::replace(&mut list.file, file);
+    list.hash = Some(sheet.hash.clone());
+    list.read = read;
+    Ok(ListPut::Replaced {
+        sheet: list.id.clone(),
+        old,
+    })
 }
 
 fn staging_source(plan: &mut ImportPlan) -> SourceId {
