@@ -223,7 +223,26 @@ pub(crate) fn make(
         if let Some(file) = media_row.file
             && let Some(media) = file_record[file]
         {
-            drafts[media.index()].rows.push(media_row.at);
+            if !media_row.own {
+                drafts[media.index()].rows.push(media_row.at);
+                continue;
+            }
+            // Matched like the row it duplicates: the same file, the same item.
+            let id = next(&drafts);
+            let parent = drafts[media.index()].parent;
+            let mut draft = Draft::new(
+                RecordKind::Media,
+                sheets[media_row.at.sheet].series,
+                Origin::Row(media_row.at.entry(sheets)),
+            );
+            draft.rows.push(media_row.at);
+            draft.files.push(file);
+            draft.left = file_left[file];
+            draft.parent = parent;
+            drafts.push(draft);
+            if let Some(item) = parent {
+                drafts[item.index()].media.push(id);
+            }
             continue;
         }
         let id = next(&drafts);

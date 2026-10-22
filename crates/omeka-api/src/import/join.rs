@@ -62,6 +62,9 @@ pub(crate) struct MediaRow {
     pub at: RowAt,
     /// The file its `fileName` join cell names.
     pub file: Option<usize>,
+    /// A `duplicate-row` kept by `keep`: a media record of its own of
+    /// `file`, beside the record of the row that named it first.
+    pub own: bool,
 }
 
 #[derive(Default)]
@@ -262,8 +265,19 @@ pub(crate) fn join(
                     joined.skipped.insert(at, FlagKind::DuplicateRow);
                     continue;
                 }
-                match kind {
-                    RecordKind::Media => joined.media_rows.push(MediaRow { at, file: None }),
+                match (kind, target) {
+                    (RecordKind::Media, Some(Target::File(file))) => {
+                        joined.media_rows.push(MediaRow {
+                            at,
+                            file: Some(file),
+                            own: true,
+                        });
+                    }
+                    (RecordKind::Media, _) => joined.media_rows.push(MediaRow {
+                        at,
+                        file: None,
+                        own: false,
+                    }),
                     _ => joined.lone_items.push(at),
                 }
                 continue;
@@ -279,6 +293,7 @@ pub(crate) fn join(
                     joined.media_rows.push(MediaRow {
                         at,
                         file: Some(file),
+                        own: false,
                     });
                 }
                 (RecordKind::Media, _) if by_file_only => {
@@ -296,7 +311,11 @@ pub(crate) fn join(
                     );
                     joined.skipped.insert(at, FlagKind::NoFile);
                 }
-                (RecordKind::Media, _) => joined.media_rows.push(MediaRow { at, file: None }),
+                (RecordKind::Media, _) => joined.media_rows.push(MediaRow {
+                    at,
+                    file: None,
+                    own: false,
+                }),
                 (_, Some(Target::Group(group))) => {
                     joined.group_rows.entry(group).or_default().push(at)
                 }
