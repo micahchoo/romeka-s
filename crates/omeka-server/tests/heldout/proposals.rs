@@ -4,12 +4,12 @@
 //! `import_shapes::proposal` does for BHC006. This is the overfitting test:
 //! nobody who built the proposer saw these shapes.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use serde_json::{Value, json};
 
-use omeka_api::import::placement::{Difference, FileAt, ItemAt, differences};
+use omeka_api::import::placement::{Difference, differences};
 use omeka_api::import::plan::ImportPlan;
 
 use super::{
@@ -18,11 +18,28 @@ use super::{
 };
 use crate::imports_fixture::{self, fixture};
 
-/// The held-out shapes whose proposal places as frozen with every pinned
-/// edit applied. A listed shape that stops placing so fails, and so does an
-/// unlisted one that starts: the list moves by hand, with the reason in the
-/// commit.
-const HELDOUT_PASSING: &[&str] = &["oral_history"];
+/// How far a person is from each held-out shape's frozen outcome, starting
+/// from the proposal: `unapplied` counts the pinned edits the proposal does
+/// not offer (a click the person needs and cannot make), and `left` counts
+/// the differences that remain after every pinned edit (what no click
+/// fixes). Both only fall. A measured number above its entry is a
+/// regression; one below it fails too, so the commit that lowers a number
+/// lowers its entry and the table always states the truth.
+#[rustfmt::skip]
+const DISTANCE: &[Distance] = &[
+    Distance { shape: "accession_register", unapplied: 2, left: 40 },
+    Distance { shape: "born_digital",       unapplied: 0, left: 4 },
+    Distance { shape: "negative_archive",   unapplied: 2, left: 10 },
+    Distance { shape: "oral_history",       unapplied: 0, left: 0 },
+    Distance { shape: "paper_archive",      unapplied: 0, left: 4 },
+];
+
+#[derive(Debug, PartialEq, Eq)]
+struct Distance {
+    shape: &'static str,
+    unapplied: usize,
+    left: usize,
+}
 
 fn pinned_edits(name: &str) -> Value {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -58,73 +75,17 @@ async fn proposed(shape: &Shape, slots: &[&str], edits: &Value) -> (String, Valu
     (confirmed.to_string(), proposal)
 }
 
-fn file(at: &FileAt) -> String {
-    at.1.as_str().to_string()
-}
-
-fn item(at: &ItemAt) -> String {
-    match at {
-        ItemAt::File(at) => file(at),
-        ItemAt::Row((list, line)) => format!("{}:{line}", list.file.as_str()),
-    }
-}
-
-fn files(set: &BTreeSet<FileAt>) -> String {
-    let names: Vec<String> = set.iter().map(file).collect();
-    format!("[{}]", names.join(", "))
-}
-
-fn items(set: Option<&BTreeSet<ItemAt>>) -> String {
-    set.map_or_else(
-        || "none".to_string(),
-        |set| {
-            let names: Vec<String> = set.iter().map(item).collect();
-            format!("[{}]", names.join(", "))
-        },
-    )
-}
-
-fn side(want: bool) -> &'static str {
-    if want { "want" } else { "got" }
-}
-
-/// A difference's kind, and the paths that show it, on one line.
-fn described(difference: &Difference) -> (&'static str, String) {
+/// A difference's kind. The gate prints kinds and counts only: its output
+/// reaches people who must not see a held-out shape's paths.
+fn kind(difference: &Difference) -> &'static str {
     match difference {
-        Difference::FilesSplit { want, got } => {
-            let got: Vec<String> = got.iter().map(files).collect();
-            (
-                "filesSplit",
-                format!("want {} got {}", files(want), got.join(" ")),
-            )
-        }
-        Difference::FilesMerged { want, got } => {
-            let want: Vec<String> = want.iter().map(files).collect();
-            (
-                "filesMerged",
-                format!("want {} got {}", want.join(" "), files(got)),
-            )
-        }
-        Difference::RowItem {
-            item: at,
-            want_made,
-        } => (
-            "rowItem",
-            format!("{} made only by {}", item(at), side(*want_made)),
-        ),
-        Difference::Set { want, got } => (
-            "set",
-            format!("want {} got {}", items(want.as_ref()), items(got.as_ref())),
-        ),
-        Difference::List { list } => ("list", list.file.as_str().to_string()),
-        Difference::Row { row: (list, line) } => ("row", format!("{}:{line}", list.file.as_str())),
-        Difference::LeftOut {
-            file: at,
-            want_left_out,
-        } => (
-            "leftOut",
-            format!("{} left out only by {}", file(at), side(*want_left_out)),
-        ),
+        Difference::FilesSplit { .. } => "filesSplit",
+        Difference::FilesMerged { .. } => "filesMerged",
+        Difference::RowItem { .. } => "rowItem",
+        Difference::Set { .. } => "set",
+        Difference::List { .. } => "list",
+        Difference::Row { .. } => "row",
+        Difference::LeftOut { .. } => "leftOut",
     }
 }
 
@@ -141,11 +102,10 @@ async fn places_as_frozen(name: &str, shape: &Shape, slots: &[&str], plan_text: 
         edits.as_array().unwrap().len(),
         "{name}: every pinned edit is replayed"
     );
-    let unapplied: Vec<String> = replayed
+    let unapplied = replayed
         .iter()
         .filter(|result| result["applied"] != true)
-        .map(|result| format!("unapplied: {}", result["edit"]))
-        .collect();
+        .count();
 
     let plan = ImportPlan::from_json(&text).unwrap();
     let saved = fixture().await;
@@ -159,23 +119,34 @@ async fn places_as_frozen(name: &str, shape: &Shape, slots: &[&str], plan_text: 
     let found = differences(&want, &got);
 
     let mut by_kind: BTreeMap<&str, usize> = BTreeMap::new();
-    let mut lines = unapplied.clone();
     for difference in &found {
-        let (kind, text) = described(difference);
-        *by_kind.entry(kind).or_default() += 1;
-        lines.push(format!("{kind}: {text}"));
+        *by_kind.entry(kind(difference)).or_default() += 1;
     }
-    let report = format!(
-        "{name}: {} unapplied edits, {} differences {by_kind:?}\n  {}",
-        unapplied.len(),
-        found.len(),
-        lines.join("\n  ")
+    eprintln!(
+        "{name}: {unapplied} unapplied, {} left {by_kind:?}",
+        found.len()
     );
-    eprintln!("{report}");
+    let entry = DISTANCE
+        .iter()
+        .find(|entry| entry.shape == name)
+        .unwrap_or_else(|| panic!("{name}: no DISTANCE entry"));
+    let measured = Distance {
+        shape: entry.shape,
+        unapplied,
+        left: found.len(),
+    };
+    assert!(
+        measured.unapplied <= entry.unapplied && measured.left <= entry.left,
+        "{name}: regressed to {} unapplied, {} left {by_kind:?}; DISTANCE says {}, {}",
+        measured.unapplied,
+        measured.left,
+        entry.unapplied,
+        entry.left
+    );
     assert_eq!(
-        unapplied.is_empty() && found.is_empty(),
-        HELDOUT_PASSING.contains(&name),
-        "HELDOUT_PASSING is wrong for {report}"
+        &measured, entry,
+        "{name}: improved to {} unapplied, {} left {by_kind:?}; lower its DISTANCE entry from {}, {}",
+        measured.unapplied, measured.left, entry.unapplied, entry.left
     );
 }
 
