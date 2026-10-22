@@ -337,6 +337,59 @@ async fn retry_reopens_failed_and_skipped_rows_only() {
     assert!(row.started.is_none());
 }
 
+/// The automatic retry gives up on a row that failed its last allowed attempt;
+/// a person's retry still puts it back.
+#[tokio::test]
+async fn an_automatic_retry_stops_at_the_attempt_limit() {
+    let pool = common::memory().await;
+    let id = media(&pool, "queue-limit").await;
+    let repo = MediaDerivativeRepo::new(&pool);
+    repo.enqueue(&poster(id)).await.unwrap();
+    let fail = || async {
+        repo.claim_next(&["ffmpeg"])
+            .await
+            .unwrap()
+            .expect("claimed");
+        repo.finish(
+            id,
+            DerivativeKind::Poster,
+            DerivativeState::Failed,
+            Some("no".to_string()),
+            None,
+        )
+        .await
+        .unwrap();
+    };
+
+    fail().await;
+    assert!(
+        repo.retry_within(id, DerivativeKind::Poster, 2)
+            .await
+            .unwrap(),
+        "one failure of two allowed"
+    );
+    fail().await;
+    assert!(
+        !repo
+            .retry_within(id, DerivativeKind::Poster, 2)
+            .await
+            .unwrap(),
+        "two failures of two allowed"
+    );
+    let row = repo
+        .get(id, DerivativeKind::Poster)
+        .await
+        .unwrap()
+        .expect("row");
+    assert_eq!(row.state, DerivativeState::Failed, "the row stays failed");
+    assert_eq!(row.reason.as_deref(), Some("no"));
+
+    assert!(
+        repo.retry(id, DerivativeKind::Poster).await.unwrap(),
+        "a retry by hand has no limit"
+    );
+}
+
 #[tokio::test]
 async fn deleting_the_media_removes_its_rows() {
     let pool = common::memory().await;

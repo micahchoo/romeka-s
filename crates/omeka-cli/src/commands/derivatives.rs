@@ -81,6 +81,12 @@ impl RedoKind {
     }
 }
 
+/// How many runs `--retry` gives a copy before it leaves the copy failed. The
+/// office worker passes `--retry` every hour, so without a limit an original
+/// its tool can never read would cost a run on every pass for ever. A person's
+/// Retry has no limit.
+pub const RETRY_ATTEMPTS: u32 = 3;
+
 /// Input for `romeka media derivatives`.
 #[derive(Debug, Clone)]
 pub struct DerivativeOptions {
@@ -88,7 +94,8 @@ pub struct DerivativeOptions {
     pub database: Location,
     /// Store root (`file_store.local.base_path`). Defaults to `files` beside the database.
     pub store: Option<PathBuf>,
-    /// Re-queue rows a tool failed on or skipped, instead of leaving them.
+    /// Re-queue rows a tool failed on or skipped, instead of leaving them. A
+    /// row that failed [`RETRY_ATTEMPTS`] times stays failed.
     pub retry: bool,
     /// Make ready copies again, of every kind or of one target kind. The old
     /// copy stays until the worker writes the new one over it.
@@ -104,6 +111,8 @@ pub struct DerivativeReport {
     pub queued: usize,
     /// Failed or skipped rows this run put back in the queue.
     pub retried: usize,
+    /// Failed rows `--retry` left, because they failed [`RETRY_ATTEMPTS`] times.
+    pub given_up: usize,
     /// Ready copies this run asked a worker to make again.
     pub redone: usize,
     /// Rows already waiting for a worker.
@@ -218,13 +227,18 @@ async fn access(
             return Ok(());
         }
     };
-    if options.retry
-        && with_db!(pool, |db| MediaDerivativeRepo::new(db)
-            .retry(id, DerivativeKind::AccessCopy)
+    if options.retry {
+        if with_db!(pool, |db| MediaDerivativeRepo::new(db)
+            .retry_within(id, DerivativeKind::AccessCopy, RETRY_ATTEMPTS)
             .await)?
-    {
-        report.retried += 1;
-        return Ok(());
+        {
+            report.retried += 1;
+            return Ok(());
+        }
+        if row.state == DerivativeState::Failed {
+            report.given_up += 1;
+            return Ok(());
+        }
     }
     if let Some(redo) = options.redo
         && redo_matches(media, redo)
@@ -268,12 +282,12 @@ async fn preview(
     };
     if retry && row.state == DerivativeState::Failed {
         if with_db!(pool, |db| MediaDerivativeRepo::new(db)
-            .retry(id, kind)
+            .retry_within(id, kind, RETRY_ATTEMPTS)
             .await)?
         {
             report.retried += 1;
         } else {
-            report.waiting += 1;
+            report.given_up += 1;
         }
         return Ok(());
     }
