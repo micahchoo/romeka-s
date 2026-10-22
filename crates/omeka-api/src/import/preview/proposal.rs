@@ -435,7 +435,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         .zip(&rows)
         .map(|(cut, rows)| rows.items.is_none().then_some(&cut.chosen.key))
         .collect();
-    let levels = tree(&series, &keys, &rows, &Sets::default());
+    let levels = tree(evidence.structure, &series, &keys, &rows, &Sets::default());
     let plan = match Structure::build(levels, found.left.clone(), evidence.sources) {
         Ok(structure) => ImportPlan {
             structure,
@@ -484,7 +484,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         || found_sets.series.iter().any(|sets| {
             !sets.taken.is_empty() || sets.folder.as_ref().is_some_and(|folder| folder.chosen)
         }) {
-        let levels = tree(&series, &keys, &rows, &found_sets);
+        let levels = tree(evidence.structure, &series, &keys, &rows, &found_sets);
         match Structure::build(levels, found.left.clone(), evidence.sources) {
             Ok(structure) => ImportPlan { structure, ..plan },
             Err(_) => plan,
@@ -771,7 +771,7 @@ fn in_scan(evidence: &Evidence<'_>, edit: &Edit) -> bool {
 }
 
 /// What a series holds beyond its scope and pattern: its lists as the plan
-/// reads them, its set from rows, and its key rules.
+/// reads them, its set from rows, and its slot rules.
 #[derive(Default)]
 struct Plan {
     lists: Vec<SheetPlan>,
@@ -783,48 +783,72 @@ impl Plan {
     /// Detector 4's choices for one series, each list with a sheet id not in
     /// `ids`: its file's path, and its source's id after it when another
     /// list has that path.
-    fn of(rows: &grain::SeriesRows, ids: &mut BTreeSet<SheetId>, taken: &[sets::Taken]) -> Self {
+    ///
+    /// The person's choices in `kept`, the plan's structure, stay: a list
+    /// the plan holds keeps how it is read and where its columns go, and
+    /// the series takes the slot rules of the plan's series that holds one
+    /// of its lists, else of the plan's series of the same scope. A rule
+    /// that reads a list this series does not hold is not taken, and the
+    /// key rules the rows need win over the person's.
+    fn of(
+        rows: &grain::SeriesRows,
+        ids: &mut BTreeSet<SheetId>,
+        taken: &[sets::Taken],
+        kept: &Structure,
+        scope: &SeriesScope,
+    ) -> Self {
         let mut of_file = BTreeMap::new();
-        let lists = rows
-            .lists
-            .iter()
-            .map(|list| {
-                let mut id = SheetId(list.file.file.as_str().to_owned());
-                if ids.contains(&id) {
-                    id.0.push_str(&list.file.source.0);
-                }
-                ids.insert(id.clone());
-                of_file.insert(list.file.clone(), id.clone());
-                let mut plan = candidates::automatic(&list.file.source, &list.file.file);
-                plan.id = id;
-                plan.row_kind = list.row_kind.clone();
-                plan.join = list.join.clone();
-                plan.item_key = list.item_key.clone();
-                let mut mapped = list.mapped.clone();
-                let split = taken.iter().filter_map(|taken| match &taken.column {
-                    Some((file, column)) if *file == list.file => Some(column),
-                    _ => None,
-                });
-                for column in split {
-                    if !mapped.contains(column) {
-                        mapped.push(column.clone());
+        let mut of_kept: BTreeMap<SheetId, SheetId> = BTreeMap::new();
+        let lists =
+            rows.lists
+                .iter()
+                .map(|list| {
+                    let mut id = SheetId(list.file.file.as_str().to_owned());
+                    if ids.contains(&id) {
+                        id.0.push_str(&list.file.source.0);
                     }
-                }
-                plan.columns = mapped
-                    .iter()
-                    .map(|column| ColumnPlan {
-                        column: column.clone(),
-                        options: ColumnOptions {
-                            split: None,
-                            value_type: ValueType::Literal,
-                            lang: None,
-                            private: false,
-                        },
-                    })
-                    .collect();
-                plan
-            })
-            .collect();
+                    ids.insert(id.clone());
+                    of_file.insert(list.file.clone(), id.clone());
+                    let mut plan = candidates::automatic(&list.file.source, &list.file.file);
+                    plan.id = id;
+                    plan.row_kind = list.row_kind.clone();
+                    plan.join = list.join.clone();
+                    plan.item_key = list.item_key.clone();
+                    let mut mapped = list.mapped.clone();
+                    let split = taken.iter().filter_map(|taken| match &taken.column {
+                        Some((file, column)) if *file == list.file => Some(column),
+                        _ => None,
+                    });
+                    for column in split {
+                        if !mapped.contains(column) {
+                            mapped.push(column.clone());
+                        }
+                    }
+                    let held = kept.lists().map(|(_, held)| held).find(|held| {
+                        held.source == list.file.source && held.file == list.file.file
+                    });
+                    let mut columns = held.map(|held| held.columns.clone()).unwrap_or_default();
+                    for column in mapped {
+                        if columns.iter().all(|kept| kept.column.index != column.index) {
+                            columns.push(ColumnPlan {
+                                column,
+                                options: ColumnOptions {
+                                    split: None,
+                                    value_type: ValueType::Literal,
+                                    lang: None,
+                                    private: false,
+                                },
+                            });
+                        }
+                    }
+                    plan.columns = columns;
+                    if let Some(held) = held {
+                        plan.read = held.read.clone();
+                        of_kept.insert(held.id.clone(), plan.id.clone());
+                    }
+                    plan
+                })
+                .collect();
         let column = |file: &ListFile, column: &ColumnRef| {
             Some(SourceRef::Column {
                 sheet: of_file.get(file)?.clone(),
@@ -841,20 +865,67 @@ impl Plan {
                 },
             }))
         });
-        let rules = rows
-            .keys
-            .iter()
-            .filter_map(|(kind, file, key)| {
-                let rule = SlotRule {
-                    sources: vec![column(file, key)?],
-                    combine: Combine::First,
-                    map: IndexMap::new(),
-                };
-                Some((*kind, SlotName::ItemKey, rule))
-            })
-            .collect();
+        let mut rules = kept_rules(kept, scope, &of_kept);
+        rules.extend(rows.keys.iter().filter_map(|(kind, file, key)| {
+            let rule = SlotRule {
+                sources: vec![column(file, key)?],
+                combine: Combine::First,
+                map: IndexMap::new(),
+            };
+            Some((*kind, SlotName::ItemKey, rule))
+        }));
         Self { lists, set, rules }
     }
+}
+
+/// The slot rules of the plan's series that holds a list of `of_kept` (the
+/// plan's sheet ids, each with this series' id for it), else of the plan's
+/// series of `scope`. Each list it reads is renamed to this series' id; a
+/// rule that reads another list is left behind.
+fn kept_rules(
+    kept: &Structure,
+    scope: &SeriesScope,
+    of_kept: &BTreeMap<SheetId, SheetId>,
+) -> Vec<(RecordKind, SlotName, SlotRule)> {
+    let each: Vec<&Series> = kept.all_series().map(|(_, series)| series).collect();
+    let held = each
+        .iter()
+        .find(|series| {
+            series
+                .lists()
+                .iter()
+                .any(|list| of_kept.contains_key(&list.id))
+        })
+        .or_else(|| each.iter().find(|series| series.scope() == scope));
+    let Some(held) = held else {
+        return Vec::new();
+    };
+    let renamed = |rule: &SlotRule| -> Option<SlotRule> {
+        let sources = rule
+            .sources
+            .iter()
+            .map(|source| match source {
+                SourceRef::Column { sheet, column } => Some(SourceRef::Column {
+                    sheet: of_kept.get(sheet)?.clone(),
+                    column: column.clone(),
+                }),
+                other => Some(other.clone()),
+            })
+            .collect::<Option<Vec<_>>>()?;
+        Some(SlotRule {
+            sources,
+            ..rule.clone()
+        })
+    };
+    [RecordKind::Item, RecordKind::Media, RecordKind::ItemSet]
+        .into_iter()
+        .flat_map(|kind| {
+            held.rules(kind)
+                .iter()
+                .filter(|(slot, _)| **slot != SlotName::Sets)
+                .filter_map(move |(slot, rule)| Some((kind, slot.clone(), renamed(rule)?)))
+        })
+        .collect()
 }
 
 /// The archive as found: one series per source, over the whole source.
@@ -882,6 +953,7 @@ fn as_found(evidence: &Evidence<'_>) -> Vec<folders::FolderSeries> {
 /// each other split is a set level around the series; a top set taken is a
 /// set level around everything.
 fn tree(
+    kept: &Structure,
     series: &[folders::FolderSeries],
     keys: &[Option<&Key>],
     rows: &[grain::SeriesRows],
@@ -896,7 +968,9 @@ fn tree(
         .enumerate()
         .map(|(at, ((one, key), rows))| {
             let sets = sets.series.get(at).unwrap_or(&none);
-            level(one, *key, Plan::of(rows, &mut ids, &sets.taken), sets)
+            let scope = SeriesScope::Folders(one.scopes.clone());
+            let plan = Plan::of(rows, &mut ids, &sets.taken, kept, &scope);
+            level(one, *key, plan, sets)
         })
         .collect();
     match &sets.top_taken {

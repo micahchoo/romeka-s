@@ -1,11 +1,13 @@
 #![allow(clippy::expect_used)]
 
-use super::bhc006_tests::proposal_with_lists;
+use super::bhc006_tests::{self, proposal_with_lists};
 use super::{Evidence, FoundList, ItemCut, NodeEvidence, Proposal, SeriesNode, propose};
 use crate::import::derive::tests::support::{JPEG, TIFF, catalog, index, plan};
 use crate::import::derive::{NoTags, Sheets, derive};
 use crate::import::placement::{ListFiles, Placement};
-use crate::import::plan::{Edit, FolderScope, ImportPlan, JoinOn, ListFile, RelPath, SourceId};
+use crate::import::plan::{
+    CutEdit, Edit, FolderScope, ImportPlan, JoinOn, ListFile, RelPath, SourceId,
+};
 use crate::import::preview::candidates::{CandidateRead, automatic};
 use crate::import::sheet;
 
@@ -360,4 +362,69 @@ fn a_box_list_pairs_folders_by_the_first_places_of_their_names() {
     let placement = Placement::of_model(&model, &confirmed, &ListFiles::new(&confirmed, &sheets));
     assert_eq!(placement.items.len(), 3, "each folder is one item");
     assert_eq!(placement.rows.len(), 3, "each reference names its folder");
+}
+
+#[test]
+fn a_new_proposal_keeps_the_column_choices_of_its_list() {
+    // The person's plan: the frozen BHC006 tree, where each column of the
+    // Artifacts list goes, read without trimming.
+    let mut kept: serde_json::Value =
+        serde_json::from_str(include_str!("../../fixtures/v3/bhc006.json")).expect("json");
+    let artifacts = kept["structure"]["levels"][0]["levels"][0].clone();
+    assert_eq!(artifacts["lists"][0]["file"], "BHC006_GMT_AF.xlsx");
+    kept["structure"]["levels"][0]["levels"][0]["lists"][0]["read"]["trim"] = false.into();
+    let kept = ImportPlan::from_json(&kept.to_string()).expect("the person's plan");
+    let index = bhc006_tests::index();
+    let lists = bhc006_tests::lists();
+    let catalog = bhc006_tests::install();
+    let evidence = Evidence {
+        index: &index,
+        lists: &lists,
+        catalog: &catalog,
+        sources: &kept.sources,
+        structure: &kept.structure,
+    };
+    // A click on Items after the person chose where each column goes.
+    let proposal = propose(
+        &evidence,
+        &[Edit::Items {
+            scope: FolderScope {
+                source: SourceId("s1".into()),
+                folder: RelPath::parse("Artifacts").expect("a folder"),
+            },
+            cut: CutEdit::Whole,
+        }],
+    );
+    assert!(proposal.edits[0].applied);
+
+    let structure = serde_json::to_value(&proposal.structure).expect("json");
+    let mut series = Vec::new();
+    collect_series(&structure["levels"], &mut series);
+    let proposed = series
+        .into_iter()
+        .find(|one| one["lists"][0]["file"] == "BHC006_GMT_AF.xlsx")
+        .expect("the series the list describes");
+    let list = &proposed["lists"][0];
+    assert_eq!(
+        list["columns"], artifacts["lists"][0]["columns"],
+        "where each column goes"
+    );
+    assert_eq!(list["read"]["trim"], false, "how it is read");
+    let renamed = artifacts["slots"]
+        .to_string()
+        .replace("\"sheet\":\"af\"", &format!("\"sheet\":{}", list["id"]));
+    assert_eq!(
+        proposed["slots"].to_string(),
+        renamed,
+        "the slot rules that read it, on this proposal's sheet id"
+    );
+}
+
+fn collect_series<'v>(levels: &'v serde_json::Value, out: &mut Vec<&'v serde_json::Value>) {
+    for level in levels.as_array().into_iter().flatten() {
+        match level["kind"].as_str() {
+            Some("series") => out.push(level),
+            _ => collect_series(&level["levels"], out),
+        }
+    }
 }

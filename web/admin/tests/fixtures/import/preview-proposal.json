@@ -920,7 +920,34 @@
           "kind": "series",
           "lists": [
             {
-              "columns": [],
+              "columns": [
+                {
+                  "column": {
+                    "header": "Title",
+                    "index": 1
+                  },
+                  "options": {
+                    "lang": "en",
+                    "private": false,
+                    "split": null,
+                    "type": "literal"
+                  }
+                },
+                {
+                  "column": {
+                    "header": "Date",
+                    "index": 2
+                  },
+                  "options": {
+                    "lang": null,
+                    "private": false,
+                    "split": "|",
+                    "type": {
+                      "dataType": "edtf"
+                    }
+                  }
+                }
+              ],
               "file": "register.csv",
               "hash": null,
               "id": "register.csv",
@@ -959,9 +986,77 @@
             "title": "Artifacts"
           },
           "slots": {
-            "item": {},
+            "item": {
+              "dcterms:date": {
+                "combine": "all",
+                "sources": [
+                  {
+                    "column": {
+                      "header": "Date",
+                      "index": 2
+                    },
+                    "from": "column",
+                    "sheet": "register.csv"
+                  }
+                ]
+              },
+              "dcterms:title": {
+                "combine": "first",
+                "sources": [
+                  {
+                    "column": {
+                      "header": "Title",
+                      "index": 1
+                    },
+                    "from": "column",
+                    "sheet": "register.csv"
+                  },
+                  {
+                    "from": "group",
+                    "name": "identifier"
+                  }
+                ]
+              },
+              "local:shelfMark": {
+                "combine": "all",
+                "sources": [
+                  {
+                    "from": "folder",
+                    "level": 1
+                  },
+                  {
+                    "from": "folder",
+                    "level": "path"
+                  }
+                ]
+              },
+              "template": {
+                "combine": "first",
+                "sources": [
+                  {
+                    "from": "constant",
+                    "value": "Artifact"
+                  }
+                ]
+              }
+            },
             "itemSet": {},
-            "media": {}
+            "media": {
+              "dcterms:title": {
+                "combine": "first",
+                "sources": [
+                  {
+                    "fact": "name",
+                    "from": "file"
+                  },
+                  {
+                    "files": "first",
+                    "from": "tag",
+                    "tag": "File name"
+                  }
+                ]
+              }
+            }
           }
         },
         {

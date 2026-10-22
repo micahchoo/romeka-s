@@ -537,6 +537,12 @@ impl Series {
         self.grouping.case_fold
     }
 
+    /// Which files the series takes.
+    #[must_use]
+    pub fn scope(&self) -> &SeriesScope {
+        &self.scope
+    }
+
     /// The lists that describe this series.
     #[must_use]
     pub fn lists(&self) -> &[SheetPlan] {
