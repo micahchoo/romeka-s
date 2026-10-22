@@ -17,6 +17,7 @@ import { useListsText } from './messages';
 import { loadProperties } from './catalog';
 import { readCsv } from '../csv-records';
 import { ListDrop } from './list-drop';
+import { seriesOf, withSeries } from '../series';
 
 /** The columns the server takes besides properties (`template.rs`, `ListColumn`). */
 const SLOT_COLUMNS = ['sets', 'template', 'visibility'] as const;
@@ -48,15 +49,16 @@ const withoutSheet = (rules: SlotRules, sheet: string): SlotRules => {
 };
 
 /** The plan without a list: its sheet and every field source that reads it. */
-export const removeSheet = (plan: ImportPlan, sheet: string): ImportPlan => ({
-  ...plan,
-  sheets: plan.sheets.filter((one) => one.id !== sheet),
-  slots: { item: withoutSheet(plan.slots.item, sheet), media: withoutSheet(plan.slots.media, sheet), itemSet: withoutSheet(plan.slots.itemSet, sheet) },
-});
+export const removeSheet = (plan: ImportPlan, sheet: string): ImportPlan =>
+  withSeries(plan, (series) => ({
+    ...series,
+    lists: series.lists.filter((one) => one.id !== sheet),
+    slots: { item: withoutSheet(series.slots.item, sheet), media: withoutSheet(series.slots.media, sheet), itemSet: withoutSheet(series.slots.itemSet, sheet) },
+  }));
 
 /** What an added list did, counted by the server. */
 export const readUpload = async (before: ImportPlan, after: ImportDetail): Promise<UploadResult> => {
-  const added = after.plan.sheets.find((sheet) => !before.sheets.some((old) => old.id === sheet.id));
+  const added = seriesOf(after.plan).lists.find((sheet) => !seriesOf(before).lists.some((old) => old.id === sheet.id));
   if (added === undefined) {
     throw new Error('The import has no new list.');
   }

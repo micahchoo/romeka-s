@@ -25,6 +25,7 @@ import { folderSheets } from './list-read';
 import { MasterDetail, Segmented } from './master-detail';
 import { useSimpleText } from './messages';
 import type { SimpleMessageKey } from './messages';
+import { seriesOf, withSeries } from '../series';
 import './simple.css';
 
 const keyOf = (candidate: ListCandidate): string => `${candidate.source}/${candidate.file}`;
@@ -113,7 +114,9 @@ const HeaderLine = ({ sheet, view }: { readonly sheet: SheetPlan; readonly view:
           onChange={(event) => {
             const line = Number(event.target.value);
             if (Number.isInteger(line) && line >= 1) {
-              draft.change((plan) => ({ ...plan, sheets: plan.sheets.map((one) => (one.id === sheet.id ? { ...one, read: { ...one.read, headerLine: line } } : one)) }));
+              draft.change((plan) =>
+                withSeries(plan, (series) => ({ ...series, lists: series.lists.map((one) => (one.id === sheet.id ? { ...one, read: { ...one.read, headerLine: line } } : one)) })),
+              );
             }
           }}
         />
@@ -199,7 +202,7 @@ const Inspector = ({ candidate, read }: { readonly candidate: ListCandidate; rea
   const view = sheet === null ? undefined : read.sheets.find((one) => one.id === sheet.id);
   const counts: ListCounts | null =
     sheet === null ? null : { grain: candidate.grain, matches: read.columnMatches.find((one) => one.sheet === sheet.id), cells: candidate.cells };
-  const overlaps = candidate.overlaps.filter((overlap) => draft.plan.sheets.some((one) => one.source === overlap.source && one.file === overlap.file));
+  const overlaps = candidate.overlaps.filter((overlap) => seriesOf(draft.plan).lists.some((one) => one.source === overlap.source && one.file === overlap.file));
   const { name, folder } = nameOf(candidate.file);
   const encoding = view === undefined ? null : encodingWords(view, t);
   return (

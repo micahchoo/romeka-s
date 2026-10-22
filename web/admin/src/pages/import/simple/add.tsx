@@ -21,6 +21,7 @@ import type { CauseId } from './causes';
 import { readState, withState } from './example-state';
 import { useSimpleText } from './messages';
 import type { SimpleMessageKey } from './messages';
+import { seriesOf } from '../series';
 import './simple.css';
 
 const ACTION_WORDS: Readonly<Record<Action, SimpleMessageKey>> = {
@@ -67,7 +68,7 @@ export const SimpleSummary = ({ check }: { readonly check: Check }): ReactElemen
   const out = left(check);
   const back = <a href={placeHref(draft.id, { mode: 'simple', screen: 'check' })}>{t('guided.add.titleChange')}</a>;
   const advanced = placeHref(draft.id, { mode: 'advanced', screen: 'existing' });
-  const fileRows = draft.plan.sheets.filter((sheet) => sheet.rowKind === 'media');
+  const fileRows = seriesOf(draft.plan).lists.filter((sheet) => sheet.rowKind === 'media');
   const facts: readonly (Fact | null)[] = [
     {
       label: 'guided.add.does',
@@ -93,7 +94,7 @@ export const SimpleSummary = ({ check }: { readonly check: Check }): ReactElemen
     check.newTypes.length === 0 ? null : { label: 'guided.add.newTypes', value: <Names names={check.newTypes.map((type) => type.label)} /> },
     check.newFields.length === 0 ? null : { label: 'guided.add.newFields', value: <Names names={check.newFields.map((field) => field.label)} /> },
     check.withoutTemplate === 0 ? null : { label: 'guided.add.noType', value: number(check.withoutTemplate) },
-    fromCode(draft.plan.slots.item['dcterms:title'])
+    fromCode(seriesOf(draft.plan).slots.item['dcterms:title'])
       ? {
           label: 'guided.add.titles',
           value: (

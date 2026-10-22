@@ -6,10 +6,12 @@
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { asRecord } from '../src/api/parse';
+import { asRecord, isRecord, isUnknownArray } from '../src/api/parse';
+import { loadFixture } from './loadFixture';
 import { ImportPage } from '../src/pages/import/page';
 import { countOf, hasFile, listsServer, pad, PATH } from './import-lists-server';
-import { installFetch, requestBody, requestsFor } from './stub';
+import { installFetch, jsonResponse, requestBody, requestsFor } from './stub';
+import type { Handler } from './stub';
 
 const at = (...rest: readonly string[]) => <ImportPage param="1" rest={['1', ...rest]} />;
 
@@ -121,5 +123,35 @@ describe('an address with a filter', () => {
       const asked = requestsFor(fetchMock, `${PATH}/preview`).map(requestBody).filter((body) => JSON.stringify(body['include']) === '["records"]');
       expect(asked[0]?.['records']).toEqual({ kind: 'item', files: '0', page: 1, perPage: 50 });
     });
+  }, 20_000);
+});
+
+describe('the sets column of Every item', () => {
+  it("shows a set's title where the server sends one, and the value where it does not", async () => {
+    const answer = asRecord(loadFixture('import/preview-records.json'), []);
+    const records = asRecord(answer['records'], []);
+    const [first] = isUnknownArray(records['items']) ? records['items'] : [];
+    const record = asRecord(first, []);
+    const slots = asRecord(record['slots'], []);
+    const [found] = isUnknownArray(slots['sets']) ? slots['sets'] : [];
+    const byId = { ...asRecord(found, []), text: '42', label: 'Citizen Curators' };
+    const items = [
+      { ...record, id: 1, slots: { ...slots, sets: [byId, found] } },
+      { ...record, id: 2, slots: { ...slots, sets: [{ ...byId, text: '43', label: null }] } },
+    ];
+    const server = listsServer(2);
+    const handler: Handler = (url, init) => {
+      const body = asRecord(JSON.parse(typeof init?.body === 'string' ? init.body : '{}'), []);
+      if (url.pathname === `${PATH}/preview` && JSON.stringify(body['include']) === '["records"]') {
+        const page = isRecord(body['records']) ? body['records'] : {};
+        return jsonResponse({ sources: answer['sources'], pattern: answer['pattern'], records: { total: 2, page: page['page'] ?? 1, perPage: page['perPage'] ?? 50, items } });
+      }
+      return server.handler(url, init);
+    };
+    installFetch(handler);
+    render(at('simple', 'all-items'));
+    expect(await screen.findByText('Citizen Curators, Artifacts')).toBeInTheDocument();
+    expect(screen.getByText('43')).toBeInTheDocument();
+    expect(screen.queryByText(/42/)).not.toBeInTheDocument();
   }, 20_000);
 });

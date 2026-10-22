@@ -24,6 +24,7 @@ import { withRowKind } from '../simple/list-plan';
 import type { ListCounts } from '../simple/list-plan';
 import { NO_NORMALIZE, setItemKey, setJoin, setJoinColumn, setRead, setRowKindColumn } from './plan-edits';
 import { Setting } from './setting';
+import { seriesOf } from '../series';
 import './advanced.css';
 
 const RoundTrip = lazy(() => import('../lists/round-trip'));
@@ -338,12 +339,13 @@ export const AdvancedLists = (): ReactElement => {
   const draft = useDraft();
   const read = usePreview(['sheets', 'columnMatches', 'unpaired', 'listCandidates'], { unpaired: { rows: { perPage: 1 }, files: { perPage: 1 } } });
   const data = read.status === 'ready' ? read.data : null;
+  const { lists } = seriesOf(draft.plan);
   return (
     <div className="adv-section" aria-busy={read.status === 'loading' || (read.status === 'ready' && read.busy)}>
       {read.status === 'error' ? <ErrorNotice error={read.error} /> : null}
       <ListPicker none={null} />
-      {draft.plan.sheets.length === 0 ? <p className="import-note">{t('adv.lists.none')}</p> : null}
-      {draft.plan.sheets.map((sheet) => {
+      {lists.length === 0 ? <p className="import-note">{t('adv.lists.none')}</p> : null}
+      {lists.map((sheet) => {
         const view = data?.sheets.find((one) => one.id === sheet.id);
         const matches = data?.columnMatches.find((one) => one.sheet === sheet.id);
         const candidate = data?.listCandidates.find((one) => one.inPlan === sheet.id);
@@ -366,7 +368,7 @@ export const AdvancedLists = (): ReactElement => {
           </section>
         );
       })}
-      {data === null || draft.plan.sheets.length === 0 ? null : (
+      {data === null || lists.length === 0 ? null : (
         <Setting label={t('adv.lists.unpaired.label')} plain={t('adv.lists.unpaired.plain')}>
           {() => (
             <p>

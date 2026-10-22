@@ -21,7 +21,7 @@ import {
   wordOr,
 } from './import-read';
 import { asSlotName, asTerm, parseEntryRef, parseFileRef, parseRowRef, parseValueType } from './import-plan-read';
-import type { EntryRef, FileRef, FlagKind, FlagPolicy, RecordKind, RowRef, SlotName, Term, ValueType, Visibility } from './import-plan';
+import type { EntryRef, FileRef, FlagKind, FlagPolicy, LevelId, RecordKind, RowRef, SlotName, Term, ValueType, Visibility } from './import-plan';
 import { FLAG_KINDS, FLAG_POLICIES, RECORD_KINDS } from './import-plan';
 import { ParseError, asNumber, asRecord, asString, brandId, isUnknownArray } from './parse';
 import type { Id, Parser, Path } from './types';
@@ -126,6 +126,8 @@ export interface ModelRecord {
 /** A record with the flags on it, as `records` and the shapes' samples answer it. */
 export interface RecordView extends ModelRecord {
   readonly flags: readonly Flag[];
+  /** The series whose rules the record follows; only in a plan of several series. */
+  readonly series?: LevelId;
 }
 
 export interface EntryState {
@@ -342,9 +344,13 @@ const recordFields = (object: Record<string, unknown>, path: Path): ModelRecord 
   fate: member(object, 'fate', path, parseFate),
 });
 
+/** The `series` member a plan of several series adds, absent in a plan of one. */
+export const seriesMember = (object: Record<string, unknown>, path: Path): { readonly series?: LevelId } =>
+  object['series'] === undefined ? {} : { series: text(object, 'series', path) };
+
 export const parseRecordView: Parser<RecordView> = (raw, path = []) => {
-  const object = strict(raw, path, [...RECORD_KEYS, 'flags']);
-  return { ...recordFields(object, path), flags: member(object, 'flags', path, list(parseFlag)) };
+  const object = strict(raw, path, [...RECORD_KEYS, 'flags'], ['series']);
+  return { ...recordFields(object, path), flags: member(object, 'flags', path, list(parseFlag)), ...seriesMember(object, path) };
 };
 
 const entryFields = (object: Record<string, unknown>, path: Path): EntryState => ({

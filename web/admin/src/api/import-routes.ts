@@ -10,8 +10,8 @@
  */
 import { KEY_CREDENTIAL_PARAM, KEY_IDENTITY_PARAM, currentKey } from './auth';
 import { ApiError, defaultBaseUrl } from './client';
-import { ImportConflictError, parseConflict } from './import-conflict';
-import type { ImportId, ImportPlan, SourcePlan } from './import-plan';
+import { ImportConflictError, SeriesRefusalError, parseConflict, parseSeriesRefusal } from './import-conflict';
+import type { ImportId, ImportPlan, LevelId, SourcePlan } from './import-plan';
 import { parseArchiveListing, parseHistory, parseImportDetail, parseJobStart, parsePairsAdded, parseScanResult } from './import-view';
 import type { ArchiveListing, History, ImportDetail, JobStart, PairsAdded, ScanResult } from './import-view';
 import { parseUndoPreview } from './import-undo';
@@ -45,6 +45,12 @@ export interface ImportApiOptions {
 
 const IMPORTS = '/api/romeka/imports';
 const one = (id: ImportId): string => `${IMPORTS}/${String(id)}`;
+
+const seriesParams = (series: LevelId | undefined): URLSearchParams =>
+  new URLSearchParams(series === undefined ? {} : { series });
+
+const templateParams = (columns: readonly string[], series: LevelId | undefined): URLSearchParams =>
+  new URLSearchParams({ columns: columns.join(','), ...(series === undefined ? {} : { series }) });
 
 const firstMessage = (errors: ApiErrors | null): string | null => {
   const messages = errors === null ? [] : [...(errors['error'] ?? []), ...Object.values(errors).flat()];
@@ -160,21 +166,25 @@ export class ImportApi {
     return this.text('GET', `${one(id)}/left.csv`);
   }
 
-  /** The list to fill in, one row per item record, with a column per term in `columns`. */
-  async templateCsv(id: ImportId, columns: readonly string[]): Promise<string> {
-    return this.text('GET', `${one(id)}/template.csv`, new URLSearchParams({ columns: columns.join(',') }));
+  /**
+   * The list to fill in, one row per item record of `series`, with a column
+   * per term in `columns`. A plan of several series needs `series`, else
+   * the server refuses it (`seriesRefusalOf`).
+   */
+  async templateCsv(id: ImportId, columns: readonly string[], series?: LevelId): Promise<string> {
+    return this.text('GET', `${one(id)}/template.csv`, templateParams(columns, series));
   }
 
   /** The address of the downloaded list, for a link: the browser saves the bytes as the server wrote them. */
-  templateUrl(id: ImportId, columns: readonly string[]): string {
-    return this.url(`${one(id)}/template.csv`, new URLSearchParams({ columns: columns.join(',') }));
+  templateUrl(id: ImportId, columns: readonly string[], series?: LevelId): string {
+    return this.url(`${one(id)}/template.csv`, templateParams(columns, series));
   }
 
-  /** A filled list (`.csv` or `.tsv`, at most 50 MB) added to the draft's plan as a sheet. */
-  async addList(id: ImportId, file: File): Promise<ImportDetail> {
+  /** A filled list (`.csv` or `.tsv`, at most 50 MB) added to `series` as a sheet; a plan of several series needs `series`. */
+  async addList(id: ImportId, file: File, series?: LevelId): Promise<ImportDetail> {
     const form = new FormData();
     form.append('file', file, file.name);
-    return parseImportDetail(await this.json('POST', `${one(id)}/sheets`, { form }));
+    return parseImportDetail(await this.json('POST', `${one(id)}/sheets`, { form, params: seriesParams(series) }));
   }
 
   /** The address of the pairs list, for a link: one line for each list row that names no file, with an empty Files column to fill. */
@@ -263,9 +273,11 @@ export class ImportApi {
     const errors = source === null ? null : await localizeServerErrors(source);
     const message = firstMessage(errors) ?? `HTTP ${String(response.status)}`;
     const conflict = response.status === 409 ? parseConflict(body) : null;
-    return conflict === null
-      ? new ApiError(response.status, errors, message, source)
-      : new ImportConflictError(conflict, errors, message, source);
+    if (conflict !== null) {
+      return new ImportConflictError(conflict, errors, message, source);
+    }
+    const refusal = response.status === 400 ? parseSeriesRefusal(body) : null;
+    return refusal === null ? new ApiError(response.status, errors, message, source) : new SeriesRefusalError(refusal, errors, message, source);
   }
 }
 
