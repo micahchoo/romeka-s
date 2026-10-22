@@ -68,6 +68,9 @@ impl KeyShape {
 pub enum Key {
     /// Each name is one item.
     Whole,
+    /// Each file is one item, keyed by its folders and its name, so the same
+    /// name in two folders is two items.
+    Path,
     /// The key is the name's first places, of this shape.
     Places(KeyShape),
     /// The key is the folder this many levels under the scope.
@@ -103,6 +106,12 @@ impl Key {
                     out.concat()
                 }
             },
+            // A name place cannot be read beside the folders, so a set
+            // place is not captured.
+            Self::Path => [
+                START, NAMED, IDENTIFIER, NAMED_END, FOLDERS, REST, CLOSE, ENDING, END,
+            ]
+            .concat(),
             Self::Places(shape) => {
                 let mut out = vec![START, FOLDERS, SEPARATORS, NAMED, IDENTIFIER, NAMED_END];
                 let set_at = set.and_then(|set| set.0.len().checked_sub(1));

@@ -95,6 +95,19 @@ fn group<'n>(names: &'n [Name<'_>], key: &Key) -> Grouped<'n> {
     for name in names {
         let folders = name.folders.len();
         let found = match key {
+            Key::Path => Some((
+                name.folders
+                    .iter()
+                    .map(String::as_str)
+                    .chain([name.stem])
+                    .collect(),
+                Part {
+                    text: None,
+                    places: 0,
+                    extension: name.extension,
+                    folders,
+                },
+            )),
             Key::Whole => Some((
                 vec![name.stem],
                 Part {
@@ -258,35 +271,66 @@ fn first_valid(names: &[Name<'_>]) -> Option<Cut> {
     None
 }
 
-/// The cut of the archive as found: each name an item, or, when whole
-/// names collide, the folder the colliding files are in.
+/// The cut of the archive as found: each name an item. When whole names
+/// collide, the same name is in two folders: then the folder the colliding
+/// files are in is the item when every folder there restarts its names
+/// (each folder of several files holds a name another folder holds, as
+/// page numbers do), and is only part of each file's key otherwise (a
+/// camera counter that restarted once).
 fn as_found(names: &[Name<'_>]) -> (Cut, Option<Cut>) {
     let whole = group(names, &Key::Whole);
-    let whole = (
-        whole.counted(),
-        whole.collisions().map(|part| part.folders).min(),
-    );
-    let whole_cut = Cut {
-        item: ItemCut::Whole,
-        key: Key::Whole,
-        counts: whole.0,
-    };
     let depth = whole
-        .1
+        .collisions()
+        .map(|part| part.folders)
+        .min()
         .and_then(|depth| u8::try_from(depth).ok())
         .filter(|depth| *depth > 0);
-    match depth {
-        Some(depth) => {
-            let key = Key::Folder(depth);
-            let folder = Cut {
-                item: ItemCut::Folder { depth },
-                counts: group(names, &key).counted(),
-                key,
-            };
-            (folder, Some(whole_cut))
-        }
-        None => (whole_cut, None),
+    let Some(depth) = depth else {
+        let whole = Cut {
+            item: ItemCut::Whole,
+            key: Key::Whole,
+            counts: whole.counted(),
+        };
+        return (whole, None);
+    };
+    let each_file = Cut {
+        item: ItemCut::Whole,
+        counts: group(names, &Key::Path).counted(),
+        key: Key::Path,
+    };
+    let key = Key::Folder(depth);
+    let folder = Cut {
+        item: ItemCut::Folder { depth },
+        counts: group(names, &key).counted(),
+        key,
+    };
+    if every_folder_restarts(names, usize::from(depth)) {
+        (folder, Some(each_file))
+    } else {
+        (each_file, Some(folder))
     }
+}
+
+/// Whether each folder `depth` levels down that holds several files holds
+/// a name (with its extension) that another folder there holds too.
+fn every_folder_restarts(names: &[Name<'_>], depth: usize) -> bool {
+    let mut by_folder: BTreeMap<&[String], BTreeSet<(&str, Option<&str>)>> = BTreeMap::new();
+    for name in names.iter().filter(|name| name.folders.len() >= depth) {
+        by_folder
+            .entry(&name.folders[..depth])
+            .or_default()
+            .insert((name.stem, name.extension));
+    }
+    let mut holders: BTreeMap<(&str, Option<&str>), usize> = BTreeMap::new();
+    for held in by_folder.values() {
+        for name in held {
+            *holders.entry(*name).or_default() += 1;
+        }
+    }
+    by_folder
+        .values()
+        .filter(|held| held.len() > 1)
+        .all(|held| held.iter().any(|name| holders[name] > 1))
 }
 
 /// Whether a key that fits `files` of `of` media fits enough of them for
@@ -322,7 +366,7 @@ pub(super) fn same_as_sibling(cuts: &mut [SeriesCut], names: &[Vec<Name<'_>>]) {
         .iter()
         .map(|cut| match &cut.chosen.key {
             Key::Places(shape) => Some(shape.clone()),
-            Key::Whole | Key::Folder(_) => None,
+            Key::Whole | Key::Path | Key::Folder(_) => None,
         })
         .collect();
     for (at, cut) in cuts.iter_mut().enumerate() {
@@ -353,7 +397,7 @@ pub(super) fn same_as_sibling(cuts: &mut [SeriesCut], names: &[Vec<Name<'_>>]) {
 
 fn asks_for(cut: &Cut, edit: &CutEdit) -> bool {
     match (edit, &cut.key) {
-        (CutEdit::Whole, Key::Whole) => true,
+        (CutEdit::Whole, Key::Whole | Key::Path) => true,
         (CutEdit::Places { places }, Key::Places(shape)) => shape.len() == usize::from(*places),
         (CutEdit::Folder { depth }, Key::Folder(found)) => depth == found,
         _ => false,
@@ -407,7 +451,7 @@ pub(super) fn place_values<'n>(names: &'n [Name<'_>], key: &Key) -> Vec<PlaceVal
             Key::Places(shape) if shape.starts(&name.places) && name.extension.is_some() => {
                 &name.places[..shape.len()]
             }
-            Key::Places(_) | Key::Folder(_) => continue,
+            Key::Places(_) | Key::Path | Key::Folder(_) => continue,
         };
         let (Some(first), Some(last)) = (held.first(), held.last()) else {
             continue;

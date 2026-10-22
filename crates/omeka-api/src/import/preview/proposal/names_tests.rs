@@ -11,6 +11,7 @@ use crate::import::derive::tests::scenarios::{S1_TO_S8, Scenario};
 use crate::import::derive::tests::support::{JPEG, catalog, index, plan};
 use crate::import::derive::{NoTags, Sheets, derive};
 use crate::import::grouping::pattern::FilePattern;
+use crate::import::placement::{ListFiles, Placement};
 use crate::import::plan::{CutEdit, Edit, FolderScope, ImportPlan, RelPath, SetFrom, SourceId};
 use crate::import::preview::facts::Bucket;
 
@@ -293,4 +294,79 @@ fn a_pattern_matches_the_names_its_key_shape_fits() {
     assert_eq!(groups["identifier"].text, "Box 1/Folder 1");
     assert_eq!(groups["part"].text, "0001");
     assert!(folder.groups("Box 1/0001.tif").is_none());
+}
+
+/// The items `proposal` makes, each as its files.
+fn items_of(scenario: &Scenario, proposal: &Proposal) -> Vec<Vec<String>> {
+    let plan = ImportPlan {
+        structure: proposal.structure.clone(),
+        ..scenario.plan.clone()
+    };
+    let model = derive(
+        &scenario.index,
+        &Sheets::new(),
+        &plan,
+        &scenario.catalog,
+        &NoTags,
+    );
+    let placement = Placement::of_model(&model, &plan, &ListFiles::new(&plan, &Sheets::new()));
+    placement
+        .items
+        .values()
+        .map(|files| {
+            files
+                .iter()
+                .map(|(_, path)| path.as_str().to_owned())
+                .collect()
+        })
+        .collect()
+}
+
+#[test]
+fn a_restarted_counter_keeps_each_photo_an_item() {
+    let files = [
+        ("DCIM/2019-07-14/IMG_0001.JPG", JPEG),
+        ("DCIM/2019-07-14/IMG_0002.JPG", JPEG),
+        ("DCIM/2019-07-14/IMG_0003.JPG", JPEG),
+        ("DCIM/2019-08-02/IMG_0004.JPG", JPEG),
+        ("DCIM/2019-08-02/IMG_0005.JPG", JPEG),
+        ("DCIM/2020-01-05/IMG_0001.JPG", JPEG),
+        ("DCIM/2020-01-05/IMG_0002.JPG", JPEG),
+    ];
+    let scenario = Scenario {
+        index: index(&files),
+        sheets: Sheets::new(),
+        plan: plan(|_| {}),
+        catalog: catalog(),
+    };
+    let proposal = of(&scenario, &[]);
+    let camera = series(&proposal, "");
+    assert_eq!(
+        camera.items.chosen.value,
+        ItemCut::Whole,
+        "2019-08-02 holds two names no other folder holds, so the counter only restarted"
+    );
+    assert_eq!(camera.items.chosen.counts.items, 7);
+    assert_eq!(
+        camera.items.rival.as_ref().map(|rival| &rival.value),
+        Some(&ItemCut::Folder { depth: 2 })
+    );
+    assert!(
+        items_of(&scenario, &proposal)
+            .iter()
+            .all(|files| files.len() == 1),
+        "the same name in two folders is two photos"
+    );
+
+    let s4 = shape("s4");
+    let boxes = of(&s4, &[]);
+    assert_eq!(
+        series(&boxes, "")
+            .items
+            .rival
+            .as_ref()
+            .map(|rival| (&rival.value, rival.counts.items)),
+        Some((&ItemCut::Whole, 5)),
+        "each folder restarts its pages, so the folder is the item; each file is the rival"
+    );
 }
