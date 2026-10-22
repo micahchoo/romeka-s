@@ -222,6 +222,8 @@ export const hi: ImportListsMessages = {
   'lists.picker.declined': 'अस्वीकार कर दिया',
   'lists.picker.offered': 'उपयोग नहीं किया',
   'lists.picker.unreadable': 'नहीं पढ़ा',
+  'lists.picker.usedBy': '{folder} द्वारा उपयोग किया गया',
+  'lists.picker.move': 'यहाँ ले जाएँ',
   'lists.picker.byNames':
     '“{column}” द्वारा, {rows} में से {count} पंक्तियाँ किसी फ़ाइल का नाम बताती हैं।',
   'lists.picker.byCodes':

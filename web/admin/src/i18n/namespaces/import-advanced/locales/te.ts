@@ -79,6 +79,7 @@ export const te: ImportAdvancedMessages = {
   'adv.files.pattern.syntax': 'రెజెక్స్‌ను చదవడం సాధ్యం కాలేదు: {message}',
   'adv.files.fit.counting': 'లెక్కించడం...',
   'adv.files.fit.unread': 'లెక్కింపును చదవడం సాధ్యం కాలేదు: {message}',
+  'adv.files.fit.gone': 'ఫైల్‌లకు ఇప్పుడు {folder} ఫోల్డర్ లేదు.',
   'adv.files.fit.count':
     '{files} ఫైల్‌లలో {fit} సరిపోతాయి. సరిపోయే ఫైల్‌లు {items} వస్తువులను చేస్తాయి.',
   'adv.files.fit.unfit': '{count} సరిపోవు.',

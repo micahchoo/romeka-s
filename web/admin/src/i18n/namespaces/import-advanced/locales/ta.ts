@@ -83,6 +83,7 @@ export const ta: ImportAdvancedMessages = {
   'adv.files.pattern.syntax': 'regex-ஐ வாசிக்க முடியாது: {message}',
   'adv.files.fit.counting': 'எண்ணுதல்...',
   'adv.files.fit.unread': 'எண்ணிக்கைகளைப் படிக்க முடியவில்லை: {message}',
+  'adv.files.fit.gone': 'கோப்புகளில் இப்போது {folder} கோப்புறை இல்லை.',
   'adv.files.fit.count':
     '{files} கோப்புகளில் {fit} பொருந்துகிறது. பொருந்தும் கோப்புகள் {items} உருப்படிகளை உருவாக்குகின்றன.',
   'adv.files.fit.unfit': '{count} பொருந்தவில்லை.',

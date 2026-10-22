@@ -78,6 +78,7 @@ export const hi: ImportAdvancedMessages = {
   'adv.files.pattern.syntax': 'रेगेक्स पढ़ा नहीं जा सकता: {message}',
   'adv.files.fit.counting': 'गणना...',
   'adv.files.fit.unread': 'गणना नहीं पढ़ी जा सकी: {message}',
+  'adv.files.fit.gone': 'फ़ाइलों में अब {folder} फोल्डर नहीं है।',
   'adv.files.fit.count':
     '{files} फ़ाइलों में से {fit} फिट होती हैं। फिट होने वाली फ़ाइलें {items} आइटम बनाती हैं।',
   'adv.files.fit.unfit': '{count} फिट नहीं होते।',

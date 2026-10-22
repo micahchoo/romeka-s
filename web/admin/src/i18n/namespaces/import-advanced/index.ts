@@ -82,6 +82,7 @@ export const en = {
   'adv.files.pattern.syntax': 'The regex cannot be read: {message}',
   'adv.files.fit.counting': 'Counting...',
   'adv.files.fit.unread': 'The counts could not be read: {message}',
+  'adv.files.fit.gone': 'The files have no folder {folder} now.',
   'adv.files.fit.count': '{fit} of {files} files fit. The files that fit make {items} items.',
   'adv.files.fit.unfit': '{count} do not fit.',
   'adv.files.fit.unfitOne': '1 does not fit.',

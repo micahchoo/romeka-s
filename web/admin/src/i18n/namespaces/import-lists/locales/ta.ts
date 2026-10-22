@@ -234,6 +234,8 @@ export const ta: ImportListsMessages = {
   'lists.picker.declined': 'நிராகரிக்கப்பட்டது',
   'lists.picker.offered': 'பயன்படுத்தப்படவில்லை',
   'lists.picker.unreadable': 'படிக்கப்படவில்லை',
+  'lists.picker.usedBy': '{folder}-ஆல் பயன்படுத்தப்படுகிறது',
+  'lists.picker.move': 'இங்கே நகர்த்தவும்',
   'lists.picker.byNames':
     '“{column}” மூலம், {rows} வரிசைகளில் {count} வரிசைகள் ஒரு கோப்பைக் குறிப்பிடுகின்றன.',
   'lists.picker.byCodes':

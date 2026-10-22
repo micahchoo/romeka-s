@@ -218,6 +218,8 @@ export const es: ImportListsMessages = {
   'lists.picker.declined': 'Descartada',
   'lists.picker.offered': 'Sin usar',
   'lists.picker.unreadable': 'Sin leer',
+  'lists.picker.usedBy': 'Usada por {folder}',
+  'lists.picker.move': 'Moverla aquí',
   'lists.picker.byNames': '{count} de {rows} filas nombran un archivo, por «{column}».',
   'lists.picker.byCodes': '{count} de {rows} filas dan un código de elemento, por «{column}».',
   'lists.picker.loose': '+{count} sin mayúsculas, ceros ni _ - .',
