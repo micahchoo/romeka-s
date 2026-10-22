@@ -435,3 +435,53 @@ fn one_item_alone_in_its_series_proves_its_cut_by_its_own_pages() {
         "parts that differ before their last place are two kinds of code"
     );
 }
+
+#[test]
+fn every_cut_the_counts_prove_is_a_choice() {
+    let proposal = bhc006_tests::proposal(&[]);
+    let artifacts = series(&proposal, "Artifacts");
+    let others: Vec<(&ItemCut, usize)> = artifacts
+        .items
+        .others
+        .iter()
+        .map(|other| (&other.value, other.counts.items))
+        .collect();
+    assert_eq!(
+        others,
+        [(
+            &ItemCut::Places {
+                places: 6,
+                rule: CutRule::RecurringParts
+            },
+            649
+        )],
+        "the next valid cut past the chosen one and the rival"
+    );
+
+    let taken = bhc006_tests::proposal(&[Edit::Items {
+        scope: scope("Artifacts"),
+        cut: CutEdit::Places { places: 6 },
+    }]);
+    assert!(taken.edits[0].applied, "a choice past the rival applies");
+    let artifacts = series(&taken, "Artifacts");
+    assert_eq!(artifacts.items.chosen.counts.items, 649);
+    let rival = artifacts.items.rival.as_ref().expect("a rival");
+    assert_eq!(
+        (&rival.value, rival.counts.items),
+        (
+            &ItemCut::Places {
+                places: 5,
+                rule: CutRule::RecurringParts
+            },
+            318
+        ),
+        "the draft's cut is the rival, one click back"
+    );
+    let others: Vec<&ItemCut> = artifacts
+        .items
+        .others
+        .iter()
+        .map(|other| &other.value)
+        .collect();
+    assert_eq!(others, [&ItemCut::Whole]);
+}

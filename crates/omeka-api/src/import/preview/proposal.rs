@@ -182,12 +182,14 @@ pub struct SetNode {
     pub counts: SetCounts,
 }
 
-/// A choice the proposer made, and the next best choice.
+/// A choice the proposer made, the next best choice, and every other
+/// choice it counted. An edit may ask for any of them.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Choice<T, C> {
     pub chosen: Pick<T, C>,
     pub rival: Option<Pick<T, C>>,
+    pub others: Vec<Pick<T, C>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -515,7 +517,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
             .into_iter()
             .map(|offer| offer.pick)
             .collect();
-        let (item, counted, rival) = match &rows.items {
+        let (item, counted, rival, others) = match &rows.items {
             Some((list, key)) => (
                 ItemCut::Rows {
                     list: list.clone(),
@@ -523,14 +525,22 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
                 },
                 None,
                 Some(cut.chosen),
+                cut.rival.into_iter().chain(cut.others).collect(),
             ),
-            None => (cut.chosen.item, Some(cut.chosen.counts), cut.rival),
+            None => (
+                cut.chosen.item,
+                Some(cut.chosen.counts),
+                cut.rival,
+                cut.others,
+            ),
         };
         let items = cut_counts(&model, at, &scope, counted.as_ref());
-        let rival = rival.map(|rival| Pick {
-            counts: counted_counts(&rival.counts, scope.media),
-            value: rival.item,
-        });
+        let other_cut = |other: names::Cut| Pick {
+            counts: counted_counts(&other.counts, scope.media),
+            value: other.item,
+        };
+        let rival = rival.map(other_cut);
+        let others = others.into_iter().map(other_cut).collect();
         let folder = sets
             .folder
             .as_ref()
@@ -572,6 +582,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
                     counts: items,
                 },
                 rival,
+                others,
             },
             list: Choice {
                 chosen: here.joined.into_iter().next().map_or(
@@ -582,6 +593,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
                     list_pick,
                 ),
                 rival: here.rival.map(list_pick),
+                others: here.others.into_iter().map(list_pick).collect(),
             },
             grain: rows.grain,
             set: Choice {
@@ -596,6 +608,14 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
                     value: Some(rival.value),
                     counts: rival.counts,
                 }),
+                others: sets
+                    .others
+                    .into_iter()
+                    .map(|other| Pick {
+                        value: Some(other.value),
+                        counts: other.counts,
+                    })
+                    .collect(),
             },
             splits: sets.splits,
             pairing,

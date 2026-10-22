@@ -159,11 +159,124 @@ fn a_list_edit_takes_the_rival_or_no_list() {
         "only PN and Documents keep their lists"
     );
 
-    let not_offered = take(Some(file("BHC006_CC_SECOND_AF.xlsx")));
+    // A list that does not read describes nothing.
+    let not_offered = take(Some(file("Artifacts/BHC006_GMT_AF.ods")));
     assert!(not_offered.edits.iter().all(|edit| !edit.applied));
     assert_eq!(
         chosen(series(&not_offered, "Artifacts")),
         Some("BHC006_GMT_AF.xlsx")
+    );
+}
+
+#[test]
+fn a_list_not_used_describes_the_series_it_is_given_to() {
+    let artifacts = FolderScope {
+        source: SourceId("s1".into()),
+        folder: RelPath::parse("Artifacts").expect("a folder"),
+    };
+    let draft = proposal_with_lists(&[]);
+    let unused = file("BHC006_CC_SECOND_AF.xlsx");
+    assert!(
+        draft
+            .unattached
+            .iter()
+            .any(|list| list.source == unused.source && list.file == unused.file),
+        "no series is described by it"
+    );
+    let edit = Edit::List {
+        scope: artifacts,
+        list: Some(unused.clone()),
+    };
+    let used = proposal_with_lists(&[edit.clone(), edit]);
+    assert!(used.edits.iter().all(|edit| edit.applied), "twice is once");
+    let node = series(&used, "Artifacts");
+    assert_eq!(chosen(node), Some("BHC006_CC_SECOND_AF.xlsx"));
+    assert_eq!(
+        node.list
+            .rival
+            .as_ref()
+            .and_then(|rival| rival.value.as_ref())
+            .map(|list| list.file.as_str()),
+        Some("BHC006_GMT_AF.xlsx"),
+        "the draft's list is the rival, one click back"
+    );
+    assert!(
+        used.unattached.iter().all(|list| list.file != unused.file),
+        "it describes a series now"
+    );
+    assert!(
+        used.structure
+            .lists()
+            .any(|(_, list)| list.file == unused.file),
+        "the plan reads it"
+    );
+}
+
+#[test]
+fn every_list_that_pairs_rows_here_is_a_choice() {
+    let index = index(&[("Letters/ana.jpg", JPEG), ("Letters/ben.jpg", JPEG)]);
+    let plan = plan(|_| {});
+    let list = |path: &str, text: &str| {
+        let file = file(path);
+        let read = automatic(&file.source, &file.file).read;
+        FoundList {
+            sheet: sheet::read(text.as_bytes(), &read, None),
+            file,
+        }
+    };
+    let lists = vec![
+        list("both.csv", "File\nana.jpg\nben.jpg\n"),
+        list("ana.csv", "File\nana.jpg\n"),
+        list("ben.csv", "File\nben.jpg\n"),
+    ];
+    let catalog = catalog();
+    let evidence = Evidence {
+        index: &index,
+        lists: &lists,
+        catalog: &catalog,
+        sources: &plan.sources,
+        structure: &plan.structure,
+    };
+    let names = |node: &SeriesNode| -> Vec<Option<String>> {
+        std::iter::once(&node.list.chosen)
+            .chain(&node.list.rival)
+            .chain(&node.list.others)
+            .map(|pick| {
+                pick.value
+                    .as_ref()
+                    .map(|list| list.file.as_str().to_owned())
+            })
+            .collect()
+    };
+    let draft = propose(&evidence, &[]);
+    assert_eq!(
+        names(series(&draft, "s1")),
+        [
+            Some("both.csv".into()),
+            Some("ana.csv".into()),
+            Some("ben.csv".into())
+        ],
+        "the most paired first"
+    );
+    let taken = propose(
+        &evidence,
+        &[Edit::List {
+            scope: FolderScope {
+                source: SourceId("s1".into()),
+                folder: RelPath::root(),
+            },
+            list: Some(file("ben.csv")),
+        }],
+    );
+    assert!(taken.edits[0].applied, "a choice past the rival applies");
+    assert_eq!(
+        names(series(&taken, "s1")),
+        [
+            Some("ben.csv".into()),
+            Some("both.csv".into()),
+            Some("ana.csv".into())
+        ],
+        "the draft's list is the rival, one click back"
     );
 }
 

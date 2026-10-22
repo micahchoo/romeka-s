@@ -30,10 +30,11 @@ export interface Pick<T, C> {
   readonly counts: C;
 }
 
-/** A choice the proposer made, and the next best choice. */
+/** A choice the proposer made, the next best choice, and every other choice it counted; an edit may ask for any of them. */
 export interface Choice<T, C> {
   readonly chosen: Pick<T, C>;
   readonly rival: Pick<T, C> | null;
+  readonly others: readonly Pick<T, C>[];
 }
 
 /** The files a series or an outside folder takes. */
@@ -147,8 +148,12 @@ const parsePick =
 const parseChoice = <T, C>(value: (raw: unknown, path: Path) => T, counts: (raw: unknown, path: Path) => C) => {
   const pick = parsePick(value, counts);
   return (raw: unknown, path: Path): Choice<T, C> => {
-    const object = strict(raw, path, ['chosen', 'rival']);
-    return { chosen: member(object, 'chosen', path, pick), rival: member(object, 'rival', path, nullable(pick)) };
+    const object = strict(raw, path, ['chosen', 'rival', 'others']);
+    return {
+      chosen: member(object, 'chosen', path, pick),
+      rival: member(object, 'rival', path, nullable(pick)),
+      others: member(object, 'others', path, list(pick)),
+    };
   };
 };
 

@@ -50,9 +50,11 @@ fn kind(difference: &Difference) -> &'static str {
     }
 }
 
-/// Every click the proposal offers: on each series the rival of each
-/// question, leaving it out, no list, dropping its set, its splits and its
-/// pairing offers; the sets over every item; keeping each folder outside.
+/// Every click the proposal offers: on each series the rival and the other
+/// choices of each question, leaving it out, no list, dropping its set, its
+/// splits and its pairing offers; the sets over every item; keeping each
+/// folder outside. A list not used and a typed title are hand edits, not
+/// offered clicks.
 #[must_use]
 pub fn offered(proposal: &Proposal) -> Vec<Edit> {
     let mut out = Vec::new();
@@ -64,21 +66,17 @@ pub fn offered(proposal: &Proposal) -> Vec<Edit> {
         out.push(Edit::LeaveOut {
             scope: scope.clone(),
         });
-        if let Some(cut) = series
-            .items
-            .rival
-            .as_ref()
-            .and_then(|rival| cut(&rival.value))
-        {
+        let cuts = series.items.rival.iter().chain(&series.items.others);
+        for cut in cuts.filter_map(|pick| cut(&pick.value)) {
             out.push(Edit::Items {
                 scope: scope.clone(),
                 cut,
             });
         }
-        if let Some(rival) = &series.list.rival {
+        for list in series.list.rival.iter().chain(&series.list.others) {
             out.push(Edit::List {
                 scope: scope.clone(),
-                list: rival.value.clone(),
+                list: list.value.clone(),
             });
         }
         if series.list.chosen.value.is_some() {
@@ -118,6 +116,14 @@ pub fn offered(proposal: &Proposal) -> Vec<Edit> {
             out.push(Edit::AddSet {
                 from: split.value.clone(),
             });
+        }
+        for from in series
+            .set
+            .others
+            .iter()
+            .filter_map(|other| other.value.clone())
+        {
+            out.push(Edit::AddSet { from });
         }
         if let Some(list) = &series.list.chosen.value {
             for pair in &series.pairing {
