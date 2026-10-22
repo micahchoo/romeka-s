@@ -17,7 +17,7 @@
  * `withSlots` writes it back there. A set named by its title (`{ title }`)
  * or picked from the install (`{ id }`) is a free set of its own.
  */
-import type { ImportPlan, Level, LevelId, Series, SetLevel, SetSource, SheetPlan, SlotRule, Slots } from '../../api/import-plan';
+import type { ImportPlan, Level, LevelId, Series, SetLevel, SetSource, SheetPlan, SlotRule, Slots, Structure } from '../../api/import-plan';
 import type { JsonValue } from '../../api/types';
 
 /** A screen that edits one series was given a plan of several. */
@@ -86,6 +86,9 @@ export const withList = (plan: ImportPlan, sheet: string, edit: (list: SheetPlan
     ? plan
     : withSeries(plan, (series) => ({ ...series, lists: series.lists.map((one) => (one.id === sheet ? edit(one) : one)) }), holder.id);
 };
+
+/** The plan with this whole tree in place of its own: what the structure screen takes from a proposal. */
+export const withStructure = (plan: ImportPlan, structure: Structure): ImportPlan => ({ ...plan, structure });
 
 /** The free sets: sets every item joins, after the sets of its tree. */
 export const setsOf = (plan: ImportPlan): readonly SetSource[] => plan.structure.freeSets;

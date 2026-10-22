@@ -16,7 +16,7 @@ use crate::import::derive::tests::support::catalog;
 use crate::import::derive::{Index, IndexedSource, NoTags, Sheets, derive};
 use crate::import::evidence::{FileEntry, Walk, sniff};
 use crate::import::placement::{Difference, ListFiles, Placement, differences};
-use crate::import::plan::{Edit, ListFile};
+use crate::import::plan::{Edit, FolderScope, ListFile, RecordKind};
 use crate::import::plan::{ImportPlan, RelPath, SourceId, SourcePlan, default_plan};
 use crate::import::preview::candidates::automatic;
 use crate::import::preview::proposal::{Evidence, FoundList, Proposal, propose};
@@ -216,24 +216,47 @@ pub fn judge() -> impl Fn(&[Edit]) -> (Proposal, Vec<Difference>) {
     }
 }
 
-/// The admin's recorded BHC006 proposal is this replica's, with no edit, as
-/// the preview's `proposal` section sends it. The structure screen's tests
-/// read it, so a change of the engine's counts shows there too.
-/// `UPDATE_FIXTURES=1` writes it again.
+/// The admin's recorded BHC006 proposals are this replica's, as the
+/// preview's `proposal` section sends them: with no edit, after the first of
+/// the two pinned clicks (leave out `Extras`), and after both (the PN list's
+/// rows describe files). The structure screen's tests read them, so a change
+/// of the engine's counts shows there too. `UPDATE_FIXTURES=1` writes them
+/// again.
 #[test]
-fn the_admins_recorded_proposal_is_the_replicas() {
-    let text = serde_json::to_string_pretty(&proposal_with_lists(&[]))
-        .expect("the proposal as JSON")
-        + "\n";
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../web/admin/tests/fixtures/import/proposal-bhc006.json");
-    if std::env::var_os("UPDATE_FIXTURES").is_some() {
-        std::fs::write(&path, text).expect("the fixture is written");
-    } else {
-        assert_eq!(
-            std::fs::read_to_string(&path).ok().as_deref(),
-            Some(text.as_str()),
-            "proposal-bhc006.json is out of date; run with UPDATE_FIXTURES=1"
-        );
+fn the_admins_recorded_proposals_are_the_replicas() {
+    let extras = Edit::LeaveOut {
+        scope: FolderScope {
+            source: SourceId("s1".into()),
+            folder: RelPath::parse("Extras").expect("a folder"),
+        },
+    };
+    let narratives = Edit::Grain {
+        list: ListFile {
+            source: SourceId("s1".into()),
+            file: RelPath::parse("BHC006_GMT_PN.xlsx").expect("a path"),
+        },
+        describes: RecordKind::Media,
+    };
+    let recorded: [(&str, Vec<Edit>); 3] = [
+        ("proposal-bhc006.json", vec![]),
+        ("proposal-bhc006-extras.json", vec![extras.clone()]),
+        ("proposal-bhc006-two.json", vec![extras, narratives]),
+    ];
+    for (name, edits) in recorded {
+        let text = serde_json::to_string_pretty(&proposal_with_lists(&edits))
+            .expect("the proposal as JSON")
+            + "\n";
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../web/admin/tests/fixtures/import")
+            .join(name);
+        if std::env::var_os("UPDATE_FIXTURES").is_some() {
+            std::fs::write(&path, text).expect("the fixture is written");
+        } else {
+            assert_eq!(
+                std::fs::read_to_string(&path).ok().as_deref(),
+                Some(text.as_str()),
+                "{name} is out of date; run with UPDATE_FIXTURES=1"
+            );
+        }
     }
 }

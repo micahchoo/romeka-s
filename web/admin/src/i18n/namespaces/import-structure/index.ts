@@ -120,6 +120,19 @@ export const en = {
   'structure.unused.error': 'We could not read it: {error}',
   'structure.unused.noRow': 'No row names a file of this archive.',
   'structure.unused.use': 'Use for a folder',
+  // A click: while its counts come, when they cannot come, and the changes strip under the tree.
+  'structure.changed': 'changed',
+  'structure.counting': 'Counting…',
+  'structure.click.failed': 'We could not count. Try again.',
+  'structure.changes.title': 'Your changes ({count})',
+  'structure.change.line': '{where} · {question}: {answer}',
+  'structure.change.effect': '{before} → {after} items',
+  'structure.change.gone': 'What this names is not in your files now.',
+  'structure.change.notOffered': 'We do not offer this now.',
+  'structure.change.replaced': 'A later change answers the same question.',
+  'structure.change.remove': 'Take back',
+  'structure.change.saved': 'Saved. Still counting.',
+  'structure.unused.folder': 'Folder',
 } as const;
 
 /** A complete table of this namespace, in one locale. */
