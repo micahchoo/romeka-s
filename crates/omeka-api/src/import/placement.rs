@@ -1,8 +1,11 @@
 //! What an import places where, with every name left out: the oracle that
 //! judges a proposal (`briefs/import-proposer-design.md`, section 4). Two
 //! plans are equal here when they put the same files in the same items, the
-//! items in the same series and sets, and the same rows on the same items.
-//! The comparison never reads a pattern, an id or a title.
+//! items in the same sets, each list on the same items, and the same rows on
+//! the same items. The comparison never reads a pattern, an id or a title.
+//! Nor does it compare how items are split into series: a series is how a
+//! plan is organized and never shows in Omeka, and a series split that
+//! changes an item shows as a file, set, list or row difference.
 //!
 //! Two adapters build a [`Placement`]: [`Placement::of_model`] for the
 //! model-level tests, and the server's shape harness from the preview JSON.
@@ -35,7 +38,8 @@ pub enum ItemAt {
 pub struct Placement {
     /// Each item as its files; an item made from rows only has none.
     pub items: BTreeMap<ItemAt, BTreeSet<FileAt>>,
-    /// The items of each series that has any, as a partition.
+    /// The items of each series that has any, as a partition. Kept to
+    /// describe a plan; [`differences`] does not compare it.
     pub series: BTreeSet<BTreeSet<ItemAt>>,
     /// The items of each set. A set that holds every item is left out: it
     /// places nothing the import does not already place.
@@ -70,10 +74,6 @@ pub enum Difference {
     RowItem {
         item: ItemAt,
         want_made: bool,
-    },
-    /// The item is in a series with other items than it should be.
-    Series {
-        item: ItemAt,
     },
     /// A set one side makes and the other does not.
     Set {
@@ -247,7 +247,7 @@ impl Placement {
 
 /// Each way `got` differs from `want`. Empty means equal.
 ///
-/// Items are matched by their files first. Series, sets, lists and rows are
+/// Items are matched by their files first. Sets, lists and rows are
 /// then compared on the items both sides make alike, so one split item is
 /// one difference and not one per set it is in.
 #[must_use]
@@ -323,28 +323,6 @@ pub fn differences(want: &Placement, got: &Placement) -> Vec<Difference> {
             .cloned()
             .collect()
     };
-    let mates = |placement: &Placement| -> BTreeMap<ItemAt, BTreeSet<ItemAt>> {
-        placement
-            .series
-            .iter()
-            .flat_map(|series| {
-                let mates = on_alike(series);
-                series
-                    .iter()
-                    .map(move |at| (at.clone(), mates.clone()))
-                    .collect::<Vec<_>>()
-            })
-            .collect()
-    };
-    let (want_mates, got_mates) = (mates(want), mates(got));
-    for item in &alike {
-        if want_mates.get(*item) != got_mates.get(*item) {
-            found.push(Difference::Series {
-                item: (*item).clone(),
-            });
-        }
-    }
-
     let sets = |placement: &Placement| -> BTreeSet<BTreeSet<ItemAt>> {
         placement
             .sets

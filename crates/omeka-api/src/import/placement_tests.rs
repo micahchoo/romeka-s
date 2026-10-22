@@ -74,6 +74,34 @@ fn regex_text_does_not_matter_but_a_moved_file_does() {
 }
 
 #[test]
+fn a_series_split_alone_is_no_difference_but_a_set_is() {
+    let s1 = scenario("s1");
+    let want = placed(&s1, &s1.plan);
+    let mut split = want.clone();
+    split.series = want
+        .items
+        .keys()
+        .map(|item| BTreeSet::from([item.clone()]))
+        .collect();
+    assert_ne!(split.series, want.series, "the probe splits the series");
+    assert_eq!(
+        differences(&want, &split),
+        [],
+        "a series never shows in Omeka"
+    );
+
+    let mut unset = split;
+    let dropped = unset.sets.pop_first().expect("S1 makes sets");
+    assert_eq!(
+        differences(&want, &unset),
+        [Difference::Set {
+            want: Some(dropped),
+            got: None,
+        }]
+    );
+}
+
+#[test]
 fn a_row_names_its_file_only_on_an_item_of_several() {
     let s6 = scenario("s6");
     let placement = placed(&s6, &s6.plan);
