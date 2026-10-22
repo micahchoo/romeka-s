@@ -19,6 +19,58 @@
                 "n": 8,
                 "of": 8
               },
+              "items": 4,
+              "namesEndingHere": 0,
+              "otherShapes": 0,
+              "parts": [
+                [
+                  "back",
+                  4
+                ],
+                [
+                  "front",
+                  4
+                ]
+              ],
+              "perItem": [
+                {
+                  "count": 0,
+                  "files": "0"
+                },
+                {
+                  "count": 0,
+                  "files": "1"
+                },
+                {
+                  "count": 4,
+                  "files": "2"
+                },
+                {
+                  "count": 0,
+                  "files": "3"
+                },
+                {
+                  "count": 0,
+                  "files": "4-6"
+                },
+                {
+                  "count": 0,
+                  "files": "7+"
+                }
+              ]
+            },
+            "value": {
+              "cut": "places",
+              "places": 4,
+              "rule": "recurringParts"
+            }
+          },
+          "rival": {
+            "counts": {
+              "files": {
+                "n": 8,
+                "of": 8
+              },
               "items": 8,
               "namesEndingHere": 8,
               "otherShapes": 0,
@@ -53,8 +105,7 @@
             "value": {
               "cut": "whole"
             }
-          },
-          "rival": null
+          }
         },
         "kind": "series",
         "level": "Artifacts",
@@ -87,7 +138,7 @@
               "sets": [
                 [
                   "Artifacts",
-                  8
+                  4
                 ]
               ]
             },
@@ -147,7 +198,78 @@
               "cut": "whole"
             }
           },
-          "rival": null
+          "rival": {
+            "counts": {
+              "files": {
+                "n": 7,
+                "of": 7
+              },
+              "items": 1,
+              "namesEndingHere": 0,
+              "otherShapes": 0,
+              "parts": [
+                [
+                  "p1",
+                  1
+                ],
+                [
+                  "p2",
+                  1
+                ],
+                [
+                  "p3",
+                  1
+                ],
+                [
+                  "p4",
+                  1
+                ],
+                [
+                  "p5",
+                  1
+                ],
+                [
+                  "p6",
+                  1
+                ],
+                [
+                  "p7",
+                  1
+                ]
+              ],
+              "perItem": [
+                {
+                  "count": 0,
+                  "files": "0"
+                },
+                {
+                  "count": 0,
+                  "files": "1"
+                },
+                {
+                  "count": 0,
+                  "files": "2"
+                },
+                {
+                  "count": 0,
+                  "files": "3"
+                },
+                {
+                  "count": 0,
+                  "files": "4-6"
+                },
+                {
+                  "count": 1,
+                  "files": "7+"
+                }
+              ]
+            },
+            "value": {
+              "cut": "places",
+              "places": 4,
+              "rule": "sameAsSibling"
+            }
+          }
         },
         "kind": "series",
         "level": "Bulk",
@@ -426,7 +548,62 @@
               "cut": "whole"
             }
           },
-          "rival": null
+          "rival": {
+            "counts": {
+              "files": {
+                "n": 3,
+                "of": 3
+              },
+              "items": 1,
+              "namesEndingHere": 0,
+              "otherShapes": 0,
+              "parts": [
+                [
+                  "p1",
+                  1
+                ],
+                [
+                  "p10",
+                  1
+                ],
+                [
+                  "p2",
+                  1
+                ]
+              ],
+              "perItem": [
+                {
+                  "count": 0,
+                  "files": "0"
+                },
+                {
+                  "count": 0,
+                  "files": "1"
+                },
+                {
+                  "count": 0,
+                  "files": "2"
+                },
+                {
+                  "count": 1,
+                  "files": "3"
+                },
+                {
+                  "count": 0,
+                  "files": "4-6"
+                },
+                {
+                  "count": 0,
+                  "files": "7+"
+                }
+              ]
+            },
+            "value": {
+              "cut": "places",
+              "places": 4,
+              "rule": "sameAsSibling"
+            }
+          }
         },
         "kind": "series",
         "level": "Scans",
@@ -500,7 +677,7 @@
           "example": null,
           "grouping": {
             "caseFold": false,
-            "pattern": "^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\\.[^./]*)?$"
+            "pattern": "^(?:[^/]+/)*[^\\p{L}\\p{M}\\p{Nd}/]*(?<identifier>[\\p{L}\\p{M}]+[^\\p{L}\\p{M}\\p{Nd}/]*\\p{Nd}+[^\\p{L}\\p{M}\\p{Nd}/]*[\\p{L}\\p{M}]+[^\\p{L}\\p{M}\\p{Nd}/]*\\p{Nd}+)(?:[^\\p{L}\\p{M}\\p{Nd}/]*(?<part>[^/]+))?[^\\p{L}\\p{M}\\p{Nd}/]*\\.[^./]+$"
           },
           "id": "Artifacts",
           "kind": "series",

@@ -6,7 +6,8 @@
 //!
 //! [`propose`] is the one call. It is pure. The detectors run in order,
 //! each reading only the scan and what an earlier one chose: `folders`
-//! (which folders are series). Each edit is replayed by the detector whose
+//! (which folders are series), then `names` (where each series' item key
+//! ends; `shape` writes its pattern). Each edit is replayed by the detector whose
 //! choice it changes. The counts come from a derive of the proposed tree,
 //! so the person sees what Run would do.
 //!
@@ -22,6 +23,9 @@ mod folders;
 mod folders_tests;
 #[cfg(test)]
 mod lint_tests;
+mod names;
+#[cfg(test)]
+mod names_tests;
 mod shape;
 pub mod thresholds;
 
@@ -37,11 +41,13 @@ use crate::import::derive::{Index, NoTags, Sheets, derive};
 use crate::import::evidence::FileEntry;
 use crate::import::model::{Fate, Model};
 use crate::import::plan::{
-    ColumnRef, Edit, FolderScope, Grouping, ImportPlan, Level, LevelId, ListFile, NAME_ALONE,
-    PairRule, Placement as FilePlace, RecordKind, RelPath, Series, SeriesIx, SeriesScope,
-    SetByTitle, SetFrom, SetSource, SourcePlan, Structure, default_plan,
+    ColumnRef, Edit, FolderScope, Grouping, ImportPlan, Level, LevelId, ListFile, PairRule,
+    Placement as FilePlace, RecordKind, RelPath, Series, SeriesIx, SeriesScope, SetByTitle,
+    SetFrom, SetSource, SourcePlan, Structure, default_plan,
 };
 use crate::import::sheet::{Sheet, SheetError};
+use names::SeriesCut;
+use shape::Key;
 
 /// Everything the proposer reads. Nothing else enters a proposal.
 pub struct Evidence<'e> {
@@ -269,7 +275,14 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
     } else {
         found.series
     };
-    let levels = series.iter().map(level).collect();
+    let whole: Vec<Level> = series.iter().map(|one| level(one, &Key::Whole)).collect();
+    let cuts = Structure::build(whole, evidence.sources).map(|placed| {
+        let names = series_names(evidence, &placed, series.len());
+        let mut cuts: Vec<SeriesCut> = names.iter().map(|names| names::cut(names)).collect();
+        names::same_as_sibling(&mut cuts, &names);
+        names::replay(&mut cuts, &series, edits, &mut applied);
+        cuts
+    });
     let edits = edits
         .iter()
         .zip(applied)
@@ -278,9 +291,16 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
             applied,
         })
         .collect();
-    let built = Structure::build(levels, evidence.sources)
-        .and_then(|structure| Ok((default_plan(evidence.sources.to_vec())?, structure)));
-    let Ok((plan, structure)) = built else {
+    let built = cuts.and_then(|cuts| {
+        let levels = series
+            .iter()
+            .zip(&cuts)
+            .map(|(one, cut)| level(one, &cut.chosen.key))
+            .collect();
+        let structure = Structure::build(levels, evidence.sources)?;
+        Ok((default_plan(evidence.sources.to_vec())?, structure, cuts))
+    });
+    let Ok((plan, structure, cuts)) = built else {
         return Proposal {
             structure: evidence.structure.clone(),
             nodes: Vec::new(),
@@ -302,10 +322,14 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
     let nodes = plan
         .structure
         .all_series()
-        .zip(&series)
-        .map(|((at, level), one)| {
+        .zip(series.iter().zip(cuts))
+        .map(|((at, level), (one, cut))| {
             let scope = scope_counts(evidence, &plan.structure, at, one.scope().clone());
-            let items = cut_counts(&model, at, &scope);
+            let items = cut_counts(&model, at, &scope, &cut.chosen.counts);
+            let rival = cut.rival.map(|rival| Pick {
+                counts: counted_counts(&rival.counts, scope.media),
+                value: rival.item,
+            });
             let set = one.set.clone().map(|from| {
                 let counts = SetCounts {
                     sets: vec![(folders::folder_title(one.scope()), items.items)],
@@ -321,10 +345,10 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
                 scope,
                 items: Choice {
                     chosen: Pick {
-                        value: ItemCut::Whole,
+                        value: cut.chosen.item,
                         counts: items,
                     },
-                    rival: None,
+                    rival,
                 },
                 list: Choice {
                     chosen: Pick {
@@ -392,7 +416,7 @@ fn as_found(evidence: &Evidence<'_>) -> Vec<folders::FolderSeries> {
 
 /// The plan's series for one detected series. Its id is its folder's name,
 /// or its source's id when it takes the whole source.
-fn level(one: &folders::FolderSeries) -> Level {
+fn level(one: &folders::FolderSeries, key: &Key) -> Level {
     let scope = one.scope();
     let id = if scope.folder.as_str().is_empty() {
         scope.source.0.clone()
@@ -403,7 +427,7 @@ fn level(one: &folders::FolderSeries) -> Level {
         LevelId(id),
         SeriesScope::Folders(one.scopes.clone()),
         Grouping {
-            pattern: Some(NAME_ALONE.to_owned()),
+            pattern: Some(key.pattern()),
             case_fold: false,
         },
     );
@@ -503,9 +527,67 @@ fn scope_counts(
     }
 }
 
-/// The counts of a series' cut, from the derive of the proposal. Every
-/// name ends at the whole-name cut, and every name fits it.
-fn cut_counts(model: &Model, at: SeriesIx, scope: &ScopeCounts) -> CutCounts {
+/// Each series' media, as its pattern sees them in `placed`, by
+/// [`SeriesIx::index`].
+fn series_names<'e>(
+    evidence: &Evidence<'e>,
+    placed: &Structure,
+    series: usize,
+) -> Vec<Vec<names::Name<'e>>> {
+    let mut out: Vec<Vec<names::Name<'e>>> = (0..series).map(|_| Vec::new()).collect();
+    for source in &evidence.index.sources {
+        for entry in &source.walk.entries {
+            let FilePlace::Series { at, path } = placed.place(&source.id, &entry.path) else {
+                continue;
+            };
+            let media =
+                catalog::refusal(&evidence.catalog.files, entry.name(), &entry.sniffed).is_none();
+            if let Some(name) = media.then(|| names::Name::of(entry, path)).flatten()
+                && let Some(names) = out.get_mut(at.index())
+            {
+                names.push(name);
+            }
+        }
+    }
+    out
+}
+
+/// Items by files per item, in the histogram's buckets.
+fn buckets(per_item: &[usize]) -> Vec<BucketCount> {
+    let mut buckets: BTreeMap<Bucket, usize> =
+        Bucket::ALL.iter().map(|bucket| (*bucket, 0)).collect();
+    for files in per_item {
+        *buckets.entry(Bucket::of(*files)).or_default() += 1;
+    }
+    buckets
+        .into_iter()
+        .map(|(files, count)| BucketCount { files, count })
+        .collect()
+}
+
+/// The counts of a cut the proposal did not take, as detector 2 counted it.
+fn counted_counts(counted: &names::Counted, media: usize) -> CutCounts {
+    CutCounts {
+        items: counted.items,
+        files: Share {
+            n: counted.files,
+            of: media,
+        },
+        per_item: buckets(&counted.per_item),
+        parts: counted.parts.clone(),
+        names_ending_here: counted.names_ending_here,
+        other_shapes: counted.other_shapes,
+    }
+}
+
+/// The counts of a series' cut: the items and their files from the derive
+/// of the proposal, the parts and shapes as detector 2 counted them.
+fn cut_counts(
+    model: &Model,
+    at: SeriesIx,
+    scope: &ScopeCounts,
+    counted: &names::Counted,
+) -> CutCounts {
     let per_item: Vec<usize> = model
         .kept()
         .filter(|record| record.kind == RecordKind::Item && record.series == at)
@@ -517,23 +599,15 @@ fn cut_counts(model: &Model, at: SeriesIx, scope: &ScopeCounts) -> CutCounts {
                 .count()
         })
         .collect();
-    let mut buckets: BTreeMap<Bucket, usize> =
-        Bucket::ALL.iter().map(|bucket| (*bucket, 0)).collect();
-    for files in &per_item {
-        *buckets.entry(Bucket::of(*files)).or_default() += 1;
-    }
     CutCounts {
         items: per_item.len(),
         files: Share {
             n: per_item.iter().sum(),
             of: scope.media,
         },
-        per_item: buckets
-            .into_iter()
-            .map(|(files, count)| BucketCount { files, count })
-            .collect(),
-        parts: Vec::new(),
-        names_ending_here: scope.media,
-        other_shapes: 0,
+        per_item: buckets(&per_item),
+        parts: counted.parts.clone(),
+        names_ending_here: counted.names_ending_here,
+        other_shapes: counted.other_shapes,
     }
 }

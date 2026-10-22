@@ -9,3 +9,12 @@ use super::Share;
 /// decided 2026-10-21). The frozen BHC006 outcome does this with the 4 odd
 /// names among the 696 images of `Artifacts`.
 pub const KEY_SHAPE_FITS: Share = Share { n: 95, of: 100 };
+
+/// The part values that must each recur before parts prove a name cut
+/// (`RecurringParts`): two values are the least that tell two files of
+/// one item apart. S1 `Artifacts` has two, `front` and `back`.
+pub const MIN_RECURRING_PARTS: usize = 2;
+
+/// The items a part value must be in to recur: two is the least count that
+/// shows a value repeating. S1 `front` is in 4 items, BHC006 `a` in 279.
+pub const MIN_ITEMS_PER_PART: usize = 2;
