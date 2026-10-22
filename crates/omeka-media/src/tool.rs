@@ -1363,28 +1363,16 @@ fn reason(stderr: &[u8]) -> String {
 #[cfg(unix)]
 mod tests {
     use super::*;
-    use std::os::unix::fs::PermissionsExt as _;
 
     /// A program that does what `body` says, under the name a tool has.
     fn script(dir: &Path, name: &str, body: &str) -> PathBuf {
         let path = dir.join(name);
-        std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).expect("write script");
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
-            .expect("make it executable");
+        crate::testing::write_script(&path, &format!("#!/bin/sh\n{body}\n")).expect("write script");
         path
     }
 
     fn dir() -> tempfile::TempDir {
         tempfile::tempdir().expect("tempdir")
-    }
-
-    /// A script written in one test can be `Text file busy` for a fork another
-    /// test thread makes while the write is open. One lock across create and
-    /// run keeps the fixture as calm as a real installed binary.
-    fn scripted() -> std::sync::MutexGuard<'static, ()> {
-        static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-        LOCK.lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
     /// Without the command, the reason names it and nothing runs.
@@ -1406,9 +1394,8 @@ mod tests {
     /// A command that runs past the timeout is killed and answers `Timeout`.
     #[test]
     fn a_slow_command_times_out() {
-        let _guard = scripted();
         let dir = dir();
-        let slow = script(dir.path(), "ffmpeg", "sleep 5");
+        let slow = script(dir.path(), "ffmpeg", "exec sleep 5");
         let tools = Tools::none()
             .with_ffmpeg(&slow)
             .with_timeout(Duration::from_millis(120));
@@ -1426,7 +1413,6 @@ mod tests {
     /// A command that exits non-zero answers `Failed` with what it said.
     #[test]
     fn a_failing_command_keeps_its_reason() {
-        let _guard = scripted();
         let dir = dir();
         let failing = script(
             dir.path(),
@@ -1446,7 +1432,6 @@ mod tests {
     /// A command that writes a still is read back byte for byte.
     #[test]
     fn a_still_is_the_commands_output() {
-        let _guard = scripted();
         let dir = dir();
         let ffmpeg = script(dir.path(), "ffmpeg", "printf 'still-bytes'");
         let tools = Tools::none().with_ffmpeg(&ffmpeg);
@@ -1463,7 +1448,6 @@ mod tests {
     /// and the container's orientation is read beside it.
     #[test]
     fn a_raw_preview_prefers_jpgfromraw_and_reads_the_orientation() {
-        let _guard = scripted();
         let dir = dir();
         let exiftool = script(
             dir.path(),
@@ -1514,7 +1498,6 @@ mod tests {
     /// when it has an input and no output.
     #[test]
     fn a_poster_seeks_ten_percent_in() {
-        let _guard = scripted();
         let dir = dir();
         let log = dir.path().join("args");
         let ffmpeg = script(
@@ -1579,7 +1562,6 @@ mod tests {
     /// in JSON, and answers what the command wrote.
     #[test]
     fn the_probe_asks_for_the_duration_and_the_frame_size() {
-        let _guard = scripted();
         let dir = dir();
         let log = dir.path().join("args");
         let ffprobe = script(
@@ -1612,9 +1594,8 @@ mod tests {
     /// A probe past the timeout is killed like any other command.
     #[test]
     fn a_slow_probe_times_out() {
-        let _guard = scripted();
         let dir = dir();
-        let slow = script(dir.path(), "ffprobe", "sleep 5");
+        let slow = script(dir.path(), "ffprobe", "exec sleep 5");
         let tools = Tools::none()
             .with_ffprobe(&slow)
             .with_timeout(Duration::from_millis(120));
@@ -1644,7 +1625,6 @@ mod tests {
     /// does not have is the typed skip D3 and D4 turn into a reason.
     #[test]
     fn an_access_tool_is_found_or_a_typed_skip() {
-        let _guard = scripted();
         let dir = dir();
         let tools = Tools::none().with_vips(script(dir.path(), "vips", "exit 0"));
         assert_eq!(AccessTool::Vips.found(&tools), Some("vips"));
@@ -1715,7 +1695,6 @@ mod tests {
     fn an_office_copy_runs_to_its_pdf_or_stops() {
         use std::sync::atomic::AtomicBool;
 
-        let _guard = scripted();
         let dir = dir();
         let writer = script(dir.path(), "soffice", "printf '%s' '%PDF-1.6' > \"$1\"");
         let tools = Tools::none().with_soffice(&writer);
@@ -1725,7 +1704,7 @@ mod tests {
         assert_eq!(tools.office_pdf(&args, &stop), Ok(TranscodeEnd::Finished));
         assert!(output.is_file(), "the conversion wrote its PDF");
 
-        let slow = script(dir.path(), "soffice", "sleep 5");
+        let slow = script(dir.path(), "soffice", "exec sleep 5");
         let tools = Tools::none().with_soffice(&slow);
         let stop = AtomicBool::new(true);
         let started = Instant::now();
@@ -1737,7 +1716,6 @@ mod tests {
     /// image and a main image can share one queue.
     #[test]
     fn the_access_copy_commands_are_the_ones_installed() {
-        let _guard = scripted();
         let dir = dir();
         assert!(
             Tools::none().access_commands().is_empty(),
@@ -1876,7 +1854,6 @@ mod tests {
     /// duration a canvas needs.
     #[test]
     fn the_codec_probe_asks_for_the_container_and_codecs() {
-        let _guard = scripted();
         let dir = dir();
         let log = dir.path().join("args");
         let ffprobe = script(
@@ -1951,7 +1928,6 @@ mod tests {
     /// the row settles, and answers the command's last error line when it fails.
     #[test]
     fn a_transcode_reports_its_percentage_and_keeps_the_last_error() {
-        let _guard = scripted();
         let dir = dir();
         let ffmpeg = script(
             dir.path(),

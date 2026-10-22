@@ -510,8 +510,6 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn a_raw_decode_runs_libraw_then_vips() {
-        use std::os::unix::fs::PermissionsExt as _;
-
         let Some(vips) = Tools::on_path().vips().map(std::path::Path::to_path_buf) else {
             eprintln!("skipping: no vips on PATH");
             return;
@@ -522,17 +520,15 @@ mod tests {
         std::fs::write(&decoded, corpus("image-deep.tif")).expect("the decoded frame");
         let log = dir.path().join("args");
         let decoder = dir.path().join("dcraw_emu");
-        std::fs::write(
+        crate::testing::write_script(
             &decoder,
-            format!(
+            &format!(
                 "#!/bin/sh\nprintf '%s\\n' \"$*\" > {log}\ncat {decoded}\n",
                 log = log.display(),
                 decoded = decoded.display()
             ),
         )
         .expect("the stand-in decoder");
-        std::fs::set_permissions(&decoder, std::fs::Permissions::from_mode(0o755))
-            .expect("make it executable");
 
         let tools = Tools::none().with_libraw(&decoder).with_vips(&vips);
         let source = source(&store, "image.nef", "image/x-nikon-nef", "nef");
