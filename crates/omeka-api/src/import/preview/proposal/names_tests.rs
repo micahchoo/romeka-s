@@ -5,7 +5,7 @@
 
 use super::bhc006_tests;
 use super::shape::{Key, KeyShape, places};
-use super::{CutRule, Evidence, ItemCut, NodeEvidence, Proposal, SeriesNode, propose};
+use super::{CutRule, Evidence, FoundList, ItemCut, NodeEvidence, Proposal, SeriesNode, propose};
 use crate::import::decisions::EntryRef;
 use crate::import::derive::tests::scenarios::{S1_TO_S8, Scenario};
 use crate::import::derive::tests::support::{JPEG, catalog, index, plan};
@@ -17,7 +17,7 @@ use crate::import::preview::facts::Bucket;
 fn of(scenario: &Scenario, edits: &[Edit]) -> Proposal {
     let evidence = Evidence {
         index: &scenario.index,
-        lists: &[],
+        lists: &Vec::<FoundList>::new(),
         catalog: &scenario.catalog,
         sources: &scenario.plan.sources,
         structure: &scenario.plan.structure,

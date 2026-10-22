@@ -2,7 +2,10 @@
 //! archive's file list (`omeka-server/tests/import_shapes/bhc006.listing`),
 //! each file with the head the server harness writes, sniffed and sorted
 //! into media and lists as the scan does, on an install with the default
-//! file settings.
+//! file settings. The catalogues are the harness's: the real `Identifier`
+//! cells (`bhc006.identifiers`) with the columns the tests read, the older
+//! CSV copy of the first five rows in `Artifacts/`, and an `.ods` that does
+//! not read.
 
 #![allow(clippy::expect_used)]
 
@@ -12,12 +15,16 @@ use crate::import::catalog::Catalog;
 use crate::import::derive::tests::support::catalog;
 use crate::import::derive::{Index, IndexedSource};
 use crate::import::evidence::{FileEntry, Walk, sniff};
-use crate::import::plan::Edit;
+use crate::import::plan::{Edit, ListFile};
 use crate::import::plan::{ImportPlan, RelPath, SourceId, SourcePlan, default_plan};
-use crate::import::preview::proposal::{Evidence, Proposal, propose};
+use crate::import::preview::candidates::automatic;
+use crate::import::preview::proposal::{Evidence, FoundList, Proposal, propose};
+use crate::import::sheet::{self, SheetError};
 
 const LISTING: &str =
     include_str!("../../../../../omeka-server/tests/import_shapes/bhc006.listing");
+const IDENTIFIERS: &str =
+    include_str!("../../../../../omeka-server/tests/import_shapes/bhc006.identifiers");
 
 /// The head the server's shape harness writes for a listed file.
 fn head(path: &str, size: u64) -> &'static [u8] {
@@ -85,6 +92,77 @@ pub fn draft() -> ImportPlan {
     .expect("the default plan")
 }
 
+/// A catalogue as the harness writes it: one row per `Identifier` cell of
+/// `name`, or the first `first` cells of the file when `name` is `None`.
+fn catalogue(name: Option<&str>, first: usize) -> String {
+    let mut out = String::from("Sl No,Identifier,Collection,Curator,Item Type\n");
+    let cells = IDENTIFIERS
+        .lines()
+        .filter_map(|line| line.split_once('\t'))
+        .filter(|(sheet, _)| name.is_none_or(|name| *sheet == name))
+        .take(first);
+    for (n, (sheet, identifier)) in cells.enumerate() {
+        let curator = if sheet.contains("_GMT_") {
+            "M. Curator"
+        } else {
+            "R. Curator"
+        };
+        let kind = match sheet {
+            "BHC006_GMT_PN" => "Photo Narrative",
+            "BHC006_GMT_D" => "Documents",
+            _ => "Artifact",
+        };
+        out.push_str(&format!(
+            "{},{identifier},Citizen Curators,{curator},{kind}\n",
+            n + 1
+        ));
+    }
+    out
+}
+
+/// Every list file of the walk, read as Simple adds one.
+pub fn lists() -> Vec<FoundList> {
+    index().sources[0]
+        .walk
+        .sheets
+        .iter()
+        .map(|entry| {
+            let path = entry.path.as_str();
+            let text = match path.rsplit_once('.') {
+                Some((stem, "xlsx")) => Some(catalogue(Some(stem), usize::MAX)),
+                Some((_, "csv")) => Some(catalogue(None, 5)),
+                _ => None,
+            };
+            let file = ListFile {
+                source: SourceId("s1".into()),
+                file: entry.path.clone(),
+            };
+            let plan = automatic(&file.source, &file.file);
+            let sheet = text.map_or_else(
+                || Err(SheetError::Workbook("not a zip archive".into())),
+                |text| sheet::read(text.as_bytes(), &plan.read, None),
+            );
+            FoundList { file, sheet }
+        })
+        .collect()
+}
+
+/// The proposal for the replica after `edits`, with every list read.
+pub fn proposal_with_lists(edits: &[Edit]) -> Proposal {
+    let index = index();
+    let catalog = install();
+    let plan = draft();
+    let lists = lists();
+    let evidence = Evidence {
+        index: &index,
+        lists: &lists,
+        catalog: &catalog,
+        sources: &plan.sources,
+        structure: &plan.structure,
+    };
+    propose(&evidence, edits)
+}
+
 /// The proposal for the replica after `edits`, with no list read.
 pub fn proposal(edits: &[Edit]) -> Proposal {
     let index = index();
@@ -92,7 +170,7 @@ pub fn proposal(edits: &[Edit]) -> Proposal {
     let plan = draft();
     let evidence = Evidence {
         index: &index,
-        lists: &[],
+        lists: &Vec::<FoundList>::new(),
         catalog: &catalog,
         sources: &plan.sources,
         structure: &plan.structure,

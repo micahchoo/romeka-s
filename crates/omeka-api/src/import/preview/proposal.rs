@@ -7,9 +7,12 @@
 //! [`propose`] is the one call. It is pure. The detectors run in order,
 //! each reading only the scan and what an earlier one chose: `folders`
 //! (which folders are series), then `names` (where each series' item key
-//! ends; `shape` writes its pattern). Each edit is replayed by the detector whose
-//! choice it changes. The counts come from a derive of the proposed tree,
-//! so the person sees what Run would do.
+//! ends; `shape` writes its pattern), then a first derive of those patterns
+//! with no list, then `lists` (which list describes each series, counted on
+//! that derive) and `grain` (what each list's rows describe). Each edit is
+//! replayed by the detector whose choice it changes. The counts come from a
+//! second derive of the whole proposed tree, so the person sees what Run
+//! would do.
 //!
 //! The rule against overfitting holds for every non-test file of this
 //! module: no file names a token, an extension or a depth. `lint_tests`
@@ -21,8 +24,14 @@ mod bhc006_tests;
 mod folders;
 #[cfg(test)]
 mod folders_tests;
+mod grain;
+#[cfg(test)]
+mod grain_tests;
 #[cfg(test)]
 mod lint_tests;
+mod lists;
+#[cfg(test)]
+mod lists_tests;
 mod names;
 #[cfg(test)]
 mod names_tests;
@@ -30,22 +39,26 @@ mod shape;
 pub mod thresholds;
 
 use std::cmp::Reverse;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+
+use indexmap::IndexMap;
 
 use serde::Serialize;
 
-use super::candidates::{Grain, ListCandidate};
+use super::candidates::{self, Grain, ListCandidate};
 use super::facts::{Bucket, BucketCount, MediaKind};
 use crate::import::catalog::{self, Catalog};
 use crate::import::derive::{Index, NoTags, Sheets, derive};
 use crate::import::evidence::FileEntry;
 use crate::import::model::{Fate, Model};
 use crate::import::plan::{
-    ColumnRef, Edit, FolderScope, Grouping, ImportPlan, Level, LevelId, ListFile, PairRule,
-    Placement as FilePlace, RecordKind, RelPath, Series, SeriesIx, SeriesScope, SetByTitle,
-    SetFrom, SetSource, SourcePlan, Structure, default_plan,
+    ColumnOptions, ColumnPlan, ColumnRef, Combine, EachSet, EachValue, Edit, FolderScope, Grouping,
+    ImportPlan, Level, LevelId, ListFile, PairRule, Placement as FilePlace, RecordKind, RelPath,
+    Series, SeriesIx, SeriesScope, SetByTitle, SetFrom, SetNames, SetSource, SheetId, SheetPlan,
+    SlotName, SlotRule, SourcePlan, SourceRef, Structure, default_plan,
 };
 use crate::import::sheet::{Sheet, SheetError};
+use crate::import::values::ValueType;
 use names::SeriesCut;
 use shape::Key;
 
@@ -54,20 +67,45 @@ pub struct Evidence<'e> {
     /// The scan: every source's walk, with sniffed types and list files.
     pub index: &'e Index,
     /// Every list file of the walk, read as Simple adds one.
-    pub lists: &'e [FoundList],
+    pub lists: &'e dyn Lists,
     /// The install: its file settings are the only media table the
     /// proposer may use; the derives need the rest.
     pub catalog: &'e Catalog,
     /// The draft's sources, so that each scope names a real source.
     pub sources: &'e [SourcePlan],
-    /// The draft plan's structure. Only [`Proposal::matches_plan`] reads it.
+    /// The draft plan's structure. Only [`Proposal::matches_plan`] and the
+    /// lists' `inPlan` read it.
     pub structure: &'e Structure,
+}
+
+/// The list files of the walk, each read on its own: a detector counts one
+/// list and lets it go before the next is read, so no proposal holds every
+/// sheet at once.
+pub trait Lists {
+    /// Every list file of the walk, in walk order.
+    fn files(&self) -> Vec<ListFile>;
+    /// Read one list and hand it to `count`, once. A list that is no longer
+    /// there reads as an error.
+    fn read(&self, file: &ListFile, count: &mut dyn FnMut(&Result<Sheet, SheetError>));
 }
 
 /// One list file of the walk and how it read.
 pub struct FoundList {
     pub file: ListFile,
     pub sheet: Result<Sheet, SheetError>,
+}
+
+/// Lists already read, for tests that build their evidence in memory.
+impl Lists for Vec<FoundList> {
+    fn files(&self) -> Vec<ListFile> {
+        self.iter().map(|list| list.file.clone()).collect()
+    }
+
+    fn read(&self, file: &ListFile, count: &mut dyn FnMut(&Result<Sheet, SheetError>)) {
+        if let Some(list) = self.iter().find(|list| list.file == *file) {
+            count(&list.sheet);
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -275,7 +313,10 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
     } else {
         found.series
     };
-    let whole: Vec<Level> = series.iter().map(|one| level(one, &Key::Whole)).collect();
+    let whole: Vec<Level> = series
+        .iter()
+        .map(|one| level(one, Some(&Key::Whole), Plan::default()))
+        .collect();
     let cuts = Structure::build(whole, evidence.sources).map(|placed| {
         let names = series_names(evidence, &placed, series.len());
         let mut cuts: Vec<SeriesCut> = names.iter().map(|names| names::cut(names)).collect();
@@ -283,95 +324,155 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         names::replay(&mut cuts, &series, edits, &mut applied);
         cuts
     });
-    let edits = edits
-        .iter()
-        .zip(applied)
-        .map(|(edit, applied)| EditResult {
-            edit: edit.clone(),
-            applied,
-        })
-        .collect();
-    let built = cuts.and_then(|cuts| {
+    let first = cuts.and_then(|cuts| {
         let levels = series
             .iter()
             .zip(&cuts)
-            .map(|(one, cut)| level(one, &cut.chosen.key))
+            .map(|(one, cut)| level(one, Some(&cut.chosen.key), Plan::default()))
             .collect();
         let structure = Structure::build(levels, evidence.sources)?;
         Ok((default_plan(evidence.sources.to_vec())?, structure, cuts))
     });
-    let Ok((plan, structure, cuts)) = built else {
+    let Ok((plan, structure, cuts)) = first else {
         return Proposal {
             structure: evidence.structure.clone(),
             nodes: Vec::new(),
             top_sets: Vec::new(),
             outside: found.outside,
             unattached: Vec::new(),
-            edits,
+            edits: results(edits, applied),
             matches_plan: true,
         };
     };
-    let plan = ImportPlan { structure, ..plan };
+    let patterns = ImportPlan { structure, ..plan };
     let model = derive(
         evidence.index,
         &Sheets::new(),
-        &plan,
+        &patterns,
         evidence.catalog,
         &NoTags,
     );
+    let scopes: Vec<ScopeCounts> = patterns
+        .structure
+        .all_series()
+        .zip(&series)
+        .map(|((at, _), one)| scope_counts(evidence, &patterns.structure, at, one.scope().clone()))
+        .collect();
+    let mut lists = lists::detect(
+        evidence,
+        &patterns.structure,
+        &model,
+        &series,
+        edits,
+        &mut applied,
+    );
+    let read: Vec<grain::SeriesRead<'_>> = series
+        .iter()
+        .zip(&scopes)
+        .map(|(one, scope)| grain::SeriesRead {
+            scope: one.scope(),
+            media: scope.media,
+            cut_chosen: edits.iter().zip(&applied).any(|(edit, applied)| {
+                *applied
+                    && matches!(edit, Edit::Items { scope, .. }
+                        if one.scopes.contains(scope) || one.folders.contains(scope))
+            }),
+        })
+        .collect();
+    let rows = grain::detect(evidence, &mut lists, &read, edits, &mut applied);
+    let edits = results(edits, applied);
+
+    let mut ids = BTreeSet::new();
+    let levels = series
+        .iter()
+        .zip(&cuts)
+        .zip(&rows)
+        .map(|((one, cut), rows)| {
+            let key = rows.items.is_none().then_some(&cut.chosen.key);
+            level(one, key, Plan::of(rows, &mut ids))
+        })
+        .collect();
+    let plan = match Structure::build(levels, evidence.sources) {
+        Ok(structure) => ImportPlan {
+            structure,
+            ..patterns.clone()
+        },
+        Err(_) => patterns.clone(),
+    };
+    let mut sheets = Sheets::new();
+    for (_, list) in plan.structure.lists() {
+        let file = ListFile {
+            source: list.source.clone(),
+            file: list.file.clone(),
+        };
+        evidence.lists.read(&file, &mut |sheet| {
+            sheets.insert(list.id.clone(), sheet.clone());
+        });
+    }
+    let model = derive(evidence.index, &sheets, &plan, evidence.catalog, &NoTags);
+
+    let mut chosen_lists = lists.series.into_iter();
     let nodes = plan
         .structure
         .all_series()
-        .zip(series.iter().zip(cuts))
-        .map(|((at, level), (one, cut))| {
-            let scope = scope_counts(evidence, &plan.structure, at, one.scope().clone());
-            let items = cut_counts(&model, at, &scope, &cut.chosen.counts);
-            let rival = cut.rival.map(|rival| Pick {
+        .zip(series.iter().zip(cuts).zip(rows).zip(scopes))
+        .map(|((at, level), (((one, cut), rows), scope))| {
+            let here = chosen_lists.next().unwrap_or_default();
+            let (item, counted, rival) = match &rows.items {
+                Some((list, key)) => (
+                    ItemCut::Rows {
+                        list: list.clone(),
+                        key: key.clone(),
+                    },
+                    None,
+                    Some(cut.chosen),
+                ),
+                None => (cut.chosen.item, Some(cut.chosen.counts), cut.rival),
+            };
+            let items = cut_counts(&model, at, &scope, counted.as_ref());
+            let rival = rival.map(|rival| Pick {
                 counts: counted_counts(&rival.counts, scope.media),
                 value: rival.item,
             });
-            let set = one.set.clone().map(|from| {
-                let counts = SetCounts {
+            let set = one.set.clone().map(|from| Pick {
+                value: Some(from),
+                counts: SetCounts {
                     sets: vec![(folders::folder_title(one.scope()), items.items)],
                     rows: None,
-                };
-                Pick {
-                    value: from,
-                    counts,
-                }
+                },
             });
+            let list_pick = |one: lists::InSeries<'_>| Pick {
+                value: Some(one.file),
+                counts: Some(one.counted.counts),
+            };
             NodeEvidence::Series(SeriesNode {
                 level: level.id().clone(),
-                scope,
                 items: Choice {
                     chosen: Pick {
-                        value: cut.chosen.item,
+                        value: item,
                         counts: items,
                     },
                     rival,
                 },
                 list: Choice {
-                    chosen: Pick {
-                        value: None,
-                        counts: None,
-                    },
-                    rival: None,
-                },
-                grain: None,
-                set: Choice {
-                    chosen: set.map_or_else(
-                        || Pick {
+                    chosen: here.joined.into_iter().next().map_or(
+                        Pick {
                             value: None,
-                            counts: SetCounts {
-                                sets: Vec::new(),
-                                rows: None,
-                            },
+                            counts: None,
                         },
-                        |set| Pick {
-                            value: Some(set.value),
-                            counts: set.counts,
-                        },
+                        list_pick,
                     ),
+                    rival: here.rival.map(list_pick),
+                },
+                grain: rows.grain,
+                set: Choice {
+                    chosen: set.unwrap_or(Pick {
+                        value: None,
+                        counts: SetCounts {
+                            sets: Vec::new(),
+                            rows: None,
+                        },
+                    }),
                     rival: None,
                 },
                 splits: one
@@ -380,6 +481,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
                     .into_iter()
                     .collect(),
                 pairing: Vec::new(),
+                scope,
             })
         })
         .collect();
@@ -389,8 +491,101 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         nodes,
         top_sets: Vec::new(),
         outside: found.outside,
-        unattached: Vec::new(),
+        unattached: lists
+            .unattached
+            .into_iter()
+            .map(|list| list.counts)
+            .collect(),
         edits,
+    }
+}
+
+fn results(edits: &[Edit], applied: Vec<bool>) -> Vec<EditResult> {
+    edits
+        .iter()
+        .zip(applied)
+        .map(|(edit, applied)| EditResult {
+            edit: edit.clone(),
+            applied,
+        })
+        .collect()
+}
+
+/// What a series holds beyond its scope and pattern: its lists as the plan
+/// reads them, its set from rows, and its key rules.
+#[derive(Default)]
+struct Plan {
+    lists: Vec<SheetPlan>,
+    set: Option<SetSource>,
+    rules: Vec<(RecordKind, SlotName, SlotRule)>,
+}
+
+impl Plan {
+    /// Detector 4's choices for one series, each list with a sheet id not in
+    /// `ids`: its file's path, and its source's id after it when another
+    /// list has that path.
+    fn of(rows: &grain::SeriesRows, ids: &mut BTreeSet<SheetId>) -> Self {
+        let mut of_file = BTreeMap::new();
+        let lists = rows
+            .lists
+            .iter()
+            .map(|list| {
+                let mut id = SheetId(list.file.file.as_str().to_owned());
+                if ids.contains(&id) {
+                    id.0.push_str(&list.file.source.0);
+                }
+                ids.insert(id.clone());
+                of_file.insert(list.file.clone(), id.clone());
+                let mut plan = candidates::automatic(&list.file.source, &list.file.file);
+                plan.id = id;
+                plan.row_kind = list.row_kind.clone();
+                plan.join = list.join.clone();
+                plan.item_key = list.item_key.clone();
+                plan.columns = list
+                    .mapped
+                    .iter()
+                    .map(|column| ColumnPlan {
+                        column: column.clone(),
+                        options: ColumnOptions {
+                            split: None,
+                            value_type: ValueType::Literal,
+                            lang: None,
+                            private: false,
+                        },
+                    })
+                    .collect();
+                plan
+            })
+            .collect();
+        let column = |file: &ListFile, column: &ColumnRef| {
+            Some(SourceRef::Column {
+                sheet: of_file.get(file)?.clone(),
+                column: column.clone(),
+            })
+        };
+        let set = rows.set.as_ref().and_then(|(file, set)| {
+            Some(SetSource::Each(EachValue {
+                each: EachSet {
+                    sources: vec![column(file, set)?],
+                    combine: Combine::First,
+                    map: IndexMap::new(),
+                    names: SetNames::Key,
+                },
+            }))
+        });
+        let rules = rows
+            .keys
+            .iter()
+            .filter_map(|(kind, file, key)| {
+                let rule = SlotRule {
+                    sources: vec![column(file, key)?],
+                    combine: Combine::First,
+                    map: IndexMap::new(),
+                };
+                Some((*kind, SlotName::ItemKey, rule))
+            })
+            .collect();
+        Self { lists, set, rules }
     }
 }
 
@@ -415,29 +610,34 @@ fn as_found(evidence: &Evidence<'_>) -> Vec<folders::FolderSeries> {
 }
 
 /// The plan's series for one detected series. Its id is its folder's name,
-/// or its source's id when it takes the whole source.
-fn level(one: &folders::FolderSeries, key: &Key) -> Level {
+/// or its source's id when it takes the whole source. With no key, the files
+/// make no item of their own: the rows of a list are the items.
+fn level(one: &folders::FolderSeries, key: Option<&Key>, plan: Plan) -> Level {
     let scope = one.scope();
     let id = if scope.folder.as_str().is_empty() {
         scope.source.0.clone()
     } else {
         scope.folder.as_str().to_owned()
     };
-    let series = Series::new(
+    let mut series = Series::new(
         LevelId(id),
         SeriesScope::Folders(one.scopes.clone()),
         Grouping {
-            pattern: Some(key.pattern()),
+            pattern: key.map(Key::pattern),
             case_fold: false,
         },
-    );
-    let set = one.set.as_ref().map(|_| {
+    )
+    .with_lists(plan.lists);
+    for (kind, slot, rule) in plan.rules {
+        series = series.with_rule(kind, slot, rule);
+    }
+    let folder = one.set.as_ref().map(|_| {
         SetSource::Title(SetByTitle {
             title: folders::folder_title(scope).0,
             description: None,
         })
     });
-    match set {
+    match folder.or(plan.set) {
         Some(set) => Level::Series(series.with_set(set)),
         None => Level::Series(series),
     }
@@ -581,12 +781,13 @@ fn counted_counts(counted: &names::Counted, media: usize) -> CutCounts {
 }
 
 /// The counts of a series' cut: the items and their files from the derive
-/// of the proposal, the parts and shapes as detector 2 counted them.
+/// of the proposal, the parts and shapes as detector 2 counted them. Items
+/// made from rows have no parts and no shapes.
 fn cut_counts(
     model: &Model,
     at: SeriesIx,
     scope: &ScopeCounts,
-    counted: &names::Counted,
+    counted: Option<&names::Counted>,
 ) -> CutCounts {
     let per_item: Vec<usize> = model
         .kept()
@@ -606,8 +807,10 @@ fn cut_counts(
             of: scope.media,
         },
         per_item: buckets(&per_item),
-        parts: counted.parts.clone(),
-        names_ending_here: counted.names_ending_here,
-        other_shapes: counted.other_shapes,
+        parts: counted
+            .map(|counted| counted.parts.clone())
+            .unwrap_or_default(),
+        names_ending_here: counted.map_or(0, |counted| counted.names_ending_here),
+        other_shapes: counted.map_or(0, |counted| counted.other_shapes),
     }
 }

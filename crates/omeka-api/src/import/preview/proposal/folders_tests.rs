@@ -3,7 +3,7 @@
 #![allow(clippy::expect_used)]
 
 use super::bhc006_tests;
-use super::{Evidence, NodeEvidence, OutsideFolder, OutsideReason, Proposal, propose};
+use super::{Evidence, FoundList, NodeEvidence, OutsideFolder, OutsideReason, Proposal, propose};
 use crate::import::derive::tests::scenarios::S1_TO_S8;
 use crate::import::plan::{Edit, FolderScope, RelPath, SetFrom, SourceId};
 use crate::import::preview::facts::MediaKind;
@@ -50,7 +50,7 @@ fn s1() -> Proposal {
     let scenario = build();
     let evidence = Evidence {
         index: &scenario.index,
-        lists: &[],
+        lists: &Vec::<FoundList>::new(),
         catalog: &scenario.catalog,
         sources: &scenario.plan.sources,
         structure: &scenario.plan.structure,
@@ -163,7 +163,7 @@ fn numbered_folders_are_one_series_with_their_level_offered() {
     let scenario = build();
     let evidence = Evidence {
         index: &scenario.index,
-        lists: &[],
+        lists: &Vec::<FoundList>::new(),
         catalog: &scenario.catalog,
         sources: &scenario.plan.sources,
         structure: &scenario.plan.structure,
