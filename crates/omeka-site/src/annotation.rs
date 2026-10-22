@@ -105,18 +105,20 @@ impl Place {
                 let (x, y, _, _) = self.bounds().unwrap_or((0, 0, 0, 0));
                 (1, u64::from(y), u64::from(x))
             }
-            Self::Time { start_ms, end_ms } | Self::BoxDuring { start_ms, end_ms, .. } => {
-                (2, *start_ms, *end_ms)
-            }
+            Self::Time { start_ms, end_ms }
+            | Self::BoxDuring {
+                start_ms, end_ms, ..
+            } => (2, *start_ms, *end_ms),
         }
     }
 
     /// The range of a recording this place covers.
     fn span(&self) -> Option<(u64, u64)> {
         match self {
-            Self::Time { start_ms, end_ms } | Self::BoxDuring { start_ms, end_ms, .. } => {
-                Some((*start_ms, *end_ms))
-            }
+            Self::Time { start_ms, end_ms }
+            | Self::BoxDuring {
+                start_ms, end_ms, ..
+            } => Some((*start_ms, *end_ms)),
             Self::Whole | Self::Rect { .. } | Self::Polygon(_) => None,
         }
     }
@@ -493,7 +495,10 @@ fn place(line: &NoteLine, notes: &NotesView, messages: &Messages) -> String {
             line.id,
             escape_html(messages.notes_region)
         ),
-        Place::Time { start_ms, end_ms } | Place::BoxDuring { start_ms, end_ms, .. } => {
+        Place::Time { start_ms, end_ms }
+        | Place::BoxDuring {
+            start_ms, end_ms, ..
+        } => {
             let range = sprintf(messages.notes_range, &[&clock(*start_ms), &clock(*end_ms)]);
             let label = sprintf(messages.notes_play, &[&clock(*start_ms), &clock(*end_ms)]);
             let boxed = if matches!(line.place, Place::BoxDuring { .. }) {

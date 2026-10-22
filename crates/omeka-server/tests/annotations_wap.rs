@@ -875,7 +875,9 @@ async fn a_video_takes_a_box_over_a_time_range() {
     )
     .await;
     assert_eq!(boxed.status, StatusCode::CREATED, "{}", boxed.body);
-    let page = send(app.clone(), get(&container(video.0), true)).await.json();
+    let page = send(app.clone(), get(&container(video.0), true))
+        .await
+        .json();
     assert_eq!(
         page["first"]["items"][0]["target"]["selector"]["value"],
         "xywh=pixel:10,20,300,150&t=1.5,4"

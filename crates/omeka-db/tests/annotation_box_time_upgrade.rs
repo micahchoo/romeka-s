@@ -124,9 +124,16 @@ async fn found(pool: &SqlitePool, word: &str) -> Vec<i64> {
 async fn the_upgrade_keeps_every_note_and_then_takes_a_box_over_a_span() {
     let (pool, path) = before_upgrade("annotation-box-time").await;
     let media = a_media(&pool).await;
-    let region = insert(&pool, media, "rect", Some("1,2,3,4"), None, "a crowned shield")
-        .await
-        .unwrap();
+    let region = insert(
+        &pool,
+        media,
+        "rect",
+        Some("1,2,3,4"),
+        None,
+        "a crowned shield",
+    )
+    .await
+    .unwrap();
     let moment = insert(&pool, media, "time", None, Some((1000, 2000)), "a footstep")
         .await
         .unwrap();
@@ -139,34 +146,70 @@ async fn the_upgrade_keeps_every_note_and_then_takes_a_box_over_a_span() {
         .await
         .unwrap();
     assert!(
-        insert(&pool, media, "rect", Some("1,2,3,4"), Some((0, 500)), "too early")
-            .await
-            .is_err(),
+        insert(
+            &pool,
+            media,
+            "rect",
+            Some("1,2,3,4"),
+            Some((0, 500)),
+            "too early"
+        )
+        .await
+        .is_err(),
         "before 0011 a box cannot hold a time range"
     );
     let before = rows(&pool).await;
 
     migrate(&pool).await.unwrap();
 
-    assert_eq!(rows(&pool).await, before, "every note keeps its id and columns");
+    assert_eq!(
+        rows(&pool).await,
+        before,
+        "every note keeps its id and columns"
+    );
     assert_eq!(found(&pool, "shield").await, vec![region]);
     assert_eq!(found(&pool, "footstep").await, vec![moment]);
 
-    let boxed = insert(&pool, media, "rect", Some("10,20,30,40"), Some((0, 500)), "the hands")
-        .await
-        .unwrap();
+    let boxed = insert(
+        &pool,
+        media,
+        "rect",
+        Some("10,20,30,40"),
+        Some((0, 500)),
+        "the hands",
+    )
+    .await
+    .unwrap();
     assert!(boxed > last, "a deleted id stays unused");
-    assert_eq!(found(&pool, "hands").await, vec![boxed], "the triggers index new notes");
+    assert_eq!(
+        found(&pool, "hands").await,
+        vec![boxed],
+        "the triggers index new notes"
+    );
     assert!(
-        insert(&pool, media, "rect", Some("1,2,3,4"), Some((500, 500)), "empty span")
-            .await
-            .is_err(),
+        insert(
+            &pool,
+            media,
+            "rect",
+            Some("1,2,3,4"),
+            Some((500, 500)),
+            "empty span"
+        )
+        .await
+        .is_err(),
         "a box's range must end after it starts"
     );
     assert!(
-        insert(&pool, media, "polygon", Some("0,0 1,0 1,1"), Some((0, 500)), "no")
-            .await
-            .is_err(),
+        insert(
+            &pool,
+            media,
+            "polygon",
+            Some("0,0 1,0 1,1"),
+            Some((0, 500)),
+            "no"
+        )
+        .await
+        .is_err(),
         "a polygon still holds no time range"
     );
     sqlx::query("DELETE FROM romeka_media_annotation WHERE id = ?")
@@ -174,7 +217,10 @@ async fn the_upgrade_keeps_every_note_and_then_takes_a_box_over_a_span() {
         .execute(&pool)
         .await
         .unwrap();
-    assert!(found(&pool, "shield").await.is_empty(), "a delete leaves the index");
+    assert!(
+        found(&pool, "shield").await.is_empty(),
+        "a delete leaves the index"
+    );
 
     pool.close().await;
     common::remove_db(&path);

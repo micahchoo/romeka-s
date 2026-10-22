@@ -403,8 +403,7 @@ fn selector_of_row(row: &MediaAnnotationRow) -> Result<Selector, DbError> {
                     h,
                     start_ms: u64::try_from(start)
                         .map_err(|_| column("t_start_ms", &start.to_string()))?,
-                    end_ms: u64::try_from(end)
-                        .map_err(|_| column("t_end_ms", &end.to_string()))?,
+                    end_ms: u64::try_from(end).map_err(|_| column("t_end_ms", &end.to_string()))?,
                 }),
                 _ => Err(column("t_end_ms", "a box with half a time range")),
             }

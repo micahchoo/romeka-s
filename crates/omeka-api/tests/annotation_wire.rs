@@ -555,10 +555,7 @@ async fn a_selector_the_media_cannot_take_is_refused() {
         ),
         (
             seed.video,
-            svg(
-                &video,
-                "<svg><polygon points=\"0,0 10,0 10,10\"/></svg>",
-            ),
+            svg(&video, "<svg><polygon points=\"0,0 10,0 10,10\"/></svg>"),
             Problem::VideoShapeNeedsTime,
         ),
         (
