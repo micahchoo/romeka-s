@@ -109,6 +109,72 @@ fn artifacts_rows_describe_files() {
 }
 
 #[test]
+fn pn_rows_that_name_no_file_are_counted_for_both_grains() {
+    let proposal = proposal_with_lists(&[]);
+    let narratives = series(&proposal, "Photo Narratives (PN)");
+    let grain = narratives.grain.as_ref().expect("a file join has a grain");
+    let rival = grain.rival.as_ref().expect("rows may describe files");
+    assert_eq!(
+        (grain.chosen.value, rival.value),
+        (RecordKind::Item, RecordKind::Media)
+    );
+    assert_eq!(
+        (
+            grain.chosen.counts.rows_naming_no_file,
+            rival.counts.rows_naming_no_file
+        ),
+        (26, 26),
+        "215 rows, 189 of them name a file"
+    );
+    assert_eq!(
+        (grain.chosen.counts.items, rival.counts.items),
+        (215, 189),
+        "item rows that name no file make items; file rows are left out"
+    );
+    assert_eq!(
+        grain.chosen.counts.items,
+        narratives.items.chosen.counts.items
+    );
+}
+
+#[test]
+fn a_grain_click_makes_the_items_its_rival_counted() {
+    let before = proposal_with_lists(&[]);
+    for (level, file) in [
+        ("Photo Narratives (PN)", "BHC006_GMT_PN.xlsx"),
+        ("Artifacts", "BHC006_GMT_AF.xlsx"),
+    ] {
+        let rival = series(&before, level)
+            .grain
+            .as_ref()
+            .and_then(|grain| grain.rival.clone())
+            .expect("a rival grain");
+        let after = proposal_with_lists(&[Edit::Grain {
+            list: ListFile {
+                source: SourceId("s1".into()),
+                file: RelPath::parse(file).expect("a path"),
+            },
+            describes: rival.value,
+        }]);
+        let node = series(&after, level);
+        let grain = node.grain.as_ref().expect("a grain");
+        assert_eq!(grain.chosen.value, rival.value, "{level}");
+        assert_eq!(
+            (
+                grain.chosen.counts.items,
+                grain.chosen.counts.rows_naming_no_file
+            ),
+            (rival.counts.items, rival.counts.rows_naming_no_file),
+            "{level}: the click makes what its segment counted"
+        );
+        assert_eq!(
+            node.items.chosen.counts.items, rival.counts.items,
+            "{level}"
+        );
+    }
+}
+
+#[test]
 fn a_grain_edit_takes_the_rival() {
     let edit = Edit::Grain {
         list: ListFile {
