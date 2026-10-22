@@ -729,3 +729,54 @@ async fn a_retry_after_a_kill_keeps_its_total_and_starts_at_the_units_done() {
     assert_eq!(keys.len(), ledger.len(), "one ledger row per record");
     assert_eq!(site.items().await.len(), 9, "no duplicate item");
 }
+
+/// A kill after an item's unit committed and before it joined its sites
+/// left it outside them, and the retry skips its unit. The kill here is the
+/// gate's; the lost join is the detach of every item it made.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_item_made_before_a_kill_joins_its_sites_after_the_resume() {
+    let site = site().await;
+    bhc_006(&site);
+    let synced = omeka_db::repos::SiteRepo::new(&site.pool)
+        .create(&omeka_db::rows::NewSite {
+            slug: "synced".into(),
+            theme: "default".into(),
+            title: "Synced".into(),
+            item_pool: json!({}),
+            assign_new_items: true,
+            ..omeka_db::rows::NewSite::default()
+        })
+        .await
+        .unwrap();
+    let id = site.draft(bhc_plan).await;
+    let gate = site.store.hold_after(5);
+    let job = site.start(id).await;
+    tokio::task::spawn_blocking(move || {
+        gate.reached
+            .recv_timeout(Duration::from_secs(30))
+            .expect("the run reached the sixth file");
+        gate
+    })
+    .await
+    .map(|gate| {
+        for task in site.jobs.tasks.lock().unwrap().drain(..) {
+            task.abort();
+        }
+        drop(gate.release);
+    })
+    .unwrap();
+    JobRepo::new(&site.pool)
+        .finish(JobId::from(job), "error")
+        .await
+        .unwrap();
+    let sites = omeka_db::repos::ItemSiteRepo::new(&site.pool);
+    let made: Vec<_> = site.items().await.iter().map(|item| item.id()).collect();
+    assert!(!made.is_empty() && made.len() < 9, "{} items", made.len());
+    sites.detach(synced.id, &made).await.unwrap();
+
+    let row = site.run(id).await;
+
+    assert_eq!(row.status, ImportStatus::Done, "{}", summary(&row));
+    let joined = sites.site_items(synced.id).await.unwrap();
+    assert_eq!(joined.len(), 9, "every item the import made is in the site");
+}

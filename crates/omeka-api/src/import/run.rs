@@ -9,15 +9,19 @@
 //! 1. what the records need first: the plan's new fields (`local`
 //!    vocabulary), its new item types, and the sets records name by a title
 //!    no set has ([`prelude`]);
-//! 2. the item-set records, then each item record with its media, then the
+//! 2. the sites of every item an earlier attempt created (`Run::rejoin`):
+//!    a worker killed after an item's unit committed and before the item
+//!    joined its sites left it outside them, and its unit is never written
+//!    again;
+//! 3. the item-set records, then each item record with its media, then the
 //!    media records of items already in the install ([`units`]). Each
 //!    record's bytes reach the store before its transaction opens; the
 //!    transaction holds its rows, its ledger row and, for a changed
 //!    resource, its before-image. A record that fails is rolled back, its
 //!    bytes are removed, and it is listed in `summary.failures`;
-//! 3. the links between the import's own records ([`links`]), which need
+//! 4. the links between the import's own records ([`links`]), which need
 //!    every record to exist;
-//! 4. `left.csv`, into the store.
+//! 5. `left.csv`, into the store.
 //!
 //! A `delete` writes none of this: it deletes each matched resource through
 //! the API ([`delete`]), and nothing it does is undoable.
@@ -280,6 +284,7 @@ where
         }
         self.lookup = Lookup::load(self.pool, self.model()).await?;
         self.prelude().await?;
+        self.rejoin().await;
         if let Next::Lost = self.pulse().await? {
             return Ok(RunEnd::Lost);
         }
@@ -343,6 +348,30 @@ where
             .set_summary(self.import, &self.summary.to_json())
             .await?;
         Ok(next)
+    }
+
+    /// Join each item an earlier attempt created to the sites whose pool
+    /// takes it. A join already made is kept as it is, so this repairs only
+    /// the one a kill skipped. It runs first, so a run stopped again soon
+    /// still repairs.
+    async fn rejoin(&mut self) {
+        let derived: &'r Derived = self.derived;
+        for record in derived.model.kept() {
+            if record.kind != RecordKind::Item || record.fate != Fate::Create {
+                continue;
+            }
+            let key = record.origin.key();
+            let Some(ImportTarget::Item(item)) = self.written.target(&key) else {
+                continue;
+            };
+            if let Err(error) = self.env.sites.item_created(item).await {
+                self.fail(
+                    key,
+                    &units::catalogue_key("import_sites_not_joined"),
+                    crate::messages::import_sites_not_joined(error),
+                );
+            }
+        }
     }
 
     /// Count a record this attempt wrote or failed as done.
