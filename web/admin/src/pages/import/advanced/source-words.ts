@@ -8,7 +8,7 @@ import { FILE_FACTS, TAG_IDS } from '../../../api/import-plan';
 import type { FileFact, ImportPlan, SourceRef } from '../../../api/import-plan';
 import type { SheetView } from '../../../api/import-sheet-views';
 import type { AdvancedMessageKey, AdvancedTranslator } from './messages';
-import { seriesOf } from '../series';
+import { listOf } from '../series';
 
 const FACT_WORDS: Readonly<Record<FileFact, AdvancedMessageKey>> = {
   name: 'adv.source.file.name',
@@ -17,7 +17,7 @@ const FACT_WORDS: Readonly<Record<FileFact, AdvancedMessageKey>> = {
   format: 'adv.source.file.format',
 };
 
-const sheetName = (plan: ImportPlan, sheet: string): string => seriesOf(plan).lists.find((one) => one.id === sheet)?.file ?? sheet;
+const sheetName = (plan: ImportPlan, sheet: string): string => listOf(plan, sheet)?.file ?? sheet;
 
 export const sourceWords = (source: SourceRef, plan: ImportPlan, t: AdvancedTranslator['t']): string => {
   switch (source.from) {

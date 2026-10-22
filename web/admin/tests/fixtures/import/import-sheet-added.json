@@ -32,101 +32,9 @@
       "template": null,
       "visibility": "private"
     },
-    "example": null,
     "flags": {},
-    "grouping": {
-      "caseFold": false,
-      "pattern": "^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\\.[^./]*)?$"
-    },
     "newTerms": [],
     "newTypes": [],
-    "sheets": [
-      {
-        "columns": [
-          {
-            "column": {
-              "header": "Title [dcterms:title]",
-              "index": 2
-            },
-            "options": {
-              "lang": null,
-              "private": false,
-              "split": "|",
-              "type": "literal"
-            }
-          },
-          {
-            "column": {
-              "header": "Date [dcterms:date]",
-              "index": 3
-            },
-            "options": {
-              "lang": null,
-              "private": false,
-              "split": "|",
-              "type": "literal"
-            }
-          }
-        ],
-        "file": "lists/1.csv",
-        "hash": "eb6d84b3084a29d74ad9b2c8bb1fc40492a1e485c81ef96f6c1713050d09ea2f",
-        "id": "list-1",
-        "itemKey": null,
-        "join": {
-          "column": {
-            "header": "Identifier",
-            "index": 0
-          },
-          "normalize": {
-            "caseFold": false,
-            "leadingZeros": false,
-            "separators": false
-          },
-          "on": "identifier"
-        },
-        "read": {
-          "delimiter": ",",
-          "encoding": "auto",
-          "headerLine": 1,
-          "quote": "\"",
-          "trim": true
-        },
-        "rowKind": "item",
-        "source": "staging"
-      }
-    ],
-    "slots": {
-      "item": {
-        "dcterms:date": {
-          "combine": "first",
-          "sources": [
-            {
-              "column": {
-                "header": "Date [dcterms:date]",
-                "index": 3
-              },
-              "from": "column",
-              "sheet": "list-1"
-            }
-          ]
-        },
-        "dcterms:title": {
-          "combine": "first",
-          "sources": [
-            {
-              "column": {
-                "header": "Title [dcterms:title]",
-                "index": 2
-              },
-              "from": "column",
-              "sheet": "list-1"
-            }
-          ]
-        }
-      },
-      "itemSet": {},
-      "media": {}
-    },
     "sources": [
       {
         "id": "s1",
@@ -139,7 +47,110 @@
         "kind": "staging"
       }
     ],
-    "version": 2
+    "structure": {
+      "freeSets": [],
+      "levels": [
+        {
+          "example": null,
+          "grouping": {
+            "caseFold": false,
+            "pattern": "^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\\.[^./]*)?$"
+          },
+          "id": "all",
+          "kind": "series",
+          "lists": [
+            {
+              "columns": [
+                {
+                  "column": {
+                    "header": "Title [dcterms:title]",
+                    "index": 2
+                  },
+                  "options": {
+                    "lang": null,
+                    "private": false,
+                    "split": "|",
+                    "type": "literal"
+                  }
+                },
+                {
+                  "column": {
+                    "header": "Date [dcterms:date]",
+                    "index": 3
+                  },
+                  "options": {
+                    "lang": null,
+                    "private": false,
+                    "split": "|",
+                    "type": "literal"
+                  }
+                }
+              ],
+              "file": "lists/1.csv",
+              "hash": "eb6d84b3084a29d74ad9b2c8bb1fc40492a1e485c81ef96f6c1713050d09ea2f",
+              "id": "list-1",
+              "itemKey": null,
+              "join": {
+                "column": {
+                  "header": "Identifier",
+                  "index": 0
+                },
+                "normalize": {
+                  "caseFold": false,
+                  "leadingZeros": false,
+                  "separators": false
+                },
+                "on": "identifier"
+              },
+              "read": {
+                "delimiter": ",",
+                "encoding": "auto",
+                "headerLine": 1,
+                "quote": "\"",
+                "trim": true
+              },
+              "rowKind": "item",
+              "source": "staging"
+            }
+          ],
+          "scope": "all",
+          "set": null,
+          "slots": {
+            "item": {
+              "dcterms:date": {
+                "combine": "first",
+                "sources": [
+                  {
+                    "column": {
+                      "header": "Date [dcterms:date]",
+                      "index": 3
+                    },
+                    "from": "column",
+                    "sheet": "list-1"
+                  }
+                ]
+              },
+              "dcterms:title": {
+                "combine": "first",
+                "sources": [
+                  {
+                    "column": {
+                      "header": "Title [dcterms:title]",
+                      "index": 2
+                    },
+                    "from": "column",
+                    "sheet": "list-1"
+                  }
+                ]
+              }
+            },
+            "itemSet": {},
+            "media": {}
+          }
+        }
+      ]
+    },
+    "version": 3
   },
   "revision": 1,
   "sources": [

@@ -1,5 +1,5 @@
 /**
- * The v3 plan parser (`parseImportPlanV3`) against the server's own v3
+ * The v3 plan parser (`parseImportPlan`) against the server's own v3
  * fixtures: what it parses serialises back to the same JSON, and it refuses
  * what serde refuses.
  */
@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { parseImportPlanV3 } from "../src/api/import-plan-read";
+import { parseImportPlan } from "../src/api/import-plan-tree-read";
 import { isRecord, isUnknownArray } from "../src/api/parse";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -32,7 +32,7 @@ const rustPlan = (name: string): Record<string, unknown> => {
 };
 
 const roundTrip = (raw: unknown): unknown => {
-  const back: unknown = JSON.parse(JSON.stringify(parseImportPlanV3(raw)));
+  const back: unknown = JSON.parse(JSON.stringify(parseImportPlan(raw)));
   return back;
 };
 
@@ -103,7 +103,7 @@ describe("the v3 plan", () => {
     join["normalize"] = { ...folds, lastPlaces: 2 };
     expect(roundTrip(raw)).toEqual(raw);
     join["normalize"] = { ...folds, lastPlaces: "2" };
-    expect(() => parseImportPlanV3(raw)).toThrow("lastPlaces");
+    expect(() => parseImportPlan(raw)).toThrow("lastPlaces");
   });
 
   it("writes back the paths a structure leaves out, and leaves the member out when empty", () => {
@@ -119,19 +119,19 @@ describe("the v3 plan", () => {
     };
     expect(roundTrip(raw)).toEqual(raw);
     expect(() =>
-      parseImportPlanV3({ ...plan, structure: { ...structure, outside: [{ source: "s1" }] } }),
+      parseImportPlan({ ...plan, structure: { ...structure, outside: [{ source: "s1" }] } }),
     ).toThrow("outside");
   });
 
   it("refuses a member serde does not know", () => {
     expect(() =>
-      parseImportPlanV3({
+      parseImportPlan({
         ...rustPlan("bhc006.json"),
         grouping: { pattern: null, caseFold: false },
       }),
     ).toThrow("$.grouping: expected a member of this shape");
     expect(() =>
-      parseImportPlanV3(
+      parseImportPlan(
         withFirstLevel((level) => ({ ...level, scope: "all" })),
       ),
     ).toThrow("$.structure.levels[0].scope: expected a member of this shape");
@@ -139,7 +139,7 @@ describe("the v3 plan", () => {
 
   it("refuses a level kind serde does not know", () => {
     expect(() =>
-      parseImportPlanV3(
+      parseImportPlan(
         withFirstLevel((level) => ({ ...level, kind: "folder" })),
       ),
     ).toThrow("$.structure.levels[0].kind: expected one of set, series");
@@ -147,7 +147,7 @@ describe("the v3 plan", () => {
 
   it("refuses a set source with both an id and a title", () => {
     expect(() =>
-      parseImportPlanV3(
+      parseImportPlan(
         withFirstLevel((level) => ({
           ...level,
           set: { id: 42, title: "Citizen Curators", description: null },
@@ -160,7 +160,7 @@ describe("the v3 plan", () => {
 
   it("refuses a version 2 plan", () => {
     expect(() =>
-      parseImportPlanV3({ ...rustPlan("bhc006.json"), version: 2 }),
+      parseImportPlan({ ...rustPlan("bhc006.json"), version: 2 }),
     ).toThrow("$.version: expected version 3");
   });
 });

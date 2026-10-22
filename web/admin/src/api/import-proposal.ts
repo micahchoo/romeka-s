@@ -7,7 +7,8 @@
  * shows the proposal calls `parseProposal` on it.
  */
 import { asCount, asFlag, list, member, nullable, oneOf, strict } from './import-read';
-import { parseColumnRef, parseEdit, parseFolderScope, parseListFile, parsePairRule, parseSetFrom, parseStructure } from './import-plan-read';
+import { parseColumnRef } from './import-plan-read';
+import { parseEdit, parseFolderScope, parseListFile, parsePairRule, parseSetFrom, parseStructure } from './import-plan-tree-read';
 import type { ColumnRef, Edit, FolderScope, LevelId, ListFile, PairRule, RecordKind, SetFrom, Structure } from './import-plan';
 import { RECORD_KINDS } from './import-plan';
 import { MEDIA_KINDS, parseBucketCount, parseGrain, parseListCandidate } from './import-sections';

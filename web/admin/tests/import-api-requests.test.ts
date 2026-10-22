@@ -6,7 +6,7 @@
  * that cannot spell one it does, fails one side or the other.
  */
 import { describe, expect, it } from 'vitest';
-import { parseImportPlan } from '../src/api/import-plan-read';
+import { parseImportPlan } from '../src/api/import-plan-tree-read';
 import { ImportApi } from '../src/api/import-routes';
 import { UNUSED_REASONS } from '../src/api/import-queries';
 import type { PreviewOptions, Unused } from '../src/api/import-queries';

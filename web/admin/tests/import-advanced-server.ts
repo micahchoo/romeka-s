@@ -13,6 +13,7 @@
 import { asRecord, isRecord } from '../src/api/parse';
 import { patternOf } from '../src/pages/import/example';
 import { loadFixture } from './loadFixture';
+import { flatPlan, withMembers } from './import-plan-members';
 import { jsonResponse, listResponse, route } from './stub';
 import type { Handler } from './stub';
 
@@ -27,8 +28,7 @@ export const MARKS = [{ kind: 'words', words: ['front', 'back'], sep: '_' }] as 
 const column = (index: number, header: string) => ({ index, header });
 
 /** The stored plan: a pattern written by one mark, a list joined on Identifier, two field rules and four decisions. */
-export const startPlan = (): Record<string, unknown> => ({
-  ...asRecord(fixture('import-draft.json')['plan'], []),
+export const startPlan = (): Record<string, unknown> => withMembers(asRecord(fixture('import-draft.json')['plan'], []), {
   grouping: { pattern: patternOf(MARKS), caseFold: false },
   example: { path: 'Letters/item_00001_front.jpg', marks: MARKS },
   sheets: [
@@ -66,9 +66,9 @@ export const startPlan = (): Record<string, unknown> => ({
 
 export interface AdvancedServer {
   readonly handler: Handler;
-  /** The plan of each PUT, in order. */
+  /** The plan of each PUT, in order, with its one series' members flat (`flatPlan`). */
   readonly saved: Record<string, unknown>[];
-  /** The plan each preview read, stored or sent. */
+  /** The plan each preview read, stored or sent, flat as `saved`. */
   readonly previewed: Record<string, unknown>[];
 }
 
@@ -124,7 +124,7 @@ export const advancedServer = (items: number): AdvancedServer => {
   const preview: Handler = (_url, init) => {
     const body = asRecord(JSON.parse(typeof init?.body === 'string' ? init.body : '{}'), []);
     const include = Array.isArray(body['include']) ? body['include'].map(String) : [];
-    const asked = isRecord(body['plan']) ? body['plan'] : plan;
+    const asked = flatPlan(isRecord(body['plan']) ? body['plan'] : plan);
     previewed.push(asked);
     const { state, groups, unfit } = grouped(asked);
     const answer: Record<string, unknown> = { sources: sectionOf('preview-records.json', 'sources'), pattern: state };
@@ -193,7 +193,7 @@ export const advancedServer = (items: number): AdvancedServer => {
       if (init?.method === 'PUT') {
         const body = asRecord(JSON.parse(typeof init.body === 'string' ? init.body : '{}'), []);
         plan = asRecord(body['plan'], []);
-        saved.push(plan);
+        saved.push(flatPlan(plan));
         revision += 1;
       }
       return jsonResponse(draft());

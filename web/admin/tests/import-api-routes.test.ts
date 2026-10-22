@@ -11,11 +11,12 @@ import { describe, expect, it } from 'vitest';
 import { ApiError } from '../src/api/client';
 import { CONFLICT_CODES, conflictOf, seriesRefusalOf } from '../src/api/import-conflict';
 import type { ImportConflict } from '../src/api/import-conflict';
-import { parseImportPlan } from '../src/api/import-plan-read';
+import { parseImportPlan } from '../src/api/import-plan-tree-read';
 import { ImportApi } from '../src/api/import-routes';
 import { ParseError, asRecord, brandId } from '../src/api/parse';
 import { loadFixture } from './loadFixture';
 import { installFetch, jsonResponse, noContent, requestBody, requestsFor, route } from './stub';
+import { seriesOf } from '../src/pages/import/series';
 
 const FIXTURES = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures/import');
 const api = new ImportApi({ baseUrl: '' });
@@ -63,7 +64,7 @@ describe('reading', () => {
     const running = await api.get(ID);
     expect(running.status).toBe('running');
     expect(running.progress).toEqual({ done: 3, total: 9, secondsLeft: 42 });
-    expect(running.ranPlan?.version).toBe(2);
+    expect(running.ranPlan?.version).toBe(3);
     expect((await api.get(brandId<'ImportId'>(2))).summary).toBeNull();
   });
 
@@ -117,7 +118,7 @@ describe('writing', () => {
   it('saves the plan with the revision it was read at, and takes the new revision', async () => {
     const fetchMock = installFetch(route({ '/api/romeka/imports/1': () => answer('import-saved.json') }));
     const saved = await api.save(ID, parseImportPlan(savedPlan()), 2);
-    expect(saved.plan.version).toBe(2);
+    expect(saved.plan.version).toBe(3);
     const sent = only(requestsFor(fetchMock, '/api/romeka/imports/1'));
     expect(sent.init?.method).toBe('PUT');
     expect(requestBody(sent)['revision']).toBe(2);
@@ -167,7 +168,7 @@ describe('writing', () => {
   it('uploads a filled list as a multipart form with one file', async () => {
     const fetchMock = installFetch(route({ '/api/romeka/imports/1/sheets': () => answer('import-sheet-added.json', 201) }));
     const added = await api.addList(ID, new File(['Identifier,Title [dcterms:title]\n'], 'list.csv', { type: 'text/csv' }));
-    expect(added.plan.sheets[0]?.file).toBe('lists/1.csv');
+    expect(seriesOf(added.plan).lists[0]?.file).toBe('lists/1.csv');
     const sent = only(requestsFor(fetchMock, '/api/romeka/imports/1/sheets'));
     expect(sent.init?.method).toBe('POST');
     const form = sent.init?.body;

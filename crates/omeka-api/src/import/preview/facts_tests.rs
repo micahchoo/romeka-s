@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 use super::*;
 use crate::import::derive::{Index, IndexedSource, NoTags};
 use crate::import::evidence::{Anomalies, Identical, Walk};
-use crate::import::plan::{RelPath, default_plan};
+use crate::import::plan::{RelPath, v2_default};
 use crate::import::sheet;
 
 const JPEG: &str = "image/jpeg";
@@ -16,13 +16,11 @@ const PDF: &str = "application/pdf";
 const PATTERN: &str = r"^(?:[^/]+/)*(?<identifier>[A-Z]+\d+)(?:_(?<part>[a-z0-9]+))?\.[a-z]+$";
 
 fn derived(files: &[(&str, &str)], list: Option<&str>, edit: impl FnOnce(&mut Value)) -> Derived {
-    let plan = default_plan(vec![SourcePlan::Folder {
+    let mut value = v2_default(&[SourcePlan::Folder {
         id: SourceId("s1".into()),
         root: "archive".into(),
         path: RelPath::parse("").unwrap(),
-    }])
-    .unwrap();
-    let mut value = serde_json::to_value(plan).unwrap();
+    }]);
     value["grouping"]["pattern"] = json!(PATTERN);
     if let Some(list) = list {
         let headers: Vec<&str> = list.lines().next().unwrap().split(',').collect();

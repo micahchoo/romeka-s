@@ -28,21 +28,27 @@ vi.mock('../src/pages/import/simple/bodies', async () => {
       </div>
     );
   };
+  const { seriesOf, setsRuleOf, withSeries, withSetsRule } = await import('../src/pages/import/series');
   return {
     SIMPLE_BODIES: {
-      found: () => <Stand show={(plan) => plan.grouping} answer={(plan) => ({ ...plan, grouping: { ...plan.grouping, caseFold: true } })} />,
+      found: () => <Stand show={(plan) => seriesOf(plan).grouping} answer={(plan) => withSeries(plan, (series) => ({ ...series, grouping: { ...series.grouping, caseFold: true } }))} />,
       list: () => (
         <Stand
-          show={(plan) => plan.sheets[0]?.join?.column}
-          answer={(plan) => ({ ...plan, sheets: plan.sheets.map((sheet) => (sheet.join === null ? sheet : { ...sheet, join: { ...sheet.join, column: { index: 1, header: 'Title' } } })) })}
+          show={(plan) => seriesOf(plan).lists[0]?.join?.column}
+          answer={(plan) =>
+            withSeries(plan, (series) => ({
+              ...series,
+              lists: series.lists.map((sheet) => (sheet.join === null ? sheet : { ...sheet, join: { ...sheet.join, column: { index: 1, header: 'Title' } } })),
+            }))
+          }
         />
       ),
       where: () => (
         <Stand
-          show={(plan) => plan.slots.item.sets?.map}
+          show={(plan) => setsRuleOf(plan)?.map}
           answer={(plan) => {
-            const sets = plan.slots.item.sets;
-            return sets === undefined ? plan : { ...plan, slots: { ...plan.slots, item: { ...plan.slots.item, sets: { ...sets, map: { Photographs: 'Photos' } } } } };
+            const sets = setsRuleOf(plan);
+            return sets === undefined ? plan : withSetsRule(plan, { ...sets, map: { Photographs: 'Photos' } });
           }}
         />
       ),

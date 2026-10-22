@@ -1,7 +1,7 @@
 //! The import routes that outlive the v1 importer: the starter table and a
 //! job's log, who may read them, and the 409 for deleting the job of an
-//! import that is running or undoing. And the version a plan is kept in:
-//! every route that edits a plan answers and stores the version it got.
+//! import that is running or undoing. And the version a plan is answered
+//! in: every route answers and stores version 3, a stored v2 plan lifted.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
@@ -18,6 +18,7 @@ use omeka_api::jsonld::BaseUrl;
 use omeka_db::ids::{ImportId, JobId};
 use omeka_db::repos::{ApiKeyRepo, ImportRepo, JobRepo, StartOutcome, UserRepo};
 use omeka_db::rows::{ImportEnding, ImportStatus, NewApiKey, NewImport, NewJob, NewUser};
+use omeka_db::with_db;
 use serde_json::json;
 use sqlx::SqlitePool;
 
@@ -299,49 +300,135 @@ async fn through_the_routes(
     stored
 }
 
-/// The members of a v2 plan as `ImportPlan::to_json` writes it.
-const V2_MEMBERS: [&str; 12] = [
-    "version",
-    "sources",
-    "grouping",
-    "example",
-    "sheets",
-    "slots",
-    "action",
-    "defaults",
-    "flags",
-    "decisions",
-    "newTypes",
-    "newTerms",
-];
+/// A v2 plan as an admin before P4 stored it, on the draft's sources: a
+/// pattern, a marked example, a title rule, a sets rule and Simple's flat
+/// state.
+fn stored_v2(sources: &serde_json::Value) -> serde_json::Value {
+    json!({
+        "version": 2,
+        "sources": sources,
+        "grouping": { "pattern": imports_fixture::BHC_PATTERN, "caseFold": false },
+        "example": { "path": "Artifacts/BHC_006_AF_001_front.jpg", "marks": [] },
+        "sheets": [],
+        "slots": {
+            "item": {
+                "dcterms:title": { "sources": [{ "from": "group", "name": "identifier" }], "combine": "first" },
+                "sets": { "sources": [{ "from": "folder", "level": 1 }], "combine": "first" }
+            },
+            "media": {},
+            "itemSet": {}
+        },
+        "action": {
+            "action": "create",
+            "match": {
+                "item": { "key": "dcterms:identifier", "scope": "importSets" },
+                "media": { "key": "dcterms:identifier", "scope": "importSets" },
+                "itemSet": { "key": "dcterms:identifier", "scope": "importSets" }
+            },
+            "unmatched": "leave"
+        },
+        "defaults": { "visibility": "private", "owner": "runner", "sites": [], "template": null },
+        "flags": {},
+        "decisions": [],
+        "newTypes": [],
+        "newTerms": [],
+        "simple": { "groupsOk": imports_fixture::BHC_PATTERN, "answered": ["untitled"], "notLists": [] }
+    })
+}
 
 #[tokio::test]
-async fn a_v2_draft_saved_through_the_routes_stays_v2() {
-    use omeka_api::import::plan::ImportPlan;
-    let stored = through_the_routes(|plan| {
-        let mut plan = plan.clone();
-        plan["grouping"]["pattern"] = json!(imports_fixture::BHC_PATTERN);
-        plan
-    })
-    .await;
+async fn a_v2_draft_is_answered_as_v3() {
+    use imports_fixture::{bhc_006, fixture};
+    let fixture = fixture().await;
+    bhc_006(fixture.archive.path());
+    let draft = fixture.draft().await;
+    let id = draft["id"].clone();
+    let v2 = stored_v2(&draft["plan"]["sources"]);
+    let revision = with_db!(&fixture.pool, |db| ImportRepo::new(db)
+        .save_plan(
+            ImportId(id.as_u64().unwrap()),
+            &v2,
+            draft["revision"].as_u64().unwrap()
+        )
+        .await)
+    .unwrap();
+    assert!(matches!(revision, omeka_db::repos::PlanSave::Saved(_)));
+
+    let shown = fixture
+        .call("GET", &format!("/api/romeka/imports/{id}"), None)
+        .await;
+    assert_eq!(shown.status, StatusCode::OK, "{}", shown.body);
+    let lifted = json!({
+        "version": 3,
+        "sources": v2["sources"],
+        "structure": {
+            "levels": [{
+                "kind": "series", "id": "all", "set": null, "scope": "all",
+                "grouping": v2["grouping"],
+                "example": v2["example"],
+                "lists": [],
+                "slots": {
+                    "item": { "dcterms:title": v2["slots"]["item"]["dcterms:title"] },
+                    "media": {},
+                    "itemSet": {}
+                }
+            }],
+            "freeSets": [{ "each": {
+                "sources": [{ "from": "folder", "level": 1 }], "combine": "first", "names": "text"
+            } }]
+        },
+        "action": v2["action"],
+        "defaults": v2["defaults"],
+        "flags": {},
+        "decisions": [],
+        "newTypes": [],
+        "newTerms": [],
+        "simple": { "all": v2["simple"] }
+    });
+    assert_eq!(shown.json()["plan"], lifted, "the stored v2 plan, lifted");
+    assert_eq!(
+        fixture.row(&id).await.plan,
+        v2,
+        "a read leaves the stored plan as it is"
+    );
+
+    let saved = fixture.save(&shown.json(), |_| {}).await;
+    assert_eq!(saved.status, StatusCode::OK, "{}", saved.body);
+    assert_eq!(
+        saved.json()["plan"],
+        lifted,
+        "the admin saves back what it read"
+    );
+    assert_eq!(
+        fixture.row(&id).await.plan,
+        lifted,
+        "and it is stored as v3"
+    );
+}
+
+#[tokio::test]
+async fn a_v2_plan_saved_through_the_routes_is_stored_as_v3() {
+    let stored = through_the_routes(|plan| stored_v2(&plan["sources"])).await;
     for (step, plan) in ["save", "list", "pairs"].iter().zip(&stored) {
-        let mut members: Vec<&str> = plan
-            .as_object()
-            .unwrap()
-            .keys()
-            .map(String::as_str)
-            .collect();
-        members.sort_unstable();
-        let mut v2 = V2_MEMBERS.to_vec();
-        v2.sort_unstable();
-        assert_eq!(members, v2, "{step}: a v2 plan's members, and no structure");
-        assert_eq!(plan["version"], 2, "{step}");
-        let lowered: serde_json::Value =
-            serde_json::from_str(&ImportPlan::from_json(&plan.to_string()).unwrap().to_json())
-                .unwrap();
-        assert_eq!(*plan, lowered, "{step}: the v2 plan as the lower writes it");
+        assert_eq!(plan["version"], 3, "{step}");
+        assert!(plan.get("grouping").is_none(), "{step}: no v2 member");
+        let series = &plan["structure"]["levels"][0];
+        assert_eq!(series["id"], "all", "{step}: the one series of the lift");
+        assert_eq!(
+            series["grouping"]["pattern"],
+            imports_fixture::BHC_PATTERN,
+            "{step}"
+        );
+        assert_eq!(
+            plan["simple"]["all"]["answered"],
+            json!(["untitled"]),
+            "{step}"
+        );
     }
-    assert_eq!(stored[1]["sheets"][0]["id"], "list-1");
+    assert_eq!(
+        stored[1]["structure"]["levels"][0]["lists"][0]["id"],
+        "list-1"
+    );
     assert_eq!(stored[2]["decisions"][0]["kind"], "pair");
 }
 

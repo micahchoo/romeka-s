@@ -21,7 +21,7 @@ async fn four_unpaired_rows(fixture: &Fixture) -> Value {
     let draft = fixture.draft().await;
     let saved = fixture
         .save(&draft, |plan| {
-            plan["grouping"]["pattern"] = json!(BHC_PATTERN)
+            plan["structure"]["levels"][0]["grouping"]["pattern"] = json!(BHC_PATTERN)
         })
         .await;
     assert_eq!(saved.status, StatusCode::OK, "{}", saved.body);

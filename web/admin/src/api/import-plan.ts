@@ -1,7 +1,6 @@
 /**
  * The import plan types: the rule and the decisions the admin edits and the server
- * stores (`docs/import-v2.md`, "The plan"), and the v3 plan
- * (`plan/v3.rs`). Every shape here is the serde
+ * stores (`docs/import-v2.md`, "The plan"; version 3, `plan/v3.rs`). Every shape here is the serde
  * shape of `crates/omeka-api/src/import/plan` and `decisions.rs`, which
  * refuses members it does not know, so the parsers here refuse them too and
  * a parsed plan serialises back to the JSON it came from. The parsers are
@@ -323,38 +322,19 @@ export interface AnomalyAnswers {
   readonly itemsWithoutRow: 'keep' | 'leave';
 }
 
-export interface ImportPlan {
-  readonly version: 2;
-  readonly sources: readonly SourcePlan[];
-  readonly grouping: Grouping;
-  /** Admin state: the server keeps it and never reads it. */
-  readonly example: Readonly<Record<string, JsonValue>> | null;
-  readonly sheets: readonly SheetPlan[];
-  readonly slots: Slots;
-  readonly action: ActionPlan;
-  readonly defaults: Defaults;
-  readonly flags: { readonly [kind in FlagKind]?: FlagPolicy };
-  readonly decisions: readonly Decision[];
-  readonly newTypes: readonly NewType[];
-  readonly newTerms: readonly NewTerm[];
-  /** Absent until the person answers one; the server then reads the defaults. */
-  readonly anomalies?: AnomalyAnswers;
-  /** Admin state: what Simple's screens keep. The server keeps it and never reads it; absent until Simple saves one. */
-  readonly simple?: Readonly<Record<string, JsonValue>>;
-}
-
 /**
- * The import plan, version 3 (`plan/v3.rs`): v2's `grouping`, `example`,
- * `sheets` and `slots` move into the series of `structure`. The admin still
- * writes v2; this is what it reads when it switches.
+ * The import plan, version 3 (`plan/v3.rs`): the tree of `structure` holds
+ * each series' pattern, marked example, lists and slot rules. The admin
+ * reads and writes only this version; the server answers a stored v2 plan
+ * lifted to it.
  */
-export interface ImportPlanV3 {
+export interface ImportPlan {
   readonly version: 3;
   readonly sources: readonly SourcePlan[];
   readonly structure: Structure;
   readonly action: ActionPlan;
   readonly defaults: Defaults;
-  readonly flags: ImportPlan['flags'];
+  readonly flags: { readonly [kind in FlagKind]?: FlagPolicy };
   readonly decisions: readonly Decision[];
   readonly newTypes: readonly NewType[];
   readonly newTerms: readonly NewTerm[];

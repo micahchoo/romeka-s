@@ -226,6 +226,24 @@ impl Fixture {
     }
 }
 
+/// The plan a draft on `sources` started with before the admin wrote v3, as
+/// v2 JSON: what a test that edits v2 members saves, read through the lift.
+pub fn v2_plan(sources: &Value) -> Value {
+    let mut plan: Value = serde_json::from_str(include_str!(
+        "../../../omeka-api/src/import/fixtures/default.json"
+    ))
+    .unwrap();
+    plan["sources"] = sources.clone();
+    plan
+}
+
+/// The draft with its plan as [`v2_plan`] on its sources, to edit and save.
+pub fn as_v2(draft: &Value) -> Value {
+    let mut draft = draft.clone();
+    draft["plan"] = v2_plan(&draft["plan"]["sources"]);
+    draft
+}
+
 /// The v2 `plan` as a v3 plan whose tree is `levels`: its pattern, lists
 /// and slot rules dropped, every other member kept.
 pub fn v3_plan(plan: &Value, levels: Value) -> Value {

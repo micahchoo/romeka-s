@@ -31,14 +31,16 @@ fn shape_error(error: &PlanError) -> String {
 }
 
 #[test]
-fn every_fixture_round_trips_to_the_same_json() {
+fn every_fixture_is_written_as_v3_and_reads_back_the_same() {
     for fixture in [FULL, DEFAULT, DELETE] {
         let written = parse(fixture).to_json();
-        let compact = serde_json::from_str::<Value>(fixture)
-            .expect("fixture json")
-            .to_string();
-        assert_eq!(written, compact, "same members, same order");
-        assert_eq!(parse(&written), parse(fixture));
+        let value: Value = serde_json::from_str(&written).expect("json");
+        assert_eq!(value["version"], 3, "a v2 plan is answered as v3");
+        assert_eq!(
+            parse(&written).to_json(),
+            written,
+            "v3 is kept byte for byte"
+        );
     }
 }
 
@@ -171,7 +173,13 @@ fn a_new_draft_starts_with_the_default_plan() {
         },
     ];
     let plan = default_plan(sources).expect("default plan");
-    assert_eq!(plan, parse(DEFAULT));
+    assert_eq!(
+        plan.to_json(),
+        serde_json::from_str::<Value>(include_str!("../fixtures/v3/archive_as_found.json"))
+            .expect("json")
+            .to_string(),
+        "the archive as found, version 3"
+    );
     assert_eq!(
         plan.defaults.visibility,
         crate::import::values::Visibility::Private
@@ -589,11 +597,11 @@ fn a_slot_rule_value_map_round_trips_and_a_missing_map_is_empty() {
     assert_eq!(map.get("PH").map(String::as_str), Some(""));
     let written: Value = serde_json::from_str(&plan.to_json()).expect("json");
     assert_eq!(
-        written["slots"]["item"]["template"]["map"],
+        written["structure"]["levels"][0]["slots"]["item"]["template"]["map"],
         json!({ "AF": "Artifact", "PH": "" }),
         "the map keeps its order"
     );
-    assert_eq!(parse(&plan.to_json()), plan);
+    assert_eq!(parse(&plan.to_json()).to_json(), plan.to_json());
     let without = parse(FULL);
     assert!(item_rules(&without)[&SlotName::Template].map.is_empty());
 }
@@ -620,23 +628,25 @@ fn two_value_map_keys_that_fold_to_one_title_are_refused() {
 }
 
 #[test]
-fn the_simple_screen_state_is_kept_and_an_absent_one_is_not_written() {
+fn the_simple_screen_state_is_kept_under_its_series_and_an_absent_one_is_not_written() {
     let mut value: Value = serde_json::from_str(DEFAULT).expect("fixture json");
     assert!(
         value.get("simple").is_none(),
         "the recorded fixture has none"
     );
-    value["simple"] =
+    let state =
         json!({ "answered": ["identical"], "notLists": [{ "source": "s1", "file": "a.csv" }] });
+    value["simple"] = state.clone();
     let plan = parse(&value.to_string());
+    let lifted = json!({ "all": state });
     assert_eq!(
-        plan.simple.as_ref().map(|state| state["answered"].clone()),
-        Some(json!(["identical"]))
+        plan.simple.clone().map(Value::Object),
+        Some(lifted.clone()),
+        "a v2 draft's flat state is the state of its one series"
     );
-    assert_eq!(
-        serde_json::from_str::<Value>(&plan.to_json()).expect("json"),
-        value
-    );
+    let written: Value = serde_json::from_str(&plan.to_json()).expect("json");
+    assert_eq!(written["simple"], lifted);
+    assert_eq!(parse(&written.to_string()).simple, plan.simple);
     let without = parse(DEFAULT);
     assert!(without.simple.is_none());
     assert!(!without.to_json().contains("simple"));

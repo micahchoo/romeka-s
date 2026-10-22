@@ -207,7 +207,7 @@ mod tests {
     use crate::import::catalog::Catalog;
     use crate::import::derive::{Index, IndexedSource, NoTags, Sheets, derive};
     use crate::import::evidence::{FileEntry, Walk};
-    use crate::import::plan::{RelPath, SourceId, SourcePlan, default_plan};
+    use crate::import::plan::{RelPath, SourceId, SourcePlan, v2_default};
 
     fn index(paths: &[&str]) -> Index {
         Index {
@@ -231,13 +231,11 @@ mod tests {
     }
 
     fn plan(edit: impl FnOnce(&mut serde_json::Value)) -> ImportPlan {
-        let plan = default_plan(vec![SourcePlan::Folder {
+        let mut value = v2_default(&[SourcePlan::Folder {
             id: SourceId("s1".into()),
             root: "archive".into(),
             path: RelPath::parse("").expect("root"),
-        }])
-        .expect("plan");
-        let mut value = serde_json::to_value(plan).expect("json");
+        }]);
         edit(&mut value);
         ImportPlan::from_json(&value.to_string()).expect("valid")
     }

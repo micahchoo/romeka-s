@@ -23,7 +23,9 @@ async fn grouped(fixture: &Fixture) -> Value {
     fixture.write_objects(&[("A1.jpg", JPEG), ("A1_back.jpg", JPEG), ("B2.jpg", JPEG)]);
     let draft = fixture.draft().await;
     let saved = fixture
-        .save(&draft, |plan| plan["grouping"]["pattern"] = json!(PATTERN))
+        .save(&draft, |plan| {
+            plan["structure"]["levels"][0]["grouping"]["pattern"] = json!(PATTERN)
+        })
         .await;
     assert_eq!(saved.status, StatusCode::OK, "{}", saved.body);
     let scanned = fixture
@@ -151,7 +153,7 @@ async fn a_preview_of_an_unsaved_plan_leaves_the_stored_one() {
     let fixture = fixture().await;
     let draft = grouped(&fixture).await;
     let mut plan = draft["plan"].clone();
-    plan["grouping"]["pattern"] = json!(r"^(?<identifier>A\d+)\.jpg$");
+    plan["structure"]["levels"][0]["grouping"]["pattern"] = json!(r"^(?<identifier>A\d+)\.jpg$");
     let answer = fixture
         .preview(
             &draft["id"],
@@ -229,7 +231,7 @@ async fn a_run_with_a_blocking_flag_answers_the_reasons() {
     let draft = grouped(&fixture).await;
     let mut draft = fixture.row(&draft["id"]).await;
     let mut plan = draft.plan.clone();
-    plan["slots"]["item"]["dcterms:nothing"] =
+    plan["structure"]["levels"][0]["slots"]["item"]["dcterms:nothing"] =
         json!({ "sources": [{ "from": "constant", "value": "x" }], "combine": "first" });
     let saved = fixture
         .call(
@@ -276,7 +278,9 @@ async fn a_second_import_cannot_run_while_one_runs() {
     );
     let second = fixture.draft().await;
     let second = fixture
-        .save(&second, |plan| plan["grouping"]["pattern"] = json!(PATTERN))
+        .save(&second, |plan| {
+            plan["structure"]["levels"][0]["grouping"]["pattern"] = json!(PATTERN)
+        })
         .await
         .json();
     fixture

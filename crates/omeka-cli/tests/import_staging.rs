@@ -78,7 +78,7 @@ async fn staging_draft(site: &Site, pattern: &str) -> u64 {
     let draft = made.json();
     let id = draft["id"].as_u64().unwrap();
     let mut plan = draft["plan"].clone();
-    plan["grouping"]["pattern"] = json!(pattern);
+    plan["structure"]["levels"][0]["grouping"]["pattern"] = json!(pattern);
     let saved = site
         .send(
             "PUT",

@@ -22,11 +22,14 @@ fn parse(text: &str) -> ImportPlan {
     ImportPlan::from_json(text).unwrap_or_else(|error| panic!("{error}: {text}"))
 }
 
-/// The plan written as v3, whatever it came in as.
+/// The plan as it is written: v3, whatever it came in as.
 fn as_v3(plan: &ImportPlan) -> Value {
-    let mut plan = plan.clone();
-    plan.version = PlanVersion::V3;
     serde_json::from_str(&plan.to_json()).expect("v3 json")
+}
+
+/// The plan written back as v2 by the lower.
+fn lower(plan: &ImportPlan) -> String {
+    serde_json::to_string(&v2::PlanV2::try_from(plan.clone()).expect("lowers")).expect("json")
 }
 
 /// Every v2 plan the repo holds: the plan fixtures, every plan the admin's
@@ -57,7 +60,7 @@ fn every_v2_plan() -> Vec<(String, String)> {
                         {
                             // The recording sorts members; the database
                             // holds the text the server wrote.
-                            let stored = parse(&member.to_string()).to_json();
+                            let stored = lower(&parse(&member.to_string()));
                             let name = format!("{} {key}", path.display());
                             let written: Value = serde_json::from_str(&stored).expect("json");
                             assert_eq!(&written, member, "{name}: the same members");
@@ -72,22 +75,17 @@ fn every_v2_plan() -> Vec<(String, String)> {
             }
         }
     }
-    let draft = default_plan(vec![SourcePlan::Staging {
-        id: SourceId("staging".into()),
-    }])
-    .expect("default plan");
-    plans.push(("default_plan".to_owned(), draft.to_json()));
     plans
 }
 
 #[test]
 fn lift_then_lower_is_identity() {
     let plans = every_v2_plan();
-    assert!(plans.len() >= 20, "only {} v2 plans found", plans.len());
+    assert!(plans.len() >= 3, "only {} v2 plans found", plans.len());
     for (name, text) in plans {
         let plan = parse(&text);
         assert_eq!(plan.version, PlanVersion::V2, "{name}");
-        assert_eq!(plan.to_json(), text, "{name}: lowered byte for byte");
+        assert_eq!(lower(&plan), text, "{name}: lowered byte for byte");
 
         let v2: Value = serde_json::from_str(&text).expect("v2 json");
         let v3 = as_v3(&plan);
@@ -121,10 +119,9 @@ fn lift_then_lower_is_identity() {
             }
         }
 
-        let mut through_v3 = parse(&v3.to_string());
+        let through_v3 = parse(&v3.to_string());
         assert_eq!(through_v3.version, PlanVersion::V3, "{name}");
-        through_v3.version = PlanVersion::V2;
-        let lowered: Value = serde_json::from_str(&through_v3.to_json()).expect("json");
+        let lowered: Value = serde_json::from_str(&lower(&through_v3)).expect("json");
         assert_eq!(
             lowered, v2,
             "{name}: lowered from the v3 wire, the same members (a sets rule ends its kind)"

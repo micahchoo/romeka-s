@@ -4,7 +4,7 @@
  * `crates/omeka-server/src/imports/wire.rs` and its sibling modules.
  */
 import type { ImportId, ImportPlan, SourcePlan } from './import-plan';
-import { parseImportPlan, parseSourcesOf } from './import-plan-read';
+import { parseSourcesOf } from './import-plan-read';
 import { asCount, asFlag, list, member, nullable, oneOf, strict } from './import-read';
 import { parseSourceState } from './import-sections';
 import { parseUndoReport } from './import-undo';
@@ -82,7 +82,7 @@ export interface ImportDetail extends ImportRow {
   readonly ranPlan?: ImportPlan;
 }
 
-const ROW_KEYS = [
+export const ROW_KEYS = [
   'id',
   'ownerId',
   'status',
@@ -130,7 +130,8 @@ const parseProgress: Parser<RunProgress> = (raw, path = []) => {
   };
 };
 
-const rowFields = (object: Record<string, unknown>, path: Path): ImportRow => {
+/** The members every import answer has; `import-detail-read.ts` adds the plan. */
+export const rowFields = (object: Record<string, unknown>, path: Path): ImportRow => {
   const row: ImportRow = {
     id: brandId<'ImportId'>(member(object, 'id', path, asCount)),
     ownerId: member(object, 'ownerId', path, nullable(asCount)),
@@ -152,14 +153,6 @@ const rowFields = (object: Record<string, unknown>, path: Path): ImportRow => {
 /** A row of the history: no plan. */
 export const parseImportRow: Parser<ImportRow> = (raw, path = []) =>
   rowFields(strict(raw, path, ROW_KEYS, ['progress']), path);
-
-export const parseImportDetail: Parser<ImportDetail> = (raw, path = []) => {
-  const object = strict(raw, path, [...ROW_KEYS, 'plan'], ['progress', 'ranPlan']);
-  const detail: ImportDetail = { ...rowFields(object, path), plan: member(object, 'plan', path, parseImportPlan) };
-  return object['ranPlan'] === undefined
-    ? detail
-    : { ...detail, ranPlan: member(object, 'ranPlan', path, parseImportPlan) };
-};
 
 /** Why a filled `Files` cell made no pair (`preview/pairs.rs`, `Why`). */
 export type PairsWhy = 'noRow' | 'noFile' | 'manyFiles' | 'noItem';
@@ -183,26 +176,6 @@ export interface PairsAdded {
   readonly unmatchedTotal: number;
   readonly import: ImportDetail;
 }
-
-const parseUnmatched: Parser<UnmatchedCell> = (raw, path = []) => {
-  const object = strict(raw, path, ['row', 'text', 'why']);
-  return {
-    row: member(object, 'row', path, asString),
-    text: member(object, 'text', path, asString),
-    why: member(object, 'why', path, oneOf(PAIRS_WHY)),
-  };
-};
-
-export const parsePairsAdded: Parser<PairsAdded> = (raw, path = []) => {
-  const object = strict(raw, path, ['added', 'already', 'unmatched', 'unmatchedTotal', 'import']);
-  return {
-    added: member(object, 'added', path, asCount),
-    already: member(object, 'already', path, asCount),
-    unmatched: member(object, 'unmatched', path, list(parseUnmatched)),
-    unmatchedTotal: member(object, 'unmatchedTotal', path, asCount),
-    import: member(object, 'import', path, parseImportDetail),
-  };
-};
 
 export interface ArchiveEntry {
   readonly kind: 'folder' | 'file';

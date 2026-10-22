@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::structure::{Series, Structure};
+use super::structure::{LIFTED, Series, Structure};
 use super::{
     ActionPlan, AnomalyAnswers, Defaults, FlagKind, FlagPolicy, Grouping, ImportPlan, NewTerm,
     NewType, PlanError, PlanVersion, SheetPlan, Slots, SourcePlan, WireVersion,
@@ -55,7 +55,9 @@ impl From<PlanV2> for ImportPlan {
             new_types: wire.new_types,
             new_terms: wire.new_terms,
             anomalies: wire.anomalies,
-            simple: wire.simple,
+            simple: wire.simple.map(|simple| {
+                serde_json::Map::from_iter([(LIFTED.to_owned(), serde_json::Value::Object(simple))])
+            }),
             edits: Vec::new(),
         }
     }
@@ -98,7 +100,19 @@ impl TryFrom<ImportPlan> for PlanV2 {
             new_types: plan.new_types,
             new_terms: plan.new_terms,
             anomalies: plan.anomalies,
-            simple: plan.simple,
+            simple: plan.simple.map(lowered_simple).transpose()?,
         })
+    }
+}
+
+/// v3 keys Simple's state by level id; v2 held the one series' state flat.
+fn lowered_simple(
+    mut simple: serde_json::Map<String, serde_json::Value>,
+) -> Result<serde_json::Map<String, serde_json::Value>, PlanError> {
+    match (simple.remove(LIFTED), simple.is_empty()) {
+        (Some(serde_json::Value::Object(flat)), true) => Ok(flat),
+        _ => Err(PlanError::NotV2(
+            "its Simple state is not the one series' state",
+        )),
     }
 }

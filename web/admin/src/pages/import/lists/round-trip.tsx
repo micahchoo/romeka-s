@@ -7,7 +7,7 @@
 import { useId, useState } from 'react';
 import type { ReactElement } from 'react';
 import { importApi } from '../../../api/import-routes';
-import type { ImportPlan, SlotRule, SlotRules } from '../../../api/import-plan';
+import type { ImportPlan, SlotRule, SlotRules, SourceRef } from '../../../api/import-plan';
 import type { ImportDetail } from '../../../api/import-view';
 import { ErrorNotice } from '../../../app/errors';
 import { TableScroll } from '../../../app/table-scroll';
@@ -17,7 +17,7 @@ import { useListsText } from './messages';
 import { loadProperties } from './catalog';
 import { readCsv } from '../csv-records';
 import { ListDrop } from './list-drop';
-import { seriesOf, withSeries } from '../series';
+import { allLists, withEverySeries, withSets } from '../series';
 
 /** The columns the server takes besides properties (`template.rs`, `ListColumn`). */
 const SLOT_COLUMNS = ['sets', 'template', 'visibility'] as const;
@@ -36,29 +36,45 @@ export interface UploadResult {
   readonly unmapped: readonly string[];
 }
 
+const readsSheet = (source: SourceRef, sheet: string): boolean => source.from === 'column' && source.sheet === sheet;
+
 const withoutSheet = (rules: SlotRules, sheet: string): SlotRules => {
   const next: { -readonly [slot in keyof SlotRules]: SlotRules[slot] } = {};
   for (const [slot, rule] of Object.entries<SlotRule | undefined>(rules)) {
     if (rule !== undefined) {
       Object.assign(next, {
-        [slot]: { ...rule, sources: rule.sources.filter((source) => !(source.from === 'column' && source.sheet === sheet)) },
+        [slot]: { ...rule, sources: rule.sources.filter((source) => !readsSheet(source, sheet)) },
       });
     }
   }
   return next;
 };
 
-/** The plan without a list: its sheet and every field source that reads it. */
+/**
+ * The plan without a list: its sheet, every field source that reads it, and
+ * every free set source that reads it; a free set left with no source goes.
+ */
 export const removeSheet = (plan: ImportPlan, sheet: string): ImportPlan =>
-  withSeries(plan, (series) => ({
-    ...series,
-    lists: series.lists.filter((one) => one.id !== sheet),
-    slots: { item: withoutSheet(series.slots.item, sheet), media: withoutSheet(series.slots.media, sheet), itemSet: withoutSheet(series.slots.itemSet, sheet) },
-  }));
+  withSets(
+    withEverySeries(plan, (series) => ({
+      ...series,
+      lists: series.lists.filter((one) => one.id !== sheet),
+      slots: { item: withoutSheet(series.slots.item, sheet), media: withoutSheet(series.slots.media, sheet), itemSet: withoutSheet(series.slots.itemSet, sheet) },
+    })),
+    (sets) =>
+      sets.flatMap((set) => {
+        if (!('each' in set) || !set.each.sources.some((source) => readsSheet(source, sheet))) {
+          return [set];
+        }
+        const sources = set.each.sources.filter((source) => !readsSheet(source, sheet));
+        return sources.length === 0 ? [] : [{ each: { ...set.each, sources } }];
+      }),
+  );
 
 /** What an added list did, counted by the server. */
 export const readUpload = async (before: ImportPlan, after: ImportDetail): Promise<UploadResult> => {
-  const added = seriesOf(after.plan).lists.find((sheet) => !seriesOf(before).lists.some((old) => old.id === sheet.id));
+  // Sheet ids are unique across the plan, so the new one is new in whichever series the upload named.
+  const added = allLists(after.plan).find((sheet) => !allLists(before).some((old) => old.id === sheet.id));
   if (added === undefined) {
     throw new Error('The import has no new list.');
   }
