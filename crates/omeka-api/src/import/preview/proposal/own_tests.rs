@@ -5,7 +5,7 @@
 use super::{Evidence, NodeEvidence, NotApplied, bhc006_tests, propose};
 use crate::import::derive::{NoTags, Sheets, derive};
 use crate::import::plan::{
-    CutEdit, Edit, FolderScope, ImportPlan, RecordKind, RelPath, SeriesScope, SourceId,
+    CutEdit, Edit, FolderScope, ImportPlan, RecordKind, RelPath, SeriesScope, SetFrom, SourceId,
 };
 
 fn scope(folder: &str) -> FolderScope {
@@ -114,5 +114,58 @@ fn an_own_series_is_kept_as_written_and_counted() {
             .all_series()
             .all(|(_, series)| series != written),
         "without the edit the proposer writes Artifacts itself"
+    );
+}
+
+#[test]
+fn a_series_written_by_hand_keeps_the_set_levels_around_it() {
+    // Probe P3 (P5 design section 0): the person takes Documents' name
+    // place 4, saves that tree, then writes Documents by hand.
+    let documents = scope("Documents (D)");
+    let split = Edit::AddSet {
+        from: SetFrom::NamePlace {
+            scope: documents.clone(),
+            place: 4,
+        },
+    };
+    let taken = bhc006_tests::proposal(std::slice::from_ref(&split));
+    assert!(taken.edits[0].applied, "the split is offered");
+    let person = ImportPlan {
+        structure: taken.structure,
+        ..bhc006_tests::draft()
+    };
+    let index = bhc006_tests::index();
+    let catalog = bhc006_tests::install();
+    let evidence = Evidence {
+        index: &index,
+        lists: &Vec::new(),
+        catalog: &catalog,
+        sources: &person.sources,
+        structure: &person.structure,
+        sheets: &Sheets::new(),
+    };
+    let proposal = propose(&evidence, &[split, Edit::Own { scope: documents }]);
+
+    let level = |structure: &serde_json::Value| -> serde_json::Value {
+        structure["levels"]
+            .as_array()
+            .expect("levels")
+            .iter()
+            .find(|level| level["id"] == "Documents (D)4")
+            .cloned()
+            .expect("the set level Documents (D)4")
+    };
+    let before = level(&serde_json::to_value(&person.structure).expect("json"));
+    assert_eq!(before["kind"], "set");
+    assert_eq!(before["levels"][0]["id"], "Documents (D)");
+    let after = level(&serde_json::to_value(&proposal.structure).expect("json"));
+    assert_eq!(
+        after, before,
+        "the level, its set and the series as written"
+    );
+    assert!(
+        proposal.matches_plan,
+        "nothing the person wrote is lost: {:?}",
+        proposal.edits
     );
 }

@@ -1366,7 +1366,8 @@ fn as_found(evidence: &Evidence<'_>) -> Vec<folders::FolderSeries> {
 }
 
 /// The proposed levels: each series with its key, lists and rules, and
-/// its sets; a series written by hand as the person wrote it. Each list in
+/// its sets; a series written by hand as the person wrote it, inside the
+/// set levels the plan holds around it alone. Each list in
 /// `kept_lists` goes, as written, after the lists of its series. The first
 /// split taken is a series' own set when it has none; each other split is a
 /// set level around the series; a top set taken is a set level around
@@ -1404,7 +1405,11 @@ fn tree(
                     .into_iter()
                     .filter(|list| own.lists().iter().all(|held| held.id != list.id));
                 let lists = own.lists().iter().chain(more).cloned().collect();
-                return Level::Series(own.clone().with_lists(lists));
+                let written = Level::Series(own.clone().with_lists(lists));
+                return match kept.all_series().find(|(_, held)| held.id() == own.id()) {
+                    Some((held, _)) => kept.inside_its_sets(held, written),
+                    None => written,
+                };
             }
             let sets = sets.series.get(at).unwrap_or(&none);
             let scope = SeriesScope::Folders(one.scopes.clone());
