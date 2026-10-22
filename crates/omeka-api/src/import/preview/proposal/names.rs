@@ -70,18 +70,22 @@ pub(super) struct Counted {
     pub other_shapes: usize,
 }
 
-/// A series' cut and the next best one.
+/// A series' cut, the next best one, and every other cut the counts prove.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct SeriesCut {
     pub chosen: Cut,
     pub rival: Option<Cut>,
+    /// Each a cut that no edit for the chosen cut, the rival or an earlier
+    /// other asks for.
+    pub others: Vec<Cut>,
 }
 
 impl SeriesCut {
-    /// Whether the cut or its rival keys items by a folder.
+    /// Whether any of its cuts keys items by a folder.
     pub fn has_folder_key(&self) -> bool {
         std::iter::once(&self.chosen)
             .chain(&self.rival)
+            .chain(&self.others)
             .any(|cut| matches!(cut.key, Key::Folder { .. }))
     }
 }
@@ -290,11 +294,17 @@ fn places_cut(shape: KeyShape, rule: CutRule, counts: Counted) -> Cut {
     }
 }
 
-/// The first valid name cut, from the fewest places to the most; at each
-/// count of places, the key shape most names start with first.
-fn first_valid(names: &[Name<'_>]) -> Option<Cut> {
-    let most = names.iter().map(|name| name.places.len()).max()?;
-    for key_places in 1..=most {
+/// Every valid name cut, from the fewest places to the most: at each count
+/// of places, the first valid key shape, the shape most names start with
+/// first.
+fn valid_cuts(names: &[Name<'_>]) -> Vec<Cut> {
+    let most = names
+        .iter()
+        .map(|name| name.places.len())
+        .max()
+        .unwrap_or_default();
+    let mut found = Vec::new();
+    'places: for key_places in 1..=most {
         let mut shapes: BTreeMap<KeyShape, usize> = BTreeMap::new();
         for name in names.iter().filter(|name| name.places.len() >= key_places) {
             *shapes
@@ -307,11 +317,12 @@ fn first_valid(names: &[Name<'_>]) -> Option<Cut> {
             let grouped = group(names, &Key::Places(shape.clone()));
             let counted = grouped.counted();
             if let Some(rule) = valid(&grouped, &shape, &counted) {
-                return Some(places_cut(shape, rule, counted));
+                found.push(places_cut(shape, rule, counted));
+                continue 'places;
             }
         }
     }
-    None
+    found
 }
 
 /// The cut of the archive as found: each name an item. When whole names
@@ -384,6 +395,7 @@ fn every_folder_restarts(names: &[Name<'_>], depth: usize) -> bool {
 pub(super) fn lead_by_lists(cut: &mut SeriesCut, names: &[Name<'_>], cells: &HashSet<String>) {
     let folder = std::iter::once(&mut cut.chosen)
         .chain(cut.rival.as_mut())
+        .chain(cut.others.iter_mut())
         .find(|cut| matches!(cut.key, Key::Folder { lead: None, .. }));
     let Some(folder) = folder else {
         return;
@@ -447,22 +459,49 @@ fn fits(files: usize, of: usize) -> bool {
     files * KEY_SHAPE_FITS.of >= KEY_SHAPE_FITS.n * of
 }
 
-/// Detector 2 on one series' media.
+/// Detector 2 on one series' media: the first valid cut, or the cut as
+/// found; every other cut counted is kept as a further choice.
 pub(super) fn cut(names: &[Name<'_>]) -> SeriesCut {
     let (found, found_rival) = as_found(names);
-    match first_valid(names) {
-        Some(valid) if fits(valid.counts.files, names.len()) => SeriesCut {
-            chosen: valid,
+    let mut valid = valid_cuts(names).into_iter();
+    let mut cut = match valid.next() {
+        Some(first) if fits(first.counts.files, names.len()) => SeriesCut {
+            chosen: first,
             rival: Some(found),
+            others: found_rival.into_iter().collect(),
         },
-        Some(valid) => SeriesCut {
+        Some(first) => SeriesCut {
             chosen: found,
-            rival: Some(valid),
+            rival: Some(first),
+            others: found_rival.into_iter().collect(),
         },
         None => SeriesCut {
             chosen: found,
             rival: found_rival,
+            others: Vec::new(),
         },
+    };
+    for other in valid {
+        let asked = edit_of(&other.key);
+        let shown = std::iter::once(&cut.chosen)
+            .chain(&cut.rival)
+            .chain(&cut.others)
+            .any(|cut| asks_for(cut, &asked));
+        if !shown {
+            cut.others.push(other);
+        }
+    }
+    cut
+}
+
+/// The `items` edit that asks for a key's cut.
+fn edit_of(key: &Key) -> CutEdit {
+    match key {
+        Key::Whole | Key::Path => CutEdit::Whole,
+        Key::Places(shape) => CutEdit::Places {
+            places: u8::try_from(shape.len()).unwrap_or(u8::MAX),
+        },
+        Key::Folder { depth, .. } => CutEdit::Folder { depth: *depth },
     }
 }
 
@@ -512,8 +551,9 @@ fn asks_for(cut: &Cut, edit: &CutEdit) -> bool {
     }
 }
 
-/// Replay the `items` edits: each takes the series' rival, when the rival
-/// is the cut it asks for. Each edit it applies is marked in `applied`.
+/// Replay the `items` edits: each takes the series' rival or another cut
+/// the counts prove, when that is the cut it asks for; the cut it replaces
+/// becomes the rival. Each edit it applies is marked in `applied`.
 pub(super) fn replay(
     cuts: &mut [SeriesCut],
     series: &[FolderSeries],
@@ -535,6 +575,13 @@ pub(super) fn replay(
             applied[at] = true;
         } else if let Some(rival) = one.rival.take_if(|rival| asks_for(rival, asked)) {
             one.rival = Some(std::mem::replace(&mut one.chosen, rival));
+            applied[at] = true;
+        } else if let Some(other) = one.others.iter().position(|other| asks_for(other, asked)) {
+            let taken = one.others.remove(other);
+            let replaced = std::mem::replace(&mut one.chosen, taken);
+            if let Some(rival) = one.rival.replace(replaced) {
+                one.others.insert(0, rival);
+            }
             applied[at] = true;
         }
     }

@@ -31,10 +31,11 @@ export interface Pick<T, C> {
   readonly counts: C;
 }
 
-/** A choice the proposer made, and the next best choice. */
+/** A choice the proposer made, the next best choice, and every other choice it counted; an edit may ask for any of them. */
 export interface Choice<T, C> {
   readonly chosen: Pick<T, C>;
   readonly rival: Pick<T, C> | null;
+  readonly others: readonly Pick<T, C>[];
 }
 
 /** The files a series or an outside folder takes. */
@@ -66,6 +67,14 @@ export interface CutCounts {
   readonly otherShapes: number;
 }
 
+/** A list's grain evidence, and what one answer makes of the series. */
+export interface GrainCounts extends Grain {
+  /** The list's rows that name no file with this answer. */
+  readonly rowsNamingNoFile: number;
+  /** The items the series keeps with this answer. */
+  readonly items: number;
+}
+
 export interface SetCounts {
   /** Each set with the items it would hold, most first. */
   readonly sets: readonly (readonly [string, number])[];
@@ -85,7 +94,7 @@ export interface SeriesNode {
   readonly items: Choice<ItemCut, CutCounts>;
   /** A choice of no list has no list counts. */
   readonly list: Choice<ListFile | null, ListCandidate | null>;
-  readonly grain: Choice<RecordKind, Grain> | null;
+  readonly grain: Choice<RecordKind, GrainCounts> | null;
   readonly set: Choice<SetFrom | null, SetCounts>;
   readonly splits: readonly Pick<SetFrom, SetCounts>[];
   readonly pairing: readonly Pick<PairRule, PairCounts>[];
@@ -99,6 +108,17 @@ export interface OutsideFolder extends ScopeCounts {
   readonly reason: 'noMedia' | 'edit';
 }
 
+/** Why an edit is not applied: what it names is not in the scan, its choice is not offered, or a later edit answers its question. */
+export const NOT_APPLIED = ['gone', 'notOffered', 'replaced'] as const;
+export type NotApplied = (typeof NOT_APPLIED)[number];
+
+/** An edit of the plan; `reason` is null exactly when it is applied. */
+export interface EditResult {
+  readonly edit: Edit;
+  readonly applied: boolean;
+  readonly reason: NotApplied | null;
+}
+
 /** The structure the server proposes from the scan, after the plan's edits; never stored by the server. */
 export interface Proposal {
   readonly structure: Structure;
@@ -108,10 +128,16 @@ export interface Proposal {
   readonly outside: readonly OutsideFolder[];
   readonly unattached: readonly ListCandidate[];
   /** Each edit of the plan, and whether it still found what it names. */
-  readonly edits: readonly { readonly edit: Edit; readonly applied: boolean }[];
+  readonly edits: readonly EditResult[];
   /** Whether `structure` is the plan's own. */
   readonly matchesPlan: boolean;
 }
+
+const parseGrainCounts = (raw: unknown, path: Path): GrainCounts => {
+  const object = asRecord(raw, path);
+  const grain = Object.fromEntries(Object.entries(object).filter(([key]) => key !== 'rowsNamingNoFile' && key !== 'items'));
+  return { ...parseGrain(grain, path), rowsNamingNoFile: count(object, 'rowsNamingNoFile', path), items: count(object, 'items', path) };
+};
 
 const parseShare = (raw: unknown, path: Path): Share => {
   const object = strict(raw, path, ['n', 'of']);
@@ -137,8 +163,12 @@ const parsePick =
 const parseChoice = <T, C>(value: (raw: unknown, path: Path) => T, counts: (raw: unknown, path: Path) => C) => {
   const pick = parsePick(value, counts);
   return (raw: unknown, path: Path): Choice<T, C> => {
-    const object = strict(raw, path, ['chosen', 'rival']);
-    return { chosen: member(object, 'chosen', path, pick), rival: member(object, 'rival', path, nullable(pick)) };
+    const object = strict(raw, path, ['chosen', 'rival', 'others']);
+    return {
+      chosen: member(object, 'chosen', path, pick),
+      rival: member(object, 'rival', path, nullable(pick)),
+      others: member(object, 'others', path, list(pick)),
+    };
   };
 };
 
@@ -214,7 +244,7 @@ const parseNodeEvidence = (raw: unknown, path: Path): NodeEvidence => {
     scope: member(only, 'scope', path, (value, at) => scopeCounts(strict(value, at, [...SCOPE_COUNTS]), at)),
     items: member(only, 'items', path, parseChoice(parseItemCut, parseCutCounts)),
     list: member(only, 'list', path, parseChoice(nullable(parseListFile), nullable(parseListCandidate))),
-    grain: member(only, 'grain', path, nullable(parseChoice(oneOf(RECORD_KINDS), parseGrain))),
+    grain: member(only, 'grain', path, nullable(parseChoice(oneOf(RECORD_KINDS), parseGrainCounts))),
     set: member(only, 'set', path, parseChoice(nullable(parseSetFrom), parseSetCounts)),
     splits: member(only, 'splits', path, list(parsePick(parseSetFrom, parseSetCounts))),
     pairing: member(only, 'pairing', path, list(parsePick(parsePairRule, parsePairCounts))),
@@ -228,9 +258,13 @@ export const parseProposal = (raw: unknown, path: Path = ['proposal']): Proposal
     const each = strict(value, at, [...SCOPE_COUNTS, 'reason']);
     return { ...scopeCounts(each, at), reason: member(each, 'reason', at, oneOf(['noMedia', 'edit'] as const)) };
   };
-  const edit = (value: unknown, at: Path): Proposal['edits'][number] => {
-    const each = strict(value, at, ['edit', 'applied']);
-    return { edit: member(each, 'edit', at, parseEdit), applied: member(each, 'applied', at, asFlag) };
+  const edit = (value: unknown, at: Path): EditResult => {
+    const each = strict(value, at, ['edit', 'applied', 'reason']);
+    return {
+      edit: member(each, 'edit', at, parseEdit),
+      applied: member(each, 'applied', at, asFlag),
+      reason: member(each, 'reason', at, nullable(oneOf(NOT_APPLIED))),
+    };
   };
   return {
     structure: member(object, 'structure', path, parseStructure),

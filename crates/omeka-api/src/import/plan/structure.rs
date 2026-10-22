@@ -326,6 +326,15 @@ impl Structure {
         self.series_mut(at).lists.push(list);
     }
 
+    /// The list with this id, to edit.
+    pub fn list_mut(&mut self, id: &SheetId) -> Option<&mut SheetPlan> {
+        let mut all = Vec::new();
+        leaves_mut(&mut self.levels, &mut all);
+        all.into_iter()
+            .flat_map(|series| series.lists.iter_mut())
+            .find(|list| list.id == *id)
+    }
+
     /// The series' slot rules for one record kind, to edit.
     pub fn rules_mut(&mut self, at: SeriesIx, kind: RecordKind) -> &mut SlotRules {
         let slots = &mut self.series_mut(at).slots;
@@ -461,6 +470,12 @@ impl Series {
     #[must_use]
     pub fn case_fold(&self) -> bool {
         self.grouping.case_fold
+    }
+
+    /// Which files the series takes.
+    #[must_use]
+    pub fn scope(&self) -> &SeriesScope {
+        &self.scope
     }
 
     /// The lists that describe this series.

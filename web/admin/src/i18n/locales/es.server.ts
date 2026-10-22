@@ -201,6 +201,7 @@ export const esServer: ServerCatalogue = {
   'server.importListUnread': 'No se puede leer la lista: {reason}',
   'server.importListSeriesNeeded': 'Este plan tiene varias series. Elige la serie a la que va la lista.',
   'server.importListSeriesUnknown': 'El plan no tiene la serie "{series}".',
+  'server.importListUnknown': 'El plan no tiene la lista "{list}".',
   'server.importListNoIdentifier':
     'La lista no tiene la columna Identifier, así que sus filas no encuentran sus elementos. Conserva la columna Identifier de la lista que descargaste.',
   'server.importPairsColumns':

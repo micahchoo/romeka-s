@@ -13,8 +13,9 @@ use omeka_media::validation::FileValidation;
 
 use crate::import::catalog::Catalog;
 use crate::import::derive::tests::support::catalog;
-use crate::import::derive::{Index, IndexedSource};
+use crate::import::derive::{Index, IndexedSource, NoTags, Sheets, derive};
 use crate::import::evidence::{FileEntry, Walk, sniff};
+use crate::import::placement::{Difference, ListFiles, Placement, differences};
 use crate::import::plan::{Edit, ListFile};
 use crate::import::plan::{ImportPlan, RelPath, SourceId, SourcePlan, default_plan};
 use crate::import::preview::candidates::automatic;
@@ -25,6 +26,8 @@ const LISTING: &str =
     include_str!("../../../../../omeka-server/tests/import_shapes/bhc006.listing");
 const IDENTIFIERS: &str =
     include_str!("../../../../../omeka-server/tests/import_shapes/bhc006.identifiers");
+/// The frozen outcome: the plan the archive was imported with.
+const FROZEN: &str = include_str!("../../fixtures/v3/bhc006.json");
 
 /// The head the server's shape harness writes for a listed file.
 fn head(path: &str, size: u64) -> &'static [u8] {
@@ -176,4 +179,39 @@ pub fn proposal(edits: &[Edit]) -> Proposal {
         structure: &plan.structure,
     };
     propose(&evidence, edits)
+}
+
+/// Where `plan` places the replica's files, each of its lists read as
+/// [`lists`] reads it.
+fn placed(plan: &ImportPlan) -> Placement {
+    let found = lists();
+    let sheets: Sheets = plan
+        .structure
+        .lists()
+        .filter_map(|(_, sheet)| {
+            let list = found
+                .iter()
+                .find(|list| list.file.source == sheet.source && list.file.file == sheet.file)?;
+            Some((sheet.id.clone(), list.sheet.clone()))
+        })
+        .collect();
+    let model = derive(&index(), &sheets, plan, &install(), &NoTags);
+    Placement::of_model(&model, plan, &ListFiles::new(plan, &sheets))
+}
+
+/// The judge of the click meter on the replica: the proposal after some
+/// edits, and how what it places differs from the frozen outcome.
+pub fn judge() -> impl Fn(&[Edit]) -> (Proposal, Vec<Difference>) {
+    let frozen = ImportPlan::from_json(FROZEN).expect("the frozen plan");
+    let want = placed(&frozen);
+    move |edits| {
+        let proposal = proposal_with_lists(edits);
+        let plan = ImportPlan {
+            structure: proposal.structure.clone(),
+            edits: edits.to_vec(),
+            ..frozen.clone()
+        };
+        let found = differences(&want, &placed(&plan));
+        (proposal, found)
+    }
 }

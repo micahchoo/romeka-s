@@ -64,7 +64,7 @@ async fn the_proposal_section_writes_nothing() {
     assert_eq!(tried.status, 200, "{}", tried.body);
     assert_eq!(
         tried.json()["proposal"]["edits"],
-        json!([{ "edit": leave_out, "applied": false }]),
+        json!([{ "edit": leave_out, "applied": false, "reason": "gone" }]),
         "a tried edit is replayed and kept even when it finds nothing"
     );
 

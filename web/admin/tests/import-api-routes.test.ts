@@ -199,7 +199,15 @@ describe('a plan of several series', () => {
     expect(only(requestsFor(fetchMock, '/api/romeka/imports/1/sheets')).url.search).toBe('?series=photos');
   });
 
-  it.each(['seriesNeeded', 'unknownSeries'] as const)('%s is a typed refusal that carries the series ids', async (code) => {
+  it('names the list an upload replaces', async () => {
+    const fetchMock = installFetch(route({ '/api/romeka/imports/1/sheets': () => answer('import-sheet-added.json', 201) }));
+    await api.addList(ID, new File(['Identifier\n'], 'list.csv', { type: 'text/csv' }), 'photos', 'list-1');
+    await api.addList(ID, new File(['Identifier\n'], 'list.csv', { type: 'text/csv' }), undefined, 'list-2');
+    const searches = requestsFor(fetchMock, '/api/romeka/imports/1/sheets').map((request) => request.url.search);
+    expect(searches).toEqual(['?series=photos&replace=list-1', '?replace=list-2']);
+  });
+
+  it.each(['seriesNeeded', 'unknownSeries', 'unknownList'] as const)('%s is a typed refusal that carries the series ids', async (code) => {
     installFetch(route({ '/api/romeka/imports/1/sheets': () => refused(code), '/api/romeka/imports/1/template.csv': () => refused(code) }));
     const upload = await api.addList(ID, new File(['Identifier\n'], 'list.csv')).catch((caught: unknown) => caught);
     expect(upload).toMatchObject({ status: 400 });

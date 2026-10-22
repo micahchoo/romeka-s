@@ -22,12 +22,16 @@ use std::collections::{BTreeSet, HashSet};
 
 use unicode_normalization::UnicodeNormalization;
 
+use super::super::candidates::Grain;
+use super::super::unpaired::unpaired_rows;
 use super::lists::{Found, InSeries};
 use super::thresholds::{MIN_ITEMS_WITH_FILE_ROWS, MIN_KINDS};
 use super::{Choice, Evidence, GrainCounts, Pick};
 use crate::import::join::cell;
+use crate::import::model::Model;
 use crate::import::plan::{
     ColumnRef, Edit, FolderScope, Join, JoinOn, KindColumn, ListFile, RecordKind, RowKind,
+    SeriesIx, SheetId,
 };
 use crate::import::sheet::{Row, Sheet};
 use crate::import::values::row_kind_from_cell;
@@ -44,11 +48,12 @@ pub(super) struct ListPlan {
 }
 
 /// What detector 4 chose for one series.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub(super) struct SeriesRows {
     pub lists: Vec<ListPlan>,
-    /// The grain of the series' first list, when it joins by file name.
-    pub grain: Option<Choice<RecordKind, GrainCounts>>,
+    /// The grain of the series' first list, when it joins by file name,
+    /// with the list's evidence; [`answers`] adds what each answer makes.
+    pub grain: Option<Choice<RecordKind, Grain>>,
     /// The rows that are the series' items, by their list and key column.
     pub items: Option<(ListFile, ColumnRef)>,
     /// A column of item rows whose values are keys of item-set rows.
@@ -244,7 +249,7 @@ impl Records {
 }
 
 /// Rule 1 and 2: what the rows of a list that pairs describe.
-fn grain(one: &InSeries<'_>) -> (ListPlan, Option<Choice<RecordKind, GrainCounts>>) {
+fn grain(one: &InSeries<'_>) -> (ListPlan, Option<Choice<RecordKind, Grain>>) {
     let join = one.counted.join.clone();
     let mut describes = RecordKind::Item;
     let mut choice = None;
@@ -256,7 +261,7 @@ fn grain(one: &InSeries<'_>) -> (ListPlan, Option<Choice<RecordKind, GrainCounts
         // file attaches it, so each row describes a file. Item rows would
         // each make an item of no file.
         describes = RecordKind::Media;
-        let counts = GrainCounts {
+        let counts = Grain {
             groups_with_many_rows: 0,
             rows_naming_other_files_of_a_group: 0,
             columns: Vec::new(),
@@ -270,6 +275,7 @@ fn grain(one: &InSeries<'_>) -> (ListPlan, Option<Choice<RecordKind, GrainCounts
                 value: RecordKind::Item,
                 counts,
             }),
+            others: Vec::new(),
         });
     } else if let (
         Some(Join {
@@ -295,6 +301,7 @@ fn grain(one: &InSeries<'_>) -> (ListPlan, Option<Choice<RecordKind, GrainCounts
                 value: rival,
                 counts: counts.clone(),
             }),
+            others: Vec::new(),
         });
     }
     let plan = ListPlan {
@@ -425,5 +432,53 @@ fn replay(out: &mut [SeriesRows], edits: &[Edit], applied: &mut [bool]) {
                 applied[at] = true;
             }
         }
+    }
+}
+
+impl SeriesRows {
+    /// The same choices with the first list's rows read as its rival grain:
+    /// what the grain click would make. `None` with no rival grain.
+    pub(super) fn with_rival_grain(&self) -> Option<Self> {
+        let rival = self.grain.as_ref()?.rival.as_ref()?.value;
+        let mut rows = self.clone();
+        rows.lists.first_mut()?.row_kind = RowKind::All(rival);
+        Some(rows)
+    }
+}
+
+/// What each answer of series `at`'s grain makes: its kept items, and the
+/// rows of its first list `sheet` that name no file. The chosen answer is
+/// counted on `chosen`, the derive of the proposed tree; the rival on
+/// `rival`, the derive of the tree with every series' rival grain. With no
+/// rival derive there is no rival to show.
+pub(super) fn answers(
+    choice: Choice<RecordKind, Grain>,
+    chosen: &Model,
+    rival: Option<&Model>,
+    at: SeriesIx,
+    sheet: &SheetId,
+) -> Choice<RecordKind, GrainCounts> {
+    let counted = |pick: Pick<RecordKind, Grain>, model: &Model| Pick {
+        value: pick.value,
+        counts: GrainCounts {
+            groups_with_many_rows: pick.counts.groups_with_many_rows,
+            rows_naming_other_files_of_a_group: pick.counts.rows_naming_other_files_of_a_group,
+            columns: pick.counts.columns,
+            rows_naming_no_file: unpaired_rows(model)
+                .filter(|(row, _)| row.sheet == *sheet)
+                .count(),
+            items: model
+                .kept()
+                .filter(|record| record.kind == RecordKind::Item && record.series == at)
+                .count(),
+        },
+    };
+    Choice {
+        chosen: counted(choice.chosen, chosen),
+        rival: choice
+            .rival
+            .zip(rival)
+            .map(|(pick, model)| counted(pick, model)),
+        others: Vec::new(),
     }
 }
