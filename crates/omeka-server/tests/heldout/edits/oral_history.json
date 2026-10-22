@@ -1,0 +1,13 @@
+{
+  "edits": [
+    {
+      "edit": "list",
+      "scope": { "source": "s1", "folder": "Interviews" },
+      "list": { "source": "s1", "file": "interviews.xlsx" }
+    }
+  ],
+  "because": [
+    "The interviews sheet describes the interviews. The tape log is keyed by the same codes, but it describes tapes, and this import leaves it out."
+  ],
+  "note": "No edit states a media order, so the order recording, transcript, photo is not an edit here."
+}

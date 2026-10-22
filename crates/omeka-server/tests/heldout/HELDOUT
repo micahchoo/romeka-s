@@ -1,0 +1,19 @@
+# The held-out paths: one per line, from the repository root. A builder of
+# the import proposer never reads them. `scripts/heldout.sh strip` leaves
+# them out of a build worktree, `scripts/heldout.sh verify <branch>` fails a
+# branch that touches them or this file, and `heldout_guard` fails when a
+# file outside this list names a held-out shape (the stem of each pin in
+# `outcome_pins/`). A line that starts with `../` is outside the repository,
+# relative to the main checkout.
+crates/omeka-server/tests/import_shapes_heldout.rs
+crates/omeka-server/tests/heldout/mod.rs
+crates/omeka-server/tests/heldout/outcomes.rs
+crates/omeka-server/tests/heldout/oral_history.rs
+crates/omeka-server/tests/heldout/born_digital.rs
+crates/omeka-server/tests/heldout/outcome_pins/oral_history.txt
+crates/omeka-server/tests/heldout/outcome_pins/born_digital.txt
+crates/omeka-server/tests/heldout/fixtures/oral_history.json
+crates/omeka-server/tests/heldout/fixtures/born_digital.json
+crates/omeka-server/tests/heldout/edits/oral_history.json
+crates/omeka-server/tests/heldout/edits/born_digital.json
+../romeka-heldout/

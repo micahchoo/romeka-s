@@ -17,7 +17,6 @@ const RUST_V3_PLANS = resolve(
 );
 const FIXTURES = [
   "bhc006.json",
-  "oral_history.json",
   "archive_as_found.json",
   "one_series.json",
 ];
