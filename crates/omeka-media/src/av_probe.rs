@@ -208,7 +208,6 @@ fn parse(answer: &str) -> Option<Extent> {
 mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-    use std::os::unix::fs::PermissionsExt as _;
     use std::path::PathBuf;
 
     use super::*;
@@ -227,9 +226,7 @@ mod tests {
     /// A stand-in command, so a test never depends on what `ffprobe` prints.
     fn script(dir: &Path, body: &str) -> PathBuf {
         let path = dir.join("ffprobe");
-        std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).expect("write script");
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
-            .expect("make it executable");
+        crate::testing::write_script(&path, &format!("#!/bin/sh\n{body}\n")).expect("write script");
         path
     }
 

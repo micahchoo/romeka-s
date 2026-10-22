@@ -862,7 +862,7 @@ async fn a_starting_import_sends_a_running_copy_back_to_the_queue() {
 
     let dir = tempfile::tempdir().expect("tempdir");
     let ffmpeg = dir.path().join("ffmpeg");
-    std::fs::write(
+    omeka_media::testing::write_script(
         &ffmpeg,
         // `exec`, so the stop kills the process holding the output pipes, as
         // it does a real ffmpeg. A `sleep` child of the shell kept them open
@@ -872,24 +872,12 @@ async fn a_starting_import_sends_a_running_copy_back_to_the_queue() {
          exec sleep 60\n",
     )
     .expect("the stand-in ffmpeg");
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt as _;
-        std::fs::set_permissions(&ffmpeg, std::fs::Permissions::from_mode(0o755))
-            .expect("make it executable");
-    }
     let ffprobe = dir.path().join("ffprobe");
-    std::fs::write(
+    omeka_media::testing::write_script(
         &ffprobe,
         "#!/bin/sh\nprintf '%s' '{\"streams\":[{\"codec_type\":\"video\",\"codec_name\":\"mjpeg\",\"width\":96,\"height\":64}],\"format\":{\"duration\":\"2.0\"}}'\n",
     )
     .expect("the stand-in ffprobe");
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt as _;
-        std::fs::set_permissions(&ffprobe, std::fs::Permissions::from_mode(0o755))
-            .expect("make it executable");
-    }
     let tools = Tools::none().with_ffmpeg(&ffmpeg).with_ffprobe(&ffprobe);
 
     let task = tokio::spawn({
@@ -1211,21 +1199,14 @@ async fn a_redo_makes_a_ready_copy_again_and_a_failed_redo_keeps_the_old_one() {
     );
     let dir = tempfile::tempdir().expect("tempdir");
     let ffmpeg = dir.path().join("ffmpeg");
-    std::fs::write(&ffmpeg, "#!/bin/sh\nexit 1\n").expect("the stand-in ffmpeg");
+    omeka_media::testing::write_script(&ffmpeg, "#!/bin/sh\nexit 1\n")
+        .expect("the stand-in ffmpeg");
     let ffprobe = dir.path().join("ffprobe");
-    std::fs::write(
+    omeka_media::testing::write_script(
         &ffprobe,
         "#!/bin/sh\nprintf '%s' '{\"streams\":[{\"codec_type\":\"video\",\"codec_name\":\"mjpeg\",\"width\":96,\"height\":64}],\"format\":{\"duration\":\"2.0\"}}'\n",
     )
     .expect("the stand-in ffprobe");
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt as _;
-        for tool in [&ffmpeg, &ffprobe] {
-            std::fs::set_permissions(tool, std::fs::Permissions::from_mode(0o755))
-                .expect("make it executable");
-        }
-    }
     let tools = Tools::none().with_ffmpeg(&ffmpeg).with_ffprobe(&ffprobe);
     settle_next_with(&harness.pool, &harness.store, &tools, None)
         .await
@@ -1270,7 +1251,7 @@ async fn an_undo_during_a_copy_removes_the_copy_it_wrote() {
 
     let dir = tempfile::tempdir().expect("tempdir");
     let ffmpeg = dir.path().join("ffmpeg");
-    std::fs::write(
+    omeka_media::testing::write_script(
         &ffmpeg,
         "#!/bin/sh\n\
          for last in \"$@\"; do out=$last; done\n\
@@ -1280,19 +1261,11 @@ async fn an_undo_during_a_copy_removes_the_copy_it_wrote() {
     )
     .expect("the stand-in ffmpeg");
     let ffprobe = dir.path().join("ffprobe");
-    std::fs::write(
+    omeka_media::testing::write_script(
         &ffprobe,
         "#!/bin/sh\nprintf '%s' '{\"streams\":[{\"codec_type\":\"video\",\"codec_name\":\"mjpeg\",\"width\":96,\"height\":64}],\"format\":{\"duration\":\"2.0\"}}'\n",
     )
     .expect("the stand-in ffprobe");
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt as _;
-        for tool in [&ffmpeg, &ffprobe] {
-            std::fs::set_permissions(tool, std::fs::Permissions::from_mode(0o755))
-                .expect("make it executable");
-        }
-    }
     let tools = Tools::none().with_ffmpeg(&ffmpeg).with_ffprobe(&ffprobe);
 
     let task = tokio::spawn({
