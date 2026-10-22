@@ -208,6 +208,7 @@ export const hiServer: ServerCatalogue = {
   'server.importListSeriesNeeded':
     'इस योजना में कई श्रृंखलाएं हैं। सूची जिस श्रृंखला के लिए है, उसे चुनें।',
   'server.importListSeriesUnknown': 'योजना में कोई श्रृंखला "{series}" नहीं है।',
+  'server.importListUnknown': 'योजना में कोई सूची "{list}" नहीं है।',
   'server.importListNoIdentifier':
     'सूची में आइडेंटिफ़ायर कॉलम नहीं है, इसलिए इसकी पंक्तियाँ अपने आइटम नहीं ढूंढ सकतीं। आपने जो सूची डाउनलोड की थी, उसका आइडेंटिफ़ायर कॉलम बनाए रखें।',
   'server.importPairsColumns':

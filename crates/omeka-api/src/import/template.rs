@@ -12,8 +12,8 @@
 //! [`add_list`] reads the upload's headers: a header that ends in a
 //! bracketed term or slot (`Title [dcterms:title]`) maps that column, with
 //! `|` as its split, ahead of every other source of the slot. Any other
-//! header stays unmapped. [`put_list`] puts a list the series already has
-//! in its old place instead.
+//! header stays unmapped. [`replace_list`] puts the upload in the place of
+//! a list the person names instead.
 
 use serde::Serialize;
 
@@ -62,6 +62,9 @@ pub enum ListError {
     /// A `?series=` that names no series of the plan.
     #[error("the plan has no series {0:?}")]
     UnknownSeries(String),
+    /// A `?replace=` that names no uploaded list of the series.
+    #[error("the series has no uploaded list {0:?}")]
+    UnknownList(String),
 }
 
 /// The series a list is for: the one `named`, which `?series=` gives, or
@@ -415,73 +418,42 @@ pub fn add_list(
     Ok(ListAdded { sheet: id, mapped })
 }
 
-/// What [`put_list`] did.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ListPut {
-    /// A new list of the series.
-    Added(ListAdded),
-    /// The new bytes of a list the series already had. The list keeps its
-    /// id, its columns, and the rules and free set that read it; `old` is
-    /// the staged file it no longer reads.
-    Replaced { sheet: SheetId, old: RelPath },
-}
-
-/// The lists of `series` that the plan's staging source holds: the lists
+/// Put the list stored at `file` in the place of list `replace` of series
+/// `series`, which the person asked for: the same template can make two
+/// lists, so nothing in the bytes says which list they are. The list keeps
+/// its id, its columns, and the rules and free set that read it; `file`,
+/// `hash` and `read` are the upload's. Answers the staged file the list no
+/// longer reads.
+///
+/// # Errors
+/// [`ListError::UnknownList`] when `replace` is no list of the series that
 /// a person uploaded.
-#[must_use]
-pub fn staged_lists(plan: &ImportPlan, series: SeriesIx) -> Vec<&SheetPlan> {
+pub fn replace_list(
+    plan: &mut ImportPlan,
+    series: SeriesIx,
+    replace: &SheetId,
+    file: RelPath,
+    read: ReadOptions,
+    sheet: &Sheet,
+) -> Result<RelPath, ListError> {
     let staging = plan.sources.iter().find_map(|source| match source {
         SourcePlan::Staging { id } => Some(id),
         SourcePlan::Folder { .. } => None,
     });
-    plan.structure
+    let uploaded = plan
+        .structure
         .series(series)
         .lists()
         .iter()
-        .filter(|list| Some(&list.source) == staging)
-        .collect()
-}
-
-/// Put the list stored at `file` into series `series`. `staged` holds the
-/// series' [`staged_lists`] as they read now. One whose header row is the
-/// upload's is the same list sent again: both would join the same items on
-/// the same columns, and the older one could only give back values the
-/// person has since removed. So the upload takes that list's place, and
-/// keeps every choice made on it. Any other upload is added by
-/// [`add_list`].
-///
-/// # Errors
-/// As [`add_list`].
-pub fn put_list(
-    plan: &mut ImportPlan,
-    series: SeriesIx,
-    file: RelPath,
-    read: ReadOptions,
-    sheet: &Sheet,
-    catalog: &Catalog,
-    staged: &[(SheetId, Sheet)],
-) -> Result<ListPut, ListError> {
-    let headers = |sheet: &Sheet| {
-        sheet
-            .columns
-            .iter()
-            .map(|column| (column.index, column.header.clone()))
-            .collect::<Vec<_>>()
-    };
-    let same = staged
-        .iter()
-        .find(|(_, old)| headers(old) == headers(sheet))
-        .and_then(|(id, _)| plan.structure.list_mut(id));
-    let Some(list) = same else {
-        return add_list(plan, series, file, read, sheet, catalog).map(ListPut::Added);
-    };
-    let old = std::mem::replace(&mut list.file, file);
+        .any(|list| list.id == *replace && Some(&list.source) == staging);
+    let unknown = || ListError::UnknownList(replace.0.clone());
+    if !uploaded {
+        return Err(unknown());
+    }
+    let list = plan.structure.list_mut(replace).ok_or_else(unknown)?;
     list.hash = Some(sheet.hash.clone());
     list.read = read;
-    Ok(ListPut::Replaced {
-        sheet: list.id.clone(),
-        old,
-    })
+    Ok(std::mem::replace(&mut list.file, file))
 }
 
 fn staging_source(plan: &mut ImportPlan) -> SourceId {

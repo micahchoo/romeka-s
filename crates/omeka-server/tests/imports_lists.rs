@@ -674,24 +674,30 @@ async fn a_plan_of_several_series_needs_series_on_the_list_round_trip() {
 async fn a_reuploaded_list_replaces_its_sheet_and_its_free_set() {
     let fixture = fixture().await;
     let id = two_series(&fixture).await;
-    let upload = |sets: &str| {
-        let list = format!("Identifier,Files,Item sets [sets]\r\nPH_001,,{sets}\r\n");
-        let fixture = &fixture;
-        let id = &id;
-        async move {
-            let answer = fixture
-                .upload_to(id, "sheets?series=photos", "list.csv", list.as_bytes())
-                .await;
-            assert_eq!(answer.status, StatusCode::CREATED, "{}", answer.body);
-            answer.json()
-        }
-    };
-    upload("2018").await;
-    let view = upload("2019").await;
+    let first = upload_ok(
+        &fixture,
+        &id,
+        "sheets?series=photos",
+        "Identifier,Files,Item sets [sets]\r\nPH_001,,2018\r\n",
+    )
+    .await;
+    let sheet = first["plan"]["structure"]["levels"][1]["lists"][0]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let view = upload_ok(
+        &fixture,
+        &id,
+        &format!("sheets?series=photos&replace={sheet}"),
+        // A column the person added: only `replace` says this is the same list.
+        "Identifier,Files,Item sets [sets],Notes\r\nPH_001,,2019,checked\r\n",
+    )
+    .await;
 
     let plan = &view["plan"];
     let lists = &plan["structure"]["levels"][1]["lists"];
     assert_eq!(lists.as_array().map(Vec::len), Some(1), "{lists}");
+    assert_eq!(lists[0]["id"], sheet.as_str(), "the same list");
     assert_eq!(lists[0]["file"], "lists/2.csv", "the new bytes");
     assert_eq!(
         plan["structure"]["freeSets"].as_array().map(Vec::len),
@@ -712,21 +718,67 @@ async fn a_reuploaded_list_replaces_its_sheet_and_its_free_set() {
         .map(|set| set["title"].as_str().unwrap().to_string())
         .collect();
     assert_eq!(sets, ["2019"], "only the new list's set");
+}
 
-    let other = fixture
+#[tokio::test]
+async fn a_second_list_of_the_same_template_is_another_list() {
+    let fixture = fixture().await;
+    let id = two_series(&fixture).await;
+    let batch = |sets: &str| format!("Identifier,Files,Item sets [sets]\r\nPH_001,,{sets}\r\n");
+    upload_ok(&fixture, &id, "sheets?series=photos", &batch("Batch 1")).await;
+    let view = upload_ok(&fixture, &id, "sheets?series=photos", &batch("Batch 2")).await;
+
+    let lists = &view["plan"]["structure"]["levels"][1]["lists"];
+    let files: Vec<&str> = lists
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|list| list["file"].as_str().unwrap())
+        .collect();
+    assert_eq!(files, ["lists/1.csv", "lists/2.csv"], "{lists}");
+    let staged = fixture.files.path().join(format!("staging/{id}/lists"));
+    assert!(staged.join("1.csv").is_file(), "batch 1 stays");
+}
+
+#[tokio::test]
+async fn a_replace_that_names_no_uploaded_list_is_refused() {
+    let fixture = fixture().await;
+    let id = two_series(&fixture).await;
+    let list = "Identifier,Files,Item sets [sets]\r\nPH_001,,2018\r\n";
+    upload_ok(&fixture, &id, "sheets?series=photos", list).await;
+
+    let refused = fixture
         .upload_to(
             &id,
-            "sheets?series=photos",
+            "sheets?series=photos&replace=list-9",
             "list.csv",
-            "Identifier,Files,Title [dcterms:title]\r\nPH_001,,Photo\r\n".as_bytes(),
+            list.as_bytes(),
         )
         .await;
-    assert_eq!(other.status, StatusCode::CREATED, "{}", other.body);
+    assert_eq!(refused.status, StatusCode::BAD_REQUEST, "{}", refused.body);
+    assert_eq!(refused.json()["code"], "unknownList");
+    assert_eq!(refused.json()["series"], json!(["letters", "photos"]));
+    let staged = fixture.files.path().join(format!("staging/{id}/lists"));
+    assert!(
+        !staged.join("2.csv").exists(),
+        "the refused bytes are not kept"
+    );
+    let detail = fixture
+        .call("GET", &format!("/api/romeka/imports/{id}"), None)
+        .await;
     assert_eq!(
-        other.json()["plan"]["structure"]["levels"][1]["lists"]
+        detail.json()["plan"]["structure"]["levels"][1]["lists"]
             .as_array()
             .map(Vec::len),
-        Some(2),
-        "a list with other columns is another list"
+        Some(1)
     );
+}
+
+/// Upload `list` as `list.csv` to `path` of import `id`, and answer the view.
+async fn upload_ok(fixture: &Fixture, id: &Value, path: &str, list: &str) -> Value {
+    let answer = fixture
+        .upload_to(id, path, "list.csv", list.as_bytes())
+        .await;
+    assert_eq!(answer.status, StatusCode::CREATED, "{}", answer.body);
+    answer.json()
 }
