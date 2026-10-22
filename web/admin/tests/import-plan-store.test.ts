@@ -27,7 +27,7 @@ const savedAs = (init: RequestInit | undefined, revision: number): Response => {
 };
 const conflict = (name: string): Response => jsonResponse(loadFixture(`import/${name}`), { status: 409 });
 
-const caseFold = (on: boolean) => (plan: ImportPlan): ImportPlan => withSeries(plan, (series) => ({ ...series, grouping: { ...series.grouping, caseFold: on } }));
+const caseFold = (on: boolean) => (plan: ImportPlan): ImportPlan => withSeries(plan, 'all', (series) => ({ ...series, grouping: { ...series.grouping, caseFold: on } }));
 const sentRevisions = (fetchMock: ReturnType<typeof installFetch>): readonly unknown[] =>
   requestsFor(fetchMock, PATH)
     .filter((request) => request.init?.method === 'PUT')
@@ -66,7 +66,7 @@ describe('saving', () => {
     store.change(caseFold(false));
     await vi.advanceTimersByTimeAsync(SAVE_DELAY_MS);
     expect(sentRevisions(fetchMock)).toEqual([0, 1]);
-    expect(seriesOf(store.snapshot().plan).grouping.caseFold).toBe(false);
+    expect(seriesOf(store.snapshot().plan, 'all').grouping.caseFold).toBe(false);
   });
 
   it('saves a v3 plan', async () => {
@@ -149,7 +149,7 @@ describe('refusals', () => {
     expect(store.snapshot().save).toEqual({ status: 'stale', revision: 1 });
     expect(store.snapshot().editable).toBe(false);
     store.change(caseFold(false));
-    expect(seriesOf(store.snapshot().plan).grouping.caseFold).toBe(true);
+    expect(seriesOf(store.snapshot().plan, 'all').grouping.caseFold).toBe(true);
     await vi.advanceTimersByTimeAsync(SAVE_DELAY_MS);
     expect(sentRevisions(fetchMock)).toEqual([0]);
 
@@ -157,7 +157,7 @@ describe('refusals', () => {
     expect(stored).toBe(true);
     expect(store.snapshot().save.status).toBe('saved');
     expect(store.snapshot().detail.revision).toBe(1);
-    expect(seriesOf(store.snapshot().plan).grouping.caseFold).toBe(false);
+    expect(seriesOf(store.snapshot().plan, 'all').grouping.caseFold).toBe(false);
     expect(store.snapshot().editable).toBe(true);
   });
 

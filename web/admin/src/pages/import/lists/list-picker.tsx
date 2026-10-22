@@ -9,7 +9,7 @@
  */
 import { useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
-import type { ImportPlan, SheetPlan } from '../../../api/import-plan';
+import type { ImportPlan, LevelId, SheetPlan } from '../../../api/import-plan';
 import type { ListCandidate } from '../../../api/import-sections';
 import { ErrorNotice } from '../../../app/errors';
 import { toError } from '../../../app/useAsync';
@@ -142,7 +142,8 @@ export interface ListChoice {
   readonly notice: ReactNode;
 }
 
-export const useListChoice = (candidate: ListCandidate): ListChoice => {
+/** The list `candidate`, read into the series `level` when used. */
+export const useListChoice = (candidate: ListCandidate, level: LevelId): ListChoice => {
   const draft = useDraft();
   const [step, setStep] = useState<Step>({ at: 'idle' });
   const state = stateOf(draft.plan, candidate);
@@ -152,7 +153,7 @@ export const useListChoice = (candidate: ListCandidate): ListChoice => {
   const add = (replacing: SheetPlan | null): void => {
     setStep({ at: 'reading' });
     const before = replacing === null ? draft.plan : removeSheet(draft.plan, replacing.id);
-    listEdit(draft.id, before, candidate)
+    listEdit(draft.id, before, level, candidate)
       .then((edit) => {
         draft.change((plan) => edit(withoutDecline(replacing === null ? plan : removeSheet(plan, replacing.id), source, file)));
         setStep({ at: 'idle' });
@@ -202,9 +203,9 @@ export const useListChoice = (candidate: ListCandidate): ListChoice => {
   return { state, reading: step.at === 'reading', asking: step.at === 'asking', busy, use, stop, decline, notice };
 };
 
-const Row = ({ candidate }: { readonly candidate: ListCandidate }): ReactElement => {
+const Row = ({ candidate, level }: { readonly candidate: ListCandidate; readonly level: LevelId }): ReactElement => {
   const { t } = useListsText();
-  const choice = useListChoice(candidate);
+  const choice = useListChoice(candidate, level);
   const { state, busy } = choice;
   let actions: ReactNode = null;
   if (choice.asking) {
@@ -240,8 +241,8 @@ const Row = ({ candidate }: { readonly candidate: ListCandidate }): ReactElement
   );
 };
 
-/** The picker; `none` is what to show when the folders hold no list file. */
-export const ListPicker = ({ none }: { readonly none: ReactNode }): ReactElement => {
+/** The picker, which reads a list into the series `level`; `none` is what to show when the folders hold no list file. */
+export const ListPicker = ({ none, level }: { readonly none: ReactNode; readonly level: LevelId }): ReactElement => {
   const { t } = useListsText();
   const read = usePreview(['listCandidates'], {});
   if (read.status === 'loading') {
@@ -260,7 +261,7 @@ export const ListPicker = ({ none }: { readonly none: ReactNode }): ReactElement
       <p className="muted">{t('lists.picker.order')}</p>
       <ul className="import-pick">
         {candidates.map((candidate) => (
-          <Row key={`${candidate.source}/${candidate.file}`} candidate={candidate} />
+          <Row key={`${candidate.source}/${candidate.file}`} candidate={candidate} level={level} />
         ))}
       </ul>
     </section>

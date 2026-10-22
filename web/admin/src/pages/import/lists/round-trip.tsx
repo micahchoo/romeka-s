@@ -2,12 +2,13 @@
  * "Fill in a list yourself" (`docs/import-v2.md`, "The list round trip"):
  * choose the columns, see the first rows exactly as they download, download
  * the list, fill it in, upload it, and read what the upload did: the rows it
- * read and the rows that belong to no item of this import.
+ * read and the rows that belong to no item of this import. A list uploaded
+ * here may be sent again in its place (`send-again.ts`).
  */
 import { useId, useState } from 'react';
 import type { ReactElement } from 'react';
 import { importApi } from '../../../api/import-routes';
-import type { ImportPlan, SlotRule, SlotRules, SourceRef } from '../../../api/import-plan';
+import type { ImportPlan, LevelId, SlotRule, SlotRules, SourceRef } from '../../../api/import-plan';
 import type { ImportDetail } from '../../../api/import-view';
 import { ErrorNotice } from '../../../app/errors';
 import { TableScroll } from '../../../app/table-scroll';
@@ -17,7 +18,9 @@ import { useListsText } from './messages';
 import { loadProperties } from './catalog';
 import { readCsv } from '../csv-records';
 import { ListDrop } from './list-drop';
-import { allLists, withEverySeries, withSets } from '../series';
+import { allLists, listOf, withEverySeries, withSets } from '../series';
+import { headerOf, sendAgain } from './send-again';
+import type { Lacking } from './send-again';
 
 /** The columns the server takes besides properties (`template.rs`, `ListColumn`). */
 const SLOT_COLUMNS = ['sets', 'template', 'visibility'] as const;
@@ -71,10 +74,11 @@ export const removeSheet = (plan: ImportPlan, sheet: string): ImportPlan =>
       }),
   );
 
-/** What an added list did, counted by the server. */
-export const readUpload = async (before: ImportPlan, after: ImportDetail): Promise<UploadResult> => {
+/** What an added list did, counted by the server; `replaced` names the list a file was sent in place of, which keeps its id. */
+export const readUpload = async (before: ImportPlan, after: ImportDetail, replaced?: string): Promise<UploadResult> => {
   // Sheet ids are unique across the plan, so the new one is new in whichever series the upload named.
-  const added = allLists(after.plan).find((sheet) => !allLists(before).some((old) => old.id === sheet.id));
+  const added =
+    replaced === undefined ? allLists(after.plan).find((sheet) => !allLists(before).some((old) => old.id === sheet.id)) : listOf(after.plan, replaced);
   if (added === undefined) {
     throw new Error('The import has no new list.');
   }
@@ -101,9 +105,11 @@ type Upload =
   | { readonly at: 'idle' }
   | { readonly at: 'sending'; readonly name: string }
   | { readonly at: 'failed'; readonly error: Error }
+  /** A file sent again lacks a column the plan's answers read: it was not sent. */
+  | { readonly at: 'lacking'; readonly name: string; readonly lacking: Lacking }
   | { readonly at: 'read'; readonly result: UploadResult };
 
-const Result = ({ result, onRemove }: { readonly result: UploadResult; readonly onRemove: () => void }): ReactElement => {
+const Result = ({ result, onRemove, onAgain }: { readonly result: UploadResult; readonly onRemove: () => void; readonly onAgain: () => void }): ReactElement => {
   const { t, number } = useListsText();
   const quote = (words: readonly string[]): string => words.map((word) => `“${word}”`).join(', ');
   return (
@@ -127,21 +133,29 @@ const Result = ({ result, onRemove }: { readonly result: UploadResult; readonly 
           {result.strays > result.strayKeys.length ? <p className="muted">{t('lists.trip.andMore', { count: number(result.strays - result.strayKeys.length) })}</p> : null}
         </details>
       )}
-      <button type="button" onClick={onRemove}>
-        {t('lists.trip.remove')}
-      </button>
+      <span className="import-row-actions">
+        <button type="button" onClick={onAgain}>
+          {t('trip.again')}
+        </button>
+        <button type="button" onClick={onRemove}>
+          {t('lists.trip.remove')}
+        </button>
+      </span>
     </div>
   );
 };
 
-export const RoundTrip = (): ReactElement => {
+/** The list of the series `level`: its download, and the filled file sent back to it. */
+export const RoundTrip = ({ level }: { readonly level: LevelId }): ReactElement => {
   const { t, number } = useListsText();
   const draft = useDraft();
   const id = useId();
   const [columns, setColumns] = useState<readonly string[]>(FIRST_COLUMNS);
   const [upload, setUpload] = useState<Upload>({ at: 'idle' });
+  /** The uploaded list the next file is sent in place of. */
+  const [again, setAgain] = useState<{ readonly sheet: string; readonly file: string } | null>(null);
   const properties = useAsync(loadProperties, []);
-  const head = useAsync(() => importApi.templateCsv(draft.id, columns).then((text) => readCsv(text, ',', ROWS_SHOWN + 1)), [draft.id, draft.detail.revision, columns.join(',')]);
+  const head = useAsync(() => importApi.templateCsv(draft.id, columns, level).then((text) => readCsv(text, ',', ROWS_SHOWN + 1)), [draft.id, draft.detail.revision, columns.join(','), level]);
   const known = properties.status === 'ready' ? properties.data : [];
   const slotWords: Readonly<Record<(typeof SLOT_COLUMNS)[number], string>> = {
     sets: t('lists.trip.colSets'),
@@ -157,17 +171,32 @@ export const RoundTrip = (): ReactElement => {
 
   const send = (file: File): void => {
     const before = draft.plan;
+    const replaced = again?.sheet;
     setUpload({ at: 'sending', name: file.name });
-    importApi
-      .addList(draft.id, file)
-      .then(async (detail) => {
+    const list = replaced === undefined ? undefined : listOf(before, replaced);
+    const checked = list === undefined || replaced === undefined ? Promise.resolve(null) : headerOf(file, list.read).then((header) => sendAgain(before, replaced, header));
+    checked
+      .then(async (matched) => {
+        if (matched !== null && 'lacking' in matched) {
+          return { lacking: matched.lacking };
+        }
+        const detail = await importApi.addList(draft.id, file, level, replaced);
         draft.adopt(detail);
-        return readUpload(before, detail);
+        if (matched !== null && JSON.stringify(matched.follow(detail.plan)) !== JSON.stringify(detail.plan)) {
+          draft.change(matched.follow);
+        }
+        return readUpload(before, detail, replaced);
       })
       .then(
         (result) => {
+          if ('lacking' in result) {
+            setUpload({ at: 'lacking', name: file.name, lacking: result.lacking });
+            return;
+          }
           // The server stores the list under a name of its own; the person knows the one they sent.
           setUpload({ at: 'read', result: { ...result, file: file.name } });
+          // A file refused, by this screen or the server, leaves the next one going to the same place.
+          setAgain(null);
         },
         (error: unknown) => {
           setUpload({ at: 'failed', error: toError(error) });
@@ -251,7 +280,7 @@ export const RoundTrip = (): ReactElement => {
       ) : null}
       <p className="import-note">{t('lists.trip.keep')}</p>
       <p>
-        <a className="button-link" href={importApi.templateUrl(draft.id, columns)} download>
+        <a className="button-link" href={importApi.templateUrl(draft.id, columns, level)} download>
           {head.status === 'ready'
             ? t('lists.trip.download', { count: number(Math.max(0, head.data.count - 1)) })
             : t('lists.trip.downloadPlain')}
@@ -261,9 +290,20 @@ export const RoundTrip = (): ReactElement => {
       <ListDrop canSend={canSend} waitingForSave={draft.editable && draft.save.status !== 'saved'} onFile={send} />
       {upload.at === 'sending' ? <p role="status">{t('lists.trip.sending', { file: upload.name })}</p> : null}
       {upload.at === 'failed' ? <ErrorNotice error={upload.error} /> : null}
+      {upload.at === 'lacking' ? (
+        <p role="alert">
+          {upload.lacking.uses === 1
+            ? t('trip.lackingOne', { file: upload.name, column: upload.lacking.column })
+            : t('trip.lacking', { file: upload.name, column: upload.lacking.column, count: number(upload.lacking.uses) })}
+        </p>
+      ) : null}
+      {again === null ? null : <p role="status">{t('trip.againNext', { file: again.file })}</p>}
       {upload.at === 'read' ? (
         <Result
           result={upload.result}
+          onAgain={() => {
+            setAgain({ sheet: upload.result.sheet, file: upload.result.file });
+          }}
           onRemove={() => {
             const sheet = upload.result.sheet;
             draft.change((plan) => removeSheet(plan, sheet));

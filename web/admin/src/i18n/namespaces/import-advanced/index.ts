@@ -40,6 +40,11 @@ export const en = {
   'adv.source.tagPart': 'Tag {tag} of the file whose part is “{part}”',
   'adv.source.constant': 'Constant “{value}”',
 
+  // The folder a screen of one series shows, once the plan has several.
+  'adv.series.label': 'Folder',
+  'adv.series.plain': 'Each folder has its own pattern, lists and fields. The settings below are for this folder.',
+  'adv.series.none': 'No folder is imported, so there is nothing to set here.',
+
   // Files.
   'adv.files.sources.title': 'Sources',
   'adv.files.sources.label': 'Sources',

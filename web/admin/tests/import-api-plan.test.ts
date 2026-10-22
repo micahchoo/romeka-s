@@ -92,7 +92,7 @@ describe('what the plan boundary refuses', () => {
   it('refuses a flag kind, a delimiter and an owner the server would not take', () => {
     expect(() => parseImportPlan({ ...base(), flags: { 'no-such-flag': 'keep' } })).toThrow(ParseError);
     const plan = parseImportPlan(planOf('import-saved.json'));
-    const sheet = seriesOf(plan).lists[0];
+    const sheet = seriesOf(plan, 'all').lists[0];
     expect(sheet?.read.delimiter).toBe('auto');
     expect(() =>
       parseImportPlan({
@@ -104,26 +104,26 @@ describe('what the plan boundary refuses', () => {
 
   it('keeps the sheet a plan names, leaves an absent one absent and reads null as absent', () => {
     const plan = parseImportPlan(planOf('import-saved.json'));
-    const [first, ...others] = seriesOf(plan).lists;
+    const [first, ...others] = seriesOf(plan, 'all').lists;
     if (first === undefined) {
       throw new Error('the saved plan has a sheet');
     }
     const withName = (sheetName: unknown): unknown => ({
       ...plan,
-      structure: { ...plan.structure, levels: [{ ...seriesOf(plan), lists: [{ ...first, read: { ...first.read, sheetName } }, ...others] }] },
+      structure: { ...plan.structure, levels: [{ ...seriesOf(plan, 'all'), lists: [{ ...first, read: { ...first.read, sheetName } }, ...others] }] },
     });
     const named = withName('Register');
     expect(roundTrip(named)).toEqual(JSON.parse(JSON.stringify(named)));
-    expect(seriesOf(parseImportPlan(named)).lists[0]?.read.sheetName).toBe('Register');
+    expect(seriesOf(parseImportPlan(named), 'all').lists[0]?.read.sheetName).toBe('Register');
     expect(first.read).not.toHaveProperty('sheetName');
-    expect(seriesOf(parseImportPlan(withName(null))).lists[0]?.read).not.toHaveProperty('sheetName');
+    expect(seriesOf(parseImportPlan(withName(null)), 'all').lists[0]?.read).not.toHaveProperty('sheetName');
     expect(() => parseImportPlan(withName(2))).toThrow(ParseError);
   });
 
   it('keeps an absent value map absent and a given one as it was', () => {
     const plan = parseImportPlan(planOf('import-saved.json'));
     expect(setsRuleOf(plan)?.map).toEqual({ Scans: '' });
-    expect(seriesOf(plan).slots.item['template']).not.toHaveProperty('map');
+    expect(seriesOf(plan, 'all').slots.item['template']).not.toHaveProperty('map');
   });
 
   it('reads the anomaly answers the server saved, and only when it has them', () => {

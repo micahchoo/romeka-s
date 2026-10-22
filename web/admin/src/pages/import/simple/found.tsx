@@ -16,7 +16,7 @@ import type { ReactElement } from 'react';
 import { importApi } from '../../../api/import-routes';
 import type { RecordView } from '../../../api/import-model';
 import type { FlagCount, ShapeGroup } from '../../../api/import-sections';
-import type { ImportPlan } from '../../../api/import-plan';
+import type { ImportPlan, LevelId } from '../../../api/import-plan';
 import { ErrorNotice } from '../../../app/errors';
 import { Pager } from '../../../app/list';
 import { useDraft } from '../draft-context';
@@ -30,12 +30,13 @@ import { shapeKey } from '../lists/shape-filter';
 import { usePreview } from '../lists/use-preview';
 import { placeHref } from '../screens';
 import { patternOf } from '../example';
-import { readState, typedElsewhere, withMarks, withState } from './example-state';
+import { marksOf, readState, typedElsewhere, withMarks, withState } from './example-state';
 import { folderSheets, listEdit } from './list-read';
 import { MasterDetail } from './master-detail';
 import { marksWords } from './mark-words';
 import { useSimpleText } from './messages';
 import type { SimpleTranslator } from './messages';
+import { usePickedSeries } from '../picked-series';
 import { seriesOf, withSeries } from '../series';
 import './simple.css';
 
@@ -48,7 +49,7 @@ interface Chip {
 }
 
 /** A group's facts as chips: files per item, kinds, the marked words or pages, where its row comes from, its folders, and "worth a look". */
-const chipsOf = (group: ShapeGroup, plan: ImportPlan, t: SimpleTranslator['t']): readonly Chip[] => {
+const chipsOf = (group: ShapeGroup, plan: ImportPlan, level: LevelId, t: SimpleTranslator['t']): readonly Chip[] => {
   const { facts } = group;
   const chips: Chip[] = [{ text: t(BUCKET_WORDS[facts.files]), kind: 'fact' }];
   if (facts.media.length > 0) {
@@ -65,7 +66,7 @@ const chipsOf = (group: ShapeGroup, plan: ImportPlan, t: SimpleTranslator['t']):
   }
   if (facts.origin === 'row') {
     chips.push({ text: t('guided.found.chipRowOnly'), kind: 'fact' });
-  } else if (seriesOf(plan).lists.length > 0) {
+  } else if (seriesOf(plan, level).lists.length > 0) {
     chips.push({ text: facts.row ? t('guided.found.chipRow') : t('guided.found.chipNoRow'), kind: 'fact' });
   }
   const folders = facts.folders.filter((folder) => folder !== '');
@@ -93,12 +94,12 @@ const Chips = ({ chips }: { readonly chips: readonly Chip[] }): ReactElement => 
 );
 
 /** The rule that makes items now, in one line, with what changes it. */
-const Rule = (): ReactElement => {
+const Rule = ({ level }: { readonly level: LevelId }): ReactElement => {
   const { t } = useSimpleText();
   const draft = useDraft();
-  const { marks } = readState(draft.plan);
+  const marks = marksOf(draft.plan, level);
   const example = placeHref(draft.id, { mode: 'simple', screen: 'example' });
-  if (typedElsewhere(draft.plan)) {
+  if (typedElsewhere(draft.plan, level)) {
     return (
       <span className="guided-rule" data-decision="example">
         {t('guided.found.typed')} <a href={placeHref(draft.id, { mode: 'advanced', screen: 'files' })}>{t('guided.found.seeAdvanced')}</a>
@@ -125,7 +126,7 @@ const Rule = (): ReactElement => {
         type="button"
         disabled={!draft.editable}
         onClick={() => {
-          draft.change((plan) => withMarks(plan, [], null));
+          draft.change((plan) => withMarks(plan, level, [], null));
         }}
       >
         {t('guided.found.forget')}
@@ -135,13 +136,13 @@ const Rule = (): ReactElement => {
 };
 
 /** Whether every group is right, said under the pattern of the time: a new pattern asks again. */
-const Confirm = ({ groups }: { readonly groups: number }): ReactElement | null => {
+const Confirm = ({ level, groups }: { readonly level: LevelId; readonly groups: number }): ReactElement | null => {
   const { t } = useSimpleText();
   const draft = useDraft();
   if (groups === 0) {
     return null;
   }
-  if (readState(draft.plan).groupsOk === seriesOf(draft.plan).grouping.pattern) {
+  if (readState(draft.plan).groupsOk === seriesOf(draft.plan, level).grouping.pattern) {
     return <span className="guided-chip is-ok">{t('guided.found.confirmed')}</span>;
   }
   return (
@@ -150,7 +151,7 @@ const Confirm = ({ groups }: { readonly groups: number }): ReactElement | null =
       className="import-primary"
       disabled={!draft.editable}
       onClick={() => {
-        draft.change((plan) => withState(plan, { groupsOk: seriesOf(plan).grouping.pattern }));
+        draft.change((plan) => withState(plan, { groupsOk: seriesOf(plan, level).grouping.pattern }));
       }}
     >
       {t('guided.found.confirm')}
@@ -159,7 +160,19 @@ const Confirm = ({ groups }: { readonly groups: number }): ReactElement | null =
 };
 
 /** The counts the server made, with the way to each list behind them. */
-const Summary = ({ files, items, groups, flags }: { readonly files: number; readonly items: number; readonly groups: number; readonly flags: readonly FlagCount[] }): ReactElement => {
+const Summary = ({
+  level,
+  files,
+  items,
+  groups,
+  flags,
+}: {
+  readonly level: LevelId;
+  readonly files: number;
+  readonly items: number;
+  readonly groups: number;
+  readonly flags: readonly FlagCount[];
+}): ReactElement => {
   const { t, number } = useSimpleText();
   const draft = useDraft();
   const allFiles = { mode: 'simple', screen: 'all-files' } as const;
@@ -178,9 +191,9 @@ const Summary = ({ files, items, groups, flags }: { readonly files: number; read
         </span>
       )}
       <span>
-        {t('guided.found.groupCount')} <b>{number(groups)}</b> <Confirm groups={groups} />
+        {t('guided.found.groupCount')} <b>{number(groups)}</b> <Confirm level={level} groups={groups} />
       </span>
-      <Rule />
+      <Rule level={level} />
     </div>
   );
 };
@@ -243,7 +256,7 @@ const Inspector = ({ group, chips, onAnother }: { readonly group: ShapeGroup; re
   );
 };
 
-const Groups = (): ReactElement => {
+const Groups = ({ level }: { readonly level: LevelId }): ReactElement => {
   const { t, number } = useSimpleText();
   const draft = useDraft();
   const [page, setPage] = useState(1);
@@ -258,7 +271,7 @@ const Groups = (): ReactElement => {
   const { groups } = read.data.shapes;
   const lastPage = Math.max(1, Math.ceil(groups.total / groups.perPage));
   const rows = groups.items.map((group) => {
-    const chips = chipsOf(group, draft.plan, t);
+    const chips = chipsOf(group, draft.plan, level, t);
     return { group, chips, key: shapeKey(group.facts), label: named(chips).map((chip) => chip.text).join(', ') };
   });
   return (
@@ -314,15 +327,15 @@ const Help = (): ReactElement => {
   );
 };
 
-export const WhatWeFound = (): ReactElement => {
+const SeriesFound = ({ level }: { readonly level: LevelId }): ReactElement => {
   const { t } = useSimpleText();
   const draft = useDraft();
-  const unset = seriesOf(draft.plan).grouping.pattern === null;
+  const unset = seriesOf(draft.plan, level).grouping.pattern === null;
   const read = usePreview(['shapes', 'flags'], { shapes: { page: 1, perPage: 1 } });
   const listing = useRef(false);
   const [listError, setListError] = useState<Error | null>(null);
   // Only before the person answered about any list, and once the pattern is set: the pairing counts depend on it.
-  const untouched = !unset && folderSheets(draft.plan).length === 0 && readState(draft.plan).notLists.length === 0;
+  const untouched = !unset && folderSheets(draft.plan, level).length === 0 && readState(draft.plan).notLists.length === 0;
   const candidates = usePreview(['listCandidates'], {}, untouched);
   const offer = candidates.status === 'ready' && untouched ? candidates.data.listCandidates.find((candidate) => (candidate.best?.paired ?? 0) > 0) : undefined;
   useEffect(() => {
@@ -330,7 +343,7 @@ export const WhatWeFound = (): ReactElement => {
       return;
     }
     listing.current = true;
-    listEdit(draft.id, draft.plan, offer).then(
+    listEdit(draft.id, draft.plan, level, offer).then(
       (edit) => {
         draft.change(edit);
       },
@@ -338,7 +351,7 @@ export const WhatWeFound = (): ReactElement => {
         setListError(error instanceof Error ? error : new Error(String(error)));
       },
     );
-  }, [offer, draft]);
+  }, [offer, draft, level]);
   if (unset) {
     return (
       <div className="import-note">
@@ -349,7 +362,7 @@ export const WhatWeFound = (): ReactElement => {
             className="import-primary"
             disabled={!draft.editable}
             onClick={() => {
-              draft.change((plan) => withSeries(plan, (series) => ({ ...series, grouping: { ...series.grouping, pattern: patternOf([]) } })));
+              draft.change((plan) => withSeries(plan, level, (series) => ({ ...series, grouping: { ...series.grouping, pattern: patternOf([]) } })));
             }}
           >
             {t('guided.found.byName')}
@@ -368,13 +381,19 @@ export const WhatWeFound = (): ReactElement => {
   const files = sources.reduce((sum, source) => sum + source.files, 0);
   return (
     <div className="guided-dials">
-      <Summary files={files} items={shapes.records} groups={shapes.groups.total} flags={flags} />
+      <Summary level={level} files={files} items={shapes.records} groups={shapes.groups.total} flags={flags} />
       {listError === null ? null : <ErrorNotice error={listError} />}
       <FilesChart />
-      <Groups />
+      <Groups level={level} />
       <Help />
     </div>
   );
+};
+
+/** The plan's one series: this screen opens only on a plan of one (`screens.ts`, `landing`). */
+export const WhatWeFound = (): ReactElement | null => {
+  const series = usePickedSeries();
+  return series === null ? null : <SeriesFound level={series.id} />;
 };
 
 export default WhatWeFound;

@@ -6,6 +6,14 @@
  * matter, takes the item type from the list or the top folder, accepts the
  * suggested answers on Check and starts the run.
  *
+ * Simple's steps are now Structure, Check and Add. The pass leaves the
+ * structure as found (one series), so the old steps still open, under
+ * Structure, by their addresses: the drive follows each address where it
+ * followed a Next link (one click each), and the step bar's Check link after
+ * "Where they go". The start page now lands on Structure, and the drive goes
+ * to "What we found" from there with no click, as the start page took it
+ * there before.
+ *
  * It counts what `SCALE.md` counts. A decision is a question the screens put
  * to the person (each `data-decision`, each group of items), counted once
  * however often it shows, plus "where are your files". A click is every
@@ -60,6 +68,15 @@ class Drive {
       window.location.hash = href;
       window.dispatchEvent(new HashChangeEvent('hashchange'));
     }
+  }
+
+  /** Opens an old step by its address: `counted` when it stands for the Next link that led there. */
+  visit(screen: string, counted: boolean): void {
+    if (counted) {
+      this.clicks += 1;
+    }
+    window.location.hash = `#/import/1/simple/${screen}`;
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
   }
 
   click(element: Element): void {
@@ -132,6 +149,8 @@ const pass = async (at: Scenario): Promise<{ readonly drive: Drive; readonly ser
   const drive = new Drive(at);
 
   drive.click(await screen.findByRole('button', { name: 'Use everything in archive' }));
+  expect(await screen.findByRole('heading', { name: 'How your archive becomes items and sets' }, { timeout: 5000 })).toBeInTheDocument();
+  drive.visit('found', false);
   expect(await screen.findByText('Items: names equal but for the ending.', {}, { timeout: 5000 })).toBeInTheDocument();
   await groupsShown();
   drive.look();
@@ -146,7 +165,7 @@ const pass = async (at: Scenario): Promise<{ readonly drive: Drive; readonly ser
   }
   drive.click(screen.getByRole('button', { name: 'They are right' }));
   expect(await screen.findByText('confirmed')).toBeInTheDocument();
-  await next(drive);
+  drive.visit('list', true);
 
   expect(await screen.findByRole('option', { name: at.sheet.file }, { timeout: 5000 })).toHaveTextContent('In use');
   expect(await screen.findByText('Where each column goes', {}, { timeout: 5000 })).toBeInTheDocument();
@@ -154,7 +173,7 @@ const pass = async (at: Scenario): Promise<{ readonly drive: Drive; readonly ser
   for (const [column, label] of at.mapping) {
     await drive.choose(screen.getByRole('combobox', { name: `Where the column ${column} goes` }), label);
   }
-  await next(drive);
+  drive.visit('where', true);
 
   const from = await screen.findByRole('combobox', { name: 'The item type comes from' }, { timeout: 5000 });
   if (at.typeFrom === 'top') {
@@ -162,7 +181,7 @@ const pass = async (at: Scenario): Promise<{ readonly drive: Drive; readonly ser
   }
   expect(await screen.findByRole('region', { name: 'Item type for each value' }, { timeout: 5000 })).toBeInTheDocument();
   drive.look();
-  await next(drive);
+  drive.click(within(screen.getByRole('list', { name: 'Steps' })).getByRole('link', { name: 'Check' }));
 
   const accept = await screen.findByRole('button', { name: /^Use the [\d,]+ suggested answers$/ }, { timeout: 5000 });
   drive.look();

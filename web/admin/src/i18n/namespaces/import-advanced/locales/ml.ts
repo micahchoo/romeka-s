@@ -32,6 +32,11 @@ export const ml: ImportAdvancedMessages = {
   'adv.source.tagAll': 'എല്ലാ ഫയലുകളുടെയും ടാഗ് {tag}',
   'adv.source.tagPart': '“{part}” ഭാഗമുള്ള ഫയലിന്റെ ടാഗ് {tag}',
   'adv.source.constant': 'സ്ഥിരാങ്കം “{value}”',
+  'adv.series.label': 'ഫോൾഡർ',
+  'adv.series.plain':
+    'ഓരോ ഫോൾഡറിനും അതിന്റേതായ പാറ്റേൺ, പട്ടികകൾ, ഫീൽഡുകൾ എന്നിവയുണ്ട്. താഴെ നൽകിയിരിക്കുന്ന ക്രമീകരണങ്ങൾ ഈ ഫോൾഡറിന്റേതാണ്.',
+  'adv.series.none':
+    'ഫോൾഡറുകളൊന്നും ഇറക്കുമതി ചെയ്തിട്ടില്ല, അതിനാൽ ഇവിടെ ക്രമീകരിക്കാൻ ഒന്നുമില്ല.',
   'adv.files.sources.title': 'സ്രോതസ്സുകൾ',
   'adv.files.sources.label': 'സ്രോതസ്സുകൾ',
   'adv.files.sources.plain':

@@ -31,12 +31,12 @@ vi.mock('../src/pages/import/simple/bodies', async () => {
   const { seriesOf, setsRuleOf, withSeries, withSetsRule } = await import('../src/pages/import/series');
   return {
     SIMPLE_BODIES: {
-      found: () => <Stand show={(plan) => seriesOf(plan).grouping} answer={(plan) => withSeries(plan, (series) => ({ ...series, grouping: { ...series.grouping, caseFold: true } }))} />,
+      found: () => <Stand show={(plan) => seriesOf(plan, 'all').grouping} answer={(plan) => withSeries(plan, 'all', (series) => ({ ...series, grouping: { ...series.grouping, caseFold: true } }))} />,
       list: () => (
         <Stand
-          show={(plan) => seriesOf(plan).lists[0]?.join?.column}
+          show={(plan) => seriesOf(plan, 'all').lists[0]?.join?.column}
           answer={(plan) =>
-            withSeries(plan, (series) => ({
+            withSeries(plan, 'all', (series) => ({
               ...series,
               lists: series.lists.map((sheet) => (sheet.join === null ? sheet : { ...sheet, join: { ...sheet.join, column: { index: 1, header: 'Title' } } })),
             }))

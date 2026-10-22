@@ -32,6 +32,10 @@ export const te: ImportAdvancedMessages = {
   'adv.source.tagAll': 'ప్రతి ఫైల్ యొక్క ట్యాగ్ {tag}',
   'adv.source.tagPart': '“{part}” భాగం కలిగిన ఫైల్ యొక్క ట్యాగ్ {tag}',
   'adv.source.constant': 'స్థిరమైన “{value}”',
+  'adv.series.label': 'ఫోల్డర్',
+  'adv.series.plain':
+    'ప్రతి ఫోల్డర్‌కు దాని స్వంత నమూనా, జాబితాలు మరియు ఫీల్డ్‌లు ఉంటాయి. కింద ఉన్న సెట్టింగ్‌లు ఈ ఫోల్డర్‌కు సంబంధించినవి.',
+  'adv.series.none': 'ఏ ఫోల్డర్ ఇంపోర్ట్ చేయబడలేదు, కాబట్టి ఇక్కడ సెట్ చేయడానికి ఏమీ లేదు.',
   'adv.files.sources.title': 'మూలాలు',
   'adv.files.sources.label': 'మూలాలు',
   'adv.files.sources.plain':

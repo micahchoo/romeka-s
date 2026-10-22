@@ -168,7 +168,7 @@ describe('writing', () => {
   it('uploads a filled list as a multipart form with one file', async () => {
     const fetchMock = installFetch(route({ '/api/romeka/imports/1/sheets': () => answer('import-sheet-added.json', 201) }));
     const added = await api.addList(ID, new File(['Identifier,Title [dcterms:title]\n'], 'list.csv', { type: 'text/csv' }));
-    expect(seriesOf(added.plan).lists[0]?.file).toBe('lists/1.csv');
+    expect(seriesOf(added.plan, 'all').lists[0]?.file).toBe('lists/1.csv');
     const sent = only(requestsFor(fetchMock, '/api/romeka/imports/1/sheets'));
     expect(sent.init?.method).toBe('POST');
     const form = sent.init?.body;

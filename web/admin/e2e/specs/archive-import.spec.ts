@@ -46,13 +46,20 @@ const next = async (page: Page): Promise<void> => {
   await page.getByRole('link', { name: 'Next', exact: true }).click();
 };
 
-/** Start a draft over one folder of the archive root, from the start page. */
+/** An old step of Simple by its address: a plan still of one series opens it, under Structure. */
+const step = async (page: Page, id: number, screen: 'found' | 'list' | 'where'): Promise<void> => {
+  await page.goto(`/#/import/${String(id)}/simple/${screen}`);
+};
+
+/** Start a draft over one folder of the archive root, from the start page, which opens it on Structure; then open "What we found". */
 const startOn = async (page: Page, folder: string): Promise<number> => {
   await page.goto('/#/import');
   await page.getByRole('button', { name: folder, exact: true }).click();
   await page.getByRole('button', { name: `Use the folder ${folder}` }).click();
-  await expect(page).toHaveURL(/#\/import\/\d+\/simple\/found$/);
-  return importId(page);
+  await expect(page).toHaveURL(/#\/import\/\d+\/simple\/structure$/);
+  const id = importId(page);
+  await step(page, id, 'found');
+  return id;
 };
 
 const saved = async (page: Page): Promise<void> => {
@@ -117,7 +124,7 @@ test('the Simple pass adds the folder, and undo keeps the item edited since unti
   await page.getByRole('button', { name: 'They are right' }).click();
   await expect(page.getByText('confirmed', { exact: true })).toBeVisible();
   await saved(page);
-  await next(page);
+  await step(page, id, 'list');
 
   // Your list: the register is offered, read, and joined; then the list round trip.
   await expect(page.getByRole('checkbox', { name: 'use this list' })).toBeChecked();
@@ -138,11 +145,11 @@ test('the Simple pass adds the folder, and undo keeps the item edited since unti
   await trip.getByLabel('Choose the file').setInputFiles({ name: 'filled.csv', mimeType: 'text/csv', buffer: Buffer.from(filled) });
   await expect(page.getByText(`Read ${String(BHC_ITEMS)} rows from filled.csv.`)).toBeVisible();
   await expect(page.getByText(`${String(BHC_ITEMS)} belong to items of this import.`)).toBeVisible();
-  await next(page);
+  await step(page, id, 'where');
 
   // Where they go, then the check's suggested answers.
   await expect(page.getByRole('combobox', { name: 'The item type comes from' })).toBeVisible();
-  await next(page);
+  await page.getByRole('list', { name: 'Steps' }).getByRole('link', { name: 'Check' }).click();
   await expect(fact(page, 'Items to add', BHC_ITEMS)).toBeVisible();
   const accept = page.getByRole('button', { name: /^Use the (?:\d+ suggested answers|1 suggested answer)$/u });
   if (await accept.isVisible()) {

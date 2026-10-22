@@ -23,7 +23,7 @@ import { readState, withState } from './example-state';
 import { MasterDetail, Segmented } from './master-detail';
 import { useSimpleText } from './messages';
 import type { SimpleMessageKey, SimpleTranslator } from './messages';
-import { seriesOf } from '../series';
+import { allLists } from '../series';
 import './simple.css';
 
 interface Cause {
@@ -266,7 +266,7 @@ export const Check = (): ReactElement => {
   if (entries.total > 0) {
     causes.push({ id: 'unmatchedFiles', count: entries.total, examples: entries.items.flatMap((entry) => ('file' in entry.entry ? [fileName(entry.entry.file)] : [])), kind: null });
   }
-  if (seriesOf(draft.plan).lists.length > 0 && unpaired.items > 0) {
+  if (allLists(draft.plan).length > 0 && unpaired.items > 0) {
     causes.push({ id: 'itemsWithoutRow', count: unpaired.items, examples: unpaired.files.items.map((file) => fileName(file.file)), kind: null });
   }
   if (check.itemsWithoutTitle > 0) {

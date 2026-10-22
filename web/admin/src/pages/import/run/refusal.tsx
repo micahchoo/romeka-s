@@ -96,7 +96,7 @@ export const RefusalNotice = ({
       ) : null}
       {next.kind === 'files' ? (
         <p>
-          <a href={placeHref(id, mode === 'simple' ? { mode, screen: 'found' } : { mode, screen: 'files' })}>{t('run.no.nothingLink')}</a>
+          <a href={placeHref(id, mode === 'simple' ? { mode, screen: 'structure' } : { mode, screen: 'files' })}>{t('run.no.nothingLink')}</a>
         </p>
       ) : null}
       {next.kind === 'open' ? (

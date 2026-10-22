@@ -5,7 +5,7 @@
  * answer has one home in the plan whichever mode gave it.
  */
 import { NAMED_SLOTS, isMultiValued, isTerm } from '../../../api/import-plan';
-import { allSeries, setsRuleOf, slotsOf, withEverySeries, withList, withSeries, withSetsRule, withSlots } from '../series';
+import { allSeries, seriesHolding, setsRuleOf, slotsOf, withEverySeries, withList, withSeries, withSetsRule, withSlots } from '../series';
 import { itemOnly, levelOf } from '../simple/list-plan';
 import type {
   Action,
@@ -16,6 +16,7 @@ import type {
   FlagPolicy,
   ImportPlan,
   Join,
+  LevelId,
   MatchRule,
   ReadOptions,
   RecordKind,
@@ -51,9 +52,10 @@ const sameColumn = (a: ColumnRef, b: ColumnRef): boolean => a.index === b.index;
 const readsColumn = (source: SourceRef, sheet: string, column: ColumnRef): boolean =>
   source.from === 'column' && source.sheet === sheet && sameColumn(source.column, column);
 
-const rulesOf = (plan: ImportPlan, kind: RecordKind): SlotRules => slotsOf(plan)[kind];
+const rulesOf = (plan: ImportPlan, level: LevelId, kind: RecordKind): SlotRules => slotsOf(plan, level)[kind];
 
-const withRules = (plan: ImportPlan, kind: RecordKind, rules: SlotRules): ImportPlan => withSlots(plan, { ...slotsOf(plan), [kind]: rules });
+const withRules = (plan: ImportPlan, level: LevelId, kind: RecordKind, rules: SlotRules): ImportPlan =>
+  withSlots(plan, level, { ...slotsOf(plan, level), [kind]: rules });
 
 const slotName = (key: string): SlotName | null => NAMED_SLOTS.find((name) => name === key) ?? (isTerm(key) ? key : null);
 
@@ -66,10 +68,15 @@ export const entriesOf = (rules: SlotRules): readonly (readonly [SlotName, SlotR
 
 const rulesFrom = (entries: readonly (readonly [SlotName, SlotRule])[]): SlotRules => Object.fromEntries(entries);
 
-/** The field a list column feeds, on the item or on each file, or `null` when it feeds none. */
-export const columnTarget = (plan: ImportPlan, sheet: string, column: ColumnRef): SlotName | null =>
-  [...entriesOf(rulesOf(plan, 'item')), ...entriesOf(rulesOf(plan, 'media'))].find(([, rule]) => rule.sources.some((source) => readsColumn(source, sheet, column)))?.[0] ??
-  null;
+/** The field a list column feeds, on the item or on each file, or `null` when it feeds none. Only the series that holds the list reads its columns. */
+export const columnTarget = (plan: ImportPlan, sheet: string, column: ColumnRef): SlotName | null => {
+  const holder = seriesHolding(plan, sheet);
+  return holder === undefined
+    ? null
+    : ([...entriesOf(rulesOf(plan, holder.id, 'item')), ...entriesOf(rulesOf(plan, holder.id, 'media'))].find(([, rule]) =>
+        rule.sources.some((source) => readsColumn(source, sheet, column)),
+      )?.[0] ?? null);
+};
 
 const withoutColumn = (rules: SlotRules, sheet: string, column: ColumnRef): SlotRules =>
   rulesFrom(
@@ -90,16 +97,26 @@ const withoutColumn = (rules: SlotRules, sheet: string, column: ColumnRef): Slot
  * no source would clear the field on `update`.
  */
 export const mapColumn = (plan: ImportPlan, sheet: string, column: ColumnRef, slot: SlotName | null): ImportPlan => {
+  const holder = seriesHolding(plan, sheet);
+  if (holder === undefined) {
+    return plan;
+  }
+  const level = holder.id;
   const onFiles = levelOf(plan, sheet, column.index) === 'file' && (slot === null || !itemOnly(slot));
-  const cleared = withRules(withRules(plan, 'item', withoutColumn(rulesOf(plan, 'item'), sheet, column)), 'media', withoutColumn(rulesOf(plan, 'media'), sheet, column));
+  const cleared = withRules(
+    withRules(plan, level, 'item', withoutColumn(rulesOf(plan, level, 'item'), sheet, column)),
+    level,
+    'media',
+    withoutColumn(rulesOf(plan, level, 'media'), sheet, column),
+  );
   if (slot === null) {
     return cleared;
   }
   const kind = onFiles ? 'media' : 'item';
-  const rules = rulesOf(cleared, kind);
+  const rules = rulesOf(cleared, level, kind);
   const source: SourceRef = { from: 'column', sheet, column };
   const rule = rules[slot];
-  return withRules(cleared, kind, {
+  return withRules(cleared, level, kind, {
     ...rules,
     [slot]: rule === undefined ? { sources: [source], combine: 'first' } : { ...rule, sources: [source, ...rule.sources] },
   });
@@ -128,20 +145,27 @@ export const setColumnOptions = (plan: ImportPlan, sheet: string, column: Column
     };
   });
 
-const onRule = (plan: ImportPlan, kind: RecordKind, slot: SlotName, edit: (rule: SlotRule) => SlotRule): ImportPlan => {
-  const rule = rulesOf(plan, kind)[slot];
-  return rule === undefined ? plan : withRules(plan, kind, { ...rulesOf(plan, kind), [slot]: edit(rule) });
+/** One field's rule: of the series `level`, for records of `kind`. */
+export interface RuleAt {
+  readonly level: LevelId;
+  readonly kind: RecordKind;
+  readonly slot: SlotName;
+}
+
+const onRule = (plan: ImportPlan, { level, kind, slot }: RuleAt, edit: (rule: SlotRule) => SlotRule): ImportPlan => {
+  const rule = rulesOf(plan, level, kind)[slot];
+  return rule === undefined ? plan : withRules(plan, level, kind, { ...rulesOf(plan, level, kind), [slot]: edit(rule) });
 };
 
-export const addRule = (plan: ImportPlan, kind: RecordKind, slot: SlotName): ImportPlan =>
-  rulesOf(plan, kind)[slot] === undefined ? withRules(plan, kind, { ...rulesOf(plan, kind), [slot]: { sources: [], combine: 'first' } }) : plan;
+export const addRule = (plan: ImportPlan, { level, kind, slot }: RuleAt): ImportPlan =>
+  rulesOf(plan, level, kind)[slot] === undefined ? withRules(plan, level, kind, { ...rulesOf(plan, level, kind), [slot]: { sources: [], combine: 'first' } }) : plan;
 
-export const removeRule = (plan: ImportPlan, kind: RecordKind, slot: SlotName): ImportPlan =>
-  withRules(plan, kind, rulesFrom(entriesOf(rulesOf(plan, kind)).filter(([name]) => name !== slot)));
+export const removeRule = (plan: ImportPlan, { level, kind, slot }: RuleAt): ImportPlan =>
+  withRules(plan, level, kind, rulesFrom(entriesOf(rulesOf(plan, level, kind)).filter(([name]) => name !== slot)));
 
 /** Source `index` moved `by` places (-1 up, 1 down); a move past either end does nothing. */
-export const moveSource = (plan: ImportPlan, kind: RecordKind, slot: SlotName, index: number, by: -1 | 1): ImportPlan =>
-  onRule(plan, kind, slot, (rule) => {
+export const moveSource = (plan: ImportPlan, at: RuleAt, index: number, by: -1 | 1): ImportPlan =>
+  onRule(plan, at, (rule) => {
     const to = index + by;
     const moving = rule.sources[index];
     const other = rule.sources[to];
@@ -154,15 +178,14 @@ export const moveSource = (plan: ImportPlan, kind: RecordKind, slot: SlotName, i
     return { ...rule, sources };
   });
 
-export const removeSource = (plan: ImportPlan, kind: RecordKind, slot: SlotName, index: number): ImportPlan =>
-  onRule(plan, kind, slot, (rule) => ({ ...rule, sources: rule.sources.filter((_, at) => at !== index) }));
+export const removeSource = (plan: ImportPlan, at: RuleAt, index: number): ImportPlan =>
+  onRule(plan, at, (rule) => ({ ...rule, sources: rule.sources.filter((_, place) => place !== index) }));
 
-export const addSource = (plan: ImportPlan, kind: RecordKind, slot: SlotName, source: SourceRef): ImportPlan =>
-  onRule(plan, kind, slot, (rule) => ({ ...rule, sources: [...rule.sources, source] }));
+export const addSource = (plan: ImportPlan, at: RuleAt, source: SourceRef): ImportPlan => onRule(plan, at, (rule) => ({ ...rule, sources: [...rule.sources, source] }));
 
 /** `all` only where the field keeps more than one value: the boundary refuses it elsewhere. */
-export const setCombine = (plan: ImportPlan, kind: RecordKind, slot: SlotName, combine: SlotRule['combine']): ImportPlan =>
-  combine === 'all' && !isMultiValued(slot) ? plan : onRule(plan, kind, slot, (rule) => ({ ...rule, combine }));
+export const setCombine = (plan: ImportPlan, at: RuleAt, combine: SlotRule['combine']): ImportPlan =>
+  combine === 'all' && !isMultiValued(at.slot) ? plan : onRule(plan, at, (rule) => ({ ...rule, combine }));
 
 /** What the value map makes of `value`: its mapped text, or the value itself. */
 export const mappedText = (rule: SlotRule, value: string): string => {
@@ -175,8 +198,8 @@ export const mappedText = (rule: SlotRule, value: string): string => {
  * one are refused on save, so the old key for the value goes first. A value
  * mapped to itself needs no key; an empty map is absent.
  */
-export const setMapped = (plan: ImportPlan, kind: RecordKind, slot: SlotName, value: string, to: string): ImportPlan =>
-  onRule(plan, kind, slot, (rule) => {
+export const setMapped = (plan: ImportPlan, at: RuleAt, value: string, to: string): ImportPlan =>
+  onRule(plan, at, (rule) => {
     const rest = Object.entries(rule.map ?? {}).filter(([key]) => foldTitle(key) !== foldTitle(value));
     const map = Object.fromEntries(to === value ? rest : [...rest, [value, to]]);
     return Object.keys(map).length === 0 ? { sources: rule.sources, combine: rule.combine } : { sources: rule.sources, combine: rule.combine, map };
@@ -231,5 +254,5 @@ export const removeDecision = (plan: ImportPlan, index: number): ImportPlan => (
 
 export const removeDecisions = (plan: ImportPlan): ImportPlan => ({ ...plan, decisions: [] });
 
-export const setPattern = (plan: ImportPlan, pattern: string | null, caseFold: boolean): ImportPlan =>
-  withSeries(plan, (series) => ({ ...series, grouping: { pattern, caseFold } }));
+export const setPattern = (plan: ImportPlan, level: LevelId, pattern: string | null, caseFold: boolean): ImportPlan =>
+  withSeries(plan, level, (series) => ({ ...series, grouping: { pattern, caseFold } }));

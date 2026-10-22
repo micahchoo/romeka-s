@@ -7,10 +7,15 @@
  * letters. Before "Use this", the screen counts what the files would make
  * with the mark, so a wrong mark shows as one huge item before it costs
  * anything.
+ *
+ * The screen marks the plan's one series. The Structure screen marks one
+ * folder of several with the same parts (`MarkFor`): it offers that
+ * folder's files only, and counts and uses the mark its own way.
  */
 import { useState } from 'react';
-import type { ReactElement, SyntheticEvent } from 'react';
+import type { ComponentType, ReactElement, SyntheticEvent } from 'react';
 import type { Anomaly } from '../../../api/import-model';
+import type { LevelId } from '../../../api/import-plan';
 import type { BucketCount, NameWord, Paged } from '../../../api/import-sections';
 import { ErrorNotice } from '../../../app/errors';
 import { useDraft } from '../draft-context';
@@ -19,7 +24,8 @@ import { usePreview } from '../lists/use-preview';
 import { placeHref } from '../screens';
 import type { Mark } from '../example';
 import { endingOf, markOf, markedText, nameOf, stemParts } from './name-parts';
-import { readState, withMarks } from './example-state';
+import { marksOf, withMarks } from './example-state';
+import { usePickedSeries } from '../picked-series';
 import { useSimpleText } from './messages';
 import type { SimpleTranslator } from './messages';
 import './simple.css';
@@ -51,10 +57,25 @@ const Search = ({ label, hint, onAsk }: { readonly label: string; readonly hint:
   );
 };
 
-const Picker = ({ chosen, onPick }: { readonly chosen: string | null; readonly onPick: (path: string) => void }): ReactElement => {
+/** The mark and the file it is on: what a trial counts. */
+export interface Marked {
+  readonly mark: Mark;
+  readonly path: string;
+}
+
+/** What the marks are for: the files offered, and the trial that counts a mark and uses it. */
+export interface MarkFor {
+  /** Only the files in this folder or below it; every file when absent. */
+  readonly folder?: string;
+  readonly Trial: ComponentType<Marked>;
+}
+
+const Picker = ({ chosen, folder, onPick }: { readonly chosen: string | null; readonly folder: string | undefined; readonly onPick: (path: string) => void }): ReactElement => {
   const { t } = useSimpleText();
   const [asked, setAsked] = useState('');
-  const read = usePreview(['entries'], { entries: { used: true, perPage: PICK_READ, ...(asked === '' ? {} : { text: asked }) } });
+  const read = usePreview(['entries'], {
+    entries: { used: true, perPage: PICK_READ, ...(folder === undefined ? {} : { folder }), ...(asked === '' ? {} : { text: asked }) },
+  });
   const names =
     read.status === 'ready'
       ? read.data.entries.items
@@ -96,12 +117,13 @@ const biggest = (bars: readonly BucketCount[], anomalies: readonly Anomaly[], te
   return top.files === '1' || top.files === '2' || top.files === '3' ? filesWords(Number(top.files), t, number) : t(BUCKET_WORDS[top.files]);
 };
 
-const Trial = ({ mark, path }: { readonly mark: Mark; readonly path: string }): ReactElement => {
+/** The series `level` with the mark: what its files make, and "Use this", which writes it. */
+const SeriesTrial = ({ level, mark, path }: Marked & { readonly level: LevelId }): ReactElement => {
   const text = useSimpleText();
   const { t, number } = text;
   const draft = useDraft();
-  const marks = [...readState(draft.plan).marks, mark];
-  const read = usePreview(['histogram', 'anomalies'], { plan: withMarks(draft.plan, marks, path) });
+  const marks = [...marksOf(draft.plan, level), mark];
+  const read = usePreview(['histogram', 'anomalies'], { plan: withMarks(draft.plan, level, marks, path) });
   if (read.status === 'loading') {
     return <p role="status" className="import-slow">{t('guided.example.counting')}</p>;
   }
@@ -123,7 +145,7 @@ const Trial = ({ mark, path }: { readonly mark: Mark; readonly path: string }): 
           className="import-primary"
           disabled={!draft.editable || read.busy}
           onClick={() => {
-            draft.change((plan) => withMarks(plan, [...readState(plan).marks, mark], path));
+            draft.change((plan) => withMarks(plan, level, [...marksOf(plan, level), mark], path));
             goFound(draft.id);
           }}
         >
@@ -175,7 +197,7 @@ const Words = ({
   );
 };
 
-const Marking = ({ path }: { readonly path: string }): ReactElement => {
+const Marking = ({ path, Trial }: { readonly path: string; readonly Trial: MarkFor['Trial'] }): ReactElement => {
   const { t } = useSimpleText();
   const [selection, setSelection] = useState<number | null>(null);
   const [kind, setKind] = useState<Mark['kind'] | null>(null);
@@ -274,23 +296,31 @@ const Marking = ({ path }: { readonly path: string }): ReactElement => {
   );
 };
 
-export const ShowUsOneExample = (): ReactElement => {
+/** The plan's one series: this screen opens only on a plan of one (`screens.ts`, `landing`). */
+const OneSeriesTrial = (marked: Marked): ReactElement | null => {
+  const series = usePickedSeries();
+  return series === null ? null : <SeriesTrial level={series.id} {...marked} />;
+};
+
+const ONE_SERIES: MarkFor = { Trial: OneSeriesTrial };
+
+export const ShowUsOneExample = ({ markFor = ONE_SERIES }: { readonly markFor?: MarkFor }): ReactElement => {
   const { t } = useSimpleText();
   const [path, setPath] = useState<string | null>(null);
   if (path === null) {
     return (
       <>
         <p className="guided-big">{t('guided.example.choose')}</p>
-        <Picker chosen={path} onPick={setPath} />
+        <Picker chosen={path} folder={markFor.folder} onPick={setPath} />
       </>
     );
   }
   return (
     <>
-      <Marking key={path} path={path} />
+      <Marking key={path} path={path} Trial={markFor.Trial} />
       <details>
         <summary>{t('guided.example.other')}</summary>
-        <Picker chosen={path} onPick={setPath} />
+        <Picker chosen={path} folder={markFor.folder} onPick={setPath} />
       </details>
     </>
   );

@@ -89,7 +89,7 @@ const UseFolder = ({ listing }: { readonly listing: ArchiveListing }): ReactElem
     setState({ busy: true, error: null });
     importApi.create({ sources: [{ id: 's1', kind: 'folder', root, path: listing.path }] }).then(
       (created) => {
-        window.location.hash = placeHref(created.id, { mode: 'simple', screen: 'found' });
+        window.location.hash = placeHref(created.id, { mode: 'simple', screen: 'structure' });
       },
       (error: unknown) => {
         setState({ busy: false, error: toError(error) });

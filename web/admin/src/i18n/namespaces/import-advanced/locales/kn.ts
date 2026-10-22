@@ -32,6 +32,10 @@ export const kn: ImportAdvancedMessages = {
   'adv.source.tagAll': 'ಪ್ರತಿ ಫೈಲ್‌ನ ಟ್ಯಾಗ್ {tag}',
   'adv.source.tagPart': 'ಭಾಗವು “{part}” ಆಗಿರುವ ಫೈಲ್‌ನ ಟ್ಯಾಗ್ {tag}',
   'adv.source.constant': 'ಸ್ಥಿರ “{value}”',
+  'adv.series.label': 'ಫೋಲ್ಡರ್',
+  'adv.series.plain':
+    'ಪ್ರತಿ ಫೋಲ್ಡರ್ ತನ್ನದೇ ಆದ ಮಾದರಿ, ಪಟ್ಟಿಗಳು ಮತ್ತು ಕ್ಷೇತ್ರಗಳನ್ನು ಹೊಂದಿದೆ. ಕೆಳಗಿನ ಸೆಟ್ಟಿಂಗ್‌ಗಳು ಈ ಫೋಲ್ಡರ್‌ಗೆ ಸೇರಿವೆ.',
+  'adv.series.none': 'ಯಾವುದೇ ಫೋಲ್ಡರ್ ಆಮದು ಮಾಡಿಕೊಳ್ಳಲಾಗಿಲ್ಲ, ಆದ್ದರಿಂದ ಇಲ್ಲಿ ಹೊಂದಿಸಲು ಏನೂ ಇಲ್ಲ.',
   'adv.files.sources.title': 'ಮೂಲಗಳು',
   'adv.files.sources.label': 'ಮೂಲಗಳು',
   'adv.files.sources.plain':

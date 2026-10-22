@@ -3,9 +3,10 @@
  * of short rows beside the inspector of the selected one, stacked in one
  * column when it is narrower than 720 px. The list is a listbox: the arrow
  * keys, Home and End move the selection, and Enter moves focus into the
- * inspector. The selection is this component's state, because the import's
+ * inspector. Rows that share a `group` sit under its heading, in a listbox
+ * group. The selection is this component's state, because the import's
  * address names screens only. `Segmented` is one choice of a few, with the
- * answer the counts suggest marked.
+ * answer the counts suggest marked and each answer's counts under its name.
  */
 import { useId, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactElement, ReactNode } from 'react';
@@ -16,7 +17,23 @@ export interface MasterRow {
   readonly name: ReactNode;
   /** Its state and counts, read after the name. */
   readonly facts: ReactNode;
+  /** The heading of the run of rows it belongs to; rows of one group are next to each other. */
+  readonly group?: string;
+  /** Drawn indented under the row before it. */
+  readonly child?: boolean;
 }
+
+/** The rows in runs of one group, each with its index among all rows. */
+const runsOf = (rows: readonly MasterRow[]): readonly { readonly group: string | undefined; readonly rows: readonly (readonly [MasterRow, number])[] }[] =>
+  rows.reduce<{ group: string | undefined; rows: (readonly [MasterRow, number])[] }[]>((runs, row, index) => {
+    const last = runs.at(-1);
+    if (last !== undefined && last.group === row.group) {
+      last.rows.push([row, index]);
+    } else {
+      runs.push({ group: row.group, rows: [[row, index]] });
+    }
+    return runs;
+  }, []);
 
 export const MasterDetail = ({
   label,
@@ -54,31 +71,47 @@ export const MasterDetail = ({
     }
   };
 
+  const option = ([row, index]: readonly [MasterRow, number]): ReactElement => (
+    <li
+      key={row.key}
+      id={optionId(index)}
+      role="option"
+      className={row.child === true ? 'guided-row-child' : undefined}
+      aria-selected={row.key === selected}
+      aria-labelledby={`${optionId(index)}-name`}
+      aria-describedby={`${optionId(index)}-facts`}
+      tabIndex={row.key === selected ? 0 : -1}
+      onClick={() => {
+        select(index);
+      }}
+      onKeyDown={onKey}
+    >
+      <span id={`${optionId(index)}-name`} className="guided-row-name">
+        {row.name}
+      </span>
+      <span id={`${optionId(index)}-facts`} className="guided-row-facts">
+        {row.facts}
+      </span>
+    </li>
+  );
+
   return (
     <div className="guided-split">
       <ul role="listbox" aria-label={label} className="guided-rows">
-        {rows.map((row, index) => (
-          <li
-            key={row.key}
-            id={optionId(index)}
-            role="option"
-            aria-selected={row.key === selected}
-            aria-labelledby={`${optionId(index)}-name`}
-            aria-describedby={`${optionId(index)}-facts`}
-            tabIndex={row.key === selected ? 0 : -1}
-            onClick={() => {
-              select(index);
-            }}
-            onKeyDown={onKey}
-          >
-            <span id={`${optionId(index)}-name`} className="guided-row-name">
-              {row.name}
-            </span>
-            <span id={`${optionId(index)}-facts`} className="guided-row-facts">
-              {row.facts}
-            </span>
-          </li>
-        ))}
+        {runsOf(rows).map((run, at) =>
+          run.group === undefined ? (
+            run.rows.map(option)
+          ) : (
+            <li key={`group-${String(at)}`} role="none">
+              <span id={`${id}-group-${String(at)}`} className="guided-group">
+                {run.group}
+              </span>
+              <ul role="group" aria-labelledby={`${id}-group-${String(at)}`} className="guided-rows">
+                {run.rows.map(option)}
+              </ul>
+            </li>
+          ),
+        )}
       </ul>
       <div ref={inspector} tabIndex={-1} className="guided-inspector">
         {selected === null ? null : children(selected)}
@@ -91,6 +124,8 @@ export interface Segment<V extends string> {
   readonly value: V;
   readonly label: string;
   readonly suggested: boolean;
+  /** What this answer makes, shown under its name before the click. */
+  readonly note?: string;
 }
 
 /** A row of toggle buttons, one pressed: the answer the plan holds. A suggested one carries a ✓. */
@@ -133,6 +168,7 @@ export const Segmented = <V extends string>({
             <span className="guided-hidden">{suggestedWord}</span>
           </>
         ) : null}
+        {segment.note === undefined ? null : <span className="guided-seg-note">{segment.note}</span>}
       </button>
     ))}
   </span>

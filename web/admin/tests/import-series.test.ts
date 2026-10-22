@@ -1,7 +1,7 @@
 /**
  * The series seam (`src/pages/import/series.ts`) over the server's own v3
- * plans (`fixtures/v3`): a series read and written through it is the series
- * of the tree, a screen of one series refuses a plan of several, the readers
+ * plans (`fixtures/v3`): a series read and written through it, by its level
+ * id, is the series of the tree, the readers
  * keyed by a list find it in any series, the item sets rule is a free set and
  * never a series' rule, and Simple's state is kept under the series' id. And
  * the seam is the only way in: no other import page reads the plan's tree or
@@ -15,9 +15,9 @@ import { describe, expect, it } from 'vitest';
 import { parseImportPlan } from '../src/api/import-plan-tree-read';
 import type { ImportPlan, Series } from '../src/api/import-plan';
 import {
-  SeveralSeriesError,
   allLists,
   listOf,
+  seriesHolding,
   seriesOf,
   setLevelsOf,
   setsOf,
@@ -43,9 +43,8 @@ const only = (plan: ImportPlan): Series => {
 };
 
 describe('the series of a plan', () => {
-  it('is the series of its tree; a plan of one needs no level', () => {
+  it('is the series of its tree that the level names', () => {
     const plan = rustPlan('one_series.json');
-    expect(seriesOf(plan)).toBe(only(plan));
     expect(seriesOf(plan, 'files')).toBe(only(plan));
     expect(() => seriesOf(plan, 'letters')).toThrow('letters');
   });
@@ -53,7 +52,7 @@ describe('the series of a plan', () => {
   it('an edit through the series writes the plan an edit of its tree would', () => {
     const plan = rustPlan('one_series.json');
     const grouping = { pattern: '^(?<identifier>[^/]+)$', caseFold: false };
-    const edited = withSeries(plan, (series) => ({ ...series, grouping, example: null }));
+    const edited = withSeries(plan, 'files', (series) => ({ ...series, grouping, example: null }));
     const direct: ImportPlan = { ...plan, structure: { ...plan.structure, levels: [{ ...only(plan), grouping, example: null }] } };
     expect(edited).toEqual(direct);
     expect(JSON.stringify(edited)).toBe(JSON.stringify(direct));
@@ -62,14 +61,13 @@ describe('the series of a plan', () => {
 
   it('a change that keeps the series leaves the plan itself', () => {
     const plan = rustPlan('one_series.json');
-    expect(withSeries(plan, (series) => series)).toBe(plan);
+    expect(withSeries(plan, 'files', (series) => series)).toBe(plan);
   });
 
-  it('a screen of one series refuses a plan of several; a level names one, under its set level too', () => {
+  it('in a plan of several, a level names one, under its set level too, and an edit changes that one alone', () => {
     const plan = rustPlan('bhc006.json');
-    expect(() => seriesOf(plan)).toThrow(SeveralSeriesError);
     expect(seriesOf(plan, 'pn').lists.map((list) => list.id)).toEqual(['pn']);
-    const edited = withSeries(plan, (series) => ({ ...series, grouping: { ...series.grouping, caseFold: true } }), 'pn');
+    const edited = withSeries(plan, 'pn', (series) => ({ ...series, grouping: { ...series.grouping, caseFold: true } }));
     expect(seriesOf(edited, 'pn').grouping.caseFold).toBe(true);
     expect(seriesOf(edited, 'af')).toBe(seriesOf(plan, 'af'));
     expect(setLevelsOf(edited).map((level) => level.id)).toEqual(['project']);
@@ -83,6 +81,8 @@ describe('the series of a plan', () => {
     expect(seriesOf(edited, 'd').lists[0]?.read.headerLine).toBe(2);
     expect(seriesOf(edited, 'af')).toBe(seriesOf(plan, 'af'));
     expect(withList(plan, 'nowhere', (list) => list)).toBe(plan);
+    expect(seriesHolding(plan, 'd')?.id).toBe('d');
+    expect(seriesHolding(plan, 'nowhere')).toBeUndefined();
   });
 });
 
@@ -91,20 +91,20 @@ describe('the item sets rule', () => {
 
   it('is written to a free set that names sets by title, never to the series', () => {
     const plan = rustPlan('archive_as_found.json');
-    const edited = withSlots(plan, { ...slotsOf(plan), item: { ...slotsOf(plan).item, sets: RULE } });
-    expect(seriesOf(edited).slots.item).toEqual({});
+    const edited = withSlots(plan, 'all', { ...slotsOf(plan, 'all'), item: { ...slotsOf(plan, 'all').item, sets: RULE } });
+    expect(seriesOf(edited, 'all').slots.item).toEqual({});
     expect(setsOf(edited)).toEqual([{ each: { ...RULE, names: 'title' } }]);
-    expect(slotsOf(edited).item.sets).toEqual(RULE);
+    expect(slotsOf(edited, 'all').item.sets).toEqual(RULE);
   });
 
   it('keeps how a set read as v2 read it names its sets, and goes when the rule goes', () => {
     const plan = rustPlan('archive_as_found.json');
     const lifted: ImportPlan = { ...plan, structure: { ...plan.structure, freeSets: [{ title: 'Kept', description: null }, { each: { ...RULE, names: 'text' } }] } };
     const mapped = { ...RULE, map: { Scans: '' } };
-    const edited = withSlots(lifted, { ...slotsOf(lifted), item: { sets: mapped } });
+    const edited = withSlots(lifted, 'all', { ...slotsOf(lifted, 'all'), item: { sets: mapped } });
     expect(setsOf(edited)).toEqual([{ title: 'Kept', description: null }, { each: { ...mapped, names: 'text' } }]);
-    const item = Object.fromEntries(Object.entries(slotsOf(edited).item).filter(([slot]) => slot !== 'sets'));
-    expect(setsOf(withSlots(edited, { ...slotsOf(edited), item }))).toEqual([{ title: 'Kept', description: null }]);
+    const item = Object.fromEntries(Object.entries(slotsOf(edited, 'all').item).filter(([slot]) => slot !== 'sets'));
+    expect(setsOf(withSlots(edited, 'all', { ...slotsOf(edited, 'all'), item }))).toEqual([{ title: 'Kept', description: null }]);
   });
 });
 

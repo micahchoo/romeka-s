@@ -1,0 +1,158 @@
+/**
+ * The Tamil Import Structure screen messages.
+ *
+ * @machine-translated: to be written by `scripts/translate-locales.mjs` with sarvam-30b and
+ * md-translator's checks. Until that run, every key is missing here, which is a `tsc`
+ * error by design: it is typed `ImportStructureMessages`.
+ */
+import type { ImportStructureMessages } from "../index";
+
+export const ta: ImportStructureMessages = {
+  "structure.status.suggested":
+    "எங்களது பரிந்துரை. உறுதிப்படுத்தும் வரை எதுவும் பயன்படுத்தப்படாது.",
+  "structure.status.use": "இந்த கட்டமைப்பைப் பயன்படுத்தவும்",
+  "structure.status.inUse": "பயன்பாட்டில் உள்ளது. உங்கள் மாற்றங்கள்: {count}.",
+  "structure.status.changed":
+    "உங்கள் கோப்புகள் மாற்றப்பட்டுள்ளன. எங்களது புதிய பரிந்துரை yours-லிருந்து மாறுபடுகிறது.",
+  "structure.status.useNew": "புதிய பரிந்துரையைப் பயன்படுத்தவும்",
+  "structure.status.keep": "எங்களது பரிந்துரையை வைத்திருக்கவும்",
+  "structure.count.items": "சேர்க்க வேண்டிய பொருட்கள்",
+  "structure.count.sets": "தொகுப்புகள்",
+  "structure.count.out": "இறக்குமதி செய்யப்படவில்லை",
+  "structure.count.folders": "{count} கோப்புறைகள்",
+  "structure.count.foldersOne": "1 கோப்புறை",
+  "structure.count.changes": "உங்கள் மாற்றங்கள்",
+  "structure.tree": "உங்கள் காப்பகம்",
+  "structure.group.out": "இறக்குமதி செய்யப்படவில்லை",
+  "structure.group.unused": "பயன்படுத்தப்படாத பட்டியல்கள்",
+  "structure.root.line": "{files} கோப்புகள் · {lists} பட்டியல்கள்",
+  "structure.every": "ஒவ்வொரு உருப்படி",
+  "structure.every.line": "வழங்கப்பட்டவை: {sets}",
+  "structure.items": "{count} உருப்படிகள்",
+  "structure.itemsOne": "1 உருப்படி",
+  "structure.list.short": "{n}/{of} பட்டியல்",
+  "structure.list.noneShort": "பட்டியல் இல்லை",
+  "structure.out.noMedia": "{files} கோப்புகள் · எதையும் காட்ட முடியாது",
+  "structure.out.edit": "{files} கோப்புகள் · நீங்கள் அதை விட்டுவிட்டீர்கள்",
+  "structure.unused.unread": "வாசிக்காது",
+  "structure.unused.rows": "{of} வரிசைகளில் {n} ஒரு கோப்பின் பெயரைத் தருகின்றன",
+  "structure.kind.image": "{count} படங்கள்",
+  "structure.kind.imageOne": "1 படம்",
+  "structure.kind.pdf": "{count} பி.டி.எஃப். கோப்புகள்",
+  "structure.kind.pdfOne": "1 PDF",
+  "structure.kind.audio": "{count} ஒலிகள்",
+  "structure.kind.audioOne": "1 ஒலி",
+  "structure.kind.video": "{count} திரைப்படங்கள்",
+  "structure.kind.videoOne": "1 திரைப்படம்",
+  "structure.kind.document": "{count} ஆவணங்கள்",
+  "structure.kind.documentOne": "1 ஆவணம்",
+  "structure.kind.other": "{count} இதர கோப்புகள்",
+  "structure.kind.otherOne": "1 இதர கோப்பு",
+  "structure.suggested": "எங்கள் பரிந்துரை",
+  "structure.q.import": "இந்த கோப்புறையை இறக்குமதி செய்க",
+  "structure.import.yes": "இறக்குமதி",
+  "structure.import.files": "{files} கோப்புகள் · {kinds}",
+  "structure.import.no": "இதைக் கைவிடவும்",
+  "structure.import.noCount": "{items} சேர்க்கப்படவில்லை",
+  "structure.q.items": "உருப்படிகள்",
+  "structure.cut.whole": "ஒவ்வொரு பெயரும் ஒரு உருப்படி",
+  "structure.cut.places": "{places} பகுதி வரை ஒரே பெயர்",
+  "structure.cut.folder": "ஒவ்வொரு கோப்புறையும் {depth} ஆழத்தில் ஒரு உருப்படி",
+  "structure.cut.rows": "{list} பட்டியலில் உள்ள ஒவ்வொரு வரிசையும் ஒரு உருப்படி",
+  "structure.perItem": "ஒரு உருப்படிக்கான கோப்புகள்: {buckets}.",
+  "structure.bucket": "{count} உடன் {files}",
+  "structure.parts": "முடிவுப் பகுதிகள்: {parts}.",
+  "structure.namesEnd":
+    "{count} பெயர்களுக்குப் பிறகு இந்த பகுதிக்கு பிறகு எதுவும் இல்லை.",
+  "structure.otherShapes": "{count} கோப்புகள் எந்த உருப்படியிலும் அடங்கவில்லை.",
+  "structure.q.list": "பட்டியல்",
+  "structure.list.rows": "{of} வரிசைகளில் {n} ஒரு கோப்பின் பெயரைத் தருகின்றன",
+  "structure.list.folds":
+    "எழுத்து வடிவம், எண்கள் மற்றும் பிரிப்பான்கள் புறக்கணிக்கப்படுகின்றன: சரியாக எழுதப்பட்டுள்ளது: {count}.",
+  "structure.list.no": "பட்டியல் இல்லை",
+  "structure.list.nothing":
+    "எந்தப் பட்டியலும் இந்த கோப்புகளைக் குறிப்பிடவில்லை.",
+  "structure.q.grain": "ஒவ்வொரு வரிசையும் விவரிக்கிறது",
+  "structure.grain.item": "ஒரு உருப்படி",
+  "structure.grain.media": "ஒரு கோப்பு",
+  "structure.grain.itemSet": "ஒரு தொகுப்பு",
+  "structure.grain.noFile": "{count} வரிசைகள் கோப்பு ஏதுமில்லை.",
+  "structure.grain.many":
+    "{count} உருப்படிகள் 2 அல்லது அதற்கு மேற்பட்ட கோப்புகளுக்கான வரிசைகளைக் கொண்டுள்ளன.",
+  "structure.q.set": "தொகுப்பு",
+  "structure.set.none": "தொகுப்பு இல்லை",
+  "structure.set.several": "{count} தொகுப்புகள்",
+  "structure.from.folder": "கோப்புறை பெயர்",
+  "structure.from.column": "நிரல் {column}",
+  "structure.from.place": "பெயரின் {place} பகுதி",
+  "structure.from.level": "{depth} ஆழத்தில் உள்ள கோப்புறைகள்",
+  "structure.from.rows": "{of} வரிசைகளில் {n}",
+  "structure.q.split": "சலுகை: தொகுப்புகள்",
+  "structure.split.by": "{from}-லிருந்து ஒரு தொகுப்பு:",
+  "structure.split.set": "{name} ({items})",
+  "structure.split.more": "மற்றும் {count} கூடுதல்",
+  "structure.split.make": "{count} தொகுப்புகளை உருவாக்கு",
+  "structure.q.pair": "சலுகை: இணைத்தல்",
+  "structure.pair.lastPlaces":
+    "பெயரின் கடைசி {places} பகுதிகளைக் கொண்டு இணைக்கவும்",
+  "structure.pair.folds":
+    "கேஸ், பூஜ்ஜியங்கள் மற்றும் பிரிப்பான்கள் புறக்கணிக்கப்பட்டு இணைக்கவும்",
+  "structure.pair.column": "{column} நெடுவரிசை மூலம் இணைக்கவும்",
+  "structure.pair.rows": "{of} வரிசைகளில் {n} ஒரு கோப்பைக் கண்டறிகின்றன",
+  "structure.pair.use": "இதைப் பயன்படுத்தவும்",
+  "structure.q.columns": "நெடுவரிசைகள்",
+  "structure.columns": "{count} நெடுவரிசைகள்",
+  "structure.root.files": "கோப்புகள்",
+  "structure.root.filesIn": "{where}-இல் {files} கோப்புகள் உள்ளன",
+  "structure.root.folders": "முதன்மை கோப்புறைகள்",
+  "structure.root.foldersLine":
+    "{in} இறக்குமதி செய்யப்பட்டது, {out} இறக்குமதி செய்யப்படவில்லை",
+  "structure.root.lists": "பட்டியல்கள்",
+  "structure.root.listsLine":
+    "{used} ஒரு கோப்புறையை விவரிக்கிறது. {unused} எதையும் விவரிக்கவில்லை.",
+  "structure.every.title": "ஒவ்வொரு உருப்படியின் மீதும் ஒரு தொகுப்பு",
+  "structure.every.note":
+    "ஒவ்வொரு நெடுவரிசையிலும் ஒவ்வொரு வரிசையிலும் ஒரு மதிப்பு உள்ளது.",
+  "structure.every.add": "தொகுப்பைச் சேர்க்க",
+  "structure.out.why":
+    "அதன் கோப்புகளில் எதுவுமே படம், ஒலி, திரைப்படம், PDF அல்லது ஆவணம் அல்ல.",
+  "structure.out.whyEdit": "அதை நீங்கள் விட்டுவிட்டீர்கள்.",
+  "structure.out.keep": "இறக்குமதி செய்க",
+  "structure.unused.error": "எங்களால் அதை வாசிக்க முடியவில்லை: {error}",
+  "structure.unused.noRow":
+    "இந்த ஆவணக் காப்பகத்தில் உள்ள எந்தக் கோப்பும் கோப்புப் பெயரைக் கொண்டிருக்கவில்லை.",
+  "structure.unused.use": "ஒரு கோப்புறையைப் பயன்படுத்தவும்",
+  "structure.changed": "மாற்றப்பட்டது",
+  "structure.counting": "எண்ணுதல்…",
+  "structure.click.failed":
+    "எங்களால் எண்ண முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
+  "structure.changes.title": "உங்கள் மாற்றங்கள் ({count})",
+  "structure.change.line": "{where} · {question}: {answer}",
+  "structure.change.effect": "{before} → {after} உருப்படிகள்",
+  "structure.change.gone": "இந்த பெயரில் தற்போது உங்கள் கோப்புகளில் இல்லை.",
+  "structure.change.notOffered": "தற்போது நாங்கள் இதை வழங்கவில்லை.",
+  "structure.change.replaced":
+    "ஒரு பிந்தைய மாற்றம் அதே கேள்விக்கு பதிலளிக்கிறது.",
+  "structure.change.remove": "பின்வாங்கு",
+  "structure.change.saved": "சேமிக்கப்பட்டது. இன்னும் எண்ணிக் கொண்டிருக்கிறது.",
+  "structure.unused.folder": "கோப்புறை",
+  "structure.hand.mark": "ஒரு உதாரணத்தைக் குறிக்கவும்",
+  "structure.hand.title": "கையால்",
+  "structure.hand.lede":
+    "இங்கே நீங்கள் குறிப்பது அப்படியே இருக்கும். இந்தக் கோப்புறைக்கு நாங்கள் வேறு எதையும் பரிந்துரைக்க மாட்டோம்.",
+  "structure.hand.makes": "இவ்வாறு எழுதப்பட்டது: {items}.",
+  "structure.hand.use": "இதைப் பயன்படுத்தவும்",
+  "structure.hand.cancel": "ரத்து செய்",
+  "structure.own.mark": "உங்களால் எழுதப்பட்டது",
+  "structure.own.line": "உங்களால் எழுதப்பட்டது",
+  "structure.own.note":
+    "உங்களால் எழுதப்பட்டது. இங்கு மேலும் எதையும் பரிந்துரைக்கவில்லை.",
+  "structure.own.back": "எமது பரிந்துரைக்குத் திரும்புவோம்",
+  "structure.change.waiting":
+    "நீங்கள் கையால் இந்த கோப்புறையை எழுதும்போது இது காத்திருக்கும்.",
+  "structure.kept.title": "பதிவேற்றப்பட்ட பட்டியல்கள்",
+  "structure.kept.rows":
+    "{file}: நீங்கள் பதிவேற்றிய பட்டியல், வைக்கப்பட்டது. {of} வரிசைகளில் {n} இணைகின்றன.",
+  "structure.kept.unread":
+    "{file}: உங்கள் பதிவேற்றப்பட்ட பட்டியல், சேமிக்கப்பட்டது. அதை வாசிக்க இயலவில்லை.",
+};

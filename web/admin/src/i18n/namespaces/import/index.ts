@@ -104,16 +104,14 @@ export const en = {
   'advanced.line': '{items} items · {left} left out · {changes} changes · action {action}',
   // Screen headings and step names. A key under `advanced.` is shown in Advanced only.
   'simple.files.title': 'Where are your files?',
-  'simple.files.step': 'Your files',
+  'simple.structure.title': 'How your archive becomes items and sets',
+  'simple.structure.step': 'Structure',
   'simple.found.title': 'What we found in your files',
-  'simple.found.step': 'What we found',
   'simple.example.title': 'Show us one example',
   'simple.allFiles.title': 'Every file',
   'simple.list.title': 'Do you have a list that describes them?',
-  'simple.list.step': 'Your list',
   'simple.pair.title': 'Pair rows and files by hand',
   'simple.where.title': 'Where should they go in Omeka?',
-  'simple.where.step': 'Where they go',
   'simple.check.title': 'Check',
   'simple.check.step': 'Check',
   'simple.allItems.title': 'Every item',
@@ -243,6 +241,11 @@ export const en = {
   'tag.Size': 'File size',
   'tag.Pixel dimensions': 'Size in pixels',
   'tag.Format': 'File format',
+  // The list round trip: a list sent again in place of the one uploaded.
+  'trip.again': 'Upload this list again',
+  'trip.againNext': 'The next file you send takes the place of {file}.',
+  'trip.lacking': 'Not sent: {file} has no column “{column}”, which {count} answers use.',
+  'trip.lackingOne': 'Not sent: {file} has no column “{column}”, which 1 answer uses.',
 } as const;
 
 /** A complete table of this namespace, in one locale. */

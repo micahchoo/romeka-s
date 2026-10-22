@@ -7,11 +7,11 @@
  * saved before `simple` holds the same keys in `example`; `simpleRecordOf`
  * hands those over until the first save.
  */
-import type { ImportPlan } from '../../../api/import-plan';
+import type { ImportPlan, LevelId } from '../../../api/import-plan';
 import { isRecord } from '../../../api/parse';
 import { exampleOf, patternOf, simpleRecordOf, withExample, withoutOldAnswers } from '../example';
 import type { Mark } from '../example';
-import { seriesOf, withSeries, withSimple } from '../series';
+import { seriesOf, withEverySeries, withSeries, withSimple } from '../series';
 
 /** A list file the person said is not about these items. `source` is `''` in a draft that predates sources here: any source. */
 export interface NotList {
@@ -20,7 +20,6 @@ export interface NotList {
 }
 
 export interface SimpleState {
-  readonly marks: readonly Mark[];
   /** The pattern under which the person said every group is right; a new pattern asks again. */
   readonly groupsOk: string | null;
   /** The Check questions the person answered or took the suggested answer for. */
@@ -47,29 +46,31 @@ export const readState = (plan: ImportPlan): SimpleState => {
   const groupsOk = kept['groupsOk'];
   const notLists = kept['notLists'];
   return {
-    marks: exampleOf(plan)?.marks ?? [],
     groupsOk: typeof groupsOk === 'string' ? groupsOk : null,
     answered: strings(kept['answered']),
     notLists: Array.isArray(notLists) ? notLists.flatMap((entry) => notListOf(entry) ?? []) : [],
   };
 };
 
-export const withState = (plan: ImportPlan, change: Partial<Omit<SimpleState, 'marks'>>): ImportPlan => {
+export const withState = (plan: ImportPlan, change: Partial<SimpleState>): ImportPlan => {
   const next = { ...readState(plan), ...change };
   const simple = { groupsOk: next.groupsOk, answered: [...next.answered], notLists: next.notLists.map(({ source, file }) => ({ source, file })) };
   // An old draft's keys inside `example` go with the first save of `simple`.
-  return withSeries(withSimple(plan, simple), (series) => ({ ...series, example: withoutOldAnswers(series.example) }));
+  return withEverySeries(withSimple(plan, simple), (series) => ({ ...series, example: withoutOldAnswers(series.example) }));
 };
 
-/** The plan read by the marks: their pattern, and the example both modes read. */
-export const withMarks = (plan: ImportPlan, marks: readonly Mark[], path: string | null): ImportPlan =>
-  withSeries(withExample(plan, path ?? exampleOf(plan)?.path ?? null, marks), (series) => ({
+/** The marks of the series `level`'s example. */
+export const marksOf = (plan: ImportPlan, level: LevelId): readonly Mark[] => exampleOf(plan, level)?.marks ?? [];
+
+/** The series read by the marks: their pattern, and the example both modes read. */
+export const withMarks = (plan: ImportPlan, level: LevelId, marks: readonly Mark[], path: string | null): ImportPlan =>
+  withSeries(withExample(plan, level, path ?? exampleOf(plan, level)?.path ?? null, marks), level, (series) => ({
     ...series,
     grouping: { ...series.grouping, pattern: patternOf(marks) },
   }));
 
-/** Whether the plan's pattern is the one the marks make, or one typed in Advanced. */
-export const typedElsewhere = (plan: ImportPlan): boolean => {
-  const { pattern } = seriesOf(plan).grouping;
-  return pattern !== null && pattern !== patternOf(readState(plan).marks);
+/** Whether the series' pattern is one typed in Advanced, not the one its marks make. */
+export const typedElsewhere = (plan: ImportPlan, level: LevelId): boolean => {
+  const { pattern } = seriesOf(plan, level).grouping;
+  return pattern !== null && pattern !== patternOf(marksOf(plan, level));
 };

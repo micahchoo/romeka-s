@@ -60,7 +60,7 @@ export const YourFiles = (): ReactElement => {
         <button type="button" disabled={again.at === 'looking' || again.at === 'working'} onClick={look}>
           {again.at === 'looking' || again.at === 'working' ? t('guided.files.looking') : t('guided.files.again')}
         </button>
-        <a className="button-link import-primary" href={placeHref(draft.id, { mode: 'simple', screen: 'found' })}>
+        <a className="button-link import-primary" href={placeHref(draft.id, { mode: 'simple', screen: 'structure' })}>
           {t('guided.files.next')}
         </a>
       </div>

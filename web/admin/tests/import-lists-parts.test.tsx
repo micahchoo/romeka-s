@@ -124,3 +124,44 @@ describe.each([9, 40_000])('the list round trip at %i items', (size) => {
     expect(asked.map((body) => body['entries'])).toEqual([{ sheet: 'list-1', paired: false, perPage: 50 }]);
   }, 20_000);
 });
+
+describe('a list sent again', () => {
+  it('takes the place of the list, follows a column that moved, and refuses a file that lacks one the answers use', async () => {
+    const server = listsServer(9);
+    const fetchMock = installFetch(server.handler);
+    render(at('list'));
+    const input = await screen.findByLabelText('Choose the file');
+    const send = (text: string): void => {
+      fireEvent.change(input, { target: { files: [new File([text], 'filled.csv', { type: 'text/csv' })] } });
+    };
+    send('Identifier,Files,Title [dcterms:title],Date [dcterms:date]\n');
+    fireEvent.click(await screen.findByRole('button', { name: 'Upload this list again' }));
+    expect(screen.getByText('The next file you send takes the place of filled.csv.')).toBeInTheDocument();
+
+    // The title rule reads "Title [dcterms:title]": a file without it is not sent.
+    send('Identifier,Files,Date [dcterms:date]\n');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Not sent: filled.csv has no column “Title [dcterms:title]”, which 1 answer uses.');
+    expect(requestsFor(fetchMock, `${PATH}/sheets`)).toHaveLength(1);
+
+    // Title and Date swapped places, and Notes is new: the list goes in place of list-1, and the answers follow each column.
+    send('Identifier,Files,Date [dcterms:date],Title [dcterms:title],Notes\n');
+    await waitFor(() => {
+      expect(requestsFor(fetchMock, `${PATH}/sheets`)).toHaveLength(2);
+    });
+    expect(requestsFor(fetchMock, `${PATH}/sheets`)[1]?.url.searchParams.get('replace')).toBe('list-1');
+    await waitFor(() => {
+      expect(server.saved.length).toBeGreaterThan(0);
+    });
+    const plan = server.saved[server.saved.length - 1] ?? {};
+    const item = asRecord(asRecord(plan['slots'], [])['item'], []);
+    const column = (slot: string): unknown => {
+      const sources = asRecord(item[slot], [])['sources'];
+      return Array.isArray(sources) ? sources[0] : null;
+    };
+    expect(column('dcterms:title')).toEqual({ from: 'column', sheet: 'list-1', column: { index: 3, header: 'Title [dcterms:title]' } });
+    expect(column('dcterms:date')).toEqual({ from: 'column', sheet: 'list-1', column: { index: 2, header: 'Date [dcterms:date]' } });
+    const lists: unknown = plan['sheets'];
+    const list: unknown = Array.isArray(lists) ? lists[0] : null;
+    expect(asRecord(asRecord(list, [])['join'], [])['column']).toEqual({ header: 'Identifier', index: 0 });
+  }, 20_000);
+});

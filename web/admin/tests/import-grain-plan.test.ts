@@ -25,7 +25,7 @@ const plan = (): ImportPlan => {
   const raw: unknown = typeof draft === 'object' && draft !== null ? Reflect.get(draft, 'plan') : null;
   const base = parseImportPlan(raw);
   const options = { split: ',', type: 'literal' as const, lang: null, private: false };
-  const listed = withSeries(base, (series) => ({
+  const listed = withSeries(base, 'all', (series) => ({
     ...series,
     lists: [
       {
@@ -41,7 +41,7 @@ const plan = (): ImportPlan => {
       },
     ],
   }));
-  return withSlots(listed, {
+  return withSlots(listed, 'all', {
       item: {
         'dcterms:subject': { sources: [column('af', KEYWORDS)], combine: 'all', map: { 'front view': 'Front' } },
         'dcterms:date': { sources: [column('af', YEAR)], combine: 'first' },
@@ -52,7 +52,7 @@ const plan = (): ImportPlan => {
   });
 };
 
-const sheetOf = (edited: ImportPlan) => seriesOf(edited).lists[0];
+const sheetOf = (edited: ImportPlan) => seriesOf(edited, 'all').lists[0];
 
 describe('withRowKind', () => {
   it('reads back the kind it set; rows that describe files join by file name with the same column and folds', () => {
@@ -68,8 +68,8 @@ describe('withRowKind', () => {
     expect(levelOf(onFiles, 'af', KEYWORDS.index)).toBe('file');
     const back = withRowKind(onFiles, 'af', 'item');
     expect(levelOf(back, 'af', KEYWORDS.index)).toBe('item');
-    expect(slotsOf(back).media).toEqual({});
-    expect(slotsOf(back).item['dcterms:subject']).toEqual({ sources: [column('af', KEYWORDS)], combine: 'all', map: { 'front view': 'Front' } });
+    expect(slotsOf(back, 'all').media).toEqual({});
+    expect(slotsOf(back, 'all').item['dcterms:subject']).toEqual({ sources: [column('af', KEYWORDS)], combine: 'all', map: { 'front view': 'Front' } });
   });
 });
 
@@ -81,22 +81,22 @@ describe('withColumnLevel', () => {
 
   it('moves the column into the same slot on each file with its combine and value map, and back', () => {
     const onFiles = withColumnLevel(plan(), 'af', KEYWORDS, 'file');
-    expect(slotsOf(onFiles).media).toEqual({ 'dcterms:subject': { sources: [column('af', KEYWORDS)], combine: 'all', map: { 'front view': 'Front' } } });
-    expect(slotsOf(onFiles).item['dcterms:subject']).toBeUndefined();
-    expect(slotsOf(onFiles).item['dcterms:date']).toEqual({ sources: [column('af', YEAR)], combine: 'first' });
+    expect(slotsOf(onFiles, 'all').media).toEqual({ 'dcterms:subject': { sources: [column('af', KEYWORDS)], combine: 'all', map: { 'front view': 'Front' } } });
+    expect(slotsOf(onFiles, 'all').item['dcterms:subject']).toBeUndefined();
+    expect(slotsOf(onFiles, 'all').item['dcterms:date']).toEqual({ sources: [column('af', YEAR)], combine: 'first' });
     const back = withColumnLevel(onFiles, 'af', KEYWORDS, 'item');
-    expect(slotsOf(back)).toEqual(slotsOf(plan()));
+    expect(slotsOf(back, 'all')).toEqual(slotsOf(plan(), 'all'));
   });
 
   it('leaves the other sources of a slot where they are', () => {
-    const shared: ImportPlan = withSlots(plan(), { ...slotsOf(plan()), item: { 'dcterms:date': { sources: [column('af', YEAR), { from: 'file', fact: 'name' }], combine: 'first' } } });
+    const shared: ImportPlan = withSlots(plan(), 'all', { ...slotsOf(plan(), 'all'), item: { 'dcterms:date': { sources: [column('af', YEAR), { from: 'file', fact: 'name' }], combine: 'first' } } });
     const onFiles = withColumnLevel(shared, 'af', YEAR, 'file');
-    expect(slotsOf(onFiles).item['dcterms:date']).toEqual({ sources: [{ from: 'file', fact: 'name' }], combine: 'first' });
-    expect(slotsOf(onFiles).media['dcterms:date']).toEqual({ sources: [column('af', YEAR)], combine: 'first' });
+    expect(slotsOf(onFiles, 'all').item['dcterms:date']).toEqual({ sources: [{ from: 'file', fact: 'name' }], combine: 'first' });
+    expect(slotsOf(onFiles, 'all').media['dcterms:date']).toEqual({ sources: [column('af', YEAR)], combine: 'first' });
   });
 
   it('refuses each file for a column feeding the item set or the item type', () => {
-    const sets: ImportPlan = withSlots(plan(), { ...slotsOf(plan()), item: { sets: { sources: [column('af', TYPE)], combine: 'first' } } });
+    const sets: ImportPlan = withSlots(plan(), 'all', { ...slotsOf(plan(), 'all'), item: { sets: { sources: [column('af', TYPE)], combine: 'first' } } });
     expect(withColumnLevel(sets, 'af', TYPE, 'file')).toEqual(sets);
     expect(withColumnLevel(plan(), 'af', TYPE, 'file')).toEqual(plan());
   });
@@ -104,14 +104,14 @@ describe('withColumnLevel', () => {
   it('leaving a column out removes its sources, and a rule left with none', () => {
     const out = withColumnLevel(plan(), 'af', YEAR, 'out');
     expect(levelOf(out, 'af', YEAR.index)).toBe('out');
-    expect(slotsOf(out).item['dcterms:date']).toBeUndefined();
+    expect(slotsOf(out, 'all').item['dcterms:date']).toBeUndefined();
   });
 
   it('keeps a column on each file when its field changes', () => {
     const onFiles = withColumnLevel(plan(), 'af', KEYWORDS, 'file');
     const moved = withTarget(onFiles, 'af', KEYWORDS, 'field:dcterms:description');
-    expect(slotsOf(moved).media['dcterms:description']).toEqual({ sources: [column('af', KEYWORDS)], combine: 'first' });
-    expect(slotsOf(moved).item['dcterms:description']).toBeUndefined();
+    expect(slotsOf(moved, 'all').media['dcterms:description']).toEqual({ sources: [column('af', KEYWORDS)], combine: 'first' });
+    expect(slotsOf(moved, 'all').item['dcterms:description']).toBeUndefined();
     expect(levelOf(moved, 'af', KEYWORDS.index)).toBe('file');
   });
 });
@@ -130,14 +130,14 @@ describe('withFileRows', () => {
     expect(levelOf(onFiles, 'af', KEYWORDS.index)).toBe('file');
     const files = withFileRows(onFiles, 'af');
     expect(levelOf(files, 'af', KEYWORDS.index)).toBe('item');
-    expect(slotsOf(files).item['dcterms:subject']?.sources).toEqual([column('af', KEYWORDS)]);
-    expect(slotsOf(files).media).toEqual({});
+    expect(slotsOf(files, 'all').item['dcterms:subject']?.sources).toEqual([column('af', KEYWORDS)]);
+    expect(slotsOf(files, 'all').media).toEqual({});
   });
 
   it('puts a column in a field that describes a file as a file on each file', () => {
-    const named: ImportPlan = withSlots(plan(), { ...slotsOf(plan()), item: { 'dcterms:format': { sources: [column('af', YEAR)], combine: 'first' } } });
+    const named: ImportPlan = withSlots(plan(), 'all', { ...slotsOf(plan(), 'all'), item: { 'dcterms:format': { sources: [column('af', YEAR)], combine: 'first' } } });
     const files = withFileRows(named, 'af');
     expect(levelOf(files, 'af', YEAR.index)).toBe('file');
-    expect(slotsOf(files).media['dcterms:format']?.sources).toEqual([column('af', YEAR)]);
+    expect(slotsOf(files, 'all').media['dcterms:format']?.sources).toEqual([column('af', YEAR)]);
   });
 });

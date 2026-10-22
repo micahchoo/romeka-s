@@ -1,15 +1,15 @@
 /**
  * Plain words on the import screens: no English string of the `import`,
- * `import-lists`, `import-run`, `import-simple` and `import-advanced`
- * namespaces uses a contract word its mode must not show.
+ * `import-lists`, `import-run`, `import-simple`, `import-structure` and
+ * `import-advanced` namespaces uses a contract word its mode must not show.
  *
  * The lists are the approved prototype's (round 4, `GLOSSARY.md`, checked by
  * its `glossary-check.js`): the left column of its table is Simple's banned
  * list, and "Advanced may show" lists the precise words Advanced may use. A
  * key under `advanced.`, and every key of `import-advanced`, is shown in
  * Advanced only, so it is held to the banned list less those words. The
- * `import-simple` namespace shows in Simple only, so all of it is held to the
- * banned list. To ban a word, add it here.
+ * `import-simple` and `import-structure` namespaces show in Simple only, so
+ * all of them is held to the banned list. To ban a word, add it here.
  */
 import { describe, expect, it } from 'vitest';
 import { en as importEn } from '../src/i18n/namespaces/import';
@@ -17,6 +17,7 @@ import { en as advancedEn } from '../src/i18n/namespaces/import-advanced';
 import { en as listsEn } from '../src/i18n/namespaces/import-lists';
 import { en as runEn } from '../src/i18n/namespaces/import-run';
 import { en as simple } from '../src/i18n/namespaces/import-simple';
+import { en as structure } from '../src/i18n/namespaces/import-structure';
 
 const en: Readonly<Record<string, string>> = { ...importEn, ...listsEn };
 
@@ -74,10 +75,13 @@ describe('import strings use plain words', () => {
     expect(Object.keys(table).length).toBeGreaterThan(0);
   });
 
-  it('every Simple screen string passes Simple’s word list', () => {
-    const found = Object.entries(simple).flatMap(([key, text]) => bannedIn(key, text));
+  it.each([
+    ['import-simple', simple],
+    ['import-structure', structure],
+  ])('every %s string passes Simple’s word list', (_name, table: Readonly<Record<string, string>>) => {
+    const found = Object.entries(table).flatMap(([key, text]) => bannedIn(key, text));
     expect(found).toEqual([]);
-    expect(Object.keys(simple).every((key) => !key.startsWith('advanced.'))).toBe(true);
+    expect(Object.keys(table).every((key) => !key.startsWith('advanced.'))).toBe(true);
   });
 
   it('every English string of the Advanced screens passes the Advanced word list', () => {

@@ -31,6 +31,10 @@ export const es: ImportAdvancedMessages = {
   'adv.source.tagPart': 'Etiqueta {tag} del archivo cuya parte es «{part}»',
   'adv.source.constant': 'Constante «{value}»',
 
+  'adv.series.label': 'Carpeta',
+  'adv.series.plain': 'Cada carpeta tiene su propio patrón, sus listas y sus campos. Los ajustes de abajo son para esta carpeta.',
+  'adv.series.none': 'No se importa ninguna carpeta, así que aquí no hay nada que ajustar.',
+
   'adv.files.sources.title': 'Orígenes',
   'adv.files.sources.label': 'Orígenes',
   'adv.files.sources.plain': 'De dónde vienen los archivos. Una importación puede leer más de un lugar.',

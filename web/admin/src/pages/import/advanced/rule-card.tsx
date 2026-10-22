@@ -7,7 +7,7 @@
 import { useId, useState } from 'react';
 import type { ReactElement } from 'react';
 import { isMultiValued } from '../../../api/import-plan';
-import type { RecordKind, SlotName, SlotRule } from '../../../api/import-plan';
+import type { SlotName, SlotRule } from '../../../api/import-plan';
 import type { Property } from '../../../api/types';
 import { ErrorNotice } from '../../../app/errors';
 import { Pager } from '../../../app/list';
@@ -18,6 +18,7 @@ import { slotWords } from './field-names';
 import { useAdvancedText } from './messages';
 import type { AdvancedMessageKey } from './messages';
 import { addSource, mappedText, moveSource, removeRule, removeSource, setCombine, setMapped } from './plan-edits';
+import type { RuleAt } from './plan-edits';
 import { choiceFor, sourceWords } from './source-words';
 import type { SourceChoice } from './source-words';
 
@@ -33,7 +34,8 @@ const RULE_PLAIN: Partial<Record<SlotName, AdvancedMessageKey>> = {
   visibility: 'adv.fields.rule.plainVisibility',
 };
 
-const ValueMap = ({ kind, slot, rule }: { readonly kind: RecordKind; readonly slot: SlotName; readonly rule: SlotRule }): ReactElement | null => {
+const ValueMap = ({ at, rule }: { readonly at: RuleAt; readonly rule: SlotRule }): ReactElement | null => {
+  const { kind, slot } = at;
   const { t, number } = useAdvancedText();
   const draft = useDraft();
   const [page, setPage] = useState(1);
@@ -80,7 +82,7 @@ const ValueMap = ({ kind, slot, rule }: { readonly kind: RecordKind; readonly sl
                     disabled={!draft.editable}
                     onChange={(event) => {
                       const to = event.target.value;
-                      draft.change((plan) => setMapped(plan, kind, slot, value.text, to));
+                      draft.change((plan) => setMapped(plan, at, value.text, to));
                     }}
                   />
                 </td>
@@ -94,7 +96,7 @@ const ValueMap = ({ kind, slot, rule }: { readonly kind: RecordKind; readonly sl
   );
 };
 
-const AddConstant = ({ kind, slot }: { readonly kind: RecordKind; readonly slot: SlotName }): ReactElement => {
+const AddConstant = ({ at }: { readonly at: RuleAt }): ReactElement => {
   const { t } = useAdvancedText();
   const draft = useDraft();
   const [value, setValue] = useState('');
@@ -105,7 +107,7 @@ const AddConstant = ({ kind, slot }: { readonly kind: RecordKind; readonly slot:
       onSubmit={(event) => {
         event.preventDefault();
         if (value.trim() !== '') {
-          draft.change((plan) => addSource(plan, kind, slot, { from: 'constant', value: value.trim() }));
+          draft.change((plan) => addSource(plan, at, { from: 'constant', value: value.trim() }));
           setValue('');
         }
       }}
@@ -120,14 +122,14 @@ const AddConstant = ({ kind, slot }: { readonly kind: RecordKind; readonly slot:
 };
 
 export interface RuleCardProps {
-  readonly kind: RecordKind;
-  readonly slot: SlotName;
+  readonly at: RuleAt;
   readonly rule: SlotRule;
   readonly properties: readonly Property[];
   readonly choices: readonly SourceChoice[];
 }
 
-export const RuleCard = ({ kind, slot, rule, properties, choices }: RuleCardProps): ReactElement => {
+export const RuleCard = ({ at, rule, properties, choices }: RuleCardProps): ReactElement => {
+  const { slot } = at;
   const { t } = useAdvancedText();
   const draft = useDraft();
   const name = slotWords(slot, properties, t);
@@ -141,18 +143,18 @@ export const RuleCard = ({ kind, slot, rule, properties, choices }: RuleCardProp
       <p className="adv-plain">{t(RULE_PLAIN[slot] ?? 'adv.fields.rule.plain')}</p>
       <ol className="adv-sources">
         {rule.sources.length === 0 ? <li className="adv-plain">{t('adv.fields.rule.noSource')}</li> : null}
-        {rule.sources.map((source, at) => {
+        {rule.sources.map((source, place) => {
           const words = sourceWords(source, draft.plan, t);
           return (
-            <li key={`${String(at)}:${JSON.stringify(source)}`}>
+            <li key={`${String(place)}:${JSON.stringify(source)}`}>
               <span>{words}</span>{' '}
-              <button type="button" aria-label={t('adv.fields.rule.upOf', { source: words })} disabled={!draft.editable || at === 0} onClick={() => { edit((plan) => moveSource(plan, kind, slot, at, -1)); }}>
+              <button type="button" aria-label={t('adv.fields.rule.upOf', { source: words })} disabled={!draft.editable || place === 0} onClick={() => { edit((plan) => moveSource(plan, at, place, -1)); }}>
                 {t('adv.fields.rule.up')}
               </button>{' '}
-              <button type="button" aria-label={t('adv.fields.rule.downOf', { source: words })} disabled={!draft.editable || at === rule.sources.length - 1} onClick={() => { edit((plan) => moveSource(plan, kind, slot, at, 1)); }}>
+              <button type="button" aria-label={t('adv.fields.rule.downOf', { source: words })} disabled={!draft.editable || place === rule.sources.length - 1} onClick={() => { edit((plan) => moveSource(plan, at, place, 1)); }}>
                 {t('adv.fields.rule.down')}
               </button>{' '}
-              <button type="button" aria-label={t('adv.fields.rule.removeOf', { source: words })} disabled={!draft.editable} onClick={() => { edit((plan) => removeSource(plan, kind, slot, at)); }}>
+              <button type="button" aria-label={t('adv.fields.rule.removeOf', { source: words })} disabled={!draft.editable} onClick={() => { edit((plan) => removeSource(plan, at, place)); }}>
                 {t('adv.fields.rule.remove')}
               </button>
             </li>
@@ -167,7 +169,7 @@ export const RuleCard = ({ kind, slot, rule, properties, choices }: RuleCardProp
           onChange={(event) => {
             const source = choiceFor(choices, event.target.value);
             if (source !== null) {
-              edit((plan) => addSource(plan, kind, slot, source));
+              edit((plan) => addSource(plan, at, source));
             }
           }}
         >
@@ -184,7 +186,7 @@ export const RuleCard = ({ kind, slot, rule, properties, choices }: RuleCardProp
           disabled={!draft.editable}
           onChange={(event) => {
             const combine = event.target.value === 'all' ? 'all' : 'first';
-            edit((plan) => setCombine(plan, kind, slot, combine));
+            edit((plan) => setCombine(plan, at, combine));
           }}
         >
           <option value="first">{t('adv.fields.rule.first')}</option>
@@ -194,10 +196,10 @@ export const RuleCard = ({ kind, slot, rule, properties, choices }: RuleCardProp
         </select>
       </p>
       {one ? <p className="adv-plain">{t('adv.fields.rule.oneValue')}</p> : null}
-      <AddConstant kind={kind} slot={slot} />
-      {NAMING.includes(slot) ? <ValueMap kind={kind} slot={slot} rule={rule} /> : null}
+      <AddConstant at={at} />
+      {NAMING.includes(slot) ? <ValueMap at={at} rule={rule} /> : null}
       <p>
-        <button type="button" disabled={!draft.editable} onClick={() => { edit((plan) => removeRule(plan, kind, slot)); }}>
+        <button type="button" disabled={!draft.editable} onClick={() => { edit((plan) => removeRule(plan, at)); }}>
           {t('adv.fields.rule.removeRule', { field: name })}
         </button>
       </p>

@@ -1,6 +1,6 @@
 /**
- * Simple's words are dials, not prose: no English string of `import-simple`
- * or `import-lists` is longer than 12 words. A word is a run of characters
+ * Simple's words are dials, not prose: no English string of `import-simple`,
+ * `import-structure` or `import-lists` is longer than 12 words. A word is a run of characters
  * between spaces, and a `{name}` placeholder counts as one.
  *
  * `LONG` names every string allowed to be longer, by key. It may only shrink.
@@ -10,6 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import { en as lists } from '../src/i18n/namespaces/import-lists';
 import { en as simple } from '../src/i18n/namespaces/import-simple';
+import { en as structure } from '../src/i18n/namespaces/import-structure';
 
 const MOST_WORDS = 12;
 
@@ -33,7 +34,11 @@ const LONG: ReadonlySet<string> = new Set([
 
 const wordsIn = (text: string): number => text.split(/\s+/).filter((word) => word !== '').length;
 
-const TABLES: Readonly<Record<string, Readonly<Record<string, string>>>> = { 'import-simple': simple, 'import-lists': lists };
+const TABLES: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  'import-simple': simple,
+  'import-structure': structure,
+  'import-lists': lists,
+};
 
 describe('Simple’s strings are at most 12 words', () => {
   it('counts the words of a string, a placeholder as one', () => {
@@ -50,7 +55,7 @@ describe('Simple’s strings are at most 12 words', () => {
   });
 
   it('lists only keys that exist and are still long, so the list only shrinks', () => {
-    const all: Readonly<Record<string, string>> = { ...simple, ...lists };
+    const all: Readonly<Record<string, string>> = { ...simple, ...structure, ...lists };
     const stale = [...LONG].filter((key) => all[key] === undefined || wordsIn(all[key]) <= MOST_WORDS);
     expect(stale).toEqual([]);
   });
