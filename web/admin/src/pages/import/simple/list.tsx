@@ -19,7 +19,7 @@ import { RoundTrip } from '../lists/round-trip';
 import { usePreview } from '../lists/use-preview';
 import { placeHref } from '../screens';
 import { ListColumns } from './list-columns';
-import { delimiterOf, normalizedOf, recordsOf, withFileRows, withJoin, withNormalize, withRowKind } from './list-plan';
+import { linesOf, normalizedOf, withFileRows, withJoin, withNormalize, withRowKind } from './list-plan';
 import type { ListCounts } from './list-plan';
 import { folderSheets } from './list-read';
 import { MasterDetail, Segmented } from './master-detail';
@@ -93,7 +93,7 @@ const encodingWords = (view: SheetView, t: ReturnType<typeof useSimpleText>['t']
 const HeaderLine = ({ sheet, view }: { readonly sheet: SheetPlan; readonly view: SheetView }): ReactElement | null => {
   const { t, number } = useSimpleText();
   const draft = useDraft();
-  const first = recordsOf(view.lines, delimiterOf(view)).find((record) => record.line === 1);
+  const first = linesOf(view).records.find((record) => record.line === 1);
   if (first === undefined || (sheet.read.headerLine === 1 && (view.guess?.headerLine ?? 1) === 1)) {
     return null;
   }

@@ -704,6 +704,78 @@ fn s19_a_refused_file_a_list_row_names_is_flagged_with_the_row() {
 }
 
 #[test]
+fn s22_an_item_row_whose_only_file_is_refused_counts_once_as_refused() {
+    let files = [("X_010a.jpg", JPEG), ("X_012a.NEF", BINARY)];
+    let mut catalog = catalog();
+    catalog.files = FileValidation::Allow {
+        media_types: [JPEG.to_string()].into(),
+        extensions: ["jpg".to_string()].into(),
+    };
+    let plan = plan(|plan| {
+        per_file_sheet(plan);
+        plan["sheets"][0]["rowKind"] = json!("item");
+    });
+    let csv: &[u8] = b"File,Keywords,By\nX_010a.jpg,Front,Dilip\nX_012a.NEF,Back,Ravi\n";
+    let model = derive(
+        &index(&files),
+        &read_sheets(&plan, &[("views", csv)]),
+        &plan,
+        &catalog,
+        &NoTags,
+    );
+    let listed = flags(&model, FlagKind::ListedNotMedia);
+    assert_eq!(listed.len(), 1, "{listed:?}");
+    assert!(on_file("X_012a.NEF")(&listed[0]));
+    assert!(
+        flags(&model, FlagKind::NoFile).is_empty(),
+        "the row names a file; refused is its one cause: {:?}",
+        flags(&model, FlagKind::NoFile)
+    );
+    assert!(
+        media_paths(&model, item(&model, "X_012")).is_empty(),
+        "the row still makes its item, with no file"
+    );
+}
+
+#[test]
+fn s23_a_kept_duplicate_media_row_is_a_media_of_its_own_under_the_same_item() {
+    let files = [("X_010a.jpg", JPEG), ("X_010b.jpg", JPEG)];
+    let plan = plan(|plan| {
+        per_file_sheet(plan);
+        plan["slots"]["media"]["dcterms:creator"] = rule(json!([col("views", 2, "By")]), "first");
+        plan["flags"] = json!({ "duplicate-row": "keep" });
+    });
+    let csv: &[u8] =
+        b"File,Keywords,By\nX_010a.jpg,Front,Dilip\nX_010b.jpg,Back,Ravi\nX_010a.jpg,Front,Asha\n";
+    let model = run(
+        &index(&files),
+        &read_sheets(&plan, &[("views", csv)]),
+        &plan,
+    );
+    assert_eq!(flags(&model, FlagKind::DuplicateRow).len(), 1);
+    assert!(
+        flags(&model, FlagKind::Unmatched).is_empty(),
+        "the kept row names a file of X_010, like the row it duplicates: {:?}",
+        flags(&model, FlagKind::Unmatched)
+    );
+    let x = item(&model, "X_010");
+    assert_eq!(
+        media_paths(&model, x),
+        ["X_010a.jpg", "X_010b.jpg", "X_010a.jpg"]
+    );
+    let by: Vec<Vec<&str>> = x
+        .media
+        .iter()
+        .map(|media| texts(model.record(*media), "dcterms:creator"))
+        .collect();
+    assert_eq!(
+        by,
+        [["Dilip"], ["Ravi"], ["Asha"]],
+        "each row its own media"
+    );
+}
+
+#[test]
 fn s21_a_per_file_row_that_names_no_file_of_the_import_is_no_file_not_unmatched() {
     let files = [
         ("X_010a.jpg", JPEG),

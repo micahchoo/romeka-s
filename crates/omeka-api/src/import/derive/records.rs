@@ -170,7 +170,13 @@ pub(crate) fn make(
         draft.files.clone_from(&kept);
         drafts.push(draft);
         group_items.push(item);
-        if kept.is_empty() {
+        // A file a flag left out is already counted on the file: the row
+        // named it, so `no-file` would count the row a second time.
+        let flagged_out = group
+            .files
+            .iter()
+            .all(|file| matches!(file_left[*file], Some(LeftBy::Flag(_))));
+        if kept.is_empty() && !flagged_out {
             no_file(&mut drafts[item.index()], grouping, sheets, item, book);
         }
         for file in kept {
@@ -217,7 +223,26 @@ pub(crate) fn make(
         if let Some(file) = media_row.file
             && let Some(media) = file_record[file]
         {
-            drafts[media.index()].rows.push(media_row.at);
+            if !media_row.own {
+                drafts[media.index()].rows.push(media_row.at);
+                continue;
+            }
+            // Matched like the row it duplicates: the same file, the same item.
+            let id = next(&drafts);
+            let parent = drafts[media.index()].parent;
+            let mut draft = Draft::new(
+                RecordKind::Media,
+                sheets[media_row.at.sheet].series,
+                Origin::Row(media_row.at.entry(sheets)),
+            );
+            draft.rows.push(media_row.at);
+            draft.files.push(file);
+            draft.left = file_left[file];
+            draft.parent = parent;
+            drafts.push(draft);
+            if let Some(item) = parent {
+                drafts[item.index()].media.push(id);
+            }
             continue;
         }
         let id = next(&drafts);
