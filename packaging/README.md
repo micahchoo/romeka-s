@@ -121,7 +121,9 @@ docker run --rm -v romeka_db:/db -v romeka_files:/data/files \
 ```
 
 `--retry` puts back the rows that recorded `needs soffice, not installed` when
-the server planned them. The image carries the same CLI and entry point as
+the server planned them, and the rows a tool failed on. A row that failed 3
+times stays failed, so a document LibreOffice cannot read does not cost a run
+on every pass; the Retry on its admin media page puts it back. The image carries the same CLI and entry point as
 `media-tools`, so it is the job runner in that container; the server itself
 never needs LibreOffice. Measured on the built images: `soffice` is absent from
 `runtime` and from `media-tools` and present in `office-tools` (7.4.7.2), and

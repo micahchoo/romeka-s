@@ -30,7 +30,7 @@ fn series(proposal: &Proposal) -> Vec<(&str, usize, usize)> {
                 series.scope.files,
                 series.scope.media,
             )),
-            NodeEvidence::Set(_) => None,
+            NodeEvidence::Set(_) | NodeEvidence::Own(_) => None,
         })
         .collect()
 }
@@ -59,6 +59,7 @@ fn s1() -> Proposal {
         catalog: &scenario.catalog,
         sources: &scenario.plan.sources,
         structure: &scenario.plan.structure,
+        sheets: &Sheets::new(),
     };
     propose(&evidence, &[])
 }
@@ -114,7 +115,7 @@ fn each_of_several_series_is_its_folders_set() {
         .iter()
         .filter_map(|node| match node {
             NodeEvidence::Series(series) => Some(series.set.chosen.value.as_ref()),
-            NodeEvidence::Set(_) => None,
+            NodeEvidence::Set(_) | NodeEvidence::Own(_) => None,
         })
         .collect();
     assert_eq!(
@@ -185,6 +186,7 @@ fn numbered_folders_are_one_series_with_their_level_offered() {
         catalog: &scenario.catalog,
         sources: &scenario.plan.sources,
         structure: &scenario.plan.structure,
+        sheets: &Sheets::new(),
     };
     let proposal = propose(&evidence, &[]);
     let [NodeEvidence::Series(boxes)] = proposal.nodes.as_slice() else {
@@ -268,6 +270,7 @@ fn a_file_that_is_not_media_makes_no_item() {
             catalog: &scenario.catalog,
             sources: &scenario.plan.sources,
             structure: &scenario.plan.structure,
+            sheets: &Sheets::new(),
         };
         propose(&evidence, edits)
     };

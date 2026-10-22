@@ -144,13 +144,30 @@ impl Structure {
         outside: Vec<FolderScope>,
         sources: &[SourcePlan],
     ) -> Result<Self, PlanError> {
-        let structure = Self {
+        Self {
             levels,
             free_sets: Vec::new(),
             outside,
-        };
+        }
+        .checked(sources)
+    }
+
+    /// This tree with these free sets in place of its own, refused as
+    /// [`Self::build`] refuses a tree.
+    ///
+    /// # Errors
+    /// What [`ImportPlan::from_json`] refuses about the tree or the sources.
+    pub fn with_free_sets(
+        self,
+        free_sets: Vec<SetSource>,
+        sources: &[SourcePlan],
+    ) -> Result<Self, PlanError> {
+        Self { free_sets, ..self }.checked(sources)
+    }
+
+    fn checked(self, sources: &[SourcePlan]) -> Result<Self, PlanError> {
         let plan = ImportPlan {
-            structure,
+            structure: self,
             ..super::default_plan(sources.to_vec())?
         };
         super::check::plan(&plan)?;
@@ -314,6 +331,12 @@ impl Structure {
             }
         });
         sources
+    }
+
+    /// Sets every item of the import is also put in, after its tree sets.
+    #[must_use]
+    pub fn free_sets(&self) -> &[SetSource] {
+        &self.free_sets
     }
 
     /// Add a free set after the others.

@@ -88,6 +88,14 @@ export interface PairCounts {
   readonly more: number;
 }
 
+/** A list the person made that the scan cannot see (an upload, or a list a free set reads): the proposal keeps it as written. */
+export interface KeptList {
+  readonly list: string;
+  readonly file: ListFile;
+  /** The rows its own join pairs in this series, of its rows; null when it cannot be read now. */
+  readonly rows: Share | null;
+}
+
 export interface SeriesNode {
   readonly level: LevelId;
   readonly scope: ScopeCounts;
@@ -98,11 +106,23 @@ export interface SeriesNode {
   readonly set: Choice<SetFrom | null, SetCounts>;
   readonly splits: readonly Pick<SetFrom, SetCounts>[];
   readonly pairing: readonly Pick<PairRule, PairCounts>[];
+  /** Absent when the series keeps no such list, as the server writes it. */
+  readonly kept?: readonly KeptList[];
+}
+
+/** A series an `own` edit keeps as the person wrote it: counted, with no choice offered on it. */
+export interface OwnNode {
+  readonly level: LevelId;
+  readonly scope: ScopeCounts;
+  /** No detector counted a cut here, so `parts` is empty and the shape counts are 0. */
+  readonly items: CutCounts;
+  readonly kept?: readonly KeptList[];
 }
 
 export type NodeEvidence =
   | { readonly kind: 'set'; readonly level: LevelId; readonly from: SetFrom; readonly counts: SetCounts }
-  | ({ readonly kind: 'series' } & SeriesNode);
+  | ({ readonly kind: 'series' } & SeriesNode)
+  | ({ readonly kind: 'own' } & OwnNode);
 
 export interface OutsideFolder extends ScopeCounts {
   readonly reason: 'noMedia' | 'edit';
@@ -226,8 +246,17 @@ const parsePairCounts = (raw: unknown, path: Path): PairCounts => {
   return { rows: member(object, 'rows', path, parseShare), more: count(object, 'more', path) };
 };
 
+const parseKeptList = (raw: unknown, path: Path): KeptList => {
+  const object = strict(raw, path, ['list', 'file', 'rows']);
+  return { list: text(object, 'list', path), file: member(object, 'file', path, parseListFile), rows: member(object, 'rows', path, nullable(parseShare)) };
+};
+
+/** `kept` as the server writes it: left out when empty. */
+const withKept = <T extends object>(node: T, object: Record<string, unknown>, path: Path): T & { readonly kept?: readonly KeptList[] } =>
+  object['kept'] === undefined ? node : { ...node, kept: member(object, 'kept', path, list(parseKeptList)) };
+
 const parseNodeEvidence = (raw: unknown, path: Path): NodeEvidence => {
-  const kind = member(asRecord(raw, path), 'kind', path, oneOf(['set', 'series'] as const));
+  const kind = member(asRecord(raw, path), 'kind', path, oneOf(['set', 'series', 'own'] as const));
   if (kind === 'set') {
     const only = strict(raw, path, ['kind', 'level', 'from', 'counts']);
     return {
@@ -237,11 +266,22 @@ const parseNodeEvidence = (raw: unknown, path: Path): NodeEvidence => {
       counts: member(only, 'counts', path, parseSetCounts),
     };
   }
-  const only = strict(raw, path, ['kind', 'level', 'scope', 'items', 'list', 'grain', 'set', 'splits', 'pairing']);
-  return {
+  const scope = (value: unknown, at: Path): ScopeCounts => scopeCounts(strict(value, at, [...SCOPE_COUNTS]), at);
+  if (kind === 'own') {
+    const only = strict(raw, path, ['kind', 'level', 'scope', 'items'], ['kept']);
+    const own = {
+      kind,
+      level: text(only, 'level', path),
+      scope: member(only, 'scope', path, scope),
+      items: member(only, 'items', path, parseCutCounts),
+    };
+    return withKept(own, only, path);
+  }
+  const only = strict(raw, path, ['kind', 'level', 'scope', 'items', 'list', 'grain', 'set', 'splits', 'pairing'], ['kept']);
+  const series = {
     kind,
     level: text(only, 'level', path),
-    scope: member(only, 'scope', path, (value, at) => scopeCounts(strict(value, at, [...SCOPE_COUNTS]), at)),
+    scope: member(only, 'scope', path, scope),
     items: member(only, 'items', path, parseChoice(parseItemCut, parseCutCounts)),
     list: member(only, 'list', path, parseChoice(nullable(parseListFile), nullable(parseListCandidate))),
     grain: member(only, 'grain', path, nullable(parseChoice(oneOf(RECORD_KINDS), parseGrainCounts))),
@@ -249,6 +289,7 @@ const parseNodeEvidence = (raw: unknown, path: Path): NodeEvidence => {
     splits: member(only, 'splits', path, list(parsePick(parseSetFrom, parseSetCounts))),
     pairing: member(only, 'pairing', path, list(parsePick(parsePairRule, parsePairCounts))),
   };
+  return withKept(series, only, path);
 };
 
 /** A proposal, from the preview's `RawProposal` or any JSON; refuses what the server's serde types refuse. */

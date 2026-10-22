@@ -105,19 +105,43 @@ where
     /// the command its plan named, which is what a worker claims it by, and it stays: a row settled
     /// `none` because this install lacked the command is retried on the install that has it.
     pub async fn retry(&self, media: MediaId, kind: DerivativeKind) -> Result<bool, DbError> {
+        self.reopen(media, kind, None).await
+    }
+
+    /// [`Self::retry`] for an unattended pass: a failed row comes back only while it has been
+    /// claimed fewer than `attempts` times, so an original its tool can never read stops costing a
+    /// run on every pass. It stays failed, with its reason, until a person retries it. A row
+    /// settled because its tool was missing was never run, and is not limited.
+    pub async fn retry_within(
+        &self,
+        media: MediaId,
+        kind: DerivativeKind,
+        attempts: u32,
+    ) -> Result<bool, DbError> {
+        self.reopen(media, kind, Some(attempts)).await
+    }
+
+    async fn reopen(
+        &self,
+        media: MediaId,
+        kind: DerivativeKind,
+        attempts: Option<u32>,
+    ) -> Result<bool, DbError> {
         let done = sqlx::query::<DB>(
             "UPDATE romeka_media_derivative
              SET state = 'pending', reason = NULL, progress = NULL,
                  tool = CASE WHEN kind = 'access_copy' THEN tool ELSE NULL END,
                  queued = ?, started = NULL, finished = NULL
              WHERE media_id = ? AND kind = ?
-               AND (state = 'failed'
+               AND ((state = 'failed' AND (? IS NULL OR attempts < ?))
                     OR (state = 'none'
                         AND (kind <> 'access_copy' OR tool IS NOT NULL)))",
         )
         .bind(time::now())
         .bind(super::bind_id(media))
         .bind(kind.name())
+        .bind(attempts.map(i64::from))
+        .bind(attempts.map(i64::from))
         .execute(self.pool)
         .await?;
         Ok(DB::rows_affected(&done) > 0)

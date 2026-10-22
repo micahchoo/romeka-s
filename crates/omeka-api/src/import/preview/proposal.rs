@@ -15,7 +15,9 @@
 //! come from a second derive of the whole proposed tree, so the person sees
 //! what Run would do. `sets` then counts the sets each series could split
 //! into on that derive; every set but a series folder is only offered. Each
-//! edit is replayed by the detector whose choice it changes.
+//! edit is replayed by the detector whose choice it changes. What the person
+//! made that the scan cannot see stays as written: the lists they uploaded,
+//! in one series each, and their free sets.
 //!
 //! The rule against overfitting holds for every non-test file of this
 //! module: no file names a token, an extension or a depth. `lint_tests`
@@ -31,6 +33,8 @@ mod grain;
 #[cfg(test)]
 mod grain_tests;
 #[cfg(test)]
+mod kept_tests;
+#[cfg(test)]
 mod lint_tests;
 mod lists;
 #[cfg(test)]
@@ -38,6 +42,8 @@ mod lists_tests;
 mod names;
 #[cfg(test)]
 mod names_tests;
+#[cfg(test)]
+mod own_tests;
 mod pairing;
 #[cfg(test)]
 mod pairing_tests;
@@ -88,9 +94,13 @@ pub struct Evidence<'e> {
     pub catalog: &'e Catalog,
     /// The draft's sources, so that each scope names a real source.
     pub sources: &'e [SourcePlan],
-    /// The draft plan's structure. Only [`Proposal::matches_plan`] and the
-    /// lists' `inPlan` read it.
+    /// The draft plan's structure: for [`Proposal::matches_plan`], the
+    /// lists' `inPlan`, and what the person made that the scan cannot see
+    /// (their free sets, the lists they uploaded, their own series).
     pub structure: &'e Structure,
+    /// The plan's own lists, read as the plan reads them, by sheet id. A
+    /// list uploaded to staging is only here: the walk never sees it.
+    pub sheets: &'e Sheets,
 }
 
 /// The list files of the walk, each read on its own: a detector counts one
@@ -143,7 +153,8 @@ pub struct Proposal {
     pub matches_plan: bool,
 }
 
-/// One node's evidence. The kinds mirror [`Level`].
+/// One node's evidence. The kinds mirror [`Level`]; a series the person
+/// wrote by hand is `own`.
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 #[expect(
@@ -153,6 +164,7 @@ pub struct Proposal {
 pub enum NodeEvidence {
     Set(SetNode),
     Series(SeriesNode),
+    Own(OwnNode),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -172,6 +184,37 @@ pub struct SeriesNode {
     pub splits: Vec<Pick<SetFrom, SetCounts>>,
     /// Join rules that would pair more rows. Offered, never chosen.
     pub pairing: Vec<Pick<PairRule, PairCounts>>,
+    /// The person's lists the scan cannot see, kept as written here.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub kept: Vec<KeptList>,
+}
+
+/// A series an `own` edit keeps as the person wrote it: counted on the
+/// derive of the proposal, with no choice offered on it.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OwnNode {
+    pub level: LevelId,
+    pub scope: ScopeCounts,
+    /// The items its own pattern and lists make. No detector counted a cut
+    /// here, so it has no parts and no shapes.
+    pub items: CutCounts,
+    /// The person's lists the scan cannot see, kept as written here.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub kept: Vec<KeptList>,
+}
+
+/// A list the person made that the scan cannot see: one they uploaded, or
+/// one a free set of theirs reads that no proposed series holds. A proposal
+/// keeps it as written, in one series, and never drops it.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KeptList {
+    pub list: SheetId,
+    pub file: ListFile,
+    /// The rows its own join pairs in this series, of its rows. `None` when
+    /// it cannot be read now: it is kept as written all the same.
+    pub rows: Option<Share>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -361,6 +404,21 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
     let mut applied = vec![false; edits.len()];
     let none = sets::SeriesSets::default();
     let found = folders::detect(evidence, edits, &mut applied);
+    // The detectors after the first never see an edit on a series written
+    // by hand: nothing is offered there.
+    let every = edits;
+    let muted: Vec<bool> = every
+        .iter()
+        .map(|edit| found.series.iter().any(|one| one.mutes(edit)))
+        .collect();
+    let (live, mut applied): (Vec<Edit>, Vec<bool>) = every
+        .iter()
+        .zip(applied)
+        .zip(&muted)
+        .filter(|(_, muted)| !**muted)
+        .map(|((edit, applied), _)| (edit.clone(), applied))
+        .unzip();
+    let edits = live.as_slice();
     let series = if found.series.is_empty() {
         as_found(evidence)
     } else {
@@ -404,7 +462,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
             top_sets: Vec::new(),
             outside: found.outside,
             unattached: Vec::new(),
-            edits: results(evidence, edits, applied),
+            edits: results(evidence, every, unmute(applied, &muted)),
             matches_plan: true,
         };
     };
@@ -431,6 +489,25 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         &mut applied,
     );
     let mut offers = pairing::detect(evidence, &patterns.structure, &mut lists);
+    // A series written by hand reads the lists the person gave it; a list
+    // the detectors gave it describes no series.
+    for (one, here) in series.iter().zip(&mut lists.series) {
+        let Some(own) = &one.own else {
+            continue;
+        };
+        let given = std::mem::take(here).joined.into_iter().filter(|given| {
+            own.lists()
+                .iter()
+                .all(|held| held.source != given.file.source || held.file != given.file.file)
+        });
+        lists
+            .unattached
+            .extend(given.map(|given| lists::Unattached {
+                file: given.file,
+                counts: given.counted.counts,
+                pairs_nothing: false,
+            }));
+    }
     let read: Vec<grain::SeriesRead<'_>> = series
         .iter()
         .zip(&scopes)
@@ -446,13 +523,21 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         .collect();
     let mut rows = grain::detect(evidence, &mut lists, &read, edits, &mut applied);
     pairing::replay(&mut offers, &mut rows, edits, &mut applied);
+    let kept = kept_lists(evidence, &patterns.structure, &model, &series, &rows);
 
     let keys: Vec<Option<&Key>> = cuts
         .iter()
         .zip(&rows)
         .map(|(cut, rows)| rows.items.is_none().then_some(&cut.chosen.key))
         .collect();
-    let levels = tree(evidence.structure, &series, &keys, &rows, &Sets::default());
+    let levels = tree(
+        evidence.structure,
+        &series,
+        &keys,
+        &rows,
+        &Sets::default(),
+        &kept,
+    );
     let plan = match Structure::build(levels, found.left.clone(), evidence.sources) {
         Ok(structure) => ImportPlan {
             structure,
@@ -460,15 +545,27 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         },
         Err(_) => patterns.clone(),
     };
+    // What the person wrote is read as the plan reads it.
+    let written: HashSet<&SheetId> = kept
+        .iter()
+        .map(|one| &one.list.id)
+        .chain(
+            series
+                .iter()
+                .filter_map(|one| one.own.as_ref())
+                .flat_map(|own| own.lists().iter().map(|list| &list.id)),
+        )
+        .collect();
     let mut sheets = Sheets::new();
     for (_, list) in plan.structure.lists() {
-        let file = ListFile {
-            source: list.source.clone(),
-            file: list.file.clone(),
-        };
-        evidence.lists.read(&file, &mut |sheet| {
+        let mut keep = |sheet: &Result<Sheet, SheetError>| {
             sheets.insert(list.id.clone(), sheet.clone());
-        });
+        };
+        if written.contains(&list.id) {
+            read_written(evidence, list, &mut keep);
+        } else {
+            evidence.lists.read(&list_file(list), &mut keep);
+        }
     }
     let model = derive(evidence.index, &sheets, &plan, evidence.catalog, &NoTags);
     // One derive with every series' rival grain counts what each grain
@@ -489,6 +586,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
             &keys,
             &rival_rows,
             &Sets::default(),
+            &kept,
         );
         Structure::build(levels, found.left.clone(), evidence.sources)
             .ok()
@@ -527,18 +625,51 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         edits,
         &mut applied,
     );
-    let edits = results(evidence, edits, applied);
+    let edits = results(evidence, every, unmute(applied, &muted));
     let plan = if found_sets.top_taken.is_some()
         || found_sets.series.iter().any(|sets| {
             !sets.taken.is_empty() || sets.folder.as_ref().is_some_and(|folder| folder.chosen)
         }) {
-        let levels = tree(evidence.structure, &series, &keys, &rows, &found_sets);
+        let levels = tree(
+            evidence.structure,
+            &series,
+            &keys,
+            &rows,
+            &found_sets,
+            &kept,
+        );
         match Structure::build(levels, found.left.clone(), evidence.sources) {
             Ok(structure) => ImportPlan { structure, ..plan },
             Err(_) => plan,
         }
     } else {
         plan
+    };
+    let free_sets = free_sets(evidence.structure, &plan.structure);
+    let plan = match plan
+        .structure
+        .clone()
+        .with_free_sets(free_sets, evidence.sources)
+    {
+        Ok(structure) => ImportPlan { structure, ..plan },
+        // As any refused build: the proposal is the plan's own tree.
+        Err(_) => {
+            return Proposal {
+                structure: evidence.structure.clone(),
+                nodes: Vec::new(),
+                top_sets: Vec::new(),
+                outside: found.outside,
+                unattached: Vec::new(),
+                edits,
+                matches_plan: true,
+            };
+        }
+    };
+    let kept_in = |at: SeriesIx| -> Vec<KeptList> {
+        kept.iter()
+            .filter(|one| one.at == at.index())
+            .map(Kept::shown)
+            .collect()
     };
 
     let mut chosen_lists = lists.series.into_iter();
@@ -556,7 +687,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         .structure
         .all_series()
         .zip(cuts.into_iter().zip(rows).zip(scopes));
-    for ((at, level), ((cut, rows), scope)) in each {
+    for (((at, level), ((cut, rows), scope)), one) in each.zip(&series) {
         let here = chosen_lists.next().unwrap_or_default();
         let sets = series_sets.next().unwrap_or_default();
         let pairing = offers
@@ -565,6 +696,15 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
             .into_iter()
             .map(|offer| offer.pick)
             .collect();
+        if one.own.is_some() {
+            nodes.push(NodeEvidence::Own(OwnNode {
+                level: level.id().clone(),
+                items: cut_counts(&model, at, &scope, None),
+                scope,
+                kept: kept_in(at),
+            }));
+            continue;
+        }
         let (item, counted, rival, others) = match &rows.items {
             Some((list, key)) => (
                 ItemCut::Rows {
@@ -673,6 +813,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
             splits: sets.splits,
             pairing,
             scope,
+            kept: kept_in(at),
         }));
     }
     Proposal {
@@ -684,10 +825,21 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         unattached: lists
             .unattached
             .into_iter()
+            .filter(|list| kept.iter().all(|one| list_file(one.list) != list.file))
             .map(|list| list.counts)
             .collect(),
         edits,
     }
+}
+
+/// The applied marks of every edit, from those of the edits that were not
+/// muted: a muted edit is not applied.
+fn unmute(live: Vec<bool>, muted: &[bool]) -> Vec<bool> {
+    let mut live = live.into_iter();
+    muted
+        .iter()
+        .map(|muted| !muted && live.next().unwrap_or_default())
+        .collect()
 }
 
 /// Every cell of every list of the walk, folded as a join folds with every
@@ -755,6 +907,7 @@ enum Question<'e> {
     Set(&'e SetFrom),
     Pair(&'e ListFile),
     Title(&'e SetFrom),
+    Own(&'e FolderScope),
 }
 
 impl<'e> Question<'e> {
@@ -767,6 +920,7 @@ impl<'e> Question<'e> {
             Edit::AddSet { from } | Edit::DropSet { from } => Self::Set(from),
             Edit::Pair { list, .. } => Self::Pair(list),
             Edit::Title { from, .. } => Self::Title(from),
+            Edit::Own { scope } => Self::Own(scope),
         }
     }
 }
@@ -814,9 +968,10 @@ fn in_scan(evidence: &Evidence<'_>, edit: &Edit) -> bool {
         } => column(list, named),
     };
     match edit {
-        Edit::LeaveOut { scope } | Edit::Keep { scope } | Edit::Items { scope, .. } => {
-            folder(scope)
-        }
+        Edit::LeaveOut { scope }
+        | Edit::Keep { scope }
+        | Edit::Items { scope, .. }
+        | Edit::Own { scope } => folder(scope),
         Edit::List { scope, list: asked } => folder(scope) && asked.as_ref().is_none_or(list),
         Edit::Grain { list: file, .. } | Edit::Pair { list: file, .. } => list(file),
         Edit::AddSet { from } | Edit::DropSet { from } | Edit::Title { from, .. } => set(from),
@@ -842,17 +997,19 @@ impl Plan {
     /// the series takes the slot rules of the plan's series that holds one
     /// of its lists, else of the plan's series of the same scope. A rule
     /// that reads a list this series does not hold is not taken, and the
-    /// key rules the rows need win over the person's.
+    /// key rules the rows need win over the person's. Each list of
+    /// `kept_lists` follows the proposed ones as written, with its id.
     fn of(
         rows: &grain::SeriesRows,
         ids: &mut BTreeSet<SheetId>,
         taken: &[sets::Taken],
         kept: &Structure,
         scope: &SeriesScope,
+        kept_lists: &[&SheetPlan],
     ) -> Self {
         let mut of_file = BTreeMap::new();
         let mut of_kept: BTreeMap<SheetId, SheetId> = BTreeMap::new();
-        let lists =
+        let mut lists: Vec<SheetPlan> =
             rows.lists
                 .iter()
                 .map(|list| {
@@ -902,6 +1059,10 @@ impl Plan {
                     plan
                 })
                 .collect();
+        for list in kept_lists {
+            of_kept.insert(list.id.clone(), list.id.clone());
+            lists.push((*list).clone());
+        }
         let column = |file: &ListFile, column: &ColumnRef| {
             Some(SourceRef::Column {
                 sheet: of_file.get(file)?.clone(),
@@ -981,6 +1142,193 @@ fn kept_rules(
         .collect()
 }
 
+/// A list the person made that the scan cannot see, and the series it goes
+/// to.
+struct Kept<'e> {
+    list: &'e SheetPlan,
+    /// By [`SeriesIx::index`].
+    at: usize,
+    /// Its paired rows there, of its rows; `None` when it cannot be read.
+    rows: Option<Share>,
+}
+
+impl Kept<'_> {
+    fn shown(&self) -> KeptList {
+        KeptList {
+            list: self.list.id.clone(),
+            file: list_file(self.list),
+            rows: self.rows,
+        }
+    }
+}
+
+/// The lists of the plan the scan cannot see: each list the person uploaded
+/// to staging, and each list a free set reads that no proposed or written
+/// series holds. Each goes to the written series that holds it, else to the
+/// series whose scope is its plan series' scope, else to the series where
+/// its own join pairs the most rows on `model` (the derive of `patterns`),
+/// the first on a tie.
+fn kept_lists<'e>(
+    evidence: &Evidence<'e>,
+    patterns: &Structure,
+    model: &Model,
+    series: &[folders::FolderSeries],
+    rows: &[grain::SeriesRows],
+) -> Vec<Kept<'e>> {
+    let staged = |list: &SheetPlan| {
+        evidence
+            .sources
+            .iter()
+            .any(|source| matches!(source, SourcePlan::Staging { id } if *id == list.source))
+    };
+    let proposed = |list: &SheetPlan| {
+        let file = list_file(list);
+        rows.iter()
+            .flat_map(|rows| &rows.lists)
+            .any(|one| one.file == file)
+    };
+    let written = |list: &SheetPlan| {
+        series.iter().position(|one| {
+            one.own
+                .as_ref()
+                .is_some_and(|own| own.lists().iter().any(|held| held.id == list.id))
+        })
+    };
+    let read_by_sets: HashSet<&SheetId> = evidence
+        .structure
+        .free_sets()
+        .iter()
+        .filter_map(|set| match set {
+            SetSource::Each(each) => Some(&each.each.sources),
+            SetSource::Id(_) | SetSource::Title(_) => None,
+        })
+        .flatten()
+        .filter_map(|source| match source {
+            SourceRef::Column { sheet, .. } => Some(sheet),
+            _ => None,
+        })
+        .collect();
+    let ats: Vec<SeriesIx> = patterns.all_series().map(|(at, _)| at).collect();
+    evidence
+        .structure
+        .all_series()
+        .flat_map(|(_, held)| held.lists().iter().map(move |list| (held, list)))
+        .filter(|(_, list)| {
+            staged(list)
+                || (read_by_sets.contains(&list.id) && !proposed(list) && written(list).is_none())
+        })
+        .map(|(held, list)| {
+            let mut read = None;
+            read_written(evidence, list, &mut |sheet| {
+                if let Ok(sheet) = sheet {
+                    let paired: Vec<usize> = ats
+                        .iter()
+                        .map(|at| {
+                            list.join.as_ref().map_or(0, |join| {
+                                lists::paired_by(evidence.index, patterns, model, *at, sheet, join)
+                            })
+                        })
+                        .collect();
+                    read = Some((paired, sheet.rows.len()));
+                }
+            });
+            let same_scope = series
+                .iter()
+                .position(|one| SeriesScope::Folders(one.scopes.clone()) == *held.scope());
+            let most_paired = || {
+                let paired = read.as_ref().map(|(paired, _)| paired.as_slice());
+                (0..ats.len())
+                    .max_by_key(|at| {
+                        let n = paired.and_then(|paired| paired.get(*at)).copied();
+                        (n.unwrap_or_default(), Reverse(*at))
+                    })
+                    .unwrap_or_default()
+            };
+            let at = written(list).or(same_scope).unwrap_or_else(most_paired);
+            Kept {
+                list,
+                at,
+                rows: read.as_ref().map(|(paired, of)| Share {
+                    n: paired.get(at).copied().unwrap_or_default(),
+                    of: *of,
+                }),
+            }
+        })
+        .collect()
+}
+
+/// Read a list the person wrote as the plan reads it: from the plan's own
+/// sheets, else from the walk.
+fn read_written(
+    evidence: &Evidence<'_>,
+    list: &SheetPlan,
+    count: &mut dyn FnMut(&Result<Sheet, SheetError>),
+) {
+    match evidence.sheets.get(&list.id) {
+        Some(sheet) => count(sheet),
+        None => evidence.lists.read(&list_file(list), count),
+    }
+}
+
+fn list_file(list: &SheetPlan) -> ListFile {
+    ListFile {
+        source: list.source.clone(),
+        file: list.file.clone(),
+    }
+}
+
+/// The plan's free sets, each list a set reads renamed to the proposal's
+/// list of the same file. The proposer makes no free set, so each one is the
+/// person's, unless the proposal's tree already makes a set from the same
+/// columns: that set is the proposer's answer, and an edit changes it.
+fn free_sets(kept: &Structure, proposed: &Structure) -> Vec<SetSource> {
+    let renamed = |sheet: &SheetId| {
+        kept.list(sheet)
+            .and_then(|(_, held)| {
+                proposed
+                    .lists()
+                    .find(|(_, list)| list.source == held.source && list.file == held.file)
+            })
+            .map_or_else(|| sheet.clone(), |(_, list)| list.id.clone())
+    };
+    let made: Vec<&Vec<SourceRef>> = proposed
+        .all_series()
+        .flat_map(|(at, _)| proposed.memberships(at))
+        .filter_map(|set| match set {
+            SetSource::Each(each) => Some(&each.each.sources),
+            SetSource::Id(_) | SetSource::Title(_) => None,
+        })
+        .collect();
+    kept.free_sets()
+        .iter()
+        .filter_map(|set| match set {
+            SetSource::Each(each) => {
+                let sources: Vec<SourceRef> = each
+                    .each
+                    .sources
+                    .iter()
+                    .map(|source| match source {
+                        SourceRef::Column { sheet, column } => SourceRef::Column {
+                            sheet: renamed(sheet),
+                            column: column.clone(),
+                        },
+                        other => other.clone(),
+                    })
+                    .collect();
+                (!made.contains(&&sources)).then(|| {
+                    SetSource::Each(EachValue {
+                        each: EachSet {
+                            sources,
+                            ..each.each.clone()
+                        },
+                    })
+                })
+            }
+            other => Some(other.clone()),
+        })
+        .collect()
+}
+
 /// The archive as found: one series per source, over the whole source.
 fn as_found(evidence: &Evidence<'_>) -> Vec<folders::FolderSeries> {
     evidence
@@ -996,23 +1344,34 @@ fn as_found(evidence: &Evidence<'_>) -> Vec<folders::FolderSeries> {
                 scopes: vec![scope],
                 set: None,
                 numbered: false,
+                own: None,
             }
         })
         .collect()
 }
 
 /// The proposed levels: each series with its key, lists and rules, and
-/// its sets. The first split taken is a series' own set when it has none;
-/// each other split is a set level around the series; a top set taken is a
-/// set level around everything.
+/// its sets; a series written by hand as the person wrote it. Each list in
+/// `kept_lists` goes, as written, after the lists of its series. The first
+/// split taken is a series' own set when it has none; each other split is a
+/// set level around the series; a top set taken is a set level around
+/// everything.
 fn tree(
     kept: &Structure,
     series: &[folders::FolderSeries],
     keys: &[Option<&Key>],
     rows: &[grain::SeriesRows],
     sets: &Sets,
+    kept_lists: &[Kept<'_>],
 ) -> Vec<Level> {
-    let mut ids = BTreeSet::new();
+    // A written series and a kept list keep their sheet ids, so no proposed
+    // list takes one.
+    let mut ids: BTreeSet<SheetId> = series
+        .iter()
+        .filter_map(|one| one.own.as_ref())
+        .flat_map(|own| own.lists().iter().map(|list| list.id.clone()))
+        .chain(kept_lists.iter().map(|one| one.list.id.clone()))
+        .collect();
     let none = sets::SeriesSets::default();
     let levels: Vec<Level> = series
         .iter()
@@ -1020,9 +1379,21 @@ fn tree(
         .zip(rows)
         .enumerate()
         .map(|(at, ((one, key), rows))| {
+            let here: Vec<&SheetPlan> = kept_lists
+                .iter()
+                .filter(|kept| kept.at == at)
+                .map(|kept| kept.list)
+                .collect();
+            if let Some(own) = &one.own {
+                let more = here
+                    .into_iter()
+                    .filter(|list| own.lists().iter().all(|held| held.id != list.id));
+                let lists = own.lists().iter().chain(more).cloned().collect();
+                return Level::Series(own.clone().with_lists(lists));
+            }
             let sets = sets.series.get(at).unwrap_or(&none);
             let scope = SeriesScope::Folders(one.scopes.clone());
-            let plan = Plan::of(rows, &mut ids, &sets.taken, kept, &scope);
+            let plan = Plan::of(rows, &mut ids, &sets.taken, kept, &scope, &here);
             level(one, *key, plan, sets)
         })
         .collect();
