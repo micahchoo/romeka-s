@@ -20,6 +20,10 @@ services:
     # The image an operator rolls back to is named here, so a rollback points at
     # the previous tag instead of rebuilding it.
     image: ${ROMEKA_IMAGE:-romeka-s:local}
+    # A stop gives the server this long before the runtime kills it. The
+    # server sends each job a TERM and waits 50 s for it: an import run ends
+    # after the record in hand, and the next boot goes on with it.
+    stop_grace_period: 60s
     environment:
       # Where this deployment answers, and who to tell about the certificate.
       ROMEKA_DOMAIN: ${ROMEKA_DOMAIN:-}

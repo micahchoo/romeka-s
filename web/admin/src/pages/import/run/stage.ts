@@ -19,6 +19,8 @@ export type Stage =
       readonly total: number | null;
       readonly secondsLeft: number | null;
       readonly stopping: boolean;
+      /** A restart stopped the run, and the server went on with it by itself. */
+      readonly resumed: boolean;
     }
   /** A run ended: every record written, or it stopped. Undo may follow; a retry when the run may go again. */
   | {
@@ -27,6 +29,8 @@ export type Stage =
       readonly summary: RunSummary;
       /** When a reader found the job dead. */
       readonly died: string | null;
+      /** A restart ended the run after the record in hand; the server goes on with it when it starts. */
+      readonly interrupted: boolean;
       readonly retry: boolean;
     }
   /** An undo ended. Only `undone` is final; the others may undo again. */
@@ -46,6 +50,7 @@ export const stageOf = (detail: ImportDetail): Stage => {
         total: detail.progress?.total ?? detail.summary?.progress.total ?? null,
         secondsLeft: detail.progress?.secondsLeft ?? null,
         stopping: detail.stopRequested,
+        resumed: (detail.resumed ?? 0) > 0,
       };
     case 'undoing':
       return {
@@ -55,6 +60,7 @@ export const stageOf = (detail: ImportDetail): Stage => {
         total: detail.undoReport?.progress.total ?? null,
         secondsLeft: null,
         stopping: detail.stopRequested,
+        resumed: false,
       };
     case 'done':
     case 'run_failed': {
@@ -64,6 +70,7 @@ export const stageOf = (detail: ImportDetail): Stage => {
         stopped: detail.status === 'run_failed',
         summary,
         died: detail.died,
+        interrupted: detail.status === 'run_failed' && detail.interrupted !== undefined,
         retry: canRetry(detail),
       };
     }

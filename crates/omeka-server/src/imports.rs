@@ -22,6 +22,7 @@ mod lists;
 mod multipart;
 mod pairs;
 mod progress;
+mod resume;
 mod run;
 mod undo;
 mod uploads;
@@ -44,6 +45,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::AppState;
+pub use resume::{ResumeEnv, resume_imports};
 use wire::{ImportError, ImportView, admin, blocking, body, draft_error, json, load, parse_id};
 
 type Answer = Result<Response, ImportError>;

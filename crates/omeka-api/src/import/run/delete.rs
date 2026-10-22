@@ -51,10 +51,7 @@ where
             self.delete_one(record, &mut gone).await?;
             match self.pulse().await? {
                 Next::Go => {}
-                Next::Stop => {
-                    self.summary.stopped = true;
-                    break;
-                }
+                Next::Stop | Next::Interrupt => break,
                 Next::Lost => return Ok(RunEnd::Lost),
             }
         }
@@ -68,12 +65,15 @@ where
         record: &Record,
         gone: &mut HashSet<ImportTarget>,
     ) -> Result<(), RunError> {
-        self.done();
         let key = record.origin.key();
+        if self.written.holds(&key) {
+            return Ok(());
+        }
+        self.done();
         let Some(target) = matched(record) else {
             return Ok(());
         };
-        if self.written.holds(&key) || !gone.insert(target) {
+        if !gone.insert(target) {
             return Ok(());
         }
         if let Err(reason) = self.env.removal.remove(target).await {

@@ -189,6 +189,7 @@ pub(super) async fn run(
             let go = Go {
                 digest: Some(&request.digest),
                 confirm: request.confirm,
+                resume: false,
             };
             with_db!(&state.pool, |db| start::begin(
                 db,
@@ -288,13 +289,25 @@ pub(super) async fn compose_job(
     import: ImportId,
     force: Option<Value>,
 ) -> Result<JobId, ImportError> {
+    Ok(import_job(&state.pool, actor.user(), class, import, force).await?)
+}
+
+/// [`compose_job`] for an owner the caller names: the route's actor, or the
+/// owner of the run a resume goes on with.
+pub(super) async fn import_job(
+    pool: &omeka_db::DbPool,
+    owner: Option<omeka_db::ids::UserId>,
+    class: &str,
+    import: ImportId,
+    force: Option<Value>,
+) -> Result<JobId, omeka_db::DbError> {
     let mut args = json!({ "importId": import.0 });
     if let Some(force) = force {
         args["force"] = force;
     }
-    let job = with_db!(&state.pool, |db| JobRepo::new(db)
+    let job = with_db!(pool, |db| JobRepo::new(db)
         .create(&NewJob {
-            owner_id: actor.user(),
+            owner_id: owner,
             pid: None,
             status: Some("starting".to_string()),
             class: class.to_string(),
@@ -304,9 +317,7 @@ pub(super) async fn compose_job(
         })
         .await)?;
     if class != SCAN_JOB {
-        with_db!(&state.pool, |db| ImportRepo::new(db)
-            .set_job(import, job.id)
-            .await)?;
+        with_db!(pool, |db| ImportRepo::new(db).set_job(import, job.id).await)?;
     }
     Ok(job.id)
 }
