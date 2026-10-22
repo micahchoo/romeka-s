@@ -95,8 +95,9 @@ export const en = {
   'line.items': '{count} items so far.',
   'line.itemsOne': '1 item so far.',
   'line.left': '{count} left out.',
-  'line.look': '{count} kinds of problem to look at',
-  'line.lookOne': '1 kind of problem to look at',
+  // The same count as Check's "Questions open".
+  'line.open': '{count} questions open',
+  'line.openOne': '1 question open',
   'line.nothing': 'Nothing needs a look.',
   'line.stops': '{count} must be fixed before you can add.',
   'line.notYet': 'Nothing is in Omeka until you add it.',

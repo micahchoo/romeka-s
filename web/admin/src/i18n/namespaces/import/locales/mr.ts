@@ -94,8 +94,8 @@ export const mr: ImportMessages = {
   "line.items": "आतापर्यंत {count} आयटम.",
   "line.itemsOne": "आतापर्यंत 1 आयटम.",
   "line.left": "{count} वगळले.",
-  "line.look": "{count} प्रकारच्या समस्या तपासण्यासाठी",
-  "line.lookOne": "1 प्रकारची समस्या तपासण्यासाठी",
+  "line.open": "{count} प्रश्न उघडे",
+  "line.openOne": "1 प्रश्न उघडा",
   "line.nothing": "काहीही पाहण्याची गरज नाही.",
   "line.stops": "जोडण्यापूर्वी {count} दुरुस्त करणे आवश्यक आहे.",
   "line.notYet":
