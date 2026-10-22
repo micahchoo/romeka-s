@@ -23,8 +23,9 @@ use serde::Serialize;
 use super::Derived;
 use super::columns::{Targets, column_counts, walk};
 use crate::import::archive::SourceDir;
+use crate::import::derive::Index;
 use crate::import::join::cell;
-use crate::import::model::{GroupKey, Origin};
+use crate::import::model::{GroupKey, Model, Origin};
 use crate::import::plan::{
     Auto, Delimiter, EncodingChoice, JoinOn, LevelId, Quote, ReadOptions, RecordKind, RelPath,
     RowKind, SheetId, SheetPlan, SourceId,
@@ -141,7 +142,7 @@ const NOT_FOUND: &str = "the file is not in its source";
 pub(super) fn list_candidates(derived: &Derived) -> Vec<ListCandidate> {
     let exact = Targets::exact(derived);
     let folded = Targets::folded(derived);
-    let groups = groups_of_files(derived);
+    let groups = groups_of_files(&derived.model, &derived.stored.index);
     let mut found: Vec<(ListCandidate, HashSet<&GroupKey>)> = derived
         .stored
         .index
@@ -266,12 +267,12 @@ fn candidate<'d>(
         .as_ref()
         .and_then(|id| derived.plan.structure.list(id))
         .map(|(_, sheet)| sheet);
-    let (targets, grain) = targets(sheet, plan, best, exact, groups);
-    candidate.grain = grain;
-    (candidate, targets)
+    let paired = targets(sheet, plan, best, exact, groups);
+    candidate.grain = paired.grain;
+    (candidate, paired.groups)
 }
 
-fn column_cells(sheet: &Sheet) -> Vec<ColumnCells> {
+pub(super) fn column_cells(sheet: &Sheet) -> Vec<ColumnCells> {
     sheet
         .columns
         .iter()
@@ -301,7 +302,7 @@ fn column_cells(sheet: &Sheet) -> Vec<ColumnCells> {
 /// The column and join that pair the most rows exactly; a tie goes to the
 /// one that pairs more folded, then to `fileName`, as Simple's join choice
 /// does, then to the first column.
-fn best(sheet: &Sheet, exact: &Targets<'_>, folded: &Targets<'_>) -> Option<BestColumn> {
+pub(super) fn best(sheet: &Sheet, exact: &Targets<'_>, folded: &Targets<'_>) -> Option<BestColumn> {
     sheet
         .columns
         .iter()
@@ -332,22 +333,33 @@ fn best(sheet: &Sheet, exact: &Targets<'_>, folded: &Targets<'_>) -> Option<Best
         })
 }
 
-/// The groups `best` pairs exactly, and for a `fileName` join its grain.
+/// What a list's best column pairs.
+pub(super) struct Paired<'d> {
+    /// The groups it pairs.
+    pub groups: HashSet<&'d GroupKey>,
+    /// For a `fileName` join: its grain.
+    pub grain: Option<Grain>,
+    /// For a `fileName` join: the groups it names two files or more of.
+    pub groups_with_rows_for_many_files: usize,
+}
+
+/// The groups `best` pairs in `exact`, and for a `fileName` join its grain.
 /// `plan` is the plan sheet that reads the list, whose columns' splits the
 /// values are cut by.
-fn targets<'d>(
+pub(super) fn targets<'d>(
     sheet: &Sheet,
     plan: Option<&SheetPlan>,
     best: &BestColumn,
     exact: &Targets<'d>,
     groups_of_files: &[Option<&'d GroupKey>],
-) -> (HashSet<&'d GroupKey>, Option<Grain>) {
+) -> Paired<'d> {
     let cells = exact.cells(sheet, best.index);
     match best.on {
-        JoinOn::Identifier => (
-            cells.flatten().filter_map(|found| found.key).collect(),
-            None,
-        ),
+        JoinOn::Identifier => Paired {
+            groups: cells.flatten().filter_map(|found| found.key).collect(),
+            grain: None,
+            groups_with_rows_for_many_files: 0,
+        },
         JoinOn::FileName => {
             let mut groups: HashMap<&GroupKey, (Vec<usize>, HashSet<usize>)> = HashMap::new();
             for (row, found) in cells.enumerate() {
@@ -380,7 +392,14 @@ fn targets<'d>(
                     })
                     .collect(),
             };
-            (groups.into_keys().collect(), Some(grain))
+            Paired {
+                groups_with_rows_for_many_files: groups
+                    .values()
+                    .filter(|(_, files)| files.len() > 1)
+                    .count(),
+                groups: groups.into_keys().collect(),
+                grain: Some(grain),
+            }
         }
     }
 }
@@ -420,16 +439,16 @@ fn varies(sheet: &Sheet, plan: Option<&SheetPlan>, column: u32, shared: &[&[usiz
 
 /// Each file's item group, by its place in [`walk`]; `None` for a file in
 /// no item, such as one left out.
-fn groups_of_files(derived: &Derived) -> Vec<Option<&GroupKey>> {
+pub(super) fn groups_of_files<'d>(model: &'d Model, index: &'d Index) -> Vec<Option<&'d GroupKey>> {
     let mut group_of: HashMap<(&str, &str), &GroupKey> = HashMap::new();
-    for record in &derived.model.records {
+    for record in &model.records {
         if let (RecordKind::Item, Origin::Group(key)) = (record.kind, &record.origin) {
             for file in &record.files {
                 group_of.insert((file.source.0.as_str(), file.path.as_str()), key);
             }
         }
     }
-    walk(derived)
+    walk(index)
         .map(|(source, entry)| {
             group_of
                 .get(&(source.0.as_str(), entry.path.as_str()))
@@ -438,7 +457,10 @@ fn groups_of_files(derived: &Derived) -> Vec<Option<&GroupKey>> {
         .collect()
 }
 
-fn overlaps_of(found: &[(ListCandidate, HashSet<&GroupKey>)], at: usize) -> Vec<Overlap> {
+pub(super) fn overlaps_of(
+    found: &[(ListCandidate, HashSet<&GroupKey>)],
+    at: usize,
+) -> Vec<Overlap> {
     let mine = &found[at].1;
     let mut overlaps: Vec<Overlap> = found
         .iter()

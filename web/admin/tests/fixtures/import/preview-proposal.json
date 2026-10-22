@@ -19,7 +19,7 @@
                 "n": 8,
                 "of": 8
               },
-              "items": 4,
+              "items": 6,
               "namesEndingHere": 0,
               "otherShapes": 0,
               "parts": [
@@ -34,7 +34,7 @@
               ],
               "perItem": [
                 {
-                  "count": 0,
+                  "count": 2,
                   "files": "0"
                 },
                 {
@@ -111,8 +111,55 @@
         "level": "Artifacts",
         "list": {
           "chosen": {
-            "counts": null,
-            "value": null
+            "counts": {
+              "best": {
+                "empty": 0,
+                "header": "Id",
+                "index": 0,
+                "on": "identifier",
+                "paired": 3,
+                "pairedNormalized": 3
+              },
+              "cells": [
+                {
+                  "header": "Id",
+                  "index": 0,
+                  "separator": null
+                },
+                {
+                  "header": "Title",
+                  "index": 1,
+                  "separator": null
+                },
+                {
+                  "header": "Date",
+                  "index": 2,
+                  "separator": null
+                },
+                {
+                  "header": "Notes",
+                  "index": 3,
+                  "separator": null
+                },
+                {
+                  "header": "Notes",
+                  "index": 4,
+                  "separator": null
+                }
+              ],
+              "columns": 5,
+              "file": "register.csv",
+              "grain": null,
+              "inPlan": "register",
+              "overlaps": [],
+              "read": "ok",
+              "rows": 5,
+              "source": "s1"
+            },
+            "value": {
+              "file": "register.csv",
+              "source": "s1"
+            }
           },
           "rival": null
         },
@@ -138,7 +185,7 @@
               "sets": [
                 [
                   "Artifacts",
-                  4
+                  6
                 ]
               ]
             },
@@ -464,7 +511,57 @@
             "counts": null,
             "value": null
           },
-          "rival": null
+          "rival": {
+            "counts": {
+              "best": {
+                "empty": 0,
+                "header": "Id",
+                "index": 0,
+                "on": "identifier",
+                "paired": 1,
+                "pairedNormalized": 1
+              },
+              "cells": [
+                {
+                  "header": "Id",
+                  "index": 0,
+                  "separator": null
+                },
+                {
+                  "header": "Title",
+                  "index": 1,
+                  "separator": null
+                },
+                {
+                  "header": "Date",
+                  "index": 2,
+                  "separator": null
+                },
+                {
+                  "header": "Notes",
+                  "index": 3,
+                  "separator": null
+                },
+                {
+                  "header": "Notes",
+                  "index": 4,
+                  "separator": null
+                }
+              ],
+              "columns": 5,
+              "file": "register.csv",
+              "grain": null,
+              "inPlan": "register",
+              "overlaps": [],
+              "read": "ok",
+              "rows": 5,
+              "source": "s1"
+            },
+            "value": {
+              "file": "register.csv",
+              "source": "s1"
+            }
+          }
         },
         "pairing": [],
         "scope": {
@@ -681,7 +778,36 @@
           },
           "id": "Artifacts",
           "kind": "series",
-          "lists": [],
+          "lists": [
+            {
+              "columns": [],
+              "file": "register.csv",
+              "hash": null,
+              "id": "register.csv",
+              "itemKey": null,
+              "join": {
+                "column": {
+                  "header": "Id",
+                  "index": 0
+                },
+                "normalize": {
+                  "caseFold": false,
+                  "leadingZeros": false,
+                  "separators": false
+                },
+                "on": "identifier"
+              },
+              "read": {
+                "delimiter": "auto",
+                "encoding": "auto",
+                "headerLine": 1,
+                "quote": "\"",
+                "trim": true
+              },
+              "rowKind": "item",
+              "source": "s1"
+            }
+          ],
           "scope": [
             {
               "folder": "Artifacts",

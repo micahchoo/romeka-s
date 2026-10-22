@@ -465,6 +465,24 @@ impl Series {
         }
     }
 
+    /// The series with these lists.
+    #[must_use]
+    pub fn with_lists(self, lists: Vec<SheetPlan>) -> Self {
+        Self { lists, ..self }
+    }
+
+    /// The series with this rule for a slot of one record kind.
+    #[must_use]
+    pub fn with_rule(mut self, kind: RecordKind, slot: SlotName, rule: SlotRule) -> Self {
+        let rules = match kind {
+            RecordKind::Item => &mut self.slots.item,
+            RecordKind::Media => &mut self.slots.media,
+            RecordKind::ItemSet => &mut self.slots.item_set,
+        };
+        rules.insert(slot, rule);
+        self
+    }
+
     /// Unique among the plan's levels.
     #[must_use]
     pub fn id(&self) -> &LevelId {

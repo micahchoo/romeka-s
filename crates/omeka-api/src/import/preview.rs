@@ -67,6 +67,7 @@ use super::evidence::FileEntry;
 use super::model::{Anomaly, Model, OrphanReason, PatternState};
 use super::plan::{ImportPlan, LevelId, ListFile, SheetId, SourceId, SourcePlan, TagId};
 use super::scan::{self, IndexCache, SourceState, StoredIndex};
+use super::sheet::{Sheet, SheetError};
 use super::tags::{Embedded, TagCache};
 use facts::Facts;
 use query::Views;
@@ -382,29 +383,7 @@ pub fn preview(derived: &Derived, request: &PreviewRequest) -> Preview {
 /// list of every folder source is read as Simple adds one; a list that is no
 /// longer on disk is not evidence.
 fn proposal_of(derived: &Derived) -> proposal::Proposal {
-    let lists: Vec<proposal::FoundList> = derived
-        .stored
-        .index
-        .sources
-        .iter()
-        .filter_map(|source| Some((source, derived.tags.dirs.get(&source.id)?)))
-        .flat_map(|(source, dir)| {
-            source.walk.sheets.iter().filter_map(move |entry| {
-                let read = derived
-                    .tags
-                    .caches
-                    .sheets
-                    .read(&candidates::automatic(&source.id, &entry.path), dir)?;
-                Some(proposal::FoundList {
-                    file: ListFile {
-                        source: source.id.clone(),
-                        file: entry.path.clone(),
-                    },
-                    sheet: read.sheet.clone(),
-                })
-            })
-        })
-        .collect();
+    let lists = WalkLists(derived);
     let evidence = proposal::Evidence {
         index: &derived.stored.index,
         lists: &lists,
@@ -414,6 +393,45 @@ fn proposal_of(derived: &Derived) -> proposal::Proposal {
     };
     proposal::propose(&evidence, &derived.plan.edits)
 }
+
+/// Every list of every folder source, read through the shared cache as
+/// Simple adds one: each read is held only while it is counted.
+struct WalkLists<'d>(&'d Derived);
+
+impl proposal::Lists for WalkLists<'_> {
+    fn files(&self) -> Vec<ListFile> {
+        self.0
+            .stored
+            .index
+            .sources
+            .iter()
+            .filter(|source| self.0.tags.dirs.contains_key(&source.id))
+            .flat_map(|source| {
+                source.walk.sheets.iter().map(|entry| ListFile {
+                    source: source.id.clone(),
+                    file: entry.path.clone(),
+                })
+            })
+            .collect()
+    }
+
+    fn read(&self, file: &ListFile, count: &mut dyn FnMut(&Result<Sheet, SheetError>)) {
+        let read = self.0.tags.dirs.get(&file.source).and_then(|dir| {
+            self.0
+                .tags
+                .caches
+                .sheets
+                .read(&candidates::automatic(&file.source, &file.file), dir)
+        });
+        match read {
+            Some(read) => count(&read.sheet),
+            None => count(&Err(SheetError::Io(LIST_GONE.to_owned()))),
+        }
+    }
+}
+
+/// A list the walk found that is no longer in its source.
+const LIST_GONE: &str = "the file is not in its source";
 
 fn series_patterns(plan: &ImportPlan, model: &Model) -> Option<Vec<SeriesPattern>> {
     plan.structure
