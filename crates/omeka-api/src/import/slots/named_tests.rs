@@ -13,7 +13,7 @@ use crate::import::derive::{NoTags, Sheets, derive};
 use crate::import::model::{Fate, LeftBy, Model, Record, SetRef};
 use crate::import::plan::{FlagKind, FlagPolicy, ImportPlan, RecordKind};
 
-const BORN_DIGITAL: &str = include_str!("../fixtures/v3/born_digital.json");
+const ONE_SERIES: &str = include_str!("../fixtures/v3/one_series.json");
 
 /// The install's sets: #2018 "Annual report", #7 and #8 both "Letters".
 fn install() -> Catalog {
@@ -32,10 +32,10 @@ fn install() -> Catalog {
     }
 }
 
-/// The born-digital plan (one series over everything) with `edit` applied
+/// A plan of one series over everything with `edit` applied
 /// to its JSON.
 fn v3(edit: impl FnOnce(&mut Json)) -> ImportPlan {
-    let mut value: Json = serde_json::from_str(BORN_DIGITAL).expect("fixture json");
+    let mut value: Json = serde_json::from_str(ONE_SERIES).expect("fixture json");
     edit(&mut value);
     ImportPlan::from_json(&value.to_string()).unwrap_or_else(|error| panic!("{error}: {value}"))
 }

@@ -623,7 +623,7 @@ async fn a_run_writes_the_values_of_an_uploaded_list_from_the_staging_area() {
 /// level "Citizen Curators" (described) and its series' set "Demo" (not).
 fn described_sets(plan: &mut Value) {
     let v3: Value = serde_json::from_str(include_str!(
-        "../../omeka-api/src/import/fixtures/v3/born_digital.json"
+        "../../omeka-api/src/import/fixtures/v3/one_series.json"
     ))
     .unwrap();
     let mut series = v3["structure"]["levels"][0].clone();
