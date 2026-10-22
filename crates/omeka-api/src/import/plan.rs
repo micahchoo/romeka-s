@@ -17,6 +17,7 @@ mod anomalies;
 #[cfg(test)]
 mod anomalies_tests;
 mod check;
+mod edits;
 mod flags;
 mod names;
 mod path;
@@ -66,6 +67,7 @@ pub use action::{
     Action, ActionPlan, MatchKey, MatchPlan, MatchRule, NamedScope, Scope, SetsScope, Unmatched,
 };
 pub use anomalies::{AnomalyAnswers, IdenticalAnswer, ItemsWithoutRowAnswer, UnmatchedFilesAnswer};
+pub use edits::ListFile;
 pub use flags::{FlagKind, FlagOn, FlagPolicy, PolicyDefault};
 pub use names::{RecordKind, SheetId, SlotName, SourceId, Term, local_term};
 pub use path::{RelPath, RelPathError};

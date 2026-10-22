@@ -37,6 +37,9 @@ pub mod left;
 mod matching;
 pub mod media_in;
 pub mod model;
+pub mod placement;
+#[cfg(test)]
+mod placement_tests;
 pub mod plan;
 pub mod preview;
 pub mod run;

@@ -10,7 +10,7 @@ mod decide;
 mod matching;
 mod outcome_pins;
 mod perf;
-mod scenarios;
+pub(crate) mod scenarios;
 mod series;
 mod slots;
 mod steps;
