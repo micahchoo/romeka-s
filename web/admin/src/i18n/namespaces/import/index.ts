@@ -104,6 +104,7 @@ export const en = {
   'advanced.line': '{items} items · {left} left out · {changes} changes · action {action}',
   // Screen headings and step names. A key under `advanced.` is shown in Advanced only.
   'simple.files.title': 'Where are your files?',
+  'simple.structure.title': 'How your archive becomes items and sets',
   'simple.files.step': 'Your files',
   'simple.found.title': 'What we found in your files',
   'simple.found.step': 'What we found',

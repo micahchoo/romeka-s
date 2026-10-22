@@ -94,6 +94,7 @@ export const es: ImportMessages = {
   'line.unread': 'No se han podido leer los recuentos: {message}',
   'advanced.line': '{items} elementos · {left} fuera · {changes} cambios · acción {action}',
   'simple.files.title': '¿Dónde están tus archivos?',
+  'simple.structure.title': 'Cómo tu fondo se convierte en elementos y conjuntos',
   'simple.files.step': 'Tus archivos',
   'simple.found.title': 'Lo que encontramos en tus archivos',
   'simple.found.step': 'Lo que encontramos',

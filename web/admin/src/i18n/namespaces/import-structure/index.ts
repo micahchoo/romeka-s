@@ -1,0 +1,137 @@
+/**
+ * The words of Simple's Structure screen: the tree of the suggested
+ * structure, the inspector of one node, the status line and the count line.
+ *
+ * The screen shows only what the server counted. Each choice is named with
+ * its counts, so the person knows the result before a click. Every key shows
+ * in Simple, so `tests/import-glossary.test.ts` holds each to Simple's banned
+ * list and `tests/import-copy-length.test.ts` to 12 words.
+ *
+ * The screen is its own lazy chunk, and so are these words: the other Simple
+ * screens do not load them. Each locale file is typed `ImportStructureMessages`,
+ * so a key added here and missing there is a `tsc` error.
+ */
+import { defineNamespace } from '../../namespace';
+import type { Table } from '../../namespace';
+
+export const en = {
+  // The status line and the count line over the tree.
+  'structure.status.suggested': 'Our suggestion. Nothing is used until you confirm.',
+  'structure.status.use': 'Use this structure',
+  'structure.status.inUse': 'In use. Your changes: {count}.',
+  'structure.status.changed': 'Your files changed. Our new suggestion differs from yours.',
+  'structure.status.useNew': 'Use the new suggestion',
+  'structure.status.keep': 'Keep mine',
+  'structure.count.items': 'Items to add',
+  'structure.count.sets': 'Sets',
+  'structure.count.out': 'Not imported',
+  'structure.count.folders': '{count} folders',
+  'structure.count.foldersOne': '1 folder',
+  'structure.count.changes': 'Your changes',
+  // The tree.
+  'structure.tree': 'Your archive',
+  'structure.group.out': 'Not imported',
+  'structure.group.unused': 'Lists not used',
+  'structure.root.line': '{files} files · {lists} lists',
+  'structure.every': 'Every item',
+  'structure.every.line': 'Offered: {sets}',
+  'structure.items': '{count} items',
+  'structure.itemsOne': '1 item',
+  'structure.list.short': 'list {n}/{of}',
+  'structure.list.noneShort': 'no list',
+  'structure.out.noMedia': '{files} files · none we can show',
+  'structure.out.edit': '{files} files · you left it out',
+  'structure.unused.unread': 'does not read',
+  'structure.unused.rows': '{n} of {of} rows name a file',
+  'structure.kind.image': '{count} pictures',
+  'structure.kind.imageOne': '1 picture',
+  'structure.kind.pdf': '{count} PDFs',
+  'structure.kind.pdfOne': '1 PDF',
+  'structure.kind.audio': '{count} sounds',
+  'structure.kind.audioOne': '1 sound',
+  'structure.kind.video': '{count} films',
+  'structure.kind.videoOne': '1 film',
+  'structure.kind.document': '{count} documents',
+  'structure.kind.documentOne': '1 document',
+  'structure.kind.other': '{count} other files',
+  'structure.kind.otherOne': '1 other file',
+  // The inspector of a folder that is imported.
+  'structure.suggested': 'our suggestion',
+  'structure.q.import': 'Import this folder',
+  'structure.import.yes': 'Import',
+  'structure.import.files': '{files} files · {kinds}',
+  'structure.import.no': 'Leave out',
+  'structure.import.noCount': '{items} not added',
+  'structure.q.items': 'Items',
+  'structure.cut.whole': 'Each name an item',
+  'structure.cut.places': 'Same name up to part {places}',
+  'structure.cut.folder': 'Each folder {depth} deep an item',
+  'structure.cut.rows': 'Each row of {list} an item',
+  'structure.perItem': 'Files per item: {buckets}.',
+  'structure.bucket': '{count} with {files}',
+  'structure.parts': 'Endings: {parts}.',
+  'structure.namesEnd': '{count} names have nothing after this part.',
+  'structure.otherShapes': '{count} files fit no item.',
+  'structure.q.list': 'List',
+  'structure.list.rows': '{n} of {of} rows name a file',
+  'structure.list.folds': 'Case, zeros and separators ignored. Exactly as written: {count}.',
+  'structure.list.no': 'No list',
+  'structure.list.nothing': 'No list names these files.',
+  'structure.q.grain': 'Each row describes',
+  'structure.grain.item': 'An item',
+  'structure.grain.media': 'A file',
+  'structure.grain.itemSet': 'A set',
+  'structure.grain.noFile': '{count} rows name no file.',
+  'structure.grain.many': '{count} items have rows for 2 or more files.',
+  'structure.q.set': 'Set',
+  'structure.set.none': 'No set',
+  'structure.set.several': '{count} sets',
+  'structure.from.folder': 'folder name',
+  'structure.from.column': 'column {column}',
+  'structure.from.place': 'part {place} of the name',
+  'structure.from.level': 'folders {depth} deep',
+  'structure.from.rows': '{n} of {of} rows',
+  'structure.q.split': 'Offer: sets',
+  'structure.split.by': 'One set per {from}:',
+  'structure.split.set': '{name} ({items})',
+  'structure.split.more': 'and {count} more',
+  'structure.split.make': 'Make {count} sets',
+  'structure.q.pair': 'Offer: pairing',
+  'structure.pair.lastPlaces': 'Pair by the last {places} parts of the name',
+  'structure.pair.folds': 'Pair with case, zeros and separators ignored',
+  'structure.pair.column': 'Pair by column {column}',
+  'structure.pair.rows': '{n} of {of} rows find a file',
+  'structure.pair.use': 'Use this',
+  'structure.q.columns': 'Columns',
+  'structure.columns': '{count} columns',
+  // The inspector of the archive, of every item, of a folder not imported and of a list not used.
+  'structure.root.files': 'Files',
+  'structure.root.filesIn': '{files} files in {where}',
+  'structure.root.folders': 'Top folders',
+  'structure.root.foldersLine': '{in} imported, {out} not imported',
+  'structure.root.lists': 'Lists',
+  'structure.root.listsLine': '{used} describe a folder. {unused} describe none.',
+  'structure.every.title': 'A set over every item',
+  'structure.every.note': 'Each column has one value in every row.',
+  'structure.every.add': 'Add set',
+  'structure.out.why': 'None of its files is a picture, sound, film, PDF or document.',
+  'structure.out.whyEdit': 'You left it out.',
+  'structure.out.keep': 'Import it',
+  'structure.unused.error': 'We could not read it: {error}',
+  'structure.unused.noRow': 'No row names a file of this archive.',
+  'structure.unused.use': 'Use for a folder',
+} as const;
+
+/** A complete table of this namespace, in one locale. */
+export type ImportStructureMessages = Table<keyof typeof en>;
+
+export const importStructure = defineNamespace('import-structure', en, {
+  es: () => import('./locales/es').then((module) => module.es),
+  hi: () => import('./locales/hi').then((module) => module.hi),
+  mr: () => import('./locales/mr').then((module) => module.mr),
+  ml: () => import('./locales/ml').then((module) => module.ml),
+  ta: () => import('./locales/ta').then((module) => module.ta),
+  kn: () => import('./locales/kn').then((module) => module.kn),
+  te: () => import('./locales/te').then((module) => module.te),
+  ne: () => import('./locales/ne').then((module) => module.ne),
+});
