@@ -30,23 +30,26 @@ pub const SNIFF_BYTES: usize = 8 * 1024;
 /// One file of a source.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileEntry {
-    /// The identity: relative to the source, NFC, decoded when the disk
-    /// name is not UTF-8.
+    /// The identity, which every comparison uses: relative to the source,
+    /// NFC, decoded when the disk name is not UTF-8.
     pub path: RelPath,
     pub size: u64,
     pub modified: Option<SystemTime>,
     /// The media type `omeka-media` reads from the first [`SNIFF_BYTES`].
     pub sniffed: String,
-    /// Set when a name on the path was not UTF-8; the entry then flags
-    /// `name-encoding`.
-    pub decoded: Option<DecodedName>,
+    /// Set when the disk spells the path otherwise than `path`: a name that
+    /// is not UTF-8, or one that is not NFC (macOS writes NFD).
+    pub disk: Option<DiskName>,
 }
 
+/// A path as the disk spells it, where that is not its identity.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DecodedName {
-    pub encoding: NameEncoding,
+pub struct DiskName {
     /// The path relative to the source as the disk spells it.
     pub raw: Vec<u8>,
+    /// Set when a name on the path was not UTF-8; the entry then flags
+    /// `name-encoding`. A UTF-8 name that is only not NFC flags nothing.
+    pub encoding: Option<NameEncoding>,
 }
 
 impl FileEntry {
@@ -54,8 +57,8 @@ impl FileEntry {
     /// [`SourceDir::locate`].
     #[must_use]
     pub fn disk_path(&self) -> PathBuf {
-        match &self.decoded {
-            Some(decoded) => path_from_bytes(&decoded.raw),
+        match &self.disk {
+            Some(disk) => path_from_bytes(&disk.raw),
             None => PathBuf::from(self.path.as_str()),
         }
     }
@@ -110,11 +113,8 @@ impl Walk {
     /// Each decoded name, as the disk spells it (lossy) and as decoded.
     pub fn decoded_names(&self) -> impl Iterator<Item = (String, &RelPath)> {
         self.entries.iter().chain(&self.sheets).filter_map(|entry| {
-            let decoded = entry.decoded.as_ref()?;
-            Some((
-                String::from_utf8_lossy(&decoded.raw).into_owned(),
-                &entry.path,
-            ))
+            let disk = entry.disk.as_ref().filter(|disk| disk.encoding.is_some())?;
+            Some((String::from_utf8_lossy(&disk.raw).into_owned(), &entry.path))
         })
     }
 }
@@ -122,7 +122,7 @@ impl Walk {
 struct Found {
     path: RelPath,
     disk: PathBuf,
-    decoded: Option<DecodedName>,
+    name: Option<DiskName>,
 }
 
 /// Every file under the source.
@@ -197,14 +197,13 @@ pub fn walk(source: &SourceDir) -> std::io::Result<Walk> {
                 anomalies.unusable_names.push(shown_child);
                 continue;
             };
-            let decoded = encoding.map(|encoding| DecodedName {
-                encoding,
-                raw: os_bytes(disk_child.as_os_str()),
-            });
+            let raw = os_bytes(disk_child.as_os_str());
+            let name = (encoding.is_some() || raw != path.as_str().as_bytes())
+                .then_some(DiskName { raw, encoding });
             found.push(Found {
                 path,
                 disk: disk_child,
-                decoded,
+                name,
             });
         }
     }
@@ -253,7 +252,7 @@ fn read_entry(dir: &Path, file: Found) -> Option<(FileEntry, bool)> {
             size: metadata.len(),
             modified: metadata.modified().ok(),
             sniffed,
-            decoded: file.decoded,
+            disk: file.name,
         },
         is_sheet,
     ))

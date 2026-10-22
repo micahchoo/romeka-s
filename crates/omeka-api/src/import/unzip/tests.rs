@@ -187,15 +187,15 @@ async fn a_zip_unpacks_with_decoded_names_and_without_its_escaping_entries() {
         .iter()
         .find(|entry| entry.path.as_str() == "Scans/Año 1950/foto.jpg")
         .unwrap();
-    let name = decoded.decoded.as_ref().expect("flags name-encoding");
-    assert_eq!(name.encoding, NameEncoding::Cp437);
+    let name = decoded.disk.as_ref().expect("flags name-encoding");
+    assert_eq!(name.encoding, Some(NameEncoding::Cp437));
     assert_eq!(name.raw, b"A\xA4o 1950/foto.jpg");
     let plain = walk
         .entries
         .iter()
         .find(|entry| entry.path.as_str() == "Scans/Café/b.jpg")
         .unwrap();
-    assert!(plain.decoded.is_none(), "UTF-8 bytes read as UTF-8");
+    assert!(plain.disk.is_none(), "UTF-8 bytes read as UTF-8");
     assert_eq!(walk.anomalies.symlinks, 1, "the link is counted");
     assert_eq!(
         walk.anomalies.unusable_names,

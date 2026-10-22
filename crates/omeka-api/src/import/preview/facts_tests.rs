@@ -50,7 +50,7 @@ fn derived(files: &[(&str, &str)], list: Option<&str>, edit: impl FnOnce(&mut Va
                         size: 10,
                         modified: None,
                         sniffed: (*sniffed).into(),
-                        decoded: None,
+                        disk: None,
                     })
                     .collect(),
                 ..Walk::default()

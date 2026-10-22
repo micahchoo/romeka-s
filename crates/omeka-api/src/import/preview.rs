@@ -277,7 +277,8 @@ where
                     .find(|source| *source.id() == sheet.source)?
                 {
                     SourcePlan::Folder { .. } => {
-                        caches.sheets.read(sheet, dirs.get(&sheet.source)?)
+                        let disk = stored.index.disk_path(&sheet.source, &sheet.file);
+                        caches.sheets.read(sheet, dirs.get(&sheet.source)?, &disk)
                     }
                     SourcePlan::Staging { .. } => caches.sheets.read_stored(
                         sheet,
@@ -424,11 +425,12 @@ impl proposal::Lists for WalkLists<'_> {
 
     fn read(&self, file: &ListFile, count: &mut dyn FnMut(&Result<Sheet, SheetError>)) {
         let read = self.0.tags.dirs.get(&file.source).and_then(|dir| {
-            self.0
-                .tags
-                .caches
-                .sheets
-                .read(&candidates::automatic(&file.source, &file.file), dir)
+            let disk = self.0.stored.index.disk_path(&file.source, &file.file);
+            self.0.tags.caches.sheets.read(
+                &candidates::automatic(&file.source, &file.file),
+                dir,
+                &disk,
+            )
         });
         match read {
             Some(read) => count(&read.sheet),

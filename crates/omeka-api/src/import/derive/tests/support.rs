@@ -26,7 +26,7 @@ pub fn entry(path: &str, sniffed: &str) -> FileEntry {
         size: 100,
         modified: None,
         sniffed: sniffed.to_string(),
-        decoded: None,
+        disk: None,
     }
 }
 

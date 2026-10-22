@@ -450,9 +450,9 @@ fn a82_files_the_install_refuses_are_not_media_and_left_out() {
 #[test]
 fn a60_format_mismatch_and_name_encoding_are_kept_by_default() {
     let mut index = index(&[("A1.jpg", "image/png"), ("B2.jpg", JPEG)]);
-    index.sources[0].walk.entries[1].decoded = Some(crate::import::evidence::DecodedName {
-        encoding: crate::import::evidence::NameEncoding::Latin1,
+    index.sources[0].walk.entries[1].disk = Some(crate::import::evidence::DiskName {
         raw: b"B2.jpg".to_vec(),
+        encoding: Some(crate::import::evidence::NameEncoding::Latin1),
     });
     let plan = plan(|plan| plan["grouping"]["pattern"] = json!(PATTERN));
     let model = run(&index, &Sheets::new(), &plan);
