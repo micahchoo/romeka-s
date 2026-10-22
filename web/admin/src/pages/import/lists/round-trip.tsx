@@ -15,7 +15,7 @@ import { toError, useAsync } from '../../../app/useAsync';
 import { useDraft } from '../draft-context';
 import { useListsText } from './messages';
 import { loadProperties } from './catalog';
-import { csvHead } from './csv-head';
+import { readCsv } from '../csv-records';
 import { ListDrop } from './list-drop';
 
 /** The columns the server takes besides properties (`template.rs`, `ListColumn`). */
@@ -123,7 +123,7 @@ export const RoundTrip = (): ReactElement => {
   const [columns, setColumns] = useState<readonly string[]>(FIRST_COLUMNS);
   const [upload, setUpload] = useState<Upload>({ at: 'idle' });
   const properties = useAsync(loadProperties, []);
-  const head = useAsync(() => importApi.templateCsv(draft.id, columns).then((text) => csvHead(text, ROWS_SHOWN + 1)), [draft.id, draft.detail.revision, columns.join(',')]);
+  const head = useAsync(() => importApi.templateCsv(draft.id, columns).then((text) => readCsv(text, ',', ROWS_SHOWN + 1)), [draft.id, draft.detail.revision, columns.join(',')]);
   const known = properties.status === 'ready' ? properties.data : [];
   const slotWords: Readonly<Record<(typeof SLOT_COLUMNS)[number], string>> = {
     sets: t('lists.trip.colSets'),
@@ -212,7 +212,7 @@ export const RoundTrip = (): ReactElement => {
           <table>
             <thead>
               <tr>
-                {(head.data.rows[0] ?? []).map((cell, index) => (
+                {(head.data.records[0]?.cells ?? []).map((cell, index) => (
                   <th key={index} scope="col">
                     {cell}
                   </th>
@@ -220,7 +220,7 @@ export const RoundTrip = (): ReactElement => {
               </tr>
             </thead>
             <tbody>
-              {head.data.rows.slice(1).map((row, line) => (
+              {head.data.records.slice(1).map(({ cells: row }, line) => (
                 <tr key={line}>
                   {row.map((cell, index) => (
                     <td key={index}>{cell}</td>
