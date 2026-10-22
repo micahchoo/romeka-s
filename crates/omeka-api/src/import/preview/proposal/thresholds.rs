@@ -18,3 +18,14 @@ pub const MIN_RECURRING_PARTS: usize = 2;
 /// The items a part value must be in to recur: two is the least count that
 /// shows a value repeating. S1 `front` is in 4 items, BHC006 `a` in 279.
 pub const MIN_ITEMS_PER_PART: usize = 2;
+
+/// The items a list joined by file name must name two files or more of
+/// before its rows describe files: one is enough, because rows that
+/// describe items would give that item two rows. BHC006 `Artifacts` has
+/// 272 such items, `Photo Narratives (PN)` none.
+pub const MIN_ITEMS_WITH_FILE_ROWS: usize = 1;
+
+/// The record kinds a column's cells must name before it is a list's kind
+/// column: with one kind, every row is that kind and no column is needed.
+/// S8's `Kind` names three.
+pub const MIN_KINDS: usize = 2;

@@ -26,6 +26,8 @@ mod folders;
 mod folders_tests;
 mod grain;
 #[cfg(test)]
+mod grain_tests;
+#[cfg(test)]
 mod lint_tests;
 mod lists;
 #[cfg(test)]

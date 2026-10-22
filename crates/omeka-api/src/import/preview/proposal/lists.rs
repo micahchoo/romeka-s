@@ -24,7 +24,6 @@ use crate::import::preview::columns::{EVERY_FOLD, NO_FOLD, Targets, Within};
 use crate::import::sheet::Sheet;
 
 /// One list counted in one series.
-#[expect(dead_code, reason = "detector 4 reads it")]
 pub(super) struct Counted<'d> {
     pub counts: ListCandidate,
     /// The best column with the folds that rule 2 turns on; `None` when no
@@ -56,7 +55,6 @@ pub(super) struct SeriesLists<'d> {
 }
 
 /// A list that describes no series.
-#[expect(dead_code, reason = "detector 4 reads it")]
 pub(super) struct Unattached {
     pub file: ListFile,
     pub counts: ListCandidate,
