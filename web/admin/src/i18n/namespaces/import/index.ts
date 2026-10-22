@@ -241,6 +241,11 @@ export const en = {
   'tag.Size': 'File size',
   'tag.Pixel dimensions': 'Size in pixels',
   'tag.Format': 'File format',
+  // The list round trip: a list sent again in place of the one uploaded.
+  'trip.again': 'Upload this list again',
+  'trip.againNext': 'The next file you send takes the place of {file}.',
+  'trip.lacking': 'Not sent: {file} has no column “{column}”, which {count} answers use.',
+  'trip.lackingOne': 'Not sent: {file} has no column “{column}”, which 1 answer uses.',
 } as const;
 
 /** A complete table of this namespace, in one locale. */

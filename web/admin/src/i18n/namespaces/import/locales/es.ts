@@ -228,4 +228,8 @@ export const es: ImportMessages = {
   'tag.Size': 'Tamaño del archivo',
   'tag.Pixel dimensions': 'Tamaño en píxeles',
   'tag.Format': 'Formato del archivo',
+  'trip.again': 'Subir esta lista otra vez',
+  'trip.againNext': 'El próximo archivo que envíes ocupa el lugar de {file}.',
+  'trip.lacking': 'No se envió: {file} no tiene la columna «{column}», que usan {count} respuestas.',
+  'trip.lackingOne': 'No se envió: {file} no tiene la columna «{column}», que usa 1 respuesta.',
 };
