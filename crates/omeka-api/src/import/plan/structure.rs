@@ -402,6 +402,35 @@ impl Structure {
             .find(|list| list.id == *id)
     }
 
+    /// Every `each` set source's value map, to edit: the set levels', the
+    /// series' own sets' and the free sets'.
+    pub fn each_maps_mut(&mut self) -> Vec<&mut indexmap::IndexMap<String, String>> {
+        fn each_map(source: &mut SetSource) -> Option<&mut indexmap::IndexMap<String, String>> {
+            match source {
+                SetSource::Each(EachValue { each }) => Some(&mut each.map),
+                _ => None,
+            }
+        }
+        fn go<'s>(
+            levels: &'s mut [Level],
+            out: &mut Vec<&'s mut indexmap::IndexMap<String, String>>,
+        ) {
+            for level in levels {
+                match level {
+                    Level::Series(series) => out.extend(series.set.as_mut().and_then(each_map)),
+                    Level::Set(set) => {
+                        out.extend(each_map(&mut set.set));
+                        go(&mut set.levels, out);
+                    }
+                }
+            }
+        }
+        let mut out = Vec::new();
+        go(&mut self.levels, &mut out);
+        out.extend(self.free_sets.iter_mut().filter_map(each_map));
+        out
+    }
+
     /// The series' slot rules for one record kind, to edit.
     pub fn rules_mut(&mut self, at: SeriesIx, kind: RecordKind) -> &mut SlotRules {
         let slots = &mut self.series_mut(at).slots;

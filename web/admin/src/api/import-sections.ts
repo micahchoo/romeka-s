@@ -370,24 +370,45 @@ const parseUnpaired: Parser<Unpaired> = (raw, path = []) => {
 export interface ValueCount {
   /** The value as the first record holding it writes it. */
   readonly text: string;
-  /** Records the run writes that hold the value. */
+  /** Records that hold the value. */
   readonly count: number;
   /** Every spelling that folds to the value, sorted. */
   readonly spellings: readonly string[];
+  /** What the map makes it: null unmapped, '' left out. Always null when the query names no slot. */
+  readonly to: string | null;
+}
+
+/** Two values one letter apart: the rarer, `from`, would become `to`. */
+export interface NearSpelling {
+  readonly from: string;
+  readonly fromRecords: number;
+  readonly to: string;
+  readonly toRecords: number;
 }
 
 export interface SlotValues {
   readonly slot: SlotName;
   readonly values: Paged<ValueCount>;
+  /** Offered joins, the most records first; empty when the query names no slot. */
+  readonly near: readonly NearSpelling[];
 }
 
 const parseSlotValues: Parser<SlotValues> = (raw, path = []) => {
-  const object = strict(raw, path, ['slot', 'values']);
+  const object = strict(raw, path, ['slot', 'values', 'near']);
   const value = (each: unknown, at: Path): ValueCount => {
-    const one = strict(each, at, ['text', 'count', 'spellings']);
-    return { text: text(one, 'text', at), count: count(one, 'count', at), spellings: member(one, 'spellings', at, list(asString)) };
+    const one = strict(each, at, ['text', 'count', 'spellings', 'to']);
+    return {
+      text: text(one, 'text', at),
+      count: count(one, 'count', at),
+      spellings: member(one, 'spellings', at, list(asString)),
+      to: member(one, 'to', at, nullable(asString)),
+    };
   };
-  return { slot: member(object, 'slot', path, asSlotName), values: member(object, 'values', path, parsePaged(value)) };
+  const near = (each: unknown, at: Path): NearSpelling => {
+    const one = strict(each, at, ['from', 'fromRecords', 'to', 'toRecords']);
+    return { from: text(one, 'from', at), fromRecords: count(one, 'fromRecords', at), to: text(one, 'to', at), toRecords: count(one, 'toRecords', at) };
+  };
+  return { slot: member(object, 'slot', path, asSlotName), values: member(object, 'values', path, parsePaged(value)), near: member(object, 'near', path, list(near)) };
 };
 
 export interface NameWord {

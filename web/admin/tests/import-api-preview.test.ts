@@ -142,6 +142,34 @@ describe('what the sections say', () => {
     expect(() => parsePreview(['listCandidates'])({ ...answer, listCandidates: [{ ...answer.listCandidates[1], read: 'failed' }] })).toThrow(ParseError);
   });
 
+  it('values asked for one slot say what the map makes each one and offer near spellings', () => {
+    const answer = {
+      sources: [],
+      pattern: { groups: [] },
+      values: [
+        {
+          slot: 'dcterms:contributor',
+          values: {
+            total: 3,
+            page: 1,
+            perPage: 50,
+            items: [
+              { text: 'Dilip Patil', count: 312, spellings: ['Dilip Patil'], to: null },
+              { text: 'Supriya Nandgouli', count: 499, spellings: ['Supriya Nandgouli', 'supriya Nandgouli'], to: 'Supriya Nandgouli' },
+              { text: 'Dilp Patil', count: 2, spellings: ['Dilp Patil'], to: '' },
+            ],
+          },
+          near: [{ from: 'Dilp Patil', fromRecords: 2, to: 'Dilip Patil', toRecords: 312 }],
+        },
+      ],
+    };
+    const parsed = parsePreview(['values'])(answer).values;
+    expect(parsed[0]?.values.items.map((value) => value.to)).toEqual([null, 'Supriya Nandgouli', '']);
+    expect(parsed[0]?.near).toEqual([{ from: 'Dilp Patil', fromRecords: 2, to: 'Dilip Patil', toRecords: 312 }]);
+    expect(roundTrip(parsed)).toEqual(answer.values);
+    expect(() => parsePreview(['values'])({ ...answer, values: [{ ...answer.values[0], near: undefined }] })).toThrow(ParseError);
+  });
+
   it('entries and records say why a file or an item is left out, copies and rowless items included', () => {
     const entries = parsePreview(['entries'])(loadFixture('import/preview-entries.json')).entries;
     expect(entries.items.map((entry) => entry.left)).toContain('identical');

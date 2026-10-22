@@ -295,3 +295,107 @@ fn a_set_named_by_id_shows_the_install_sets_title_as_its_label() {
     assert_eq!(sets[1]["text"], "43");
     assert_eq!(sets[1]["label"], json!(null), "no set #43 in the install");
 }
+
+/// Items `A1`… whose names end in who made them, `creator` read from the
+/// name, with `map` as the creator rule's value map.
+fn creators(names: &[&str], map: serde_json::Value) -> Derived {
+    let paths: Vec<String> = names
+        .iter()
+        .enumerate()
+        .map(|(n, who)| format!("A{}_{who}.jpg", n + 1))
+        .collect();
+    let paths: Vec<&str> = paths.iter().map(String::as_str).collect();
+    derived(&paths, |plan| {
+        plan["grouping"]["pattern"] = json!(r"^(?<identifier>[A-Z]\d+)_(?<who>[^.]+)\.jpg$");
+        plan["slots"]["item"]["dcterms:creator"] = json!({
+            "sources": [{ "from": "group", "name": "who" }], "combine": "first", "map": map
+        });
+    })
+}
+
+fn creator_values(derived: &Derived) -> serde_json::Value {
+    let asked = request(json!({ "include": ["values"], "values": { "slot": "dcterms:creator" } }));
+    let answer = serde_json::to_value(preview(derived, &asked)).unwrap();
+    let values = answer["values"].as_array().unwrap();
+    assert_eq!(values.len(), 1, "one slot asked, one answered");
+    values[0].clone()
+}
+
+#[test]
+fn values_are_counted_before_the_map_and_say_what_each_becomes() {
+    let derived = creators(
+        &["Asha", "Asha", "Ravi", "Ravee", "asha"],
+        json!({ "Ravi": "Ravindra", "ravee": "" }),
+    );
+    let creator = creator_values(&derived);
+    assert_eq!(creator["slot"], "dcterms:creator");
+    let values: Vec<_> = creator["values"]["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|value| {
+            (
+                value["text"].clone(),
+                value["count"].clone(),
+                value["to"].clone(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        values,
+        [
+            (json!("Asha"), json!(3), json!(null)),
+            (json!("Ravi"), json!(1), json!("Ravindra")),
+            (json!("Ravee"), json!(1), json!("")),
+        ],
+        "each value under its own text, the map's key compared as a title"
+    );
+    assert_eq!(
+        creator["values"]["items"][0]["spellings"],
+        json!(["Asha", "asha"])
+    );
+
+    let any_series = request(json!({ "include": ["values"] }));
+    let answer = serde_json::to_value(preview(&derived, &any_series)).unwrap();
+    let slots: Vec<_> = answer["values"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|slot| slot["slot"].clone())
+        .collect();
+    assert_eq!(
+        slots,
+        [json!("sets"), json!("template"), json!("class")],
+        "no slot asked: the naming slots, as before"
+    );
+}
+
+#[test]
+fn values_offers_dilp_patil_to_dilip_patil() {
+    let derived = creators(&["Dilip Patil", "Dilp Patil", "Dilip Patil"], json!({}));
+    assert_eq!(
+        creator_values(&derived)["near"],
+        json!([{ "from": "Dilp Patil", "fromRecords": 1, "to": "Dilip Patil", "toRecords": 2 }])
+    );
+    let mapped = creators(
+        &["Dilip Patil", "Dilp Patil", "Dilip Patil"],
+        json!({ "Dilp Patil": "Dilip Patil" }),
+    );
+    assert_eq!(
+        creator_values(&mapped)["near"],
+        json!([]),
+        "a value the map already sends somewhere is not offered again"
+    );
+    let years = creators(&["2017", "2018", "2017"], json!({}));
+    assert_eq!(
+        creator_values(&years)["near"],
+        json!([]),
+        "digits are never near"
+    );
+    let short = creators(&["Ink", "Inks", "Ink"], json!({}));
+    assert_eq!(
+        creator_values(&short)["near"],
+        json!([]),
+        "three letters are too few"
+    );
+}
