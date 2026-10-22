@@ -75,26 +75,7 @@ async fn create_media_public(app: &Router, public: bool) -> u64 {
 async fn failed_access(pool: &SqlitePool, media: u64) -> omeka_db::rows::DerivativeRow {
     let repo = MediaDerivativeRepo::new(pool);
     let commands = omeka_media::tool::Tools::on_path().derivative_commands();
-    // The poster is not the row under test. It stays claimed until the access
-    // row is: a claim takes the oldest row, and a poster queued a second
-    // earlier would be claimed again each time it went back.
-    let mut posters = Vec::new();
-    let claimed = loop {
-        let row = repo
-            .claim_next(&commands)
-            .await
-            .expect("a claim")
-            .expect("a row the create queued");
-        if row.kind == DerivativeKind::AccessCopy {
-            break row;
-        }
-        posters.push(row);
-    };
-    for poster in posters {
-        repo.requeue(poster.media_id, poster.kind)
-            .await
-            .expect("the poster goes back to the queue");
-    }
+    let claimed = common::claim_access_copy(&omeka_db::DbPool::from(pool.clone()), &commands).await;
     assert_eq!(claimed.media_id, MediaId(media));
     repo.finish(
         claimed.media_id,
