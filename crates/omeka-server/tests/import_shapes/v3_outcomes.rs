@@ -1,95 +1,27 @@
-//! The design's v3 plans of the three frozen shapes
-//! (`omeka-api/src/import/fixtures/v3/`), run through the preview and
-//! compared with the outcomes their v2 plans pinned
-//! (`outcome_pins/<shape>.txt`, never rewritten here).
+//! The design's v3 plan of BHC006 (`omeka-api/src/import/fixtures/v3/`),
+//! run through the preview and compared with the outcome its v2 plan pinned
+//! (`outcome_pins/bhc006.txt`, never rewritten here).
 //!
 //! Two differences are allowed, each named where it is applied:
 //!
 //! - Record keys. A plan of several series keys a group item
 //!   `group:<series>/<key>`, where v2 wrote `group:<key>`. The full keys must
-//!   be unique; the `<series>/` part is then dropped from the v3 side.
-//! - File flags of outside files, BHC006 only. A file in no series' scope
-//!   raises no file flag. Each pinned flag count is lowered by exactly the
-//!   flags the v2 run raised on the files the v3 plan puts outside, and the
-//!   v3 text must then match.
-//!
-//! The run reads the shape from the draft's own source, so the v3 plan
-//! takes the draft's `sources`, as the v2 plan does.
+//!   be unique; the `<series>/` part is then dropped from the v3 side
+//!   (`harness::v3_outcome`).
+//! - File flags of outside files. A file in no series' scope raises no file
+//!   flag. Each pinned flag count is lowered by exactly the flags the v2 run
+//!   raised on the files the v3 plan puts outside, and the v3 text must then
+//!   match.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use serde_json::Value;
 
-use super::outcome_pins::{outcome_of_records, records_of, text};
-use super::{Shape, bhc006, born_digital, oral_history, run};
+use super::{bhc006, run, text, v3_outcome};
 use crate::imports_fixture::fixture;
 
 const BHC006: &str = include_str!("../../../omeka-api/src/import/fixtures/v3/bhc006.json");
-const ORAL_HISTORY: &str =
-    include_str!("../../../omeka-api/src/import/fixtures/v3/oral_history.json");
-const BORN_DIGITAL: &str =
-    include_str!("../../../omeka-api/src/import/fixtures/v3/born_digital.json");
-
-fn plan_for(fixture_text: &'static str) -> impl FnOnce(&mut Value) {
-    move |draft_plan: &mut Value| {
-        let mut plan: Value = serde_json::from_str(fixture_text).unwrap();
-        plan["sources"] = draft_plan["sources"].clone();
-        *draft_plan = plan;
-    }
-}
-
-/// The record-key allowance: assert the ledger keys are unique, then write
-/// each `group:<series>/<key>` origin as the `group:<key>` v2 wrote. Gives
-/// how many origins it rewrote.
-fn strip_series(records: &mut [Value]) -> usize {
-    let keys: Vec<String> = records
-        .iter()
-        .map(|record| text::ledger_key(&record["origin"]))
-        .collect();
-    let unique: BTreeSet<&String> = keys.iter().collect();
-    assert_eq!(unique.len(), keys.len(), "two records share a ledger key");
-    let mut rewrote = 0;
-    for record in records {
-        let pattern = record
-            .pointer_mut("/origin/group/pattern")
-            .filter(|pattern| pattern.is_object());
-        if let Some(pattern) = pattern {
-            *pattern = pattern["text"].clone();
-            rewrote += 1;
-        }
-    }
-    rewrote
-}
-
-/// What a v3 plan made of a shape.
-struct Made {
-    text: String,
-    /// Group items whose key names their series.
-    series_keys: usize,
-    /// The file paths the preview leaves out as `outside`.
-    outside: BTreeSet<String>,
-}
-
-async fn v3_outcome(shape: &Shape, slots: &[&str], fixture_text: &'static str) -> Made {
-    let fixture = fixture().await;
-    let preview = run(&fixture, shape, slots, plan_for(fixture_text)).await;
-    let outside = preview["entries"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .filter(|entry| entry["left"] == "outside")
-        .filter_map(|entry| entry.pointer("/entry/file/path")?.as_str())
-        .map(str::to_string)
-        .collect();
-    let mut records = records_of(&preview);
-    let series_keys = strip_series(&mut records);
-    Made {
-        text: outcome_of_records(&preview, &records),
-        series_keys,
-        outside,
-    }
-}
 
 /// The flags, as `(kind, policy)` words, that the v2 BHC006 run raised on
 /// these files.
@@ -158,13 +90,7 @@ async fn v3_plans_match_the_frozen_outcomes() {
     for path in extras {
         assert!(bhc.outside.contains(&path), "{path} is in no scope");
     }
-    let oral = v3_outcome(&oral_history::shape(), &oral_history::SLOTS, ORAL_HISTORY).await;
-    let born = v3_outcome(&born_digital::shape(), &[], BORN_DIGITAL).await;
-    for one_series in [&oral, &born] {
-        assert_eq!(one_series.series_keys, 0, "one series keeps group:<key>");
-    }
 
-    let mut failures = Vec::new();
     let gone = v2_flags_on(&bhc.outside).await;
     assert_eq!(
         gone,
@@ -172,20 +98,11 @@ async fn v3_plans_match_the_frozen_outcomes() {
         "the v2 run raised not-media on 276 files the v3 plan puts outside, \
          so the pinned 1097 becomes 821, and no other flag moves"
     );
-    for (name, made) in [
-        ("bhc006", bhc),
-        ("oral_history", oral),
-        ("born_digital", born),
-    ] {
-        let pinned = std::fs::read_to_string(dir.join(format!("{name}.txt"))).unwrap();
-        let pinned = if name == "bhc006" {
-            without_flags(&pinned, &gone)
-        } else {
-            pinned
-        };
-        if pinned != made.text {
-            failures.push(format!("{name}: {}", text::block_diff(&pinned, &made.text)));
-        }
-    }
-    assert!(failures.is_empty(), "{}", failures.join("\n"));
+    let pinned = std::fs::read_to_string(dir.join("bhc006.txt")).unwrap();
+    let pinned = without_flags(&pinned, &gone);
+    assert!(
+        pinned == bhc.text,
+        "bhc006: {}",
+        text::block_diff(&pinned, &bhc.text)
+    );
 }

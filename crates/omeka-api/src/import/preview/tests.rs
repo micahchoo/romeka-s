@@ -195,7 +195,7 @@ fn an_orphan_names_its_entry_and_not_the_whole_decision() {
 /// A v3 plan on source `s1` with these levels and free sets.
 fn v3_plan(levels: serde_json::Value, free_sets: serde_json::Value) -> serde_json::Value {
     let mut plan: serde_json::Value =
-        serde_json::from_str(include_str!("../fixtures/v3/born_digital.json")).unwrap();
+        serde_json::from_str(include_str!("../fixtures/v3/one_series.json")).unwrap();
     plan["structure"] = json!({ "levels": levels, "freeSets": free_sets });
     plan
 }

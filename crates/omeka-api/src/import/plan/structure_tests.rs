@@ -9,9 +9,8 @@ const DEFAULT: &str = include_str!("../fixtures/default.json");
 const DELETE: &str = include_str!("../fixtures/delete.json");
 
 const BHC006: &str = include_str!("../fixtures/v3/bhc006.json");
-const ORAL_HISTORY: &str = include_str!("../fixtures/v3/oral_history.json");
-const BORN_DIGITAL: &str = include_str!("../fixtures/v3/born_digital.json");
 const ARCHIVE_AS_FOUND: &str = include_str!("../fixtures/v3/archive_as_found.json");
+const ONE_SERIES: &str = include_str!("../fixtures/v3/one_series.json");
 
 fn compact(text: &str) -> String {
     serde_json::from_str::<Value>(text)
@@ -137,16 +136,15 @@ fn lift_then_lower_is_identity() {
 fn the_design_examples_parse() {
     for (name, text) in [
         ("bhc006", BHC006),
-        ("oral_history", ORAL_HISTORY),
-        ("born_digital", BORN_DIGITAL),
         ("archive_as_found", ARCHIVE_AS_FOUND),
+        ("one_series", ONE_SERIES),
     ] {
         if let Err(error) = serde_json::from_str::<v3::PlanV3>(text) {
             panic!("{name}: {error}");
         }
     }
 
-    for text in [BHC006, ORAL_HISTORY, BORN_DIGITAL, ARCHIVE_AS_FOUND] {
+    for text in [BHC006, ARCHIVE_AS_FOUND, ONE_SERIES] {
         let plan = parse(text);
         assert_eq!(plan.version, PlanVersion::V3);
         assert_eq!(plan.to_json(), compact(text), "written back byte for byte");
@@ -372,7 +370,7 @@ fn set_levels_series_sets_and_free_sets_pass_the_boundary() {
 
 #[test]
 fn the_lower_refuses_what_v2_cannot_say() {
-    let drive = parse(BORN_DIGITAL);
+    let drive = parse(ONE_SERIES);
     let mut as_v2 = drive.clone();
     as_v2.version = PlanVersion::V2;
     assert!(matches!(

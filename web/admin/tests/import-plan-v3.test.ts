@@ -17,9 +17,8 @@ const RUST_V3_PLANS = resolve(
 );
 const FIXTURES = [
   "bhc006.json",
-  "oral_history.json",
-  "born_digital.json",
   "archive_as_found.json",
+  "one_series.json",
 ];
 
 const rustPlan = (name: string): Record<string, unknown> => {

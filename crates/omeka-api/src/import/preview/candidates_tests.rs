@@ -480,7 +480,7 @@ fn a_list_in_a_plan_of_several_series_names_the_series_that_holds_it() {
         ],
         |plan| {
             let mut v3: Value =
-                serde_json::from_str(include_str!("../fixtures/v3/born_digital.json")).unwrap();
+                serde_json::from_str(include_str!("../fixtures/v3/one_series.json")).unwrap();
             v3["structure"] = json!({
                 "levels": [
                     series("views", "", json!([sheet("register", "lists/full.csv")])),

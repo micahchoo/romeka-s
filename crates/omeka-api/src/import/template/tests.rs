@@ -429,7 +429,7 @@ fn two_series() -> ImportPlan {
         })
     };
     let mut value: serde_json::Value =
-        serde_json::from_str(include_str!("../fixtures/v3/born_digital.json")).unwrap();
+        serde_json::from_str(include_str!("../fixtures/v3/one_series.json")).unwrap();
     value["structure"] = json!({
         "levels": [series("letters", "Letters"), series("photos", "Photos")],
         "freeSets": []
