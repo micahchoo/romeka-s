@@ -16,10 +16,10 @@ use crate::import::derive::tests::support::catalog;
 use crate::import::derive::{Index, IndexedSource, NoTags, Sheets, derive};
 use crate::import::evidence::{FileEntry, Walk, sniff};
 use crate::import::placement::{Difference, ListFiles, Placement, differences};
-use crate::import::plan::{Edit, FolderScope, ListFile, RecordKind};
+use crate::import::plan::{CutEdit, Edit, FolderScope, ListFile, RecordKind};
 use crate::import::plan::{ImportPlan, RelPath, SourceId, SourcePlan, default_plan};
 use crate::import::preview::candidates::automatic;
-use crate::import::preview::proposal::{Evidence, FoundList, Proposal, propose};
+use crate::import::preview::proposal::{Evidence, FoundList, NodeEvidence, Proposal, propose};
 use crate::import::sheet::{self, SheetError};
 
 const LISTING: &str =
@@ -218,10 +218,97 @@ pub fn judge() -> impl Fn(&[Edit]) -> (Proposal, Vec<Difference>) {
     }
 }
 
+/// The example the structure screen's test marks on `Artifacts`: the letters
+/// glued after the number of `BHC006_GMT_AF_010a.jpg`, any letters. The
+/// pattern is the one the admin's `patternOf` writes for that mark.
+const MARKED_PATH: &str = "Artifacts/BHC006_GMT_AF_010a.jpg";
+const MARKED_PATTERN: &str = r"^(?:[^/]*/)*(?<identifier>[^/]*?\d|[^/]*?[^/.][\p{L}\p{M}]*)(?:(?<part>[\p{L}\p{M}]+))?(?:\.[^./]*)?$";
+
+fn artifacts() -> FolderScope {
+    FolderScope {
+        source: SourceId("s1".into()),
+        folder: RelPath::parse("Artifacts").expect("a folder"),
+    }
+}
+
+/// The proposal after the person marks an example on `Artifacts` from the
+/// suggestion: the plan holds the suggested tree with that series' pattern
+/// and example written by hand, and `edits`, which end in its `own` edit.
+/// The written series' items are checked against the derive the preview
+/// runs on that plan, so the count "Written by you" shows is the preview's.
+fn marked_by_hand(edits: &[Edit]) -> Proposal {
+    let mut structure =
+        serde_json::to_value(&proposal_with_lists(&[]).structure).expect("the structure as JSON");
+    let series = structure["levels"]
+        .as_array_mut()
+        .expect("levels")
+        .iter_mut()
+        .find(|level| level["id"] == "Artifacts")
+        .expect("the suggested Artifacts series");
+    series["grouping"]["pattern"] = MARKED_PATTERN.into();
+    series["example"] = serde_json::json!({
+        "path": MARKED_PATH,
+        "marks": [{ "kind": "letters", "text": "a", "sep": "" }],
+    });
+    let mut plan = serde_json::to_value(draft()).expect("the draft as JSON");
+    plan["structure"] = structure;
+    let plan = ImportPlan::from_json(&plan.to_string()).expect("the plan written by hand");
+
+    let index = index();
+    let catalog = install();
+    let lists = lists();
+    let evidence = Evidence {
+        index: &index,
+        lists: &lists,
+        catalog: &catalog,
+        sources: &plan.sources,
+        structure: &plan.structure,
+        sheets: &Sheets::new(),
+    };
+    let proposal = propose(&evidence, edits);
+
+    let (at, written) = plan
+        .structure
+        .all_series()
+        .find(|(_, series)| series.id().0 == "Artifacts")
+        .expect("the written series");
+    let sheets: Sheets = plan
+        .structure
+        .lists()
+        .filter_map(|(_, sheet)| {
+            let list = lists
+                .iter()
+                .find(|list| list.file.source == sheet.source && list.file.file == sheet.file)?;
+            Some((sheet.id.clone(), list.sheet.clone()))
+        })
+        .collect();
+    let model = derive(&index, &sheets, &plan, &catalog, &NoTags);
+    let made = model
+        .kept()
+        .filter(|record| record.kind == RecordKind::Item && record.series == at)
+        .count();
+    let own = proposal
+        .nodes
+        .iter()
+        .find_map(|node| match node {
+            NodeEvidence::Own(own) => Some(own),
+            NodeEvidence::Set(_) | NodeEvidence::Series(_) => None,
+        })
+        .expect("the written series' node");
+    assert_eq!(own.level, *written.id());
+    assert_eq!(
+        own.items.items, made,
+        "the preview's items of the written series"
+    );
+    proposal
+}
+
 /// The admin's recorded BHC006 proposals are this replica's, as the
 /// preview's `proposal` section sends them: with no edit, after the first of
-/// the two pinned clicks (leave out `Extras`), and after both (the PN list's
-/// rows describe files). The structure screen's tests read them, so a change
+/// the two pinned clicks (leave out `Extras`), after both (the PN list's
+/// rows describe files), after a marked example on `Artifacts`
+/// ([`marked_by_hand`]), after "each name an item" there, and with both,
+/// where the hand edit mutes the click. The structure screen's tests read them, so a change
 /// of the engine's counts shows there too. `UPDATE_FIXTURES=1` writes them
 /// again.
 #[test]
@@ -239,15 +326,36 @@ fn the_admins_recorded_proposals_are_the_replicas() {
         },
         describes: RecordKind::Media,
     };
-    let recorded: [(&str, Vec<Edit>); 3] = [
-        ("proposal-bhc006.json", vec![]),
-        ("proposal-bhc006-extras.json", vec![extras.clone()]),
-        ("proposal-bhc006-two.json", vec![extras, narratives]),
+    let own = Edit::Own { scope: artifacts() };
+    let whole = Edit::Items {
+        scope: artifacts(),
+        cut: CutEdit::Whole,
+    };
+    let recorded: [(&str, Proposal); 6] = [
+        ("proposal-bhc006.json", proposal_with_lists(&[])),
+        (
+            "proposal-bhc006-extras.json",
+            proposal_with_lists(std::slice::from_ref(&extras)),
+        ),
+        (
+            "proposal-bhc006-two.json",
+            proposal_with_lists(&[extras, narratives]),
+        ),
+        (
+            "proposal-bhc006-own.json",
+            marked_by_hand(std::slice::from_ref(&own)),
+        ),
+        (
+            "proposal-bhc006-whole.json",
+            proposal_with_lists(std::slice::from_ref(&whole)),
+        ),
+        (
+            "proposal-bhc006-own-waiting.json",
+            marked_by_hand(&[whole, own]),
+        ),
     ];
-    for (name, edits) in recorded {
-        let text = serde_json::to_string_pretty(&proposal_with_lists(&edits))
-            .expect("the proposal as JSON")
-            + "\n";
+    for (name, proposal) in recorded {
+        let text = serde_json::to_string_pretty(&proposal).expect("the proposal as JSON") + "\n";
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../web/admin/tests/fixtures/import")
             .join(name);

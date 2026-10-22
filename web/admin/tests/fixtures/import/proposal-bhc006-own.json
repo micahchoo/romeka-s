@@ -1,0 +1,2298 @@
+{
+  "structure": {
+    "levels": [
+      {
+        "kind": "series",
+        "id": "Artifacts",
+        "set": {
+          "title": "Artifacts",
+          "description": null
+        },
+        "scope": [
+          {
+            "source": "s1",
+            "folder": "Artifacts"
+          }
+        ],
+        "grouping": {
+          "pattern": "^(?:[^/]*/)*(?<identifier>[^/]*?\\d|[^/]*?[^/.][\\p{L}\\p{M}]*)(?:(?<part>[\\p{L}\\p{M}]+))?(?:\\.[^./]*)?$",
+          "caseFold": false
+        },
+        "example": {
+          "path": "Artifacts/BHC006_GMT_AF_010a.jpg",
+          "marks": [
+            {
+              "kind": "letters",
+              "text": "a",
+              "sep": ""
+            }
+          ]
+        },
+        "lists": [
+          {
+            "id": "BHC006_GMT_AF.xlsx",
+            "source": "s1",
+            "file": "BHC006_GMT_AF.xlsx",
+            "hash": null,
+            "read": {
+              "encoding": "auto",
+              "delimiter": "auto",
+              "quote": "\"",
+              "headerLine": 1,
+              "trim": true
+            },
+            "rowKind": "media",
+            "join": {
+              "on": "fileName",
+              "column": {
+                "index": 1,
+                "header": "Identifier"
+              },
+              "normalize": {
+                "caseFold": false,
+                "leadingZeros": false,
+                "separators": false
+              }
+            },
+            "itemKey": null,
+            "columns": []
+          }
+        ],
+        "slots": {
+          "item": {},
+          "media": {},
+          "itemSet": {}
+        }
+      },
+      {
+        "kind": "series",
+        "id": "Audio Interviews (AI)",
+        "set": {
+          "title": "Audio Interviews (AI)",
+          "description": null
+        },
+        "scope": [
+          {
+            "source": "s1",
+            "folder": "Audio Interviews (AI)"
+          }
+        ],
+        "grouping": {
+          "pattern": "^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\\.[^./]*)?$",
+          "caseFold": false
+        },
+        "example": null,
+        "lists": [],
+        "slots": {
+          "item": {},
+          "media": {},
+          "itemSet": {}
+        }
+      },
+      {
+        "kind": "series",
+        "id": "Documents (D)",
+        "set": {
+          "title": "Documents (D)",
+          "description": null
+        },
+        "scope": [
+          {
+            "source": "s1",
+            "folder": "Documents (D)"
+          }
+        ],
+        "grouping": {
+          "pattern": "^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\\.[^./]*)?$",
+          "caseFold": false
+        },
+        "example": null,
+        "lists": [
+          {
+            "id": "BHC006_GMT_D.xlsx",
+            "source": "s1",
+            "file": "BHC006_GMT_D.xlsx",
+            "hash": null,
+            "read": {
+              "encoding": "auto",
+              "delimiter": "auto",
+              "quote": "\"",
+              "headerLine": 1,
+              "trim": true
+            },
+            "rowKind": "media",
+            "join": {
+              "on": "fileName",
+              "column": {
+                "index": 1,
+                "header": "Identifier"
+              },
+              "normalize": {
+                "caseFold": false,
+                "leadingZeros": false,
+                "separators": false
+              }
+            },
+            "itemKey": null,
+            "columns": []
+          }
+        ],
+        "slots": {
+          "item": {},
+          "media": {},
+          "itemSet": {}
+        }
+      },
+      {
+        "kind": "series",
+        "id": "Extras",
+        "set": {
+          "title": "Extras",
+          "description": null
+        },
+        "scope": [
+          {
+            "source": "s1",
+            "folder": "Extras"
+          }
+        ],
+        "grouping": {
+          "pattern": "^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\\.[^./]*)?$",
+          "caseFold": false
+        },
+        "example": null,
+        "lists": [],
+        "slots": {
+          "item": {},
+          "media": {},
+          "itemSet": {}
+        }
+      },
+      {
+        "kind": "series",
+        "id": "Photo Narratives (PN)",
+        "set": {
+          "title": "Photo Narratives (PN)",
+          "description": null
+        },
+        "scope": [
+          {
+            "source": "s1",
+            "folder": "Photo Narratives (PN)"
+          }
+        ],
+        "grouping": {
+          "pattern": "^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\\.[^./]*)?$",
+          "caseFold": false
+        },
+        "example": null,
+        "lists": [
+          {
+            "id": "BHC006_GMT_PN.xlsx",
+            "source": "s1",
+            "file": "BHC006_GMT_PN.xlsx",
+            "hash": null,
+            "read": {
+              "encoding": "auto",
+              "delimiter": "auto",
+              "quote": "\"",
+              "headerLine": 1,
+              "trim": true
+            },
+            "rowKind": "item",
+            "join": {
+              "on": "fileName",
+              "column": {
+                "index": 1,
+                "header": "Identifier"
+              },
+              "normalize": {
+                "caseFold": false,
+                "leadingZeros": true,
+                "separators": false
+              }
+            },
+            "itemKey": null,
+            "columns": []
+          }
+        ],
+        "slots": {
+          "item": {},
+          "media": {},
+          "itemSet": {}
+        }
+      },
+      {
+        "kind": "series",
+        "id": "Video (V)",
+        "set": {
+          "title": "Video (V)",
+          "description": null
+        },
+        "scope": [
+          {
+            "source": "s1",
+            "folder": "Video (V)"
+          }
+        ],
+        "grouping": {
+          "pattern": "^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\\.[^./]*)?$",
+          "caseFold": false
+        },
+        "example": null,
+        "lists": [],
+        "slots": {
+          "item": {},
+          "media": {},
+          "itemSet": {}
+        }
+      }
+    ],
+    "freeSets": []
+  },
+  "nodes": [
+    {
+      "kind": "own",
+      "level": "Artifacts",
+      "scope": {
+        "scope": {
+          "source": "s1",
+          "folder": "Artifacts"
+        },
+        "files": 1309,
+        "media": 696,
+        "kinds": [
+          [
+            "image",
+            696
+          ]
+        ]
+      },
+      "items": {
+        "items": 328,
+        "files": {
+          "n": 696,
+          "of": 696
+        },
+        "perItem": [
+          {
+            "files": "0",
+            "count": 0
+          },
+          {
+            "files": "1",
+            "count": 55
+          },
+          {
+            "files": "2",
+            "count": 227
+          },
+          {
+            "files": "3",
+            "count": 19
+          },
+          {
+            "files": "4-6",
+            "count": 25
+          },
+          {
+            "files": "7+",
+            "count": 2
+          }
+        ],
+        "parts": [],
+        "namesEndingHere": 0,
+        "otherShapes": 0
+      }
+    },
+    {
+      "kind": "series",
+      "level": "Audio Interviews (AI)",
+      "scope": {
+        "scope": {
+          "source": "s1",
+          "folder": "Audio Interviews (AI)"
+        },
+        "files": 4,
+        "media": 3,
+        "kinds": [
+          [
+            "audio",
+            3
+          ]
+        ]
+      },
+      "items": {
+        "chosen": {
+          "value": {
+            "cut": "whole"
+          },
+          "counts": {
+            "items": 3,
+            "files": {
+              "n": 3,
+              "of": 3
+            },
+            "perItem": [
+              {
+                "files": "0",
+                "count": 0
+              },
+              {
+                "files": "1",
+                "count": 3
+              },
+              {
+                "files": "2",
+                "count": 0
+              },
+              {
+                "files": "3",
+                "count": 0
+              },
+              {
+                "files": "4-6",
+                "count": 0
+              },
+              {
+                "files": "7+",
+                "count": 0
+              }
+            ],
+            "parts": [],
+            "namesEndingHere": 3,
+            "otherShapes": 0
+          }
+        },
+        "rival": null,
+        "others": []
+      },
+      "list": {
+        "chosen": {
+          "value": null,
+          "counts": null
+        },
+        "rival": null,
+        "others": []
+      },
+      "grain": null,
+      "set": {
+        "chosen": {
+          "value": {
+            "from": "folder",
+            "scope": {
+              "source": "s1",
+              "folder": "Audio Interviews (AI)"
+            }
+          },
+          "counts": {
+            "sets": [
+              [
+                "Audio Interviews (AI)",
+                3
+              ]
+            ],
+            "rows": null
+          }
+        },
+        "rival": null,
+        "others": []
+      },
+      "splits": [],
+      "pairing": []
+    },
+    {
+      "kind": "series",
+      "level": "Documents (D)",
+      "scope": {
+        "scope": {
+          "source": "s1",
+          "folder": "Documents (D)"
+        },
+        "files": 31,
+        "media": 15,
+        "kinds": [
+          [
+            "image",
+            15
+          ]
+        ]
+      },
+      "items": {
+        "chosen": {
+          "value": {
+            "cut": "whole"
+          },
+          "counts": {
+            "items": 15,
+            "files": {
+              "n": 15,
+              "of": 15
+            },
+            "perItem": [
+              {
+                "files": "0",
+                "count": 0
+              },
+              {
+                "files": "1",
+                "count": 15
+              },
+              {
+                "files": "2",
+                "count": 0
+              },
+              {
+                "files": "3",
+                "count": 0
+              },
+              {
+                "files": "4-6",
+                "count": 0
+              },
+              {
+                "files": "7+",
+                "count": 0
+              }
+            ],
+            "parts": [],
+            "namesEndingHere": 15,
+            "otherShapes": 0
+          }
+        },
+        "rival": {
+          "value": {
+            "cut": "places",
+            "places": 5,
+            "rule": "sameAsSibling"
+          },
+          "counts": {
+            "items": 2,
+            "files": {
+              "n": 15,
+              "of": 15
+            },
+            "perItem": [
+              {
+                "files": "0",
+                "count": 0
+              },
+              {
+                "files": "1",
+                "count": 0
+              },
+              {
+                "files": "2",
+                "count": 0
+              },
+              {
+                "files": "3",
+                "count": 0
+              },
+              {
+                "files": "4-6",
+                "count": 1
+              },
+              {
+                "files": "7+",
+                "count": 1
+              }
+            ],
+            "parts": [
+              [
+                "D01",
+                1
+              ],
+              [
+                "D02",
+                1
+              ],
+              [
+                "D03",
+                1
+              ],
+              [
+                "D04",
+                1
+              ],
+              [
+                "D05",
+                1
+              ],
+              [
+                "D06",
+                1
+              ],
+              [
+                "D07",
+                1
+              ],
+              [
+                "D08",
+                1
+              ],
+              [
+                "D09",
+                1
+              ],
+              [
+                "D10",
+                1
+              ],
+              [
+                "D11",
+                1
+              ],
+              [
+                "D12",
+                1
+              ],
+              [
+                "D13",
+                1
+              ],
+              [
+                "D14",
+                1
+              ],
+              [
+                "D15",
+                1
+              ]
+            ],
+            "namesEndingHere": 0,
+            "otherShapes": 0
+          }
+        },
+        "others": []
+      },
+      "list": {
+        "chosen": {
+          "value": {
+            "source": "s1",
+            "file": "BHC006_GMT_D.xlsx"
+          },
+          "counts": {
+            "source": "s1",
+            "file": "BHC006_GMT_D.xlsx",
+            "inPlan": "BHC006_GMT_D.xlsx",
+            "read": "ok",
+            "rows": 15,
+            "columns": 5,
+            "best": null,
+            "grain": null,
+            "cells": [
+              {
+                "index": 0,
+                "header": "Sl No",
+                "separator": null
+              },
+              {
+                "index": 1,
+                "header": "Identifier",
+                "separator": null
+              },
+              {
+                "index": 2,
+                "header": "Collection",
+                "separator": null
+              },
+              {
+                "index": 3,
+                "header": "Curator",
+                "separator": null
+              },
+              {
+                "index": 4,
+                "header": "Item Type",
+                "separator": null
+              }
+            ],
+            "overlaps": []
+          }
+        },
+        "rival": null,
+        "others": []
+      },
+      "grain": {
+        "chosen": {
+          "value": "media",
+          "counts": {
+            "groupsWithManyRows": 0,
+            "rowsNamingOtherFilesOfAGroup": 0,
+            "columns": [],
+            "rowsNamingNoFile": 15,
+            "items": 15
+          }
+        },
+        "rival": {
+          "value": "item",
+          "counts": {
+            "groupsWithManyRows": 0,
+            "rowsNamingOtherFilesOfAGroup": 0,
+            "columns": [],
+            "rowsNamingNoFile": 15,
+            "items": 30
+          }
+        },
+        "others": []
+      },
+      "set": {
+        "chosen": {
+          "value": {
+            "from": "folder",
+            "scope": {
+              "source": "s1",
+              "folder": "Documents (D)"
+            }
+          },
+          "counts": {
+            "sets": [
+              [
+                "Documents (D)",
+                15
+              ]
+            ],
+            "rows": null
+          }
+        },
+        "rival": null,
+        "others": [
+          {
+            "value": {
+              "from": "column",
+              "list": {
+                "source": "s1",
+                "file": "BHC006_GMT_D.xlsx"
+              },
+              "column": {
+                "index": 2,
+                "header": "Collection"
+              }
+            },
+            "counts": {
+              "sets": [],
+              "rows": {
+                "n": 15,
+                "of": 15
+              }
+            }
+          },
+          {
+            "value": {
+              "from": "column",
+              "list": {
+                "source": "s1",
+                "file": "BHC006_GMT_D.xlsx"
+              },
+              "column": {
+                "index": 3,
+                "header": "Curator"
+              }
+            },
+            "counts": {
+              "sets": [],
+              "rows": {
+                "n": 15,
+                "of": 15
+              }
+            }
+          },
+          {
+            "value": {
+              "from": "column",
+              "list": {
+                "source": "s1",
+                "file": "BHC006_GMT_D.xlsx"
+              },
+              "column": {
+                "index": 4,
+                "header": "Item Type"
+              }
+            },
+            "counts": {
+              "sets": [],
+              "rows": {
+                "n": 15,
+                "of": 15
+              }
+            }
+          }
+        ]
+      },
+      "splits": [
+        {
+          "value": {
+            "from": "namePlace",
+            "scope": {
+              "source": "s1",
+              "folder": "Documents (D)"
+            },
+            "place": 4
+          },
+          "counts": {
+            "sets": [
+              [
+                "20170616",
+                11
+              ],
+              [
+                "20171013",
+                4
+              ]
+            ],
+            "rows": null
+          }
+        }
+      ],
+      "pairing": [
+        {
+          "value": {
+            "rule": "lastPlaces",
+            "places": 2
+          },
+          "counts": {
+            "rows": {
+              "n": 15,
+              "of": 15
+            },
+            "more": 15
+          }
+        }
+      ]
+    },
+    {
+      "kind": "series",
+      "level": "Extras",
+      "scope": {
+        "scope": {
+          "source": "s1",
+          "folder": "Extras"
+        },
+        "files": 293,
+        "media": 163,
+        "kinds": [
+          [
+            "image",
+            126
+          ],
+          [
+            "video",
+            37
+          ]
+        ]
+      },
+      "items": {
+        "chosen": {
+          "value": {
+            "cut": "whole"
+          },
+          "counts": {
+            "items": 163,
+            "files": {
+              "n": 163,
+              "of": 163
+            },
+            "perItem": [
+              {
+                "files": "0",
+                "count": 0
+              },
+              {
+                "files": "1",
+                "count": 163
+              },
+              {
+                "files": "2",
+                "count": 0
+              },
+              {
+                "files": "3",
+                "count": 0
+              },
+              {
+                "files": "4-6",
+                "count": 0
+              },
+              {
+                "files": "7+",
+                "count": 0
+              }
+            ],
+            "parts": [],
+            "namesEndingHere": 163,
+            "otherShapes": 0
+          }
+        },
+        "rival": {
+          "value": {
+            "cut": "places",
+            "places": 5,
+            "rule": "namesEndHere"
+          },
+          "counts": {
+            "items": 15,
+            "files": {
+              "n": 16,
+              "of": 163
+            },
+            "perItem": [
+              {
+                "files": "0",
+                "count": 0
+              },
+              {
+                "files": "1",
+                "count": 14
+              },
+              {
+                "files": "2",
+                "count": 1
+              },
+              {
+                "files": "3",
+                "count": 0
+              },
+              {
+                "files": "4-6",
+                "count": 0
+              },
+              {
+                "files": "7+",
+                "count": 0
+              }
+            ],
+            "parts": [
+              [
+                "AF0",
+                1
+              ],
+              [
+                "AF02",
+                1
+              ]
+            ],
+            "namesEndingHere": 14,
+            "otherShapes": 147
+          }
+        },
+        "others": []
+      },
+      "list": {
+        "chosen": {
+          "value": null,
+          "counts": null
+        },
+        "rival": null,
+        "others": []
+      },
+      "grain": null,
+      "set": {
+        "chosen": {
+          "value": {
+            "from": "folder",
+            "scope": {
+              "source": "s1",
+              "folder": "Extras"
+            }
+          },
+          "counts": {
+            "sets": [
+              [
+                "Extras",
+                163
+              ]
+            ],
+            "rows": null
+          }
+        },
+        "rival": null,
+        "others": []
+      },
+      "splits": [
+        {
+          "value": {
+            "from": "namePlace",
+            "scope": {
+              "source": "s1",
+              "folder": "Extras"
+            },
+            "place": 0
+          },
+          "counts": {
+            "sets": [
+              [
+                "IMG",
+                110
+              ],
+              [
+                "MVI",
+                37
+              ],
+              [
+                "BHC",
+                16
+              ]
+            ],
+            "rows": null
+          }
+        },
+        {
+          "value": {
+            "from": "namePlace",
+            "scope": {
+              "source": "s1",
+              "folder": "Extras"
+            },
+            "place": 1
+          },
+          "counts": {
+            "sets": [
+              [
+                "006",
+                16
+              ],
+              [
+                "0437",
+                1
+              ],
+              [
+                "0438",
+                1
+              ],
+              [
+                "0440",
+                1
+              ],
+              [
+                "0441",
+                1
+              ],
+              [
+                "0442",
+                1
+              ],
+              [
+                "0443",
+                1
+              ],
+              [
+                "0444",
+                1
+              ],
+              [
+                "0445",
+                1
+              ],
+              [
+                "0446",
+                1
+              ],
+              [
+                "0447",
+                1
+              ],
+              [
+                "0448",
+                1
+              ],
+              [
+                "0451",
+                1
+              ],
+              [
+                "0452",
+                1
+              ],
+              [
+                "0455",
+                1
+              ],
+              [
+                "0456",
+                1
+              ],
+              [
+                "0457",
+                1
+              ],
+              [
+                "0458",
+                1
+              ],
+              [
+                "0459",
+                1
+              ],
+              [
+                "0460",
+                1
+              ],
+              [
+                "0461",
+                1
+              ],
+              [
+                "0462",
+                1
+              ],
+              [
+                "0463",
+                1
+              ],
+              [
+                "0464",
+                1
+              ],
+              [
+                "0465",
+                1
+              ],
+              [
+                "0466",
+                1
+              ],
+              [
+                "0467",
+                1
+              ],
+              [
+                "0468",
+                1
+              ],
+              [
+                "0469",
+                1
+              ],
+              [
+                "0470",
+                1
+              ],
+              [
+                "0471",
+                1
+              ],
+              [
+                "0472",
+                1
+              ],
+              [
+                "0473",
+                1
+              ],
+              [
+                "0474",
+                1
+              ],
+              [
+                "0475",
+                1
+              ],
+              [
+                "0476",
+                1
+              ],
+              [
+                "0477",
+                1
+              ],
+              [
+                "0478",
+                1
+              ],
+              [
+                "0479",
+                1
+              ],
+              [
+                "0480",
+                1
+              ],
+              [
+                "0481",
+                1
+              ],
+              [
+                "0482",
+                1
+              ],
+              [
+                "0483",
+                1
+              ],
+              [
+                "0484",
+                1
+              ],
+              [
+                "0485",
+                1
+              ],
+              [
+                "0486",
+                1
+              ],
+              [
+                "0487",
+                1
+              ],
+              [
+                "0488",
+                1
+              ],
+              [
+                "0489",
+                1
+              ],
+              [
+                "0490",
+                1
+              ],
+              [
+                "0491",
+                1
+              ],
+              [
+                "0492",
+                1
+              ],
+              [
+                "0493",
+                1
+              ],
+              [
+                "0494",
+                1
+              ],
+              [
+                "0495",
+                1
+              ],
+              [
+                "0496",
+                1
+              ],
+              [
+                "0497",
+                1
+              ],
+              [
+                "0498",
+                1
+              ],
+              [
+                "0499",
+                1
+              ],
+              [
+                "0500",
+                1
+              ],
+              [
+                "0501",
+                1
+              ],
+              [
+                "0502",
+                1
+              ],
+              [
+                "0503",
+                1
+              ],
+              [
+                "0504",
+                1
+              ],
+              [
+                "0505",
+                1
+              ],
+              [
+                "0506",
+                1
+              ],
+              [
+                "0507",
+                1
+              ],
+              [
+                "0508",
+                1
+              ],
+              [
+                "0509",
+                1
+              ],
+              [
+                "0510",
+                1
+              ],
+              [
+                "0511",
+                1
+              ],
+              [
+                "0512",
+                1
+              ],
+              [
+                "0513",
+                1
+              ],
+              [
+                "0514",
+                1
+              ],
+              [
+                "0515",
+                1
+              ],
+              [
+                "0516",
+                1
+              ],
+              [
+                "0517",
+                1
+              ],
+              [
+                "0518",
+                1
+              ],
+              [
+                "0519",
+                1
+              ],
+              [
+                "0520",
+                1
+              ],
+              [
+                "0521",
+                1
+              ],
+              [
+                "0522",
+                1
+              ],
+              [
+                "0523",
+                1
+              ],
+              [
+                "0524",
+                1
+              ],
+              [
+                "0525",
+                1
+              ],
+              [
+                "0526",
+                1
+              ],
+              [
+                "0527",
+                1
+              ],
+              [
+                "0528",
+                1
+              ],
+              [
+                "0529",
+                1
+              ],
+              [
+                "0532",
+                1
+              ],
+              [
+                "0533",
+                1
+              ],
+              [
+                "0534",
+                1
+              ],
+              [
+                "0535",
+                1
+              ],
+              [
+                "0536",
+                1
+              ],
+              [
+                "20170615144704",
+                1
+              ],
+              [
+                "20170615144744",
+                1
+              ],
+              [
+                "20170615144833",
+                1
+              ],
+              [
+                "20170615144907",
+                1
+              ],
+              [
+                "20170615144927",
+                1
+              ],
+              [
+                "20170615144941",
+                1
+              ],
+              [
+                "20170615145009",
+                1
+              ],
+              [
+                "20170615145034",
+                1
+              ],
+              [
+                "20170615145109",
+                1
+              ],
+              [
+                "20170615145123",
+                1
+              ],
+              [
+                "20170615145136",
+                1
+              ],
+              [
+                "20170615145144",
+                1
+              ],
+              [
+                "20170615145148",
+                1
+              ],
+              [
+                "20170615145155",
+                1
+              ],
+              [
+                "20170615145213",
+                1
+              ],
+              [
+                "20170615145347",
+                1
+              ],
+              [
+                "20170615145415",
+                1
+              ],
+              [
+                "20170615145432",
+                1
+              ],
+              [
+                "20170615151119",
+                1
+              ],
+              [
+                "20170615151124",
+                1
+              ],
+              [
+                "20170615151131",
+                1
+              ],
+              [
+                "20170615151234",
+                1
+              ],
+              [
+                "20170615151454",
+                1
+              ],
+              [
+                "20170615151513",
+                1
+              ],
+              [
+                "20170615151554",
+                1
+              ],
+              [
+                "20170615151558",
+                1
+              ],
+              [
+                "20170615151601",
+                1
+              ],
+              [
+                "20170615151614",
+                1
+              ],
+              [
+                "20170615152325",
+                1
+              ],
+              [
+                "20170615152333",
+                1
+              ],
+              [
+                "20170615152342",
+                1
+              ],
+              [
+                "20170615152356",
+                1
+              ],
+              [
+                "20170615153149",
+                1
+              ],
+              [
+                "20170615153157",
+                1
+              ],
+              [
+                "20170615153206",
+                1
+              ],
+              [
+                "20170615153221",
+                1
+              ],
+              [
+                "20170615153224",
+                1
+              ],
+              [
+                "20170615153231",
+                1
+              ],
+              [
+                "20170615153341",
+                1
+              ],
+              [
+                "20170615153353",
+                1
+              ],
+              [
+                "20170615153405",
+                1
+              ],
+              [
+                "20170615153412",
+                1
+              ],
+              [
+                "20170615153423",
+                1
+              ],
+              [
+                "20170615153444",
+                1
+              ],
+              [
+                "20170615153455",
+                1
+              ],
+              [
+                "20170615153516",
+                1
+              ],
+              [
+                "20170615153519",
+                1
+              ],
+              [
+                "20170615153554",
+                1
+              ],
+              [
+                "20170615153644",
+                1
+              ],
+              [
+                "20170615153650",
+                1
+              ],
+              [
+                "20170615153757",
+                1
+              ],
+              [
+                "20170615153804",
+                1
+              ],
+              [
+                "20170615154054",
+                1
+              ],
+              [
+                "20170615154318",
+                1
+              ]
+            ],
+            "rows": null
+          }
+        }
+      ],
+      "pairing": []
+    },
+    {
+      "kind": "series",
+      "level": "Photo Narratives (PN)",
+      "scope": {
+        "scope": {
+          "source": "s1",
+          "folder": "Photo Narratives (PN)"
+        },
+        "files": 379,
+        "media": 189,
+        "kinds": [
+          [
+            "image",
+            189
+          ]
+        ]
+      },
+      "items": {
+        "chosen": {
+          "value": {
+            "cut": "whole"
+          },
+          "counts": {
+            "items": 215,
+            "files": {
+              "n": 189,
+              "of": 189
+            },
+            "perItem": [
+              {
+                "files": "0",
+                "count": 26
+              },
+              {
+                "files": "1",
+                "count": 189
+              },
+              {
+                "files": "2",
+                "count": 0
+              },
+              {
+                "files": "3",
+                "count": 0
+              },
+              {
+                "files": "4-6",
+                "count": 0
+              },
+              {
+                "files": "7+",
+                "count": 0
+              }
+            ],
+            "parts": [],
+            "namesEndingHere": 189,
+            "otherShapes": 0
+          }
+        },
+        "rival": null,
+        "others": []
+      },
+      "list": {
+        "chosen": {
+          "value": {
+            "source": "s1",
+            "file": "BHC006_GMT_PN.xlsx"
+          },
+          "counts": {
+            "source": "s1",
+            "file": "BHC006_GMT_PN.xlsx",
+            "inPlan": "BHC006_GMT_PN.xlsx",
+            "read": "ok",
+            "rows": 215,
+            "columns": 5,
+            "best": {
+              "index": 1,
+              "header": "Identifier",
+              "on": "fileName",
+              "paired": 86,
+              "pairedNormalized": 189,
+              "empty": 0
+            },
+            "grain": {
+              "groupsWithManyRows": 0,
+              "rowsNamingOtherFilesOfAGroup": 0,
+              "columns": [
+                {
+                  "index": 0,
+                  "header": "Sl No",
+                  "varies": {
+                    "groups": 0,
+                    "of": 0
+                  }
+                },
+                {
+                  "index": 1,
+                  "header": "Identifier",
+                  "varies": {
+                    "groups": 0,
+                    "of": 0
+                  }
+                },
+                {
+                  "index": 2,
+                  "header": "Collection",
+                  "varies": {
+                    "groups": 0,
+                    "of": 0
+                  }
+                },
+                {
+                  "index": 3,
+                  "header": "Curator",
+                  "varies": {
+                    "groups": 0,
+                    "of": 0
+                  }
+                },
+                {
+                  "index": 4,
+                  "header": "Item Type",
+                  "varies": {
+                    "groups": 0,
+                    "of": 0
+                  }
+                }
+              ]
+            },
+            "cells": [
+              {
+                "index": 0,
+                "header": "Sl No",
+                "separator": null
+              },
+              {
+                "index": 1,
+                "header": "Identifier",
+                "separator": null
+              },
+              {
+                "index": 2,
+                "header": "Collection",
+                "separator": null
+              },
+              {
+                "index": 3,
+                "header": "Curator",
+                "separator": null
+              },
+              {
+                "index": 4,
+                "header": "Item Type",
+                "separator": null
+              }
+            ],
+            "overlaps": []
+          }
+        },
+        "rival": null,
+        "others": []
+      },
+      "grain": {
+        "chosen": {
+          "value": "item",
+          "counts": {
+            "groupsWithManyRows": 0,
+            "rowsNamingOtherFilesOfAGroup": 0,
+            "columns": [
+              {
+                "index": 0,
+                "header": "Sl No",
+                "varies": {
+                  "groups": 0,
+                  "of": 0
+                }
+              },
+              {
+                "index": 1,
+                "header": "Identifier",
+                "varies": {
+                  "groups": 0,
+                  "of": 0
+                }
+              },
+              {
+                "index": 2,
+                "header": "Collection",
+                "varies": {
+                  "groups": 0,
+                  "of": 0
+                }
+              },
+              {
+                "index": 3,
+                "header": "Curator",
+                "varies": {
+                  "groups": 0,
+                  "of": 0
+                }
+              },
+              {
+                "index": 4,
+                "header": "Item Type",
+                "varies": {
+                  "groups": 0,
+                  "of": 0
+                }
+              }
+            ],
+            "rowsNamingNoFile": 26,
+            "items": 215
+          }
+        },
+        "rival": {
+          "value": "media",
+          "counts": {
+            "groupsWithManyRows": 0,
+            "rowsNamingOtherFilesOfAGroup": 0,
+            "columns": [
+              {
+                "index": 0,
+                "header": "Sl No",
+                "varies": {
+                  "groups": 0,
+                  "of": 0
+                }
+              },
+              {
+                "index": 1,
+                "header": "Identifier",
+                "varies": {
+                  "groups": 0,
+                  "of": 0
+                }
+              },
+              {
+                "index": 2,
+                "header": "Collection",
+                "varies": {
+                  "groups": 0,
+                  "of": 0
+                }
+              },
+              {
+                "index": 3,
+                "header": "Curator",
+                "varies": {
+                  "groups": 0,
+                  "of": 0
+                }
+              },
+              {
+                "index": 4,
+                "header": "Item Type",
+                "varies": {
+                  "groups": 0,
+                  "of": 0
+                }
+              }
+            ],
+            "rowsNamingNoFile": 26,
+            "items": 189
+          }
+        },
+        "others": []
+      },
+      "set": {
+        "chosen": {
+          "value": {
+            "from": "folder",
+            "scope": {
+              "source": "s1",
+              "folder": "Photo Narratives (PN)"
+            }
+          },
+          "counts": {
+            "sets": [
+              [
+                "Photo Narratives (PN)",
+                215
+              ]
+            ],
+            "rows": null
+          }
+        },
+        "rival": {
+          "value": {
+            "from": "column",
+            "list": {
+              "source": "s1",
+              "file": "BHC006_GMT_PN.xlsx"
+            },
+            "column": {
+              "index": 4,
+              "header": "Item Type"
+            }
+          },
+          "counts": {
+            "sets": [
+              [
+                "Photo Narrative",
+                215
+              ]
+            ],
+            "rows": {
+              "n": 215,
+              "of": 215
+            }
+          }
+        },
+        "others": [
+          {
+            "value": {
+              "from": "column",
+              "list": {
+                "source": "s1",
+                "file": "BHC006_GMT_PN.xlsx"
+              },
+              "column": {
+                "index": 2,
+                "header": "Collection"
+              }
+            },
+            "counts": {
+              "sets": [
+                [
+                  "Citizen Curators",
+                  215
+                ]
+              ],
+              "rows": {
+                "n": 215,
+                "of": 215
+              }
+            }
+          },
+          {
+            "value": {
+              "from": "column",
+              "list": {
+                "source": "s1",
+                "file": "BHC006_GMT_PN.xlsx"
+              },
+              "column": {
+                "index": 3,
+                "header": "Curator"
+              }
+            },
+            "counts": {
+              "sets": [
+                [
+                  "M. Curator",
+                  215
+                ]
+              ],
+              "rows": {
+                "n": 215,
+                "of": 215
+              }
+            }
+          }
+        ]
+      },
+      "splits": [],
+      "pairing": []
+    },
+    {
+      "kind": "series",
+      "level": "Video (V)",
+      "scope": {
+        "scope": {
+          "source": "s1",
+          "folder": "Video (V)"
+        },
+        "files": 20,
+        "media": 19,
+        "kinds": [
+          [
+            "video",
+            13
+          ],
+          [
+            "audio",
+            6
+          ]
+        ]
+      },
+      "items": {
+        "chosen": {
+          "value": {
+            "cut": "whole"
+          },
+          "counts": {
+            "items": 19,
+            "files": {
+              "n": 19,
+              "of": 19
+            },
+            "perItem": [
+              {
+                "files": "0",
+                "count": 0
+              },
+              {
+                "files": "1",
+                "count": 19
+              },
+              {
+                "files": "2",
+                "count": 0
+              },
+              {
+                "files": "3",
+                "count": 0
+              },
+              {
+                "files": "4-6",
+                "count": 0
+              },
+              {
+                "files": "7+",
+                "count": 0
+              }
+            ],
+            "parts": [],
+            "namesEndingHere": 19,
+            "otherShapes": 0
+          }
+        },
+        "rival": {
+          "value": {
+            "cut": "places",
+            "places": 5,
+            "rule": "sameAsSibling"
+          },
+          "counts": {
+            "items": 1,
+            "files": {
+              "n": 19,
+              "of": 19
+            },
+            "perItem": [
+              {
+                "files": "0",
+                "count": 0
+              },
+              {
+                "files": "1",
+                "count": 0
+              },
+              {
+                "files": "2",
+                "count": 0
+              },
+              {
+                "files": "3",
+                "count": 0
+              },
+              {
+                "files": "4-6",
+                "count": 0
+              },
+              {
+                "files": "7+",
+                "count": 1
+              }
+            ],
+            "parts": [
+              [
+                "AI01",
+                1
+              ],
+              [
+                "AI02",
+                1
+              ],
+              [
+                "AI03",
+                1
+              ],
+              [
+                "AI04",
+                1
+              ],
+              [
+                "AI05",
+                1
+              ],
+              [
+                "AI06",
+                1
+              ],
+              [
+                "V1",
+                1
+              ],
+              [
+                "V10",
+                1
+              ],
+              [
+                "V11",
+                1
+              ],
+              [
+                "V12",
+                1
+              ],
+              [
+                "V13",
+                1
+              ],
+              [
+                "V2",
+                1
+              ],
+              [
+                "V3",
+                1
+              ],
+              [
+                "V4",
+                1
+              ],
+              [
+                "V5",
+                1
+              ],
+              [
+                "V6",
+                1
+              ],
+              [
+                "V7",
+                1
+              ],
+              [
+                "V8",
+                1
+              ],
+              [
+                "V9",
+                1
+              ]
+            ],
+            "namesEndingHere": 0,
+            "otherShapes": 0
+          }
+        },
+        "others": []
+      },
+      "list": {
+        "chosen": {
+          "value": null,
+          "counts": null
+        },
+        "rival": null,
+        "others": []
+      },
+      "grain": null,
+      "set": {
+        "chosen": {
+          "value": {
+            "from": "folder",
+            "scope": {
+              "source": "s1",
+              "folder": "Video (V)"
+            }
+          },
+          "counts": {
+            "sets": [
+              [
+                "Video (V)",
+                19
+              ]
+            ],
+            "rows": null
+          }
+        },
+        "rival": null,
+        "others": []
+      },
+      "splits": [
+        {
+          "value": {
+            "from": "namePlace",
+            "scope": {
+              "source": "s1",
+              "folder": "Video (V)"
+            },
+            "place": 5
+          },
+          "counts": {
+            "sets": [
+              [
+                "V",
+                13
+              ],
+              [
+                "AI",
+                6
+              ]
+            ],
+            "rows": null
+          }
+        }
+      ],
+      "pairing": []
+    }
+  ],
+  "topSets": [
+    {
+      "value": {
+        "from": "column",
+        "list": {
+          "source": "s1",
+          "file": "BHC006_GMT_AF.xlsx"
+        },
+        "column": {
+          "index": 2,
+          "header": "Collection"
+        }
+      },
+      "counts": {
+        "sets": [
+          [
+            "Citizen Curators",
+            743
+          ]
+        ],
+        "rows": {
+          "n": 920,
+          "of": 920
+        }
+      }
+    },
+    {
+      "value": {
+        "from": "column",
+        "list": {
+          "source": "s1",
+          "file": "BHC006_GMT_AF.xlsx"
+        },
+        "column": {
+          "index": 3,
+          "header": "Curator"
+        }
+      },
+      "counts": {
+        "sets": [
+          [
+            "M. Curator",
+            743
+          ]
+        ],
+        "rows": {
+          "n": 920,
+          "of": 920
+        }
+      }
+    }
+  ],
+  "outside": [
+    {
+      "scope": {
+        "source": "s1",
+        "folder": "tiny-iiif"
+      },
+      "files": 147,
+      "media": 1,
+      "kinds": [
+        [
+          "other",
+          1
+        ]
+      ],
+      "reason": "noMedia"
+    }
+  ],
+  "unattached": [
+    {
+      "source": "s1",
+      "file": "Artifacts/BHC006_GMT_AF.ods",
+      "inPlan": null,
+      "read": {
+        "error": "the workbook cannot be read: not a zip archive"
+      },
+      "rows": 0,
+      "columns": 0,
+      "best": null,
+      "grain": null,
+      "cells": [],
+      "overlaps": []
+    },
+    {
+      "source": "s1",
+      "file": "BHC006_CC_SECOND_AF.xlsx",
+      "inPlan": null,
+      "read": "ok",
+      "rows": 29,
+      "columns": 5,
+      "best": null,
+      "grain": null,
+      "cells": [
+        {
+          "index": 0,
+          "header": "Sl No",
+          "separator": null
+        },
+        {
+          "index": 1,
+          "header": "Identifier",
+          "separator": null
+        },
+        {
+          "index": 2,
+          "header": "Collection",
+          "separator": null
+        },
+        {
+          "index": 3,
+          "header": "Curator",
+          "separator": null
+        },
+        {
+          "index": 4,
+          "header": "Item Type",
+          "separator": null
+        }
+      ],
+      "overlaps": []
+    }
+  ],
+  "edits": [
+    {
+      "edit": {
+        "edit": "own",
+        "scope": {
+          "source": "s1",
+          "folder": "Artifacts"
+        }
+      },
+      "applied": true,
+      "reason": null
+    }
+  ],
+  "matchesPlan": true
+}
