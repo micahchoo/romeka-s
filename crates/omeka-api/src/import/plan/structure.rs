@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 
 use super::sets::{EachSet, EachValue, SetNames, SetSource};
 use super::{
-    Combine, Grouping, RecordKind, RelPath, SheetId, SheetPlan, SlotName, SlotRule, SlotRules,
-    Slots, SourceId,
+    Combine, Grouping, ImportPlan, PlanError, RecordKind, RelPath, SheetId, SheetPlan, SlotName,
+    SlotRule, SlotRules, Slots, SourceId, SourcePlan,
 };
 
 /// The archive's tree as the person confirmed it. Its members are private
@@ -134,6 +134,26 @@ pub enum Placement<'p> {
 pub(super) const LIFTED: &str = "all";
 
 impl Structure {
+    /// A tree of these top levels with no free set, refused as
+    /// [`ImportPlan::from_json`] refuses a plan on these sources. The
+    /// proposer builds its trees here, so a proposal is always a valid plan.
+    ///
+    /// # Errors
+    /// What [`ImportPlan::from_json`] refuses about the tree or the sources.
+    pub fn build(levels: Vec<Level>, sources: &[SourcePlan]) -> Result<Self, PlanError> {
+        let structure = Self {
+            levels,
+            free_sets: Vec::new(),
+            v2_sets_at: None,
+        };
+        let plan = ImportPlan {
+            structure,
+            ..super::default_plan(sources.to_vec())?
+        };
+        super::check::plan(&plan)?;
+        Ok(plan.structure)
+    }
+
     /// The tree a v2 plan is: one series `all` with no set, taking every
     /// file. Its `item.sets` rule is the one free set, read as v2 read it.
     pub(super) fn lifted(
@@ -422,6 +442,20 @@ fn leaves_mut<'s>(levels: &'s mut [Level], out: &mut Vec<&'s mut Series>) {
 }
 
 impl Series {
+    /// A series with no set, no list and no slot rule.
+    #[must_use]
+    pub fn new(id: LevelId, scope: SeriesScope, grouping: Grouping) -> Self {
+        Self {
+            id,
+            set: None,
+            scope,
+            grouping,
+            example: None,
+            lists: Vec::new(),
+            slots: Slots::default(),
+        }
+    }
+
     /// Unique among the plan's levels.
     #[must_use]
     pub fn id(&self) -> &LevelId {

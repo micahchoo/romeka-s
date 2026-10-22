@@ -184,7 +184,7 @@ pub(super) fn list_candidates(derived: &Derived) -> Vec<ListCandidate> {
 
 /// How Simple adds a list found in a folder (`simple/list-plan.ts`,
 /// `sheetOf`): the same read options make the same cache key.
-fn automatic(source: &SourceId, file: &RelPath) -> SheetPlan {
+pub(super) fn automatic(source: &SourceId, file: &RelPath) -> SheetPlan {
     SheetPlan {
         id: SheetId(String::new()),
         source: source.clone(),

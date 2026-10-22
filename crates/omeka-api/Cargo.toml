@@ -87,6 +87,9 @@ image = { version = "0.25", default-features = false, features = ["jpeg", "tiff"
 # and a compound file for .xls (already in the tree through `infer`).
 rust_xlsxwriter = "0.100"
 cfb = "0.14"
+# The proposer's literal lint parses its sources (`preview/proposal/lint_tests.rs`).
+syn = { version = "2.0.119", default-features = false, features = ["full", "visit", "parsing", "printing"] }
+proc-macro2 = "1"
 
 [lints]
 workspace = true

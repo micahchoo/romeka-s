@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use super::structure::Structure;
 use super::{
-    ActionPlan, AnomalyAnswers, Defaults, FlagKind, FlagPolicy, ImportPlan, NewTerm, NewType,
+    ActionPlan, AnomalyAnswers, Defaults, Edit, FlagKind, FlagPolicy, ImportPlan, NewTerm, NewType,
     PlanVersion, SourcePlan, WireVersion,
 };
 use crate::import::decisions::Decision;
@@ -29,6 +29,9 @@ pub(super) struct PlanV3 {
     /// The admin's Simple state, keyed by level id. Kept, never read.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     simple: Option<serde_json::Map<String, serde_json::Value>>,
+    /// Left out when empty, so a plan without edits keeps its bytes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    edits: Vec<Edit>,
 }
 
 /// The v3 plan as the engine reads it.
@@ -46,6 +49,7 @@ impl From<PlanV3> for ImportPlan {
             new_terms: wire.new_terms,
             anomalies: wire.anomalies,
             simple: wire.simple,
+            edits: wire.edits,
         }
     }
 }
@@ -64,6 +68,7 @@ impl From<ImportPlan> for PlanV3 {
             new_terms: plan.new_terms,
             anomalies: plan.anomalies,
             simple: plan.simple,
+            edits: plan.edits,
         }
     }
 }

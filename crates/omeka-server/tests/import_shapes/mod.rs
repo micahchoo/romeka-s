@@ -7,4 +7,5 @@ pub use harness::*;
 
 pub mod bhc006;
 pub mod outcome_pins;
+pub mod proposal;
 pub mod v3_outcomes;

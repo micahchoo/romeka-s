@@ -1,0 +1,142 @@
+{
+  "pattern": {
+    "groups": [
+      "set",
+      "identifier",
+      "part"
+    ]
+  },
+  "proposal": {
+    "edits": [],
+    "matchesPlan": false,
+    "nodes": [
+      {
+        "grain": null,
+        "items": {
+          "chosen": {
+            "counts": {
+              "files": {
+                "n": 24,
+                "of": 25
+              },
+              "items": 24,
+              "namesEndingHere": 25,
+              "otherShapes": 0,
+              "parts": [],
+              "perItem": [
+                {
+                  "count": 0,
+                  "files": "0"
+                },
+                {
+                  "count": 24,
+                  "files": "1"
+                },
+                {
+                  "count": 0,
+                  "files": "2"
+                },
+                {
+                  "count": 0,
+                  "files": "3"
+                },
+                {
+                  "count": 0,
+                  "files": "4-6"
+                },
+                {
+                  "count": 0,
+                  "files": "7+"
+                }
+              ]
+            },
+            "value": {
+              "cut": "whole"
+            }
+          },
+          "rival": null
+        },
+        "kind": "series",
+        "level": "s1",
+        "list": {
+          "chosen": {
+            "counts": null,
+            "value": null
+          },
+          "rival": null
+        },
+        "pairing": [],
+        "scope": {
+          "files": 26,
+          "kinds": [
+            [
+              "image",
+              24
+            ],
+            [
+              "other",
+              1
+            ]
+          ],
+          "media": 25,
+          "scope": {
+            "folder": "",
+            "source": "s1"
+          }
+        },
+        "set": {
+          "chosen": {
+            "counts": {
+              "rows": null,
+              "sets": []
+            },
+            "value": null
+          },
+          "rival": null
+        },
+        "splits": []
+      }
+    ],
+    "outside": [],
+    "structure": {
+      "freeSets": [],
+      "levels": [
+        {
+          "example": null,
+          "grouping": {
+            "caseFold": false,
+            "pattern": "^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\\.[^./]*)?$"
+          },
+          "id": "s1",
+          "kind": "series",
+          "lists": [],
+          "scope": [
+            {
+              "folder": "",
+              "source": "s1"
+            }
+          ],
+          "set": null,
+          "slots": {
+            "item": {},
+            "itemSet": {},
+            "media": {}
+          }
+        }
+      ]
+    },
+    "topSets": [],
+    "unattached": []
+  },
+  "sources": [
+    {
+      "error": null,
+      "files": 26,
+      "scanned": "2026-10-21T09:00:00+00:00",
+      "sheetFiles": [
+        "register.csv"
+      ],
+      "source": "s1"
+    }
+  ]
+}

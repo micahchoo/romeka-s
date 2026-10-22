@@ -464,3 +464,85 @@ fn a_file_goes_to_the_series_whose_folder_is_the_longest_prefix() {
         "a file in no scope is outside the structure"
     );
 }
+
+/// One edit of each kind, as the admin sends them.
+fn every_edit() -> Value {
+    let scope = json!({ "source": "s1", "folder": "Artifacts" });
+    let list = json!({ "source": "s1", "file": "BHC006_GMT_AF.xlsx" });
+    let column = json!({ "index": 0, "header": "Identifier" });
+    let from = json!({ "from": "namePlace", "scope": scope, "place": 2 });
+    json!([
+        { "edit": "leaveOut", "scope": { "source": "s1", "folder": "Extras" } },
+        { "edit": "keep", "scope": scope },
+        { "edit": "items", "scope": scope, "cut": { "cut": "places", "places": 5 } },
+        { "edit": "items", "scope": scope, "cut": { "cut": "whole" } },
+        { "edit": "items", "scope": scope, "cut": { "cut": "folder", "depth": 1 } },
+        { "edit": "list", "scope": scope, "list": list },
+        { "edit": "list", "scope": scope, "list": null },
+        { "edit": "grain", "list": list, "describes": "media" },
+        { "edit": "addSet", "from": from },
+        { "edit": "dropSet", "from": { "from": "folder", "scope": scope } },
+        { "edit": "addSet", "from": { "from": "column", "list": list, "column": column } },
+        { "edit": "addSet", "from": { "from": "folderLevel", "scope": scope, "depth": 1 } },
+        { "edit": "pair", "list": list, "rule": { "rule": "lastPlaces", "places": 2 } },
+        { "edit": "pair", "list": list, "rule": { "rule": "column", "column": column, "on": "fileName" } },
+        { "edit": "pair", "list": list, "rule": { "rule": "folds",
+            "normalize": { "caseFold": true, "leadingZeros": false, "separators": true } } },
+        { "edit": "title", "from": from, "title": "Artifacts" }
+    ])
+}
+
+#[test]
+fn edits_are_kept_in_order_and_left_out_when_there_are_none() {
+    let mut value: Value = serde_json::from_str(BHC006).expect("json");
+    assert!(value.get("edits").is_none());
+    assert!(parse(BHC006).edits.is_empty());
+    value["edits"] = every_edit();
+    let plan = parse(&value.to_string());
+    assert_eq!(plan.edits.len(), 16);
+    assert_eq!(
+        plan.to_json(),
+        value.to_string(),
+        "written back byte for byte"
+    );
+    assert_eq!(
+        plan.edits[0],
+        Edit::LeaveOut {
+            scope: FolderScope {
+                source: SourceId("s1".into()),
+                folder: RelPath::parse("Extras").expect("path"),
+            }
+        }
+    );
+}
+
+#[test]
+fn an_edit_the_types_do_not_define_is_refused() {
+    let bad = [
+        json!({ "edit": "leaveOut", "scope": { "source": "s1", "folder": "" }, "extra": 1 }),
+        json!({ "edit": "rename", "scope": { "source": "s1", "folder": "" } }),
+        json!({ "edit": "list", "scope": { "source": "s1", "folder": "" } }),
+        json!({ "edit": "items", "scope": { "source": "s1", "folder": "" }, "cut": { "cut": "places" } }),
+        json!({ "edit": "leaveOut", "scope": { "source": "s1", "folder": "../up" } }),
+    ];
+    for edit in bad {
+        let error = refused(|plan| plan["edits"] = json!([edit.clone()]));
+        assert!(matches!(error, PlanError::ShapeV3(_)), "{edit}: {error:?}");
+    }
+}
+
+#[test]
+fn a_v2_plan_with_edits_is_written_as_v3_and_v2_has_no_member_for_them() {
+    let mut plan = parse(DEFAULT);
+    plan.edits = serde_json::from_value(every_edit()).expect("edits");
+    let written: Value = serde_json::from_str(&plan.to_json()).expect("json");
+    assert_eq!(written["version"], 3, "the lower refuses edits");
+    assert_eq!(written["edits"], every_edit());
+
+    let mut v2: Value = serde_json::from_str(DEFAULT).expect("json");
+    v2["edits"] = json!([]);
+    assert!(matches!(
+        ImportPlan::from_json(&v2.to_string()),
+        Err(PlanError::Shape(_))
+    ));
+}

@@ -10,8 +10,9 @@
 //! the sections from the model; it is pure except for the `tags` section,
 //! which reads the tags of at most [`TAG_SAMPLES`] files, and the
 //! `listCandidates` section, which reads every list file the scan found
-//! through [`SheetCache`]. A section is computed only when the request names
-//! it.
+//! through [`SheetCache`], as the `proposal` section does. A section is
+//! computed only when the request names it, so an admin that never asks for
+//! `proposal` never sees the member.
 
 mod candidates;
 mod causes;
@@ -22,6 +23,7 @@ mod facts;
 mod identical;
 mod names;
 pub mod pairs;
+pub mod proposal;
 mod query;
 mod sample;
 mod sheets;
@@ -63,7 +65,7 @@ use super::decisions::EntryRef;
 use super::derive::{FileTags, Sheets, derive};
 use super::evidence::FileEntry;
 use super::model::{Anomaly, Model, OrphanReason, PatternState};
-use super::plan::{ImportPlan, LevelId, SheetId, SourceId, SourcePlan, TagId};
+use super::plan::{ImportPlan, LevelId, ListFile, SheetId, SourceId, SourcePlan, TagId};
 use super::scan::{self, IndexCache, SourceState, StoredIndex};
 use super::tags::{Embedded, TagCache};
 use facts::Facts;
@@ -99,6 +101,7 @@ pub enum Section {
     NameWords,
     ColumnMatches,
     ListCandidates,
+    Proposal,
 }
 
 /// `POST /api/romeka/imports/{id}/preview`.
@@ -191,6 +194,8 @@ pub struct Preview {
     pub column_matches: Option<Vec<SheetMatches>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub list_candidates: Option<Vec<ListCandidate>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub proposal: Option<proposal::Proposal>,
 }
 
 /// File tags read from disk through the shared cache.
@@ -369,7 +374,45 @@ pub fn preview(derived: &Derived, request: &PreviewRequest) -> Preview {
         column_matches: wants(Section::ColumnMatches).then(|| columns::column_matches(derived)),
         list_candidates: wants(Section::ListCandidates)
             .then(|| candidates::list_candidates(derived)),
+        proposal: wants(Section::Proposal).then(|| proposal_of(derived)),
     }
+}
+
+/// The proposal for the derived plan's scan, after the plan's edits. Every
+/// list of every folder source is read as Simple adds one; a list that is no
+/// longer on disk is not evidence.
+fn proposal_of(derived: &Derived) -> proposal::Proposal {
+    let lists: Vec<proposal::FoundList> = derived
+        .stored
+        .index
+        .sources
+        .iter()
+        .filter_map(|source| Some((source, derived.tags.dirs.get(&source.id)?)))
+        .flat_map(|(source, dir)| {
+            source.walk.sheets.iter().filter_map(move |entry| {
+                let read = derived
+                    .tags
+                    .caches
+                    .sheets
+                    .read(&candidates::automatic(&source.id, &entry.path), dir)?;
+                Some(proposal::FoundList {
+                    file: ListFile {
+                        source: source.id.clone(),
+                        file: entry.path.clone(),
+                    },
+                    sheet: read.sheet.clone(),
+                })
+            })
+        })
+        .collect();
+    let evidence = proposal::Evidence {
+        index: &derived.stored.index,
+        lists: &lists,
+        catalog: &derived.catalog,
+        sources: &derived.plan.sources,
+        structure: &derived.plan.structure,
+    };
+    proposal::propose(&evidence, &derived.plan.edits)
 }
 
 fn series_patterns(plan: &ImportPlan, model: &Model) -> Option<Vec<SeriesPattern>> {

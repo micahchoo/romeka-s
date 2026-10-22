@@ -27,7 +27,7 @@ import { parseSheetView, parseTagView } from './import-sheet-views';
 import type { SheetView, TagView } from './import-sheet-views';
 import { asSlotName, asTerm, parseFileRef, parseRowRef } from './import-plan-read';
 import type { Action, FileRef, FlagKind, FlagPolicy, Join, RecordKind, RowRef, SlotName, Term } from './import-plan';
-import { ParseError, asString } from './parse';
+import { ParseError, asString, isRecord } from './parse';
 import type { Parser, Path } from './types';
 import type { StarterId } from './starters';
 import { STARTER_IDS } from './starters';
@@ -516,7 +516,24 @@ export interface ListCandidate {
   readonly overlaps: readonly ListOverlap[];
 }
 
-const parseListCandidate = (raw: unknown, path: Path): ListCandidate => {
+export const parseGrain = (value: unknown, at: Path): Grain => {
+  const each = strict(value, at, ['groupsWithManyRows', 'rowsNamingOtherFilesOfAGroup', 'columns']);
+  const column = (raw: unknown, place: Path): Grain['columns'][number] => {
+    const one = strict(raw, place, ['index', 'header', 'varies']);
+    const varies = (inner: unknown, where: Path): Varies => {
+      const both = strict(inner, where, ['groups', 'of']);
+      return { groups: count(both, 'groups', where), of: count(both, 'of', where) };
+    };
+    return { index: count(one, 'index', place), header: text(one, 'header', place), varies: member(one, 'varies', place, varies) };
+  };
+  return {
+    groupsWithManyRows: count(each, 'groupsWithManyRows', at),
+    rowsNamingOtherFilesOfAGroup: count(each, 'rowsNamingOtherFilesOfAGroup', at),
+    columns: member(each, 'columns', at, list(column)),
+  };
+};
+
+export const parseListCandidate = (raw: unknown, path: Path): ListCandidate => {
   const object = strict(raw, path, ['source', 'file', 'inPlan', 'read', 'rows', 'columns', 'best', 'grain', 'cells', 'overlaps']);
   const best = (value: unknown, at: Path): BestColumn => {
     const each = strict(value, at, ['index', 'header', 'on', 'paired', 'pairedNormalized', 'empty']);
@@ -527,22 +544,6 @@ const parseListCandidate = (raw: unknown, path: Path): ListCandidate => {
       paired: count(each, 'paired', at),
       pairedNormalized: count(each, 'pairedNormalized', at),
       empty: count(each, 'empty', at),
-    };
-  };
-  const grain = (value: unknown, at: Path): Grain => {
-    const each = strict(value, at, ['groupsWithManyRows', 'rowsNamingOtherFilesOfAGroup', 'columns']);
-    const column = (raw: unknown, place: Path): Grain['columns'][number] => {
-      const one = strict(raw, place, ['index', 'header', 'varies']);
-      const varies = (inner: unknown, where: Path): Varies => {
-        const both = strict(inner, where, ['groups', 'of']);
-        return { groups: count(both, 'groups', where), of: count(both, 'of', where) };
-      };
-      return { index: count(one, 'index', place), header: text(one, 'header', place), varies: member(one, 'varies', place, varies) };
-    };
-    return {
-      groupsWithManyRows: count(each, 'groupsWithManyRows', at),
-      rowsNamingOtherFilesOfAGroup: count(each, 'rowsNamingOtherFilesOfAGroup', at),
-      columns: member(each, 'columns', at, list(column)),
     };
   };
   const cells = (value: unknown, at: Path): ColumnCells => {
@@ -572,10 +573,30 @@ const parseListCandidate = (raw: unknown, path: Path): ListCandidate => {
     rows: count(object, 'rows', path),
     columns: count(object, 'columns', path),
     best: member(object, 'best', path, nullable(best)),
-    grain: member(object, 'grain', path, nullable(grain)),
+    grain: member(object, 'grain', path, nullable(parseGrain)),
     cells: member(object, 'cells', path, list(cells)),
     overlaps: member(object, 'overlaps', path, list(overlap)),
   };
+};
+
+
+export const parseBucketCount = (value: unknown, at: Path): BucketCount => {
+  const each = strict(value, at, ['files', 'count']);
+  return { files: member(each, 'files', at, oneOf(BUCKETS)), count: count(each, 'count', at) };
+};
+
+declare const unparsed: unique symbol;
+
+/** The `proposal` section as the server sent it. */
+export type RawProposal = { readonly [unparsed]: 'proposal' };
+
+const isRawProposal = (value: unknown): value is RawProposal => isRecord(value);
+
+const asRawProposal = (value: unknown, path: Path): RawProposal => {
+  if (!isRawProposal(value)) {
+    throw new ParseError(path, 'an object');
+  }
+  return value;
 };
 
 export interface SectionShapes {
@@ -595,6 +616,8 @@ export interface SectionShapes {
   readonly nameWords: NameWords;
   readonly columnMatches: readonly SheetColumnMatches[];
   readonly listCandidates: readonly ListCandidate[];
+  /** Unparsed here so its parser stays out of every import route's chunk; read it with `parseProposal` (`import-proposal.ts`). */
+  readonly proposal: RawProposal;
 }
 
 export type Section = keyof SectionShapes;
@@ -609,16 +632,14 @@ const PARSERS: { readonly [S in Section]: (value: unknown, path: Path) => Sectio
   orphans: list(parseOrphan),
   check: parseCheck,
   shapes: parseShapes,
-  histogram: list((value, at) => {
-    const each = strict(value, at, ['files', 'count']);
-    return { files: member(each, 'files', at, oneOf(BUCKETS)), count: count(each, 'count', at) };
-  }),
+  histogram: list(parseBucketCount),
   identical: parseIdentical,
   unpaired: parseUnpaired,
   values: list(parseSlotValues),
   nameWords: parseNameWords,
   columnMatches: parseColumnMatches,
   listCandidates: list(parseListCandidate),
+  proposal: asRawProposal,
 };
 
 export const SECTIONS: readonly Section[] = Object.keys(PARSERS).filter(

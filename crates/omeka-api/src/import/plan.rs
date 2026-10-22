@@ -17,6 +17,7 @@ mod anomalies;
 #[cfg(test)]
 mod anomalies_tests;
 mod check;
+mod edits;
 mod flags;
 mod names;
 mod path;
@@ -66,6 +67,7 @@ pub use action::{
     Action, ActionPlan, MatchKey, MatchPlan, MatchRule, NamedScope, Scope, SetsScope, Unmatched,
 };
 pub use anomalies::{AnomalyAnswers, IdenticalAnswer, ItemsWithoutRowAnswer, UnmatchedFilesAnswer};
+pub use edits::{CutEdit, Edit, ListFile, PairRule, SetFrom};
 pub use flags::{FlagKind, FlagOn, FlagPolicy, PolicyDefault};
 pub use names::{RecordKind, SheetId, SlotName, SourceId, Term, local_term};
 pub use path::{RelPath, RelPathError};
@@ -107,6 +109,9 @@ pub struct ImportPlan {
     /// The admin's Simple-screen state (the answers a person gave). Kept and
     /// never read, like the series' example.
     pub simple: Option<serde_json::Map<String, serde_json::Value>>,
+    /// The person's edits on the proposal, in the order made. The proposer
+    /// replays them on every proposal; derive and run never read them.
+    pub edits: Vec<Edit>,
 }
 
 /// The wire version a plan came in as.
@@ -437,6 +442,7 @@ pub fn default_plan(sources: Vec<SourcePlan>) -> Result<ImportPlan, PlanError> {
         new_terms: Vec::new(),
         anomalies: AnomalyAnswers::default(),
         simple: None,
+        edits: Vec::new(),
     };
     check::plan(&plan)?;
     Ok(plan)

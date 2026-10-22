@@ -56,6 +56,7 @@ impl From<PlanV2> for ImportPlan {
             new_terms: wire.new_terms,
             anomalies: wire.anomalies,
             simple: wire.simple,
+            edits: Vec::new(),
         }
     }
 }
@@ -66,6 +67,9 @@ impl TryFrom<ImportPlan> for PlanV2 {
     type Error = PlanError;
 
     fn try_from(plan: ImportPlan) -> Result<Self, PlanError> {
+        if !plan.edits.is_empty() {
+            return Err(PlanError::NotV2("it has edits"));
+        }
         let Series {
             grouping,
             example,
