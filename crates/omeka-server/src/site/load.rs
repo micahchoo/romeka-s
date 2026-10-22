@@ -2289,10 +2289,11 @@ fn notes_of(
         surface,
         total,
         notes: note_lines(items),
-        canvas: if surface == Surface::Image {
-            extent.size
-        } else {
+        // A video's frame is the canvas its boxes are drawn on.
+        canvas: if surface == Surface::Whole {
             None
+        } else {
+            extent.size
         },
         duration_ms: extent.duration_ms,
         next_url,
@@ -2326,6 +2327,21 @@ fn note_lines(items: &[Annotation]) -> Vec<NoteLine> {
                 },
                 Selector::Polygon(points) => Place::Polygon(points.clone()),
                 Selector::Time { start_ms, end_ms } => Place::Time {
+                    start_ms: *start_ms,
+                    end_ms: *end_ms,
+                },
+                Selector::BoxDuring {
+                    x,
+                    y,
+                    w,
+                    h,
+                    start_ms,
+                    end_ms,
+                } => Place::BoxDuring {
+                    x: *x,
+                    y: *y,
+                    w: *w,
+                    h: *h,
                     start_ms: *start_ms,
                     end_ms: *end_ms,
                 },

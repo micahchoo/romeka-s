@@ -205,7 +205,7 @@ test('a rectangle on a turned image is stored on the upright canvas', async ({
   // The entry carries the shape's number, and the overlay draws both.
   await expect(page.locator('.note-number')).toHaveText('1');
   await expect(page.locator('.region-shapes [data-number="1"] .region-shape')).toHaveCount(1);
-  const drawn = page.locator('.region-shapes [data-number="1"] rect');
+  const drawn = page.locator('.region-shapes [data-number="1"] rect.region-shape');
   await expect(drawn).toHaveAttribute('x', String(shape.x));
   await expect(drawn).toHaveAttribute('height', String(shape.h));
   await expectClean(diagnostics, 'a drawn rectangle');

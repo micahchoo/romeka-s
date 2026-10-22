@@ -459,6 +459,52 @@ async fn a_time_note_cues_the_player_at_its_start() {
     );
 }
 
+/// A box on a video's frames is drawn over the player in the frame's pixels,
+/// carries its range for the script that shows it while it plays, and its entry
+/// cues the player like a time note.
+#[tokio::test]
+async fn a_box_on_a_video_is_drawn_over_the_player_for_its_range() {
+    let (pool, seed) = seeded_pool().await;
+    let pool = DbPool::from(pool);
+    let app = common::router(pool.clone());
+    let media = add_video(&pool, &seed, 2).await.0;
+    add_note(
+        &app,
+        media,
+        &note(
+            &canvas(seed.item.0, media),
+            "The speaker's hands",
+            Some(json!({
+                "type": "FragmentSelector",
+                "conformsTo": "http://www.w3.org/TR/media-frags/",
+                "value": "xywh=pixel:64,36,320,180&t=62,70",
+            })),
+        ),
+    )
+    .await;
+
+    let page = page_of(&app, &format!("{SITE}/media/{media}")).await;
+    assert!(
+        page.contains("class=\"annotated-media annotated-video\""),
+        "a video with a box is marked so the box shows only while it plays: {page}"
+    );
+    assert!(
+        page.contains("viewBox=\"0 0 640 360\"")
+            && page.contains("x=\"64\" y=\"36\" width=\"320\" height=\"180\""),
+        "the box is drawn in the frame's pixels: {page}"
+    );
+    assert!(
+        page.contains("style=\"left:10.00%;top:10.00%\""),
+        "the marker sits on the box's corner: {page}"
+    );
+    assert!(
+        page.contains("data-start-ms=\"62000\"")
+            && page.contains(&format!("href=\"{SITE}/media/{media}?t=62#player\""))
+            && page.contains("note-place note-time note-box"),
+        "the entry cues the player at the box's start: {page}"
+    );
+}
+
 #[tokio::test]
 async fn a_hundred_notes_page_and_a_cited_note_opens_its_page() {
     let dir = tempfile::tempdir().expect("tempdir");

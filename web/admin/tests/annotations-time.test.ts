@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { brandId } from '../src/api/parse';
 import type { Media } from '../src/api/types';
 import { MediaNotes } from '../src/pages/media/annotations/panel';
+import { lanesOf } from '../src/pages/media/annotations/range-bar';
 import { clockText, parseClock, rangeProblem } from '../src/pages/media/annotations/time-text';
 import { installFetch, jsonResponse, requestBody, requestsFor } from './stub';
 
@@ -168,6 +169,28 @@ describe('a range the server would refuse', () => {
     expect(rangeProblem(10_000, 20_000, 120_000)).toBeNull();
     // A failed probe leaves the length unknown, so only the order is checked.
     expect(rangeProblem(10_000, 900_000, null)).toBeNull();
+  });
+});
+
+describe('the rows of the range bar', () => {
+  it('puts overlapping ranges on their own rows and reuses a row once it is free', () => {
+    expect(
+      lanesOf([
+        { startMs: 0, endMs: 4000 },
+        { startMs: 2000, endMs: 9000 },
+        { startMs: 6000, endMs: 14000 },
+        { startMs: 7000, endMs: 8000 },
+      ]),
+    ).toEqual([0, 1, 0, 2]);
+  });
+
+  it('keeps ranges that only touch on one row', () => {
+    expect(
+      lanesOf([
+        { startMs: 0, endMs: 2000 },
+        { startMs: 2000, endMs: 4000 },
+      ]),
+    ).toEqual([0, 0]);
   });
 });
 

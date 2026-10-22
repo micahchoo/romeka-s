@@ -1,6 +1,10 @@
 /**
- * The time editor: the range bar, the two fields that name a range, and the
- * keys that take a range from the player.
+ * The time editor: the range bar, the two fields that name a range, the keys
+ * that take a range from the player, and on a video the boxes on its frames.
+ *
+ * On a media page it draws on the stage (`StageSlots`): its tools above the
+ * player, the boxes exactly over the picture, the bar and the fields under it.
+ * The fields show while a note with a range is open, since they edit that note.
  *
  * It writes nothing. **Note from here** hands a range to the panel through
  * `onDraw`, which opens the note form, and the Start and End fields edit the
@@ -22,13 +26,19 @@ import type { KeyOf, Translator } from '../../../i18n';
 import { annotations } from '../../../i18n/namespaces/annotations';
 import type { PlacedNote } from './note-list';
 import { pause, play, positionOf, seek } from './player';
+import type { StageSlots } from '../stage/slots';
+import { FrameBoxes } from './frame-boxes';
+import { InSlot } from './in-slot';
 import { RangeBar } from './range-bar';
 import type { TimeProblem, TimeRange } from './time-text';
 import { clockText, defaultRange, parseClock } from './time-text';
 import type { Note, Selector, Surface } from './wire';
+import { spanOf } from './wire';
 import './time-editor.css';
 
 export interface TimeEditorProps {
+  /** The stage's places to draw in, or null to render in the panel. */
+  readonly slots?: StageSlots | null;
   readonly surface: Extract<Surface, { readonly kind: 'time' }>;
   readonly rows: readonly PlacedNote[];
   readonly selected: string | null;
@@ -43,6 +53,8 @@ export interface TimeEditorProps {
   readonly onRange: (startMs: number, endMs: number) => void;
   readonly onDraw: (selector: Selector) => void;
   readonly onSelect: (note: Note) => void;
+  /** The open draft's box moved by the keys. */
+  readonly onReshape?: (selector: Selector) => void;
 }
 
 /** The sentence for a range the server would refuse, at the range itself. */
@@ -68,6 +80,9 @@ export const TimeEditor = (props: TimeEditorProps): ReactElement => {
   const [bad, setBad] = useState<'start' | 'end' | null>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [playheadMs, setPlayheadMs] = useState(0);
+  const [boxing, setBoxing] = useState(false);
+  const slots = props.slots ?? null;
+  const frame = surface.frame;
   const playingTo = useRef<number | null>(null);
   const latest = useRef<{ range: TimeRange | null; durationMs: number | null }>({
     range,
@@ -159,7 +174,25 @@ export const TimeEditor = (props: TimeEditorProps): ReactElement => {
     pause(player);
     setBad(null);
     setRefusal(null);
+    setBoxing(false);
     props.onDraw({ kind: 'time', startMs: next.startMs, endMs: next.endMs });
+  };
+
+  /** The Box tool holds the frame still, so the box is drawn on what it names. */
+  const chooseBox = (): void => {
+    if (!boxing) {
+      pause(player);
+    }
+    setBoxing(!boxing);
+    setRefusal(null);
+  };
+
+  const drawBox = (box: { readonly x: number; readonly y: number; readonly w: number; readonly h: number }): void => {
+    const next = defaultRange(positionOf(player), durationMs);
+    setBoxing(false);
+    setBad(null);
+    setRefusal(null);
+    props.onDraw({ kind: 'box', ...box, startMs: next.startMs, endMs: next.endMs });
   };
 
   const setFromPlayer = (which: 'start' | 'end'): void => {
@@ -222,120 +255,158 @@ export const TimeEditor = (props: TimeEditorProps): ReactElement => {
 
   const select = (note: Note): void => {
     props.onSelect(note);
-    if (note.selector.kind === 'time') {
-      seek(player, note.selector.startMs);
+    const span = spanOf(note.selector);
+    if (span !== null) {
+      seek(player, span.startMs);
     }
   };
 
+  // The fields edit the open note's range, so they are there while one is.
+  const editingRange = draft !== null && spanOf(draft.selector) !== null;
+
+  const tools = writable ? (
+    <div className="time-tools">
+      <div className="time-toolbar">
+        <button type="button" className="tool-plain" onClick={noteFromHere}>
+          {t('time.fromHere')}
+        </button>
+        {frame === null ? null : (
+          <button type="button" className="tool-plain" aria-pressed={boxing} onClick={chooseBox}>
+            {t('time.tool.box')}
+          </button>
+        )}
+        <button type="button" className="tool-plain" onClick={playRange}>
+          {t('time.playRange')}
+        </button>
+      </div>
+      {boxing ? <p className="time-hint">{t('time.hint.box')}</p> : null}
+    </div>
+  ) : null;
+
   return (
     <section className="time-editor" aria-label={t('time.label')}>
-      <RangeBar
-        durationMs={durationMs}
-        rows={rows}
-        selected={selected}
-        draft={draft}
-        playheadMs={playheadMs}
-        onSelect={select}
-      />
+      <InSlot into={slots?.tools ?? null}>{tools}</InSlot>
+      {frame === null ? null : (
+        <InSlot into={slots?.over ?? null}>
+          <FrameBoxes
+            frame={frame}
+            rows={rows}
+            selected={selected}
+            draft={draft}
+            writable={writable}
+            drawing={boxing}
+            playheadMs={playheadMs}
+            onDraw={drawBox}
+            onSelect={select}
+            onReshape={(selector) => {
+              props.onReshape?.(selector);
+            }}
+            onCancel={() => {
+              setBoxing(false);
+            }}
+          />
+        </InSlot>
+      )}
+      <InSlot into={slots?.under ?? null}>
+        <RangeBar
+          durationMs={durationMs}
+          rows={rows}
+          selected={selected}
+          draft={draft}
+          playheadMs={playheadMs}
+          onSelect={select}
+        />
 
-      {writable ? (
-        <>
-          <div className="time-actions">
-            <button type="button" onClick={noteFromHere}>
-              {t('time.fromHere')}
-            </button>
-            <button type="button" onClick={playRange}>
-              {t('time.playRange')}
-            </button>
-          </div>
-          <p className="time-hint">{t('time.hint')}</p>
-
-          <div className="time-fields">
-            <div className="time-field">
-              <label className="note-field">
-                <span>{t('time.start')}</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={startText}
-                  aria-invalid={bad === 'start'}
-                  onChange={(event) => {
-                    typed('start', event.target.value);
-                  }}
-                  onBlur={() => {
-                    blur('start');
-                  }}
-                  onKeyDown={(event: KeyboardEventOf<HTMLInputElement>) => {
-                    if (event.key === 'Enter') {
-                      event.preventDefault();
+        {writable && editingRange ? (
+          <>
+            <div className="time-fields">
+              <div className="time-field">
+                <label className="note-field">
+                  <span>{t('time.start')}</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={startText}
+                    aria-invalid={bad === 'start'}
+                    onChange={(event) => {
+                      typed('start', event.target.value);
+                    }}
+                    onBlur={() => {
                       blur('start');
-                    }
-                  }}
-                />
-              </label>
-              {player === null ? null : (
-                <button
-                  type="button"
-                  className="time-set"
-                  aria-label={t('time.setStartFromPlayer')}
-                  onClick={() => {
-                    setFromPlayer('start');
-                  }}
-                >
-                  {t('time.setFromPlayer')}
-                </button>
-              )}
-            </div>
-            <div className="time-field">
-              <label className="note-field">
-                <span>{t('time.end')}</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={endText}
-                  aria-invalid={bad === 'end'}
-                  onChange={(event) => {
-                    typed('end', event.target.value);
-                  }}
-                  onBlur={() => {
-                    blur('end');
-                  }}
-                  onKeyDown={(event: KeyboardEventOf<HTMLInputElement>) => {
-                    if (event.key === 'Enter') {
-                      event.preventDefault();
+                    }}
+                    onKeyDown={(event: KeyboardEventOf<HTMLInputElement>) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        blur('start');
+                      }
+                    }}
+                  />
+                </label>
+                {player === null ? null : (
+                  <button
+                    type="button"
+                    className="time-set"
+                    aria-label={t('time.setStartFromPlayer')}
+                    onClick={() => {
+                      setFromPlayer('start');
+                    }}
+                  >
+                    {t('time.setFromPlayer')}
+                  </button>
+                )}
+              </div>
+              <div className="time-field">
+                <label className="note-field">
+                  <span>{t('time.end')}</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={endText}
+                    aria-invalid={bad === 'end'}
+                    onChange={(event) => {
+                      typed('end', event.target.value);
+                    }}
+                    onBlur={() => {
                       blur('end');
-                    }
-                  }}
-                />
-              </label>
-              {player === null ? null : (
-                <button
-                  type="button"
-                  className="time-set"
-                  aria-label={t('time.setEndFromPlayer')}
-                  onClick={() => {
-                    setFromPlayer('end');
-                  }}
-                >
-                  {t('time.setFromPlayer')}
-                </button>
-              )}
+                    }}
+                    onKeyDown={(event: KeyboardEventOf<HTMLInputElement>) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        blur('end');
+                      }
+                    }}
+                  />
+                </label>
+                {player === null ? null : (
+                  <button
+                    type="button"
+                    className="time-set"
+                    aria-label={t('time.setEndFromPlayer')}
+                    onClick={() => {
+                      setFromPlayer('end');
+                    }}
+                  >
+                    {t('time.setFromPlayer')}
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
 
-          {bad === null ? null : <p className="note-field-error">{t('time.problem.format')}</p>}
-          {problem === null || range === null ? null : (
-            <p className="note-field-error" role="alert">
-              {problemText(problem, range, durationMs, translator)}
-            </p>
-          )}
-          {refusal === null ? null : (
-            <p className="time-refusal" role="alert">
-              {refusal}
-            </p>
-          )}
-        </>
-      ) : null}
+            {bad === null ? null : <p className="note-field-error">{t('time.problem.format')}</p>}
+            {problem === null || range === null ? null : (
+              <p className="note-field-error" role="alert">
+                {problemText(problem, range, durationMs, translator)}
+              </p>
+            )}
+            <p className="time-hint">{t('time.hint')}</p>
+          </>
+        ) : null}
+        {refusal === null ? null : (
+          <p className="time-refusal" role="alert">
+            {refusal}
+          </p>
+        )}
+      </InSlot>
     </section>
   );
 };

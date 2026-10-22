@@ -274,12 +274,7 @@ async fn a_copy_this_install_cannot_make_states_the_wait_instead_of_a_player() {
     let app = router_with_store(pool.clone(), store);
     let (_, media) = upload_avi(&app, &seed).await;
     let pool = omeka_db::DbPool::from(pool);
-    let claimed = with_db!(&pool, |db| MediaDerivativeRepo::new(db)
-        .claim_next(&["ffmpeg"])
-        .await)
-    .expect("a claim")
-    .expect("the access row a create queued");
-    assert_eq!(claimed.kind, DerivativeKind::AccessCopy, "{claimed:?}");
+    let claimed = common::claim_access_copy(&pool, &["ffmpeg"]).await;
     with_db!(&pool, |db| MediaDerivativeRepo::new(db)
         .finish(
             claimed.media_id,

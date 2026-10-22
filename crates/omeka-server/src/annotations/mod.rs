@@ -27,7 +27,7 @@ use omeka_api::annotation::{
 use omeka_api::errors::ErrorDocument;
 use omeka_api::messages;
 use omeka_api::read::Params;
-use omeka_media::kind::{Extent, Surface};
+use omeka_media::kind::{Extent, MediaKind, Surface};
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
 
@@ -298,10 +298,19 @@ pub(crate) fn surface_header(media: &MediaRef, iris: &Iris) -> String {
             header.push_str(&format!("; service=\"{}\"", iris.image(media.id)));
             header
         }
-        Surface::Time => match media.extent.duration_ms {
-            Some(milliseconds) => format!("time; duration={}", seconds(milliseconds)),
-            None => "time".to_string(),
-        },
+        Surface::Time => {
+            let mut header = String::from("time");
+            if let Some(milliseconds) = media.extent.duration_ms {
+                header.push_str(&format!("; duration={}", seconds(milliseconds)));
+            }
+            // A video's frame is where its boxes are drawn, in these pixels.
+            if media.kind == MediaKind::Video
+                && let Some((width, height)) = media.extent.size
+            {
+                header.push_str(&format!("; width={width}; height={height}"));
+            }
+            header
+        }
         Surface::Whole => "whole".to_string(),
     }
 }

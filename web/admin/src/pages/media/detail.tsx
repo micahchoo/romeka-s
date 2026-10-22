@@ -17,6 +17,7 @@ import type { KeyOf, MessageKey, Translator } from '../../i18n';
 import { MediaAccessLine } from './access';
 import { MediaEditForm } from './form';
 import type { TrackSummary } from './annotations/client';
+import type { StageSlots } from './stage/slots';
 import type { NotesFocus } from './annotations/link';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
@@ -103,6 +104,10 @@ export const MediaDetail = ({
   const [player, setPlayer] = useState<HTMLMediaElement | null>(null);
   // The caption languages, which the notes panel reads and the player offers.
   const [tracks, setTracks] = useState<readonly TrackSummary[]>([]);
+  // The places on the stage the notes panel draws in, and whether it draws the
+  // picture itself, so the media shows once with its notes on it.
+  const [slots, setSlots] = useState<StageSlots | null>(null);
+  const [claimed, setClaimed] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
   const accessState =
@@ -180,10 +185,24 @@ export const MediaDetail = ({
       {/* The stage is the media; the notes panel sits beside it from 1100px. */}
       <div className="media-detail-body">
         <Suspense fallback={<p role="status">{t('loading.media')}</p>}>
-          <MediaStage media={media} player={setPlayer} tracks={tracks} />
+          <MediaStage
+            media={media}
+            player={setPlayer}
+            tracks={tracks}
+            slots={setSlots}
+            claimed={claimed}
+          />
         </Suspense>
         <Suspense fallback={<p role="status">{t('media.loadingNotes')}</p>}>
-          <MediaNotes key={media.id} media={media} player={player} focus={focus} onTracks={setTracks} />
+          <MediaNotes
+            key={media.id}
+            media={media}
+            player={player}
+            focus={focus}
+            onTracks={setTracks}
+            stage={slots}
+            onClaim={setClaimed}
+          />
         </Suspense>
       </div>
 

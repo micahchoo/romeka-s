@@ -25,6 +25,7 @@ export const es: AnnotationsMessages = {
   'notes.add.file': 'Añadir una nota sobre este archivo',
   'notes.region': 'Región {number}',
   'notes.timeRange': '{start} a {end}',
+  'notes.box': 'Recuadro {number}, {start} a {end}',
   'notes.wholeImage': 'Imagen completa',
   'notes.wholeFile': 'Archivo completo',
   'notes.wholeTime': 'Grabación completa',
@@ -91,7 +92,7 @@ export const es: AnnotationsMessages = {
   'region.tool.polygon': 'Polígono',
   'region.advanced': 'Avanzado',
   'region.hint.move':
-    'Elija una forma para cambiarla. Mayús y arrastrar marca un rectángulo, y las flechas mueven la forma seleccionada mientras la imagen tiene el foco.',
+    'Haga clic en una forma para abrir su nota. Mayúsculas y arrastrar marca un rectángulo. Las flechas mueven la forma abierta.',
   'region.hint.rect': 'Arrastre sobre la imagen para marcar un rectángulo. Esc cancela.',
   'region.hint.polygon':
     'Haga clic en cada esquina. Intro o un clic en la primera esquina cierra la forma. Retroceso quita la última esquina.',
@@ -120,6 +121,10 @@ export const es: AnnotationsMessages = {
   'time.length': 'Duración',
   'time.unknownLength': 'Duración desconocida. El reproductor sigue reproduciendo el archivo.',
   'time.fromHere': 'Nota desde aquí',
+  'time.tool.box': 'Recuadro en este fotograma',
+  'time.hint.box':
+    'Arrastre sobre la imagen para marcar un recuadro. Cubre cinco segundos desde aquí; cambie su Inicio y su Final bajo el reproductor. Esc cancela.',
+  'time.frame': 'El fotograma del vídeo. Dibuje un recuadro sobre él.',
   'time.playRange': 'Reproducir este intervalo',
   'time.hint':
     'Pulse [ para fijar el inicio y ] para fijar el final mientras el reproductor tiene el foco.',

@@ -8,7 +8,7 @@
 
 use omeka_db::DbError;
 use omeka_db::ids::{ItemId, MediaId};
-use omeka_media::kind::Surface;
+use omeka_media::kind::{MediaKind, Surface};
 use serde_json::{Map, Value, json};
 
 use super::model::{
@@ -200,13 +200,18 @@ pub(crate) fn stored(draft: &Draft) -> Stored {
             ),
             None,
         ),
-        Selector::Time { start_ms, end_ms } => (
-            "time",
-            None,
-            Some((
-                i64::try_from(*start_ms).unwrap_or(i64::MAX),
-                i64::try_from(*end_ms).unwrap_or(i64::MAX),
-            )),
+        Selector::Time { start_ms, end_ms } => ("time", None, Some(time_ms(*start_ms, *end_ms))),
+        Selector::BoxDuring {
+            x,
+            y,
+            w,
+            h,
+            start_ms,
+            end_ms,
+        } => (
+            "rect",
+            Some(format!("{x},{y},{w},{h}")),
+            Some(time_ms(*start_ms, *end_ms)),
         ),
     };
     let body_text = draft
@@ -235,6 +240,13 @@ pub(crate) fn stored(draft: &Draft) -> Stored {
         lang,
         extensions,
     }
+}
+
+fn time_ms(start_ms: u64, end_ms: u64) -> (i64, i64) {
+    (
+        i64::try_from(start_ms).unwrap_or(i64::MAX),
+        i64::try_from(end_ms).unwrap_or(i64::MAX),
+    )
 }
 
 fn row_error(column: &'static str, reason: &str) -> DbError {
@@ -304,11 +316,25 @@ fn fragment_of(value: &str, media: &MediaRef) -> Result<Selector, Problem> {
         }
     }
     match (boxed, timed) {
-        (Some(_), Some(_)) => Err(Problem::BoxOnTimedMedia),
+        (Some(boxed), Some(timed)) => {
+            shape_allowed(media, true)?;
+            let Selector::Rect { x, y, w, h } = rect_of(boxed, media)? else {
+                return Err(Problem::BadSelector);
+            };
+            let Selector::Time { start_ms, end_ms } = time_of(timed, media)? else {
+                return Err(Problem::BadSelector);
+            };
+            Ok(Selector::BoxDuring {
+                x,
+                y,
+                w,
+                h,
+                start_ms,
+                end_ms,
+            })
+        }
         (Some(rest), None) => {
-            if media.kind.surface() != Surface::Image {
-                return Err(Problem::BoxOnTimedMedia);
-            }
+            shape_allowed(media, false)?;
             rect_of(rest, media)
         }
         (None, Some(rest)) => {
@@ -318,6 +344,19 @@ fn fragment_of(value: &str, media: &MediaRef) -> Result<Selector, Problem> {
             time_of(rest, media)
         }
         (None, None) => Err(Problem::BadSelector),
+    }
+}
+
+/// Whether `media` takes a shape: an image always, a video frame only over a
+/// time range, and a sound never.
+fn shape_allowed(media: &MediaRef, timed: bool) -> Result<(), Problem> {
+    match (media.kind.surface(), media.kind) {
+        (Surface::Image, _) if !timed => Ok(()),
+        (Surface::Image, _) => Err(Problem::TimeOnImage),
+        (Surface::Time, MediaKind::Video) if timed => Ok(()),
+        (Surface::Time, MediaKind::Video) => Err(Problem::VideoShapeNeedsTime),
+        (Surface::Time, _) => Err(Problem::ShapeOnSound),
+        (Surface::Whole, _) => Err(Problem::WholeFileOnly),
     }
 }
 
@@ -395,9 +434,7 @@ fn time_of(rest: &str, media: &MediaRef) -> Result<Selector, Problem> {
 }
 
 fn polygon_of(value: &str, media: &MediaRef) -> Result<Selector, Problem> {
-    if media.kind.surface() != Surface::Image {
-        return Err(Problem::BoxOnTimedMedia);
-    }
+    shape_allowed(media, false)?;
     let lower = value.to_ascii_lowercase();
     let start = lower.find("<polygon").ok_or(Problem::BadSelector)?;
     let tag = &value[start..];
@@ -686,6 +723,22 @@ fn selector_value(selector: &Selector) -> Value {
             "type": "FragmentSelector",
             "conformsTo": MEDIA_FRAGS,
             "value": format!("t={},{}", seconds(*start_ms), seconds(*end_ms)),
+        }),
+        Selector::BoxDuring {
+            x,
+            y,
+            w,
+            h,
+            start_ms,
+            end_ms,
+        } => json!({
+            "type": "FragmentSelector",
+            "conformsTo": MEDIA_FRAGS,
+            "value": format!(
+                "xywh=pixel:{x},{y},{w},{h}&t={},{}",
+                seconds(*start_ms),
+                seconds(*end_ms)
+            ),
         }),
     }
 }

@@ -83,6 +83,22 @@ describe('fromW3C', () => {
     expect(note.selector).toEqual({ kind: 'time', startMs: 62000, endMs: 70500 });
   });
 
+  it('reads a box on a video frame over a time range, in either order', () => {
+    const read = (value: string): Selector =>
+      fromW3C(
+        {
+          id: 'https://archive.example/annotations/90406',
+          motivation: 'commenting',
+          body: { type: 'TextualBody', value: 'The speaker\'s hands' },
+          target: { source: { id: CANVAS }, selector: { type: 'FragmentSelector', value } },
+        },
+        new Set(),
+      ).selector;
+    const box = { kind: 'box', x: 10, y: 20, w: 300, h: 150, startMs: 1500, endMs: 4000 };
+    expect(read('xywh=pixel:10,20,300,150&t=1.5,4')).toEqual(box);
+    expect(read('t=1.5,4&xywh=10,20,300,150')).toEqual(box);
+  });
+
   it('reads a polygon from the canonical SvgSelector', () => {
     const note = fromW3C(
       {
@@ -187,6 +203,7 @@ describe('toW3C', () => {
       },
     ],
     ['a time range', { kind: 'time', startMs: 62000, endMs: 70500 }],
+    ['a box over a time range', { kind: 'box', x: 10, y: 20, w: 300, h: 150, startMs: 1500, endMs: 4000 }],
     ['the whole file', { kind: 'whole' }],
   ] as const)('round-trips %s', (_name, selector) => {
     const value = draft(selector);
@@ -211,6 +228,11 @@ describe('toW3C', () => {
     });
     expect(toW3C(draft({ kind: 'time', startMs: 62000, endMs: 62500 }), CANVAS)['target']).toMatchObject({
       selector: { value: 't=62,62.5' },
+    });
+    expect(
+      toW3C(draft({ kind: 'box', x: 10, y: 20, w: 300, h: 150, startMs: 1500, endMs: 4000 }), CANVAS)['target'],
+    ).toMatchObject({
+      selector: { type: 'FragmentSelector', value: 'xywh=pixel:10,20,300,150&t=1.5,4' },
     });
     expect(
       toW3C(draft({ kind: 'polygon', points: [[10, 20], [30, 40], [50, 60]] }), CANVAS)['target'],
@@ -261,8 +283,16 @@ describe('parseSurface', () => {
   });
 
   it('reads the time form, with and without a duration', () => {
-    expect(parseSurface('time; duration=62.5')).toEqual({ kind: 'time', durationMs: 62500 });
-    expect(parseSurface('time')).toEqual({ kind: 'time', durationMs: null });
+    expect(parseSurface('time; duration=62.5')).toEqual({ kind: 'time', durationMs: 62500, frame: null });
+    expect(parseSurface('time')).toEqual({ kind: 'time', durationMs: null, frame: null });
+  });
+
+  it("reads a video's frame, the pixels its boxes are drawn in", () => {
+    expect(parseSurface('time; duration=90; width=640; height=360')).toEqual({
+      kind: 'time',
+      durationMs: 90000,
+      frame: { width: 640, height: 360 },
+    });
   });
 
   it('reads the whole form', () => {
