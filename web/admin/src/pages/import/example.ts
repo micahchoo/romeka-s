@@ -50,9 +50,9 @@ const markOf = (raw: unknown): Mark | null => {
   return null;
 };
 
-/** The example's marks, or `null` when the plan holds no example in this shape, or has several series, each with its own. */
-export const exampleOf = (plan: ImportPlan): MarkedExample | null => {
-  const raw = onlySeries(plan)?.example ?? null;
+/** The series' example, or `null` when it holds none in this shape. */
+const exampleIn = (series: Series | null): MarkedExample | null => {
+  const raw = series?.example ?? null;
   if (raw === null) {
     return null;
   }
@@ -67,6 +67,9 @@ export const exampleOf = (plan: ImportPlan): MarkedExample | null => {
   const path = raw['path'];
   return { path: isText(path) ? path : null, marks: parsed };
 };
+
+/** The example's marks, or `null` when the plan holds no example in this shape, or has several series, each with its own. */
+export const exampleOf = (plan: ImportPlan): MarkedExample | null => exampleIn(onlySeries(plan));
 
 const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -187,4 +190,13 @@ export const removeExample = (plan: ImportPlan): ImportPlan => {
   const example = exampleOf(plan);
   const marked = example !== null && patternIsMarked(plan, example);
   return withSeries(withExample(plan, null, []), (series) => ({ ...series, grouping: { ...series.grouping, pattern: marked ? patternOf([]) : series.grouping.pattern } }));
+};
+
+/**
+ * One series of several with one more mark, on the file `path`: its example
+ * and the pattern the marks write. The Structure screen writes it by hand.
+ */
+export const withMarkOn = (series: Series, path: string, mark: Mark): Series => {
+  const marks = [...(exampleIn(series)?.marks ?? []), mark];
+  return { ...series, example: { path, marks: marksJson(marks) }, grouping: { ...series.grouping, pattern: patternOf(marks) } };
 };

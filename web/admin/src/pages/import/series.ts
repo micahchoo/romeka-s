@@ -33,8 +33,11 @@ export class SeveralSeriesError extends Error {
 const seriesIn = (levels: readonly Level[]): readonly Series[] =>
   levels.flatMap((level) => (level.kind === 'series' ? [level] : seriesIn(level.levels)));
 
-/** Every series, depth first: the order the server numbers them in. */
-export const allSeries = (plan: ImportPlan): readonly Series[] => seriesIn(plan.structure.levels);
+/** Every series of a tree, depth first: the order the server numbers them in. */
+export const seriesOfTree = (structure: Structure): readonly Series[] => seriesIn(structure.levels);
+
+/** Every series of the plan, depth first. */
+export const allSeries = (plan: ImportPlan): readonly Series[] => seriesOfTree(plan.structure);
 
 /** The series `level`; with no `level`, the plan's one series. */
 export const seriesOf = (plan: ImportPlan, level?: LevelId): Series => {

@@ -211,8 +211,94 @@ describe('the Structure screen', () => {
     expect(answers(extras, 'Import this folder').map(([, pressed]) => pressed)).toEqual([true, false]);
     expect(server.saved).toEqual([]);
   });
+
+  it('a marked example writes the series and one own edit', async () => {
+    const server = structureServer();
+    render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
+    await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 });
+
+    // From the Items question: mark the glued letters of one name as any letters. The count before "Use this" is the engine's.
+    fireEvent.click(within(select('Artifacts')).getByRole('button', { name: 'Mark an example' }));
+    fireEvent.click(await screen.findByRole('radio', { name: 'BHC006_GMT_AF_010a.jpg' }));
+    fireEvent.click(within(screen.getByRole('group', { name: /^Parts of/ })).getByRole('button', { name: 'a' }));
+    expect(await screen.findByText('Written this way: 328 items.')).toBeTruthy();
+    expect(server.asked[server.asked.length - 1]).toEqual([OWN_ARTIFACTS]);
+    expect(server.saved).toEqual([]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Use this' }));
+    await waitFor(() => {
+      expect(server.saved).toHaveLength(1);
+    });
+    const saved = server.saved[0] ?? {};
+    expect(saved['edits']).toEqual([OWN_ARTIFACTS]);
+    expect(canonical(saved['structure'])).toBe(canonical(asRecord(loadFixture('import/proposal-bhc006-own.json'), [])['structure']));
+    const written = seriesIn(saved, 'Artifacts');
+    expect(written['grouping']).toEqual({ pattern: MARKED_PATTERN, caseFold: false });
+    expect(written['example']).toEqual({ path: 'Artifacts/BHC006_GMT_AF_010a.jpg', marks: [{ kind: 'letters', text: 'a', sep: '' }] });
+
+    // The folder now says it is written by hand, with the items the engine counts for it, and offers the way back.
+    expect(await screen.findByText('In use. Your changes: 1.')).toBeTruthy();
+    expect(countLine()).toEqual(['Items to add 743', 'Sets 6', 'Not imported 1 folder', 'Your changes 1']);
+    expect(rowFacts('Artifacts')).toBe('328 items · 696 pictures · written by you');
+    const artifacts = inspectorOf();
+    expect(within(artifacts).getByText('Written by you. We suggest nothing more here.')).toBeTruthy();
+    expect(within(artifacts).getByText('Files per item: 55 with 1 file, 227 with 2 files, 19 with 3 files, 25 with 4 to 6 files, 2 with 7 or more files.')).toBeTruthy();
+    expect(strip()).toEqual([['Artifacts · By hand: Written by you', '733 → 743 items']]);
+
+    fireEvent.click(within(artifacts).getByRole('button', { name: 'Back to our suggestion' }));
+    await waitFor(() => {
+      expect(server.saved).toHaveLength(2);
+    });
+    expect(server.saved[1]?.['edits']).toBeUndefined();
+    expect(canonical(server.saved[1]?.['structure'])).toBe(canonical(asRecord(loadFixture('import/proposal-bhc006.json'), [])['structure']));
+    await waitFor(() => {
+      expect(countLine()[0]).toBe('Items to add 733');
+    });
+    expect(rowFacts('Artifacts')).toBe('318 items · 696 pictures · list 680/690');
+  });
+
+  it('a click on a folder written by hand waits, with the way back beside it', async () => {
+    const waiting = asRecord(loadFixture('import/proposal-bhc006-own-waiting.json'), []);
+    const server = structureServer({ stored: { edits: [ITEMS_WHOLE, OWN_ARTIFACTS], structure: waiting['structure'] } });
+    render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
+    await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 });
+
+    // The strip keeps each click's effect for the tab, so the hand edit's line may carry one from an earlier test.
+    const [click, written] = strip();
+    expect(click).toEqual(['Artifacts · Items: Each name an item', 'Waits while you write this folder by hand.']);
+    expect(written?.[0]).toBe('Artifacts · By hand: Written by you');
+    expect(screen.queryByText('We do not offer this now.')).toBeNull();
+    const [waits] = within(screen.getByRole('region', { name: 'Your changes' })).getAllByRole('listitem');
+    fireEvent.click(within(waits ?? document.body).getByRole('button', { name: 'Back to our suggestion' }));
+    await waitFor(() => {
+      expect(server.saved).toHaveLength(1);
+    });
+    expect(server.saved[0]?.['edits']).toEqual([ITEMS_WHOLE]);
+    await waitFor(() => {
+      expect(strip()).toEqual([['Artifacts · Items: Each name an item']]);
+    });
+  });
+
+  it('a list the person uploaded shows on its folder as kept', async () => {
+    const proposal = asRecord(loadFixture('import/proposal-bhc006.json'), []);
+    const nodes: readonly unknown[] = Array.isArray(proposal['nodes']) ? proposal['nodes'] : [];
+    const kept = [
+      { list: 'list-1', file: { source: 'staging', file: 'lists/1.csv' }, rows: { n: 12, of: 15 } },
+      { list: 'list-2', file: { source: 'staging', file: 'lists/2.csv' }, rows: null },
+    ];
+    structureServer({ answer: { ...proposal, nodes: nodes.map((node) => (isRecord(node) && node['level'] === 'Documents (D)' ? { ...node, kept } : node)) } });
+    render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
+    await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 });
+    const documents = select('Documents (D)');
+    expect(within(documents).getByText('lists/1.csv: your uploaded list, kept. 12 of 15 rows pair.')).toBeTruthy();
+    expect(within(documents).getByText('lists/2.csv: your uploaded list, kept. We could not read it.')).toBeTruthy();
+  });
 });
 
+const OWN_ARTIFACTS = { edit: 'own', scope: { source: 's1', folder: 'Artifacts' } };
+const ITEMS_WHOLE = { edit: 'items', scope: { source: 's1', folder: 'Artifacts' }, cut: { cut: 'whole' } };
+/** The pattern a mark of any letters glued after the number writes (`bhc006_tests::MARKED_PATTERN`). */
+const MARKED_PATTERN = String.raw`^(?:[^/]*/)*(?<identifier>[^/]*?\d|[^/]*?[^/.][\p{L}\p{M}]*)(?:(?<part>[\p{L}\p{M}]+))?(?:\.[^./]*)?$`;
 const LEAVE_OUT_EXTRAS = { edit: 'leaveOut', scope: { source: 's1', folder: 'Extras' } };
 const PN_ROWS_ARE_FILES = { edit: 'grain', list: { source: 's1', file: 'BHC006_GMT_PN.xlsx' }, describes: 'media' };
 
@@ -227,6 +313,30 @@ const RECORDED: Readonly<Record<string, string>> = {
   [canonical([])]: 'import/proposal-bhc006.json',
   [canonical([LEAVE_OUT_EXTRAS])]: 'import/proposal-bhc006-extras.json',
   [canonical([LEAVE_OUT_EXTRAS, PN_ROWS_ARE_FILES])]: 'import/proposal-bhc006-two.json',
+  [canonical([OWN_ARTIFACTS])]: 'import/proposal-bhc006-own.json',
+  [canonical([ITEMS_WHOLE])]: 'import/proposal-bhc006-whole.json',
+  [canonical([ITEMS_WHOLE, OWN_ARTIFACTS])]: 'import/proposal-bhc006-own-waiting.json',
+};
+
+/** Two files of one Artifacts item, as the entries the picker asks for. */
+const ENTRIES = {
+  items: ['Artifacts/BHC006_GMT_AF_010a.jpg', 'Artifacts/BHC006_GMT_AF_010b.jpg'].map((path, at) => ({
+    entry: { file: { source: 's1', path } },
+    example: true,
+    flags: [],
+    left: null,
+    record: at + 1,
+    unmatched: false,
+  })),
+  page: 1,
+  perPage: 24,
+  total: 2,
+};
+
+const seriesIn = (plan: Record<string, unknown>, id: string): Record<string, unknown> => {
+  const levels: unknown = asRecord(plan['structure'], ['structure'])['levels'];
+  const found: unknown = (Array.isArray(levels) ? levels : []).find((level: unknown) => isRecord(level) && level['id'] === id);
+  return asRecord(found, ['levels', id]);
 };
 
 /**
@@ -235,9 +345,16 @@ const RECORDED: Readonly<Record<string, string>> = {
  * and says the proposal matches the plan when their structures are equal,
  * as the server does. A save stores the plan and answers the next revision.
  */
-const structureServer = ({ failPreviewWithEdits = false } = {}): { readonly saved: Record<string, unknown>[]; readonly asked: unknown[] } => {
+const structureServer = ({
+  failPreviewWithEdits = false,
+  stored: plan = {},
+  answer,
+}: { readonly failPreviewWithEdits?: boolean; readonly stored?: Record<string, unknown>; readonly answer?: Record<string, unknown> } = {}): {
+  readonly saved: Record<string, unknown>[];
+  readonly asked: unknown[];
+} => {
   const detail = asRecord(loadFixture('import/import-draft.json'), []);
-  let stored = { ...detail };
+  let stored: Record<string, unknown> = { ...detail, plan: { ...asRecord(detail['plan'], ['plan']), ...plan } };
   const saved: Record<string, unknown>[] = [];
   const asked: unknown[] = [];
   installFetch(
@@ -253,6 +370,16 @@ const structureServer = ({ failPreviewWithEdits = false } = {}): { readonly save
       },
       [`${PATH}/preview`]: (_url, init) => {
         const body = asRecord(JSON.parse(typeof init?.body === 'string' ? init.body : '{}'), []);
+        const include = body['include'];
+        if (Array.isArray(include) && include.includes('entries')) {
+          return jsonResponse({ sources: SOURCES, pattern: { groups: ['identifier'] }, entries: ENTRIES });
+        }
+        if (Array.isArray(include) && include.includes('nameWords')) {
+          return jsonResponse({ sources: SOURCES, pattern: { groups: ['identifier'] }, nameWords: { names: 0, parts: [], places: [] } });
+        }
+        if (answer !== undefined) {
+          return jsonResponse({ sources: SOURCES, pattern: { groups: ['identifier'] }, proposal: answer });
+        }
         const plan = asRecord(body['plan'] ?? stored['plan'], ['plan']);
         const edits = plan['edits'] ?? [];
         if (body['plan'] !== undefined) {

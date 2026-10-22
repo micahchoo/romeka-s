@@ -10,6 +10,11 @@
  * structure in one save. The first click therefore also takes the whole
  * suggested structure (design call 1). A count that is slow to come back
  * does not hold the edit: after `SAVE_FIRST_MS` the edits are saved alone.
+ *
+ * A hand edit also writes the plan: it changes one series of the shown
+ * structure (`write`) and answers that folder's `own` question, so the
+ * proposer keeps the series as written. The saved structure is then the
+ * proposal's, which holds the written series verbatim.
  */
 import { useEffect, useRef, useState } from 'react';
 import { importApi } from '../../../api/import-routes';
@@ -54,6 +59,8 @@ export const QUESTIONS = {
   pair: (list: ListFile) => question('pair', list),
   /** A set added, taken away or given a title: every edit that names the set `from`. */
   set: (from: SetFrom) => question('set', from),
+  /** Whether the folder's series is written by hand. */
+  own: (scope: FolderScope) => question('own', scope),
 };
 
 /** The question an edit answers. */
@@ -74,6 +81,8 @@ export const questionOf = (edit: Edit): Question => {
     case 'dropSet':
     case 'title':
       return QUESTIONS.set(edit.from);
+    case 'own':
+      return QUESTIONS.own(edit.scope);
   }
 };
 
@@ -101,10 +110,7 @@ export const cutEditOf = (cut: ItemCut): CutEdit | null => {
   }
 };
 
-/** The scope a set's names come from, when it is a folder's. */
-const scopeOfSet = (from: SetFrom): FolderScope | null => (from.from === 'column' ? null : from.scope);
-
-/** Whether an edit names this node: its folder, the list it uses, or a set of either. */
+/** Whether an edit names this node: its folder, a list it uses, or a set of either. */
 const names = (node: TreeNode, edit: Edit): boolean => {
   if (node.kind === 'outside') {
     return (edit.edit === 'leaveOut' || edit.edit === 'keep') && sameScope(edit.scope, node.folder.scope);
@@ -112,25 +118,26 @@ const names = (node: TreeNode, edit: Edit): boolean => {
   if (node.kind === 'every') {
     return edit.edit === 'addSet' && node.offers.some((offer) => canonical(offer.value) === canonical(edit.from));
   }
-  if (node.kind !== 'series') {
+  if (node.kind !== 'series' && node.kind !== 'own') {
     return false;
   }
   const scope = node.node.scope.scope;
-  const list = node.node.list.chosen.value;
+  const lists = node.kind === 'series' ? [node.node.list.chosen.value] : node.lists;
   switch (edit.edit) {
     case 'leaveOut':
     case 'keep':
     case 'items':
     case 'list':
+    case 'own':
       return sameScope(edit.scope, scope);
     case 'grain':
     case 'pair':
-      return sameList(edit.list, list);
+      return lists.some((one) => sameList(edit.list, one));
     case 'addSet':
     case 'dropSet':
     case 'title': {
-      const from = scopeOfSet(edit.from);
-      return from === null ? edit.from.from === 'column' && sameList(edit.from.list, list) : sameScope(from, scope);
+      const { from } = edit;
+      return from.from === 'column' ? lists.some((one) => sameList(from.list, one)) : sameScope(from.scope, scope);
     }
   }
 };
@@ -178,14 +185,19 @@ export interface Pending {
   readonly saved: boolean;
 }
 
+/** A hand edit's change to the plan, made on the shown structure before the plan is tried. */
+export type Write = (plan: ImportPlan) => ImportPlan;
+
 export interface Clicks {
   /** The proposal to show: the one a click brought back, until the read after its save replaces it. */
   readonly shown: Proposal;
   readonly pending: Pending | null;
   /** The question whose last click could not be counted. */
   readonly failed: Question | null;
-  /** Answers `asked` with `edit` (`null`: back to the suggestion), shown at once as `value`. */
-  readonly answer: (asked: Question, value: string, edit: Edit | null) => void;
+  /** Answers `asked` with `edit` (`null`: back to the suggestion), shown at once as `value`; a hand edit also `write`s the plan. */
+  readonly answer: (asked: Question, value: string, edit: Edit | null, write?: Write) => void;
+  /** The plan `answer` would try: what a hand edit counts before it is used. */
+  readonly tried: (asked: Question, edit: Edit | null, write?: Write) => ImportPlan;
   /** Takes the shown structure as it is, with no edit. */
   readonly use: () => void;
 }
@@ -210,9 +222,11 @@ export const useClicks = (read: Proposal, under: unknown, parse: Parse): Clicks 
   useEffect(() => stop, []);
 
   const shown = trial !== null && trial.under === under ? trial.proposal : read;
+  const written = (plan: ImportPlan, write: Write | undefined): ImportPlan => (write === undefined ? plan : write(withStructure(plan, shown.structure)));
+  const editsAfter = (asked: Question, edit: Edit | null): readonly Edit[] => withAnswer(asking.current ?? draft.plan.edits ?? [], asked, edit);
 
-  const answer = (asked: Question, value: string, edit: Edit | null): void => {
-    const edits = withAnswer(asking.current ?? draft.plan.edits ?? [], asked, edit);
+  const answer = (asked: Question, value: string, edit: Edit | null, write?: Write): void => {
+    const edits = editsAfter(asked, edit);
     const before = totalsOf(shown).items;
     const mine = ++ticket.current;
     asking.current = edits;
@@ -224,11 +238,11 @@ export const useClicks = (read: Proposal, under: unknown, parse: Parse): Clicks 
         setPending((now) => (now === null ? now : { ...now, slow: true }));
       }, SLOW_MS),
       setTimeout(() => {
-        draft.change((plan) => withEdits(plan, edits));
+        draft.change((plan) => withEdits(written(plan, write), edits));
         setPending((now) => (now === null ? now : { ...now, saved: true }));
       }, SAVE_FIRST_MS),
     ];
-    importApi.preview(draft.id, ['proposal'], { plan: withEdits(draft.plan, edits) }).then(
+    importApi.preview(draft.id, ['proposal'], { plan: withEdits(written(draft.plan, write), edits) }).then(
       (data) => {
         if (mine !== ticket.current) {
           return;
@@ -242,6 +256,7 @@ export const useClicks = (read: Proposal, under: unknown, parse: Parse): Clicks 
         // The save below makes this structure the plan's, so the plan now matches it.
         setTrial({ proposal: { ...proposal, matchesPlan: true }, under });
         setPending(null);
+        // The proposal holds a series written by hand as it was written, so its structure carries the write.
         draft.change((plan) => withStructure(withEdits(plan, edits), proposal.structure));
       },
       () => {
@@ -260,5 +275,7 @@ export const useClicks = (read: Proposal, under: unknown, parse: Parse): Clicks 
     draft.change((plan) => withStructure(plan, shown.structure));
   };
 
-  return { shown, pending, failed, answer, use };
+  const tried = (asked: Question, edit: Edit | null, write?: Write): ImportPlan => withEdits(written(draft.plan, write), editsAfter(asked, edit));
+
+  return { shown, pending, failed, answer, tried, use };
 };

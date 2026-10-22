@@ -11,6 +11,11 @@
  * on at once, its counts follow, and the changes strip under the tree lists
  * every click with what it changed and a way to take it back. The proposal's
  * parser is a chunk of its own, which loads beside this screen's and no other.
+ *
+ * A folder can also be written by hand: "Mark an example" opens the hand
+ * edit (`structure-hand.tsx`, a lazy chunk of its own). The folder is then
+ * "written by you" until the person goes back to the suggestion, and the
+ * clicks on it wait meanwhile.
  */
 import { Suspense, lazy, use, useMemo, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
@@ -33,6 +38,7 @@ import {
   folderName,
   grainWords,
   itemsWords,
+  keptWords,
   kindsWords,
   listName,
   listsIn,
@@ -48,7 +54,7 @@ import {
   useStructureText,
 } from './structure-lines';
 import type { TreeNode } from './structure-lines';
-import { Notes, Offer, Question, Row, ScreenContext, useScreen } from './structure-parts';
+import { ImportQuestion, Notes, Offer, Question, Row, ScreenContext, useScreen } from './structure-parts';
 import type { Answer, Words } from './structure-parts';
 import './simple.css';
 import './structure.css';
@@ -60,12 +66,13 @@ const parser = import('../../../api/import-proposal');
 const changesChunk = import('./structure-changes');
 const Changes = lazy(() => changesChunk.then((module) => ({ default: module.Changes })));
 const OtherInspector = lazy(() => import('./structure-nodes').then((module) => ({ default: module.OtherInspector })));
+const HandPanel = lazy(() => import('./structure-hand').then((module) => ({ default: module.HandPanel })));
+const OwnInspector = lazy(() => import('./structure-hand').then((module) => ({ default: module.OwnInspector })));
 
 /** A split shows this many of its sets, then how many more. */
 const SETS_SHOWN = 3;
 /** The endings line shows this many endings. */
 const PARTS_SHOWN = 8;
-
 
 /**
  * The answers of a choice. With no edit of the person's, the chosen answer is
@@ -101,9 +108,8 @@ const answersOf = <T, C>(
   ];
 };
 
-
-const ItemsQuestion = ({ node }: { readonly node: SeriesNode }): ReactElement => {
-  const { proposal, words } = useScreen();
+const ItemsQuestion = ({ node, onMark }: { readonly node: SeriesNode; readonly onMark: () => void }): ReactElement => {
+  const { editable, proposal, words } = useScreen();
   const { t, number } = words;
   const { chosen, rival } = node.items;
   const counts = chosen.counts;
@@ -136,6 +142,9 @@ const ItemsQuestion = ({ node }: { readonly node: SeriesNode }): ReactElement =>
         <Question label={t('structure.q.items')} asked={asked} answers={answers} kind="items" />
       )}
       <Notes lines={lines} />
+      <button type="button" disabled={!editable} onClick={onMark}>
+        {t('structure.hand.mark')}
+      </button>
     </Row>
   );
 };
@@ -262,41 +271,45 @@ const SplitOffer = ({ split }: { readonly split: Pick<SetFrom, SetCounts> }): Re
 };
 
 const SeriesInspector = ({ node, name }: { readonly node: SeriesNode; readonly name: string }): ReactElement => {
-  const { proposal, words } = useScreen();
+  const { clicks, editable, words } = useScreen();
   const { t, number } = words;
-  const { scope } = node;
-  const asked = QUESTIONS.import(scope.scope);
-  const kept = heldBy(proposal, asked)?.applied === true;
+  const [marking, setMarking] = useState(false);
+  if (marking) {
+    return (
+      <div className="guided-inspect">
+        <h4>{name}</h4>
+        <Suspense fallback={<p className="import-slow">{t('shell.loading')}</p>}>
+          <HandPanel
+            clicks={clicks}
+            editable={editable}
+            level={node.level}
+            scope={node.scope.scope}
+            onDone={() => {
+              setMarking(false);
+            }}
+          />
+        </Suspense>
+      </div>
+    );
+  }
+  const kept = node.kept ?? [];
   return (
     <div className="guided-inspect">
       <h4>{name}</h4>
       <dl className="guided-kv">
-        <Row label={t('structure.q.import')}>
-          <Question
-            label={t('structure.q.import')}
-            asked={asked}
-            answers={[
-              {
-                value: 'chosen',
-                label: t('structure.import.yes'),
-                draft: !kept,
-                pressed: true,
-                note: t('structure.import.files', { files: number(scope.files), kinds: kindsWords(scope.kinds, t, number) }),
-                edit: null,
-              },
-              {
-                value: 'rival',
-                label: t('structure.import.no'),
-                draft: kept,
-                pressed: false,
-                note: t('structure.import.noCount', { items: itemsWords(seriesItems(node), t, number) }),
-                edit: kept ? null : { edit: 'leaveOut', scope: scope.scope },
-              },
-            ]}
-          />
-        </Row>
-        <ItemsQuestion node={node} />
+        <ImportQuestion scope={node.scope} items={seriesItems(node)} />
+        <ItemsQuestion
+          node={node}
+          onMark={() => {
+            setMarking(true);
+          }}
+        />
         <ListQuestions node={node} />
+        {kept.length === 0 ? null : (
+          <Row label={t('structure.kept.title')}>
+            <Notes lines={kept.map((one) => keptWords(one, t, number))} />
+          </Row>
+        )}
         <SetQuestion node={node} name={name} />
         {node.splits.map((split) => (
           <Row key={JSON.stringify(split.value)} label={t('structure.q.split')}>
@@ -307,7 +320,6 @@ const SeriesInspector = ({ node, name }: { readonly node: SeriesNode; readonly n
     </div>
   );
 };
-
 
 /** The tree row of one node: its name, its one line of facts, and a mark when a click changed it. */
 const rowOf = (node: TreeNode, where: string, files: number, proposal: Proposal, words: Words): MasterRow => {
@@ -347,6 +359,15 @@ const rowOf = (node: TreeNode, where: string, files: number, proposal: Proposal,
         facts: facts(itemsWords(seriesItems(node.node), t, number), ...(scope.kinds.length === 0 ? [] : [kindsWords(scope.kinds, t, number)]), listLine),
       };
     }
+    case 'own': {
+      const { scope, items } = node.node;
+      return {
+        key: node.key,
+        child: true,
+        name: folderName(scope.scope.folder, where),
+        facts: [itemsWords(items.items, t, number), ...(scope.kinds.length === 0 ? [] : [kindsWords(scope.kinds, t, number)]), t('structure.own.line')].join(' · '),
+      };
+    }
     case 'outside':
       return {
         key: node.key,
@@ -366,17 +387,24 @@ const rowOf = (node: TreeNode, where: string, files: number, proposal: Proposal,
   }
 };
 
-
 const Inspector = ({ node, where, files, folders }: { readonly node: TreeNode; readonly where: string; readonly files: number; readonly folders: readonly SeriesNode[] }): ReactElement => {
   const { words } = useScreen();
-  if (node.kind === 'series') {
-    return <SeriesInspector node={node.node} name={folderName(node.node.scope.scope.folder, where)} />;
+  switch (node.kind) {
+    case 'series':
+      return <SeriesInspector node={node.node} name={folderName(node.node.scope.scope.folder, where)} />;
+    case 'own':
+      return (
+        <Suspense fallback={<p className="import-slow">{words.t('shell.loading')}</p>}>
+          <OwnInspector node={node.node} name={folderName(node.node.scope.scope.folder, where)} />
+        </Suspense>
+      );
+    default:
+      return (
+        <Suspense fallback={<p className="import-slow">{words.t('shell.loading')}</p>}>
+          <OtherInspector node={node} where={where} files={files} folders={folders} />
+        </Suspense>
+      );
   }
-  return (
-    <Suspense fallback={<p className="import-slow">{words.t('shell.loading')}</p>}>
-      <OtherInspector node={node} where={where} files={files} folders={folders} />
-    </Suspense>
-  );
 };
 
 const StatusPanel = (): ReactElement => {

@@ -1,16 +1,20 @@
 /**
  * The parts every node of the Structure screen is drawn with: the screen's
  * context (the clicks, the proposal on screen, the words), a question's
- * segmented answers, an offer's button, and the inspector's rows. The screen
- * and its lazy chunks (`structure-nodes.tsx`, `structure-hand.tsx`) share them.
+ * segmented answers, an offer's button, the inspector's rows, and whether
+ * a folder is imported. The screen and its lazy chunks
+ * (`structure-nodes.tsx`, `structure-hand.tsx`, `structure-changes.tsx`)
+ * share them.
  */
 import { createContext, useContext, useLayoutEffect, useRef } from 'react';
 import type { ReactElement, ReactNode } from 'react';
-import type { Proposal } from '../../../api/import-proposal';
+import type { Proposal, ScopeCounts } from '../../../api/import-proposal';
 import type { Edit } from '../../../api/import-plan';
 import type { Focus } from '../screens';
 import { Segmented } from './master-detail';
+import { QUESTIONS, heldBy } from './structure-edits';
 import type { Clicks, Question as Asked } from './structure-edits';
+import { itemsWords, kindsWords } from './structure-lines';
 import type { StructureTranslator } from './structure-lines';
 
 export type Words = StructureTranslator;
@@ -126,5 +130,39 @@ export const Offer = ({ text, action, asked, edit }: { readonly text: ReactNode;
       </button>
       {clicks.failed === asked ? <p role="alert">{words.t('structure.click.failed')}</p> : null}
     </div>
+  );
+};
+
+/** Import this folder, or leave it out: offered on a folder written by hand too. */
+export const ImportQuestion = ({ scope, items }: { readonly scope: ScopeCounts; readonly items: number }): ReactElement => {
+  const { proposal, words } = useScreen();
+  const { t, number } = words;
+  const asked = QUESTIONS.import(scope.scope);
+  const out = heldBy(proposal, asked)?.applied === true;
+  return (
+    <Row label={t('structure.q.import')}>
+      <Question
+        label={t('structure.q.import')}
+        asked={asked}
+        answers={[
+          {
+            value: 'chosen',
+            label: t('structure.import.yes'),
+            draft: !out,
+            pressed: true,
+            note: t('structure.import.files', { files: number(scope.files), kinds: kindsWords(scope.kinds, t, number) }),
+            edit: null,
+          },
+          {
+            value: 'rival',
+            label: t('structure.import.no'),
+            draft: out,
+            pressed: false,
+            note: t('structure.import.noCount', { items: itemsWords(items, t, number) }),
+            edit: out ? null : { edit: 'leaveOut', scope: scope.scope },
+          },
+        ]}
+      />
+    </Row>
   );
 };

@@ -5,8 +5,8 @@
  * proposal as the server counted it; nothing here adds a count of its own
  * but the totals, which sum the series' chosen counts.
  */
-import type { ImportPlan, ListFile, PairRule, RecordKind, SetFrom } from '../../../api/import-plan';
-import type { ItemCut, NodeEvidence, OutsideFolder, Pick, Proposal, SeriesNode, SetCounts } from '../../../api/import-proposal';
+import type { ImportPlan, ListFile, PairRule, RecordKind, Series, SetFrom, Structure } from '../../../api/import-plan';
+import type { ItemCut, KeptList, NodeEvidence, OutsideFolder, OwnNode, Pick, Proposal, SeriesNode, SetCounts } from '../../../api/import-proposal';
 import type { BucketCount, ListCandidate, MediaKind } from '../../../api/import-sections';
 import { useTranslator } from '../../../i18n';
 import type { KeyOf, MessageKey, Translator } from '../../../i18n';
@@ -16,7 +16,7 @@ import { importStructure } from '../../../i18n/namespaces/import-structure';
 import { BUCKET_WORDS } from '../lists/facts-words';
 import type { ListsMessageKey } from '../lists/messages';
 import type { ImportMessageKey } from '../messages';
-import { allSeries, setLevelsOf } from '../series';
+import { allSeries, seriesOfTree, setLevelsOf } from '../series';
 
 export type StructureMessageKey = KeyOf<typeof importStructure>;
 export type StructureTranslator = Translator<MessageKey | ImportMessageKey | ListsMessageKey | StructureMessageKey>;
@@ -30,6 +30,8 @@ export type TreeNode =
   | { readonly kind: 'every'; readonly key: 'every'; readonly offers: readonly Pick<SetFrom, SetCounts>[] }
   | { readonly kind: 'set'; readonly key: string; readonly node: Extract<NodeEvidence, { kind: 'set' }> }
   | { readonly kind: 'series'; readonly key: string; readonly node: SeriesNode }
+  /** A series written by hand, with the lists it reads as written. Its key is the one it had as a suggestion, so it stays selected. */
+  | { readonly kind: 'own'; readonly key: string; readonly node: OwnNode; readonly lists: readonly ListFile[] }
   | { readonly kind: 'outside'; readonly key: string; readonly folder: OutsideFolder }
   | { readonly kind: 'unused'; readonly key: string; readonly list: ListCandidate };
 
@@ -40,9 +42,18 @@ const seriesNodes = (proposal: Proposal): readonly SeriesNode[] =>
 export const treeOf = (proposal: Proposal): readonly TreeNode[] => [
   { kind: 'archive', key: 'archive' },
   ...(proposal.topSets.length === 0 ? [] : [{ kind: 'every', key: 'every', offers: proposal.topSets } as const]),
-  ...proposal.nodes.map((node): TreeNode =>
-    node.kind === 'set' ? { kind: 'set', key: `set:${node.level}`, node } : { kind: 'series', key: `series:${node.level}`, node },
-  ),
+  ...proposal.nodes.map((node): TreeNode => {
+    switch (node.kind) {
+      case 'set':
+        return { kind: 'set', key: `set:${node.level}`, node };
+      case 'series':
+        return { kind: 'series', key: `series:${node.level}`, node };
+      case 'own': {
+        const lists = writtenIn(proposal.structure, node.level)?.lists ?? [];
+        return { kind: 'own', key: `series:${node.level}`, node, lists: lists.map(({ source, file }) => ({ source, file })) };
+      }
+    }
+  }),
   ...proposal.outside.map((folder): TreeNode => ({ kind: 'outside', key: `outside:${folder.scope.source}/${folder.scope.folder}`, folder })),
   ...proposal.unattached.map((list): TreeNode => ({ kind: 'unused', key: `unused:${list.source}/${list.file}`, list })),
 ];
@@ -53,6 +64,38 @@ export const seriesItems = (node: SeriesNode): number => node.grain?.chosen.coun
 /** The sets a choice of set makes; none when it is "no set". */
 const setsOfChoice = (value: SetFrom | null, counts: SetCounts): number => (value === null ? 0 : counts.sets.length);
 
+/** The series as the proposal holds it, by level id. */
+const writtenIn = (structure: Structure, level: string): Series | undefined => seriesOfTree(structure).find((series) => series.id === level);
+
+/** The sets a series written by hand names: one when it names its set; none counted when the set takes its names from the files. */
+const writtenSets = (proposal: Proposal, node: OwnNode): number => {
+  const set = writtenIn(proposal.structure, node.level)?.set ?? null;
+  return set === null || 'each' in set ? 0 : 1;
+};
+
+/** The items a node of the tree adds. */
+const itemsOf = (node: NodeEvidence): number => {
+  switch (node.kind) {
+    case 'set':
+      return 0;
+    case 'series':
+      return seriesItems(node);
+    case 'own':
+      return node.items.items;
+  }
+};
+
+const setsOf = (proposal: Proposal, node: NodeEvidence): number => {
+  switch (node.kind) {
+    case 'set':
+      return node.counts.sets.length;
+    case 'series':
+      return setsOfChoice(node.set.chosen.value, node.set.chosen.counts);
+    case 'own':
+      return writtenSets(proposal, node);
+  }
+};
+
 export interface Totals {
   readonly items: number;
   readonly sets: number;
@@ -61,11 +104,8 @@ export interface Totals {
 }
 
 export const totalsOf = (proposal: Proposal): Totals => ({
-  items: seriesNodes(proposal).reduce((sum, node) => sum + seriesItems(node), 0),
-  sets: proposal.nodes.reduce(
-    (sum, node) => sum + (node.kind === 'set' ? node.counts.sets.length : setsOfChoice(node.set.chosen.value, node.set.chosen.counts)),
-    0,
-  ),
+  items: proposal.nodes.reduce((sum, node) => sum + itemsOf(node), 0),
+  sets: proposal.nodes.reduce((sum, node) => sum + setsOf(proposal, node), 0),
   notImported: proposal.outside.length,
   changes: proposal.edits.length,
 });
@@ -192,3 +232,9 @@ export const listsIn = (proposal: Proposal): { readonly used: number; readonly u
   );
   return { used: used.size, unused: proposal.unattached.length };
 };
+
+/** A list the person uploaded that the suggestion keeps where it is: the rows it pairs here, or that it does not read now. */
+export const keptWords = (kept: KeptList, t: T, number: (n: number) => string): string =>
+  kept.rows === null
+    ? t('structure.kept.unread', { file: kept.file.file })
+    : t('structure.kept.rows', { file: kept.file.file, n: number(kept.rows.n), of: number(kept.rows.of) });

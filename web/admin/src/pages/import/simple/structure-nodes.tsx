@@ -18,7 +18,7 @@ const ArchiveInspector = ({ where, files }: { readonly where: string; readonly f
   const { proposal, words } = useScreen();
   const { t, number } = words;
   const lists = listsIn(proposal);
-  const series = proposal.nodes.filter((node) => node.kind === 'series').length;
+  const series = proposal.nodes.filter((node) => node.kind !== 'set').length;
   return (
     <div className="guided-inspect">
       <h4>{where}</h4>
@@ -131,7 +131,7 @@ export const OtherInspector = ({
   files,
   folders,
 }: {
-  readonly node: Exclude<TreeNode, { readonly kind: 'series' }>;
+  readonly node: Exclude<TreeNode, { readonly kind: 'series' | 'own' }>;
   readonly where: string;
   readonly files: number;
   readonly folders: readonly SeriesNode[];

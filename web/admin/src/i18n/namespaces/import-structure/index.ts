@@ -133,6 +133,22 @@ export const en = {
   'structure.change.remove': 'Take back',
   'structure.change.saved': 'Saved. Still counting.',
   'structure.unused.folder': 'Folder',
+  // A folder written by hand: its marked example, what it makes, and the way back to the suggestion.
+  'structure.hand.mark': 'Mark an example',
+  'structure.hand.title': 'By hand',
+  'structure.hand.lede': 'What you mark here stays. We suggest nothing more for this folder.',
+  'structure.hand.makes': 'Written this way: {items}.',
+  'structure.hand.use': 'Use this',
+  'structure.hand.cancel': 'Cancel',
+  'structure.own.mark': 'Written by you',
+  'structure.own.line': 'written by you',
+  'structure.own.note': 'Written by you. We suggest nothing more here.',
+  'structure.own.back': 'Back to our suggestion',
+  'structure.change.waiting': 'Waits while you write this folder by hand.',
+  // A list the person uploaded, which the suggestion keeps.
+  'structure.kept.title': 'Uploaded lists',
+  'structure.kept.rows': '{file}: your uploaded list, kept. {n} of {of} rows pair.',
+  'structure.kept.unread': '{file}: your uploaded list, kept. We could not read it.',
 } as const;
 
 /** A complete table of this namespace, in one locale. */
