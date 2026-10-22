@@ -19,7 +19,7 @@ import { listEdit } from '../simple/list-read';
 import { useListsText } from './messages';
 import { removeSheet } from './round-trip';
 import { usePreview } from './use-preview';
-import { seriesOf } from '../series';
+import { allLists } from '../series';
 
 /** Where a list stands in the plan. A list the plan reads is in use even when its automatic read fails. */
 export type ListState =
@@ -29,7 +29,7 @@ export type ListState =
   | { readonly kind: 'unreadable' };
 
 const sheetFor = (plan: ImportPlan, source: string, file: string): SheetPlan | undefined =>
-  seriesOf(plan).lists.find((sheet) => sheet.source === source && sheet.file === file);
+  allLists(plan).find((sheet) => sheet.source === source && sheet.file === file);
 
 export const stateOf = (plan: ImportPlan, candidate: ListCandidate): ListState => {
   const sheet = sheetFor(plan, candidate.source, candidate.file);

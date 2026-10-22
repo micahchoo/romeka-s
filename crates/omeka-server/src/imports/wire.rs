@@ -302,10 +302,24 @@ impl ImportView {
             stop_requested: row.stop_requested,
             job_id: row.job_id.map(|job| job.0),
             copied_from: row.copied_from.map(|from| from.0),
-            plan: with_plan.then_some(row.plan),
-            ran_plan: if with_plan { row.ran_plan } else { None },
+            plan: with_plan.then(|| as_v3(row.plan)),
+            ran_plan: if with_plan {
+                row.ran_plan.map(as_v3)
+            } else {
+                None
+            },
         }
     }
+}
+
+/// A stored plan as the admin reads it: version 3, a v2 plan lifted. A plan
+/// the boundary refuses, such as a v1 plan, goes out as stored, so the admin
+/// can say why it cannot open it.
+fn as_v3(stored: Value) -> Value {
+    omeka_api::import::plan::ImportPlan::from_json(&stored.to_string())
+        .ok()
+        .and_then(|plan| serde_json::from_str(&plan.to_json()).ok())
+        .unwrap_or(stored)
 }
 
 struct Split {

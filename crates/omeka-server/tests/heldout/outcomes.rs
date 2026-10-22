@@ -7,7 +7,7 @@
 
 use std::path::PathBuf;
 
-use omeka_api::import::plan::{ImportPlan, PlanVersion};
+use omeka_api::import::plan::ImportPlan;
 use serde_json::Value;
 
 use super::{
@@ -122,7 +122,6 @@ fn the_held_out_plans_parse_and_write_back() {
     ] {
         let plan =
             ImportPlan::from_json(plan_text).unwrap_or_else(|error| panic!("{name}: {error}"));
-        assert_eq!(plan.version, PlanVersion::V3, "{name}");
         let compact = serde_json::from_str::<Value>(plan_text)
             .unwrap()
             .to_string();

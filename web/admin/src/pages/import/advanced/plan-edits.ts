@@ -5,7 +5,7 @@
  * answer has one home in the plan whichever mode gave it.
  */
 import { NAMED_SLOTS, isMultiValued, isTerm } from '../../../api/import-plan';
-import { seriesOf, withSeries } from '../series';
+import { allSeries, setsRuleOf, slotsOf, withEverySeries, withList, withSeries, withSetsRule, withSlots } from '../series';
 import { itemOnly, levelOf } from '../simple/list-plan';
 import type {
   Action,
@@ -29,8 +29,7 @@ import type {
 /** Titles compare after trim, NFC and lower-casing (`docs/import-v2.md`, "Boundary details"). */
 export const foldTitle = (text: string): string => text.trim().normalize('NFC').toLowerCase();
 
-const onSheet = (plan: ImportPlan, sheet: string, edit: (one: SheetPlan) => SheetPlan): ImportPlan =>
-  withSeries(plan, (series) => ({ ...series, lists: series.lists.map((one) => (one.id === sheet ? edit(one) : one)) }));
+const onSheet = (plan: ImportPlan, sheet: string, edit: (one: SheetPlan) => SheetPlan): ImportPlan => withList(plan, sheet, edit);
 
 export const setRead = (plan: ImportPlan, sheet: string, read: Partial<ReadOptions>): ImportPlan =>
   onSheet(plan, sheet, (one) => ({ ...one, read: { ...one.read, ...read } }));
@@ -52,10 +51,9 @@ const sameColumn = (a: ColumnRef, b: ColumnRef): boolean => a.index === b.index;
 const readsColumn = (source: SourceRef, sheet: string, column: ColumnRef): boolean =>
   source.from === 'column' && source.sheet === sheet && sameColumn(source.column, column);
 
-const rulesOf = (plan: ImportPlan, kind: RecordKind): SlotRules => seriesOf(plan).slots[kind];
+const rulesOf = (plan: ImportPlan, kind: RecordKind): SlotRules => slotsOf(plan)[kind];
 
-const withRules = (plan: ImportPlan, kind: RecordKind, rules: SlotRules): ImportPlan =>
-  withSeries(plan, (series) => ({ ...series, slots: { ...series.slots, [kind]: rules } }));
+const withRules = (plan: ImportPlan, kind: RecordKind, rules: SlotRules): ImportPlan => withSlots(plan, { ...slotsOf(plan), [kind]: rules });
 
 const slotName = (key: string): SlotName | null => NAMED_SLOTS.find((name) => name === key) ?? (isTerm(key) ? key : null);
 
@@ -210,16 +208,15 @@ export const setAnomalies = (plan: ImportPlan, answers: Partial<NonNullable<Impo
   anomalies: { ...anomaliesOf(plan), ...answers },
 });
 
-/** Field rules a delete plan cannot hold: the boundary refuses them. */
-export const ruleCount = (plan: ImportPlan): number => {
-  const { slots } = seriesOf(plan);
-  return entriesOf(slots.item).length + entriesOf(slots.media).length + entriesOf(slots.itemSet).length;
-};
+/** The rules Fields lists, in every series and the item sets rule: the field rules a delete plan cannot hold, and the sets it would not use. */
+export const ruleCount = (plan: ImportPlan): number =>
+  allSeries(plan).reduce((count, { slots }) => count + entriesOf(slots.item).length + entriesOf(slots.media).length + entriesOf(slots.itemSet).length, 0) +
+  (setsRuleOf(plan) === undefined ? 0 : 1);
 
-/** The plan with `action`; a delete drops every field rule, which a delete plan may not hold. */
+/** The plan with `action`; a delete drops every rule Fields lists, in every series: the boundary refuses field rules on a delete. */
 export const setAction = (plan: ImportPlan, action: Action): ImportPlan => {
   const next = { ...plan, action: { ...plan.action, action } };
-  return action === 'delete' ? withSeries(next, (series) => ({ ...series, slots: { item: {}, media: {}, itemSet: {} } })) : next;
+  return action === 'delete' ? withSetsRule(withEverySeries(next, (series) => ({ ...series, slots: { item: {}, media: {}, itemSet: {} } })), undefined) : next;
 };
 
 export const setMatch = (plan: ImportPlan, kind: RecordKind, match: Partial<MatchRule>): ImportPlan => ({

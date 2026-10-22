@@ -21,7 +21,7 @@ import { addRule, entriesOf, setDefaults } from './plan-edits';
 import { RuleCard } from './rule-card';
 import { Setting } from './setting';
 import { sourceChoices } from './source-words';
-import { seriesOf } from '../series';
+import { slotsOf } from '../series';
 import './advanced.css';
 
 const KIND_WORDS: Readonly<Record<RecordKind, AdvancedMessageKey>> = {
@@ -166,7 +166,7 @@ const Rules = ({ kind }: { readonly kind: RecordKind }): ReactElement => {
   const pattern = read.status === 'ready' ? read.data.pattern : 'missing';
   const groups = typeof pattern === 'object' && 'groups' in pattern ? pattern.groups : [];
   const choices = sourceChoices(draft.plan, sheets, groups, t);
-  const rules = entriesOf(seriesOf(draft.plan).slots[kind]);
+  const rules = entriesOf(slotsOf(draft.plan)[kind]);
   const options = fieldOptions(NAMED_OF[kind], known, t).filter((option) => !rules.some(([slot]) => slot === option.value));
   return (
     <>
@@ -217,7 +217,7 @@ export const AdvancedFields = (): ReactElement => {
       <div className="import-mode" role="group" aria-label={t('adv.fields.kind.label')}>
         {RECORD_KINDS.map((one) => (
           <button key={one} type="button" aria-pressed={one === kind} onClick={() => { setKind(one); }}>
-            {t(KIND_WORDS[one], { count: number(entriesOf(seriesOf(draft.plan).slots[one]).length) })}
+            {t(KIND_WORDS[one], { count: number(entriesOf(slotsOf(draft.plan)[one]).length) })}
           </button>
         ))}
       </div>

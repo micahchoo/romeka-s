@@ -22,73 +22,21 @@ fn parse(text: &str) -> ImportPlan {
     ImportPlan::from_json(text).unwrap_or_else(|error| panic!("{error}: {text}"))
 }
 
-/// The plan written as v3, whatever it came in as.
+/// The plan as it is written: v3, whatever it came in as.
 fn as_v3(plan: &ImportPlan) -> Value {
-    let mut plan = plan.clone();
-    plan.version = PlanVersion::V3;
     serde_json::from_str(&plan.to_json()).expect("v3 json")
 }
 
-/// Every v2 plan the repo holds: the plan fixtures, every plan the admin's
-/// recorded fixtures were served, and the plan a new draft starts with.
-fn every_v2_plan() -> Vec<(String, String)> {
-    let mut plans: Vec<(String, String)> =
-        [("full", FULL), ("default", DEFAULT), ("delete", DELETE)]
-            .into_iter()
-            .map(|(name, text)| (name.to_owned(), compact(text)))
-            .collect();
-    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../web/admin/tests/fixtures/import");
-    for entry in std::fs::read_dir(&dir).expect("the admin's import fixtures") {
-        let path = entry.expect("fixture entry").path();
-        if path.extension().is_none_or(|ending| ending != "json") {
-            continue;
-        }
-        let value: Value =
-            serde_json::from_str(&std::fs::read_to_string(&path).expect("fixture text"))
-                .expect("fixture json");
-        let mut stack = vec![&value];
-        while let Some(value) = stack.pop() {
-            match value {
-                Value::Object(members) => {
-                    for (key, member) in members {
-                        if matches!(key.as_str(), "plan" | "ranPlan")
-                            && member.get("version") == Some(&json!(2))
-                        {
-                            // The recording sorts members; the database
-                            // holds the text the server wrote.
-                            let stored = parse(&member.to_string()).to_json();
-                            let name = format!("{} {key}", path.display());
-                            let written: Value = serde_json::from_str(&stored).expect("json");
-                            assert_eq!(&written, member, "{name}: the same members");
-                            plans.push((name, stored));
-                        } else {
-                            stack.push(member);
-                        }
-                    }
-                }
-                Value::Array(items) => stack.extend(items),
-                _ => {}
-            }
-        }
-    }
-    let draft = default_plan(vec![SourcePlan::Staging {
-        id: SourceId("staging".into()),
-    }])
-    .expect("default plan");
-    plans.push(("default_plan".to_owned(), draft.to_json()));
-    plans
+/// The v2 plans the repo keeps, as compact text.
+fn v2_fixtures() -> [(&'static str, String); 3] {
+    [("full", FULL), ("default", DEFAULT), ("delete", DELETE)]
+        .map(|(name, text)| (name, compact(text)))
 }
 
 #[test]
-fn lift_then_lower_is_identity() {
-    let plans = every_v2_plan();
-    assert!(plans.len() >= 20, "only {} v2 plans found", plans.len());
-    for (name, text) in plans {
+fn the_lift_moves_the_v2_members_into_one_series_and_v3_keeps_them() {
+    for (name, text) in v2_fixtures() {
         let plan = parse(&text);
-        assert_eq!(plan.version, PlanVersion::V2, "{name}");
-        assert_eq!(plan.to_json(), text, "{name}: lowered byte for byte");
-
         let v2: Value = serde_json::from_str(&text).expect("v2 json");
         let v3 = as_v3(&plan);
         assert_eq!(v3["version"], 3, "{name}");
@@ -106,6 +54,7 @@ fn lift_then_lower_is_identity() {
             "{name}: the series all, with no set, takes every file"
         );
         assert_eq!(series["grouping"], v2["grouping"], "{name}");
+        assert_eq!(series["example"], v2["example"], "{name}");
         assert_eq!(series["lists"], v2["sheets"], "{name}");
         let mut slots = v2["slots"].clone();
         let sets = slots["item"]
@@ -120,15 +69,23 @@ fn lift_then_lower_is_identity() {
                 assert_eq!(free_sets, &json!([{ "each": rule }]), "{name}");
             }
         }
-
-        let mut through_v3 = parse(&v3.to_string());
-        assert_eq!(through_v3.version, PlanVersion::V3, "{name}");
-        through_v3.version = PlanVersion::V2;
-        let lowered: Value = serde_json::from_str(&through_v3.to_json()).expect("json");
+        for member in [
+            "action",
+            "defaults",
+            "flags",
+            "decisions",
+            "newTypes",
+            "newTerms",
+        ] {
+            assert_eq!(v3[member], v2[member], "{name}: {member}");
+        }
+        let written = v3.to_string();
         assert_eq!(
-            lowered, v2,
-            "{name}: lowered from the v3 wire, the same members (a sets rule ends its kind)"
+            parse(&written).to_json(),
+            written,
+            "{name}: v3 kept byte for byte"
         );
+        assert_eq!(parse(&written), plan, "{name}: the same plan through v3");
     }
 }
 
@@ -145,9 +102,11 @@ fn the_design_examples_parse() {
     }
 
     for text in [BHC006, ARCHIVE_AS_FOUND, ONE_SERIES] {
-        let plan = parse(text);
-        assert_eq!(plan.version, PlanVersion::V3);
-        assert_eq!(plan.to_json(), compact(text), "written back byte for byte");
+        assert_eq!(
+            parse(text).to_json(),
+            compact(text),
+            "written back byte for byte"
+        );
     }
 }
 
@@ -155,13 +114,7 @@ fn the_design_examples_parse() {
 fn the_archive_as_found_is_the_lift_of_the_default_plan() {
     let lifted = parse(DEFAULT);
     let v3 = parse(ARCHIVE_AS_FOUND);
-    assert_eq!(
-        ImportPlan {
-            version: PlanVersion::V3,
-            ..lifted.clone()
-        },
-        v3
-    );
+    assert_eq!(lifted, v3);
     assert_eq!(as_v3(&lifted).to_string(), compact(ARCHIVE_AS_FOUND));
 }
 
@@ -369,41 +322,7 @@ fn set_levels_series_sets_and_free_sets_pass_the_boundary() {
 }
 
 #[test]
-fn the_lower_refuses_what_v2_cannot_say() {
-    let drive = parse(ONE_SERIES);
-    let mut as_v2 = drive.clone();
-    as_v2.version = PlanVersion::V2;
-    assert!(matches!(
-        v2::PlanV2::try_from(as_v2.clone()),
-        Err(PlanError::NotV2(why)) if why.contains("\"all\"")
-    ));
-    assert_eq!(
-        as_v2.to_json(),
-        drive.to_json(),
-        "a v2 plan the lower refuses is written as v3, not cut"
-    );
-
-    let refusals = [
-        json!({ "levels": [], "freeSets": [] }),
-        json!({ "levels": [{ "kind": "set", "id": "p", "set": { "id": 4 }, "levels": [] }], "freeSets": [] }),
-        json!({ "levels": [series("all", folder("s1", ""))], "freeSets": [] }),
-        json!({ "levels": [series("all", json!("all"))],
-            "freeSets": [{ "title": "Exhibition 2018", "description": null }] }),
-    ];
-    for structure in refusals {
-        let mut value: Value = serde_json::from_str(ARCHIVE_AS_FOUND).expect("json");
-        value["structure"] = structure.clone();
-        let wire: v3::PlanV3 = serde_json::from_value(value).expect("v3 wire");
-        let plan = ImportPlan::from(wire);
-        assert!(
-            matches!(v2::PlanV2::try_from(plan), Err(PlanError::NotV2(_))),
-            "{structure}"
-        );
-    }
-}
-
-#[test]
-fn a_join_by_last_places_is_said_only_in_v3() {
+fn a_join_by_last_places_is_written_and_none_is_refused() {
     let full = parse(FULL);
     assert!(
         !full.to_json().contains("lastPlaces"),
@@ -413,7 +332,7 @@ fn a_join_by_last_places_is_said_only_in_v3() {
     value["sheets"][1]["join"]["normalize"]["lastPlaces"] = json!(2);
     let plan = parse(&value.to_string());
     let written: Value = serde_json::from_str(&plan.to_json()).expect("json");
-    assert_eq!(written["version"], 3, "v2 cannot say it");
+    assert_eq!(written["version"], 3);
     let joins: Vec<&Value> = written["structure"]["levels"][0]["lists"]
         .as_array()
         .expect("lists")
@@ -421,10 +340,6 @@ fn a_join_by_last_places_is_said_only_in_v3() {
         .map(|list| &list["join"]["normalize"]["lastPlaces"])
         .collect();
     assert_eq!(joins, [&Value::Null, &json!(2)]);
-    assert!(matches!(
-        v2::PlanV2::try_from(plan),
-        Err(PlanError::NotV2(_))
-    ));
     value["sheets"][1]["join"]["normalize"]["lastPlaces"] = json!(0);
     assert!(
         ImportPlan::from_json(&value.to_string()).is_err(),
@@ -600,11 +515,11 @@ fn an_edit_the_types_do_not_define_is_refused() {
 }
 
 #[test]
-fn a_v2_plan_with_edits_is_written_as_v3_and_v2_has_no_member_for_them() {
+fn a_lifted_plan_with_edits_is_written_as_v3_and_v2_has_no_member_for_them() {
     let mut plan = parse(DEFAULT);
     plan.edits = serde_json::from_value(every_edit()).expect("edits");
     let written: Value = serde_json::from_str(&plan.to_json()).expect("json");
-    assert_eq!(written["version"], 3, "the lower refuses edits");
+    assert_eq!(written["version"], 3);
     assert_eq!(written["edits"], every_edit());
 
     let mut v2: Value = serde_json::from_str(DEFAULT).expect("json");

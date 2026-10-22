@@ -59,38 +59,42 @@ describe('Where they go: item sets as one segmented dial', () => {
     render(<ImportPage param="1" rest={['1', 'simple', 'where']} />);
     return server;
   };
-  const choose = async (server: ReturnType<typeof simpleServer>, name: string, sources: unknown): Promise<void> => {
+  /** The plan's free sets: in v3 every item set the import adds is one, never a series' rule. */
+  const freeSets = (plan: Record<string, unknown>): unknown => asRecord(plan['structure'], [])['freeSets'];
+  const each = (...sources: unknown[]) => ({ each: { sources, combine: 'first', names: 'title' } });
+  const choose = async (server: ReturnType<typeof simpleServer>, name: string, sets: unknown): Promise<void> => {
     const dial = await screen.findByRole('group', { name: 'Item sets' }, { timeout: 5000 });
     fireEvent.click(within(dial).getByRole('button', { name }));
     await waitFor(() => {
-      expect(sourcesOf(last(server.saved), 'sets')).toEqual(sources);
+      expect(freeSets(last(server.saved))).toEqual(sets);
     }, { timeout: 3000 });
+    expect(JSON.stringify(asRecord(last(server.saved)['structure'], [])['levels'])).not.toContain('"sets"');
     expect(within(dial).getByRole('button', { name })).toHaveAttribute('aria-pressed', 'true');
   };
 
-  it('saves the item set rule each choice always saved, a list column first', async () => {
+  it('saves the sets each choice names, a list column first: one set by its title, one in Omeka by its id', async () => {
     const server = open();
     const dial = await screen.findByRole('group', { name: 'Item sets' }, { timeout: 5000 });
     expect(within(dial).getByRole('button', { name: 'Column “Collection”' })).toHaveAttribute('aria-pressed', 'true');
-    await choose(server, 'Per folder', [COLUMN, { from: 'folder', level: 'path' }]);
-    await choose(server, 'Per top folder', [COLUMN, { from: 'folder', level: 1 }]);
-    await choose(server, 'One set', [COLUMN, { from: 'constant', value: 'archive' }]);
-    await choose(server, 'One in Omeka', [COLUMN, { from: 'constant', value: '1' }]);
-    await choose(server, 'Column “Collection”', [COLUMN]);
+    await choose(server, 'Per folder', [each(COLUMN, { from: 'folder', level: 'path' })]);
+    await choose(server, 'Per top folder', [each(COLUMN, { from: 'folder', level: 1 })]);
+    await choose(server, 'One set', [each(COLUMN), { title: 'archive', description: null }]);
+    await choose(server, 'One in Omeka', [each(COLUMN), { id: 1 }]);
+    await choose(server, 'Column “Collection”', [each(COLUMN)]);
     fireEvent.click(within(dial).getByRole('button', { name: 'None' }));
     await waitFor(() => {
-      expect(itemRule(last(server.saved), 'sets')).toBeUndefined();
+      expect(freeSets(last(server.saved))).toEqual([]);
     }, { timeout: 3000 });
   }, 20_000);
 
   it('names the one new set in place, and an empty name saves nothing', async () => {
     const server = open();
-    await choose(server, 'One set', [COLUMN, { from: 'constant', value: 'archive' }]);
+    await choose(server, 'One set', [each(COLUMN), { title: 'archive', description: null }]);
     const name = screen.getByRole('textbox', { name: 'Name of the new item set' });
     expect(name).toHaveValue('archive');
     fireEvent.change(name, { target: { value: 'Citizen Curators' } });
     await waitFor(() => {
-      expect(sourcesOf(last(server.saved), 'sets')).toEqual([COLUMN, { from: 'constant', value: 'Citizen Curators' }]);
+      expect(freeSets(last(server.saved))).toEqual([each(COLUMN), { title: 'Citizen Curators', description: null }]);
     }, { timeout: 3000 });
     const saves = server.saved.length;
     fireEvent.change(name, { target: { value: '  ' } });

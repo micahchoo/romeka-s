@@ -45,9 +45,9 @@ async fn the_answers_to_anomalies_name_words_and_column_matches_through_the_prev
                 "options": { "split": null, "type": "literal", "lang": null, "private": false } })
     };
     let id = scanned(&fixture, |plan| {
-        plan["grouping"]["pattern"] =
+        plan["structure"]["levels"][0]["grouping"]["pattern"] =
             json!(r"^(?:.*/)?(?<identifier>[A-Z]\d)(?:_(?<part>[a-z]+))?\.jpg$");
-        plan["sheets"] = json!([{
+        plan["structure"]["levels"][0]["lists"] = json!([{
             "id": "register", "source": "s1", "file": "register.csv", "hash": null,
             "read": { "encoding": "utf-8", "delimiter": ",", "quote": "\"", "headerLine": 1, "trim": true },
             "rowKind": "item",
@@ -115,7 +115,8 @@ async fn an_identifier_that_starts_like_a_formula_round_trips_through_the_list()
     let fixture = fixture().await;
     fixture.write_objects(&[("-001.jpg", JPEG), ("=X.jpg", JPEG)]);
     let id = scanned(&fixture, |plan| {
-        plan["grouping"]["pattern"] = json!(r"^(?<identifier>[^/]+)\.jpg$");
+        plan["structure"]["levels"][0]["grouping"]["pattern"] =
+            json!(r"^(?<identifier>[^/]+)\.jpg$");
     })
     .await;
     let template = fixture

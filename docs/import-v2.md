@@ -198,7 +198,7 @@ the anomaly `decision-overlap` lists them.
 ## The plan (stored JSON, sent by the admin)
 
 camelCase, parsed at the boundary, unknown members refused. The server reads `version: 2` and
-`version: 3`. A v1 plan is not parsed: v1 imports stay readable as history, and `copyFrom` a v1
+`version: 3`, and answers and stores only `version: 3`. A v1 plan is not parsed: v1 imports stay readable as history, and `copyFrom` a v1
 import answers 409 `v1Plan`.
 
 A v3 plan holds the archive as a tree. A **series** is a leaf: the files under its folders, grouped
@@ -310,24 +310,27 @@ the whole list. What a value names comes from its shape, never from its text:
 
 **The lift.** A v2 plan is lifted on every read into one series with id `all`, set `null` and scope
 `all`, so it groups and joins exactly as v2 did. Its `slots.item.sets` rule becomes the one free
-set, with `names: 'text'`. Retry and undo of a v2 import run on the lift.
+set, with `names: 'text'`. Its Simple state, flat in v2, becomes the state of that series
+(`simple.all`). Retry and undo of a v2 import run on the lift.
 
-**The version kept.** The server stores the version it received, and every route that edits a plan
-(save, a list upload, a pairs edit) answers in that version. So a v2 admin always gets a v2 plan
-back. A record key of a group item is `group:<key>` with one series and `group:<series>/<key>` with
+**Version 3 on the wire.** Every route answers a plan as v3: `plan` and `ranPlan` of an import, and
+the plan a save, a list upload or a pairs edit stored. A draft stored as v2 is answered as its
+lift and stays stored as v2 until the next save, which stores v3. A done import keeps its stored
+v2 `ranPlan` and is answered with its lift. A stored plan the boundary refuses, such as a v1 plan,
+is answered as stored. A record key of a group item is `group:<key>` with one series and `group:<series>/<key>` with
 several.
 
 **The list round trip in a plan of several series.** `template.csv` and the list upload take
 `?series=<level id>`. A plan of one series may leave it out. With several series and none named,
 both answer 400 with code `seriesNeeded`. A name no series has answers 400 with code
 `unknownSeries`. Both carry `series`, the plan's series ids. The template lists that series' items
-only, and the list joins only that series' groups. In a v3 plan a list's `[sets]` column makes one
-more free set with `names: 'title'`; it gives nothing to an item of another series. In a v2 plan
-the column joins the one sets rule, read as `text`. With `?replace=<sheet id>` the upload takes
-the place of that uploaded list of the series (same sheet id, columns, rules and free set), and the
-old staged file is deleted. An id that names no uploaded list of the series answers 400 with code
-`unknownList`, which carries `series` too. Without `replace` an upload is always a new list, even
-with the header row of a list the series has: two lists of one template have the same header.
+only, and the list joins only that series' groups. A list's `[sets]` column makes one more free set
+with `names: 'title'`; it gives nothing to an item of another series. With `?replace=<sheet id>`
+the upload takes the place of that uploaded list of the series (same sheet id, columns, rules and
+free set), and the old staged file is deleted. An id that names no uploaded list of the series
+answers 400 with code `unknownList`, which carries `series` too. Without `replace` an upload is
+always a new list, even with the header row of a list the series has: two lists of one template
+have the same header.
 
 **On the preview wire**, a member that names a series appears only in a plan of several series, as
 a record key does, so a v2 admin reads the answer it knows. `pattern` is the first series' state.

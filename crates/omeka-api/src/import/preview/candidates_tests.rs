@@ -7,7 +7,7 @@ use crate::import::archive::SourceDir;
 use crate::import::catalog::Catalog;
 use crate::import::derive::{Index, IndexedSource, NoTags};
 use crate::import::evidence::Walk;
-use crate::import::plan::{RecordKind, RelPath, SourcePlan, default_plan};
+use crate::import::plan::{RecordKind, RelPath, SourcePlan, v2_default};
 
 /// Four items of two views each: `A1a.jpg`, `A1b.jpg` … `A4b.jpg`.
 const FILES: [&str; 8] = [
@@ -36,13 +36,11 @@ fn derived(
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(path, bytes).unwrap();
     }
-    let plan = default_plan(vec![SourcePlan::Folder {
+    let mut value = v2_default(&[SourcePlan::Folder {
         id: SourceId("s1".into()),
         root: "archive".into(),
         path: RelPath::parse("").unwrap(),
-    }])
-    .unwrap();
-    let mut value = serde_json::to_value(plan).unwrap();
+    }]);
     value["grouping"]["pattern"] = json!(r"^(?<identifier>[A-Z]\d+)[a-z]\.jpg$");
     edit(&mut value);
     let plan = Arc::new(ImportPlan::from_json(&value.to_string()).unwrap());

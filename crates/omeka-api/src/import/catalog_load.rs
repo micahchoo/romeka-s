@@ -324,16 +324,14 @@ mod tests {
     use serde_json::json;
 
     use super::*;
-    use crate::import::plan::{RelPath, SourceId, SourcePlan, StarterId, default_plan};
+    use crate::import::plan::{RelPath, SourceId, SourcePlan, StarterId, v2_default};
 
     fn plan(edit: impl FnOnce(&mut serde_json::Value)) -> ImportPlan {
-        let plan = default_plan(vec![SourcePlan::Folder {
+        let mut value = v2_default(&[SourcePlan::Folder {
             id: SourceId("s1".into()),
             root: "archive".into(),
             path: RelPath::parse("").unwrap(),
-        }])
-        .unwrap();
-        let mut value = serde_json::to_value(plan).unwrap();
+        }]);
         edit(&mut value);
         ImportPlan::from_json(&value.to_string()).unwrap()
     }

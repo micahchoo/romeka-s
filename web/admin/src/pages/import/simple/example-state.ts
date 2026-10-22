@@ -1,6 +1,6 @@
 /**
- * What Simple keeps in the plan's `simple`, which the server stores and never
- * reads. The marked example (`path`, `marks`) stays in `example`, the shape
+ * What Simple keeps in the plan's `simple`, under the series' id, which the
+ * server stores and never reads. The marked example (`path`, `marks`) stays in `example`, the shape
  * both modes share (`../example.ts`); Simple keeps which answers the person
  * confirmed beside it, not inside it. Anything that does not read as this
  * shape is dropped, so a hand-edited plan never breaks a screen. A draft
@@ -11,7 +11,7 @@ import type { ImportPlan } from '../../../api/import-plan';
 import { isRecord } from '../../../api/parse';
 import { exampleOf, patternOf, simpleRecordOf, withExample, withoutOldAnswers } from '../example';
 import type { Mark } from '../example';
-import { seriesOf, withSeries } from '../series';
+import { seriesOf, withSeries, withSimple } from '../series';
 
 /** A list file the person said is not about these items. `source` is `''` in a draft that predates sources here: any source. */
 export interface NotList {
@@ -58,7 +58,7 @@ export const withState = (plan: ImportPlan, change: Partial<Omit<SimpleState, 'm
   const next = { ...readState(plan), ...change };
   const simple = { groupsOk: next.groupsOk, answered: [...next.answered], notLists: next.notLists.map(({ source, file }) => ({ source, file })) };
   // An old draft's keys inside `example` go with the first save of `simple`.
-  return withSeries({ ...plan, simple }, (series) => ({ ...series, example: withoutOldAnswers(series.example) }));
+  return withSeries(withSimple(plan, simple), (series) => ({ ...series, example: withoutOldAnswers(series.example) }));
 };
 
 /** The plan read by the marks: their pattern, and the example both modes read. */

@@ -24,7 +24,7 @@ import { withRowKind } from '../simple/list-plan';
 import type { ListCounts } from '../simple/list-plan';
 import { NO_NORMALIZE, setItemKey, setJoin, setJoinColumn, setRead, setRowKindColumn } from './plan-edits';
 import { Setting } from './setting';
-import { seriesOf } from '../series';
+import { allLists } from '../series';
 import './advanced.css';
 
 const RoundTrip = lazy(() => import('../lists/round-trip'));
@@ -339,7 +339,7 @@ export const AdvancedLists = (): ReactElement => {
   const draft = useDraft();
   const read = usePreview(['sheets', 'columnMatches', 'unpaired', 'listCandidates'], { unpaired: { rows: { perPage: 1 }, files: { perPage: 1 } } });
   const data = read.status === 'ready' ? read.data : null;
-  const { lists } = seriesOf(draft.plan);
+  const lists = allLists(draft.plan);
   return (
     <div className="adv-section" aria-busy={read.status === 'loading' || (read.status === 'ready' && read.busy)}>
       {read.status === 'error' ? <ErrorNotice error={read.error} /> : null}

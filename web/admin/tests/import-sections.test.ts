@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { parsePreview } from '../src/api/import-sections';
 import { parseProposal } from '../src/api/import-proposal';
-import { parseImportPlanV3 } from '../src/api/import-plan-read';
+import { parseImportPlan } from '../src/api/import-plan-tree-read';
 import { ParseError, isUnknownArray } from '../src/api/parse';
 import { loadFixture } from './loadFixture';
 
@@ -247,9 +247,9 @@ describe('the plan edits', () => {
 
   it('are absent from a plan without them, and kept in order and unchanged in one with them', () => {
     const plain = v3();
-    expect('edits' in parseImportPlanV3(plain)).toBe(false);
+    expect('edits' in parseImportPlan(plain)).toBe(false);
     const withEdits = { ...plain, edits: EDITS };
-    expect(roundTrip(parseImportPlanV3(withEdits))).toEqual(withEdits);
+    expect(roundTrip(parseImportPlan(withEdits))).toEqual(withEdits);
   });
 
   it('refuse an edit the server refuses', () => {
@@ -259,7 +259,7 @@ describe('the plan edits', () => {
       { edit: 'items', scope, cut: { cut: 'places' } },
       { edit: 'pair', list, rule: { rule: 'lastPlaces', places: -1 } },
     ]) {
-      expect(() => parseImportPlanV3({ ...v3(), edits: [edit] })).toThrow(ParseError);
+      expect(() => parseImportPlan({ ...v3(), edits: [edit] })).toThrow(ParseError);
     }
   });
 });

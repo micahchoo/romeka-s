@@ -207,7 +207,7 @@ mod tests {
             .await
             .unwrap();
         let mut plan = draft.plan.clone();
-        plan["grouping"]["pattern"] = json!("^(?<identifier>.+)$");
+        plan["structure"]["levels"][0]["grouping"]["pattern"] = json!("^(?<identifier>.+)$");
 
         assert_eq!(save(&pool, draft.id, &plan, 0).await.unwrap(), 1);
         assert!(matches!(

@@ -228,7 +228,7 @@ pub async fn run(
 ) -> Value {
     add_terms(fixture, slots).await;
     materialize(shape, fixture.archive.path());
-    let draft = fixture.draft().await;
+    let draft = crate::imports_fixture::as_v2(&fixture.draft().await);
     let id = draft["id"].clone();
     let saved = fixture.save(&draft, plan_for).await;
     assert_eq!(saved.status, 200, "{}", saved.body);

@@ -11,7 +11,7 @@ use serde_json::{Value, json};
 
 use super::scenarios::S1_TO_S8;
 use crate::import::model::Model;
-use crate::import::plan::{ImportPlan, PlanVersion};
+use crate::import::plan::ImportPlan;
 
 fn outcome_text(model: &Model) -> String {
     let records: Vec<Value> = model
@@ -52,9 +52,7 @@ fn v3_plans_of_one_series_keep_their_outcome() {
     for (name, scenario) in S1_TO_S8 {
         let mut scenario = scenario();
         let lifted = scenario.derive();
-        let mut plan = scenario.plan.clone();
-        plan.version = PlanVersion::V3;
-        let v3 = plan.to_json();
+        let v3 = scenario.plan.to_json();
         assert!(
             v3.contains(r#""structure":{"levels":[{"kind":"series""#),
             "{name}: {v3}"

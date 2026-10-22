@@ -1,8 +1,7 @@
 //! The import plan: the rule and the decisions, stored as JSON on the
 //! draft and sent by the admin (`docs/import-v2.md`, "The plan"). It comes
 //! in as version 2 ([`v2`], lifted to one series) or version 3 ([`v3`], the
-//! tree of `briefs/import-plan-v3.md`), and is written back in the version
-//! it came in as.
+//! tree of `briefs/import-plan-v3.md`), and is always written as version 3.
 //!
 //! [`ImportPlan::from_json`] is the one parse boundary. Types refuse what
 //! serde can see (unknown members, closed string sets, path and term
@@ -89,13 +88,10 @@ use super::decisions::Decision;
 use super::values::Visibility;
 
 /// The plan the engine reads. Its pattern, lists and slot rules sit in
-/// [`Structure`]; its JSON is [`v2::PlanV2`] or [`v3::PlanV3`], by
-/// [`Self::version`].
+/// [`Structure`]; it is read from [`v2::PlanV2`] (lifted) or
+/// [`v3::PlanV3`], and written as [`v3::PlanV3`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportPlan {
-    /// The version the plan came in as, which it is written back in, so a
-    /// v2 admin gets a v2 plan back. P4 deletes it with the lower.
-    pub version: PlanVersion,
     pub sources: Vec<SourcePlan>,
     pub structure: Structure,
     pub action: ActionPlan,
@@ -112,13 +108,6 @@ pub struct ImportPlan {
     /// The person's edits on the proposal, in the order made. The proposer
     /// replays them on every proposal; derive and run never read them.
     pub edits: Vec<Edit>,
-}
-
-/// The wire version a plan came in as.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum PlanVersion {
-    V2,
-    V3,
 }
 
 /// The member `version: N` of a wire plan.
@@ -142,15 +131,10 @@ impl<'de, const N: u64> Deserialize<'de> for WireVersion<N> {
     }
 }
 
-/// Written in the version the plan came in as. A v2 plan the lower refuses
-/// holds more than v2 can say, so it is written as v3 rather than cut.
+/// Always written as version 3: a v2 plan is read by its lift and answered
+/// as v3, so the admin reads one version.
 impl Serialize for ImportPlan {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        if self.version == PlanVersion::V2
-            && let Ok(wire) = v2::PlanV2::try_from(self.clone())
-        {
-            return wire.serialize(serializer);
-        }
         v3::PlanV3::from(self.clone()).serialize(serializer)
     }
 }
@@ -272,8 +256,6 @@ pub enum PlanError {
     ShapeV3(serde_json::Error),
     #[error("the plan's version is {0}, not 2 or 3")]
     Version(String),
-    #[error("the plan cannot be written as version 2: {0}")]
-    NotV2(&'static str),
     #[error("the plan has no series, so it imports nothing")]
     NoSeries,
     #[error("two levels have the id {0:?}")]
@@ -360,7 +342,7 @@ impl ImportPlan {
         Ok(plan)
     }
 
-    /// The plan as stored JSON, in the version it came in as. Every map key
+    /// The plan as stored JSON, version 3. Every map key
     /// is a string, so this cannot fail; an empty string would mean
     /// serde_json broke that rule.
     #[must_use]
@@ -394,6 +376,21 @@ impl ImportPlan {
     }
 }
 
+/// The plan a draft started with before the admin wrote v3, as v2 JSON on
+/// `sources`: what tests that build a plan from v2 members edit, read
+/// through the lift.
+#[cfg(test)]
+#[expect(
+    clippy::expect_used,
+    reason = "a test helper over a fixture the repo holds"
+)]
+pub(crate) fn v2_default(sources: &[SourcePlan]) -> serde_json::Value {
+    let mut plan: serde_json::Value =
+        serde_json::from_str(include_str!("fixtures/default.json")).expect("default.json");
+    plan["sources"] = serde_json::to_value(sources).expect("sources");
+    plan
+}
+
 /// The pattern that groups by the name alone: it skips the folders and the
 /// ending, so files whose names are equal but for the ending are one item.
 /// The admin's `patternOf([])` writes the same text.
@@ -412,7 +409,6 @@ pub fn default_plan(sources: Vec<SourcePlan>) -> Result<ImportPlan, PlanError> {
         scope: Scope::Named(NamedScope::ImportSets),
     };
     let plan = ImportPlan {
-        version: PlanVersion::V2,
         sources,
         structure: Structure::lifted(
             Grouping {

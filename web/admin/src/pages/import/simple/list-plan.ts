@@ -12,15 +12,16 @@ import type { ColumnRef, ImportPlan, RecordKind, SheetPlan, SlotName, SlotRule, 
 import { isTerm } from '../../../api/import-plan';
 import type { CsvRead } from '../csv-records';
 import { readCsv } from '../csv-records';
-import { seriesOf, withSeries } from '../series';
+import { allLists, listOf, slotsOf, withList, withSlots } from '../series';
 
 /** Where a column goes: nowhere, a field, the item type, the item set, or a new field. */
 export type Target = '' | `field:${Term}` | 'template' | 'sets' | `new:${string}`;
 
 export const fold = (text: string): string => text.trim().normalize('NFC').toLowerCase();
 
+/** A sheet id no series of the plan has: the server refuses two that are equal anywhere in the plan. */
 const nextId = (plan: ImportPlan): string => {
-  const taken = new Set(seriesOf(plan).lists.map((sheet) => sheet.id));
+  const taken = new Set(allLists(plan).map((sheet) => sheet.id));
   let n = 1;
   while (taken.has(`folder-list-${String(n)}`)) {
     n += 1;
@@ -54,7 +55,7 @@ const joinOn = (column: SheetColumnMatches['columns'][number]): SheetPlan['join'
 });
 
 export const withJoin = (plan: ImportPlan, sheet: string, column: SheetColumnMatches['columns'][number]): ImportPlan =>
-  withSeries(plan, (series) => ({ ...series, lists: series.lists.map((one) => (one.id === sheet ? { ...one, join: joinOn(column) } : one)) }));
+  withList(plan, sheet, (one) => ({ ...one, join: joinOn(column) }));
 
 /** Whether the sheet pairs with every name fold on, which Simple turns on and off as one. */
 export const normalizedOf = (sheet: SheetPlan): boolean =>
@@ -62,12 +63,7 @@ export const normalizedOf = (sheet: SheetPlan): boolean =>
 
 /** Every name fold of the sheet's pairing on, or every one off; a sheet that pairs by no column stays as it is. */
 export const withNormalize = (plan: ImportPlan, sheet: string, on: boolean): ImportPlan =>
-  withSeries(plan, (series) => ({
-    ...series,
-    lists: series.lists.map((one) =>
-      one.id === sheet && one.join !== null ? { ...one, join: { ...one.join, normalize: { caseFold: on, leadingZeros: on, separators: on } } } : one,
-    ),
-  }));
+  withList(plan, sheet, (one) => (one.join === null ? one : { ...one, join: { ...one.join, normalize: { caseFold: on, leadingZeros: on, separators: on } } }));
 
 const readsColumn = (source: SourceRef, sheet: string, index: number): boolean => source.from === 'column' && source.sheet === sheet && source.column.index === index;
 
@@ -103,7 +99,7 @@ interface Place {
 /** Every item and media rule that reads the column, items first. */
 const placesOf = (plan: ImportPlan, sheet: string, index: number): readonly Place[] =>
   (['item', 'media'] as const).flatMap((kind) =>
-    Object.entries<SlotRule | undefined>(seriesOf(plan).slots[kind]).flatMap(([slot, rule]) =>
+    Object.entries<SlotRule | undefined>(slotsOf(plan)[kind]).flatMap(([slot, rule]) =>
       rule?.sources.some((source) => readsColumn(source, sheet, index)) === true ? [{ kind, slot, rule }] : [],
     ),
   );
@@ -132,7 +128,7 @@ export const withColumnLevel = (plan: ImportPlan, sheet: string, column: ColumnR
     return plan;
   }
   const places = placesOf(plan, sheet, column.index);
-  const rules = seriesOf(plan).slots;
+  const rules = slotsOf(plan);
   const without = (kind: 'item' | 'media'): SlotRules => {
     const next: { [slot: string]: SlotRule } = {};
     for (const [slot, rule] of Object.entries<SlotRule | undefined>(rules[kind])) {
@@ -149,7 +145,7 @@ export const withColumnLevel = (plan: ImportPlan, sheet: string, column: ColumnR
   };
   const slots = { ...rules, item: without('item'), media: without('media') };
   if (level === 'out') {
-    return withSeries(plan, (series) => ({ ...series, slots }));
+    return withSlots(plan, slots);
   }
   const kind = KIND[level];
   const into: { [slot: string]: SlotRule | undefined } = { ...slots[kind] };
@@ -158,13 +154,13 @@ export const withColumnLevel = (plan: ImportPlan, sheet: string, column: ColumnR
     const there = into[place.slot];
     into[place.slot] = there === undefined ? { ...place.rule, sources: [source] } : { ...there, sources: [source, ...there.sources.filter((one) => !readsColumn(one, sheet, column.index))] };
   }
-  return withSeries(plan, (series) => ({ ...series, slots: { ...slots, [kind]: into } }));
+  return withSlots(plan, { ...slots, [kind]: into });
 };
 
 /** The columns of `sheet` that some rule of `kinds` reads. */
 const columnsIn = (plan: ImportPlan, sheet: string, kinds: readonly ('item' | 'media')[]): readonly ColumnRef[] => {
   const found = new Map<number, ColumnRef>();
-  for (const rule of kinds.flatMap((kind) => Object.values<SlotRule | undefined>(seriesOf(plan).slots[kind]))) {
+  for (const rule of kinds.flatMap((kind) => Object.values<SlotRule | undefined>(slotsOf(plan)[kind]))) {
     for (const source of rule?.sources ?? []) {
       if (source.from === 'column' && source.sheet === sheet) {
         found.set(source.column.index, source.column);
@@ -181,12 +177,7 @@ const columnsIn = (plan: ImportPlan, sheet: string, kinds: readonly ('item' | 'm
  * where its rows can give them values.
  */
 export const withRowKind = (plan: ImportPlan, sheet: string, kind: RecordKind): ImportPlan => {
-  const next = withSeries(plan, (series) => ({
-    ...series,
-    lists: series.lists.map((one) =>
-      one.id === sheet ? { ...one, rowKind: kind, join: kind === 'media' && one.join !== null ? { ...one.join, on: 'fileName' as const } : one.join } : one,
-    ),
-  }));
+  const next = withList(plan, sheet, (one) => ({ ...one, rowKind: kind, join: kind === 'media' && one.join !== null ? { ...one.join, on: 'fileName' as const } : one.join }));
   return kind === 'media' ? next : columnsIn(next, sheet, ['media']).reduce((edited, column) => withColumnLevel(edited, sheet, column, 'item'), next);
 };
 
@@ -220,7 +211,7 @@ export const withFileRows = (plan: ImportPlan, sheet: string): ImportPlan =>
     withRowKind(plan, sheet, 'media'),
   );
 
-const rowKindOf = (plan: ImportPlan, sheet: string): SheetPlan['rowKind'] | undefined => seriesOf(plan).lists.find((one) => one.id === sheet)?.rowKind;
+const rowKindOf = (plan: ImportPlan, sheet: string): SheetPlan['rowKind'] | undefined => listOf(plan, sheet)?.rowKind;
 
 const gotItsFirstPlace = (before: ImportPlan, after: ImportPlan, sheet: string, index: number): boolean =>
   levelOf(before, sheet, index) === 'out' && levelOf(after, sheet, index) !== 'out';
@@ -248,25 +239,19 @@ export const suggestedSplit = (counts: ListCounts, index: number): string | null
 };
 
 export const splitOf = (plan: ImportPlan, sheet: string, index: number): string | null =>
-  seriesOf(plan).lists.find((one) => one.id === sheet)?.columns.find((one) => one.column.index === index)?.options.split ?? null;
+  listOf(plan, sheet)?.columns.find((one) => one.column.index === index)?.options.split ?? null;
 
 /** The column's cells cut at `split` into several values, or kept whole for `null`. */
 export const withSplit = (plan: ImportPlan, sheet: string, column: ColumnRef, split: string | null): ImportPlan =>
-  withSeries(plan, (series) => ({
-    ...series,
-    lists: series.lists.map((one) => {
-      if (one.id !== sheet) {
-        return one;
-      }
-      const has = one.columns.some((each) => each.column.index === column.index);
-      return {
-        ...one,
-        columns: has
-          ? one.columns.map((each) => (each.column.index === column.index ? { ...each, options: { ...each.options, split } } : each))
-          : [...one.columns, { column, options: { split, type: 'literal' as const, lang: null, private: false } }],
-      };
-    }),
-  }));
+  withList(plan, sheet, (one) => {
+    const has = one.columns.some((each) => each.column.index === column.index);
+    return {
+      ...one,
+      columns: has
+        ? one.columns.map((each) => (each.column.index === column.index ? { ...each, options: { ...each.options, split } } : each))
+        : [...one.columns, { column, options: { split, type: 'literal' as const, lang: null, private: false } }],
+    };
+  });
 
 /**
  * `after` is `before` with an edit that may give the column its first field.
@@ -337,7 +322,7 @@ export const targetOf = (plan: ImportPlan, sheet: string, index: number): Target
  */
 export const withTarget = (plan: ImportPlan, sheet: string, column: ColumnRef, target: Target): ImportPlan => {
   const onFiles = levelOf(plan, sheet, column.index) === 'file' && !itemOnly(target);
-  const { slots } = seriesOf(plan);
+  const slots = slotsOf(plan);
   const item = rulesWithout(slots.item, sheet, column.index);
   const media = rulesWithout(slots.media, sheet, column.index);
   const newTerms =
@@ -345,14 +330,14 @@ export const withTarget = (plan: ImportPlan, sheet: string, column: ColumnRef, t
       ? [...plan.newTerms, { label: target.slice('new:'.length) }]
       : plan.newTerms;
   if (target === '') {
-    return withSeries(plan, (series) => ({ ...series, slots: { ...slots, item, media } }));
+    return withSlots(plan, { ...slots, item, media });
   }
   const slot = slotOf(target);
   const rules = onFiles ? media : item;
   const rule = rules[slot] ?? { sources: [], combine: 'first' as const };
   const source: SourceRef = { from: 'column', sheet, column };
   const placed = { ...rules, [slot]: { ...rule, sources: [source, ...rule.sources] } };
-  return withSeries({ ...plan, newTerms }, (series) => ({ ...series, slots: { ...slots, item: onFiles ? item : placed, media: onFiles ? placed : media } }));
+  return withSlots({ ...plan, newTerms }, { ...slots, item: onFiles ? item : placed, media: onFiles ? placed : media });
 };
 
 /**
@@ -371,12 +356,7 @@ export const withRead = (
     .filter((column) => column.mappable)
     .map((column) => ({ column: { index: column.index, header: column.header }, options: { split: null, type: 'literal' as const, lang: null, private: false } }));
   const pair = best(counts.matches);
-  let next = withSeries(plan, (series) => ({
-    ...series,
-    lists: series.lists.map((one) =>
-      one.id === sheet ? { ...one, columns, join: pair === undefined || Math.max(pair.groupKeys, pair.fileNames) === 0 ? null : joinOn(pair) } : one,
-    ),
-  }));
+  let next = withList(plan, sheet, (one) => ({ ...one, columns, join: pair === undefined || Math.max(pair.groupKeys, pair.fileNames) === 0 ? null : joinOn(pair) }));
   for (const { column } of columns) {
     if (pair !== undefined && column.index === pair.index) {
       continue;

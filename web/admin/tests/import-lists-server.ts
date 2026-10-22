@@ -12,6 +12,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { asRecord, isRecord } from '../src/api/parse';
 import { loadFixture } from './loadFixture';
+import { flatPlan } from './import-plan-members';
 import { jsonResponse, listResponse, route } from './stub';
 import type { Handler } from './stub';
 
@@ -36,7 +37,7 @@ const template = (): Record<string, unknown> => {
 
 export interface ListsServer {
   readonly handler: Handler;
-  /** The plan of each PUT, in order. */
+  /** The plan of each PUT, in order, with its one series' members flat (`flatPlan`). */
   readonly saved: Record<string, unknown>[];
 }
 
@@ -172,7 +173,7 @@ export const listsServer = (items: number, options: { readonly strays?: number; 
       if (init?.method === 'PUT') {
         const body = asRecord(JSON.parse(typeof init.body === 'string' ? init.body : '{}'), []);
         const plan = asRecord(body['plan'], []);
-        saved.push(plan);
+        saved.push(flatPlan(plan));
         revision += 1;
         return jsonResponse({ ...draft(), plan });
       }

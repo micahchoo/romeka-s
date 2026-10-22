@@ -10,8 +10,7 @@ use std::path::PathBuf;
 use std::process::{Command, Output};
 use std::time::Duration;
 
-use import_site::{Site, jpeg, rule, site, tiff};
-use omeka_api::import::plan::{SourcePlan, default_plan};
+use import_site::{Site, jpeg, rule, site, tiff, v2_plan};
 use omeka_db::repos::ImportRepo;
 use omeka_db::rows::ImportStatus;
 use serde_json::{Value, json};
@@ -32,13 +31,11 @@ fn bhc_006(site: &Site) {
     site.write("_scratch/notes.txt", b"call the donor about AF_003\n");
 }
 
-/// A plan file on the whole archive root; `edit` changes the default plan.
+/// A plan file on the whole archive root; `edit` changes the default plan,
+/// as v2 JSON the CLI reads through the lift.
 fn plan_file(site: &Site, edit: impl FnOnce(&mut Value)) -> PathBuf {
-    let sources: Vec<SourcePlan> = serde_json::from_value(
-        json!([{ "kind": "folder", "id": "s1", "root": "archive", "path": "" }]),
-    )
-    .unwrap();
-    let mut plan: Value = serde_json::from_str(&default_plan(sources).unwrap().to_json()).unwrap();
+    let mut plan =
+        v2_plan(&json!([{ "kind": "folder", "id": "s1", "root": "archive", "path": "" }]));
     edit(&mut plan);
     let path = site.dir.path().join("plan.json");
     std::fs::write(&path, plan.to_string()).unwrap();

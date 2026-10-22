@@ -1,6 +1,7 @@
 /**
  * The import plan (`src/api/import-plan.ts`, `import-plan-read.ts`) against the Rust side: the
- * three plans the server's own tests keep, and every plan the routes answer.
+ * v3 plans the server's own tests keep, and every plan the routes answer, a
+ * stored v2 plan among them lifted to v3.
  * A plan the client parses must serialise back to the same JSON, because the
  * admin saves what it parsed.
  */
@@ -8,9 +9,10 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { parseImportPlan } from '../src/api/import-plan-read';
+import { parseImportPlan } from '../src/api/import-plan-tree-read';
 import { ParseError } from '../src/api/parse';
 import { loadFixture } from './loadFixture';
+import { seriesOf, setsRuleOf } from '../src/pages/import/series';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RUST_PLANS = resolve(HERE, '../../../crates/omeka-api/src/import/fixtures');
@@ -38,9 +40,13 @@ const planOf = (fixture: string, member = 'plan'): unknown => {
 };
 
 describe('the plan round trip', () => {
-  it.each(['default.json', 'full.json', 'delete.json'])('rust fixture %s serialises back to itself', (name) => {
+  it.each(['v3/archive_as_found.json', 'v3/bhc006.json', 'v3/one_series.json'])('rust fixture %s serialises back to itself', (name) => {
     const raw = rustPlan(name);
     expect(roundTrip(raw)).toEqual(raw);
+  });
+
+  it.each(['default.json', 'full.json', 'delete.json'])('refuses the v2 rust fixture %s: the server answers every plan as v3', (name) => {
+    expect(() => parseImportPlan(rustPlan(name))).toThrow(ParseError);
   });
 
   it.each([
@@ -78,7 +84,7 @@ describe('what the plan boundary refuses', () => {
     expect(() => parseImportPlan({ ...base(), surprise: true })).toThrow(ParseError);
   });
 
-  it('refuses a version other than 2 and a v1 plan', () => {
+  it('refuses a version other than 3 and a v1 plan', () => {
     expect(() => parseImportPlan({ ...base(), version: 1 })).toThrow(ParseError);
     expect(() => parseImportPlan({ setLevel: 'level1', pattern: null })).toThrow(ParseError);
   });
@@ -86,7 +92,7 @@ describe('what the plan boundary refuses', () => {
   it('refuses a flag kind, a delimiter and an owner the server would not take', () => {
     expect(() => parseImportPlan({ ...base(), flags: { 'no-such-flag': 'keep' } })).toThrow(ParseError);
     const plan = parseImportPlan(planOf('import-saved.json'));
-    const sheet = plan.sheets[0];
+    const sheet = seriesOf(plan).lists[0];
     expect(sheet?.read.delimiter).toBe('auto');
     expect(() =>
       parseImportPlan({
@@ -97,27 +103,27 @@ describe('what the plan boundary refuses', () => {
   });
 
   it('keeps the sheet a plan names, leaves an absent one absent and reads null as absent', () => {
-    const plan = parseImportPlan(rustPlan('full.json'));
-    const [first, ...others] = plan.sheets;
+    const plan = parseImportPlan(planOf('import-saved.json'));
+    const [first, ...others] = seriesOf(plan).lists;
     if (first === undefined) {
-      throw new Error('the Rust plan has a sheet');
+      throw new Error('the saved plan has a sheet');
     }
     const withName = (sheetName: unknown): unknown => ({
       ...plan,
-      sheets: [{ ...first, read: { ...first.read, sheetName } }, ...others],
+      structure: { ...plan.structure, levels: [{ ...seriesOf(plan), lists: [{ ...first, read: { ...first.read, sheetName } }, ...others] }] },
     });
     const named = withName('Register');
     expect(roundTrip(named)).toEqual(JSON.parse(JSON.stringify(named)));
-    expect(parseImportPlan(named).sheets[0]?.read.sheetName).toBe('Register');
+    expect(seriesOf(parseImportPlan(named)).lists[0]?.read.sheetName).toBe('Register');
     expect(first.read).not.toHaveProperty('sheetName');
-    expect(parseImportPlan(withName(null)).sheets[0]?.read).not.toHaveProperty('sheetName');
+    expect(seriesOf(parseImportPlan(withName(null))).lists[0]?.read).not.toHaveProperty('sheetName');
     expect(() => parseImportPlan(withName(2))).toThrow(ParseError);
   });
 
   it('keeps an absent value map absent and a given one as it was', () => {
     const plan = parseImportPlan(planOf('import-saved.json'));
-    expect(plan.slots.item['sets']?.map).toEqual({ Scans: '' });
-    expect(plan.slots.item['template']).not.toHaveProperty('map');
+    expect(setsRuleOf(plan)?.map).toEqual({ Scans: '' });
+    expect(seriesOf(plan).slots.item['template']).not.toHaveProperty('map');
   });
 
   it('reads the anomaly answers the server saved, and only when it has them', () => {

@@ -13,7 +13,7 @@ use super::super::{Derived, DiskTags, PreviewRequest, preview};
 use crate::import::catalog::Catalog;
 use crate::import::derive::{Index, IndexedSource, NoTags, Sheets, derive};
 use crate::import::evidence::{FileEntry, Walk};
-use crate::import::plan::{ImportPlan, RelPath, SourceId, SourcePlan, default_plan};
+use crate::import::plan::{ImportPlan, RelPath, SourceId, SourcePlan, v2_default};
 use crate::import::scan::StoredIndex;
 use crate::import::sheet;
 
@@ -22,13 +22,11 @@ const RAW: &str = "application/octet-stream";
 
 /// `X_010b.jpg` is view `b` of item `X_010`.
 fn derived(files: &[&str], rows: &str, row_kind: &str) -> Derived {
-    let plan = default_plan(vec![SourcePlan::Folder {
+    let mut value = v2_default(&[SourcePlan::Folder {
         id: SourceId("s1".into()),
         root: "archive".into(),
         path: RelPath::parse("").unwrap(),
-    }])
-    .unwrap();
-    let mut value = serde_json::to_value(plan).unwrap();
+    }]);
     value["grouping"]["pattern"] = json!(r"^(?<identifier>X_\d{3})(?<part>[a-z])\.[^.]+$");
     value["sheets"] = json!([{
         "id": "views", "source": "s1", "file": "views.csv", "hash": null,

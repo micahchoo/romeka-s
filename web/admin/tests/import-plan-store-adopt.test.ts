@@ -5,9 +5,10 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ImportApi } from '../src/api/import-routes';
-import { parseImportDetail } from '../src/api/import-view';
+import { parseImportDetail } from '../src/api/import-detail-read';
 import { asRecord } from '../src/api/parse';
 import { PlanStore } from '../src/pages/import/plan-store';
+import { allLists, seriesOf, withSeries } from '../src/pages/import/series';
 import { loadFixture } from './loadFixture';
 import { installFetch, jsonResponse } from './stub';
 
@@ -26,7 +27,7 @@ describe('PlanStore.adopt', () => {
     const next = added();
     store.adopt(next);
     expect(store.snapshot().detail.revision).toBe(3);
-    expect(store.snapshot().plan.sheets.map((sheet) => sheet.id)).toEqual(['list-1']);
+    expect(allLists(store.snapshot().plan).map((sheet) => sheet.id)).toEqual(['list-1']);
     expect(store.snapshot().save).toEqual({ status: 'saved' });
     store.close();
   });
@@ -35,10 +36,10 @@ describe('PlanStore.adopt', () => {
     vi.useFakeTimers();
     installFetch(() => jsonResponse({}));
     const store = new PlanStore(api, draft());
-    store.change((plan) => ({ ...plan, grouping: { ...plan.grouping, caseFold: true } }));
+    store.change((plan) => withSeries(plan, (series) => ({ ...series, grouping: { ...series.grouping, caseFold: true } })));
     store.adopt(added());
     expect(store.snapshot().detail.revision).toBe(0);
-    expect(store.snapshot().plan.grouping.caseFold).toBe(true);
+    expect(seriesOf(store.snapshot().plan).grouping.caseFold).toBe(true);
     store.close();
   });
 });

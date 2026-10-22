@@ -12,7 +12,7 @@ import { KEY_CREDENTIAL_PARAM, KEY_IDENTITY_PARAM, currentKey } from './auth';
 import { ApiError, defaultBaseUrl } from './client';
 import { ImportConflictError, SeriesRefusalError, parseConflict, parseSeriesRefusal } from './import-conflict';
 import type { ImportId, ImportPlan, LevelId, SourcePlan } from './import-plan';
-import { parseArchiveListing, parseHistory, parseImportDetail, parseJobStart, parsePairsAdded, parseScanResult } from './import-view';
+import { parseArchiveListing, parseHistory, parseJobStart, parseScanResult } from './import-view';
 import type { ArchiveListing, History, ImportDetail, JobStart, PairsAdded, ScanResult } from './import-view';
 import { parseUndoPreview } from './import-undo';
 import type { ResourceKind, UndoPreview } from './import-undo';
@@ -57,6 +57,12 @@ const firstMessage = (errors: ApiErrors | null): string | null => {
   return messages[0] ?? null;
 };
 
+/**
+ * The parsers of the answers that carry a plan, with the plan's tree parsers.
+ * Loaded beside the first such request, so they stay out of this chunk.
+ */
+const planAnswers = (): Promise<typeof import('./import-detail-read')> => import('./import-detail-read');
+
 const parseJson = (text: string): unknown => {
   try {
     const value: unknown = JSON.parse(text);
@@ -65,6 +71,14 @@ const parseJson = (text: string): unknown => {
     return null;
   }
 };
+
+interface JsonOptions {
+  readonly params?: URLSearchParams;
+  readonly body?: unknown;
+  readonly form?: FormData;
+  /** Lets the request outlive the page, for a save sent as the page closes. */
+  readonly keepalive?: boolean;
+}
 
 export class ImportApi {
   private readonly baseUrl: string;
@@ -103,16 +117,16 @@ export class ImportApi {
 
   /** A draft with a default plan, over new sources or a copy of an import's plan. */
   async create(request: CreateImport): Promise<ImportDetail> {
-    return parseImportDetail(await this.json('POST', IMPORTS, { body: request }));
+    return this.detail('POST', IMPORTS, { body: request });
   }
 
   async get(id: ImportId): Promise<ImportDetail> {
-    return parseImportDetail(await this.json('GET', one(id)));
+    return this.detail('GET', one(id));
   }
 
   /** 409 `stale` when `revision` is not the stored one, 409 `notDraft` once the import has started. */
   async save(id: ImportId, plan: ImportPlan, revision: number, options: { readonly keepalive?: boolean } = {}): Promise<ImportDetail> {
-    return parseImportDetail(await this.json('PUT', one(id), { body: { plan, revision }, ...options }));
+    return this.detail('PUT', one(id), { body: { plan, revision }, ...options });
   }
 
   /** A draft only; the route answers 204. */
@@ -192,7 +206,7 @@ export class ImportApi {
     if (replace !== undefined) {
       params.set('replace', replace);
     }
-    return parseImportDetail(await this.json('POST', `${one(id)}/sheets`, { form, params }));
+    return this.detail('POST', `${one(id)}/sheets`, { form, params });
   }
 
   /** The address of the pairs list, for a link: one line for each list row that names no file, with an empty Files column to fill. */
@@ -204,7 +218,8 @@ export class ImportApi {
   async addPairs(id: ImportId, file: File): Promise<PairsAdded> {
     const form = new FormData();
     form.append('file', file, file.name);
-    return parsePairsAdded(await this.json('POST', `${one(id)}/pairs`, { form }));
+    const [read, raw] = await Promise.all([planAnswers(), this.json('POST', `${one(id)}/pairs`, { form })]);
+    return read.parsePairsAdded(raw);
   }
 
   async jobLog(jobId: number): Promise<string> {
@@ -253,17 +268,12 @@ export class ImportApi {
     return response;
   }
 
-  private async json(
-    method: string,
-    path: string,
-    options: {
-      readonly params?: URLSearchParams;
-      readonly body?: unknown;
-      readonly form?: FormData;
-      /** Lets the request outlive the page, for a save sent as the page closes. */
-      readonly keepalive?: boolean;
-    } = {},
-  ): Promise<unknown> {
+  private async detail(method: string, path: string, options: JsonOptions = {}): Promise<ImportDetail> {
+    const [read, raw] = await Promise.all([planAnswers(), this.json(method, path, options)]);
+    return read.parseImportDetail(raw);
+  }
+
+  private async json(method: string, path: string, options: JsonOptions = {}): Promise<unknown> {
     const text = await (await this.send(method, path, options)).text();
     return text === '' ? null : parseJson(text);
   }
