@@ -59,6 +59,7 @@ const EDITS = [
   { edit: 'pair', list, rule: { rule: 'column', column, on: 'identifier' } },
   { edit: 'pair', list, rule: { rule: 'lastPlaces', places: 2 } },
   { edit: 'title', from: fromPlace, title: 'Artifacts' },
+  { edit: 'own', scope },
 ];
 
 const object = (raw: unknown): Record<string, unknown> => {
@@ -130,11 +131,17 @@ const everything = (): Record<string, unknown> => {
       others: [],
     },
   };
+  const own = {
+    kind: 'own',
+    level: 'af',
+    scope: scopeCounts,
+    items: { items: 318, files: share, perItem: [{ files: '1', count: 43 }], parts: [], namesEndingHere: 0, otherShapes: 0 },
+  };
   return {
     ...answer,
     proposal: {
       ...proposal,
-      nodes: [{ kind: 'set', level: 'top', from: { from: 'column', list, column }, counts: setCounts }, series, pages, rows],
+      nodes: [{ kind: 'set', level: 'top', from: { from: 'column', list, column }, counts: setCounts }, series, pages, rows, own],
       topSets: [{ value: { from: 'column', list, column }, counts: { sets: [['Citizen Curators', 920]], rows: { n: 920, of: 920 } } }],
       outside: [
         { ...scopeCounts, scope: { source: 's1', folder: 'tiny-iiif' }, kinds: [], media: 0, reason: 'noMedia' },
@@ -172,6 +179,7 @@ describe('the proposal section', () => {
       (value) => ({ ...value, topSets: [{ value: { from: 'everything' }, counts: setCounts }] }),
       (value) => ({ ...value, outside: [{ scope, files: 1, media: 0, kinds: [['image']], reason: 'noMedia' }] }),
       (value) => ({ ...value, nodes: [{ kind: 'set', level: 'top', from: { from: 'column', list, column }, counts: setCounts, others: [] }] }),
+      (value) => ({ ...value, nodes: [{ ...object(isUnknownArray(value['nodes']) ? value['nodes'][4] : null), splits: [] }] }),
       (value) => ({
         ...value,
         nodes: [{ ...object(isUnknownArray(value['nodes']) ? value['nodes'][1] : null), grain: { chosen: { value: 'item', counts: candidate.grain }, rival: null, others: [] } }],

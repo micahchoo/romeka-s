@@ -100,9 +100,18 @@ export interface SeriesNode {
   readonly pairing: readonly Pick<PairRule, PairCounts>[];
 }
 
+/** A series an `own` edit keeps as the person wrote it: counted, with no choice offered on it. */
+export interface OwnNode {
+  readonly level: LevelId;
+  readonly scope: ScopeCounts;
+  /** No detector counted a cut here, so `parts` is empty and the shape counts are 0. */
+  readonly items: CutCounts;
+}
+
 export type NodeEvidence =
   | { readonly kind: 'set'; readonly level: LevelId; readonly from: SetFrom; readonly counts: SetCounts }
-  | ({ readonly kind: 'series' } & SeriesNode);
+  | ({ readonly kind: 'series' } & SeriesNode)
+  | ({ readonly kind: 'own' } & OwnNode);
 
 export interface OutsideFolder extends ScopeCounts {
   readonly reason: 'noMedia' | 'edit';
@@ -227,7 +236,7 @@ const parsePairCounts = (raw: unknown, path: Path): PairCounts => {
 };
 
 const parseNodeEvidence = (raw: unknown, path: Path): NodeEvidence => {
-  const kind = member(asRecord(raw, path), 'kind', path, oneOf(['set', 'series'] as const));
+  const kind = member(asRecord(raw, path), 'kind', path, oneOf(['set', 'series', 'own'] as const));
   if (kind === 'set') {
     const only = strict(raw, path, ['kind', 'level', 'from', 'counts']);
     return {
@@ -237,11 +246,21 @@ const parseNodeEvidence = (raw: unknown, path: Path): NodeEvidence => {
       counts: member(only, 'counts', path, parseSetCounts),
     };
   }
+  const scope = (value: unknown, at: Path): ScopeCounts => scopeCounts(strict(value, at, [...SCOPE_COUNTS]), at);
+  if (kind === 'own') {
+    const only = strict(raw, path, ['kind', 'level', 'scope', 'items']);
+    return {
+      kind,
+      level: text(only, 'level', path),
+      scope: member(only, 'scope', path, scope),
+      items: member(only, 'items', path, parseCutCounts),
+    };
+  }
   const only = strict(raw, path, ['kind', 'level', 'scope', 'items', 'list', 'grain', 'set', 'splits', 'pairing']);
   return {
     kind,
     level: text(only, 'level', path),
-    scope: member(only, 'scope', path, (value, at) => scopeCounts(strict(value, at, [...SCOPE_COUNTS]), at)),
+    scope: member(only, 'scope', path, scope),
     items: member(only, 'items', path, parseChoice(parseItemCut, parseCutCounts)),
     list: member(only, 'list', path, parseChoice(nullable(parseListFile), nullable(parseListCandidate))),
     grain: member(only, 'grain', path, nullable(parseChoice(oneOf(RECORD_KINDS), parseGrainCounts))),

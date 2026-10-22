@@ -147,7 +147,7 @@ fn an_added_split_is_a_set_level_and_an_added_top_set_holds_everything() {
         .iter()
         .filter_map(|node| match node {
             NodeEvidence::Set(set) => Some(set.level.0.as_str()),
-            NodeEvidence::Series(_) => None,
+            NodeEvidence::Series(_) | NodeEvidence::Own(_) => None,
         })
         .collect();
     assert_eq!(levels.len(), 2, "the top set and the split: {levels:?}");
@@ -412,7 +412,7 @@ fn the_rival_title_of_a_series_set_applies() {
         .iter()
         .filter_map(|node| match node {
             NodeEvidence::Set(set) => Some((&set.from, sets(&set.counts))),
-            NodeEvidence::Series(_) => None,
+            NodeEvidence::Series(_) | NodeEvidence::Own(_) => None,
         })
         .collect();
     assert_eq!(
