@@ -95,15 +95,37 @@ const everything = (): Record<string, unknown> => {
         value: { cut: 'whole' },
         counts: { items: 696, files: share, perItem: [], parts: [], namesEndingHere: 696, otherShapes: 0 },
       },
+      others: [
+        {
+          value: { cut: 'places', places: 6, rule: 'recurringParts' },
+          counts: { items: 649, files: share, perItem: [], parts: [], namesEndingHere: 0, otherShapes: 0 },
+        },
+      ],
     },
-    list: { chosen: { value: list, counts: candidate }, rival: { value: null, counts: null } },
-    grain: { chosen: { value: 'media', counts: candidate.grain }, rival: null },
-    set: { chosen: { value: { from: 'folder', scope }, counts: setCounts }, rival: null },
+    list: {
+      chosen: { value: list, counts: candidate },
+      rival: { value: null, counts: null },
+      others: [{ value: { source: 's1', file: 'Artifacts/BHC006_GMT_AF.csv' }, counts: candidate }],
+    },
+    grain: { chosen: { value: 'media', counts: candidate.grain }, rival: null, others: [] },
+    set: {
+      chosen: { value: { from: 'folder', scope }, counts: setCounts },
+      rival: null,
+      others: [{ value: { from: 'column', list, column }, counts: { sets: [['torn', 1]], rows: { n: 1, of: 690 } } }],
+    },
     splits: [{ value: fromPlace, counts: { sets: [['20170616', 11]], rows: { n: 15, of: 15 } } }],
     pairing: [{ value: { rule: 'lastPlaces', places: 2 }, counts: { rows: { n: 15, of: 15 }, more: 15 } }],
   };
   const pages = { ...series, level: 'scans', items: { ...series.items, chosen: { ...series.items.chosen, value: { cut: 'places', places: 4, rule: 'recurringInItem' } } } };
-  const rows = { ...series, level: 'docs', items: { chosen: { value: { cut: 'rows', list, key: column }, counts: series.items.chosen.counts }, rival: { value: { cut: 'folder', depth: 1 }, counts: series.items.chosen.counts } } };
+  const rows = {
+    ...series,
+    level: 'docs',
+    items: {
+      chosen: { value: { cut: 'rows', list, key: column }, counts: series.items.chosen.counts },
+      rival: { value: { cut: 'folder', depth: 1 }, counts: series.items.chosen.counts },
+      others: [],
+    },
+  };
   return {
     ...answer,
     proposal: {
@@ -115,7 +137,7 @@ const everything = (): Record<string, unknown> => {
         { ...scopeCounts, scope: { source: 's1', folder: 'Extras' }, reason: 'edit' },
       ],
       unattached: [candidate],
-      edits: EDITS.map((edit, at) => ({ edit, applied: at % 2 === 0 })),
+      edits: EDITS.map((edit, at) => ({ edit, applied: at % 2 === 0, reason: at % 2 === 0 ? null : (['gone', 'notOffered', 'replaced'] as const)[at % 3] })),
     },
   };
 };
@@ -141,9 +163,11 @@ describe('the proposal section', () => {
     const proposal = object(raw['proposal']);
     const changes: ((value: Record<string, unknown>) => Record<string, unknown>)[] = [
       (value) => ({ ...value, ranked: true }),
-      (value) => ({ ...value, edits: [{ edit: { edit: 'rename', scope }, applied: true }] }),
+      (value) => ({ ...value, edits: [{ edit: { edit: 'rename', scope }, applied: true, reason: null }] }),
+      (value) => ({ ...value, edits: [{ edit: { edit: 'keep', scope }, applied: false, reason: 'lost' }] }),
       (value) => ({ ...value, topSets: [{ value: { from: 'everything' }, counts: setCounts }] }),
       (value) => ({ ...value, outside: [{ scope, files: 1, media: 0, kinds: [['image']], reason: 'noMedia' }] }),
+      (value) => ({ ...value, nodes: [{ kind: 'set', level: 'top', from: { from: 'column', list, column }, counts: setCounts, others: [] }] }),
     ];
     for (const change of changes) {
       expect(() => parseProposal(parsePreview(['proposal'])({ ...raw, proposal: change(proposal) }).proposal)).toThrow(ParseError);

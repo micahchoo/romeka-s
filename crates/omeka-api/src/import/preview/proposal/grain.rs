@@ -270,6 +270,7 @@ fn grain(one: &InSeries<'_>) -> (ListPlan, Option<Choice<RecordKind, GrainCounts
                 value: RecordKind::Item,
                 counts,
             }),
+            others: Vec::new(),
         });
     } else if let (
         Some(Join {
@@ -295,6 +296,7 @@ fn grain(one: &InSeries<'_>) -> (ListPlan, Option<Choice<RecordKind, GrainCounts
                 value: rival,
                 counts: counts.clone(),
             }),
+            others: Vec::new(),
         });
     }
     let plan = ListPlan {

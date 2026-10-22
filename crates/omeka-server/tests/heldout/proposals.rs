@@ -27,7 +27,7 @@ use crate::imports_fixture::{self, fixture};
 /// lowers its entry and the table always states the truth.
 #[rustfmt::skip]
 const DISTANCE: &[Distance] = &[
-    Distance { shape: "accession_register", unapplied: 2, left: 40 },
+    Distance { shape: "accession_register", unapplied: 1, left: 39 },
     Distance { shape: "born_digital",       unapplied: 0, left: 4 },
     Distance { shape: "negative_archive",   unapplied: 2, left: 10 },
     Distance { shape: "oral_history",       unapplied: 0, left: 0 },

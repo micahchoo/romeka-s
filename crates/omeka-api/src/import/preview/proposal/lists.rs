@@ -7,7 +7,8 @@
 //! a tie describes none. A fold is on when it pairs more rows and makes no
 //! more cells find a text that two files or two groups share. A second list
 //! joins a series only when it pairs a group the lists before it do not;
-//! otherwise it is the series' rival.
+//! otherwise it is the series' rival, or one of its other choices. A list
+//! that describes no series describes one when the person says so.
 
 use std::cmp::Reverse;
 use std::collections::{HashMap, HashSet};
@@ -73,6 +74,24 @@ pub(super) struct SeriesLists<'d> {
     pub joined: Vec<InSeries<'d>>,
     /// The list with the next most paired rows here.
     pub rival: Option<InSeries<'d>>,
+    /// Every other list that pairs a row here, the most paired first.
+    pub others: Vec<InSeries<'d>>,
+    /// The lists that read and pair no row here.
+    spare: Vec<InSeries<'d>>,
+}
+
+impl<'d> SeriesLists<'d> {
+    /// Make `taken` the list that describes the series; the list it
+    /// replaces becomes the rival.
+    fn choose(&mut self, taken: InSeries<'d>) {
+        if !self.joined.is_empty() {
+            let replaced = self.joined.remove(0);
+            if let Some(rival) = self.rival.replace(replaced) {
+                self.others.insert(0, rival);
+            }
+        }
+        self.joined.insert(0, taken);
+    }
 }
 
 /// A list that describes no series.
@@ -328,17 +347,19 @@ pub(super) fn detect<'d>(
                 });
             }
         }
-        let others = taken.iter_mut().enumerate().filter_map(|(list, each)| {
-            let one = each[at].take_if(|one| one.paired > 0)?;
+        let rest = taken.iter_mut().enumerate().filter_map(|(list, each)| {
             Some(InSeries {
                 file: files[list].clone(),
-                counted: one,
+                counted: each[at].take()?,
             })
         });
-        not_joined.extend(others);
-        here.rival = not_joined
-            .into_iter()
-            .min_by_key(|one| (Reverse(one.counted.paired), one.file.clone()));
+        let (paired, spare): (Vec<_>, Vec<_>) = rest.partition(|one| one.counted.paired > 0);
+        not_joined.extend(paired);
+        not_joined.sort_by_key(|one| (Reverse(one.counted.paired), one.file.clone()));
+        let mut not_joined = not_joined.into_iter();
+        here.rival = not_joined.next();
+        here.others = not_joined.collect();
+        here.spare = spare;
         found.series.push(here);
     }
     replay(&mut found, series, edits, applied);
@@ -368,8 +389,9 @@ fn overlaps(taken: &mut [Vec<Option<Counted<'_>>>], at: usize) {
     }
 }
 
-/// Replay the `list` edits: each takes the series' rival, or no list, when
-/// that is what the proposal shows. Each edit it applies is marked.
+/// Replay the `list` edits: each takes the series' rival, another list that
+/// pairs rows there, a list that describes no series, or no list. Each edit
+/// it applies is marked.
 fn replay(found: &mut Found<'_>, series: &[FolderSeries], edits: &[Edit], applied: &mut [bool]) {
     for (at, edit) in edits.iter().enumerate() {
         let Edit::List { scope, list } = edit else {
@@ -386,16 +408,33 @@ fn replay(found: &mut Found<'_>, series: &[FolderSeries], edits: &[Edit], applie
         match list {
             Some(asked) if first == Some(asked) => applied[at] = true,
             Some(asked) => {
-                if let Some(rival) = here.rival.take_if(|rival| rival.file == *asked) {
-                    here.rival = (!here.joined.is_empty()).then(|| here.joined.remove(0));
-                    here.joined.insert(0, rival);
+                let unattached = found.unattached.iter().any(|list| list.file == *asked);
+                let taken = here
+                    .rival
+                    .take_if(|rival| rival.file == *asked)
+                    .or_else(|| {
+                        let other = here.others.iter().position(|one| one.file == *asked)?;
+                        Some(here.others.remove(other))
+                    })
+                    .or_else(|| {
+                        let spare = here
+                            .spare
+                            .iter()
+                            .position(|one| unattached && one.file == *asked)?;
+                        Some(here.spare.remove(spare))
+                    });
+                if let Some(taken) = taken {
+                    found.unattached.retain(|list| list.file != *asked);
+                    here.choose(taken);
                     applied[at] = true;
                 }
             }
             None if first.is_none() => applied[at] = true,
             None => {
                 let mut joined = std::mem::take(&mut here.joined).into_iter();
-                here.rival = joined.next();
+                if let Some(rival) = std::mem::replace(&mut here.rival, joined.next()) {
+                    here.others.insert(0, rival);
+                }
                 applied[at] = true;
             }
         }

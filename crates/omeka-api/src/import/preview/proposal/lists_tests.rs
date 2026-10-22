@@ -1,11 +1,13 @@
 #![allow(clippy::expect_used)]
 
-use super::bhc006_tests::proposal_with_lists;
+use super::bhc006_tests::{self, proposal_with_lists};
 use super::{Evidence, FoundList, ItemCut, NodeEvidence, Proposal, SeriesNode, propose};
 use crate::import::derive::tests::support::{JPEG, TIFF, catalog, index, plan};
 use crate::import::derive::{NoTags, Sheets, derive};
 use crate::import::placement::{ListFiles, Placement};
-use crate::import::plan::{Edit, FolderScope, ImportPlan, JoinOn, ListFile, RelPath, SourceId};
+use crate::import::plan::{
+    CutEdit, Edit, FolderScope, ImportPlan, JoinOn, ListFile, RelPath, SourceId,
+};
 use crate::import::preview::candidates::{CandidateRead, automatic};
 use crate::import::sheet;
 
@@ -159,11 +161,124 @@ fn a_list_edit_takes_the_rival_or_no_list() {
         "only PN and Documents keep their lists"
     );
 
-    let not_offered = take(Some(file("BHC006_CC_SECOND_AF.xlsx")));
+    // A list that does not read describes nothing.
+    let not_offered = take(Some(file("Artifacts/BHC006_GMT_AF.ods")));
     assert!(not_offered.edits.iter().all(|edit| !edit.applied));
     assert_eq!(
         chosen(series(&not_offered, "Artifacts")),
         Some("BHC006_GMT_AF.xlsx")
+    );
+}
+
+#[test]
+fn a_list_not_used_describes_the_series_it_is_given_to() {
+    let artifacts = FolderScope {
+        source: SourceId("s1".into()),
+        folder: RelPath::parse("Artifacts").expect("a folder"),
+    };
+    let draft = proposal_with_lists(&[]);
+    let unused = file("BHC006_CC_SECOND_AF.xlsx");
+    assert!(
+        draft
+            .unattached
+            .iter()
+            .any(|list| list.source == unused.source && list.file == unused.file),
+        "no series is described by it"
+    );
+    let edit = Edit::List {
+        scope: artifacts,
+        list: Some(unused.clone()),
+    };
+    let used = proposal_with_lists(&[edit.clone(), edit]);
+    assert!(used.edits.iter().all(|edit| edit.applied), "twice is once");
+    let node = series(&used, "Artifacts");
+    assert_eq!(chosen(node), Some("BHC006_CC_SECOND_AF.xlsx"));
+    assert_eq!(
+        node.list
+            .rival
+            .as_ref()
+            .and_then(|rival| rival.value.as_ref())
+            .map(|list| list.file.as_str()),
+        Some("BHC006_GMT_AF.xlsx"),
+        "the draft's list is the rival, one click back"
+    );
+    assert!(
+        used.unattached.iter().all(|list| list.file != unused.file),
+        "it describes a series now"
+    );
+    assert!(
+        used.structure
+            .lists()
+            .any(|(_, list)| list.file == unused.file),
+        "the plan reads it"
+    );
+}
+
+#[test]
+fn every_list_that_pairs_rows_here_is_a_choice() {
+    let index = index(&[("Letters/ana.jpg", JPEG), ("Letters/ben.jpg", JPEG)]);
+    let plan = plan(|_| {});
+    let list = |path: &str, text: &str| {
+        let file = file(path);
+        let read = automatic(&file.source, &file.file).read;
+        FoundList {
+            sheet: sheet::read(text.as_bytes(), &read, None),
+            file,
+        }
+    };
+    let lists = vec![
+        list("both.csv", "File\nana.jpg\nben.jpg\n"),
+        list("ana.csv", "File\nana.jpg\n"),
+        list("ben.csv", "File\nben.jpg\n"),
+    ];
+    let catalog = catalog();
+    let evidence = Evidence {
+        index: &index,
+        lists: &lists,
+        catalog: &catalog,
+        sources: &plan.sources,
+        structure: &plan.structure,
+    };
+    let names = |node: &SeriesNode| -> Vec<Option<String>> {
+        std::iter::once(&node.list.chosen)
+            .chain(&node.list.rival)
+            .chain(&node.list.others)
+            .map(|pick| {
+                pick.value
+                    .as_ref()
+                    .map(|list| list.file.as_str().to_owned())
+            })
+            .collect()
+    };
+    let draft = propose(&evidence, &[]);
+    assert_eq!(
+        names(series(&draft, "s1")),
+        [
+            Some("both.csv".into()),
+            Some("ana.csv".into()),
+            Some("ben.csv".into())
+        ],
+        "the most paired first"
+    );
+    let taken = propose(
+        &evidence,
+        &[Edit::List {
+            scope: FolderScope {
+                source: SourceId("s1".into()),
+                folder: RelPath::root(),
+            },
+            list: Some(file("ben.csv")),
+        }],
+    );
+    assert!(taken.edits[0].applied, "a choice past the rival applies");
+    assert_eq!(
+        names(series(&taken, "s1")),
+        [
+            Some("ben.csv".into()),
+            Some("both.csv".into()),
+            Some("ana.csv".into())
+        ],
+        "the draft's list is the rival, one click back"
     );
 }
 
@@ -247,4 +362,69 @@ fn a_box_list_pairs_folders_by_the_first_places_of_their_names() {
     let placement = Placement::of_model(&model, &confirmed, &ListFiles::new(&confirmed, &sheets));
     assert_eq!(placement.items.len(), 3, "each folder is one item");
     assert_eq!(placement.rows.len(), 3, "each reference names its folder");
+}
+
+#[test]
+fn a_new_proposal_keeps_the_column_choices_of_its_list() {
+    // The person's plan: the frozen BHC006 tree, where each column of the
+    // Artifacts list goes, read without trimming.
+    let mut kept: serde_json::Value =
+        serde_json::from_str(include_str!("../../fixtures/v3/bhc006.json")).expect("json");
+    let artifacts = kept["structure"]["levels"][0]["levels"][0].clone();
+    assert_eq!(artifacts["lists"][0]["file"], "BHC006_GMT_AF.xlsx");
+    kept["structure"]["levels"][0]["levels"][0]["lists"][0]["read"]["trim"] = false.into();
+    let kept = ImportPlan::from_json(&kept.to_string()).expect("the person's plan");
+    let index = bhc006_tests::index();
+    let lists = bhc006_tests::lists();
+    let catalog = bhc006_tests::install();
+    let evidence = Evidence {
+        index: &index,
+        lists: &lists,
+        catalog: &catalog,
+        sources: &kept.sources,
+        structure: &kept.structure,
+    };
+    // A click on Items after the person chose where each column goes.
+    let proposal = propose(
+        &evidence,
+        &[Edit::Items {
+            scope: FolderScope {
+                source: SourceId("s1".into()),
+                folder: RelPath::parse("Artifacts").expect("a folder"),
+            },
+            cut: CutEdit::Whole,
+        }],
+    );
+    assert!(proposal.edits[0].applied);
+
+    let structure = serde_json::to_value(&proposal.structure).expect("json");
+    let mut series = Vec::new();
+    collect_series(&structure["levels"], &mut series);
+    let proposed = series
+        .into_iter()
+        .find(|one| one["lists"][0]["file"] == "BHC006_GMT_AF.xlsx")
+        .expect("the series the list describes");
+    let list = &proposed["lists"][0];
+    assert_eq!(
+        list["columns"], artifacts["lists"][0]["columns"],
+        "where each column goes"
+    );
+    assert_eq!(list["read"]["trim"], false, "how it is read");
+    let renamed = artifacts["slots"]
+        .to_string()
+        .replace("\"sheet\":\"af\"", &format!("\"sheet\":{}", list["id"]));
+    assert_eq!(
+        proposed["slots"].to_string(),
+        renamed,
+        "the slot rules that read it, on this proposal's sheet id"
+    );
+}
+
+fn collect_series<'v>(levels: &'v serde_json::Value, out: &mut Vec<&'v serde_json::Value>) {
+    for level in levels.as_array().into_iter().flatten() {
+        match level["kind"].as_str() {
+            Some("series") => out.push(level),
+            _ => collect_series(&level["levels"], out),
+        }
+    }
 }

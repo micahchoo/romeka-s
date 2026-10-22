@@ -28,7 +28,7 @@ fn scope(folder: &str) -> FolderScope {
 /// The edits a person makes on each shape's proposal: each a click the
 /// proposal offers (design section 4, "Expected trees"). The count is part
 /// of the pin.
-fn pinned(shape: &str) -> Vec<Edit> {
+pub(crate) fn pinned(shape: &str) -> Vec<Edit> {
     match shape {
         // Three pages of one scan are one item.
         "s1" => vec![Edit::Items {
@@ -71,7 +71,7 @@ fn placed(scenario: &Scenario, plan: &ImportPlan, sheets: &Sheets) -> Placement 
 
 /// The proposal after `edits`, and how its placement differs from the
 /// scenario's.
-fn judge(scenario: &Scenario, edits: &[Edit]) -> (Proposal, Vec<Difference>) {
+pub(crate) fn judge(scenario: &Scenario, edits: &[Edit]) -> (Proposal, Vec<Difference>) {
     let lists = found_lists(scenario);
     let evidence = Evidence {
         index: &scenario.index,

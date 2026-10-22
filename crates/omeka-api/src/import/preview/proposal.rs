@@ -23,7 +23,7 @@
 //! constant in [`thresholds`].
 
 #[cfg(test)]
-mod bhc006_tests;
+pub(crate) mod bhc006_tests;
 mod folders;
 #[cfg(test)]
 mod folders_tests;
@@ -41,6 +41,8 @@ mod names_tests;
 mod pairing;
 #[cfg(test)]
 mod pairing_tests;
+#[cfg(test)]
+mod results_tests;
 mod sets;
 #[cfg(test)]
 mod sets_tests;
@@ -180,12 +182,14 @@ pub struct SetNode {
     pub counts: SetCounts,
 }
 
-/// A choice the proposer made, and the next best choice.
+/// A choice the proposer made, the next best choice, and every other
+/// choice it counted. An edit may ask for any of them.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Choice<T, C> {
     pub chosen: Pick<T, C>,
     pub rival: Option<Pick<T, C>>,
+    pub others: Vec<Pick<T, C>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -314,6 +318,20 @@ pub enum OutsideReason {
 pub struct EditResult {
     pub edit: Edit,
     pub applied: bool,
+    /// Why the edit is not applied; `None` exactly when it is.
+    pub reason: Option<NotApplied>,
+}
+
+/// Why an edit of the plan is not applied.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum NotApplied {
+    /// The folder, list or column it names is not in the scan.
+    Gone,
+    /// What it names is there, and the proposal does not offer its choice.
+    NotOffered,
+    /// A later edit answers the same question otherwise.
+    Replaced,
 }
 
 /// The proposal for this evidence after these edits. The same evidence and
@@ -369,7 +387,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
             top_sets: Vec::new(),
             outside: found.outside,
             unattached: Vec::new(),
-            edits: results(edits, applied),
+            edits: results(evidence, edits, applied),
             matches_plan: true,
         };
     };
@@ -417,7 +435,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         .zip(&rows)
         .map(|(cut, rows)| rows.items.is_none().then_some(&cut.chosen.key))
         .collect();
-    let levels = tree(&series, &keys, &rows, &Sets::default());
+    let levels = tree(evidence.structure, &series, &keys, &rows, &Sets::default());
     let plan = match Structure::build(levels, found.left.clone(), evidence.sources) {
         Ok(structure) => ImportPlan {
             structure,
@@ -461,12 +479,12 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         edits,
         &mut applied,
     );
-    let edits = results(edits, applied);
+    let edits = results(evidence, edits, applied);
     let plan = if found_sets.top_taken.is_some()
         || found_sets.series.iter().any(|sets| {
             !sets.taken.is_empty() || sets.folder.as_ref().is_some_and(|folder| folder.chosen)
         }) {
-        let levels = tree(&series, &keys, &rows, &found_sets);
+        let levels = tree(evidence.structure, &series, &keys, &rows, &found_sets);
         match Structure::build(levels, found.left.clone(), evidence.sources) {
             Ok(structure) => ImportPlan { structure, ..plan },
             Err(_) => plan,
@@ -499,7 +517,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
             .into_iter()
             .map(|offer| offer.pick)
             .collect();
-        let (item, counted, rival) = match &rows.items {
+        let (item, counted, rival, others) = match &rows.items {
             Some((list, key)) => (
                 ItemCut::Rows {
                     list: list.clone(),
@@ -507,14 +525,22 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
                 },
                 None,
                 Some(cut.chosen),
+                cut.rival.into_iter().chain(cut.others).collect(),
             ),
-            None => (cut.chosen.item, Some(cut.chosen.counts), cut.rival),
+            None => (
+                cut.chosen.item,
+                Some(cut.chosen.counts),
+                cut.rival,
+                cut.others,
+            ),
         };
         let items = cut_counts(&model, at, &scope, counted.as_ref());
-        let rival = rival.map(|rival| Pick {
-            counts: counted_counts(&rival.counts, scope.media),
-            value: rival.item,
-        });
+        let other_cut = |other: names::Cut| Pick {
+            counts: counted_counts(&other.counts, scope.media),
+            value: other.item,
+        };
+        let rival = rival.map(other_cut);
+        let others = others.into_iter().map(other_cut).collect();
         let folder = sets
             .folder
             .as_ref()
@@ -556,6 +582,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
                     counts: items,
                 },
                 rival,
+                others,
             },
             list: Choice {
                 chosen: here.joined.into_iter().next().map_or(
@@ -566,6 +593,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
                     list_pick,
                 ),
                 rival: here.rival.map(list_pick),
+                others: here.others.into_iter().map(list_pick).collect(),
             },
             grain: rows.grain,
             set: Choice {
@@ -580,6 +608,14 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
                     value: Some(rival.value),
                     counts: rival.counts,
                 }),
+                others: sets
+                    .others
+                    .into_iter()
+                    .map(|other| Pick {
+                        value: Some(other.value),
+                        counts: other.counts,
+                    })
+                    .collect(),
             },
             splits: sets.splits,
             pairing,
@@ -617,19 +653,125 @@ fn list_cells(evidence: &Evidence<'_>) -> HashSet<String> {
     cells
 }
 
-fn results(edits: &[Edit], applied: Vec<bool>) -> Vec<EditResult> {
+/// Each edit with whether it is applied, and why not. An applied edit is
+/// replaced when a later applied edit answers its question otherwise; an
+/// edit no detector applied is gone when the scan no longer has what it
+/// names, and not offered otherwise.
+fn results(evidence: &Evidence<'_>, edits: &[Edit], applied: Vec<bool>) -> Vec<EditResult> {
+    let reasons: Vec<Option<NotApplied>> = edits
+        .iter()
+        .zip(&applied)
+        .enumerate()
+        .map(|(at, (edit, done))| {
+            let answered_later = || {
+                edits
+                    .iter()
+                    .zip(&applied)
+                    .skip(at + 1)
+                    .any(|(later, later_done)| {
+                        *later_done && later != edit && Question::of(later) == Question::of(edit)
+                    })
+            };
+            if *done {
+                answered_later().then_some(NotApplied::Replaced)
+            } else if in_scan(evidence, edit) {
+                Some(NotApplied::NotOffered)
+            } else {
+                Some(NotApplied::Gone)
+            }
+        })
+        .collect();
     edits
         .iter()
-        .zip(applied)
-        .map(|(edit, applied)| EditResult {
+        .zip(reasons)
+        .map(|(edit, reason)| EditResult {
             edit: edit.clone(),
-            applied,
+            applied: reason.is_none(),
+            reason,
         })
         .collect()
 }
 
+/// The question of the screen an edit answers: one edit per question.
+#[derive(PartialEq, Eq)]
+enum Question<'e> {
+    Import(&'e FolderScope),
+    Items(&'e FolderScope),
+    List(&'e FolderScope),
+    Grain(&'e ListFile),
+    Set(&'e SetFrom),
+    Pair(&'e ListFile),
+    Title(&'e SetFrom),
+}
+
+impl<'e> Question<'e> {
+    fn of(edit: &'e Edit) -> Self {
+        match edit {
+            Edit::LeaveOut { scope } | Edit::Keep { scope } => Self::Import(scope),
+            Edit::Items { scope, .. } => Self::Items(scope),
+            Edit::List { scope, .. } => Self::List(scope),
+            Edit::Grain { list, .. } => Self::Grain(list),
+            Edit::AddSet { from } | Edit::DropSet { from } => Self::Set(from),
+            Edit::Pair { list, .. } => Self::Pair(list),
+            Edit::Title { from, .. } => Self::Title(from),
+        }
+    }
+}
+
+/// Whether the scan still has every folder, list and column the edit names.
+fn in_scan(evidence: &Evidence<'_>, edit: &Edit) -> bool {
+    let folder = |scope: &FolderScope| {
+        evidence
+            .index
+            .sources
+            .iter()
+            .filter(|source| source.id == scope.source)
+            .flat_map(|source| source.walk.entries.iter().chain(&source.walk.sheets))
+            .any(|entry| {
+                let mut segments = entry.path.segments();
+                scope
+                    .folder
+                    .segments()
+                    .all(|segment| segments.next() == Some(segment))
+            })
+    };
+    let files = evidence.lists.files();
+    let list = |file: &ListFile| files.contains(file);
+    let column = |file: &ListFile, column: &ColumnRef| {
+        let mut found = false;
+        if list(file) {
+            evidence.lists.read(file, &mut |sheet| {
+                found = sheet.as_ref().is_ok_and(|sheet| {
+                    sheet
+                        .columns
+                        .iter()
+                        .any(|one| one.index == column.index && one.header == column.header)
+                });
+            });
+        }
+        found
+    };
+    let set = |from: &SetFrom| match from {
+        SetFrom::Folder { scope }
+        | SetFrom::NamePlace { scope, .. }
+        | SetFrom::FolderLevel { scope, .. } => folder(scope),
+        SetFrom::Column {
+            list,
+            column: named,
+        } => column(list, named),
+    };
+    match edit {
+        Edit::LeaveOut { scope } | Edit::Keep { scope } | Edit::Items { scope, .. } => {
+            folder(scope)
+        }
+        Edit::List { scope, list: asked } => folder(scope) && asked.as_ref().is_none_or(list),
+        Edit::Grain { list: file, .. } | Edit::Pair { list: file, .. } => list(file),
+        Edit::AddSet { from } | Edit::DropSet { from } | Edit::Title { from, .. } => set(from),
+    }
+}
+
 /// What a series holds beyond its scope and pattern: its lists as the plan
-/// reads them, its set from rows, and its key rules.
+/// reads them, its set from rows, and its slot rules.
 #[derive(Default)]
 struct Plan {
     lists: Vec<SheetPlan>,
@@ -641,48 +783,72 @@ impl Plan {
     /// Detector 4's choices for one series, each list with a sheet id not in
     /// `ids`: its file's path, and its source's id after it when another
     /// list has that path.
-    fn of(rows: &grain::SeriesRows, ids: &mut BTreeSet<SheetId>, taken: &[sets::Taken]) -> Self {
+    ///
+    /// The person's choices in `kept`, the plan's structure, stay: a list
+    /// the plan holds keeps how it is read and where its columns go, and
+    /// the series takes the slot rules of the plan's series that holds one
+    /// of its lists, else of the plan's series of the same scope. A rule
+    /// that reads a list this series does not hold is not taken, and the
+    /// key rules the rows need win over the person's.
+    fn of(
+        rows: &grain::SeriesRows,
+        ids: &mut BTreeSet<SheetId>,
+        taken: &[sets::Taken],
+        kept: &Structure,
+        scope: &SeriesScope,
+    ) -> Self {
         let mut of_file = BTreeMap::new();
-        let lists = rows
-            .lists
-            .iter()
-            .map(|list| {
-                let mut id = SheetId(list.file.file.as_str().to_owned());
-                if ids.contains(&id) {
-                    id.0.push_str(&list.file.source.0);
-                }
-                ids.insert(id.clone());
-                of_file.insert(list.file.clone(), id.clone());
-                let mut plan = candidates::automatic(&list.file.source, &list.file.file);
-                plan.id = id;
-                plan.row_kind = list.row_kind.clone();
-                plan.join = list.join.clone();
-                plan.item_key = list.item_key.clone();
-                let mut mapped = list.mapped.clone();
-                let split = taken.iter().filter_map(|taken| match &taken.column {
-                    Some((file, column)) if *file == list.file => Some(column),
-                    _ => None,
-                });
-                for column in split {
-                    if !mapped.contains(column) {
-                        mapped.push(column.clone());
+        let mut of_kept: BTreeMap<SheetId, SheetId> = BTreeMap::new();
+        let lists =
+            rows.lists
+                .iter()
+                .map(|list| {
+                    let mut id = SheetId(list.file.file.as_str().to_owned());
+                    if ids.contains(&id) {
+                        id.0.push_str(&list.file.source.0);
                     }
-                }
-                plan.columns = mapped
-                    .iter()
-                    .map(|column| ColumnPlan {
-                        column: column.clone(),
-                        options: ColumnOptions {
-                            split: None,
-                            value_type: ValueType::Literal,
-                            lang: None,
-                            private: false,
-                        },
-                    })
-                    .collect();
-                plan
-            })
-            .collect();
+                    ids.insert(id.clone());
+                    of_file.insert(list.file.clone(), id.clone());
+                    let mut plan = candidates::automatic(&list.file.source, &list.file.file);
+                    plan.id = id;
+                    plan.row_kind = list.row_kind.clone();
+                    plan.join = list.join.clone();
+                    plan.item_key = list.item_key.clone();
+                    let mut mapped = list.mapped.clone();
+                    let split = taken.iter().filter_map(|taken| match &taken.column {
+                        Some((file, column)) if *file == list.file => Some(column),
+                        _ => None,
+                    });
+                    for column in split {
+                        if !mapped.contains(column) {
+                            mapped.push(column.clone());
+                        }
+                    }
+                    let held = kept.lists().map(|(_, held)| held).find(|held| {
+                        held.source == list.file.source && held.file == list.file.file
+                    });
+                    let mut columns = held.map(|held| held.columns.clone()).unwrap_or_default();
+                    for column in mapped {
+                        if columns.iter().all(|kept| kept.column.index != column.index) {
+                            columns.push(ColumnPlan {
+                                column,
+                                options: ColumnOptions {
+                                    split: None,
+                                    value_type: ValueType::Literal,
+                                    lang: None,
+                                    private: false,
+                                },
+                            });
+                        }
+                    }
+                    plan.columns = columns;
+                    if let Some(held) = held {
+                        plan.read = held.read.clone();
+                        of_kept.insert(held.id.clone(), plan.id.clone());
+                    }
+                    plan
+                })
+                .collect();
         let column = |file: &ListFile, column: &ColumnRef| {
             Some(SourceRef::Column {
                 sheet: of_file.get(file)?.clone(),
@@ -699,20 +865,67 @@ impl Plan {
                 },
             }))
         });
-        let rules = rows
-            .keys
-            .iter()
-            .filter_map(|(kind, file, key)| {
-                let rule = SlotRule {
-                    sources: vec![column(file, key)?],
-                    combine: Combine::First,
-                    map: IndexMap::new(),
-                };
-                Some((*kind, SlotName::ItemKey, rule))
-            })
-            .collect();
+        let mut rules = kept_rules(kept, scope, &of_kept);
+        rules.extend(rows.keys.iter().filter_map(|(kind, file, key)| {
+            let rule = SlotRule {
+                sources: vec![column(file, key)?],
+                combine: Combine::First,
+                map: IndexMap::new(),
+            };
+            Some((*kind, SlotName::ItemKey, rule))
+        }));
         Self { lists, set, rules }
     }
+}
+
+/// The slot rules of the plan's series that holds a list of `of_kept` (the
+/// plan's sheet ids, each with this series' id for it), else of the plan's
+/// series of `scope`. Each list it reads is renamed to this series' id; a
+/// rule that reads another list is left behind.
+fn kept_rules(
+    kept: &Structure,
+    scope: &SeriesScope,
+    of_kept: &BTreeMap<SheetId, SheetId>,
+) -> Vec<(RecordKind, SlotName, SlotRule)> {
+    let each: Vec<&Series> = kept.all_series().map(|(_, series)| series).collect();
+    let held = each
+        .iter()
+        .find(|series| {
+            series
+                .lists()
+                .iter()
+                .any(|list| of_kept.contains_key(&list.id))
+        })
+        .or_else(|| each.iter().find(|series| series.scope() == scope));
+    let Some(held) = held else {
+        return Vec::new();
+    };
+    let renamed = |rule: &SlotRule| -> Option<SlotRule> {
+        let sources = rule
+            .sources
+            .iter()
+            .map(|source| match source {
+                SourceRef::Column { sheet, column } => Some(SourceRef::Column {
+                    sheet: of_kept.get(sheet)?.clone(),
+                    column: column.clone(),
+                }),
+                other => Some(other.clone()),
+            })
+            .collect::<Option<Vec<_>>>()?;
+        Some(SlotRule {
+            sources,
+            ..rule.clone()
+        })
+    };
+    [RecordKind::Item, RecordKind::Media, RecordKind::ItemSet]
+        .into_iter()
+        .flat_map(|kind| {
+            held.rules(kind)
+                .iter()
+                .filter(|(slot, _)| **slot != SlotName::Sets)
+                .filter_map(move |(slot, rule)| Some((kind, slot.clone(), renamed(rule)?)))
+        })
+        .collect()
 }
 
 /// The archive as found: one series per source, over the whole source.
@@ -740,6 +953,7 @@ fn as_found(evidence: &Evidence<'_>) -> Vec<folders::FolderSeries> {
 /// each other split is a set level around the series; a top set taken is a
 /// set level around everything.
 fn tree(
+    kept: &Structure,
     series: &[folders::FolderSeries],
     keys: &[Option<&Key>],
     rows: &[grain::SeriesRows],
@@ -754,7 +968,9 @@ fn tree(
         .enumerate()
         .map(|(at, ((one, key), rows))| {
             let sets = sets.series.get(at).unwrap_or(&none);
-            level(one, *key, Plan::of(rows, &mut ids, &sets.taken), sets)
+            let scope = SeriesScope::Folders(one.scopes.clone());
+            let plan = Plan::of(rows, &mut ids, &sets.taken, kept, &scope);
+            level(one, *key, plan, sets)
         })
         .collect();
     match &sets.top_taken {

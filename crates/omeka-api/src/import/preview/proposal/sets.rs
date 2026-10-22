@@ -13,6 +13,8 @@
 //! offered: a column with one value in every row is the rival title of the
 //! series' set. A column with one value in every row of every list that
 //! describes a series is offered at the top, as one set over everything.
+//! Every other column of a series' lists is a further choice of its set,
+//! and an `addSet` edit may take it.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::num::NonZeroU32;
@@ -79,6 +81,8 @@ pub(super) struct Taken {
     pub column: Option<(ListFile, ColumnRef)>,
     /// Text the scan read that tells this level from the series.
     pub name: String,
+    /// It was offered as a split.
+    pub split: bool,
 }
 
 /// What detector 5 found for one series.
@@ -91,6 +95,8 @@ pub(super) struct SeriesSets {
     pub rival: Option<Pick<SetFrom, SetCounts>>,
     /// The offered splits not taken.
     pub splits: Vec<Pick<SetFrom, SetCounts>>,
+    /// Every other column of its lists not taken, with its sets.
+    pub others: Vec<Pick<SetFrom, SetCounts>>,
     /// The splits taken, in the order of the edits.
     pub taken: Vec<Taken>,
 }
@@ -112,6 +118,8 @@ struct Candidate {
     place: Option<KeyShape>,
     column: Option<(ListFile, ColumnRef)>,
     name: String,
+    /// A split: it sorts the series' items. Otherwise a further choice.
+    split: bool,
 }
 
 fn text(row: &Row, column: u32) -> String {
@@ -336,6 +344,7 @@ fn candidates(
             place: None,
             column: None,
             name: NonZeroU32::MIN.to_string(),
+            split: true,
         });
     }
     for (place, values) in one.places.iter().enumerate() {
@@ -358,6 +367,7 @@ fn candidates(
                 place: Some(values.classes.clone()),
                 column: None,
                 name: place.to_string(),
+                split: true,
             });
         }
     }
@@ -378,22 +388,21 @@ fn candidates(
             };
             // One value in every row: its one set is the series, as the
             // list describes it.
-            if pick.counts.sets.len() == 1 && rows.n == rows.of {
-                if rival.is_none() && !top.contains(&column.header) {
-                    rival = Some(pick);
-                }
-            } else if sorts(&pick.counts.sets, items) {
-                found.push(Candidate {
-                    source: SourceRef::Column {
-                        sheet: list.plan.id.clone(),
-                        column: column.clone(),
-                    },
-                    place: None,
-                    column: Some((list.file.clone(), column.clone())),
-                    name: column.header.clone(),
-                    pick,
-                });
+            let one_set = pick.counts.sets.len() == 1 && rows.n == rows.of;
+            if one_set && rival.is_none() && !top.contains(&column.header) {
+                rival = Some(pick.clone());
             }
+            found.push(Candidate {
+                source: SourceRef::Column {
+                    sheet: list.plan.id.clone(),
+                    column: column.clone(),
+                },
+                place: None,
+                column: Some((list.file.clone(), column.clone())),
+                name: column.header.clone(),
+                split: !one_set && sorts(&pick.counts.sets, items),
+                pick,
+            });
         }
     }
     (found, rival)
@@ -450,7 +459,16 @@ pub(super) fn detect(
     let mut offered: Vec<Vec<Candidate>> = Vec::new();
     for (one, lists) in series.iter().zip(&lists) {
         let (candidates, rival) = candidates(model, one, lists, &top_headers);
-        offered.push(candidates);
+        // A column whose one value holds every item names the top offer.
+        offered.push(
+            candidates
+                .into_iter()
+                .filter(|candidate| {
+                    top.iter()
+                        .all(|(pick, _)| pick.value != candidate.pick.value)
+                })
+                .collect(),
+        );
         let items = model
             .kept()
             .filter(|record| record.kind == RecordKind::Item && record.series == one.at)
@@ -481,12 +499,24 @@ pub(super) fn detect(
         }
     }
     for (sets, candidates) in found.series.iter_mut().zip(offered) {
-        sets.splits = candidates
+        let rival = sets.rival.as_ref().map(|rival| rival.value.clone());
+        let (splits, others): (Vec<Candidate>, Vec<Candidate>) = candidates
+            .into_iter()
+            .partition(|candidate| candidate.split);
+        sets.splits = splits.into_iter().map(|candidate| candidate.pick).collect();
+        sets.others = others
             .into_iter()
             .map(|candidate| candidate.pick)
+            .filter(|pick| Some(&pick.value) != rival.as_ref())
             .collect();
         if let Some(folder) = sets.folder.as_ref().filter(|folder| !folder.chosen) {
             sets.rival = Some(folder.pick());
+        } else if sets
+            .taken
+            .iter()
+            .any(|taken| Some(&taken.pick.value) == rival.as_ref())
+        {
+            sets.rival = None;
         }
     }
     found.top = top.into_iter().map(|(pick, _)| pick).collect();
@@ -591,6 +621,7 @@ fn add(
             place: candidate.place,
             column: candidate.column,
             name: candidate.name,
+            split: candidate.split,
         });
         return true;
     }
@@ -631,6 +662,7 @@ fn drop(
             place: taken.place,
             column: taken.column,
             name: taken.name,
+            split: taken.split,
         }));
         shown |= candidates
             .iter()

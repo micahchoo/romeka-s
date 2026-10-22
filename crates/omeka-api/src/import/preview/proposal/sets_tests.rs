@@ -1,4 +1,4 @@
-#![allow(clippy::expect_used)]
+#![allow(clippy::expect_used, clippy::panic)]
 
 use super::bhc006_tests::{proposal, proposal_with_lists};
 use super::{
@@ -8,7 +8,11 @@ use crate::import::derive::tests::scenarios::{S1_TO_S8, Scenario};
 use crate::import::derive::tests::support::{JPEG, catalog, index, plan};
 use crate::import::derive::{NoTags, Sheets, derive};
 use crate::import::placement::{ListFiles, Placement};
-use crate::import::plan::{Edit, FolderScope, ImportPlan, RelPath, SetFrom, SourceId};
+use crate::import::plan::{
+    ColumnRef, Edit, FolderScope, ImportPlan, ListFile, RelPath, SetFrom, SourceId,
+};
+use crate::import::preview::candidates::automatic;
+use crate::import::sheet;
 
 fn series<'p>(proposal: &'p Proposal, id: &str) -> &'p SeriesNode {
     proposal
@@ -308,5 +312,112 @@ fn a_dropped_set_and_a_titled_set_are_replayed() {
             &serde_json::json!("Photos, 1950s"),
             &serde_json::json!("Scans")
         ]
+    );
+}
+
+#[test]
+fn a_set_from_any_column_of_the_series_list_applies() {
+    let files = [
+        ("a.jpg", JPEG),
+        ("b.jpg", JPEG),
+        ("c.jpg", JPEG),
+        ("d.jpg", JPEG),
+    ];
+    let scenario = Scenario {
+        index: index(&files),
+        sheets: Sheets::new(),
+        plan: plan(|_| {}),
+        catalog: catalog(),
+    };
+    let register = ListFile {
+        source: SourceId("s1".into()),
+        file: RelPath::parse("register.csv").expect("a path"),
+    };
+    let text =
+        "File,Place,Note\na.jpg,Pune,torn\nb.jpg,Pune,faded\nc.jpg,Goa,signed\nd.jpg,Goa,dated\n";
+    let read = automatic(&register.source, &register.file).read;
+    let lists = vec![FoundList {
+        file: register.clone(),
+        sheet: sheet::read(text.as_bytes(), &read, None),
+    }];
+    let evidence = Evidence {
+        index: &scenario.index,
+        lists: &lists,
+        catalog: &scenario.catalog,
+        sources: &scenario.plan.sources,
+        structure: &scenario.plan.structure,
+    };
+    let note = SetFrom::Column {
+        list: register,
+        column: ColumnRef {
+            index: 2,
+            header: "Note".into(),
+        },
+    };
+    let draft = propose(&evidence, &[]);
+    let node = series(&draft, "s1");
+    let splits: Vec<Option<&str>> = node
+        .splits
+        .iter()
+        .map(|split| header(&split.value))
+        .collect();
+    assert_eq!(splits, [Some("Place")], "two places of two items each sort");
+    let [other] = node.set.others.as_slice() else {
+        panic!("one other choice: {:?}", node.set.others);
+    };
+    assert_eq!(
+        (other.value.as_ref(), sets(&other.counts)),
+        (
+            Some(&note),
+            vec![("dated", 1), ("faded", 1), ("signed", 1), ("torn", 1)]
+        ),
+        "a column of one item per value sorts nothing, and is still a choice"
+    );
+
+    let taken = propose(&evidence, &[Edit::AddSet { from: note.clone() }]);
+    assert!(taken.edits[0].applied, "{:?}", taken.edits);
+    let node = series(&taken, "s1");
+    assert_eq!(node.set.chosen.value.as_ref(), Some(&note));
+    assert!(
+        node.set.others.is_empty(),
+        "a taken column is no longer offered"
+    );
+}
+
+#[test]
+fn the_rival_title_of_a_series_set_applies() {
+    let draft = proposal_with_lists(&[]);
+    let kind = series(&draft, "Artifacts")
+        .set
+        .rival
+        .as_ref()
+        .and_then(|rival| rival.value.clone())
+        .expect("Item Type, one value in every row");
+    let proposal = proposal_with_lists(&[Edit::AddSet { from: kind.clone() }]);
+    assert!(proposal.edits[0].applied);
+    let artifacts = series(&proposal, "Artifacts");
+    assert_eq!(
+        artifacts.set.chosen.value,
+        Some(SetFrom::Folder {
+            scope: scope("Artifacts")
+        }),
+        "the folder stays the series' own set"
+    );
+    assert!(
+        artifacts.set.rival.is_none(),
+        "a taken column is no longer offered"
+    );
+    let around: Vec<(&SetFrom, Vec<(&str, usize)>)> = proposal
+        .nodes
+        .iter()
+        .filter_map(|node| match node {
+            NodeEvidence::Set(set) => Some((&set.from, sets(&set.counts))),
+            NodeEvidence::Series(_) => None,
+        })
+        .collect();
+    assert_eq!(
+        around,
+        [(&kind, vec![("Artifact", 313)])],
+        "a set level around the series"
     );
 }
