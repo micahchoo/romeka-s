@@ -1669,3 +1669,77 @@ async fn the_hourly_sweep_starts_one_derivative_worker_and_never_during_an_impor
     .expect("the row");
     assert_eq!(untouched.state, DerivativeState::Pending, "nothing started");
 }
+
+/// The office worker runs `--retry` every hour. A copy that failed its last
+/// allowed attempt stays failed instead of costing a run on every pass, and the
+/// summary counts it; one with attempts left is made again.
+#[tokio::test(flavor = "multi_thread")]
+async fn the_retry_gives_up_on_a_copy_that_failed_every_attempt() {
+    let harness = harness().await;
+    // One media at a time, so each claim takes that media's row.
+    let mut media_ids = Vec::new();
+    for failures in [derivatives::RETRY_ATTEMPTS, 1] {
+        let (media, _) = insert_media(&harness, "image/png", "png", &png()).await;
+        media_ids.push(media);
+        with_db!(&harness.pool, |db| MediaDerivativeRepo::new(db)
+            .enqueue(&NewDerivative {
+                media_id: media,
+                kind: DerivativeKind::Thumbnail,
+            })
+            .await)
+        .expect("queue");
+        for attempt in 0..failures {
+            let failed = with_db!(&harness.pool, |db| async {
+                let repo = MediaDerivativeRepo::new(db);
+                if attempt > 0 {
+                    repo.retry(media, DerivativeKind::Thumbnail).await?;
+                }
+                let claimed = repo.claim_next(&["ffmpeg"]).await?;
+                assert_eq!(claimed.map(|row| row.media_id), Some(media));
+                repo.finish(
+                    media,
+                    DerivativeKind::Thumbnail,
+                    DerivativeState::Failed,
+                    Some("unreadable".to_string()),
+                    None,
+                )
+                .await
+            }
+            .await)
+            .expect("a failed attempt");
+            assert!(failed, "the claimed row settled failed");
+        }
+    }
+    let [spent, hopeful] = media_ids[..] else {
+        panic!("two media");
+    };
+
+    let report = derivatives::run(&DerivativeOptions {
+        database: harness._dir.path().join("romeka.db").into(),
+        store: Some(harness._dir.path().join("files")),
+        retry: true,
+        redo: None,
+        media: None,
+    })
+    .await
+    .expect("the backfill ran");
+    assert_eq!(report.given_up, 1, "{report:?}");
+    assert_eq!(report.retried, 1, "{report:?}");
+    let settled = |media: MediaId| {
+        report
+            .rows
+            .iter()
+            .find(|row| row.media == media.0 && row.kind == DerivativeKind::Thumbnail)
+            .map(|row| (row.state, row.reason.clone()))
+    };
+    assert_eq!(
+        settled(spent),
+        Some((DerivativeState::Failed, Some("unreadable".to_string()))),
+        "{report:?}"
+    );
+    assert_eq!(
+        settled(hopeful).map(|(state, _)| state),
+        Some(DerivativeState::Ready),
+        "{report:?}"
+    );
+}

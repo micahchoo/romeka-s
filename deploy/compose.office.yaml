@@ -9,7 +9,8 @@
 # The worker is the same CLI against the same database and store. Each pass
 # re-decides every media, so it runs hourly: a document added since the last
 # pass waits up to an hour for its copy. `--retry` also puts back a copy that
-# failed, so a document LibreOffice cannot read is tried again on each pass.
+# failed, until it has failed 3 times: then it stays failed, with its reason,
+# and the admin's Retry on its media page is how it is tried again.
 # The image also carries vips, libraw and ghostscript, so the RAW, 16-bit TIFF
 # and PostScript copies the server cannot make are made here too.
 

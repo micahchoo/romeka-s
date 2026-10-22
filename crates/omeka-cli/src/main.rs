@@ -468,7 +468,7 @@ fn media_command<'a, 'b>() -> App<'a, 'b> {
                     Arg::with_name("retry")
                         .long("retry")
                         .takes_value(false)
-                        .help("Queue rows a tool failed on or skipped"),
+                        .help("Queue rows a tool failed on or skipped; a row that failed 3 times stays failed"),
                 )
                 .arg(
                     Arg::with_name("redo")
@@ -1092,6 +1092,13 @@ fn print_derivative_report(report: &DerivativeReport) {
         "queued {}, retried {}, redone {}, waiting {}, already ready {}, nothing to do {}",
         report.queued, report.retried, report.redone, report.waiting, report.ready, report.skipped
     );
+    if report.given_up > 0 {
+        println!(
+            "left {} failed after {} attempts; retry one by hand from its media page",
+            report.given_up,
+            media_derivatives_cmd::RETRY_ATTEMPTS
+        );
+    }
 }
 
 /// The `--redo` value: no flag, every ready copy, or one target kind.
