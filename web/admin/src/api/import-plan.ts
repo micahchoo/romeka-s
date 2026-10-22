@@ -425,7 +425,9 @@ export type Edit =
   | { readonly edit: 'addSet'; readonly from: SetFrom }
   | { readonly edit: 'dropSet'; readonly from: SetFrom }
   | { readonly edit: 'pair'; readonly list: ListFile; readonly rule: PairRule }
-  | { readonly edit: 'title'; readonly from: SetFrom; readonly title: string };
+  | { readonly edit: 'title'; readonly from: SetFrom; readonly title: string }
+  /** Keep the plan's series for this folder as the person wrote it: counted, with nothing offered on it. */
+  | { readonly edit: 'own'; readonly scope: FolderScope };
 
 /** The shape says what the text means: an install id, a title, or one set per value. */
 export type SetSource = SetById | SetByTitle | { readonly each: EachSet };

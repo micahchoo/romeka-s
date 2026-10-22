@@ -1,0 +1,117 @@
+//! An `own` edit: the series the person wrote by hand, kept and counted.
+
+#![allow(clippy::expect_used)]
+
+use super::{Evidence, NodeEvidence, NotApplied, bhc006_tests, propose};
+use crate::import::derive::{NoTags, Sheets, derive};
+use crate::import::plan::{
+    CutEdit, Edit, FolderScope, ImportPlan, RecordKind, RelPath, SeriesScope, SourceId,
+};
+
+fn scope(folder: &str) -> FolderScope {
+    FolderScope {
+        source: SourceId("s1".into()),
+        folder: RelPath::parse(folder).expect("a folder"),
+    }
+}
+
+#[test]
+fn an_own_series_is_kept_as_written_and_counted() {
+    // The person's plan: the frozen BHC006 tree. Its Artifacts series has a
+    // hand pattern, a list read by id `af` and column rules no detector
+    // writes.
+    let frozen = ImportPlan::from_json(include_str!("../../fixtures/v3/bhc006.json"))
+        .expect("the frozen plan");
+    let person = ImportPlan {
+        structure: frozen.structure,
+        ..bhc006_tests::draft()
+    };
+    let artifacts = scope("Artifacts");
+    let (at, written) = person
+        .structure
+        .all_series()
+        .find(|(_, series)| *series.scope() == SeriesScope::Folders(vec![artifacts.clone()]))
+        .expect("the person's Artifacts series");
+    let index = bhc006_tests::index();
+    let lists = bhc006_tests::lists();
+    let catalog = bhc006_tests::install();
+    let evidence = Evidence {
+        index: &index,
+        lists: &lists,
+        catalog: &catalog,
+        sources: &person.sources,
+        structure: &person.structure,
+    };
+    let edits = [
+        Edit::Own {
+            scope: artifacts.clone(),
+        },
+        Edit::Items {
+            scope: artifacts.clone(),
+            cut: CutEdit::Whole,
+        },
+    ];
+    let proposal = propose(&evidence, &edits);
+
+    let (_, kept) = proposal
+        .structure
+        .all_series()
+        .find(|(_, series)| series.id() == written.id())
+        .expect("the written series is in the proposal");
+    assert_eq!(kept, written, "the series as the person wrote it");
+
+    let sheets: Sheets = person
+        .structure
+        .lists()
+        .filter_map(|(_, sheet)| {
+            let list = lists
+                .iter()
+                .find(|list| list.file.source == sheet.source && list.file.file == sheet.file)?;
+            Some((sheet.id.clone(), list.sheet.clone()))
+        })
+        .collect();
+    let model = derive(&index, &sheets, &person, &catalog, &NoTags);
+    let made = model
+        .kept()
+        .filter(|record| record.kind == RecordKind::Item && record.series == at)
+        .count();
+    assert!(made > 0, "the person's series makes items");
+    let own = proposal
+        .nodes
+        .iter()
+        .find_map(|node| match node {
+            NodeEvidence::Own(own) => Some(own),
+            NodeEvidence::Set(_) | NodeEvidence::Series(_) => None,
+        })
+        .expect("the written series' node");
+    assert_eq!(own.level, *written.id());
+    assert_eq!(own.scope.scope, artifacts);
+    assert_eq!(own.items.items, made, "the items the person's series makes");
+
+    let said: Vec<(bool, Option<NotApplied>)> = proposal
+        .edits
+        .iter()
+        .map(|edit| (edit.applied, edit.reason))
+        .collect();
+    assert_eq!(
+        said,
+        [(true, None), (false, Some(NotApplied::NotOffered))],
+        "nothing is offered on a written series"
+    );
+    assert!(
+        proposal.nodes.iter().any(|node| matches!(
+            node,
+            NodeEvidence::Series(series) if series.scope.scope == scope("Photo Narratives (PN)")
+        )),
+        "the other series are still proposed"
+    );
+
+    let draft = propose(&evidence, &edits[1..]);
+    assert!(
+        draft
+            .structure
+            .all_series()
+            .all(|(_, series)| series != written),
+        "without the edit the proposer writes Artifacts itself"
+    );
+}

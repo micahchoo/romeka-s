@@ -47,6 +47,9 @@ pub enum Edit {
     /// Give a set the title the person typed: the only way text that no
     /// scan read enters a proposal.
     Title { from: SetFrom, title: String },
+    /// Keep the plan's series for this folder as the person wrote it. The
+    /// proposer counts it and offers nothing on it while this edit stands.
+    Own { scope: FolderScope },
 }
 
 /// The cut an `items` edit asks for. The proposer works the shape out again.
