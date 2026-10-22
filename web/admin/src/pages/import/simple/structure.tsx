@@ -12,7 +12,7 @@
  * every click with what it changed and a way to take it back. The proposal's
  * parser loads with this screen's chunk and no other.
  */
-import { createContext, useContext, useMemo, useState } from 'react';
+import { createContext, useContext, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import { parseProposal } from '../../../api/import-proposal';
 import type { Choice, EditResult, NotApplied, OutsideFolder, Pick, Proposal, SeriesNode, SetCounts } from '../../../api/import-proposal';
@@ -22,6 +22,7 @@ import { ErrorNotice } from '../../../app/errors';
 import { toError } from '../../../app/useAsync';
 import { useDraft } from '../draft-context';
 import { usePreview } from '../lists/use-preview';
+import type { Focus } from '../screens';
 import { whereWords } from '../words';
 import { MasterDetail, Segmented } from './master-detail';
 import type { MasterRow } from './master-detail';
@@ -80,6 +81,8 @@ interface Screen {
   /** The proposal on screen: the one a click brought back, or the read. */
   readonly proposal: Proposal;
   readonly words: Words;
+  /** Whether the question `kind` takes the focus: true once, for the question an old step's address named. */
+  readonly takesFocus: (kind: Focus) => boolean;
 }
 
 const ScreenContext = createContext<Screen | null>(null);
@@ -93,12 +96,19 @@ const useScreen = (): Screen => {
 };
 
 /** A question's control: the answer the proposal holds is pressed, and a click on another sends its edit. */
-const Question = ({ label, asked, answers }: { readonly label: string; readonly asked: Asked; readonly answers: readonly Answer[] }): ReactElement => {
-  const { clicks, editable, words } = useScreen();
+const Question = ({ label, asked, answers, kind }: { readonly label: string; readonly asked: Asked; readonly answers: readonly Answer[]; readonly kind?: Focus }): ReactElement => {
+  const { clicks, editable, words, takesFocus } = useScreen();
   const waiting = clicks.pending?.asked === asked ? clicks.pending : null;
   const pressed = waiting?.value ?? answers.find((answer) => answer.pressed)?.value ?? null;
+  const here = useRef<HTMLDivElement>(null);
+  // In the commit that draws the question, so the focus is there as soon as it shows; only when it first shows.
+  useLayoutEffect(() => {
+    if (kind !== undefined && takesFocus(kind)) {
+      here.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus();
+    }
+  }, []);
   return (
-    <>
+    <div ref={here} className="structure-question">
       <Segmented
         label={label}
         segments={answers.map((answer) => ({
@@ -123,7 +133,7 @@ const Question = ({ label, asked, answers }: { readonly label: string; readonly 
         </p>
       ) : null}
       {clicks.failed === asked ? <p role="alert">{words.t('structure.click.failed')}</p> : null}
-    </>
+    </div>
   );
 };
 
@@ -228,7 +238,7 @@ const ItemsQuestion = ({ node }: { readonly node: SeriesNode }): ReactElement =>
           {cutWords(chosen.value, t)} · {itemsWords(counts.items, t, number)}
         </span>
       ) : (
-        <Question label={t('structure.q.items')} asked={asked} answers={answers} />
+        <Question label={t('structure.q.items')} asked={asked} answers={answers} kind="items" />
       )}
       <Notes lines={lines} />
     </Row>
@@ -270,7 +280,7 @@ const ListQuestions = ({ node }: { readonly node: SeriesNode }): ReactElement =>
   return (
     <>
       <Row label={t('structure.q.list')}>
-        <Question label={t('structure.q.list')} asked={listAsked} answers={listAnswers} />
+        <Question label={t('structure.q.list')} asked={listAsked} answers={listAnswers} kind="list" />
         <Notes lines={chosen !== null && exact < named ? [t('structure.list.folds', { count: number(exact) })] : []} />
       </Row>
       {chosen === null || file === null
@@ -335,7 +345,7 @@ const SetQuestion = ({ node, name }: { readonly node: SeriesNode; readonly name:
         ];
   return (
     <Row label={t('structure.q.set')}>
-      <Question label={t('structure.q.set')} asked={asked} answers={answers} />
+      <Question label={t('structure.q.set')} asked={asked} answers={answers} kind="set" />
     </Row>
   );
 };
@@ -783,10 +793,19 @@ const Shown = ({ read, under, sources }: { readonly read: Proposal; readonly und
   const files = filesIn(sources);
   const tree = treeOf(proposal);
   const folders = proposal.nodes.flatMap((node) => (node.kind === 'series' ? [node] : []));
-  // A person who comes back finds the first node a click changed, else the first folder.
-  const first = tree.find((node) => editsOn(node, proposal).length > 0) ?? tree.find((node) => node.kind === 'series') ?? tree[0];
+  const focus = useRef(draft.place.mode === 'simple' ? draft.place.focus : undefined);
+  const takesFocus = (kind: Focus): boolean => {
+    const asked = focus.current === kind;
+    if (asked) {
+      focus.current = undefined;
+    }
+    return asked;
+  };
+  // An old step's address opens the first folder at its question; a person who comes back finds the first node a click changed.
+  const changed = focus.current === undefined ? tree.find((node) => editsOn(node, proposal).length > 0) : undefined;
+  const first = changed ?? tree.find((node) => node.kind === 'series') ?? tree[0];
   return (
-    <ScreenContext.Provider value={{ clicks, editable: draft.editable, proposal, words }}>
+    <ScreenContext.Provider value={{ clicks, editable: draft.editable, proposal, words, takesFocus }}>
       <StatusPanel />
       <MasterDetail label={words.t('structure.tree')} rows={tree.map((node) => rowOf(node, where, files, proposal, words))} initial={first?.key ?? null}>
         {(key) => {

@@ -165,7 +165,7 @@ describe('a start the server refuses', () => {
   it('nothing: says every item is left out and links to the files', async () => {
     await refused(() => conflict('conflict-nothing.json'));
     expect(await screen.findByText('There is nothing to add: every item is left out.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'See what we found' })).toHaveAttribute('href', '#/import/1/simple/found');
+    expect(screen.getByRole('link', { name: 'See what we found' })).toHaveAttribute('href', '#/import/1/simple/structure');
   });
 
   it('cannotRun: names where it stands and reads the import again', async () => {

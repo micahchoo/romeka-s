@@ -18,7 +18,7 @@
 import type { ImportPlan, Series } from '../../api/import-plan';
 import { isRecord, isUnknownArray } from '../../api/parse';
 import type { JsonValue } from '../../api/types';
-import { seriesOf, simpleOf, withSeries, withSimple } from './series';
+import { onlySeries, seriesOf, simpleOf, withSeries, withSimple } from './series';
 
 export type Mark =
   | { readonly kind: 'words'; readonly words: readonly string[]; readonly sep: string }
@@ -50,9 +50,9 @@ const markOf = (raw: unknown): Mark | null => {
   return null;
 };
 
-/** The example's marks, or `null` when the plan holds no example in this shape. */
+/** The example's marks, or `null` when the plan holds no example in this shape, or has several series, each with its own. */
 export const exampleOf = (plan: ImportPlan): MarkedExample | null => {
-  const raw = seriesOf(plan).example;
+  const raw = onlySeries(plan)?.example ?? null;
   if (raw === null) {
     return null;
   }
@@ -136,7 +136,7 @@ export const simpleRecordOf = (plan: ImportPlan): Readonly<Record<string, JsonVa
   if (kept !== null) {
     return kept;
   }
-  const { example } = seriesOf(plan);
+  const example = onlySeries(plan)?.example ?? null;
   const old = Object.fromEntries(LEGACY_KEYS.flatMap((key) => (example?.[key] === undefined ? [] : [[key, example[key]] as const])));
   return Object.keys(old).length === 0 ? null : old;
 };

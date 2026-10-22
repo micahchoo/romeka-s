@@ -77,15 +77,9 @@ describe('the frame', () => {
     render(at(['simple', 'example']));
     expect(await screen.findByRole('heading', { name: 'Show us one example' })).toBeInTheDocument();
     const steps = screen.getByRole('list', { name: 'Steps' });
-    expect(within(steps).getAllByRole('link').map((link) => link.textContent)).toEqual([
-      'Your files',
-      'What we found',
-      'Your list',
-      'Where they go',
-      'Check',
-      'Add',
-    ]);
-    expect(within(steps).getByRole('link', { name: 'What we found' })).toHaveAttribute('aria-current', 'step');
+    expect(within(steps).getAllByRole('link').map((link) => link.textContent)).toEqual(['Structure', 'Check', 'Add']);
+    // The example is a sub-screen of "What we found", which is one of Structure.
+    expect(within(steps).getByRole('link', { name: 'Structure' })).toHaveAttribute('aria-current', 'step');
     expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '#/import/1/simple/found');
     expect(screen.queryByRole('link', { name: 'Next' })).not.toBeInTheDocument();
     expect(await screen.findByText('10 items so far.')).toBeInTheDocument();
@@ -94,7 +88,7 @@ describe('the frame', () => {
     expect(within(line ?? document.body).getByRole('link')).toHaveAttribute('href', '#/import/1/simple/check');
   });
 
-  it('opens a draft with files on What we found, and a started import on Add', async () => {
+  it('opens a draft with files on Structure, and a started import on Add', async () => {
     const fetchMock = installFetch(
       route({
         [PATH]: () => jsonResponse(fixture('import-draft.json')),
@@ -104,7 +98,7 @@ describe('the frame', () => {
       }),
     );
     const { unmount } = render(<ImportPage param="1" rest={['1']} />);
-    expect(await screen.findByRole('heading', { name: 'What we found in your files' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'How your archive becomes items and sets' })).toBeInTheDocument();
     unmount();
     render(<ImportPage param="6" rest={['6']} />);
     expect(await screen.findByRole('heading', { name: 'Add them' })).toBeInTheDocument();

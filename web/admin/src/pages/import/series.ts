@@ -7,7 +7,9 @@
  * `with…` (`import-series.test.ts` holds them to it).
  *
  * A screen that edits one series and is given a plan of several is refused
- * (`SeveralSeriesError`) until the structure screen exists. The readers keyed
+ * (`SeveralSeriesError`). Simple never opens one on such a plan: its old
+ * steps land on the structure screen's node questions instead
+ * (`screens.ts`, `landing`), and Check and Add read every series. The readers keyed
  * by a list id (`listOf`, `withList`) and the ones that read every series
  * (`allLists`, `withEverySeries`) are right for any number.
  *
@@ -155,14 +157,26 @@ export const withSlots = (plan: ImportPlan, slots: Slots, level?: LevelId): Impo
 const isRecord = (value: JsonValue | undefined): value is Readonly<Record<string, JsonValue>> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-/** Simple's state of the series `level` (with no `level`, the one series), or `null` when it has none. */
+/**
+ * Simple's state of the series `level`, or `null` when it has none. With no
+ * `level`, the state of the whole import (which Check questions are
+ * answered): the first series' state, which `withSimple` writes to every
+ * series, so it stays while any of them does. With one series, both are its own.
+ */
 export const simpleOf = (plan: ImportPlan, level?: LevelId): Readonly<Record<string, JsonValue>> | null => {
-  const kept = plan.simple?.[seriesOf(plan, level).id];
+  const id = level === undefined ? allSeries(plan)[0]?.id : seriesOf(plan, level).id;
+  const kept = id === undefined ? undefined : plan.simple?.[id];
   return isRecord(kept) ? kept : null;
 };
 
-/** The plan with Simple's state of the series `level`; the other series' states stay. */
-export const withSimple = (plan: ImportPlan, state: Readonly<Record<string, JsonValue>>, level?: LevelId): ImportPlan => ({
-  ...plan,
-  simple: { ...plan.simple, [seriesOf(plan, level).id]: state },
-});
+/** The plan with Simple's state of the series `level`, or with no `level` of every series; the other states stay. */
+export const withSimple = (plan: ImportPlan, state: Readonly<Record<string, JsonValue>>, level?: LevelId): ImportPlan => {
+  const ids = level === undefined ? allSeries(plan).map((series) => series.id) : [seriesOf(plan, level).id];
+  return { ...plan, simple: { ...plan.simple, ...Object.fromEntries(ids.map((id) => [id, state])) } };
+};
+
+/** The plan's one series; `null` when it has several, where only a node of the structure screen names one. */
+export const onlySeries = (plan: ImportPlan): Series | null => {
+  const [only, ...more] = allSeries(plan);
+  return only !== undefined && more.length === 0 ? only : null;
+};

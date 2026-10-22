@@ -6,7 +6,7 @@
 import type { ReactElement } from 'react';
 import type { ImportId } from '../../api/import-plan';
 import { useImportText } from './messages';
-import { counterpart, placeHref, samePlace, screenOf, stepsOf } from './screens';
+import { counterpart, parentOf, placeHref, samePlace, screenOf, stepsOf } from './screens';
 import type { Mode, Place } from './screens';
 
 const MODE_KEYS = {
@@ -59,16 +59,16 @@ export const Steps = ({ id, place }: { readonly id: ImportId; readonly place: Pl
   );
 };
 
-/** Back to the step before (or to the parent of a sub-screen), and Next to the step after. */
+/** Back to the step before (or to the screen a sub-screen opens from), and Next to the step after. */
 export const StepNav = ({ id, place }: { readonly id: ImportId; readonly place: Place }): ReactElement | null => {
   const { t } = useImportText();
   if (place.mode !== 'simple') {
     return null;
   }
   const { steps, current } = stepsOf(place);
-  const parent = screenOf(place).parent;
+  const parent = parentOf(place);
   const index = steps.findIndex((step) => samePlace(step, current));
-  const back = parent === undefined ? steps[index - 1] : current;
+  const back = parent ?? steps[index - 1];
   const next = parent === undefined ? steps[index + 1] : undefined;
   return (
     <div className="import-step-nav">

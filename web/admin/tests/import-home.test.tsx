@@ -40,7 +40,7 @@ afterEach(() => {
 });
 
 describe('Where are your files', () => {
-  it('opens a folder of the root and starts a draft over it, on What we found', async () => {
+  it('opens a folder of the root and starts a draft over it, on Structure', async () => {
     const fetchMock = installFetch(
       route({
         '/api/romeka/archive': archive,
@@ -57,7 +57,7 @@ describe('Where are your files', () => {
     expect(first(requestsFor(fetchMock, '/api/romeka/archive').slice(1)).url.search).toBe('?root=archive&path=Artifacts');
     fireEvent.click(use);
     await waitFor(() => {
-      expect(window.location.hash).toBe('#/import/1/simple/found');
+      expect(window.location.hash).toBe('#/import/1/simple/structure');
     });
     const post = first(requestsFor(fetchMock, '/api/romeka/imports').filter((request) => request.init?.method === 'POST'));
     expect(requestBody(post)).toEqual({ sources: [{ id: 's1', kind: 'folder', root: 'archive', path: 'Artifacts' }] });
@@ -160,7 +160,7 @@ describe('Past imports', () => {
     const stopped = within(pastTable()).getAllByRole('row')[3];
     fireEvent.click(within(stopped ?? document.body).getByRole('button', { name: 'Make a copy' }));
     await waitFor(() => {
-      expect(window.location.hash).toBe('#/import/5/simple/found');
+      expect(window.location.hash).toBe('#/import/5/simple/structure');
     });
     const post = first(requestsFor(fetchMock, '/api/romeka/imports').filter((request) => request.init?.method === 'POST'));
     expect(requestBody(post)).toEqual({ copyFrom: 1 });

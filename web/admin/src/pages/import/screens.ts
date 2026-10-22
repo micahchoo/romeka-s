@@ -5,15 +5,22 @@
  * switch lands there (`docs/import-v2.md`, "Simple and Advanced").
  *
  * A screen without a `step` is a sub-screen: the step bar or the side index
- * marks its `parent` as the place the person is.
+ * marks the nearest `parent` with a step as the place the person is.
+ *
+ * Simple's steps are Structure, Check and Add. "What we found", "Your list"
+ * and "Where they go" were steps; each became questions of a Structure node.
+ * They stay as sub-screens of Structure for a plan of one series, which they
+ * edit; on a plan of several their addresses land on Structure, at the
+ * question they asked (`landing`).
  */
 import type { ImportDetail } from '../../api/import-view';
-import type { ImportId } from '../../api/import-plan';
+import type { ImportId, ImportPlan } from '../../api/import-plan';
 import type { ImportMessageKey } from './messages';
+import { onlySeries } from './series';
 
 export const SIMPLE_SCREENS = [
-  'files',
   'structure',
+  'files',
   'found',
   'example',
   'all-files',
@@ -41,8 +48,11 @@ export type SimpleScreen = (typeof SIMPLE_SCREENS)[number];
 export type AdvancedScreen = (typeof ADVANCED_SCREENS)[number];
 export type Mode = 'simple' | 'advanced';
 
+/** The question of a Structure node an old step's address lands on. */
+export type Focus = 'items' | 'list' | 'set';
+
 export type Place =
-  | { readonly mode: 'simple'; readonly screen: SimpleScreen }
+  | { readonly mode: 'simple'; readonly screen: SimpleScreen; readonly focus?: Focus }
   | { readonly mode: 'advanced'; readonly screen: AdvancedScreen };
 
 interface Screen<Own, Other> {
@@ -56,15 +66,14 @@ interface Screen<Own, Other> {
 }
 
 export const SIMPLE: Readonly<Record<SimpleScreen, Screen<SimpleScreen, AdvancedScreen>>> = {
-  files: { title: 'simple.files.title', step: 'simple.files.step', other: 'files' },
-  // Reached by its address only until Simple's steps become Structure, Check and Add.
-  structure: { title: 'simple.structure.title', parent: 'found', other: 'files' },
-  found: { title: 'simple.found.title', step: 'simple.found.step', other: 'files' },
+  structure: { title: 'simple.structure.title', step: 'simple.structure.step', other: 'files' },
+  files: { title: 'simple.files.title', parent: 'structure', other: 'files' },
+  found: { title: 'simple.found.title', parent: 'structure', other: 'files' },
   example: { title: 'simple.example.title', parent: 'found', other: 'files' },
   'all-files': { title: 'simple.allFiles.title', parent: 'found', other: 'all-files' },
-  list: { title: 'simple.list.title', step: 'simple.list.step', other: 'lists' },
+  list: { title: 'simple.list.title', parent: 'structure', other: 'lists' },
   pair: { title: 'simple.pair.title', parent: 'list', other: 'pair' },
-  where: { title: 'simple.where.title', step: 'simple.where.step', other: 'fields' },
+  where: { title: 'simple.where.title', parent: 'structure', other: 'fields' },
   check: { title: 'simple.check.title', step: 'simple.check.step', other: 'problems' },
   'all-items': { title: 'simple.allItems.title', parent: 'check', other: 'items' },
   add: { title: 'simple.add.title', step: 'simple.add.step', other: 'run' },
@@ -83,20 +92,34 @@ export const ADVANCED: Readonly<Record<AdvancedScreen, Screen<AdvancedScreen, Si
   pair: { title: 'advanced.pair.title', parent: 'lists', other: 'pair' },
 };
 
+/** The screen itself when it is a step, else its nearest parent that is one. */
+const stepOf = <S extends string>(screens: Readonly<Record<S, Screen<S, string>>>, screen: S): S => {
+  const { step, parent } = screens[screen];
+  return step !== undefined || parent === undefined ? screen : stepOf(screens, parent);
+};
+
 /** The step bar's entries (Simple) or the side index's (Advanced), in order, and which one is current. */
 export const stepsOf = (place: Place): { readonly steps: readonly Place[]; readonly current: Place } => {
   if (place.mode === 'simple') {
-    const screen = SIMPLE[place.screen];
     return {
       steps: SIMPLE_SCREENS.filter((id) => SIMPLE[id].step !== undefined).map((id) => ({ mode: 'simple', screen: id })),
-      current: { mode: 'simple', screen: screen.parent ?? place.screen },
+      current: { mode: 'simple', screen: stepOf(SIMPLE, place.screen) },
     };
   }
-  const screen = ADVANCED[place.screen];
   return {
     steps: ADVANCED_SCREENS.filter((id) => ADVANCED[id].step !== undefined).map((id) => ({ mode: 'advanced', screen: id })),
-    current: { mode: 'advanced', screen: screen.parent ?? place.screen },
+    current: { mode: 'advanced', screen: stepOf(ADVANCED, place.screen) },
   };
+};
+
+/** The screen a sub-screen opens from; a step has none. */
+export const parentOf = (place: Place): Place | undefined => {
+  if (place.mode === 'simple') {
+    const parent = SIMPLE[place.screen].parent;
+    return parent === undefined ? undefined : { mode: 'simple', screen: parent };
+  }
+  const parent = ADVANCED[place.screen].parent;
+  return parent === undefined ? undefined : { mode: 'advanced', screen: parent };
 };
 
 export const screenOf = (place: Place): Screen<string, string> =>
@@ -109,12 +132,25 @@ export const counterpart = (place: Place): Place =>
 
 export const samePlace = (a: Place, b: Place): boolean => a.mode === b.mode && a.screen === b.screen;
 
-/** Where an import opens when its address names no screen: the files a draft has, or the run of one that started. */
+/** Where an import opens when its address names no screen: a draft's structure (its files first, when it has none), or the run of one that started. */
 export const firstPlace = (detail: ImportDetail): Place => {
   if (detail.status !== 'draft') {
     return { mode: 'simple', screen: 'add' };
   }
-  return { mode: 'simple', screen: detail.plan.sources.length === 0 ? 'files' : 'found' };
+  return { mode: 'simple', screen: detail.plan.sources.length === 0 ? 'files' : 'structure' };
+};
+
+/** The old steps, and the Structure question each one asked. */
+const MOVED: Readonly<Partial<Record<SimpleScreen, Focus>>> = { found: 'items', list: 'list', where: 'set' };
+
+/**
+ * The place a screen opens as, for this plan: an old step of Simple edits the
+ * plan's one series, so on a plan of several it lands on Structure at the
+ * question it asked. Every other place opens as itself.
+ */
+export const landing = (place: Place, plan: ImportPlan): Place => {
+  const focus = place.mode === 'simple' ? MOVED[place.screen] : undefined;
+  return focus === undefined || onlySeries(plan) !== null ? place : { mode: 'simple', screen: 'structure', focus };
 };
 
 export const importHref = (id: ImportId): string => `#/import/${String(id)}`;

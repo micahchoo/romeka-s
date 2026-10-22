@@ -12,7 +12,7 @@ import { BLOCKING_FLAG_KINDS, FLAG_KINDS } from '../../../api/import-plan';
 import type { PatternState } from '../../../api/import-model';
 import type { BucketCount, Grain, ListCandidate } from '../../../api/import-sections';
 import { exampleOf } from '../example';
-import { seriesOf, withSeries } from '../series';
+import { allLists, allSeries, onlySeries, withEverySeries } from '../series';
 import { readState } from './example-state';
 import { withFileRows } from './list-plan';
 import { folderSheets } from './list-read';
@@ -67,8 +67,13 @@ export interface FileRows {
  * The first list in use that pairs rows with items by file name, one item a
  * row, while some of its rows name another file of an item a row already
  * names: there "Two rows for one item" is the shape of the list, not a fault.
+ * A plan of several series asks it of each folder on the Structure screen
+ * ("Each row describes"), so Check does not.
  */
 export const fileRowsOf = (plan: ImportPlan, candidates: readonly ListCandidate[]): FileRows | null => {
+  if (onlySeries(plan) === null) {
+    return null;
+  }
   for (const sheet of folderSheets(plan)) {
     const grain = candidates.find((candidate) => candidate.inPlan === sheet.id)?.grain ?? null;
     if (sheet.rowKind === 'item' && sheet.join?.on === 'fileName' && grain !== null && grain.rowsNamingOtherFilesOfAGroup > 0) {
@@ -212,7 +217,7 @@ const UNTITLED_WORDS: CauseWords = {
 
 /** Every list describes files: a row that names no file of the import makes nothing, so leaving it out is the only answer. */
 const rowsDescribeFiles = (plan: ImportPlan): boolean => {
-  const { lists } = seriesOf(plan);
+  const lists = allLists(plan);
   return lists.length > 0 && lists.every((sheet) => sheet.rowKind === 'media');
 };
 
@@ -255,7 +260,16 @@ const TITLE = 'dcterms:title';
 export const titleFlag = (flag: { readonly kind: FlagKind; readonly slot: string | null }): boolean => flag.kind === 'empty-required' && flag.slot === TITLE;
 const fromName = (rule: SlotRule | undefined): boolean => rule?.sources.some((source) => source.from === 'file' && source.fact === 'name') === true;
 const isCode = (source: SlotRule['sources'][number]): boolean => source.from === 'group' && source.name === 'identifier';
-export const fromCode = (rule: SlotRule | undefined): boolean => rule?.sources.some(isCode) === true;
+const fromCode = (rule: SlotRule | undefined): boolean => rule?.sources.some(isCode) === true;
+
+/** The untitled question is asked of the whole import, so its answer is the title rule of every series. */
+const everyTitle = (plan: ImportPlan, test: (rule: SlotRule | undefined) => boolean): boolean => {
+  const series = allSeries(plan);
+  return series.length > 0 && series.every((one) => test(one.slots.item[TITLE]));
+};
+
+/** Every series titles its items by their code. */
+export const titledByCode = (plan: ImportPlan): boolean => everyTitle(plan, fromCode);
 
 const defaultPolicyOf = (plan: ImportPlan, kind: FlagKind): FlagPolicy => {
   if (kind === 'unmatched') {
@@ -274,11 +288,10 @@ export const answerOf = (plan: ImportPlan, id: CauseId, facts: CheckFacts): stri
     return (plan.anomalies ?? DEFAULT_ANOMALIES)[id];
   }
   if (id === UNTITLED) {
-    const rule = seriesOf(plan).slots.item[TITLE];
-    if (fromName(rule)) {
+    if (everyTitle(plan, fromName)) {
       return 'filename';
     }
-    if (fromCode(rule)) {
+    if (titledByCode(plan)) {
       return 'identifier';
     }
     return facts.itemCodeFits && !readState(plan).answered.includes(id) ? 'identifier' : 'keep';
@@ -330,11 +343,12 @@ export const withAnswer = (plan: ImportPlan, id: CauseId, value: string, facts?:
   }
   if (id === UNTITLED) {
     // The item code or the file name is the title rule's last source: it applies where the list gives no title.
-    const rule = seriesOf(plan).slots.item[TITLE] ?? { sources: [], combine: 'first' as const };
-    const sources = rule.sources.filter((source) => !isCode(source) && !(source.from === 'file' && source.fact === 'name'));
     const last = value === 'filename' ? [{ from: 'file' as const, fact: 'name' as const }] : value === 'identifier' ? [{ from: 'group' as const, name: 'identifier' }] : [];
-    const next = { ...rule, sources: [...sources, ...last] };
-    return withSeries(plan, (series) => ({ ...series, slots: { ...series.slots, item: { ...series.slots.item, [TITLE]: next } } }));
+    return withEverySeries(plan, (series) => {
+      const rule = series.slots.item[TITLE] ?? { sources: [], combine: 'first' as const };
+      const sources = rule.sources.filter((source) => !isCode(source) && !(source.from === 'file' && source.fact === 'name'));
+      return { ...series, slots: { ...series.slots, item: { ...series.slots.item, [TITLE]: { ...rule, sources: [...sources, ...last] } } } };
+    });
   }
   const policy = asPolicy(value);
   return policy === null ? plan : { ...plan, flags: { ...plan.flags, [id]: policy } };
@@ -358,7 +372,7 @@ export interface Suggested {
 export const withSuggestions = (plan: ImportPlan, open: readonly CauseId[], facts: CheckFacts): Suggested =>
   PLAN_EDITS.filter((id) => open.includes(id)).reduce<Suggested>(
     (done, id) => {
-      const writes = id === UNTITLED ? answerOf(done.plan, id, facts) === 'identifier' && !fromCode(seriesOf(done.plan).slots.item[TITLE]) : answerOf(done.plan, id, facts) === FILE_ROWS.value;
+      const writes = id === UNTITLED ? answerOf(done.plan, id, facts) === 'identifier' && !titledByCode(done.plan) : answerOf(done.plan, id, facts) === FILE_ROWS.value;
       return writes ? { plan: withAnswer(done.plan, id, suggestedOf(done.plan, id, facts), facts), applied: [...done.applied, id] } : done;
     },
     { plan, applied: [] },

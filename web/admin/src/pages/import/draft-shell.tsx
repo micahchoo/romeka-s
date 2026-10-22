@@ -20,7 +20,7 @@ import type { Draft } from './draft-context';
 import { useImportText } from './messages';
 import { PlanStore } from './plan-store';
 import { SaveNotice, SaveWord } from './save-notice';
-import { firstPlace, importHref, screenOf } from './screens';
+import { firstPlace, importHref, landing, screenOf } from './screens';
 import type { Place } from './screens';
 import { SIMPLE_BODIES } from './simple/bodies';
 import { StatusLine } from './status-line';
@@ -51,7 +51,7 @@ const Frame = ({ initial, place }: { readonly initial: ImportDetail; readonly pl
     () => ({
       ...snapshot,
       id: initial.id,
-      place,
+      place: landing(place, snapshot.plan),
       change: (edit) => { store.change(edit); },
       adopt: (next) => { store.adopt(next); },
       looks,
