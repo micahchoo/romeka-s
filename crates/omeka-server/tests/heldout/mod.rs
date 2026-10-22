@@ -8,3 +8,4 @@ pub mod born_digital;
 pub mod oral_history;
 mod outcomes;
 pub mod paper_archive;
+mod proposals;
