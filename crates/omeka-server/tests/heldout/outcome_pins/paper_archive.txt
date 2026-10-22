@@ -1,0 +1,2067 @@
+item group:PFP-01-01 create
+  file s1/Box 01/PFP-01-01 Letters from Anand/0001.tif
+  file s1/Box 01/PFP-01-01 Letters from Anand/0002.tif
+  file s1/Box 01/PFP-01-01 Letters from Anand/0003.tif
+  file s1/Box 01/PFP-01-01 Letters from Anand/0004.tif
+  file s1/Box 01/PFP-01-01 Letters from Anand/0005.tif
+  file s1/Box 01/PFP-01-01 Letters from Anand/0006.tif
+  file s1/Box 01/PFP-01-01 Letters from Anand/0007.tif
+  file s1/Box 01/PFP-01-01 Letters from Anand/0008.tif
+  file s1/Box 01/PFP-01-01 Letters from Anand/0009.tif
+  row containers/PFP-1-1#1
+  media file:s1/Box 01/PFP-01-01 Letters from Anand/0001.tif
+  media file:s1/Box 01/PFP-01-01 Letters from Anand/0002.tif
+  media file:s1/Box 01/PFP-01-01 Letters from Anand/0003.tif
+  media file:s1/Box 01/PFP-01-01 Letters from Anand/0004.tif
+  media file:s1/Box 01/PFP-01-01 Letters from Anand/0005.tif
+  media file:s1/Box 01/PFP-01-01 Letters from Anand/0006.tif
+  media file:s1/Box 01/PFP-01-01 Letters from Anand/0007.tif
+  media file:s1/Box 01/PFP-01-01 Letters from Anand/0008.tif
+  media file:s1/Box 01/PFP-01-01 Letters from Anand/0009.tif
+  slot sets literal "Correspondence"
+  slot itemKey literal "PFP-01-01"
+  slot dcterms:date literal "1947-1952"
+  slot dcterms:extent literal "9 leaves"
+  slot dcterms:identifier literal "PFP-01-01"
+  slot dcterms:title literal "Letters from Anand Patil to his parents, Pune"
+  set new "Correspondence"
+  owner is runner
+  visibility private
+  itemKey PFP-01-01
+item group:PFP-01-02 create
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0001.tif
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0002.tif
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0003.tif
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0004.tif
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0005.TIF
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0006.tif
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0007.tif
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0008.tif
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0009.tif
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0010.tif
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0011.tif
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0012.tif
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0013.tif
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0014.tif
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0015.tif
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0016.tif
+  row containers/PFP-1-2#1
+  media file:s1/Box 01/PFP-01-02 Letters to Sushila/0001.tif
+  media file:s1/Box 01/PFP-01-02 Letters to Sushila/0002.tif
+  media file:s1/Box 01/PFP-01-02 Letters to Sushila/0003.tif
+  media file:s1/Box 01/PFP-01-02 Letters to Sushila/0004.tif
+  media file:s1/Box 01/PFP-01-02 Letters to Sushila/0005.TIF
+  media file:s1/Box 01/PFP-01-02 Letters to Sushila/0006.tif
+  media file:s1/Box 01/PFP-01-02 Letters to Sushila/0007.tif
+  media file:s1/Box 01/PFP-01-02 Letters to Sushila/0008.tif
+  media file:s1/Box 01/PFP-01-02 Letters to Sushila/0009.tif
+  media file:s1/Box 01/PFP-01-02 Letters to Sushila/0010.tif
+  media file:s1/Box 01/PFP-01-02 Letters to Sushila/0011.tif
+  media file:s1/Box 01/PFP-01-02 Letters to Sushila/0012.tif
+  media file:s1/Box 01/PFP-01-02 Letters to Sushila/0013.tif
+  media file:s1/Box 01/PFP-01-02 Letters to Sushila/0014.tif
+  media file:s1/Box 01/PFP-01-02 Letters to Sushila/0015.tif
+  media file:s1/Box 01/PFP-01-02 Letters to Sushila/0016.tif
+  slot sets literal "Correspondence"
+  slot itemKey literal "PFP-01-02"
+  slot dcterms:date literal "1950-1958"
+  slot dcterms:extent literal "16 leaves"
+  slot dcterms:identifier literal "PFP-01-02"
+  slot dcterms:title literal "Letters to Sushila Patil from her sisters"
+  set new "Correspondence"
+  owner is runner
+  visibility private
+  itemKey PFP-01-02
+item group:PFP-01-03 create
+  file s1/Box 01/PFP-01-03 Wedding cards/0001.tif
+  file s1/Box 01/PFP-01-03 Wedding cards/0002.tif
+  file s1/Box 01/PFP-01-03 Wedding cards/0003.tif
+  file s1/Box 01/PFP-01-03 Wedding cards/0004.tif
+  row containers/PFP-1-3#1
+  media file:s1/Box 01/PFP-01-03 Wedding cards/0001.tif
+  media file:s1/Box 01/PFP-01-03 Wedding cards/0002.tif
+  media file:s1/Box 01/PFP-01-03 Wedding cards/0003.tif
+  media file:s1/Box 01/PFP-01-03 Wedding cards/0004.tif
+  slot sets literal "Correspondence"
+  slot itemKey literal "PFP-01-03"
+  slot dcterms:date literal "c. 1955"
+  slot dcterms:extent literal "4 leaves"
+  slot dcterms:identifier literal "PFP-01-03"
+  slot dcterms:title literal "Wedding invitations and greeting cards"
+  set new "Correspondence"
+  owner is runner
+  visibility private
+  itemKey PFP-01-03
+item group:PFP-01-04 create
+  file s1/Box 01/PFP-01-04 Bombay letters/0001.tif
+  file s1/Box 01/PFP-01-04 Bombay letters/0002.tif
+  file s1/Box 01/PFP-01-04 Bombay letters/0003.tif
+  file s1/Box 01/PFP-01-04 Bombay letters/0004.tif
+  file s1/Box 01/PFP-01-04 Bombay letters/0005.tif
+  file s1/Box 01/PFP-01-04 Bombay letters/0006.tif
+  file s1/Box 01/PFP-01-04 Bombay letters/0007.tif
+  file s1/Box 01/PFP-01-04 Bombay letters/0008.tif
+  file s1/Box 01/PFP-01-04 Bombay letters/0009.tif
+  file s1/Box 01/PFP-01-04 Bombay letters/0010.tif
+  file s1/Box 01/PFP-01-04 Bombay letters/0011.tif
+  row containers/PFP-1-4#1
+  media file:s1/Box 01/PFP-01-04 Bombay letters/0001.tif
+  media file:s1/Box 01/PFP-01-04 Bombay letters/0002.tif
+  media file:s1/Box 01/PFP-01-04 Bombay letters/0003.tif
+  media file:s1/Box 01/PFP-01-04 Bombay letters/0004.tif
+  media file:s1/Box 01/PFP-01-04 Bombay letters/0005.tif
+  media file:s1/Box 01/PFP-01-04 Bombay letters/0006.tif
+  media file:s1/Box 01/PFP-01-04 Bombay letters/0007.tif
+  media file:s1/Box 01/PFP-01-04 Bombay letters/0008.tif
+  media file:s1/Box 01/PFP-01-04 Bombay letters/0009.tif
+  media file:s1/Box 01/PFP-01-04 Bombay letters/0010.tif
+  media file:s1/Box 01/PFP-01-04 Bombay letters/0011.tif
+  slot sets literal "Correspondence"
+  slot itemKey literal "PFP-01-04"
+  slot dcterms:date literal "1953-1961"
+  slot dcterms:extent literal "11 leaves"
+  slot dcterms:identifier literal "PFP-01-04"
+  slot dcterms:title literal "Letters from relatives in Bombay, with two telegrams"
+  set new "Correspondence"
+  owner is runner
+  visibility private
+  itemKey PFP-01-04
+item group:PFP-01-06 create
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0001.tif
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0002.tif
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0003.tif
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0004.tif
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0005.tif
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0006.tif
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0007.tif
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0008.tif
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0009.tif
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0010.tif
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0011.tif
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0012.tif
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0013.tif
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0014.tif
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0015.tif
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0016.tif
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0017.tif
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0018.tif
+  row containers/PFP-1-6#1
+  media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0001.tif
+  media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0002.tif
+  media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0003.tif
+  media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0004.tif
+  media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0005.tif
+  media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0006.tif
+  media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0007.tif
+  media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0008.tif
+  media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0009.tif
+  media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0010.tif
+  media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0011.tif
+  media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0012.tif
+  media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0013.tif
+  media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0014.tif
+  media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0015.tif
+  media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0016.tif
+  media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0017.tif
+  media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0018.tif
+  slot sets literal "Correspondence"
+  slot itemKey literal "PFP-01-06"
+  slot dcterms:date literal "1962-1970"
+  slot dcterms:extent literal "18 leaves"
+  slot dcterms:identifier literal "PFP-01-06"
+  slot dcterms:title literal "Letters from Vinod Patil in Nairobi"
+  set new "Correspondence"
+  owner is runner
+  visibility private
+  itemKey PFP-01-06
+item group:PFP-01-07 create
+  file s1/Box 01/PFP-01-07 Postcards/0001.tif
+  file s1/Box 01/PFP-01-07 Postcards/0002.tif
+  file s1/Box 01/PFP-01-07 Postcards/0003.tiff
+  file s1/Box 01/PFP-01-07 Postcards/0004.tif
+  file s1/Box 01/PFP-01-07 Postcards/0005.tif
+  file s1/Box 01/PFP-01-07 Postcards/0006.tif
+  row containers/PFP-1-7#1
+  media file:s1/Box 01/PFP-01-07 Postcards/0001.tif
+  media file:s1/Box 01/PFP-01-07 Postcards/0002.tif
+  media file:s1/Box 01/PFP-01-07 Postcards/0003.tiff
+  media file:s1/Box 01/PFP-01-07 Postcards/0004.tif
+  media file:s1/Box 01/PFP-01-07 Postcards/0005.tif
+  media file:s1/Box 01/PFP-01-07 Postcards/0006.tif
+  slot sets literal "Correspondence"
+  slot itemKey literal "PFP-01-07"
+  slot dcterms:date literal "n.d."
+  slot dcterms:extent literal "6 leaves"
+  slot dcterms:identifier literal "PFP-01-07"
+  slot dcterms:title literal "Picture postcards sent to the family"
+  set new "Correspondence"
+  owner is runner
+  visibility private
+  itemKey PFP-01-07
+item group:PFP-01-08 create
+  file s1/Box 01/PFP-01-08 School letters/0001.tif
+  file s1/Box 01/PFP-01-08 School letters/0002.tif
+  file s1/Box 01/PFP-01-08 School letters/0003.tif
+  file s1/Box 01/PFP-01-08 School letters/0004.tif
+  file s1/Box 01/PFP-01-08 School letters/0005.tif
+  file s1/Box 01/PFP-01-08 School letters/0006.tif
+  file s1/Box 01/PFP-01-08 School letters/0007.tif
+  file s1/Box 01/PFP-01-08 School letters/0008.tif
+  file s1/Box 01/PFP-01-08 School letters/0009.tif
+  file s1/Box 01/PFP-01-08 School letters/0010.tif
+  file s1/Box 01/PFP-01-08 School letters/0011.tif
+  file s1/Box 01/PFP-01-08 School letters/0012.tif
+  file s1/Box 01/PFP-01-08 School letters/0013.tif
+  row containers/PFP-1-8#1
+  media file:s1/Box 01/PFP-01-08 School letters/0001.tif
+  media file:s1/Box 01/PFP-01-08 School letters/0002.tif
+  media file:s1/Box 01/PFP-01-08 School letters/0003.tif
+  media file:s1/Box 01/PFP-01-08 School letters/0004.tif
+  media file:s1/Box 01/PFP-01-08 School letters/0005.tif
+  media file:s1/Box 01/PFP-01-08 School letters/0006.tif
+  media file:s1/Box 01/PFP-01-08 School letters/0007.tif
+  media file:s1/Box 01/PFP-01-08 School letters/0008.tif
+  media file:s1/Box 01/PFP-01-08 School letters/0009.tif
+  media file:s1/Box 01/PFP-01-08 School letters/0010.tif
+  media file:s1/Box 01/PFP-01-08 School letters/0011.tif
+  media file:s1/Box 01/PFP-01-08 School letters/0012.tif
+  media file:s1/Box 01/PFP-01-08 School letters/0013.tif
+  slot sets literal "Correspondence"
+  slot itemKey literal "PFP-01-08"
+  slot dcterms:date literal "1964-1969"
+  slot dcterms:extent literal "13 leaves"
+  slot dcterms:identifier literal "PFP-01-08"
+  slot dcterms:title literal "Letters about the children's schooling"
+  set new "Correspondence"
+  owner is runner
+  visibility private
+  itemKey PFP-01-08
+item group:PFP-01-09 create
+  file s1/Box 01/PFP-01-09 Condolences 1971/0001.tif
+  file s1/Box 01/PFP-01-09 Condolences 1971/0002.tif
+  file s1/Box 01/PFP-01-09 Condolences 1971/0003.tif
+  file s1/Box 01/PFP-01-09 Condolences 1971/0004.tif
+  file s1/Box 01/PFP-01-09 Condolences 1971/0005.tif
+  file s1/Box 01/PFP-01-09 Condolences 1971/0006.tif
+  file s1/Box 01/PFP-01-09 Condolences 1971/0007.tif
+  file s1/Box 01/PFP-01-09 Condolences 1971/0008.tif
+  file s1/Box 01/PFP-01-09 Condolences 1971/0009.tif
+  file s1/Box 01/PFP-01-09 Condolences 1971/0010.tif
+  file s1/Box 01/PFP-01-09 Condolences 1971/0011.tif
+  file s1/Box 01/PFP-01-09 Condolences 1971/0012.tif
+  file s1/Box 01/PFP-01-09 Condolences 1971/0013.tif
+  file s1/Box 01/PFP-01-09 Condolences 1971/0014.tif
+  file s1/Box 01/PFP-01-09 Condolences 1971/0015.tif
+  file s1/Box 01/PFP-01-09 Condolences 1971/0016.tif
+  file s1/Box 01/PFP-01-09 Condolences 1971/0017.tif
+  file s1/Box 01/PFP-01-09 Condolences 1971/0018.tif
+  file s1/Box 01/PFP-01-09 Condolences 1971/0019.tif
+  file s1/Box 01/PFP-01-09 Condolences 1971/0020.tif
+  row containers/PFP-1-9#1
+  media file:s1/Box 01/PFP-01-09 Condolences 1971/0001.tif
+  media file:s1/Box 01/PFP-01-09 Condolences 1971/0002.tif
+  media file:s1/Box 01/PFP-01-09 Condolences 1971/0003.tif
+  media file:s1/Box 01/PFP-01-09 Condolences 1971/0004.tif
+  media file:s1/Box 01/PFP-01-09 Condolences 1971/0005.tif
+  media file:s1/Box 01/PFP-01-09 Condolences 1971/0006.tif
+  media file:s1/Box 01/PFP-01-09 Condolences 1971/0007.tif
+  media file:s1/Box 01/PFP-01-09 Condolences 1971/0008.tif
+  media file:s1/Box 01/PFP-01-09 Condolences 1971/0009.tif
+  media file:s1/Box 01/PFP-01-09 Condolences 1971/0010.tif
+  media file:s1/Box 01/PFP-01-09 Condolences 1971/0011.tif
+  media file:s1/Box 01/PFP-01-09 Condolences 1971/0012.tif
+  media file:s1/Box 01/PFP-01-09 Condolences 1971/0013.tif
+  media file:s1/Box 01/PFP-01-09 Condolences 1971/0014.tif
+  media file:s1/Box 01/PFP-01-09 Condolences 1971/0015.tif
+  media file:s1/Box 01/PFP-01-09 Condolences 1971/0016.tif
+  media file:s1/Box 01/PFP-01-09 Condolences 1971/0017.tif
+  media file:s1/Box 01/PFP-01-09 Condolences 1971/0018.tif
+  media file:s1/Box 01/PFP-01-09 Condolences 1971/0019.tif
+  media file:s1/Box 01/PFP-01-09 Condolences 1971/0020.tif
+  slot sets literal "Correspondence"
+  slot itemKey literal "PFP-01-09"
+  slot dcterms:date literal "1971"
+  slot dcterms:extent literal "20 leaves"
+  slot dcterms:identifier literal "PFP-01-09"
+  slot dcterms:title literal "Letters of condolence on the death of Anand Patil"
+  set new "Correspondence"
+  owner is runner
+  visibility private
+  itemKey PFP-01-09
+item group:PFP-02-01 create
+  file s1/Box 02/PFP-02-01 Misc letters/0001.tif
+  file s1/Box 02/PFP-02-01 Misc letters/0002.tif
+  file s1/Box 02/PFP-02-01 Misc letters/0003.tif
+  file s1/Box 02/PFP-02-01 Misc letters/0004.tif
+  file s1/Box 02/PFP-02-01 Misc letters/0005.tif
+  file s1/Box 02/PFP-02-01 Misc letters/0006.tif
+  file s1/Box 02/PFP-02-01 Misc letters/0007.tif
+  file s1/Box 02/PFP-02-01 Misc letters/0008.tif
+  row containers/PFP-2-1#1
+  media file:s1/Box 02/PFP-02-01 Misc letters/0001.tif
+  media file:s1/Box 02/PFP-02-01 Misc letters/0002.tif
+  media file:s1/Box 02/PFP-02-01 Misc letters/0003.tif
+  media file:s1/Box 02/PFP-02-01 Misc letters/0004.tif
+  media file:s1/Box 02/PFP-02-01 Misc letters/0005.tif
+  media file:s1/Box 02/PFP-02-01 Misc letters/0006.tif
+  media file:s1/Box 02/PFP-02-01 Misc letters/0007.tif
+  media file:s1/Box 02/PFP-02-01 Misc letters/0008.tif
+  slot sets literal "Correspondence"
+  slot itemKey literal "PFP-02-01"
+  slot dcterms:date literal "n.d."
+  slot dcterms:extent literal "8 leaves"
+  slot dcterms:identifier literal "PFP-02-01"
+  slot dcterms:title literal "Family letters, writers not identified"
+  set new "Correspondence"
+  owner is runner
+  visibility private
+  itemKey PFP-02-01
+item group:PFP-02-02 create
+  file s1/Box 02/PFP-02-02 Aerogrammes/0001.tif
+  file s1/Box 02/PFP-02-02 Aerogrammes/0002.tif
+  file s1/Box 02/PFP-02-02 Aerogrammes/0003.tif
+  file s1/Box 02/PFP-02-02 Aerogrammes/0004.tif
+  file s1/Box 02/PFP-02-02 Aerogrammes/0005.tif
+  file s1/Box 02/PFP-02-02 Aerogrammes/0006.tif
+  file s1/Box 02/PFP-02-02 Aerogrammes/0007.tif
+  file s1/Box 02/PFP-02-02 Aerogrammes/0008.tif
+  file s1/Box 02/PFP-02-02 Aerogrammes/0009.tif
+  file s1/Box 02/PFP-02-02 Aerogrammes/0010.tif
+  file s1/Box 02/PFP-02-02 Aerogrammes/0011.tif
+  file s1/Box 02/PFP-02-02 Aerogrammes/0012.tif
+  file s1/Box 02/PFP-02-02 Aerogrammes/0013.tif
+  file s1/Box 02/PFP-02-02 Aerogrammes/0014.tif
+  file s1/Box 02/PFP-02-02 Aerogrammes/0015.tif
+  row containers/PFP-2-2#1
+  media file:s1/Box 02/PFP-02-02 Aerogrammes/0001.tif
+  media file:s1/Box 02/PFP-02-02 Aerogrammes/0002.tif
+  media file:s1/Box 02/PFP-02-02 Aerogrammes/0003.tif
+  media file:s1/Box 02/PFP-02-02 Aerogrammes/0004.tif
+  media file:s1/Box 02/PFP-02-02 Aerogrammes/0005.tif
+  media file:s1/Box 02/PFP-02-02 Aerogrammes/0006.tif
+  media file:s1/Box 02/PFP-02-02 Aerogrammes/0007.tif
+  media file:s1/Box 02/PFP-02-02 Aerogrammes/0008.tif
+  media file:s1/Box 02/PFP-02-02 Aerogrammes/0009.tif
+  media file:s1/Box 02/PFP-02-02 Aerogrammes/0010.tif
+  media file:s1/Box 02/PFP-02-02 Aerogrammes/0011.tif
+  media file:s1/Box 02/PFP-02-02 Aerogrammes/0012.tif
+  media file:s1/Box 02/PFP-02-02 Aerogrammes/0013.tif
+  media file:s1/Box 02/PFP-02-02 Aerogrammes/0014.tif
+  media file:s1/Box 02/PFP-02-02 Aerogrammes/0015.tif
+  slot sets literal "Correspondence"
+  slot itemKey literal "PFP-02-02"
+  slot dcterms:date literal "1972-1975"
+  slot dcterms:extent literal "15 leaves"
+  slot dcterms:identifier literal "PFP-02-02"
+  slot dcterms:title literal "Aerogrammes from England"
+  set new "Correspondence"
+  owner is runner
+  visibility private
+  itemKey PFP-02-02
+item group:PFP-02-03 create
+  file s1/Box 02/PFP-02-03 Letters from Meera/0001.tif
+  file s1/Box 02/PFP-02-03 Letters from Meera/0002.tif
+  file s1/Box 02/PFP-02-03 Letters from Meera/0003.tif
+  row containers/PFP-2-3#1
+  media file:s1/Box 02/PFP-02-03 Letters from Meera/0001.tif
+  media file:s1/Box 02/PFP-02-03 Letters from Meera/0002.tif
+  media file:s1/Box 02/PFP-02-03 Letters from Meera/0003.tif
+  slot sets literal "Correspondence"
+  slot itemKey literal "PFP-02-03"
+  slot dcterms:date literal "1976-1984"
+  slot dcterms:extent literal "3 leaves"
+  slot dcterms:identifier literal "PFP-02-03"
+  slot dcterms:title literal "Letters from Meera Patil, Leicester"
+  set new "Correspondence"
+  owner is runner
+  visibility private
+  itemKey PFP-02-03
+item group:PFP-02-04 create
+  file s1/Box 02/PFP-02-04 Land deed/0001.tif
+  file s1/Box 02/PFP-02-04 Land deed/0002.tif
+  file s1/Box 02/PFP-02-04 Land deed/0003.tif
+  file s1/Box 02/PFP-02-04 Land deed/0004.tif
+  file s1/Box 02/PFP-02-04 Land deed/0004a.tif
+  file s1/Box 02/PFP-02-04 Land deed/0005.tif
+  file s1/Box 02/PFP-02-04 Land deed/0006.tif
+  file s1/Box 02/PFP-02-04 Land deed/0007.tif
+  file s1/Box 02/PFP-02-04 Land deed/0008.tif
+  file s1/Box 02/PFP-02-04 Land deed/0009.tif
+  file s1/Box 02/PFP-02-04 Land deed/0010.tif
+  row containers/PFP-2-4#1
+  media file:s1/Box 02/PFP-02-04 Land deed/0001.tif
+  media file:s1/Box 02/PFP-02-04 Land deed/0002.tif
+  media file:s1/Box 02/PFP-02-04 Land deed/0003.tif
+  media file:s1/Box 02/PFP-02-04 Land deed/0004.tif
+  media file:s1/Box 02/PFP-02-04 Land deed/0004a.tif
+  media file:s1/Box 02/PFP-02-04 Land deed/0005.tif
+  media file:s1/Box 02/PFP-02-04 Land deed/0006.tif
+  media file:s1/Box 02/PFP-02-04 Land deed/0007.tif
+  media file:s1/Box 02/PFP-02-04 Land deed/0008.tif
+  media file:s1/Box 02/PFP-02-04 Land deed/0009.tif
+  media file:s1/Box 02/PFP-02-04 Land deed/0010.tif
+  slot sets literal "Legal"
+  slot itemKey literal "PFP-02-04"
+  slot dcterms:date literal "1949"
+  slot dcterms:extent literal "10 leaves"
+  slot dcterms:identifier literal "PFP-02-04"
+  slot dcterms:title literal "Deed of sale for the Satara land"
+  set new "Legal"
+  owner is runner
+  visibility private
+  itemKey PFP-02-04
+item group:PFP-02-05 create
+  file s1/Box 02/PFP-02-05 Mutation records/0001.tif
+  file s1/Box 02/PFP-02-05 Mutation records/0002.tif
+  file s1/Box 02/PFP-02-05 Mutation records/0003.tif
+  file s1/Box 02/PFP-02-05 Mutation records/0004.tif
+  file s1/Box 02/PFP-02-05 Mutation records/0005.tif
+  file s1/Box 02/PFP-02-05 Mutation records/0006.tif
+  file s1/Box 02/PFP-02-05 Mutation records/0007.tif
+  file s1/Box 02/PFP-02-05 Mutation records/0008.tif
+  file s1/Box 02/PFP-02-05 Mutation records/0009.tif
+  file s1/Box 02/PFP-02-05 Mutation records/0010.tif
+  file s1/Box 02/PFP-02-05 Mutation records/0011.tif
+  file s1/Box 02/PFP-02-05 Mutation records/0012.tif
+  file s1/Box 02/PFP-02-05 Mutation records/0013.tif
+  file s1/Box 02/PFP-02-05 Mutation records/0014.tif
+  file s1/Box 02/PFP-02-05 Mutation records/0015.tif
+  file s1/Box 02/PFP-02-05 Mutation records/0016.tif
+  file s1/Box 02/PFP-02-05 Mutation records/0017.tif
+  row containers/PFP-2-5#1
+  media file:s1/Box 02/PFP-02-05 Mutation records/0001.tif
+  media file:s1/Box 02/PFP-02-05 Mutation records/0002.tif
+  media file:s1/Box 02/PFP-02-05 Mutation records/0003.tif
+  media file:s1/Box 02/PFP-02-05 Mutation records/0004.tif
+  media file:s1/Box 02/PFP-02-05 Mutation records/0005.tif
+  media file:s1/Box 02/PFP-02-05 Mutation records/0006.tif
+  media file:s1/Box 02/PFP-02-05 Mutation records/0007.tif
+  media file:s1/Box 02/PFP-02-05 Mutation records/0008.tif
+  media file:s1/Box 02/PFP-02-05 Mutation records/0009.tif
+  media file:s1/Box 02/PFP-02-05 Mutation records/0010.tif
+  media file:s1/Box 02/PFP-02-05 Mutation records/0011.tif
+  media file:s1/Box 02/PFP-02-05 Mutation records/0012.tif
+  media file:s1/Box 02/PFP-02-05 Mutation records/0013.tif
+  media file:s1/Box 02/PFP-02-05 Mutation records/0014.tif
+  media file:s1/Box 02/PFP-02-05 Mutation records/0015.tif
+  media file:s1/Box 02/PFP-02-05 Mutation records/0016.tif
+  media file:s1/Box 02/PFP-02-05 Mutation records/0017.tif
+  slot sets literal "Legal"
+  slot itemKey literal "PFP-02-05"
+  slot dcterms:date literal "c. 1950"
+  slot dcterms:extent literal "17 leaves"
+  slot dcterms:identifier literal "PFP-02-05"
+  slot dcterms:title literal "Village land mutation records"
+  set new "Legal"
+  owner is runner
+  visibility private
+  itemKey PFP-02-05
+item group:PFP-02-06 create
+  file s1/Box 02/PFP-02-06 Will of Anand/0001.tif
+  file s1/Box 02/PFP-02-06 Will of Anand/0002.tif
+  file s1/Box 02/PFP-02-06 Will of Anand/0003.tif
+  file s1/Box 02/PFP-02-06 Will of Anand/0004.tif
+  file s1/Box 02/PFP-02-06 Will of Anand/0005.tif
+  row containers/PFP-2-6#1
+  media file:s1/Box 02/PFP-02-06 Will of Anand/0001.tif
+  media file:s1/Box 02/PFP-02-06 Will of Anand/0002.tif
+  media file:s1/Box 02/PFP-02-06 Will of Anand/0003.tif
+  media file:s1/Box 02/PFP-02-06 Will of Anand/0004.tif
+  media file:s1/Box 02/PFP-02-06 Will of Anand/0005.tif
+  slot sets literal "Legal"
+  slot itemKey literal "PFP-02-06"
+  slot dcterms:date literal "1968-1972"
+  slot dcterms:extent literal "5 leaves"
+  slot dcterms:identifier literal "PFP-02-06"
+  slot dcterms:title literal "Will of Anand Patil and probate papers"
+  set new "Legal"
+  owner is runner
+  visibility private
+  itemKey PFP-02-06
+item group:PFP-02-07 create
+  file s1/Box 02/PFP-02-07 Tax receipts/0001.tif
+  file s1/Box 02/PFP-02-07 Tax receipts/0002.tif
+  file s1/Box 02/PFP-02-07 Tax receipts/0003.tif
+  file s1/Box 02/PFP-02-07 Tax receipts/0004.tif
+  file s1/Box 02/PFP-02-07 Tax receipts/0005.tif
+  file s1/Box 02/PFP-02-07 Tax receipts/0006.tif
+  file s1/Box 02/PFP-02-07 Tax receipts/0007.tif
+  file s1/Box 02/PFP-02-07 Tax receipts/0008.tif
+  file s1/Box 02/PFP-02-07 Tax receipts/0009.tif
+  file s1/Box 02/PFP-02-07 Tax receipts/0010.tif
+  file s1/Box 02/PFP-02-07 Tax receipts/0011.tif
+  file s1/Box 02/PFP-02-07 Tax receipts/0012.tif
+  row containers/PFP-2-7#1
+  media file:s1/Box 02/PFP-02-07 Tax receipts/0001.tif
+  media file:s1/Box 02/PFP-02-07 Tax receipts/0002.tif
+  media file:s1/Box 02/PFP-02-07 Tax receipts/0003.tif
+  media file:s1/Box 02/PFP-02-07 Tax receipts/0004.tif
+  media file:s1/Box 02/PFP-02-07 Tax receipts/0005.tif
+  media file:s1/Box 02/PFP-02-07 Tax receipts/0006.tif
+  media file:s1/Box 02/PFP-02-07 Tax receipts/0007.tif
+  media file:s1/Box 02/PFP-02-07 Tax receipts/0008.tif
+  media file:s1/Box 02/PFP-02-07 Tax receipts/0009.tif
+  media file:s1/Box 02/PFP-02-07 Tax receipts/0010.tif
+  media file:s1/Box 02/PFP-02-07 Tax receipts/0011.tif
+  media file:s1/Box 02/PFP-02-07 Tax receipts/0012.tif
+  slot sets literal "Legal"
+  slot itemKey literal "PFP-02-07"
+  slot dcterms:date literal "1955-1965"
+  slot dcterms:extent literal "12 leaves"
+  slot dcterms:identifier literal "PFP-02-07"
+  slot dcterms:title literal "Land revenue receipts"
+  set new "Legal"
+  owner is runner
+  visibility private
+  itemKey PFP-02-07
+item group:PFP-02-08 create
+  file s1/Box 02/PFP-02-08 Court case/0001.tif
+  file s1/Box 02/PFP-02-08 Court case/0002.tif
+  file s1/Box 02/PFP-02-08 Court case/003.tif
+  file s1/Box 02/PFP-02-08 Court case/0004.tif
+  file s1/Box 02/PFP-02-08 Court case/0005.tif
+  file s1/Box 02/PFP-02-08 Court case/0006.tif
+  file s1/Box 02/PFP-02-08 Court case/0007.tif
+  file s1/Box 02/PFP-02-08 Court case/0008.tif
+  file s1/Box 02/PFP-02-08 Court case/0009.tif
+  file s1/Box 02/PFP-02-08 Court case/0010.tif
+  file s1/Box 02/PFP-02-08 Court case/0011.tif
+  file s1/Box 02/PFP-02-08 Court case/0012.tif
+  file s1/Box 02/PFP-02-08 Court case/0013.tif
+  file s1/Box 02/PFP-02-08 Court case/0014.tif
+  file s1/Box 02/PFP-02-08 Court case/0015.tif
+  file s1/Box 02/PFP-02-08 Court case/0016.tif
+  file s1/Box 02/PFP-02-08 Court case/0017.tif
+  file s1/Box 02/PFP-02-08 Court case/0018.tif
+  file s1/Box 02/PFP-02-08 Court case/0019.tif
+  row containers/PFP-2-8#1
+  media file:s1/Box 02/PFP-02-08 Court case/0001.tif
+  media file:s1/Box 02/PFP-02-08 Court case/0002.tif
+  media file:s1/Box 02/PFP-02-08 Court case/003.tif
+  media file:s1/Box 02/PFP-02-08 Court case/0004.tif
+  media file:s1/Box 02/PFP-02-08 Court case/0005.tif
+  media file:s1/Box 02/PFP-02-08 Court case/0006.tif
+  media file:s1/Box 02/PFP-02-08 Court case/0007.tif
+  media file:s1/Box 02/PFP-02-08 Court case/0008.tif
+  media file:s1/Box 02/PFP-02-08 Court case/0009.tif
+  media file:s1/Box 02/PFP-02-08 Court case/0010.tif
+  media file:s1/Box 02/PFP-02-08 Court case/0011.tif
+  media file:s1/Box 02/PFP-02-08 Court case/0012.tif
+  media file:s1/Box 02/PFP-02-08 Court case/0013.tif
+  media file:s1/Box 02/PFP-02-08 Court case/0014.tif
+  media file:s1/Box 02/PFP-02-08 Court case/0015.tif
+  media file:s1/Box 02/PFP-02-08 Court case/0016.tif
+  media file:s1/Box 02/PFP-02-08 Court case/0017.tif
+  media file:s1/Box 02/PFP-02-08 Court case/0018.tif
+  media file:s1/Box 02/PFP-02-08 Court case/0019.tif
+  slot sets literal "Legal"
+  slot itemKey literal "PFP-02-08"
+  slot dcterms:date literal "1958-1963"
+  slot dcterms:extent literal "19 leaves"
+  slot dcterms:identifier literal "PFP-02-08"
+  slot dcterms:title literal "Papers of the boundary case at the Satara court"
+  set new "Legal"
+  owner is runner
+  visibility private
+  itemKey PFP-02-08
+item group:PFP-02-09 create
+  file s1/Box 02/PFP-02-09 Ration cards/0001.tif
+  file s1/Box 02/PFP-02-09 Ration cards/0002.tif
+  file s1/Box 02/PFP-02-09 Ration cards/0003.tif
+  file s1/Box 02/PFP-02-09 Ration cards/0004.tif
+  file s1/Box 02/PFP-02-09 Ration cards/0005.tif
+  file s1/Box 02/PFP-02-09 Ration cards/0006.tif
+  file s1/Box 02/PFP-02-09 Ration cards/0007.tif
+  row containers/PFP-2-9#1
+  media file:s1/Box 02/PFP-02-09 Ration cards/0001.tif
+  media file:s1/Box 02/PFP-02-09 Ration cards/0002.tif
+  media file:s1/Box 02/PFP-02-09 Ration cards/0003.tif
+  media file:s1/Box 02/PFP-02-09 Ration cards/0004.tif
+  media file:s1/Box 02/PFP-02-09 Ration cards/0005.tif
+  media file:s1/Box 02/PFP-02-09 Ration cards/0006.tif
+  media file:s1/Box 02/PFP-02-09 Ration cards/0007.tif
+  slot sets literal "Legal"
+  slot itemKey literal "PFP-02-09"
+  slot dcterms:date literal "c. 1960"
+  slot dcterms:extent literal "7 leaves"
+  slot dcterms:identifier literal "PFP-02-09"
+  slot dcterms:title literal "Ration cards and household papers"
+  set new "Legal"
+  owner is runner
+  visibility private
+  itemKey PFP-02-09
+item group:PFP-02-10 create
+  file s1/Box 02/PFP-02-10 Insurance/0001.tif
+  file s1/Box 02/PFP-02-10 Insurance/0002.tif
+  file s1/Box 02/PFP-02-10 Insurance/0003.tif
+  file s1/Box 02/PFP-02-10 Insurance/0004.tif
+  file s1/Box 02/PFP-02-10 Insurance/0005.tif
+  file s1/Box 02/PFP-02-10 Insurance/0006.tif
+  file s1/Box 02/PFP-02-10 Insurance/0007.tif
+  file s1/Box 02/PFP-02-10 Insurance/0008.tif
+  file s1/Box 02/PFP-02-10 Insurance/0009.tif
+  file s1/Box 02/PFP-02-10 Insurance/0010.tif
+  file s1/Box 02/PFP-02-10 Insurance/0011.tif
+  file s1/Box 02/PFP-02-10 Insurance/0012.tif
+  file s1/Box 02/PFP-02-10 Insurance/0013.tif
+  file s1/Box 02/PFP-02-10 Insurance/0014.tif
+  row containers/PFP-2-10#1
+  media file:s1/Box 02/PFP-02-10 Insurance/0001.tif
+  media file:s1/Box 02/PFP-02-10 Insurance/0002.tif
+  media file:s1/Box 02/PFP-02-10 Insurance/0003.tif
+  media file:s1/Box 02/PFP-02-10 Insurance/0004.tif
+  media file:s1/Box 02/PFP-02-10 Insurance/0005.tif
+  media file:s1/Box 02/PFP-02-10 Insurance/0006.tif
+  media file:s1/Box 02/PFP-02-10 Insurance/0007.tif
+  media file:s1/Box 02/PFP-02-10 Insurance/0008.tif
+  media file:s1/Box 02/PFP-02-10 Insurance/0009.tif
+  media file:s1/Box 02/PFP-02-10 Insurance/0010.tif
+  media file:s1/Box 02/PFP-02-10 Insurance/0011.tif
+  media file:s1/Box 02/PFP-02-10 Insurance/0012.tif
+  media file:s1/Box 02/PFP-02-10 Insurance/0013.tif
+  media file:s1/Box 02/PFP-02-10 Insurance/0014.tif
+  slot sets literal "Legal"
+  slot itemKey literal "PFP-02-10"
+  slot dcterms:date literal "1960-1975"
+  slot dcterms:extent literal "14 leaves"
+  slot dcterms:identifier literal "PFP-02-10"
+  slot dcterms:title literal "Life insurance policies"
+  set new "Legal"
+  owner is runner
+  visibility private
+  itemKey PFP-02-10
+item group:PFP-03-01 create
+  file s1/Box 03/PFP-03-01 Studio portraits/0001.tif
+  file s1/Box 03/PFP-03-01 Studio portraits/0002.tif
+  row containers/PFP-3-1#1
+  media file:s1/Box 03/PFP-03-01 Studio portraits/0001.tif
+  media file:s1/Box 03/PFP-03-01 Studio portraits/0002.tif
+  slot sets literal "Photographs"
+  slot itemKey literal "PFP-03-01"
+  slot dcterms:date literal "c. 1950"
+  slot dcterms:extent literal "2 leaves"
+  slot dcterms:identifier literal "PFP-03-01"
+  slot dcterms:title literal "Studio portraits of the Patil family"
+  set new "Photographs"
+  owner is runner
+  visibility private
+  itemKey PFP-03-01
+item group:PFP-03-02 create
+  file s1/Box 03/PFP-03-02 Wedding 1955/0001.tif
+  file s1/Box 03/PFP-03-02 Wedding 1955/0002.tif
+  file s1/Box 03/PFP-03-02 Wedding 1955/0003.tif
+  file s1/Box 03/PFP-03-02 Wedding 1955/0004.tif
+  file s1/Box 03/PFP-03-02 Wedding 1955/0005.tif
+  file s1/Box 03/PFP-03-02 Wedding 1955/0006.tif
+  file s1/Box 03/PFP-03-02 Wedding 1955/0007.tif
+  file s1/Box 03/PFP-03-02 Wedding 1955/0008.tif
+  file s1/Box 03/PFP-03-02 Wedding 1955/0009.tif
+  row containers/PFP-3-2#1
+  media file:s1/Box 03/PFP-03-02 Wedding 1955/0001.tif
+  media file:s1/Box 03/PFP-03-02 Wedding 1955/0002.tif
+  media file:s1/Box 03/PFP-03-02 Wedding 1955/0003.tif
+  media file:s1/Box 03/PFP-03-02 Wedding 1955/0004.tif
+  media file:s1/Box 03/PFP-03-02 Wedding 1955/0005.tif
+  media file:s1/Box 03/PFP-03-02 Wedding 1955/0006.tif
+  media file:s1/Box 03/PFP-03-02 Wedding 1955/0007.tif
+  media file:s1/Box 03/PFP-03-02 Wedding 1955/0008.tif
+  media file:s1/Box 03/PFP-03-02 Wedding 1955/0009.tif
+  slot sets literal "Photographs"
+  slot itemKey literal "PFP-03-02"
+  slot dcterms:date literal "1955"
+  slot dcterms:extent literal "9 leaves"
+  slot dcterms:identifier literal "PFP-03-02"
+  slot dcterms:title literal "Photographs of the wedding of Anand and Sushila"
+  set new "Photographs"
+  owner is runner
+  visibility private
+  itemKey PFP-03-02
+item group:PFP-03-03 create
+  file s1/Box 03/PFP-03-03 Satara farm/0001.tif
+  file s1/Box 03/PFP-03-03 Satara farm/0002.tif
+  file s1/Box 03/PFP-03-03 Satara farm/0003.tif
+  file s1/Box 03/PFP-03-03 Satara farm/0004.tif
+  file s1/Box 03/PFP-03-03 Satara farm/0005.tif
+  file s1/Box 03/PFP-03-03 Satara farm/0006.tif
+  file s1/Box 03/PFP-03-03 Satara farm/0007.tif
+  file s1/Box 03/PFP-03-03 Satara farm/0008.tif
+  file s1/Box 03/PFP-03-03 Satara farm/0009.tif
+  file s1/Box 03/PFP-03-03 Satara farm/0010.tif
+  file s1/Box 03/PFP-03-03 Satara farm/0011.tif
+  file s1/Box 03/PFP-03-03 Satara farm/0012.tif
+  file s1/Box 03/PFP-03-03 Satara farm/0013.tif
+  file s1/Box 03/PFP-03-03 Satara farm/0014.tif
+  file s1/Box 03/PFP-03-03 Satara farm/0015.tif
+  file s1/Box 03/PFP-03-03 Satara farm/0016.tif
+  row containers/PFP-3-3#1
+  media file:s1/Box 03/PFP-03-03 Satara farm/0001.tif
+  media file:s1/Box 03/PFP-03-03 Satara farm/0002.tif
+  media file:s1/Box 03/PFP-03-03 Satara farm/0003.tif
+  media file:s1/Box 03/PFP-03-03 Satara farm/0004.tif
+  media file:s1/Box 03/PFP-03-03 Satara farm/0005.tif
+  media file:s1/Box 03/PFP-03-03 Satara farm/0006.tif
+  media file:s1/Box 03/PFP-03-03 Satara farm/0007.tif
+  media file:s1/Box 03/PFP-03-03 Satara farm/0008.tif
+  media file:s1/Box 03/PFP-03-03 Satara farm/0009.tif
+  media file:s1/Box 03/PFP-03-03 Satara farm/0010.tif
+  media file:s1/Box 03/PFP-03-03 Satara farm/0011.tif
+  media file:s1/Box 03/PFP-03-03 Satara farm/0012.tif
+  media file:s1/Box 03/PFP-03-03 Satara farm/0013.tif
+  media file:s1/Box 03/PFP-03-03 Satara farm/0014.tif
+  media file:s1/Box 03/PFP-03-03 Satara farm/0015.tif
+  media file:s1/Box 03/PFP-03-03 Satara farm/0016.tif
+  slot sets literal "Photographs"
+  slot itemKey literal "PFP-03-03"
+  slot dcterms:date literal "1960-1965"
+  slot dcterms:extent literal "16 leaves"
+  slot dcterms:identifier literal "PFP-03-03"
+  slot dcterms:title literal "Photographs of the farm at Satara"
+  set new "Photographs"
+  owner is runner
+  visibility private
+  itemKey PFP-03-03
+item group:PFP-03-04 create
+  file s1/Box 03/PFP-03-04 Nairobi visit/0001.tif
+  file s1/Box 03/PFP-03-04 Nairobi visit/0002.tif
+  file s1/Box 03/PFP-03-04 Nairobi visit/0003.tif
+  file s1/Box 03/PFP-03-04 Nairobi visit/0004.tif
+  row containers/PFP-3-4#1
+  media file:s1/Box 03/PFP-03-04 Nairobi visit/0001.tif
+  media file:s1/Box 03/PFP-03-04 Nairobi visit/0002.tif
+  media file:s1/Box 03/PFP-03-04 Nairobi visit/0003.tif
+  media file:s1/Box 03/PFP-03-04 Nairobi visit/0004.tif
+  slot sets literal "Photographs"
+  slot itemKey literal "PFP-03-04"
+  slot dcterms:date literal "1966"
+  slot dcterms:extent literal "4 leaves"
+  slot dcterms:identifier literal "PFP-03-04"
+  slot dcterms:title literal "Photographs of the visit to Nairobi"
+  set new "Photographs"
+  owner is runner
+  visibility private
+  itemKey PFP-03-04
+item group:PFP-03-05 create
+  file s1/Box 03/PFP-03-05 Snapshots/0001.tif
+  file s1/Box 03/PFP-03-05 Snapshots/0002.tif
+  file s1/Box 03/PFP-03-05 Snapshots/0003.tif
+  file s1/Box 03/PFP-03-05 Snapshots/0004.tif
+  file s1/Box 03/PFP-03-05 Snapshots/0005.tif
+  file s1/Box 03/PFP-03-05 Snapshots/0006.tif
+  file s1/Box 03/PFP-03-05 Snapshots/0007.tif
+  file s1/Box 03/PFP-03-05 Snapshots/0008.tif
+  file s1/Box 03/PFP-03-05 Snapshots/0009.tif
+  file s1/Box 03/PFP-03-05 Snapshots/0010.tif
+  file s1/Box 03/PFP-03-05 Snapshots/0011.tif
+  row containers/PFP-3-5#1
+  media file:s1/Box 03/PFP-03-05 Snapshots/0001.tif
+  media file:s1/Box 03/PFP-03-05 Snapshots/0002.tif
+  media file:s1/Box 03/PFP-03-05 Snapshots/0003.tif
+  media file:s1/Box 03/PFP-03-05 Snapshots/0004.tif
+  media file:s1/Box 03/PFP-03-05 Snapshots/0005.tif
+  media file:s1/Box 03/PFP-03-05 Snapshots/0006.tif
+  media file:s1/Box 03/PFP-03-05 Snapshots/0007.tif
+  media file:s1/Box 03/PFP-03-05 Snapshots/0008.tif
+  media file:s1/Box 03/PFP-03-05 Snapshots/0009.tif
+  media file:s1/Box 03/PFP-03-05 Snapshots/0010.tif
+  media file:s1/Box 03/PFP-03-05 Snapshots/0011.tif
+  slot sets literal "Photographs"
+  slot itemKey literal "PFP-03-05"
+  slot dcterms:date literal "n.d."
+  slot dcterms:extent literal "11 leaves"
+  slot dcterms:identifier literal "PFP-03-05"
+  slot dcterms:title literal "Loose snapshots, people not identified"
+  set new "Photographs"
+  owner is runner
+  visibility private
+  itemKey PFP-03-05
+item group:PFP-03-06 create
+  file s1/Oversize/PFP-03-06 survey map sheet 1.tif
+  file s1/Oversize/PFP-03-06 survey map sheet 2.tif
+  row containers/PFP-3-6#1
+  media file:s1/Oversize/PFP-03-06 survey map sheet 1.tif
+  media file:s1/Oversize/PFP-03-06 survey map sheet 2.tif
+  slot sets literal "Photographs"
+  slot itemKey literal "PFP-03-06"
+  slot dcterms:date literal "1948"
+  slot dcterms:extent literal "2 sheets"
+  slot dcterms:identifier literal "PFP-03-06"
+  slot dcterms:title literal "Survey map of the Satara land"
+  set new "Photographs"
+  owner is runner
+  visibility private
+  itemKey PFP-03-06
+item row:containers/PFP-2-11#1 left flag no-file
+  row containers/PFP-2-11#1
+  slot sets literal "Legal"
+  slot itemKey literal "PFP-2-11"
+  slot dcterms:date literal "1966"
+  slot dcterms:extent literal "1 folder"
+  slot dcterms:identifier literal "PFP-2-11"
+  slot dcterms:title literal "Papers of the cooperative bank loan"
+  set new "Legal"
+  owner is runner
+  visibility private
+  itemKey PFP-2-11
+media file:s1/Box 01/PFP-01-01 Letters from Anand/0001.tif create
+  file s1/Box 01/PFP-01-01 Letters from Anand/0001.tif
+  parent group:PFP-01-01
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-01 Letters from Anand/0002.tif create
+  file s1/Box 01/PFP-01-01 Letters from Anand/0002.tif
+  parent group:PFP-01-01
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-01 Letters from Anand/0003.tif create
+  file s1/Box 01/PFP-01-01 Letters from Anand/0003.tif
+  parent group:PFP-01-01
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-01 Letters from Anand/0004.tif create
+  file s1/Box 01/PFP-01-01 Letters from Anand/0004.tif
+  parent group:PFP-01-01
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-01 Letters from Anand/0005.tif create
+  file s1/Box 01/PFP-01-01 Letters from Anand/0005.tif
+  parent group:PFP-01-01
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-01 Letters from Anand/0006.tif create
+  file s1/Box 01/PFP-01-01 Letters from Anand/0006.tif
+  parent group:PFP-01-01
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-01 Letters from Anand/0007.tif create
+  file s1/Box 01/PFP-01-01 Letters from Anand/0007.tif
+  parent group:PFP-01-01
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-01 Letters from Anand/0008.tif create
+  file s1/Box 01/PFP-01-01 Letters from Anand/0008.tif
+  parent group:PFP-01-01
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-01 Letters from Anand/0009.tif create
+  file s1/Box 01/PFP-01-01 Letters from Anand/0009.tif
+  parent group:PFP-01-01
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-02 Letters to Sushila/0001.tif create
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0001.tif
+  parent group:PFP-01-02
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-02 Letters to Sushila/0002.tif create
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0002.tif
+  parent group:PFP-01-02
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-02 Letters to Sushila/0003.tif create
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0003.tif
+  parent group:PFP-01-02
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-02 Letters to Sushila/0004.tif create
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0004.tif
+  parent group:PFP-01-02
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-02 Letters to Sushila/0005.TIF create
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0005.TIF
+  parent group:PFP-01-02
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-02 Letters to Sushila/0006.tif create
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0006.tif
+  parent group:PFP-01-02
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-02 Letters to Sushila/0007.tif create
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0007.tif
+  parent group:PFP-01-02
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-02 Letters to Sushila/0008.tif create
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0008.tif
+  parent group:PFP-01-02
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-02 Letters to Sushila/0009.tif create
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0009.tif
+  parent group:PFP-01-02
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-02 Letters to Sushila/0010.tif create
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0010.tif
+  parent group:PFP-01-02
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-02 Letters to Sushila/0011.tif create
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0011.tif
+  parent group:PFP-01-02
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-02 Letters to Sushila/0012.tif create
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0012.tif
+  parent group:PFP-01-02
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-02 Letters to Sushila/0013.tif create
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0013.tif
+  parent group:PFP-01-02
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-02 Letters to Sushila/0014.tif create
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0014.tif
+  parent group:PFP-01-02
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-02 Letters to Sushila/0015.tif create
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0015.tif
+  parent group:PFP-01-02
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-02 Letters to Sushila/0016.tif create
+  file s1/Box 01/PFP-01-02 Letters to Sushila/0016.tif
+  parent group:PFP-01-02
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-03 Wedding cards/0001.tif create
+  file s1/Box 01/PFP-01-03 Wedding cards/0001.tif
+  parent group:PFP-01-03
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-03 Wedding cards/0002.tif create
+  file s1/Box 01/PFP-01-03 Wedding cards/0002.tif
+  parent group:PFP-01-03
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-03 Wedding cards/0003.tif create
+  file s1/Box 01/PFP-01-03 Wedding cards/0003.tif
+  parent group:PFP-01-03
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-03 Wedding cards/0004.tif create
+  file s1/Box 01/PFP-01-03 Wedding cards/0004.tif
+  parent group:PFP-01-03
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-04 Bombay letters/0001.tif create
+  file s1/Box 01/PFP-01-04 Bombay letters/0001.tif
+  parent group:PFP-01-04
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-04 Bombay letters/0002.tif create
+  file s1/Box 01/PFP-01-04 Bombay letters/0002.tif
+  parent group:PFP-01-04
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-04 Bombay letters/0003.tif create
+  file s1/Box 01/PFP-01-04 Bombay letters/0003.tif
+  parent group:PFP-01-04
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-04 Bombay letters/0004.tif create
+  file s1/Box 01/PFP-01-04 Bombay letters/0004.tif
+  parent group:PFP-01-04
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-04 Bombay letters/0005.tif create
+  file s1/Box 01/PFP-01-04 Bombay letters/0005.tif
+  parent group:PFP-01-04
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-04 Bombay letters/0006.tif create
+  file s1/Box 01/PFP-01-04 Bombay letters/0006.tif
+  parent group:PFP-01-04
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-04 Bombay letters/0007.tif create
+  file s1/Box 01/PFP-01-04 Bombay letters/0007.tif
+  parent group:PFP-01-04
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-04 Bombay letters/0008.tif create
+  file s1/Box 01/PFP-01-04 Bombay letters/0008.tif
+  parent group:PFP-01-04
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-04 Bombay letters/0009.tif create
+  file s1/Box 01/PFP-01-04 Bombay letters/0009.tif
+  parent group:PFP-01-04
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-04 Bombay letters/0010.tif create
+  file s1/Box 01/PFP-01-04 Bombay letters/0010.tif
+  parent group:PFP-01-04
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-04 Bombay letters/0011.tif create
+  file s1/Box 01/PFP-01-04 Bombay letters/0011.tif
+  parent group:PFP-01-04
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0001.tif create
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0001.tif
+  parent group:PFP-01-06
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0002.tif create
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0002.tif
+  parent group:PFP-01-06
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0003.tif create
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0003.tif
+  parent group:PFP-01-06
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0004.tif create
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0004.tif
+  parent group:PFP-01-06
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0005.tif create
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0005.tif
+  parent group:PFP-01-06
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0006.tif create
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0006.tif
+  parent group:PFP-01-06
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0007.tif create
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0007.tif
+  parent group:PFP-01-06
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0008.tif create
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0008.tif
+  parent group:PFP-01-06
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0009.tif create
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0009.tif
+  parent group:PFP-01-06
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0010.tif create
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0010.tif
+  parent group:PFP-01-06
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0011.tif create
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0011.tif
+  parent group:PFP-01-06
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0012.tif create
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0012.tif
+  parent group:PFP-01-06
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0013.tif create
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0013.tif
+  parent group:PFP-01-06
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0014.tif create
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0014.tif
+  parent group:PFP-01-06
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0015.tif create
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0015.tif
+  parent group:PFP-01-06
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0016.tif create
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0016.tif
+  parent group:PFP-01-06
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0017.tif create
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0017.tif
+  parent group:PFP-01-06
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-06 Letters, Nairobi/0018.tif create
+  file s1/Box 01/PFP-01-06 Letters, Nairobi/0018.tif
+  parent group:PFP-01-06
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-07 Postcards/0001.tif create
+  file s1/Box 01/PFP-01-07 Postcards/0001.tif
+  parent group:PFP-01-07
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-07 Postcards/0002.tif create
+  file s1/Box 01/PFP-01-07 Postcards/0002.tif
+  parent group:PFP-01-07
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-07 Postcards/0003.tiff create
+  file s1/Box 01/PFP-01-07 Postcards/0003.tiff
+  parent group:PFP-01-07
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-07 Postcards/0004.tif create
+  file s1/Box 01/PFP-01-07 Postcards/0004.tif
+  parent group:PFP-01-07
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-07 Postcards/0005.tif create
+  file s1/Box 01/PFP-01-07 Postcards/0005.tif
+  parent group:PFP-01-07
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-07 Postcards/0006.tif create
+  file s1/Box 01/PFP-01-07 Postcards/0006.tif
+  parent group:PFP-01-07
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-08 School letters/0001.tif create
+  file s1/Box 01/PFP-01-08 School letters/0001.tif
+  parent group:PFP-01-08
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-08 School letters/0002.tif create
+  file s1/Box 01/PFP-01-08 School letters/0002.tif
+  parent group:PFP-01-08
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-08 School letters/0003.tif create
+  file s1/Box 01/PFP-01-08 School letters/0003.tif
+  parent group:PFP-01-08
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-08 School letters/0004.tif create
+  file s1/Box 01/PFP-01-08 School letters/0004.tif
+  parent group:PFP-01-08
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-08 School letters/0005.tif create
+  file s1/Box 01/PFP-01-08 School letters/0005.tif
+  parent group:PFP-01-08
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-08 School letters/0006.tif create
+  file s1/Box 01/PFP-01-08 School letters/0006.tif
+  parent group:PFP-01-08
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-08 School letters/0007.tif create
+  file s1/Box 01/PFP-01-08 School letters/0007.tif
+  parent group:PFP-01-08
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-08 School letters/0008.tif create
+  file s1/Box 01/PFP-01-08 School letters/0008.tif
+  parent group:PFP-01-08
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-08 School letters/0009.tif create
+  file s1/Box 01/PFP-01-08 School letters/0009.tif
+  parent group:PFP-01-08
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-08 School letters/0010.tif create
+  file s1/Box 01/PFP-01-08 School letters/0010.tif
+  parent group:PFP-01-08
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-08 School letters/0011.tif create
+  file s1/Box 01/PFP-01-08 School letters/0011.tif
+  parent group:PFP-01-08
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-08 School letters/0012.tif create
+  file s1/Box 01/PFP-01-08 School letters/0012.tif
+  parent group:PFP-01-08
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-08 School letters/0013.tif create
+  file s1/Box 01/PFP-01-08 School letters/0013.tif
+  parent group:PFP-01-08
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-09 Condolences 1971/0001.tif create
+  file s1/Box 01/PFP-01-09 Condolences 1971/0001.tif
+  parent group:PFP-01-09
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-09 Condolences 1971/0002.tif create
+  file s1/Box 01/PFP-01-09 Condolences 1971/0002.tif
+  parent group:PFP-01-09
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-09 Condolences 1971/0003.tif create
+  file s1/Box 01/PFP-01-09 Condolences 1971/0003.tif
+  parent group:PFP-01-09
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-09 Condolences 1971/0004.tif create
+  file s1/Box 01/PFP-01-09 Condolences 1971/0004.tif
+  parent group:PFP-01-09
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-09 Condolences 1971/0005.tif create
+  file s1/Box 01/PFP-01-09 Condolences 1971/0005.tif
+  parent group:PFP-01-09
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-09 Condolences 1971/0006.tif create
+  file s1/Box 01/PFP-01-09 Condolences 1971/0006.tif
+  parent group:PFP-01-09
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-09 Condolences 1971/0007.tif create
+  file s1/Box 01/PFP-01-09 Condolences 1971/0007.tif
+  parent group:PFP-01-09
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-09 Condolences 1971/0008.tif create
+  file s1/Box 01/PFP-01-09 Condolences 1971/0008.tif
+  parent group:PFP-01-09
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-09 Condolences 1971/0009.tif create
+  file s1/Box 01/PFP-01-09 Condolences 1971/0009.tif
+  parent group:PFP-01-09
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-09 Condolences 1971/0010.tif create
+  file s1/Box 01/PFP-01-09 Condolences 1971/0010.tif
+  parent group:PFP-01-09
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-09 Condolences 1971/0011.tif create
+  file s1/Box 01/PFP-01-09 Condolences 1971/0011.tif
+  parent group:PFP-01-09
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-09 Condolences 1971/0012.tif create
+  file s1/Box 01/PFP-01-09 Condolences 1971/0012.tif
+  parent group:PFP-01-09
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-09 Condolences 1971/0013.tif create
+  file s1/Box 01/PFP-01-09 Condolences 1971/0013.tif
+  parent group:PFP-01-09
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-09 Condolences 1971/0014.tif create
+  file s1/Box 01/PFP-01-09 Condolences 1971/0014.tif
+  parent group:PFP-01-09
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-09 Condolences 1971/0015.tif create
+  file s1/Box 01/PFP-01-09 Condolences 1971/0015.tif
+  parent group:PFP-01-09
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-09 Condolences 1971/0016.tif create
+  file s1/Box 01/PFP-01-09 Condolences 1971/0016.tif
+  parent group:PFP-01-09
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-09 Condolences 1971/0017.tif create
+  file s1/Box 01/PFP-01-09 Condolences 1971/0017.tif
+  parent group:PFP-01-09
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-09 Condolences 1971/0018.tif create
+  file s1/Box 01/PFP-01-09 Condolences 1971/0018.tif
+  parent group:PFP-01-09
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-09 Condolences 1971/0019.tif create
+  file s1/Box 01/PFP-01-09 Condolences 1971/0019.tif
+  parent group:PFP-01-09
+  owner is runner
+  visibility private
+media file:s1/Box 01/PFP-01-09 Condolences 1971/0020.tif create
+  file s1/Box 01/PFP-01-09 Condolences 1971/0020.tif
+  parent group:PFP-01-09
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-01 Misc letters/0001.tif create
+  file s1/Box 02/PFP-02-01 Misc letters/0001.tif
+  parent group:PFP-02-01
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-01 Misc letters/0002.tif create
+  file s1/Box 02/PFP-02-01 Misc letters/0002.tif
+  parent group:PFP-02-01
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-01 Misc letters/0003.tif create
+  file s1/Box 02/PFP-02-01 Misc letters/0003.tif
+  parent group:PFP-02-01
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-01 Misc letters/0004.tif create
+  file s1/Box 02/PFP-02-01 Misc letters/0004.tif
+  parent group:PFP-02-01
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-01 Misc letters/0005.tif create
+  file s1/Box 02/PFP-02-01 Misc letters/0005.tif
+  parent group:PFP-02-01
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-01 Misc letters/0006.tif create
+  file s1/Box 02/PFP-02-01 Misc letters/0006.tif
+  parent group:PFP-02-01
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-01 Misc letters/0007.tif create
+  file s1/Box 02/PFP-02-01 Misc letters/0007.tif
+  parent group:PFP-02-01
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-01 Misc letters/0008.tif create
+  file s1/Box 02/PFP-02-01 Misc letters/0008.tif
+  parent group:PFP-02-01
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-02 Aerogrammes/0001.tif create
+  file s1/Box 02/PFP-02-02 Aerogrammes/0001.tif
+  parent group:PFP-02-02
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-02 Aerogrammes/0002.tif create
+  file s1/Box 02/PFP-02-02 Aerogrammes/0002.tif
+  parent group:PFP-02-02
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-02 Aerogrammes/0003.tif create
+  file s1/Box 02/PFP-02-02 Aerogrammes/0003.tif
+  parent group:PFP-02-02
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-02 Aerogrammes/0004.tif create
+  file s1/Box 02/PFP-02-02 Aerogrammes/0004.tif
+  parent group:PFP-02-02
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-02 Aerogrammes/0005.tif create
+  file s1/Box 02/PFP-02-02 Aerogrammes/0005.tif
+  parent group:PFP-02-02
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-02 Aerogrammes/0006.tif create
+  file s1/Box 02/PFP-02-02 Aerogrammes/0006.tif
+  parent group:PFP-02-02
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-02 Aerogrammes/0007.tif create
+  file s1/Box 02/PFP-02-02 Aerogrammes/0007.tif
+  parent group:PFP-02-02
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-02 Aerogrammes/0008.tif create
+  file s1/Box 02/PFP-02-02 Aerogrammes/0008.tif
+  parent group:PFP-02-02
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-02 Aerogrammes/0009.tif create
+  file s1/Box 02/PFP-02-02 Aerogrammes/0009.tif
+  parent group:PFP-02-02
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-02 Aerogrammes/0010.tif create
+  file s1/Box 02/PFP-02-02 Aerogrammes/0010.tif
+  parent group:PFP-02-02
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-02 Aerogrammes/0011.tif create
+  file s1/Box 02/PFP-02-02 Aerogrammes/0011.tif
+  parent group:PFP-02-02
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-02 Aerogrammes/0012.tif create
+  file s1/Box 02/PFP-02-02 Aerogrammes/0012.tif
+  parent group:PFP-02-02
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-02 Aerogrammes/0013.tif create
+  file s1/Box 02/PFP-02-02 Aerogrammes/0013.tif
+  parent group:PFP-02-02
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-02 Aerogrammes/0014.tif create
+  file s1/Box 02/PFP-02-02 Aerogrammes/0014.tif
+  parent group:PFP-02-02
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-02 Aerogrammes/0015.tif create
+  file s1/Box 02/PFP-02-02 Aerogrammes/0015.tif
+  parent group:PFP-02-02
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-03 Letters from Meera/0001.tif create
+  file s1/Box 02/PFP-02-03 Letters from Meera/0001.tif
+  parent group:PFP-02-03
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-03 Letters from Meera/0002.tif create
+  file s1/Box 02/PFP-02-03 Letters from Meera/0002.tif
+  parent group:PFP-02-03
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-03 Letters from Meera/0003.tif create
+  file s1/Box 02/PFP-02-03 Letters from Meera/0003.tif
+  parent group:PFP-02-03
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-04 Land deed/0001.tif create
+  file s1/Box 02/PFP-02-04 Land deed/0001.tif
+  parent group:PFP-02-04
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-04 Land deed/0002.tif create
+  file s1/Box 02/PFP-02-04 Land deed/0002.tif
+  parent group:PFP-02-04
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-04 Land deed/0003.tif create
+  file s1/Box 02/PFP-02-04 Land deed/0003.tif
+  parent group:PFP-02-04
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-04 Land deed/0004.tif create
+  file s1/Box 02/PFP-02-04 Land deed/0004.tif
+  parent group:PFP-02-04
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-04 Land deed/0004a.tif create
+  file s1/Box 02/PFP-02-04 Land deed/0004a.tif
+  parent group:PFP-02-04
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-04 Land deed/0005.tif create
+  file s1/Box 02/PFP-02-04 Land deed/0005.tif
+  parent group:PFP-02-04
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-04 Land deed/0006.tif create
+  file s1/Box 02/PFP-02-04 Land deed/0006.tif
+  parent group:PFP-02-04
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-04 Land deed/0007.tif create
+  file s1/Box 02/PFP-02-04 Land deed/0007.tif
+  parent group:PFP-02-04
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-04 Land deed/0008.tif create
+  file s1/Box 02/PFP-02-04 Land deed/0008.tif
+  parent group:PFP-02-04
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-04 Land deed/0009.tif create
+  file s1/Box 02/PFP-02-04 Land deed/0009.tif
+  parent group:PFP-02-04
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-04 Land deed/0010.tif create
+  file s1/Box 02/PFP-02-04 Land deed/0010.tif
+  parent group:PFP-02-04
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-05 Mutation records/0001.tif create
+  file s1/Box 02/PFP-02-05 Mutation records/0001.tif
+  parent group:PFP-02-05
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-05 Mutation records/0002.tif create
+  file s1/Box 02/PFP-02-05 Mutation records/0002.tif
+  parent group:PFP-02-05
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-05 Mutation records/0003.tif create
+  file s1/Box 02/PFP-02-05 Mutation records/0003.tif
+  parent group:PFP-02-05
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-05 Mutation records/0004.tif create
+  file s1/Box 02/PFP-02-05 Mutation records/0004.tif
+  parent group:PFP-02-05
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-05 Mutation records/0005.tif create
+  file s1/Box 02/PFP-02-05 Mutation records/0005.tif
+  parent group:PFP-02-05
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-05 Mutation records/0006.tif create
+  file s1/Box 02/PFP-02-05 Mutation records/0006.tif
+  parent group:PFP-02-05
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-05 Mutation records/0007.tif create
+  file s1/Box 02/PFP-02-05 Mutation records/0007.tif
+  parent group:PFP-02-05
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-05 Mutation records/0008.tif create
+  file s1/Box 02/PFP-02-05 Mutation records/0008.tif
+  parent group:PFP-02-05
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-05 Mutation records/0009.tif create
+  file s1/Box 02/PFP-02-05 Mutation records/0009.tif
+  parent group:PFP-02-05
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-05 Mutation records/0010.tif create
+  file s1/Box 02/PFP-02-05 Mutation records/0010.tif
+  parent group:PFP-02-05
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-05 Mutation records/0011.tif create
+  file s1/Box 02/PFP-02-05 Mutation records/0011.tif
+  parent group:PFP-02-05
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-05 Mutation records/0012.tif create
+  file s1/Box 02/PFP-02-05 Mutation records/0012.tif
+  parent group:PFP-02-05
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-05 Mutation records/0013.tif create
+  file s1/Box 02/PFP-02-05 Mutation records/0013.tif
+  parent group:PFP-02-05
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-05 Mutation records/0014.tif create
+  file s1/Box 02/PFP-02-05 Mutation records/0014.tif
+  parent group:PFP-02-05
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-05 Mutation records/0015.tif create
+  file s1/Box 02/PFP-02-05 Mutation records/0015.tif
+  parent group:PFP-02-05
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-05 Mutation records/0016.tif create
+  file s1/Box 02/PFP-02-05 Mutation records/0016.tif
+  parent group:PFP-02-05
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-05 Mutation records/0017.tif create
+  file s1/Box 02/PFP-02-05 Mutation records/0017.tif
+  parent group:PFP-02-05
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-06 Will of Anand/0001.tif create
+  file s1/Box 02/PFP-02-06 Will of Anand/0001.tif
+  parent group:PFP-02-06
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-06 Will of Anand/0002.tif create
+  file s1/Box 02/PFP-02-06 Will of Anand/0002.tif
+  parent group:PFP-02-06
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-06 Will of Anand/0003.tif create
+  file s1/Box 02/PFP-02-06 Will of Anand/0003.tif
+  parent group:PFP-02-06
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-06 Will of Anand/0004.tif create
+  file s1/Box 02/PFP-02-06 Will of Anand/0004.tif
+  parent group:PFP-02-06
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-06 Will of Anand/0005.tif create
+  file s1/Box 02/PFP-02-06 Will of Anand/0005.tif
+  parent group:PFP-02-06
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-07 Tax receipts/0001.tif create
+  file s1/Box 02/PFP-02-07 Tax receipts/0001.tif
+  parent group:PFP-02-07
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-07 Tax receipts/0002.tif create
+  file s1/Box 02/PFP-02-07 Tax receipts/0002.tif
+  parent group:PFP-02-07
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-07 Tax receipts/0003.tif create
+  file s1/Box 02/PFP-02-07 Tax receipts/0003.tif
+  parent group:PFP-02-07
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-07 Tax receipts/0004.tif create
+  file s1/Box 02/PFP-02-07 Tax receipts/0004.tif
+  parent group:PFP-02-07
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-07 Tax receipts/0005.tif create
+  file s1/Box 02/PFP-02-07 Tax receipts/0005.tif
+  parent group:PFP-02-07
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-07 Tax receipts/0006.tif create
+  file s1/Box 02/PFP-02-07 Tax receipts/0006.tif
+  parent group:PFP-02-07
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-07 Tax receipts/0007.tif create
+  file s1/Box 02/PFP-02-07 Tax receipts/0007.tif
+  parent group:PFP-02-07
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-07 Tax receipts/0008.tif create
+  file s1/Box 02/PFP-02-07 Tax receipts/0008.tif
+  parent group:PFP-02-07
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-07 Tax receipts/0009.tif create
+  file s1/Box 02/PFP-02-07 Tax receipts/0009.tif
+  parent group:PFP-02-07
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-07 Tax receipts/0010.tif create
+  file s1/Box 02/PFP-02-07 Tax receipts/0010.tif
+  parent group:PFP-02-07
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-07 Tax receipts/0011.tif create
+  file s1/Box 02/PFP-02-07 Tax receipts/0011.tif
+  parent group:PFP-02-07
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-07 Tax receipts/0012.tif create
+  file s1/Box 02/PFP-02-07 Tax receipts/0012.tif
+  parent group:PFP-02-07
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-08 Court case/0001.tif create
+  file s1/Box 02/PFP-02-08 Court case/0001.tif
+  parent group:PFP-02-08
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-08 Court case/0002.tif create
+  file s1/Box 02/PFP-02-08 Court case/0002.tif
+  parent group:PFP-02-08
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-08 Court case/0004.tif create
+  file s1/Box 02/PFP-02-08 Court case/0004.tif
+  parent group:PFP-02-08
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-08 Court case/0005.tif create
+  file s1/Box 02/PFP-02-08 Court case/0005.tif
+  parent group:PFP-02-08
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-08 Court case/0006.tif create
+  file s1/Box 02/PFP-02-08 Court case/0006.tif
+  parent group:PFP-02-08
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-08 Court case/0007.tif create
+  file s1/Box 02/PFP-02-08 Court case/0007.tif
+  parent group:PFP-02-08
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-08 Court case/0008.tif create
+  file s1/Box 02/PFP-02-08 Court case/0008.tif
+  parent group:PFP-02-08
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-08 Court case/0009.tif create
+  file s1/Box 02/PFP-02-08 Court case/0009.tif
+  parent group:PFP-02-08
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-08 Court case/0010.tif create
+  file s1/Box 02/PFP-02-08 Court case/0010.tif
+  parent group:PFP-02-08
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-08 Court case/0011.tif create
+  file s1/Box 02/PFP-02-08 Court case/0011.tif
+  parent group:PFP-02-08
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-08 Court case/0012.tif create
+  file s1/Box 02/PFP-02-08 Court case/0012.tif
+  parent group:PFP-02-08
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-08 Court case/0013.tif create
+  file s1/Box 02/PFP-02-08 Court case/0013.tif
+  parent group:PFP-02-08
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-08 Court case/0014.tif create
+  file s1/Box 02/PFP-02-08 Court case/0014.tif
+  parent group:PFP-02-08
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-08 Court case/0015.tif create
+  file s1/Box 02/PFP-02-08 Court case/0015.tif
+  parent group:PFP-02-08
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-08 Court case/0016.tif create
+  file s1/Box 02/PFP-02-08 Court case/0016.tif
+  parent group:PFP-02-08
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-08 Court case/0017.tif create
+  file s1/Box 02/PFP-02-08 Court case/0017.tif
+  parent group:PFP-02-08
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-08 Court case/0018.tif create
+  file s1/Box 02/PFP-02-08 Court case/0018.tif
+  parent group:PFP-02-08
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-08 Court case/0019.tif create
+  file s1/Box 02/PFP-02-08 Court case/0019.tif
+  parent group:PFP-02-08
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-08 Court case/003.tif create
+  file s1/Box 02/PFP-02-08 Court case/003.tif
+  parent group:PFP-02-08
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-09 Ration cards/0001.tif create
+  file s1/Box 02/PFP-02-09 Ration cards/0001.tif
+  parent group:PFP-02-09
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-09 Ration cards/0002.tif create
+  file s1/Box 02/PFP-02-09 Ration cards/0002.tif
+  parent group:PFP-02-09
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-09 Ration cards/0003.tif create
+  file s1/Box 02/PFP-02-09 Ration cards/0003.tif
+  parent group:PFP-02-09
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-09 Ration cards/0004.tif create
+  file s1/Box 02/PFP-02-09 Ration cards/0004.tif
+  parent group:PFP-02-09
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-09 Ration cards/0005.tif create
+  file s1/Box 02/PFP-02-09 Ration cards/0005.tif
+  parent group:PFP-02-09
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-09 Ration cards/0006.tif create
+  file s1/Box 02/PFP-02-09 Ration cards/0006.tif
+  parent group:PFP-02-09
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-09 Ration cards/0007.tif create
+  file s1/Box 02/PFP-02-09 Ration cards/0007.tif
+  parent group:PFP-02-09
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-10 Insurance/0001.tif create
+  file s1/Box 02/PFP-02-10 Insurance/0001.tif
+  parent group:PFP-02-10
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-10 Insurance/0002.tif create
+  file s1/Box 02/PFP-02-10 Insurance/0002.tif
+  parent group:PFP-02-10
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-10 Insurance/0003.tif create
+  file s1/Box 02/PFP-02-10 Insurance/0003.tif
+  parent group:PFP-02-10
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-10 Insurance/0004.tif create
+  file s1/Box 02/PFP-02-10 Insurance/0004.tif
+  parent group:PFP-02-10
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-10 Insurance/0005.tif create
+  file s1/Box 02/PFP-02-10 Insurance/0005.tif
+  parent group:PFP-02-10
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-10 Insurance/0006.tif create
+  file s1/Box 02/PFP-02-10 Insurance/0006.tif
+  parent group:PFP-02-10
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-10 Insurance/0007.tif create
+  file s1/Box 02/PFP-02-10 Insurance/0007.tif
+  parent group:PFP-02-10
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-10 Insurance/0008.tif create
+  file s1/Box 02/PFP-02-10 Insurance/0008.tif
+  parent group:PFP-02-10
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-10 Insurance/0009.tif create
+  file s1/Box 02/PFP-02-10 Insurance/0009.tif
+  parent group:PFP-02-10
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-10 Insurance/0010.tif create
+  file s1/Box 02/PFP-02-10 Insurance/0010.tif
+  parent group:PFP-02-10
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-10 Insurance/0011.tif create
+  file s1/Box 02/PFP-02-10 Insurance/0011.tif
+  parent group:PFP-02-10
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-10 Insurance/0012.tif create
+  file s1/Box 02/PFP-02-10 Insurance/0012.tif
+  parent group:PFP-02-10
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-10 Insurance/0013.tif create
+  file s1/Box 02/PFP-02-10 Insurance/0013.tif
+  parent group:PFP-02-10
+  owner is runner
+  visibility private
+media file:s1/Box 02/PFP-02-10 Insurance/0014.tif create
+  file s1/Box 02/PFP-02-10 Insurance/0014.tif
+  parent group:PFP-02-10
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-01 Studio portraits/0001.tif create
+  file s1/Box 03/PFP-03-01 Studio portraits/0001.tif
+  parent group:PFP-03-01
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-01 Studio portraits/0002.tif create
+  file s1/Box 03/PFP-03-01 Studio portraits/0002.tif
+  parent group:PFP-03-01
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-02 Wedding 1955/0001.tif create
+  file s1/Box 03/PFP-03-02 Wedding 1955/0001.tif
+  parent group:PFP-03-02
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-02 Wedding 1955/0002.tif create
+  file s1/Box 03/PFP-03-02 Wedding 1955/0002.tif
+  parent group:PFP-03-02
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-02 Wedding 1955/0003.tif create
+  file s1/Box 03/PFP-03-02 Wedding 1955/0003.tif
+  parent group:PFP-03-02
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-02 Wedding 1955/0004.tif create
+  file s1/Box 03/PFP-03-02 Wedding 1955/0004.tif
+  parent group:PFP-03-02
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-02 Wedding 1955/0005.tif create
+  file s1/Box 03/PFP-03-02 Wedding 1955/0005.tif
+  parent group:PFP-03-02
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-02 Wedding 1955/0006.tif create
+  file s1/Box 03/PFP-03-02 Wedding 1955/0006.tif
+  parent group:PFP-03-02
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-02 Wedding 1955/0007.tif create
+  file s1/Box 03/PFP-03-02 Wedding 1955/0007.tif
+  parent group:PFP-03-02
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-02 Wedding 1955/0008.tif create
+  file s1/Box 03/PFP-03-02 Wedding 1955/0008.tif
+  parent group:PFP-03-02
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-02 Wedding 1955/0009.tif create
+  file s1/Box 03/PFP-03-02 Wedding 1955/0009.tif
+  parent group:PFP-03-02
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-03 Satara farm/0001.tif create
+  file s1/Box 03/PFP-03-03 Satara farm/0001.tif
+  parent group:PFP-03-03
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-03 Satara farm/0002.tif create
+  file s1/Box 03/PFP-03-03 Satara farm/0002.tif
+  parent group:PFP-03-03
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-03 Satara farm/0003.tif create
+  file s1/Box 03/PFP-03-03 Satara farm/0003.tif
+  parent group:PFP-03-03
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-03 Satara farm/0004.tif create
+  file s1/Box 03/PFP-03-03 Satara farm/0004.tif
+  parent group:PFP-03-03
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-03 Satara farm/0005.tif create
+  file s1/Box 03/PFP-03-03 Satara farm/0005.tif
+  parent group:PFP-03-03
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-03 Satara farm/0006.tif create
+  file s1/Box 03/PFP-03-03 Satara farm/0006.tif
+  parent group:PFP-03-03
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-03 Satara farm/0007.tif create
+  file s1/Box 03/PFP-03-03 Satara farm/0007.tif
+  parent group:PFP-03-03
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-03 Satara farm/0008.tif create
+  file s1/Box 03/PFP-03-03 Satara farm/0008.tif
+  parent group:PFP-03-03
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-03 Satara farm/0009.tif create
+  file s1/Box 03/PFP-03-03 Satara farm/0009.tif
+  parent group:PFP-03-03
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-03 Satara farm/0010.tif create
+  file s1/Box 03/PFP-03-03 Satara farm/0010.tif
+  parent group:PFP-03-03
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-03 Satara farm/0011.tif create
+  file s1/Box 03/PFP-03-03 Satara farm/0011.tif
+  parent group:PFP-03-03
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-03 Satara farm/0012.tif create
+  file s1/Box 03/PFP-03-03 Satara farm/0012.tif
+  parent group:PFP-03-03
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-03 Satara farm/0013.tif create
+  file s1/Box 03/PFP-03-03 Satara farm/0013.tif
+  parent group:PFP-03-03
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-03 Satara farm/0014.tif create
+  file s1/Box 03/PFP-03-03 Satara farm/0014.tif
+  parent group:PFP-03-03
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-03 Satara farm/0015.tif create
+  file s1/Box 03/PFP-03-03 Satara farm/0015.tif
+  parent group:PFP-03-03
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-03 Satara farm/0016.tif create
+  file s1/Box 03/PFP-03-03 Satara farm/0016.tif
+  parent group:PFP-03-03
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-04 Nairobi visit/0001.tif create
+  file s1/Box 03/PFP-03-04 Nairobi visit/0001.tif
+  parent group:PFP-03-04
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-04 Nairobi visit/0002.tif create
+  file s1/Box 03/PFP-03-04 Nairobi visit/0002.tif
+  parent group:PFP-03-04
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-04 Nairobi visit/0003.tif create
+  file s1/Box 03/PFP-03-04 Nairobi visit/0003.tif
+  parent group:PFP-03-04
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-04 Nairobi visit/0004.tif create
+  file s1/Box 03/PFP-03-04 Nairobi visit/0004.tif
+  parent group:PFP-03-04
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-05 Snapshots/0001.tif create
+  file s1/Box 03/PFP-03-05 Snapshots/0001.tif
+  parent group:PFP-03-05
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-05 Snapshots/0002.tif create
+  file s1/Box 03/PFP-03-05 Snapshots/0002.tif
+  parent group:PFP-03-05
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-05 Snapshots/0003.tif create
+  file s1/Box 03/PFP-03-05 Snapshots/0003.tif
+  parent group:PFP-03-05
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-05 Snapshots/0004.tif create
+  file s1/Box 03/PFP-03-05 Snapshots/0004.tif
+  parent group:PFP-03-05
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-05 Snapshots/0005.tif create
+  file s1/Box 03/PFP-03-05 Snapshots/0005.tif
+  parent group:PFP-03-05
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-05 Snapshots/0006.tif create
+  file s1/Box 03/PFP-03-05 Snapshots/0006.tif
+  parent group:PFP-03-05
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-05 Snapshots/0007.tif create
+  file s1/Box 03/PFP-03-05 Snapshots/0007.tif
+  parent group:PFP-03-05
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-05 Snapshots/0008.tif create
+  file s1/Box 03/PFP-03-05 Snapshots/0008.tif
+  parent group:PFP-03-05
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-05 Snapshots/0009.tif create
+  file s1/Box 03/PFP-03-05 Snapshots/0009.tif
+  parent group:PFP-03-05
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-05 Snapshots/0010.tif create
+  file s1/Box 03/PFP-03-05 Snapshots/0010.tif
+  parent group:PFP-03-05
+  owner is runner
+  visibility private
+media file:s1/Box 03/PFP-03-05 Snapshots/0011.tif create
+  file s1/Box 03/PFP-03-05 Snapshots/0011.tif
+  parent group:PFP-03-05
+  owner is runner
+  visibility private
+media file:s1/Oversize/PFP-03-06 survey map sheet 1.tif create
+  file s1/Oversize/PFP-03-06 survey map sheet 1.tif
+  parent group:PFP-03-06
+  owner is runner
+  visibility private
+media file:s1/Oversize/PFP-03-06 survey map sheet 2.tif create
+  file s1/Oversize/PFP-03-06 survey map sheet 2.tif
+  parent group:PFP-03-06
+  owner is runner
+  visibility private
+flag date-form keep 19
+flag no-file leave 1
+flag not-media leave 1

@@ -1,7 +1,8 @@
-//! The held-out shapes' pinned outcomes: the text their v2 plans pinned
-//! before the plan's v3 structure (`outcome_pins/<shape>.txt`, never
-//! rewritten here), and the design's v3 plans of them (`fixtures/`), which
-//! must make the same text and the outcome each shape freezes. A plan of one
+//! The held-out shapes' pinned outcomes (`outcome_pins/<shape>.txt`, never
+//! rewritten here) and their v3 plans (`fixtures/`). Two shapes had v2
+//! plans, whose text was pinned before the plan's v3 structure; the paper
+//! archive has only its v3 plan, written with the shape. Each v3 plan must
+//! make the pinned text and the outcome its shape freezes. A plan of one
 //! series keeps the v2 record keys, so no allowance applies.
 
 use std::path::PathBuf;
@@ -9,10 +10,19 @@ use std::path::PathBuf;
 use omeka_api::import::plan::{ImportPlan, PlanVersion};
 use serde_json::Value;
 
-use super::{Made, assert_same, born_digital, oral_history, outcome_text, text, v3_outcome};
+use super::{
+    Made, assert_same, born_digital, oral_history, outcome_text, paper_archive, text, v3_outcome,
+};
 
 const ORAL_HISTORY: &str = include_str!("fixtures/oral_history.json");
 const BORN_DIGITAL: &str = include_str!("fixtures/born_digital.json");
+
+/// Every held-out shape by its name, with its v3 plan.
+const PLANS: [(&str, &str); 3] = [
+    ("oral_history", ORAL_HISTORY),
+    ("born_digital", BORN_DIGITAL),
+    ("paper_archive", paper_archive::PLAN),
+];
 
 fn pins() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/heldout/outcome_pins")
@@ -60,8 +70,21 @@ async fn born_digital_v3_plan_makes_the_frozen_outcome() {
     assert_same(&made.outcome, &born_digital::expected());
 }
 
-/// The held-out v3 plans left `omeka-api`'s fixtures, so its round trip no
-/// longer sees them; this one does.
+#[tokio::test]
+async fn paper_archive_v3_plan_makes_the_frozen_outcome() {
+    let made = v3_outcome(
+        &paper_archive::shape(),
+        &paper_archive::SLOTS,
+        paper_archive::PLAN,
+    )
+    .await;
+    assert_same(&made.outcome, &paper_archive::expected());
+    assert_eq!(made.series_keys, 0, "one series keeps group:<key>");
+    text::assert_pinned(&pins(), "paper_archive", &made.text);
+}
+
+/// The held-out v3 plans are not in `omeka-api`'s fixtures, so its round
+/// trip does not see them; this one does.
 #[test]
 fn the_held_out_plans_parse_and_write_back() {
     for (name, plan_text) in [
@@ -91,7 +114,7 @@ fn the_pinned_edits_are_edits() {
         "leaveOut", "keep", "items", "list", "grain", "addSet", "dropSet", "pair", "title",
     ];
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/heldout/edits");
-    for name in ["oral_history", "born_digital"] {
+    for (name, _) in PLANS {
         let text = std::fs::read_to_string(dir.join(format!("{name}.json"))).unwrap();
         let pinned: Value = serde_json::from_str(&text).unwrap();
         let edits = pinned["edits"].as_array().unwrap();
