@@ -60,3 +60,16 @@ pub const MIN_ITEMS_OF_ONE_VALUE: Share = Share { n: 1, of: 2 };
 /// the list, which is then more likely about something else. BHC006
 /// `BHC006_GMT_D.xlsx` pairs 15 of 15 rows by its last two places.
 pub const MIN_SUGGESTION_SHARE: Share = Share { n: 1, of: 2 };
+
+/// The share of a column's filled cells that must hold one separator before
+/// the proposer cuts the column's values at it: Simple suggests a split at
+/// the same bar (`suggestedSplit`). BHC006 AF `Keywords` holds a comma in
+/// most cells.
+pub const SPLIT_WHEN_HELD: Share = Share { n: 1, of: 2 };
+
+/// The share of a list's shared items (items with rows for two files or
+/// more) in which a column's rows must be disjoint, sharing no value, before
+/// the column goes on each file (P6 roll-up rule C). Below it the column
+/// goes on the item, where a wrong default loses no value. BHC006 AF
+/// `Keywords` is disjoint in 0 of 272 items, `Digitized by` in 1.
+pub const FILE_WHEN_DISJOINT: Share = Share { n: 1, of: 2 };

@@ -115,6 +115,14 @@ const everything = (): Record<string, unknown> => {
       rival: { value: 'item', counts: { ...candidate.grain, rowsNamingNoFile: 10, items: 328 } },
       others: [],
     },
+    columns: [
+      {
+        index: 7,
+        header: 'Keywords',
+        varies: { groups: 42, disjoint: 0, of: 272 },
+        pick: { chosen: { value: 'item', counts: { items: 312, files: 0 } }, rival: { value: 'file', counts: { items: 0, files: 679 } }, others: [] },
+      },
+    ],
     set: {
       chosen: { value: { from: 'folder', scope }, counts: setCounts },
       rival: null,

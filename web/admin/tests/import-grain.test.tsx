@@ -25,9 +25,9 @@ const GRAIN: Grain = {
   groupsWithManyRows: 274,
   rowsNamingOtherFilesOfAGroup: 367,
   columns: [
-    { index: 0, header: 'File', varies: { groups: 274, of: 274 } },
-    { index: 1, header: 'Keywords', varies: { groups: 43, of: 274 } },
-    { index: 2, header: 'Year Of Digitization', varies: { groups: 0, of: 274 } },
+    { index: 0, header: 'File', varies: { groups: 274, disjoint: 274, of: 274 } },
+    { index: 1, header: 'Keywords', varies: { groups: 43, disjoint: 0, of: 274 } },
+    { index: 2, header: 'Year Of Digitization', varies: { groups: 0, disjoint: 0, of: 274 } },
   ],
 };
 

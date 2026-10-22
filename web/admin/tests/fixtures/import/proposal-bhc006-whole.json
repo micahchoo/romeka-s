@@ -494,6 +494,7 @@
                   "header": "Sl No",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 0
                   }
                 },
@@ -502,6 +503,7 @@
                   "header": "Identifier",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 0
                   }
                 },
@@ -510,6 +512,7 @@
                   "header": "Collection",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 0
                   }
                 },
@@ -518,6 +521,7 @@
                   "header": "Curator",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 0
                   }
                 },
@@ -526,6 +530,7 @@
                   "header": "Item Type",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 0
                   }
                 }
@@ -596,6 +601,7 @@
                   "header": "Sl No",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 0
                   }
                 },
@@ -604,6 +610,7 @@
                   "header": "Identifier",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 0
                   }
                 },
@@ -612,6 +619,7 @@
                   "header": "Collection",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 0
                   }
                 },
@@ -620,6 +628,7 @@
                   "header": "Curator",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 0
                   }
                 },
@@ -628,6 +637,7 @@
                   "header": "Item Type",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 0
                   }
                 }
@@ -683,6 +693,7 @@
                 "header": "Sl No",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               },
@@ -691,6 +702,7 @@
                 "header": "Identifier",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               },
@@ -699,6 +711,7 @@
                 "header": "Collection",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               },
@@ -707,6 +720,7 @@
                 "header": "Curator",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               },
@@ -715,6 +729,7 @@
                 "header": "Item Type",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               }
@@ -734,6 +749,7 @@
                 "header": "Sl No",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               },
@@ -742,6 +758,7 @@
                 "header": "Identifier",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               },
@@ -750,6 +767,7 @@
                 "header": "Collection",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               },
@@ -758,6 +776,7 @@
                 "header": "Curator",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               },
@@ -766,6 +785,7 @@
                 "header": "Item Type",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               }
@@ -776,6 +796,7 @@
         },
         "others": []
       },
+      "columns": [],
       "set": {
         "chosen": {
           "value": {
@@ -896,6 +917,7 @@
         "others": []
       },
       "grain": null,
+      "columns": [],
       "set": {
         "chosen": {
           "value": {
@@ -1157,6 +1179,7 @@
         },
         "others": []
       },
+      "columns": [],
       "set": {
         "chosen": {
           "value": {
@@ -1407,6 +1430,7 @@
         "others": []
       },
       "grain": null,
+      "columns": [],
       "set": {
         "chosen": {
           "value": {
@@ -2160,6 +2184,7 @@
                   "header": "Sl No",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 0
                   }
                 },
@@ -2168,6 +2193,7 @@
                   "header": "Identifier",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 0
                   }
                 },
@@ -2176,6 +2202,7 @@
                   "header": "Collection",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 0
                   }
                 },
@@ -2184,6 +2211,7 @@
                   "header": "Curator",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 0
                   }
                 },
@@ -2192,6 +2220,7 @@
                   "header": "Item Type",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 0
                   }
                 }
@@ -2242,6 +2271,7 @@
                 "header": "Sl No",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               },
@@ -2250,6 +2280,7 @@
                 "header": "Identifier",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               },
@@ -2258,6 +2289,7 @@
                 "header": "Collection",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               },
@@ -2266,6 +2298,7 @@
                 "header": "Curator",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               },
@@ -2274,6 +2307,7 @@
                 "header": "Item Type",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               }
@@ -2293,6 +2327,7 @@
                 "header": "Sl No",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               },
@@ -2301,6 +2336,7 @@
                 "header": "Identifier",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               },
@@ -2309,6 +2345,7 @@
                 "header": "Collection",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               },
@@ -2317,6 +2354,7 @@
                 "header": "Curator",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               },
@@ -2325,6 +2363,7 @@
                 "header": "Item Type",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               }
@@ -2335,6 +2374,7 @@
         },
         "others": []
       },
+      "columns": [],
       "set": {
         "chosen": {
           "value": {
@@ -2629,6 +2669,7 @@
         "others": []
       },
       "grain": null,
+      "columns": [],
       "set": {
         "chosen": {
           "value": {

@@ -96,15 +96,28 @@ pub struct ColumnGrain {
     pub index: u32,
     pub header: String,
     pub varies: Varies,
+    /// What the proposer's roll-up counts; the wire has no member for it.
+    #[serde(skip)]
+    pub filled: Filled,
 }
 
 /// Of the `of` groups that more than one row names, the `groups` whose rows
-/// do not all hold the same values in this column.
+/// do not all hold the same values in this column, and the `disjoint` ones
+/// among them: two rows or more hold a value, and no value is in them all.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Varies {
     pub groups: usize,
+    pub disjoint: usize,
     pub of: usize,
+}
+
+/// The paired groups and the paired files whose rows hold a value in one
+/// column.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct Filled {
+    pub groups: usize,
+    pub files: usize,
 }
 
 /// What one column's cells hold.
@@ -268,7 +281,13 @@ fn candidate<'d>(
         .as_ref()
         .and_then(|id| derived.plan.structure.list(id))
         .map(|(_, sheet)| sheet);
-    let paired = targets(sheet, plan, best, exact, groups);
+    let paired = targets(
+        sheet,
+        &|column| plan_split(plan, column),
+        best,
+        exact,
+        groups,
+    );
     candidate.grain = paired.grain;
     (candidate, paired.groups)
 }
@@ -344,12 +363,18 @@ pub(super) struct Paired<'d> {
     pub groups_with_rows_for_many_files: usize,
 }
 
+/// The split the plan sheet `plan` gives a column, if any.
+pub(super) fn plan_split(plan: Option<&SheetPlan>, column: u32) -> Option<String> {
+    plan.and_then(|plan| plan.column(column))
+        .and_then(|column| column.options.split.clone())
+        .filter(|split| !split.is_empty())
+}
+
 /// The groups `best` pairs in `exact`, and for a `fileName` join its grain.
-/// `plan` is the plan sheet that reads the list, whose columns' splits the
-/// values are cut by.
+/// `split_of` gives the split each column's values are cut by.
 pub(super) fn targets<'d>(
     sheet: &Sheet,
-    plan: Option<&SheetPlan>,
+    split_of: &dyn Fn(u32) -> Option<String>,
     best: &BestColumn,
     exact: &Targets<'d>,
     groups_of_files: &[Option<&'d GroupKey>],
@@ -363,6 +388,7 @@ pub(super) fn targets<'d>(
         },
         JoinOn::FileName => {
             let mut groups: HashMap<&GroupKey, (Vec<usize>, HashSet<usize>)> = HashMap::new();
+            let mut file_of: Vec<(usize, usize)> = Vec::new();
             for (row, found) in cells.enumerate() {
                 if let Some(file) = found.and_then(|found| found.file)
                     && let Some(group) = groups_of_files[file]
@@ -370,6 +396,7 @@ pub(super) fn targets<'d>(
                     let (rows, files) = groups.entry(group).or_default();
                     rows.push(row);
                     files.insert(file);
+                    file_of.push((row, file));
                 }
             }
             let shared: Vec<&[usize]> = groups
@@ -386,10 +413,29 @@ pub(super) fn targets<'d>(
                 columns: sheet
                     .columns
                     .iter()
-                    .map(|column| ColumnGrain {
-                        index: column.index,
-                        header: column.header.clone(),
-                        varies: varies(sheet, plan, column.index, &shared),
+                    .map(|column| {
+                        let values = Cut {
+                            sheet,
+                            column: column.index,
+                            split: split_of(column.index),
+                        };
+                        ColumnGrain {
+                            index: column.index,
+                            header: column.header.clone(),
+                            varies: values.varies(&shared),
+                            filled: Filled {
+                                groups: groups
+                                    .values()
+                                    .filter(|(rows, _)| rows.iter().any(|row| values.holds(*row)))
+                                    .count(),
+                                files: file_of
+                                    .iter()
+                                    .filter(|(row, _)| values.holds(*row))
+                                    .map(|(_, file)| file)
+                                    .collect::<HashSet<_>>()
+                                    .len(),
+                            },
+                        }
                     })
                     .collect(),
             };
@@ -405,18 +451,19 @@ pub(super) fn targets<'d>(
     }
 }
 
-/// How many of `shared` (each group's rows) hold different values in
-/// `column`. Values are cut as a column rule cuts them: by the column's
-/// split, each piece trimmed, empty pieces dropped. Order and repeats do not
-/// count, as an item keeps each value of its rows once.
-fn varies(sheet: &Sheet, plan: Option<&SheetPlan>, column: u32, shared: &[&[usize]]) -> Varies {
-    let split = plan
-        .and_then(|plan| plan.column(column))
-        .and_then(|column| column.options.split.as_deref())
-        .filter(|split| !split.is_empty());
-    let values = |row: usize| -> BTreeSet<&str> {
-        let text = cell(&sheet.rows[row], column);
-        let pieces: Vec<&str> = match split {
+/// One column's values, cut as a column rule cuts them: by the column's
+/// split, each piece trimmed, empty pieces dropped. Order and repeats do
+/// not count, as an item keeps each value of its rows once.
+struct Cut<'s> {
+    sheet: &'s Sheet,
+    column: u32,
+    split: Option<String>,
+}
+
+impl Cut<'_> {
+    fn values(&self, row: usize) -> BTreeSet<&str> {
+        let text = cell(&self.sheet.rows[row], self.column);
+        let pieces: Vec<&str> = match self.split.as_deref() {
             Some(split) => text.split(split).collect(),
             None => vec![text],
         };
@@ -425,16 +472,41 @@ fn varies(sheet: &Sheet, plan: Option<&SheetPlan>, column: u32, shared: &[&[usiz
             .map(str::trim)
             .filter(|piece| !piece.is_empty())
             .collect()
-    };
-    Varies {
-        groups: shared
-            .iter()
-            .filter(|rows| {
-                let first = values(rows[0]);
-                rows[1..].iter().any(|row| values(*row) != first)
-            })
-            .count(),
-        of: shared.len(),
+    }
+
+    fn holds(&self, row: usize) -> bool {
+        !self.values(row).is_empty()
+    }
+
+    /// How many of `shared` (each group's rows) hold different values, and
+    /// how many of those are disjoint.
+    fn varies(&self, shared: &[&[usize]]) -> Varies {
+        let mut varies = Varies {
+            groups: 0,
+            disjoint: 0,
+            of: shared.len(),
+        };
+        for rows in shared {
+            let each: Vec<BTreeSet<&str>> = rows.iter().map(|row| self.values(*row)).collect();
+            if each[1..].iter().all(|values| *values == each[0]) {
+                continue;
+            }
+            varies.groups += 1;
+            let mut filled = each.iter().filter(|values| !values.is_empty());
+            let Some(first) = filled.next() else {
+                continue;
+            };
+            let mut common = first.clone();
+            let mut holding = 1;
+            for values in filled {
+                common.retain(|value| values.contains(value));
+                holding += 1;
+            }
+            if holding > 1 && common.is_empty() {
+                varies.disjoint += 1;
+            }
+        }
+        varies
     }
 }
 

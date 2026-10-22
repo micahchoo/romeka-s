@@ -30,7 +30,7 @@ const DIGITIZED = 4;
 const GRAIN: Grain = {
   groupsWithManyRows: 251,
   rowsNamingOtherFilesOfAGroup: 302,
-  columns: COLUMNS.map((header, index) => ({ index, header, varies: { groups: index === FILE ? 251 : index === KEYWORDS ? 42 : 0, of: 251 } })),
+  columns: COLUMNS.map((header, index) => ({ index, header, varies: { groups: index === FILE ? 251 : index === KEYWORDS ? 42 : 0, disjoint: index === FILE ? 251 : 0, of: 251 } })),
 };
 
 const FIRST_ROW = ',BHC006_GMT_AF_001a.jpg,"Coral, Natural History, Fossil",2017,Dilip Patil';

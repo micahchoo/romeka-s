@@ -470,9 +470,10 @@ export interface BestColumn {
   readonly empty: number;
 }
 
-/** Of the `of` items that more than one row names, the `groups` whose rows hold different values in a column. */
+/** Of the `of` items that more than one row names, the `groups` whose rows hold different values in a column, and the `disjoint` ones whose rows with a value hold no value in common. */
 export interface Varies {
   readonly groups: number;
+  readonly disjoint: number;
   readonly of: number;
 }
 
@@ -518,15 +519,16 @@ export interface ListCandidate {
   readonly overlaps: readonly ListOverlap[];
 }
 
+export const parseVaries = (inner: unknown, where: Path): Varies => {
+  const all = strict(inner, where, ['groups', 'disjoint', 'of']);
+  return { groups: count(all, 'groups', where), disjoint: count(all, 'disjoint', where), of: count(all, 'of', where) };
+};
+
 export const parseGrain = (value: unknown, at: Path): Grain => {
   const each = strict(value, at, ['groupsWithManyRows', 'rowsNamingOtherFilesOfAGroup', 'columns']);
   const column = (raw: unknown, place: Path): Grain['columns'][number] => {
     const one = strict(raw, place, ['index', 'header', 'varies']);
-    const varies = (inner: unknown, where: Path): Varies => {
-      const both = strict(inner, where, ['groups', 'of']);
-      return { groups: count(both, 'groups', where), of: count(both, 'of', where) };
-    };
-    return { index: count(one, 'index', place), header: text(one, 'header', place), varies: member(one, 'varies', place, varies) };
+    return { index: count(one, 'index', place), header: text(one, 'header', place), varies: member(one, 'varies', place, parseVaries) };
   };
   return {
     groupsWithManyRows: count(each, 'groupsWithManyRows', at),

@@ -115,8 +115,8 @@ describe('what the sections say', () => {
             groupsWithManyRows: 4,
             rowsNamingOtherFilesOfAGroup: 4,
             columns: [
-              { index: 0, header: 'File', varies: { groups: 4, of: 4 } },
-              { index: 1, header: 'Year', varies: { groups: 0, of: 4 } },
+              { index: 0, header: 'File', varies: { groups: 4, disjoint: 4, of: 4 } },
+              { index: 1, header: 'Year', varies: { groups: 0, disjoint: 0, of: 4 } },
             ],
           },
           cells: [
@@ -133,9 +133,9 @@ describe('what the sections say', () => {
     };
     const parsed = parsePreview(['listCandidates'])(answer).listCandidates;
     expect(parsed[0]?.grain?.rowsNamingOtherFilesOfAGroup).toBe(4);
-    expect(parsed[0]?.grain?.columns.map((column) => [column.header, column.varies.groups, column.varies.of])).toEqual([
-      ['File', 4, 4],
-      ['Year', 0, 4],
+    expect(parsed[0]?.grain?.columns.map((column) => [column.header, column.varies.groups, column.varies.disjoint, column.varies.of])).toEqual([
+      ['File', 4, 4, 4],
+      ['Year', 0, 0, 4],
     ]);
     expect(parsed[1]?.read).toEqual({ error: 'the workbook cannot be read: no zip' });
     expect(roundTrip(parsed)).toEqual(answer.listCandidates);

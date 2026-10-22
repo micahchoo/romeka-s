@@ -299,22 +299,23 @@ fn grain_counts_in_how_many_items_each_column_varies_among_the_items_several_row
         .iter()
         .find(|one| one["file"] == "unused.csv")
         .unwrap();
-    let of = |groups: u64| json!({ "groups": groups, "of": 3 });
+    let of =
+        |groups: u64, disjoint: u64| json!({ "groups": groups, "disjoint": disjoint, "of": 3 });
 
     assert_eq!(in_use["grain"]["groupsWithManyRows"], 3);
     assert_eq!(
         varies(in_use),
         [
-            ("File".to_string(), of(3)),
-            ("Year".to_string(), of(0)),
-            ("Keywords".to_string(), of(1)),
+            ("File".to_string(), of(3, 3)),
+            ("Year".to_string(), of(0, 0)),
+            ("Keywords".to_string(), of(1, 1)),
         ],
         "each row names its own file; the year is the item's; the keywords \
-         differ in A1 only, as the plan splits them at commas"
+         differ in A1 only, as the plan splits them at commas, and share no value there"
     );
     assert_eq!(
         varies(unused)[2],
-        ("Keywords".to_string(), of(2)),
+        ("Keywords".to_string(), of(2, 2)),
         "a list no plan sheet reads has no split, so A3's cells differ as written"
     );
 }
