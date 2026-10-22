@@ -82,6 +82,8 @@
  "line.unread": "The counts could not be read: {message}",
  "advanced.line": "{items} items · {left} left out · {changes} changes · action {action}",
  "simple.files.title": "Where are your files?",
+ "simple.structure.title": "How your archive becomes items and sets",
+ "simple.structure.step": "Structure",
  "simple.found.title": "What we found in your files",
  "simple.example.title": "Show us one example",
  "simple.allFiles.title": "Every file",
@@ -213,5 +215,9 @@
  "tag.Folder": "Folder",
  "tag.Size": "File size",
  "tag.Pixel dimensions": "Size in pixels",
- "tag.Format": "File format"
+ "tag.Format": "File format",
+ "trip.again": "Upload this list again",
+ "trip.againNext": "The next file you send takes the place of {file}.",
+ "trip.lacking": "Not sent: {file} has no column “{column}”, which {count} answers use.",
+ "trip.lackingOne": "Not sent: {file} has no column “{column}”, which 1 answer uses."
 }
