@@ -13,6 +13,7 @@ import type { ImportMessageKey } from './messages';
 
 export const SIMPLE_SCREENS = [
   'files',
+  'structure',
   'found',
   'example',
   'all-files',
@@ -56,6 +57,8 @@ interface Screen<Own, Other> {
 
 export const SIMPLE: Readonly<Record<SimpleScreen, Screen<SimpleScreen, AdvancedScreen>>> = {
   files: { title: 'simple.files.title', step: 'simple.files.step', other: 'files' },
+  // Reached by its address only until Simple's steps become Structure, Check and Add.
+  structure: { title: 'simple.structure.title', parent: 'found', other: 'files' },
   found: { title: 'simple.found.title', step: 'simple.found.step', other: 'files' },
   example: { title: 'simple.example.title', parent: 'found', other: 'files' },
   'all-files': { title: 'simple.allFiles.title', parent: 'found', other: 'all-files' },

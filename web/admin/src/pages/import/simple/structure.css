@@ -1,0 +1,76 @@
+/* The Structure screen: the status and count lines over the tree, the tree's groups, and the counts under each answer. */
+.structure-status {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+}
+
+.structure-status-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.structure-status-line p {
+  margin: 0;
+}
+
+.structure-status .guided-facts {
+  margin: 0;
+}
+
+.structure-actions {
+  display: inline-flex;
+  gap: var(--space-2);
+}
+
+.guided-group {
+  display: block;
+  margin: var(--space-3) 0 var(--space-1);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.guided-rows .guided-row-child {
+  margin-left: var(--space-3);
+}
+
+.guided-seg button:has(.guided-seg-note) {
+  display: inline-grid;
+  text-align: left;
+}
+
+.guided-seg-note {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.guided-seg button[aria-pressed="true"] .guided-seg-note {
+  color: var(--accent);
+}
+
+.structure-notes {
+  flex-basis: 100%;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.structure-notes p {
+  margin: 0;
+}
+
+.structure-offer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}

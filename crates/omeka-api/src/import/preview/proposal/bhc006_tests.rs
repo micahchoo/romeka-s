@@ -215,3 +215,25 @@ pub fn judge() -> impl Fn(&[Edit]) -> (Proposal, Vec<Difference>) {
         (proposal, found)
     }
 }
+
+/// The admin's recorded BHC006 proposal is this replica's, with no edit, as
+/// the preview's `proposal` section sends it. The structure screen's tests
+/// read it, so a change of the engine's counts shows there too.
+/// `UPDATE_FIXTURES=1` writes it again.
+#[test]
+fn the_admins_recorded_proposal_is_the_replicas() {
+    let text = serde_json::to_string_pretty(&proposal_with_lists(&[]))
+        .expect("the proposal as JSON")
+        + "\n";
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../web/admin/tests/fixtures/import/proposal-bhc006.json");
+    if std::env::var_os("UPDATE_FIXTURES").is_some() {
+        std::fs::write(&path, text).expect("the fixture is written");
+    } else {
+        assert_eq!(
+            std::fs::read_to_string(&path).ok().as_deref(),
+            Some(text.as_str()),
+            "proposal-bhc006.json is out of date; run with UPDATE_FIXTURES=1"
+        );
+    }
+}
