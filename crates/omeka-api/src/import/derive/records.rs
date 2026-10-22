@@ -170,7 +170,13 @@ pub(crate) fn make(
         draft.files.clone_from(&kept);
         drafts.push(draft);
         group_items.push(item);
-        if kept.is_empty() {
+        // A file a flag left out is already counted on the file: the row
+        // named it, so `no-file` would count the row a second time.
+        let flagged_out = group
+            .files
+            .iter()
+            .all(|file| matches!(file_left[*file], Some(LeftBy::Flag(_))));
+        if kept.is_empty() && !flagged_out {
             no_file(&mut drafts[item.index()], grouping, sheets, item, book);
         }
         for file in kept {

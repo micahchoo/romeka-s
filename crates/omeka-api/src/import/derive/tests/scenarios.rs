@@ -704,6 +704,40 @@ fn s19_a_refused_file_a_list_row_names_is_flagged_with_the_row() {
 }
 
 #[test]
+fn s22_an_item_row_whose_only_file_is_refused_counts_once_as_refused() {
+    let files = [("X_010a.jpg", JPEG), ("X_012a.NEF", BINARY)];
+    let mut catalog = catalog();
+    catalog.files = FileValidation::Allow {
+        media_types: [JPEG.to_string()].into(),
+        extensions: ["jpg".to_string()].into(),
+    };
+    let plan = plan(|plan| {
+        per_file_sheet(plan);
+        plan["sheets"][0]["rowKind"] = json!("item");
+    });
+    let csv: &[u8] = b"File,Keywords,By\nX_010a.jpg,Front,Dilip\nX_012a.NEF,Back,Ravi\n";
+    let model = derive(
+        &index(&files),
+        &read_sheets(&plan, &[("views", csv)]),
+        &plan,
+        &catalog,
+        &NoTags,
+    );
+    let listed = flags(&model, FlagKind::ListedNotMedia);
+    assert_eq!(listed.len(), 1, "{listed:?}");
+    assert!(on_file("X_012a.NEF")(&listed[0]));
+    assert!(
+        flags(&model, FlagKind::NoFile).is_empty(),
+        "the row names a file; refused is its one cause: {:?}",
+        flags(&model, FlagKind::NoFile)
+    );
+    assert!(
+        media_paths(&model, item(&model, "X_012")).is_empty(),
+        "the row still makes its item, with no file"
+    );
+}
+
+#[test]
 fn s21_a_per_file_row_that_names_no_file_of_the_import_is_no_file_not_unmatched() {
     let files = [
         ("X_010a.jpg", JPEG),
