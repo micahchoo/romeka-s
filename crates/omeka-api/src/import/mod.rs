@@ -40,6 +40,7 @@ pub mod model;
 pub mod placement;
 #[cfg(test)]
 mod placement_tests;
+pub mod places;
 pub mod plan;
 pub mod preview;
 pub mod run;

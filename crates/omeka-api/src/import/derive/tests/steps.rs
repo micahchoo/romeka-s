@@ -6,7 +6,7 @@ use super::support::*;
 use crate::import::decisions::EntryRef;
 use crate::import::derive::{NoTags, Sheets, derive};
 use crate::import::model::{Fate, GroupKey, LeftBy, Origin, OrphanReason};
-use crate::import::plan::{FlagKind, FlagPolicy, RecordKind};
+use crate::import::plan::{FlagKind, FlagPolicy, ImportPlan, RecordKind};
 use omeka_media::validation::FileValidation;
 
 fn file_ref(path: &str) -> serde_json::Value {
@@ -220,6 +220,60 @@ fn a47_rows_join_by_file_name_with_normalisation() {
         texts(item(&model, "IMG_0001"), "dcterms:title"),
         ["Gate"],
         "by path"
+    );
+}
+
+#[test]
+fn rows_join_by_the_last_places_of_a_name() {
+    let files = [
+        ("Documents/BHC006_KHAN_Donor20170616_D01.JPG", JPEG),
+        ("Documents/BHC006_KHAN_Donor20170616_D01.json", TEXT),
+        ("Documents/BHC006_KHAN_Donor20171013_D12.jpg", JPEG),
+    ];
+    let make = |last_places: Option<u8>| {
+        plan(|plan| {
+            plan["sheets"] = json!([sheet_plan("d", &["Identifier", "Title"])]);
+            plan["sheets"][0]["join"] = join_on("fileName", 0, "Identifier", false, false, false);
+            if let Some(count) = last_places {
+                plan["sheets"][0]["join"]["normalize"]["lastPlaces"] = json!(count);
+            }
+            plan["slots"]["item"]["dcterms:title"] = rule(json!([col("d", 1, "Title")]), "first");
+        })
+    };
+    let csv: &[u8] = b"Identifier,Title\nBHC006_GMT_D01.JPG,Deed\nBHC006_GMT_D12.JPG,Letter\n";
+    let joined = |plan: &ImportPlan| {
+        let model = run(&index(&files), &read_sheets(plan, &[("d", csv)]), plan);
+        let mut titles: Vec<(String, Vec<String>)> = model
+            .kept()
+            .filter(|record| record.kind == RecordKind::Item && !record.files.is_empty())
+            .map(|record| {
+                let title = texts(record, "dcterms:title")
+                    .into_iter()
+                    .map(str::to_owned);
+                (record.files[0].path.as_str().to_owned(), title.collect())
+            })
+            .collect();
+        titles.sort();
+        titles
+    };
+    assert_eq!(
+        joined(&make(Some(2))),
+        [
+            (
+                "Documents/BHC006_KHAN_Donor20170616_D01.JPG".to_owned(),
+                vec!["Deed".to_owned()]
+            ),
+            (
+                "Documents/BHC006_KHAN_Donor20171013_D12.jpg".to_owned(),
+                vec!["Letter".to_owned()]
+            ),
+        ],
+        "each row finds the file whose name ends in its last two places"
+    );
+    assert!(
+        joined(&make(None))
+            .iter()
+            .all(|(_, titles)| titles.is_empty())
     );
 }
 

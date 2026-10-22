@@ -17,6 +17,9 @@ use regex::Regex;
 pub const IDENTIFIER: &str = "identifier";
 /// The group that tells the files of one item apart.
 pub const PART: &str = "part";
+/// The group the proposer writes for a set taken from a name place: a set
+/// source reads it by this name. The engine gives it no meaning of its own.
+pub const SET: &str = "set";
 
 /// Why a plan's pattern cannot match files.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]

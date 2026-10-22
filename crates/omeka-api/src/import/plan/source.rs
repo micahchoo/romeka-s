@@ -1,6 +1,6 @@
 //! Sources and sheets: where evidence comes from and how a sheet is read.
 
-use std::num::NonZeroU32;
+use std::num::{NonZeroU8, NonZeroU32};
 
 use serde::{Deserialize, Serialize};
 
@@ -191,6 +191,11 @@ pub struct JoinNormalize {
     pub leading_zeros: bool,
     /// `_`, `-`, `.` and space treated as one.
     pub separators: bool,
+    /// Compare only the last this many places of the cell and of the file
+    /// name or key (`places::last_places`), before the other folds. Left
+    /// out of the wire when off, so a plan without it keeps its bytes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_places: Option<NonZeroU8>,
 }
 
 /// A sheet column. The index is the key; the header is checked against the

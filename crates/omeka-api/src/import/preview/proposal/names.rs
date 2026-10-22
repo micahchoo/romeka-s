@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use super::folders::FolderSeries;
-use super::shape::{Key, KeyShape, Place, places};
+use super::shape::{Key, KeyShape, Place, PlaceClass, places};
 use super::thresholds::{KEY_SHAPE_FITS, MIN_ITEMS_PER_PART, MIN_RECURRING_PARTS};
 use super::{CutRule, ItemCut, ScanText};
 use crate::import::evidence::FileEntry;
@@ -386,4 +386,62 @@ pub(super) fn replay(
             applied[at] = true;
         }
     }
+}
+
+/// One place every item's key holds, after the same classes before it: the
+/// classes up to it, and each value with the items that hold it.
+pub(super) struct PlaceValues<'n> {
+    pub classes: KeyShape,
+    pub values: BTreeMap<&'n str, usize>,
+}
+
+/// Each name place a series' items could be sorted by, for its key: the
+/// key's places for a name cut, the name's places for `Whole`. A folder key
+/// has no name place. A place is counted only when every item's key holds
+/// it, with the same classes before it, so one pattern can read it.
+pub(super) fn place_values<'n>(names: &'n [Name<'_>], key: &Key) -> Vec<PlaceValues<'n>> {
+    let mut items: BTreeMap<&'n str, Vec<(PlaceClass, &'n str)>> = BTreeMap::new();
+    for name in names {
+        let held = match key {
+            Key::Whole => &name.places[..],
+            Key::Places(shape) if shape.starts(&name.places) && name.extension.is_some() => {
+                &name.places[..shape.len()]
+            }
+            Key::Places(_) | Key::Folder(_) => continue,
+        };
+        let (Some(first), Some(last)) = (held.first(), held.last()) else {
+            continue;
+        };
+        let texts = held
+            .iter()
+            .map(|place| (place.class, &name.stem[place.start..place.end]))
+            .collect();
+        items
+            .entry(&name.stem[first.start..last.end])
+            .or_insert(texts);
+    }
+    let mut keys = items.values();
+    let Some(first) = keys.next() else {
+        return Vec::new();
+    };
+    let common = keys.fold(first.len(), |common, other| {
+        first
+            .iter()
+            .zip(other)
+            .take(common)
+            .take_while(|((a, _), (b, _))| a == b)
+            .count()
+    });
+    (0..common)
+        .map(|at| {
+            let mut values: BTreeMap<&str, usize> = BTreeMap::new();
+            for places in items.values() {
+                *values.entry(places[at].1).or_default() += 1;
+            }
+            PlaceValues {
+                classes: KeyShape::of_classes(first[..=at].iter().map(|(class, _)| *class)),
+                values,
+            }
+        })
+        .collect()
 }

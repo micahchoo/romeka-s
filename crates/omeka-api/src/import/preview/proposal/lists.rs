@@ -39,6 +39,27 @@ pub(super) struct Counted<'d> {
     groups: HashSet<&'d GroupKey>,
 }
 
+impl Counted<'_> {
+    /// A list that pairs no row by any stated rule, joined by file name on
+    /// `column` because a pairing suggestion pairs its rows in this series
+    /// only (rule 3). It pairs nothing until the person takes the
+    /// suggestion.
+    pub fn by_suggestion(counts: ListCandidate, column: ColumnRef) -> Self {
+        Self {
+            counts,
+            join: Some(Join {
+                on: JoinOn::FileName,
+                column,
+                normalize: NO_FOLD,
+            }),
+            paired: 0,
+            files: 0,
+            groups_with_rows_for_many_files: 0,
+            groups: HashSet::new(),
+        }
+    }
+}
+
 /// A list and its counts in one series.
 pub(super) struct InSeries<'d> {
     pub file: ListFile,

@@ -2,11 +2,15 @@
 
 use super::bhc006_tests::proposal_with_lists;
 use super::{Evidence, FoundList, ItemCut, NodeEvidence, Proposal, SeriesNode, propose};
+use crate::import::derive::Sheets;
 use crate::import::derive::tests::scenarios::{S1_TO_S8, Scenario};
+use crate::import::derive::tests::support;
 use crate::import::plan::{
     Edit, KindColumn, ListFile, RecordKind, RelPath, RowKind, SetNames, SetSource, SlotName,
     SourceId,
 };
+use crate::import::preview::candidates::automatic;
+use crate::import::sheet;
 
 fn first_series(proposal: &Proposal) -> &SeriesNode {
     proposal
@@ -208,4 +212,79 @@ fn a_kind_column_keys_each_kind_and_links_them() {
         [SetSource::Each(each)] if each.each.names == SetNames::Key
     ));
     assert_eq!(first_series(&proposal).items.chosen.counts.items, 2);
+}
+
+/// The proposal for media `files` in source `s1` and the CSV `lists` at its
+/// top, read as Simple adds a list.
+fn proposal_from(files: &[(&str, &str)], lists: &[(&str, &str)]) -> Proposal {
+    let scenario = Scenario {
+        index: support::index(files),
+        sheets: Sheets::new(),
+        plan: support::plan(|_| {}),
+        catalog: support::catalog(),
+    };
+    let lists: Vec<FoundList> = lists
+        .iter()
+        .map(|(path, text)| {
+            let file = ListFile {
+                source: SourceId("s1".into()),
+                file: RelPath::parse(path).expect("a path"),
+            };
+            let read = automatic(&file.source, &file.file).read;
+            FoundList {
+                sheet: sheet::read(text.as_bytes(), &read, None),
+                file,
+            }
+        })
+        .collect();
+    let evidence = Evidence {
+        index: &scenario.index,
+        lists: &lists,
+        catalog: &scenario.catalog,
+        sources: &scenario.plan.sources,
+        structure: &scenario.plan.structure,
+    };
+    propose(&evidence, &[])
+}
+
+#[test]
+fn a_column_of_row_numbers_is_never_a_reference() {
+    let files = [
+        ("a.jpg", support::JPEG),
+        ("b.jpg", support::JPEG),
+        ("c.jpg", support::JPEG),
+    ];
+    let photos = "Sl No,File\n1,a.jpg\n2,b.jpg\n3,c.jpg\n";
+    let people = "Sl No,Name\n4,Ana\n3,Bo\n2,Cy\n1,Di\n";
+    let proposal = proposal_from(&files, &[("photos.csv", photos), ("people.csv", people)]);
+    let node = first_series(&proposal);
+    assert_eq!(
+        node.items.chosen.value,
+        ItemCut::Whole,
+        "the photos' row numbers do not name the people's rows"
+    );
+    assert_eq!(node.items.chosen.counts.items, 3);
+    let (_, photos) = proposal
+        .structure
+        .lists()
+        .find(|(_, list)| list.file.as_str() == "photos.csv")
+        .expect("the photos describe the series");
+    assert_eq!(photos.item_key, None);
+    assert!(
+        proposal
+            .structure
+            .lists()
+            .all(|(_, list)| list.file.as_str() != "people.csv"),
+        "the people pair nothing and stay unattached"
+    );
+}
+
+#[test]
+fn a_records_list_keyed_by_row_numbers_takes_its_next_unique_column() {
+    let records = "Sl No,Id,Title\n1,L1,Letter\n2,L2,Reply\n";
+    let proposal = proposal_from(&[], &[("r.csv", records)]);
+    assert!(matches!(
+        &first_series(&proposal).items.chosen.value,
+        ItemCut::Rows { key, .. } if key.header == "Id"
+    ));
 }

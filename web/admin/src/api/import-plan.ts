@@ -158,6 +158,8 @@ export interface Join {
     readonly caseFold: boolean;
     readonly leadingZeros: boolean;
     readonly separators: boolean;
+    /** Compare only the last this many places of the names; v3 only. */
+    readonly lastPlaces?: number;
   };
 }
 

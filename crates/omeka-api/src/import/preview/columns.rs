@@ -59,13 +59,16 @@ pub(super) const NO_FOLD: JoinNormalize = JoinNormalize {
     case_fold: false,
     leading_zeros: false,
     separators: false,
+    last_places: None,
 };
 
-/// Every fold the plan can state.
+/// Every fold the plan can state but `lastPlaces`, which compares less than
+/// a whole name: only a pairing suggestion offers it.
 pub(super) const EVERY_FOLD: JoinNormalize = JoinNormalize {
     case_fold: true,
     leading_zeros: true,
     separators: true,
+    last_places: None,
 };
 
 /// A text after the fold `how`, borrowed when no fold applies.

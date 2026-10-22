@@ -441,6 +441,14 @@ fn leaves_mut<'s>(levels: &'s mut [Level], out: &mut Vec<&'s mut Series>) {
     }
 }
 
+impl SetLevel {
+    /// A set level over `levels`.
+    #[must_use]
+    pub fn new(id: LevelId, set: SetSource, levels: Vec<Level>) -> Self {
+        Self { id, set, levels }
+    }
+}
+
 impl Series {
     /// A series with no set, no list and no slot rule.
     #[must_use]
