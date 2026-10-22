@@ -54,9 +54,9 @@ async fn the_proposal_section_writes_nothing() {
     assert!(node["items"]["chosen"]["counts"]["items"].as_u64().unwrap() > 0);
 
     let mut tried = before.plan.clone();
-    // tiny-iiif is outside by its counts, so no proposal offers to leave it out.
+    // No folder of the archive has this name, so the edit finds nothing.
     let leave_out =
-        json!({ "edit": "leaveOut", "scope": { "source": "s1", "folder": "tiny-iiif" } });
+        json!({ "edit": "leaveOut", "scope": { "source": "s1", "folder": "no such folder" } });
     tried["edits"] = json!([leave_out.clone()]);
     let tried = fixture
         .preview(&id, &json!({ "include": ["proposal"], "plan": tried }))
@@ -65,7 +65,7 @@ async fn the_proposal_section_writes_nothing() {
     assert_eq!(
         tried.json()["proposal"]["edits"],
         json!([{ "edit": leave_out, "applied": false }]),
-        "a tried edit is replayed and kept even when nothing offers it"
+        "a tried edit is replayed and kept even when it finds nothing"
     );
 
     let after = fixture.row(&id).await;

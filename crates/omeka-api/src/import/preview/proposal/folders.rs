@@ -166,9 +166,8 @@ pub(super) fn detect(evidence: &Evidence<'_>, edits: &[Edit], applied: &mut [boo
                         reason: OutsideReason::Edit,
                     });
                 }
-                applied[at] = outside.iter().any(|folder| {
-                    folder.counts.scope == *scope && folder.reason == OutsideReason::Edit
-                });
+                // Outside by its counts is what the person asked for too.
+                applied[at] = outside.iter().any(|folder| folder.counts.scope == *scope);
             }
             Edit::Keep { scope } => {
                 if let Some(found) = outside

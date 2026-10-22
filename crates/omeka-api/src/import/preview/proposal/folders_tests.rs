@@ -138,23 +138,36 @@ fn a_left_out_folder_is_outside_by_the_edit_and_a_kept_one_is_a_series() {
     assert_eq!(series(&left).len(), 5);
     assert!(outside(&left).contains(&("Extras", 293, 163, OutsideReason::Edit)));
 
-    let nothing_offers = Edit::LeaveOut {
+    let kept = bhc006_tests::proposal(&[Edit::Keep {
         scope: scope("tiny-iiif"),
-    };
-    let kept = bhc006_tests::proposal(&[
-        nothing_offers,
-        Edit::Keep {
-            scope: scope("tiny-iiif"),
-        },
-    ]);
-    let applied: Vec<bool> = kept.edits.iter().map(|edit| edit.applied).collect();
-    assert_eq!(
-        applied,
-        [false, true],
-        "a folder outside by its counts is not left out by an edit"
-    );
+    }]);
+    assert!(kept.edits[0].applied);
     assert_eq!(outside(&kept), []);
     assert_eq!(series(&kept).len(), 7);
+}
+
+#[test]
+fn an_edit_that_asks_for_what_the_proposal_does_is_applied() {
+    let already = Edit::LeaveOut {
+        scope: scope("tiny-iiif"),
+    };
+    let missing = Edit::LeaveOut {
+        scope: scope("no such folder"),
+    };
+    let proposal = bhc006_tests::proposal(&[already, missing]);
+    let applied: Vec<bool> = proposal.edits.iter().map(|edit| edit.applied).collect();
+    assert_eq!(
+        applied,
+        [true, false],
+        "the person got what they asked for; a folder that is not there is not found"
+    );
+    assert!(
+        outside(&proposal)
+            .iter()
+            .any(|(folder, _, _, reason)| *folder == "tiny-iiif"
+                && *reason == OutsideReason::NoMedia),
+        "its counts still say why it is outside"
+    );
 }
 
 #[test]
