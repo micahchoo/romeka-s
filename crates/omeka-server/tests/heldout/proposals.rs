@@ -13,8 +13,8 @@ use omeka_api::import::placement::{Difference, FileAt, ItemAt, differences};
 use omeka_api::import::plan::ImportPlan;
 
 use super::{
-    Shape, add_terms, born_digital, materialize, oral_history, paper_archive, placement_of, run,
-    v3_plan, v3_plan_of,
+    Shape, accession_register, add_terms, born_digital, materialize, negative_archive,
+    oral_history, paper_archive, placement_of, run, v3_plan, v3_plan_of,
 };
 use crate::imports_fixture::{self, fixture};
 
@@ -208,6 +208,28 @@ async fn paper_archive_proposal_places_as_frozen() {
         &paper_archive::shape(),
         &paper_archive::SLOTS,
         paper_archive::PLAN,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn accession_register_proposal_places_as_frozen() {
+    places_as_frozen(
+        "accession_register",
+        &accession_register::shape(),
+        &accession_register::SLOTS,
+        accession_register::PLAN,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn negative_archive_proposal_places_as_frozen() {
+    places_as_frozen(
+        "negative_archive",
+        &negative_archive::shape(),
+        &negative_archive::SLOTS,
+        negative_archive::PLAN,
     )
     .await;
 }

@@ -1,0 +1,387 @@
+{
+  "version": 3,
+  "sources": [
+    {
+      "kind": "folder",
+      "id": "s1",
+      "root": "archive",
+      "path": ""
+    }
+  ],
+  "structure": {
+    "levels": [
+      {
+        "kind": "series",
+        "id": "photographs",
+        "set": null,
+        "scope": [
+          {
+            "source": "s1",
+            "folder": "Photography"
+          }
+        ],
+        "grouping": {
+          "pattern": "^[^/]+/(?<identifier>\\d{2,4}\\.\\d+\\.\\d+)(?:[a-z](?:-[a-z])?)?_\\d+\\.(?i:jpe?g)$",
+          "caseFold": false
+        },
+        "example": null,
+        "lists": [
+          {
+            "id": "register",
+            "source": "s1",
+            "file": "Collections register.xlsx",
+            "hash": null,
+            "read": {
+              "encoding": "auto",
+              "delimiter": "auto",
+              "quote": "\"",
+              "headerLine": 2,
+              "trim": true
+            },
+            "rowKind": "item",
+            "join": {
+              "on": "identifier",
+              "column": {
+                "index": 0,
+                "header": "Accession No."
+              },
+              "normalize": {
+                "caseFold": false,
+                "leadingZeros": true,
+                "separators": false
+              }
+            },
+            "itemKey": null,
+            "columns": [
+              {
+                "column": {
+                  "index": 0,
+                  "header": "Accession No."
+                },
+                "options": {
+                  "split": null,
+                  "type": "literal",
+                  "lang": null,
+                  "private": false
+                }
+              },
+              {
+                "column": {
+                  "index": 1,
+                  "header": "Object name"
+                },
+                "options": {
+                  "split": null,
+                  "type": "literal",
+                  "lang": null,
+                  "private": false
+                }
+              },
+              {
+                "column": {
+                  "index": 2,
+                  "header": "Description"
+                },
+                "options": {
+                  "split": null,
+                  "type": "literal",
+                  "lang": null,
+                  "private": false
+                }
+              },
+              {
+                "column": {
+                  "index": 3,
+                  "header": "Maker"
+                },
+                "options": {
+                  "split": null,
+                  "type": "literal",
+                  "lang": null,
+                  "private": false
+                }
+              },
+              {
+                "column": {
+                  "index": 4,
+                  "header": "Date made"
+                },
+                "options": {
+                  "split": null,
+                  "type": "literal",
+                  "lang": null,
+                  "private": false
+                }
+              },
+              {
+                "column": {
+                  "index": 5,
+                  "header": "Materials"
+                },
+                "options": {
+                  "split": null,
+                  "type": "literal",
+                  "lang": null,
+                  "private": false
+                }
+              },
+              {
+                "column": {
+                  "index": 6,
+                  "header": "Classification"
+                },
+                "options": {
+                  "split": null,
+                  "type": "literal",
+                  "lang": null,
+                  "private": false
+                }
+              },
+              {
+                "column": {
+                  "index": 7,
+                  "header": "Credit line"
+                },
+                "options": {
+                  "split": null,
+                  "type": "literal",
+                  "lang": null,
+                  "private": false
+                }
+              }
+            ]
+          }
+        ],
+        "slots": {
+          "item": {
+            "dcterms:title": {
+              "sources": [
+                {
+                  "from": "column",
+                  "sheet": "register",
+                  "column": {
+                    "index": 1,
+                    "header": "Object name"
+                  }
+                },
+                {
+                  "from": "group",
+                  "name": "identifier"
+                }
+              ],
+              "combine": "first"
+            },
+            "dcterms:identifier": {
+              "sources": [
+                {
+                  "from": "column",
+                  "sheet": "register",
+                  "column": {
+                    "index": 0,
+                    "header": "Accession No."
+                  }
+                },
+                {
+                  "from": "group",
+                  "name": "identifier"
+                }
+              ],
+              "combine": "first"
+            },
+            "dcterms:description": {
+              "sources": [
+                {
+                  "from": "column",
+                  "sheet": "register",
+                  "column": {
+                    "index": 2,
+                    "header": "Description"
+                  }
+                }
+              ],
+              "combine": "first"
+            },
+            "dcterms:creator": {
+              "sources": [
+                {
+                  "from": "column",
+                  "sheet": "register",
+                  "column": {
+                    "index": 3,
+                    "header": "Maker"
+                  }
+                }
+              ],
+              "combine": "first"
+            },
+            "dcterms:date": {
+              "sources": [
+                {
+                  "from": "column",
+                  "sheet": "register",
+                  "column": {
+                    "index": 4,
+                    "header": "Date made"
+                  }
+                }
+              ],
+              "combine": "first"
+            },
+            "dcterms:medium": {
+              "sources": [
+                {
+                  "from": "column",
+                  "sheet": "register",
+                  "column": {
+                    "index": 5,
+                    "header": "Materials"
+                  }
+                }
+              ],
+              "combine": "first"
+            },
+            "dcterms:provenance": {
+              "sources": [
+                {
+                  "from": "column",
+                  "sheet": "register",
+                  "column": {
+                    "index": 7,
+                    "header": "Credit line"
+                  }
+                }
+              ],
+              "combine": "first"
+            }
+          },
+          "media": {
+            "mediaOrder": {
+              "sources": [
+                {
+                  "from": "file",
+                  "fact": "path"
+                }
+              ],
+              "combine": "first"
+            }
+          },
+          "itemSet": {}
+        }
+      }
+    ],
+    "freeSets": [
+      {
+        "each": {
+          "sources": [
+            {
+              "from": "column",
+              "sheet": "register",
+              "column": {
+                "index": 6,
+                "header": "Classification"
+              }
+            }
+          ],
+          "combine": "first",
+          "names": "title"
+        }
+      }
+    ]
+  },
+  "action": {
+    "action": "create",
+    "match": {
+      "item": {
+        "key": "dcterms:identifier",
+        "scope": "importSets"
+      },
+      "media": {
+        "key": "dcterms:identifier",
+        "scope": "importSets"
+      },
+      "itemSet": {
+        "key": "dcterms:identifier",
+        "scope": "importSets"
+      }
+    },
+    "unmatched": "leave"
+  },
+  "defaults": {
+    "visibility": "private",
+    "owner": "runner",
+    "sites": [],
+    "template": null
+  },
+  "flags": {},
+  "decisions": [
+    {
+      "kind": "leave",
+      "entry": {
+        "row": {
+          "sheet": "register",
+          "key": "85.3.2#1"
+        }
+      }
+    },
+    {
+      "kind": "pair",
+      "row": {
+        "sheet": "register",
+        "key": "2019.4.2a-b#1"
+      },
+      "file": {
+        "source": "s1",
+        "path": "Photography/2019-06 studio/2019.4.2a-b_01.JPG"
+      }
+    },
+    {
+      "kind": "pair",
+      "row": {
+        "sheet": "register",
+        "key": "2021.1.2a-b#1"
+      },
+      "file": {
+        "source": "s1",
+        "path": "Photography/2021-02 reshoot/2021.1.2a-b_01.jpg"
+      }
+    },
+    {
+      "kind": "move",
+      "file": {
+        "file": {
+          "source": "s1",
+          "path": "Photography/2021-02 reshoot/2O21.1.1_02.jpg"
+        }
+      },
+      "to": {
+        "with": {
+          "file": {
+            "source": "s1",
+            "path": "Photography/2021-02 reshoot/2021.1.1_01.jpg"
+          }
+        }
+      }
+    },
+    {
+      "kind": "set",
+      "entry": {
+        "file": {
+          "source": "s1",
+          "path": "Photography/2021-02 reshoot/2O21.1.1_02.jpg"
+        }
+      },
+      "target": "media",
+      "slot": "mediaOrder",
+      "values": [
+        {
+          "type": "literal",
+          "text": "Photography/2021-02 reshoot/2021.1.1_02.jpg",
+          "lang": null,
+          "label": null
+        }
+      ]
+    }
+  ],
+  "newTypes": [],
+  "newTerms": []
+}

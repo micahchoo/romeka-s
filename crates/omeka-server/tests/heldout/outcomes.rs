@@ -11,17 +11,20 @@ use omeka_api::import::plan::{ImportPlan, PlanVersion};
 use serde_json::Value;
 
 use super::{
-    Made, assert_same, born_digital, oral_history, outcome_text, paper_archive, text, v3_outcome,
+    Made, accession_register, assert_same, born_digital, negative_archive, oral_history,
+    outcome_text, paper_archive, text, v3_outcome,
 };
 
 const ORAL_HISTORY: &str = include_str!("fixtures/oral_history.json");
 const BORN_DIGITAL: &str = include_str!("fixtures/born_digital.json");
 
 /// Every held-out shape by its name, with its v3 plan.
-const PLANS: [(&str, &str); 3] = [
+const PLANS: [(&str, &str); 5] = [
     ("oral_history", ORAL_HISTORY),
     ("born_digital", BORN_DIGITAL),
     ("paper_archive", paper_archive::PLAN),
+    ("accession_register", accession_register::PLAN),
+    ("negative_archive", negative_archive::PLAN),
 ];
 
 fn pins() -> PathBuf {
@@ -81,6 +84,32 @@ async fn paper_archive_v3_plan_makes_the_frozen_outcome() {
     assert_same(&made.outcome, &paper_archive::expected());
     assert_eq!(made.series_keys, 0, "one series keeps group:<key>");
     text::assert_pinned(&pins(), "paper_archive", &made.text);
+}
+
+#[tokio::test]
+async fn accession_register_v3_plan_makes_the_frozen_outcome() {
+    let made = v3_outcome(
+        &accession_register::shape(),
+        &accession_register::SLOTS,
+        accession_register::PLAN,
+    )
+    .await;
+    assert_same(&made.outcome, &accession_register::expected());
+    assert_eq!(made.series_keys, 0, "one series keeps group:<key>");
+    text::assert_pinned(&pins(), "accession_register", &made.text);
+}
+
+#[tokio::test]
+async fn negative_archive_v3_plan_makes_the_frozen_outcome() {
+    let made = v3_outcome(
+        &negative_archive::shape(),
+        &negative_archive::SLOTS,
+        negative_archive::PLAN,
+    )
+    .await;
+    assert_same(&made.outcome, &negative_archive::expected());
+    assert_eq!(made.series_keys, 0, "one series keeps group:<key>");
+    text::assert_pinned(&pins(), "negative_archive", &made.text);
 }
 
 /// The held-out v3 plans are not in `omeka-api`'s fixtures, so its round
