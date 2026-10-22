@@ -11,6 +11,7 @@ crates/omeka-server/tests/heldout/outcomes.rs
 crates/omeka-server/tests/heldout/oral_history.rs
 crates/omeka-server/tests/heldout/born_digital.rs
 crates/omeka-server/tests/heldout/paper_archive.rs
+crates/omeka-server/tests/heldout/proposals.rs
 crates/omeka-server/tests/heldout/outcome_pins/oral_history.txt
 crates/omeka-server/tests/heldout/outcome_pins/born_digital.txt
 crates/omeka-server/tests/heldout/outcome_pins/paper_archive.txt
