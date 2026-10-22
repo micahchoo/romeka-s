@@ -4,7 +4,7 @@
  * and its siblings). A filter left out does not narrow. Every body these types
  * can build is one the server takes (`fixtures/import/requests.json`).
  */
-import type { FlagKind, ImportPlan, RecordKind, SlotName } from './import-plan';
+import type { FlagKind, ImportPlan, ImportPlanV3, RecordKind, SlotName } from './import-plan';
 import type { Bucket, ShapeFacts } from './import-sections';
 
 export interface PageQuery {
@@ -84,8 +84,8 @@ export interface NameWordsQuery {
 }
 
 export interface PreviewOptions {
-  /** A plan to preview in place of the stored one; it is not saved. */
-  readonly plan?: ImportPlan;
+  /** A plan to preview in place of the stored one; it is not saved. The server reads either version. */
+  readonly plan?: ImportPlan | ImportPlanV3;
   readonly records?: RecordsQuery;
   readonly entries?: EntriesQuery;
   readonly shapes?: PageQuery;

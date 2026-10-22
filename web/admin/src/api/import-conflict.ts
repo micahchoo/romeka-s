@@ -7,7 +7,8 @@
  * `ImportApi` throws an `ImportConflictError` for a 409 whose code and members
  * it knows, and a plain `ApiError` for anything else, so a page branches with
  * `conflictOf(error)` and a switch over `code` that `tsc` checks for
- * completeness.
+ * completeness. The two 400 codes of a list round trip in a plan of several
+ * series are a `SeriesRefusalError` the same way (`seriesRefusalOf`).
  */
 import { ApiError } from './client';
 import type { ApiErrors } from './types';
@@ -15,6 +16,7 @@ import { parseFlag } from './import-model';
 import type { Flag } from './import-model';
 import { IMPORT_STATUSES } from './import-view';
 import type { ImportStatus } from './import-view';
+import type { LevelId } from './import-plan';
 import { asCount, list, member, oneOf, strict } from './import-read';
 import { ParseError, asString, isRecord } from './parse';
 
@@ -143,3 +145,50 @@ export class ImportConflictError extends ApiError {
 /** The typed conflict of a thrown error, or `null` when it is not one. */
 export const conflictOf = (error: unknown): ImportConflict | null =>
   error instanceof ImportConflictError ? error.conflict : null;
+
+export const SERIES_CODES = ['seriesNeeded', 'unknownSeries'] as const;
+export type SeriesCode = (typeof SERIES_CODES)[number];
+
+/**
+ * The 400 a list round trip (`template.csv`, `POST …/sheets`) answers in a
+ * plan of several series: `?series=` was left out (`seriesNeeded`) or names
+ * no series (`unknownSeries`). `series` is every series id of the plan, so
+ * the admin can ask which one the list is for.
+ */
+export interface SeriesRefusal {
+  readonly code: SeriesCode;
+  readonly series: readonly LevelId[];
+}
+
+/** The refusal a 400 body states, or `null` for any other body. */
+export const parseSeriesRefusal = (body: unknown): SeriesRefusal | null => {
+  if (!isRecord(body)) {
+    return null;
+  }
+  const code = SERIES_CODES.find((candidate) => candidate === body['code']);
+  if (code === undefined) {
+    return null;
+  }
+  try {
+    return { code, series: member(strict(body, [], [...BASE, 'series']), 'series', [], list(asString)) };
+  } catch (error) {
+    if (error instanceof ParseError) {
+      return null;
+    }
+    throw error;
+  }
+};
+
+export class SeriesRefusalError extends ApiError {
+  readonly refusal: SeriesRefusal;
+
+  constructor(refusal: SeriesRefusal, errors: ApiErrors | null, message: string, sourceErrors: ApiErrors | null) {
+    super(400, errors, message, sourceErrors);
+    this.name = 'SeriesRefusalError';
+    this.refusal = refusal;
+  }
+}
+
+/** The typed series refusal of a thrown error, or `null` when it is not one. */
+export const seriesRefusalOf = (error: unknown): SeriesRefusal | null =>
+  error instanceof SeriesRefusalError ? error.refusal : null;

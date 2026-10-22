@@ -1,14 +1,15 @@
 /**
  * The import client (`src/api/import-routes.ts`): each route's request, the
  * parse of its answer (the fixtures the server's routes wrote), and the 409
- * codes the run, save and undo routes answer with.
+ * codes the run, save and undo routes answer with, and the 400 codes of a
+ * list round trip in a plan of several series.
  */
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '../src/api/client';
-import { CONFLICT_CODES, conflictOf } from '../src/api/import-conflict';
+import { CONFLICT_CODES, conflictOf, seriesRefusalOf } from '../src/api/import-conflict';
 import type { ImportConflict } from '../src/api/import-conflict';
 import { parseImportPlan } from '../src/api/import-plan-read';
 import { ImportApi } from '../src/api/import-routes';
@@ -173,6 +174,44 @@ describe('writing', () => {
     expect(form).toBeInstanceOf(FormData);
     expect(form instanceof FormData ? form.get('file') : null).toBeInstanceOf(File);
     expect(new Headers(sent.init?.headers).has('Content-Type')).toBe(false);
+  });
+});
+
+describe('a plan of several series', () => {
+  const refused = (code: string): Response =>
+    jsonResponse(
+      { errors: { error: 'This plan has several series. Choose the series the list is for.' }, code, series: ['letters', 'photos'] },
+      { status: 400 },
+    );
+
+  it('names the series of the downloaded list and of the uploaded one', async () => {
+    const fetchMock = installFetch(
+      route({
+        '/api/romeka/imports/1/template.csv': () => new Response(csv('template.csv'), { headers: { 'Content-Type': 'text/csv' } }),
+        '/api/romeka/imports/1/sheets': () => answer('import-sheet-added.json', 201),
+      }),
+    );
+    await api.templateCsv(ID, ['dcterms:title'], 'letters');
+    expect(only(requestsFor(fetchMock, '/api/romeka/imports/1/template.csv')).url.search).toBe('?columns=dcterms%3Atitle&series=letters');
+    expect(api.templateUrl(ID, ['dcterms:title'], 'photos')).toBe('/api/romeka/imports/1/template.csv?columns=dcterms%3Atitle&series=photos');
+    await api.addList(ID, new File(['Identifier\n'], 'list.csv', { type: 'text/csv' }), 'photos');
+    expect(only(requestsFor(fetchMock, '/api/romeka/imports/1/sheets')).url.search).toBe('?series=photos');
+  });
+
+  it.each(['seriesNeeded', 'unknownSeries'] as const)('%s is a typed refusal that carries the series ids', async (code) => {
+    installFetch(route({ '/api/romeka/imports/1/sheets': () => refused(code), '/api/romeka/imports/1/template.csv': () => refused(code) }));
+    const upload = await api.addList(ID, new File(['Identifier\n'], 'list.csv')).catch((caught: unknown) => caught);
+    expect(upload).toMatchObject({ status: 400 });
+    expect(seriesRefusalOf(upload)).toEqual({ code, series: ['letters', 'photos'] });
+    const download = await api.templateCsv(ID, []).catch((caught: unknown) => caught);
+    expect(seriesRefusalOf(download)).toEqual({ code, series: ['letters', 'photos'] });
+    expect(conflictOf(download)).toBeNull();
+  });
+
+  it('a 400 with no series code is no series refusal', async () => {
+    installFetch(route({ '/api/romeka/imports/1': () => answer('error-plan-refused.json', 400) }));
+    const error = await api.save(ID, parseImportPlan(savedPlan()), 0).catch((caught: unknown) => caught);
+    expect(seriesRefusalOf(error)).toBeNull();
   });
 });
 

@@ -211,7 +211,7 @@ export const AllItems = (): ReactElement => {
     { header: t('lists.items.colTitle'), cell: (record) => recordTitle(record) ?? <span className="muted">{t('lists.items.noTitle')}</span> },
     {
       header: t('lists.items.colSet'),
-      cell: (record) => (record.slots.sets ?? []).map((value) => value.text).join(', ') || <span className="muted">{t('lists.none')}</span>,
+      cell: (record) => (record.slots.sets ?? []).map((value) => value.label ?? value.text).join(', ') || <span className="muted">{t('lists.none')}</span>,
     },
     { header: t('lists.items.colType'), cell: (record) => typeName(record, known, draft.plan, t) },
     { header: t('lists.items.colFiles'), numeric: true, cell: (record) => number(record.files.length) },
