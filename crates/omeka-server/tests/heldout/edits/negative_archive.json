@@ -1,0 +1,33 @@
+{
+  "edits": [
+    {
+      "edit": "leaveOut",
+      "scope": { "source": "s1", "folder": "Negatives/_unsorted" }
+    },
+    {
+      "edit": "items",
+      "scope": { "source": "s1", "folder": "Negatives" },
+      "cut": { "cut": "folder", "depth": 2 }
+    },
+    {
+      "edit": "list",
+      "scope": { "source": "s1", "folder": "Negatives" },
+      "list": { "source": "s1", "file": "Shot log 1974-75.csv" }
+    },
+    {
+      "edit": "addSet",
+      "from": {
+        "from": "folderLevel",
+        "scope": { "source": "s1", "folder": "Negatives" },
+        "depth": 1
+      }
+    }
+  ],
+  "because": [
+    "The loose negatives have no envelope, so no job and no log row: they wait to be identified.",
+    "A job's envelope is the unit the paper filed: each envelope folder, under its year, is one item with all its rolls.",
+    "The shot log has a row per job and describes the envelopes.",
+    "The paper's archive is browsed by year, and each year folder is a set."
+  ],
+  "note": "The transposed job number in the log is paired by hand and its identifier corrected as decisions in the frozen plan, not as edits: no edit kind names one row."
+}

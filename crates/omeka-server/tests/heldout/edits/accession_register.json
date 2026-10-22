@@ -1,0 +1,42 @@
+{
+  "edits": [
+    {
+      "edit": "leaveOut",
+      "scope": {
+        "source": "s1",
+        "folder": "Condition reports"
+      }
+    },
+    {
+      "edit": "list",
+      "scope": {
+        "source": "s1",
+        "folder": "Photography"
+      },
+      "list": {
+        "source": "s1",
+        "file": "Collections register.xlsx"
+      }
+    },
+    {
+      "edit": "addSet",
+      "from": {
+        "from": "column",
+        "list": {
+          "source": "s1",
+          "file": "Collections register.xlsx"
+        },
+        "column": {
+          "index": 6,
+          "header": "Classification"
+        }
+      }
+    }
+  ],
+  "because": [
+    "The condition reports are the museum's working papers on its objects, not part of the online catalogue.",
+    "The register is the museum's catalogue of the objects the photographs show, so it describes the photographs' items.",
+    "The Classification column is how the museum groups its collection, and each classification is a set."
+  ],
+  "note": "The deaccessioned object, the two part-lettered rows and the misnamed view are handled one by one as decisions in the frozen plan, not as edits: no edit kind names one row or one file."
+}

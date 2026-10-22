@@ -1,0 +1,824 @@
+item group:74-112 create
+  file s1/Negatives/1974/74-112 Mill fire/R1-01.tif
+  file s1/Negatives/1974/74-112 Mill fire/R1-02.tif
+  file s1/Negatives/1974/74-112 Mill fire/R1-03.tif
+  file s1/Negatives/1974/74-112 Mill fire/R1-04.tif
+  file s1/Negatives/1974/74-112 Mill fire/R1-05.tif
+  file s1/Negatives/1974/74-112 Mill fire/R1-06.tif
+  file s1/Negatives/1974/74-112 Mill fire/R1-07.tif
+  file s1/Negatives/1974/74-112 Mill fire/R1-08.tif
+  file s1/Negatives/1974/74-112 Mill fire/R2-01.tif
+  file s1/Negatives/1974/74-112 Mill fire/R2-02.tif
+  file s1/Negatives/1974/74-112 Mill fire/R2-03.tif
+  file s1/Negatives/1974/74-112 Mill fire/R2-04.tif
+  file s1/Negatives/1974/74-112 Mill fire/R2-05.tif
+  file s1/Negatives/1974/74-112 Mill fire/contact sheet.jpg
+  row log/74-112#1
+  media file:s1/Negatives/1974/74-112 Mill fire/R1-01.tif
+  media file:s1/Negatives/1974/74-112 Mill fire/R1-02.tif
+  media file:s1/Negatives/1974/74-112 Mill fire/R1-03.tif
+  media file:s1/Negatives/1974/74-112 Mill fire/R1-04.tif
+  media file:s1/Negatives/1974/74-112 Mill fire/R1-05.tif
+  media file:s1/Negatives/1974/74-112 Mill fire/R1-06.tif
+  media file:s1/Negatives/1974/74-112 Mill fire/R1-07.tif
+  media file:s1/Negatives/1974/74-112 Mill fire/R1-08.tif
+  media file:s1/Negatives/1974/74-112 Mill fire/R2-01.tif
+  media file:s1/Negatives/1974/74-112 Mill fire/R2-02.tif
+  media file:s1/Negatives/1974/74-112 Mill fire/R2-03.tif
+  media file:s1/Negatives/1974/74-112 Mill fire/R2-04.tif
+  media file:s1/Negatives/1974/74-112 Mill fire/R2-05.tif
+  media file:s1/Negatives/1974/74-112 Mill fire/contact sheet.jpg
+  slot sets literal "1974"
+  slot itemKey literal "74-112"
+  slot dcterms:creator literal "P. Marsh"
+  slot dcterms:date literal "02/03/1974"
+  slot dcterms:identifier literal "74-112"
+  slot dcterms:title literal "Mill fire, Station Road"
+  set new "1974"
+  owner is runner
+  visibility private
+  itemKey 74-112
+item group:74-113 create
+  file s1/Negatives/1974/74-113 Council meeting/R1-01.tif
+  file s1/Negatives/1974/74-113 Council meeting/R1-02.tif
+  file s1/Negatives/1974/74-113 Council meeting/R1-03.tif
+  file s1/Negatives/1974/74-113 Council meeting/R1-04.tif
+  file s1/Negatives/1974/74-113 Council meeting/R1-05.tif
+  file s1/Negatives/1974/74-113 Council meeting/R1-06.tif
+  row log/74-113#1
+  media file:s1/Negatives/1974/74-113 Council meeting/R1-01.tif
+  media file:s1/Negatives/1974/74-113 Council meeting/R1-02.tif
+  media file:s1/Negatives/1974/74-113 Council meeting/R1-03.tif
+  media file:s1/Negatives/1974/74-113 Council meeting/R1-04.tif
+  media file:s1/Negatives/1974/74-113 Council meeting/R1-05.tif
+  media file:s1/Negatives/1974/74-113 Council meeting/R1-06.tif
+  slot sets literal "1974"
+  slot itemKey literal "74-113"
+  slot dcterms:creator literal "J. Kowalski"
+  slot dcterms:date literal "04/03/1974"
+  slot dcterms:identifier literal "74-113"
+  slot dcterms:title literal "Council meeting"
+  set new "1974"
+  owner is runner
+  visibility private
+  itemKey 74-113
+item group:74-118 create
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-01.tif
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-02.tif
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-03.tif
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-04.tif
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-05.tif
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-06.tif
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-07.tif
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-08.tif
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-09.tif
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-10.tif
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-11.tif
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-12.tif
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R2-01.tif
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R2-02.tif
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R2-03.tif
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R2-04.tif
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/contact sheet.jpg
+  row log/74-118#1
+  media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-01.tif
+  media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-02.tif
+  media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-03.tif
+  media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-04.tif
+  media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-05.tif
+  media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-06.tif
+  media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-07.tif
+  media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-08.tif
+  media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-09.tif
+  media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-10.tif
+  media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-11.tif
+  media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-12.tif
+  media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R2-01.tif
+  media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R2-02.tif
+  media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R2-03.tif
+  media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R2-04.tif
+  media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/contact sheet.jpg
+  slot sets literal "1974"
+  slot itemKey literal "74-118"
+  slot dcterms:creator literal "J. Kowalski"
+  slot dcterms:date literal "16/03/1974"
+  slot dcterms:identifier literal "74-118"
+  slot dcterms:title literal "Flood at Ferry Lane"
+  set new "1974"
+  owner is runner
+  visibility private
+  itemKey 74-118
+item group:74-140 create
+  file s1/Negatives/1974/74-140 Café opening/R1-01.tif
+  file s1/Negatives/1974/74-140 Café opening/R1-02.tif
+  file s1/Negatives/1974/74-140 Café opening/R1-03.tif
+  file s1/Negatives/1974/74-140 Café opening/R1-04.tif
+  file s1/Negatives/1974/74-140 Café opening/R1-05.tif
+  row log/47-140#1
+  media file:s1/Negatives/1974/74-140 Café opening/R1-01.tif
+  media file:s1/Negatives/1974/74-140 Café opening/R1-02.tif
+  media file:s1/Negatives/1974/74-140 Café opening/R1-03.tif
+  media file:s1/Negatives/1974/74-140 Café opening/R1-04.tif
+  media file:s1/Negatives/1974/74-140 Café opening/R1-05.tif
+  slot sets literal "1974"
+  slot itemKey literal "74-140"
+  slot dcterms:creator literal "J. Kowalski"
+  slot dcterms:date literal "11/05/1974"
+  slot dcterms:identifier literal "74-140"
+  slot dcterms:title literal "Café opening, Market Street"
+  set new "1974"
+  owner is runner
+  visibility private
+  itemKey 74-140
+item group:74_131 create
+  file s1/Negatives/1974/74_131 Spring show/R1-01.tif
+  file s1/Negatives/1974/74_131 Spring show/R1-02.tif
+  file s1/Negatives/1974/74_131 Spring show/R1-03.tif
+  file s1/Negatives/1974/74_131 Spring show/R1-04.tif
+  file s1/Negatives/1974/74_131 Spring show/R1-05.tif
+  file s1/Negatives/1974/74_131 Spring show/R1-06.tif
+  file s1/Negatives/1974/74_131 Spring show/R1-07.tif
+  row log/74-131#1
+  media file:s1/Negatives/1974/74_131 Spring show/R1-01.tif
+  media file:s1/Negatives/1974/74_131 Spring show/R1-02.tif
+  media file:s1/Negatives/1974/74_131 Spring show/R1-03.tif
+  media file:s1/Negatives/1974/74_131 Spring show/R1-04.tif
+  media file:s1/Negatives/1974/74_131 Spring show/R1-05.tif
+  media file:s1/Negatives/1974/74_131 Spring show/R1-06.tif
+  media file:s1/Negatives/1974/74_131 Spring show/R1-07.tif
+  slot sets literal "1974"
+  slot itemKey literal "74-131"
+  slot dcterms:creator literal "P. Marsh"
+  slot dcterms:date literal "20/04/1974"
+  slot dcterms:identifier literal "74-131"
+  slot dcterms:title literal "Spring show"
+  set new "1974"
+  owner is runner
+  visibility private
+  itemKey 74-131
+item group:75-003 create
+  file s1/Negatives/1975/75-003 Snow on the moor/R1-1.tif
+  file s1/Negatives/1975/75-003 Snow on the moor/R1-2.tif
+  file s1/Negatives/1975/75-003 Snow on the moor/R1-3.tif
+  file s1/Negatives/1975/75-003 Snow on the moor/R1-4.tif
+  file s1/Negatives/1975/75-003 Snow on the moor/R1-5.tif
+  file s1/Negatives/1975/75-003 Snow on the moor/R1-6.tif
+  file s1/Negatives/1975/75-003 Snow on the moor/R1-7.tif
+  file s1/Negatives/1975/75-003 Snow on the moor/R1-8.tif
+  file s1/Negatives/1975/75-003 Snow on the moor/R1-9.tif
+  file s1/Negatives/1975/75-003 Snow on the moor/R1-10.tif
+  file s1/Negatives/1975/75-003 Snow on the moor/R1-11.tif
+  file s1/Negatives/1975/75-003 Snow on the moor/R1-12.tif
+  row log/75-003#1
+  media file:s1/Negatives/1975/75-003 Snow on the moor/R1-1.tif
+  media file:s1/Negatives/1975/75-003 Snow on the moor/R1-2.tif
+  media file:s1/Negatives/1975/75-003 Snow on the moor/R1-3.tif
+  media file:s1/Negatives/1975/75-003 Snow on the moor/R1-4.tif
+  media file:s1/Negatives/1975/75-003 Snow on the moor/R1-5.tif
+  media file:s1/Negatives/1975/75-003 Snow on the moor/R1-6.tif
+  media file:s1/Negatives/1975/75-003 Snow on the moor/R1-7.tif
+  media file:s1/Negatives/1975/75-003 Snow on the moor/R1-8.tif
+  media file:s1/Negatives/1975/75-003 Snow on the moor/R1-9.tif
+  media file:s1/Negatives/1975/75-003 Snow on the moor/R1-10.tif
+  media file:s1/Negatives/1975/75-003 Snow on the moor/R1-11.tif
+  media file:s1/Negatives/1975/75-003 Snow on the moor/R1-12.tif
+  slot sets literal "1975"
+  slot itemKey literal "75-003"
+  slot dcterms:creator literal "P. Marsh"
+  slot dcterms:date literal "10/01/1975"
+  slot dcterms:identifier literal "75-003"
+  slot dcterms:title literal "Snow on the moor"
+  set new "1975"
+  owner is runner
+  visibility private
+  itemKey 75-003
+item group:75-004 create
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R1-01.tif
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R1-02.tif
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R1-03.tif
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R1-04.tif
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R1-05.tif
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R1-06.tif
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R1-07.tif
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R1-08.tif
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R1-09.tif
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R1-10.tif
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R2-01.tif
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R2-02.tif
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R2-03.tif
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R2-04.tif
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R2-05.tif
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R2-06.tif
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R2-07.tif
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R2-08.tif
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R2-09.tif
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R2-10.tif
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R3-01.tif
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R3-02.tif
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R3-03.tif
+  row log/75-004#1
+  media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R1-01.tif
+  media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R1-02.tif
+  media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R1-03.tif
+  media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R1-04.tif
+  media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R1-05.tif
+  media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R1-06.tif
+  media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R1-07.tif
+  media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R1-08.tif
+  media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R1-09.tif
+  media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R1-10.tif
+  media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R2-01.tif
+  media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R2-02.tif
+  media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R2-03.tif
+  media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R2-04.tif
+  media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R2-05.tif
+  media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R2-06.tif
+  media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R2-07.tif
+  media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R2-08.tif
+  media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R2-09.tif
+  media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R2-10.tif
+  media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R3-01.tif
+  media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R3-02.tif
+  media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R3-03.tif
+  slot sets literal "1975"
+  slot itemKey literal "75-004"
+  slot dcterms:creator literal "J. Kowalski"
+  slot dcterms:date literal "11/01/1975"
+  slot dcterms:identifier literal "75-004"
+  slot dcterms:title literal "Ashby United v Thornley"
+  set new "1975"
+  owner is runner
+  visibility private
+  itemKey 75-004
+item group:75-009 create
+  file s1/Negatives/1975/75-009 Dr Okafor's retirement/R1-01.tif
+  file s1/Negatives/1975/75-009 Dr Okafor's retirement/R1-02.tif
+  file s1/Negatives/1975/75-009 Dr Okafor's retirement/R1-03.tif
+  file s1/Negatives/1975/75-009 Dr Okafor's retirement/R1-04.tif
+  file s1/Negatives/1975/75-009 Dr Okafor's retirement/contact sheet.JPG
+  row log/75-009#1
+  media file:s1/Negatives/1975/75-009 Dr Okafor's retirement/R1-01.tif
+  media file:s1/Negatives/1975/75-009 Dr Okafor's retirement/R1-02.tif
+  media file:s1/Negatives/1975/75-009 Dr Okafor's retirement/R1-03.tif
+  media file:s1/Negatives/1975/75-009 Dr Okafor's retirement/R1-04.tif
+  media file:s1/Negatives/1975/75-009 Dr Okafor's retirement/contact sheet.JPG
+  slot sets literal "1975"
+  slot itemKey literal "75-009"
+  slot dcterms:creator literal "P. Marsh"
+  slot dcterms:date literal "24/01/1975"
+  slot dcterms:identifier literal "75-009"
+  slot dcterms:title literal "Dr Okafor’s retirement"
+  set new "1975"
+  owner is runner
+  visibility private
+  itemKey 75-009
+item group:75-021 create
+  file s1/Negatives/1975/75-021 Royal visit/R1-01.tif
+  file s1/Negatives/1975/75-021 Royal visit/R1-02.tif
+  file s1/Negatives/1975/75-021 Royal visit/R1-03.tif
+  file s1/Negatives/1975/75-021 Royal visit/R1-04.tif
+  file s1/Negatives/1975/75-021 Royal visit/R1-05.tif
+  file s1/Negatives/1975/75-021 Royal visit/R1-06.tif
+  file s1/Negatives/1975/75-021 Royal visit/R1-07.tif
+  file s1/Negatives/1975/75-021 Royal visit/R1-08.tif
+  file s1/Negatives/1975/75-021 Royal visit/R1-09.tif
+  media file:s1/Negatives/1975/75-021 Royal visit/R1-01.tif
+  media file:s1/Negatives/1975/75-021 Royal visit/R1-02.tif
+  media file:s1/Negatives/1975/75-021 Royal visit/R1-03.tif
+  media file:s1/Negatives/1975/75-021 Royal visit/R1-04.tif
+  media file:s1/Negatives/1975/75-021 Royal visit/R1-05.tif
+  media file:s1/Negatives/1975/75-021 Royal visit/R1-06.tif
+  media file:s1/Negatives/1975/75-021 Royal visit/R1-07.tif
+  media file:s1/Negatives/1975/75-021 Royal visit/R1-08.tif
+  media file:s1/Negatives/1975/75-021 Royal visit/R1-09.tif
+  slot sets literal "1975"
+  slot itemKey literal "75-021"
+  slot dcterms:identifier literal "75-021"
+  slot dcterms:title literal "Royal visit"
+  set new "1975"
+  owner is runner
+  visibility private
+  itemKey 75-021
+item row:log/74-110#1 left flag no-file
+  row log/74-110#1
+  slot itemKey literal "74-110"
+  slot dcterms:creator literal "P. Marsh"
+  slot dcterms:date literal "25/02/1974"
+  slot dcterms:identifier literal "74-110"
+  slot dcterms:title literal "Ashby Rotary dinner"
+  owner is runner
+  visibility private
+  itemKey 74-110
+item row:log/74-115#1 left flag no-file
+  row log/74-115#1
+  slot itemKey literal "74-115"
+  slot dcterms:creator literal "P. Marsh"
+  slot dcterms:date literal "08/03/1974"
+  slot dcterms:identifier literal "74-115"
+  slot dcterms:title literal "Lambing at Hill Farm"
+  owner is runner
+  visibility private
+  itemKey 74-115
+item row:log/75-012#1 left flag no-file
+  row log/75-012#1
+  slot itemKey literal "75-012"
+  slot dcterms:creator literal "J. Kowalski"
+  slot dcterms:date literal "01/02/1975"
+  slot dcterms:identifier literal "75-012"
+  slot dcterms:title literal "Ashby Players, \"The Rivals\""
+  owner is runner
+  visibility private
+  itemKey 75-012
+media file:s1/Negatives/1974/74-112 Mill fire/R1-01.tif create
+  file s1/Negatives/1974/74-112 Mill fire/R1-01.tif
+  parent group:74-112
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-112 Mill fire/R1-02.tif create
+  file s1/Negatives/1974/74-112 Mill fire/R1-02.tif
+  parent group:74-112
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-112 Mill fire/R1-03.tif create
+  file s1/Negatives/1974/74-112 Mill fire/R1-03.tif
+  parent group:74-112
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-112 Mill fire/R1-04.tif create
+  file s1/Negatives/1974/74-112 Mill fire/R1-04.tif
+  parent group:74-112
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-112 Mill fire/R1-05.tif create
+  file s1/Negatives/1974/74-112 Mill fire/R1-05.tif
+  parent group:74-112
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-112 Mill fire/R1-06.tif create
+  file s1/Negatives/1974/74-112 Mill fire/R1-06.tif
+  parent group:74-112
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-112 Mill fire/R1-07.tif create
+  file s1/Negatives/1974/74-112 Mill fire/R1-07.tif
+  parent group:74-112
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-112 Mill fire/R1-08.tif create
+  file s1/Negatives/1974/74-112 Mill fire/R1-08.tif
+  parent group:74-112
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-112 Mill fire/R2-01.tif create
+  file s1/Negatives/1974/74-112 Mill fire/R2-01.tif
+  parent group:74-112
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-112 Mill fire/R2-02.tif create
+  file s1/Negatives/1974/74-112 Mill fire/R2-02.tif
+  parent group:74-112
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-112 Mill fire/R2-03.tif create
+  file s1/Negatives/1974/74-112 Mill fire/R2-03.tif
+  parent group:74-112
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-112 Mill fire/R2-04.tif create
+  file s1/Negatives/1974/74-112 Mill fire/R2-04.tif
+  parent group:74-112
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-112 Mill fire/R2-05.tif create
+  file s1/Negatives/1974/74-112 Mill fire/R2-05.tif
+  parent group:74-112
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-112 Mill fire/contact sheet.jpg create
+  file s1/Negatives/1974/74-112 Mill fire/contact sheet.jpg
+  parent group:74-112
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-113 Council meeting/R1-01.tif create
+  file s1/Negatives/1974/74-113 Council meeting/R1-01.tif
+  parent group:74-113
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-113 Council meeting/R1-02.tif create
+  file s1/Negatives/1974/74-113 Council meeting/R1-02.tif
+  parent group:74-113
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-113 Council meeting/R1-03.tif create
+  file s1/Negatives/1974/74-113 Council meeting/R1-03.tif
+  parent group:74-113
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-113 Council meeting/R1-04.tif create
+  file s1/Negatives/1974/74-113 Council meeting/R1-04.tif
+  parent group:74-113
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-113 Council meeting/R1-05.tif create
+  file s1/Negatives/1974/74-113 Council meeting/R1-05.tif
+  parent group:74-113
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-113 Council meeting/R1-06.tif create
+  file s1/Negatives/1974/74-113 Council meeting/R1-06.tif
+  parent group:74-113
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-01.tif create
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-01.tif
+  parent group:74-118
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-02.tif create
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-02.tif
+  parent group:74-118
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-03.tif create
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-03.tif
+  parent group:74-118
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-04.tif create
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-04.tif
+  parent group:74-118
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-05.tif create
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-05.tif
+  parent group:74-118
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-06.tif create
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-06.tif
+  parent group:74-118
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-07.tif create
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-07.tif
+  parent group:74-118
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-08.tif create
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-08.tif
+  parent group:74-118
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-09.tif create
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-09.tif
+  parent group:74-118
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-10.tif create
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-10.tif
+  parent group:74-118
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-11.tif create
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-11.tif
+  parent group:74-118
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-12.tif create
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R1-12.tif
+  parent group:74-118
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R2-01.tif create
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R2-01.tif
+  parent group:74-118
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R2-02.tif create
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R2-02.tif
+  parent group:74-118
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R2-03.tif create
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R2-03.tif
+  parent group:74-118
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/R2-04.tif create
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/R2-04.tif
+  parent group:74-118
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-118 Flood at Ferry Lane/contact sheet.jpg create
+  file s1/Negatives/1974/74-118 Flood at Ferry Lane/contact sheet.jpg
+  parent group:74-118
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-140 Café opening/R1-01.tif create
+  file s1/Negatives/1974/74-140 Café opening/R1-01.tif
+  parent group:74-140
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-140 Café opening/R1-02.tif create
+  file s1/Negatives/1974/74-140 Café opening/R1-02.tif
+  parent group:74-140
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-140 Café opening/R1-03.tif create
+  file s1/Negatives/1974/74-140 Café opening/R1-03.tif
+  parent group:74-140
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-140 Café opening/R1-04.tif create
+  file s1/Negatives/1974/74-140 Café opening/R1-04.tif
+  parent group:74-140
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74-140 Café opening/R1-05.tif create
+  file s1/Negatives/1974/74-140 Café opening/R1-05.tif
+  parent group:74-140
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74_131 Spring show/R1-01.tif create
+  file s1/Negatives/1974/74_131 Spring show/R1-01.tif
+  parent group:74_131
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74_131 Spring show/R1-02.tif create
+  file s1/Negatives/1974/74_131 Spring show/R1-02.tif
+  parent group:74_131
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74_131 Spring show/R1-03.tif create
+  file s1/Negatives/1974/74_131 Spring show/R1-03.tif
+  parent group:74_131
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74_131 Spring show/R1-04.tif create
+  file s1/Negatives/1974/74_131 Spring show/R1-04.tif
+  parent group:74_131
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74_131 Spring show/R1-05.tif create
+  file s1/Negatives/1974/74_131 Spring show/R1-05.tif
+  parent group:74_131
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74_131 Spring show/R1-06.tif create
+  file s1/Negatives/1974/74_131 Spring show/R1-06.tif
+  parent group:74_131
+  owner is runner
+  visibility private
+media file:s1/Negatives/1974/74_131 Spring show/R1-07.tif create
+  file s1/Negatives/1974/74_131 Spring show/R1-07.tif
+  parent group:74_131
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-003 Snow on the moor/R1-1.tif create
+  file s1/Negatives/1975/75-003 Snow on the moor/R1-1.tif
+  parent group:75-003
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-003 Snow on the moor/R1-10.tif create
+  file s1/Negatives/1975/75-003 Snow on the moor/R1-10.tif
+  parent group:75-003
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-003 Snow on the moor/R1-11.tif create
+  file s1/Negatives/1975/75-003 Snow on the moor/R1-11.tif
+  parent group:75-003
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-003 Snow on the moor/R1-12.tif create
+  file s1/Negatives/1975/75-003 Snow on the moor/R1-12.tif
+  parent group:75-003
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-003 Snow on the moor/R1-2.tif create
+  file s1/Negatives/1975/75-003 Snow on the moor/R1-2.tif
+  parent group:75-003
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-003 Snow on the moor/R1-3.tif create
+  file s1/Negatives/1975/75-003 Snow on the moor/R1-3.tif
+  parent group:75-003
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-003 Snow on the moor/R1-4.tif create
+  file s1/Negatives/1975/75-003 Snow on the moor/R1-4.tif
+  parent group:75-003
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-003 Snow on the moor/R1-5.tif create
+  file s1/Negatives/1975/75-003 Snow on the moor/R1-5.tif
+  parent group:75-003
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-003 Snow on the moor/R1-6.tif create
+  file s1/Negatives/1975/75-003 Snow on the moor/R1-6.tif
+  parent group:75-003
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-003 Snow on the moor/R1-7.tif create
+  file s1/Negatives/1975/75-003 Snow on the moor/R1-7.tif
+  parent group:75-003
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-003 Snow on the moor/R1-8.tif create
+  file s1/Negatives/1975/75-003 Snow on the moor/R1-8.tif
+  parent group:75-003
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-003 Snow on the moor/R1-9.tif create
+  file s1/Negatives/1975/75-003 Snow on the moor/R1-9.tif
+  parent group:75-003
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R1-01.tif create
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R1-01.tif
+  parent group:75-004
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R1-02.tif create
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R1-02.tif
+  parent group:75-004
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R1-03.tif create
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R1-03.tif
+  parent group:75-004
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R1-04.tif create
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R1-04.tif
+  parent group:75-004
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R1-05.tif create
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R1-05.tif
+  parent group:75-004
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R1-06.tif create
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R1-06.tif
+  parent group:75-004
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R1-07.tif create
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R1-07.tif
+  parent group:75-004
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R1-08.tif create
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R1-08.tif
+  parent group:75-004
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R1-09.tif create
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R1-09.tif
+  parent group:75-004
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R1-10.tif create
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R1-10.tif
+  parent group:75-004
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R2-01.tif create
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R2-01.tif
+  parent group:75-004
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R2-02.tif create
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R2-02.tif
+  parent group:75-004
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R2-03.tif create
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R2-03.tif
+  parent group:75-004
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R2-04.tif create
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R2-04.tif
+  parent group:75-004
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R2-05.tif create
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R2-05.tif
+  parent group:75-004
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R2-06.tif create
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R2-06.tif
+  parent group:75-004
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R2-07.tif create
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R2-07.tif
+  parent group:75-004
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R2-08.tif create
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R2-08.tif
+  parent group:75-004
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R2-09.tif create
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R2-09.tif
+  parent group:75-004
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R2-10.tif create
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R2-10.tif
+  parent group:75-004
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R3-01.tif create
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R3-01.tif
+  parent group:75-004
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R3-02.tif create
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R3-02.tif
+  parent group:75-004
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-004 Ashby United v Thornley/R3-03.tif create
+  file s1/Negatives/1975/75-004 Ashby United v Thornley/R3-03.tif
+  parent group:75-004
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-009 Dr Okafor's retirement/R1-01.tif create
+  file s1/Negatives/1975/75-009 Dr Okafor's retirement/R1-01.tif
+  parent group:75-009
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-009 Dr Okafor's retirement/R1-02.tif create
+  file s1/Negatives/1975/75-009 Dr Okafor's retirement/R1-02.tif
+  parent group:75-009
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-009 Dr Okafor's retirement/R1-03.tif create
+  file s1/Negatives/1975/75-009 Dr Okafor's retirement/R1-03.tif
+  parent group:75-009
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-009 Dr Okafor's retirement/R1-04.tif create
+  file s1/Negatives/1975/75-009 Dr Okafor's retirement/R1-04.tif
+  parent group:75-009
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-009 Dr Okafor's retirement/contact sheet.JPG create
+  file s1/Negatives/1975/75-009 Dr Okafor's retirement/contact sheet.JPG
+  parent group:75-009
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-021 Royal visit/R1-01.tif create
+  file s1/Negatives/1975/75-021 Royal visit/R1-01.tif
+  parent group:75-021
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-021 Royal visit/R1-02.tif create
+  file s1/Negatives/1975/75-021 Royal visit/R1-02.tif
+  parent group:75-021
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-021 Royal visit/R1-03.tif create
+  file s1/Negatives/1975/75-021 Royal visit/R1-03.tif
+  parent group:75-021
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-021 Royal visit/R1-04.tif create
+  file s1/Negatives/1975/75-021 Royal visit/R1-04.tif
+  parent group:75-021
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-021 Royal visit/R1-05.tif create
+  file s1/Negatives/1975/75-021 Royal visit/R1-05.tif
+  parent group:75-021
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-021 Royal visit/R1-06.tif create
+  file s1/Negatives/1975/75-021 Royal visit/R1-06.tif
+  parent group:75-021
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-021 Royal visit/R1-07.tif create
+  file s1/Negatives/1975/75-021 Royal visit/R1-07.tif
+  parent group:75-021
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-021 Royal visit/R1-08.tif create
+  file s1/Negatives/1975/75-021 Royal visit/R1-08.tif
+  parent group:75-021
+  owner is runner
+  visibility private
+media file:s1/Negatives/1975/75-021 Royal visit/R1-09.tif create
+  file s1/Negatives/1975/75-021 Royal visit/R1-09.tif
+  parent group:75-021
+  owner is runner
+  visibility private
+flag date-form keep 11
+flag no-file leave 3
+flag not-media leave 1

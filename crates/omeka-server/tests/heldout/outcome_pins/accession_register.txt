@@ -1,0 +1,563 @@
+item group:2019.04.5 create
+  file s1/Photography/2019-06 studio/2019.04.5_01.JPG
+  row register/2019.4.5#1
+  media file:s1/Photography/2019-06 studio/2019.04.5_01.JPG
+  slot sets literal "Costume"
+  slot itemKey literal "2019.4.5"
+  slot dcterms:date literal "c. 1905"
+  slot dcterms:description literal "Hat pin with a blue glass head"
+  slot dcterms:identifier literal "2019.4.5"
+  slot dcterms:medium literal "steel, glass"
+  slot dcterms:provenance literal "Gift of Mrs E. Hartley"
+  slot dcterms:title literal "Hat pin"
+  set new "Costume"
+  owner is runner
+  visibility private
+  itemKey 2019.4.5
+item group:2019.11.1 create
+  file s1/Photography/2021-02 reshoot/2019.11.1_01.jpg
+  file s1/Photography/2021-02 reshoot/2019.11.1_02.jpg
+  row register/2019.11.1#1
+  media file:s1/Photography/2021-02 reshoot/2019.11.1_01.jpg
+  media file:s1/Photography/2021-02 reshoot/2019.11.1_02.jpg
+  slot sets literal "Transport"
+  slot itemKey literal "2019.11.1"
+  slot dcterms:date literal "c. 1950"
+  slot dcterms:description literal "Railway hand lamp from Marlow Valley station"
+  slot dcterms:identifier literal "2019.11.1"
+  slot dcterms:medium literal "steel, glass"
+  slot dcterms:provenance literal "Transferred from the Marlow Valley Railway Society"
+  slot dcterms:title literal "Hand lamp"
+  set new "Transport"
+  owner is runner
+  visibility private
+  itemKey 2019.11.1
+item group:2019.11.3 create
+  file s1/Photography/2021-02 reshoot/2019.11.3_01.jpg
+  row register/2019.11.3#1
+  media file:s1/Photography/2021-02 reshoot/2019.11.3_01.jpg
+  slot sets literal "Transport"
+  slot itemKey literal "2019.11.3"
+  slot dcterms:creator literal "Smith & Sons"
+  slot dcterms:date literal "1938"
+  slot dcterms:description literal "Wall clock from the booking office"
+  slot dcterms:identifier literal "2019.11.3"
+  slot dcterms:medium literal "oak, brass"
+  slot dcterms:provenance literal "Transferred from the Marlow Valley Railway Society"
+  slot dcterms:title literal "Station clock"
+  set new "Transport"
+  owner is runner
+  visibility private
+  itemKey 2019.11.3
+item group:2019.4.1 create
+  file s1/Photography/2019-06 studio/2019.4.1_01.JPG
+  file s1/Photography/2019-06 studio/2019.4.1_02.JPG
+  file s1/Photography/2019-06 studio/2019.4.1_03.JPG
+  file s1/Photography/2021-02 reshoot/2019.4.1_01.jpg
+  row register/2019.4.1#1
+  media file:s1/Photography/2019-06 studio/2019.4.1_01.JPG
+  media file:s1/Photography/2019-06 studio/2019.4.1_02.JPG
+  media file:s1/Photography/2019-06 studio/2019.4.1_03.JPG
+  media file:s1/Photography/2021-02 reshoot/2019.4.1_01.jpg
+  slot sets literal "Costume"
+  slot itemKey literal "2019.4.1"
+  slot dcterms:date literal "c. 1885"
+  slot dcterms:description literal "Cotton lawn christening gown with lace insertions"
+  slot dcterms:identifier literal "2019.4.1"
+  slot dcterms:medium literal "cotton, lace"
+  slot dcterms:provenance literal "Gift of Mrs E. Hartley"
+  slot dcterms:title literal "Christening gown"
+  set new "Costume"
+  owner is runner
+  visibility private
+  itemKey 2019.4.1
+item group:2019.4.2 create
+  file s1/Photography/2019-06 studio/2019.4.2a-b_01.JPG
+  file s1/Photography/2019-06 studio/2019.4.2a_01.JPG
+  file s1/Photography/2019-06 studio/2019.4.2b_01.JPG
+  row register/2019.4.2a-b#1
+  media file:s1/Photography/2019-06 studio/2019.4.2a-b_01.JPG
+  media file:s1/Photography/2019-06 studio/2019.4.2a_01.JPG
+  media file:s1/Photography/2019-06 studio/2019.4.2b_01.JPG
+  slot sets literal "Domestic"
+  slot itemKey literal "2019.4.2a-b"
+  slot dcterms:date literal "c. 1910"
+  slot dcterms:description literal "Brown glazed earthenware teapot with its lid"
+  slot dcterms:identifier literal "2019.4.2a-b"
+  slot dcterms:medium literal "earthenware"
+  slot dcterms:provenance literal "Gift of Mrs E. Hartley"
+  slot dcterms:title literal "Teapot and lid"
+  set new "Domestic"
+  owner is runner
+  visibility private
+  itemKey 2019.4.2a-b
+item group:2019.4.3 create
+  file s1/Photography/2019-06 studio/2019.4.3_01.JPG
+  file s1/Photography/2021-02 reshoot/2019.4.3_01.jpg
+  file s1/Photography/2021-02 reshoot/2019.4.3_02.jpg
+  row register/2019.4.3#1
+  media file:s1/Photography/2019-06 studio/2019.4.3_01.JPG
+  media file:s1/Photography/2021-02 reshoot/2019.4.3_01.jpg
+  media file:s1/Photography/2021-02 reshoot/2019.4.3_02.jpg
+  slot sets literal "Costume"
+  slot itemKey literal "2019.4.3"
+  slot dcterms:creator literal "Ann Hartley"
+  slot dcterms:date literal "1842"
+  slot dcterms:description literal "Alphabet sampler worked by Ann Hartley aged 11"
+  slot dcterms:identifier literal "2019.4.3"
+  slot dcterms:medium literal "linen, silk"
+  slot dcterms:provenance literal "Gift of Mrs E. Hartley"
+  slot dcterms:title literal "Sampler"
+  set new "Costume"
+  owner is runner
+  visibility private
+  itemKey 2019.4.3
+item group:2020.2.1 create
+  file s1/Photography/2021-02 reshoot/2020.2.1_01.jpg
+  file s1/Photography/2021-02 reshoot/2020.2.1_02.jpg
+  row register/2020.2.1#1
+  media file:s1/Photography/2021-02 reshoot/2020.2.1_01.jpg
+  media file:s1/Photography/2021-02 reshoot/2020.2.1_02.jpg
+  slot sets literal "Documents"
+  slot itemKey literal "2020.2.1"
+  slot dcterms:creator literal "Ministry of Food"
+  slot dcterms:date literal "1943"
+  slot dcterms:description literal "Ration book issued to the Singh household"
+  slot dcterms:identifier literal "2020.2.1"
+  slot dcterms:medium literal "paper"
+  slot dcterms:provenance literal "Gift of Mr R. Singh"
+  slot dcterms:title literal "Ration book"
+  set new "Documents"
+  owner is runner
+  visibility private
+  itemKey 2020.2.1
+item group:2020.2.3 create
+  file s1/Photography/2021-02 reshoot/2020.2.3_01.jpg
+  row register/2020.2.3#1
+  media file:s1/Photography/2021-02 reshoot/2020.2.3_01.jpg
+  slot sets literal "Documents"
+  slot itemKey literal "2020.2.3"
+  slot dcterms:date literal "1940"
+  slot dcterms:description literal "National Registration identity card"
+  slot dcterms:identifier literal "2020.2.3"
+  slot dcterms:medium literal "card"
+  slot dcterms:provenance literal "Gift of Mr R. Singh"
+  slot dcterms:title literal "Identity card"
+  set new "Documents"
+  owner is runner
+  visibility private
+  itemKey 2020.2.3
+item group:2021.1.1 create
+  file s1/Photography/2021-02 reshoot/2021.1.1_01.jpg
+  file s1/Photography/2021-02 reshoot/2O21.1.1_02.jpg
+  row register/2021.1.1#1
+  media file:s1/Photography/2021-02 reshoot/2021.1.1_01.jpg
+  media file:s1/Photography/2021-02 reshoot/2O21.1.1_02.jpg
+  slot sets literal "Toys"
+  slot itemKey literal "2021.1.1"
+  slot dcterms:date literal "c. 1920"
+  slot dcterms:description literal "Wooden horse on wheels, painted"
+  slot dcterms:identifier literal "2021.1.1"
+  slot dcterms:medium literal "wood, paint"
+  slot dcterms:provenance literal "Gift of the Marlow Women's Institute"
+  slot dcterms:title literal "Toy horse"
+  set new "Toys"
+  owner is runner
+  visibility private
+  itemKey 2021.1.1
+item group:2021.1.2 create
+  file s1/Photography/2021-02 reshoot/2021.1.2a-b_01.jpg
+  file s1/Photography/2021-02 reshoot/2021.1.2a_01.jpg
+  file s1/Photography/2021-02 reshoot/2021.1.2b_01.jpg
+  row register/2021.1.2a-b#1
+  media file:s1/Photography/2021-02 reshoot/2021.1.2a-b_01.jpg
+  media file:s1/Photography/2021-02 reshoot/2021.1.2a_01.jpg
+  media file:s1/Photography/2021-02 reshoot/2021.1.2b_01.jpg
+  slot sets literal "Toys"
+  slot itemKey literal "2021.1.2a-b"
+  slot dcterms:date literal "c. 1935"
+  slot dcterms:description literal "Composition doll in a rocking cradle"
+  slot dcterms:identifier literal "2021.1.2a-b"
+  slot dcterms:medium literal "composition, wood"
+  slot dcterms:provenance literal "Gift of the Marlow Women's Institute"
+  slot dcterms:title literal "Doll and cradle"
+  set new "Toys"
+  owner is runner
+  visibility private
+  itemKey 2021.1.2a-b
+item group:2021.1.3 create
+  file s1/Photography/2021-02 reshoot/2021.1.3_01.jpg
+  file s1/Photography/2021-02 reshoot/2021.1.3_02.jpg
+  row register/2021.1.3#1
+  media file:s1/Photography/2021-02 reshoot/2021.1.3_01.jpg
+  media file:s1/Photography/2021-02 reshoot/2021.1.3_02.jpg
+  slot sets literal "toys"
+  slot itemKey literal "2021.1.3"
+  slot dcterms:description literal "Turned top with its whip"
+  slot dcterms:identifier literal "2021.1.3"
+  slot dcterms:medium literal "wood"
+  slot dcterms:provenance literal "Gift of the Marlow Women's Institute"
+  slot dcterms:title literal "Spinning top"
+  set new "Toys"
+  owner is runner
+  visibility private
+  itemKey 2021.1.3
+item group:2023.1.1 create
+  file s1/Photography/2023 new accessions/2023.1.1_01.jpg
+  file s1/Photography/2023 new accessions/2023.1.1_02.jpg
+  media file:s1/Photography/2023 new accessions/2023.1.1_01.jpg
+  media file:s1/Photography/2023 new accessions/2023.1.1_02.jpg
+  slot itemKey literal "2023.1.1"
+  slot dcterms:identifier literal "2023.1.1"
+  slot dcterms:title literal "2023.1.1"
+  owner is runner
+  visibility private
+  itemKey 2023.1.1
+item group:2023.1.2 create
+  file s1/Photography/2023 new accessions/2023.1.2_01.jpg
+  media file:s1/Photography/2023 new accessions/2023.1.2_01.jpg
+  slot itemKey literal "2023.1.2"
+  slot dcterms:identifier literal "2023.1.2"
+  slot dcterms:title literal "2023.1.2"
+  owner is runner
+  visibility private
+  itemKey 2023.1.2
+item group:78.12.3 create
+  file s1/Photography/2019-06 studio/78.12.3_01.JPG
+  file s1/Photography/2019-06 studio/78.12.3_02.JPG
+  row register/78.12.3#1
+  media file:s1/Photography/2019-06 studio/78.12.3_01.JPG
+  media file:s1/Photography/2019-06 studio/78.12.3_02.JPG
+  slot sets literal "Domestic"
+  slot itemKey literal "78.12.3"
+  slot dcterms:date literal "c. 1900"
+  slot dcterms:description literal "Wooden plunger churn with iron bands"
+  slot dcterms:identifier literal "78.12.3"
+  slot dcterms:medium literal "oak, iron"
+  slot dcterms:provenance literal "Gift of Mr J. Pollard"
+  slot dcterms:title literal "Butter churn"
+  set new "Domestic"
+  owner is runner
+  visibility private
+  itemKey 78.12.3
+item group:85.3.1 create
+  file s1/Photography/2019-06 studio/85.3.1_01.JPG
+  row register/85.3.1#1
+  media file:s1/Photography/2019-06 studio/85.3.1_01.JPG
+  slot sets literal "Agriculture"
+  slot itemKey literal "85.3.1"
+  slot dcterms:date literal "1920s"
+  slot dcterms:description literal "Hazel crook with a carved horn head"
+  slot dcterms:identifier literal "85.3.1"
+  slot dcterms:medium literal "hazel, horn"
+  slot dcterms:provenance literal "Gift of the Ellis family"
+  slot dcterms:title literal "Shepherd's crook"
+  set new "Agriculture"
+  owner is runner
+  visibility private
+  itemKey 85.3.1
+item group:85.3.2 left decision 0
+  file s1/Photography/2019-06 studio/85.3.2_01.JPG
+  row register/85.3.2#1
+  slot sets literal "Agriculture"
+  slot itemKey literal "85.3.2"
+  slot dcterms:creator literal "Burgon & Ball"
+  slot dcterms:date literal "c. 1930"
+  slot dcterms:description literal "Hand shears, one blade broken"
+  slot dcterms:identifier literal "85.3.2"
+  slot dcterms:medium literal "steel"
+  slot dcterms:provenance literal "Gift of the Ellis family"
+  slot dcterms:title literal "Sheep shears"
+  set new "Agriculture"
+  owner is runner
+  visibility private
+  itemKey 85.3.2
+item row:register/2019.11.2#1 create
+  row register/2019.11.2#1
+  slot sets literal "Transport"
+  slot itemKey literal "2019.11.2"
+  slot dcterms:description literal "Ticket nipper used by the station staff"
+  slot dcterms:identifier literal "2019.11.2"
+  slot dcterms:medium literal "steel"
+  slot dcterms:provenance literal "Transferred from the Marlow Valley Railway Society"
+  slot dcterms:title literal "Ticket punch"
+  set new "Transport"
+  owner is runner
+  visibility private
+  itemKey 2019.11.2
+item row:register/2019.4.4#1 create
+  row register/2019.4.4#1
+  slot sets literal "Photographs"
+  slot itemKey literal "2019.4.4"
+  slot dcterms:date literal "1900-1915"
+  slot dcterms:description literal "Family album of cabinet cards and snapshots"
+  slot dcterms:identifier literal "2019.4.4"
+  slot dcterms:medium literal "leather, card"
+  slot dcterms:provenance literal "Gift of Mrs E. Hartley"
+  slot dcterms:title literal "Photograph album"
+  set new "Photographs"
+  owner is runner
+  visibility private
+  itemKey 2019.4.4
+item row:register/2020.2.2#1 create
+  row register/2020.2.2#1
+  slot itemKey literal "2020.2.2"
+  slot dcterms:date literal "1939"
+  slot dcterms:description literal "Civilian respirator in its card box"
+  slot dcterms:identifier literal "2020.2.2"
+  slot dcterms:medium literal "rubber, card"
+  slot dcterms:provenance literal "Gift of Mr R. Singh"
+  slot dcterms:title literal "Gas mask and case"
+  owner is runner
+  visibility private
+  itemKey 2020.2.2
+item row:register/2022.5.1#1 create
+  row register/2022.5.1#1
+  slot sets literal "Domestic"
+  slot itemKey literal "2022.5.1"
+  slot dcterms:creator literal "Marlow Valley Dairy"
+  slot dcterms:date literal "c. 1960"
+  slot dcterms:description literal "Pint bottle of the Marlow Valley Dairy"
+  slot dcterms:identifier literal "2022.5.1"
+  slot dcterms:medium literal "glass"
+  slot dcterms:provenance literal "Found in the collection, 2022"
+  slot dcterms:title literal "Milk bottle"
+  set new "Domestic"
+  owner is runner
+  visibility private
+  itemKey 2022.5.1
+item row:register/78.12.4#1 create
+  row register/78.12.4#1
+  slot sets literal "Domestic"
+  slot itemKey literal "78.12.4"
+  slot dcterms:creator literal "Kenrick"
+  slot dcterms:date literal "c. 1890"
+  slot dcterms:description literal "Sad iron with a cast handle"
+  slot dcterms:identifier literal "78.12.4"
+  slot dcterms:medium literal "cast iron"
+  slot dcterms:provenance literal "Gift of Mr J. Pollard"
+  slot dcterms:title literal "Flat iron"
+  set new "Domestic"
+  owner is runner
+  visibility private
+  itemKey 78.12.4
+media file:s1/Photography/2019-06 studio/2019.04.5_01.JPG create
+  file s1/Photography/2019-06 studio/2019.04.5_01.JPG
+  parent group:2019.04.5
+  slot mediaOrder literal "Photography/2019-06 studio/2019.04.5_01.JPG"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2019-06 studio/2019.04.5_01.JPG
+media file:s1/Photography/2019-06 studio/2019.4.1_01.JPG create
+  file s1/Photography/2019-06 studio/2019.4.1_01.JPG
+  parent group:2019.4.1
+  slot mediaOrder literal "Photography/2019-06 studio/2019.4.1_01.JPG"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2019-06 studio/2019.4.1_01.JPG
+media file:s1/Photography/2019-06 studio/2019.4.1_02.JPG create
+  file s1/Photography/2019-06 studio/2019.4.1_02.JPG
+  parent group:2019.4.1
+  slot mediaOrder literal "Photography/2019-06 studio/2019.4.1_02.JPG"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2019-06 studio/2019.4.1_02.JPG
+media file:s1/Photography/2019-06 studio/2019.4.1_03.JPG create
+  file s1/Photography/2019-06 studio/2019.4.1_03.JPG
+  parent group:2019.4.1
+  slot mediaOrder literal "Photography/2019-06 studio/2019.4.1_03.JPG"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2019-06 studio/2019.4.1_03.JPG
+media file:s1/Photography/2019-06 studio/2019.4.2a-b_01.JPG create
+  file s1/Photography/2019-06 studio/2019.4.2a-b_01.JPG
+  parent group:2019.4.2
+  slot mediaOrder literal "Photography/2019-06 studio/2019.4.2a-b_01.JPG"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2019-06 studio/2019.4.2a-b_01.JPG
+media file:s1/Photography/2019-06 studio/2019.4.2a_01.JPG create
+  file s1/Photography/2019-06 studio/2019.4.2a_01.JPG
+  parent group:2019.4.2
+  slot mediaOrder literal "Photography/2019-06 studio/2019.4.2a_01.JPG"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2019-06 studio/2019.4.2a_01.JPG
+media file:s1/Photography/2019-06 studio/2019.4.2b_01.JPG create
+  file s1/Photography/2019-06 studio/2019.4.2b_01.JPG
+  parent group:2019.4.2
+  slot mediaOrder literal "Photography/2019-06 studio/2019.4.2b_01.JPG"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2019-06 studio/2019.4.2b_01.JPG
+media file:s1/Photography/2019-06 studio/2019.4.3_01.JPG create
+  file s1/Photography/2019-06 studio/2019.4.3_01.JPG
+  parent group:2019.4.3
+  slot mediaOrder literal "Photography/2019-06 studio/2019.4.3_01.JPG"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2019-06 studio/2019.4.3_01.JPG
+media file:s1/Photography/2019-06 studio/78.12.3_01.JPG create
+  file s1/Photography/2019-06 studio/78.12.3_01.JPG
+  parent group:78.12.3
+  slot mediaOrder literal "Photography/2019-06 studio/78.12.3_01.JPG"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2019-06 studio/78.12.3_01.JPG
+media file:s1/Photography/2019-06 studio/78.12.3_02.JPG create
+  file s1/Photography/2019-06 studio/78.12.3_02.JPG
+  parent group:78.12.3
+  slot mediaOrder literal "Photography/2019-06 studio/78.12.3_02.JPG"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2019-06 studio/78.12.3_02.JPG
+media file:s1/Photography/2019-06 studio/85.3.1_01.JPG create
+  file s1/Photography/2019-06 studio/85.3.1_01.JPG
+  parent group:85.3.1
+  slot mediaOrder literal "Photography/2019-06 studio/85.3.1_01.JPG"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2019-06 studio/85.3.1_01.JPG
+media file:s1/Photography/2019-06 studio/85.3.2_01.JPG left parent
+  file s1/Photography/2019-06 studio/85.3.2_01.JPG
+  parent group:85.3.2
+  slot mediaOrder literal "Photography/2019-06 studio/85.3.2_01.JPG"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2019-06 studio/85.3.2_01.JPG
+media file:s1/Photography/2021-02 reshoot/2019.11.1_01.jpg create
+  file s1/Photography/2021-02 reshoot/2019.11.1_01.jpg
+  parent group:2019.11.1
+  slot mediaOrder literal "Photography/2021-02 reshoot/2019.11.1_01.jpg"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2021-02 reshoot/2019.11.1_01.jpg
+media file:s1/Photography/2021-02 reshoot/2019.11.1_02.jpg create
+  file s1/Photography/2021-02 reshoot/2019.11.1_02.jpg
+  parent group:2019.11.1
+  slot mediaOrder literal "Photography/2021-02 reshoot/2019.11.1_02.jpg"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2021-02 reshoot/2019.11.1_02.jpg
+media file:s1/Photography/2021-02 reshoot/2019.11.3_01.jpg create
+  file s1/Photography/2021-02 reshoot/2019.11.3_01.jpg
+  parent group:2019.11.3
+  slot mediaOrder literal "Photography/2021-02 reshoot/2019.11.3_01.jpg"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2021-02 reshoot/2019.11.3_01.jpg
+media file:s1/Photography/2021-02 reshoot/2019.4.1_01.jpg create
+  file s1/Photography/2021-02 reshoot/2019.4.1_01.jpg
+  parent group:2019.4.1
+  slot mediaOrder literal "Photography/2021-02 reshoot/2019.4.1_01.jpg"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2021-02 reshoot/2019.4.1_01.jpg
+media file:s1/Photography/2021-02 reshoot/2019.4.3_01.jpg create
+  file s1/Photography/2021-02 reshoot/2019.4.3_01.jpg
+  parent group:2019.4.3
+  slot mediaOrder literal "Photography/2021-02 reshoot/2019.4.3_01.jpg"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2021-02 reshoot/2019.4.3_01.jpg
+media file:s1/Photography/2021-02 reshoot/2019.4.3_02.jpg create
+  file s1/Photography/2021-02 reshoot/2019.4.3_02.jpg
+  parent group:2019.4.3
+  slot mediaOrder literal "Photography/2021-02 reshoot/2019.4.3_02.jpg"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2021-02 reshoot/2019.4.3_02.jpg
+media file:s1/Photography/2021-02 reshoot/2020.2.1_01.jpg create
+  file s1/Photography/2021-02 reshoot/2020.2.1_01.jpg
+  parent group:2020.2.1
+  slot mediaOrder literal "Photography/2021-02 reshoot/2020.2.1_01.jpg"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2021-02 reshoot/2020.2.1_01.jpg
+media file:s1/Photography/2021-02 reshoot/2020.2.1_02.jpg create
+  file s1/Photography/2021-02 reshoot/2020.2.1_02.jpg
+  parent group:2020.2.1
+  slot mediaOrder literal "Photography/2021-02 reshoot/2020.2.1_02.jpg"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2021-02 reshoot/2020.2.1_02.jpg
+media file:s1/Photography/2021-02 reshoot/2020.2.3_01.jpg create
+  file s1/Photography/2021-02 reshoot/2020.2.3_01.jpg
+  parent group:2020.2.3
+  slot mediaOrder literal "Photography/2021-02 reshoot/2020.2.3_01.jpg"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2021-02 reshoot/2020.2.3_01.jpg
+media file:s1/Photography/2021-02 reshoot/2021.1.1_01.jpg create
+  file s1/Photography/2021-02 reshoot/2021.1.1_01.jpg
+  parent group:2021.1.1
+  slot mediaOrder literal "Photography/2021-02 reshoot/2021.1.1_01.jpg"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2021-02 reshoot/2021.1.1_01.jpg
+media file:s1/Photography/2021-02 reshoot/2021.1.2a-b_01.jpg create
+  file s1/Photography/2021-02 reshoot/2021.1.2a-b_01.jpg
+  parent group:2021.1.2
+  slot mediaOrder literal "Photography/2021-02 reshoot/2021.1.2a-b_01.jpg"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2021-02 reshoot/2021.1.2a-b_01.jpg
+media file:s1/Photography/2021-02 reshoot/2021.1.2a_01.jpg create
+  file s1/Photography/2021-02 reshoot/2021.1.2a_01.jpg
+  parent group:2021.1.2
+  slot mediaOrder literal "Photography/2021-02 reshoot/2021.1.2a_01.jpg"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2021-02 reshoot/2021.1.2a_01.jpg
+media file:s1/Photography/2021-02 reshoot/2021.1.2b_01.jpg create
+  file s1/Photography/2021-02 reshoot/2021.1.2b_01.jpg
+  parent group:2021.1.2
+  slot mediaOrder literal "Photography/2021-02 reshoot/2021.1.2b_01.jpg"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2021-02 reshoot/2021.1.2b_01.jpg
+media file:s1/Photography/2021-02 reshoot/2021.1.3_01.jpg create
+  file s1/Photography/2021-02 reshoot/2021.1.3_01.jpg
+  parent group:2021.1.3
+  slot mediaOrder literal "Photography/2021-02 reshoot/2021.1.3_01.jpg"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2021-02 reshoot/2021.1.3_01.jpg
+media file:s1/Photography/2021-02 reshoot/2021.1.3_02.jpg create
+  file s1/Photography/2021-02 reshoot/2021.1.3_02.jpg
+  parent group:2021.1.3
+  slot mediaOrder literal "Photography/2021-02 reshoot/2021.1.3_02.jpg"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2021-02 reshoot/2021.1.3_02.jpg
+media file:s1/Photography/2021-02 reshoot/2O21.1.1_02.jpg create
+  file s1/Photography/2021-02 reshoot/2O21.1.1_02.jpg
+  parent group:2021.1.1
+  slot mediaOrder literal "Photography/2021-02 reshoot/2021.1.1_02.jpg"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2021-02 reshoot/2021.1.1_02.jpg
+media file:s1/Photography/2023 new accessions/2023.1.1_01.jpg create
+  file s1/Photography/2023 new accessions/2023.1.1_01.jpg
+  parent group:2023.1.1
+  slot mediaOrder literal "Photography/2023 new accessions/2023.1.1_01.jpg"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2023 new accessions/2023.1.1_01.jpg
+media file:s1/Photography/2023 new accessions/2023.1.1_02.jpg create
+  file s1/Photography/2023 new accessions/2023.1.1_02.jpg
+  parent group:2023.1.1
+  slot mediaOrder literal "Photography/2023 new accessions/2023.1.1_02.jpg"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2023 new accessions/2023.1.1_02.jpg
+media file:s1/Photography/2023 new accessions/2023.1.2_01.jpg create
+  file s1/Photography/2023 new accessions/2023.1.2_01.jpg
+  parent group:2023.1.2
+  slot mediaOrder literal "Photography/2023 new accessions/2023.1.2_01.jpg"
+  owner is runner
+  visibility private
+  mediaOrder Photography/2023 new accessions/2023.1.2_01.jpg
+flag date-form keep 12
+flag no-file keep 5
+flag not-media leave 1
