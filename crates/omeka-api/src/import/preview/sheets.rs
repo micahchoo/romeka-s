@@ -10,7 +10,7 @@
 //! [`MAX_SHEETS`] reads and [`MAX_BYTES`] of sheet bytes, the least
 //! recently used read going first.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::SystemTime;
 
@@ -76,11 +76,14 @@ pub struct SheetCache {
 }
 
 impl SheetCache {
-    /// The sheet `plan` names in `dir`. `None` when it is not there: the
-    /// derive reads a missing sheet as `sheet-unread`.
+    /// The sheet `plan` names, at `disk` in `dir` ([`Index::disk_path`]).
+    /// `None` when it is not there: the derive reads a missing sheet as
+    /// `sheet-unread`.
+    ///
+    /// [`Index::disk_path`]: crate::import::derive::Index::disk_path
     #[must_use]
-    pub fn read(&self, plan: &SheetPlan, dir: &SourceDir) -> Option<Arc<ReadSheet>> {
-        let path = match dir.locate(std::path::Path::new(plan.file.as_str())) {
+    pub fn read(&self, plan: &SheetPlan, dir: &SourceDir, disk: &Path) -> Option<Arc<ReadSheet>> {
+        let path = match dir.locate(disk) {
             Ok(path) => path,
             Err(
                 ArchiveError::NotFound(_) | ArchiveError::NotAFile(_) | ArchiveError::Outside(_),
@@ -319,18 +322,28 @@ mod tests {
         std::fs::write(dir.path().join("r.csv"), "Id,Title\r\nA1,Lamp\r\n").unwrap();
         let source = SourceDir::standalone(dir.path()).unwrap();
         let cache = SheetCache::default();
-        let first = cache.read(&plan("r.csv"), &source).expect("read");
+        let first = cache
+            .read(&plan("r.csv"), &source, Path::new("r.csv"))
+            .expect("read");
         assert_eq!(first.sheet.as_ref().unwrap().rows.len(), 1);
         assert_eq!(first.lines[..2], ["Id,Title", "A1,Lamp"]);
-        let again = cache.read(&plan("r.csv"), &source).expect("read");
+        let again = cache
+            .read(&plan("r.csv"), &source, Path::new("r.csv"))
+            .expect("read");
         assert!(Arc::ptr_eq(&first, &again));
 
         let mut other = plan("r.csv");
         other.read.header_line = std::num::NonZeroU32::new(2).unwrap();
-        let reread = cache.read(&other, &source).expect("read");
+        let reread = cache
+            .read(&other, &source, Path::new("r.csv"))
+            .expect("read");
         assert!(!Arc::ptr_eq(&first, &reread), "other read options");
 
-        assert!(cache.read(&plan("missing.csv"), &source).is_none());
+        assert!(
+            cache
+                .read(&plan("missing.csv"), &source, Path::new("missing.csv"))
+                .is_none()
+        );
         assert!(RelPath::parse("r.csv").is_ok());
     }
 
@@ -348,7 +361,7 @@ mod tests {
         std::fs::write(dir.path().join("r.xlsx"), book.save_to_buffer().unwrap()).unwrap();
         let source = SourceDir::standalone(dir.path()).unwrap();
         let read = SheetCache::default()
-            .read(&plan("r.xlsx"), &source)
+            .read(&plan("r.xlsx"), &source, Path::new("r.xlsx"))
             .expect("read");
         assert_eq!(read.lines, ["Id,Title", "A1,Lamp"]);
         let workbook = read.sheet.as_ref().unwrap().workbook.as_ref().unwrap();
@@ -356,7 +369,7 @@ mod tests {
 
         std::fs::write(dir.path().join("bad.xlsx"), b"PK\x03\x04 not a book").unwrap();
         let bad = SheetCache::default()
-            .read(&plan("bad.xlsx"), &source)
+            .read(&plan("bad.xlsx"), &source, Path::new("bad.xlsx"))
             .expect("read");
         assert!(bad.sheet.is_err());
         assert!(
@@ -402,7 +415,9 @@ mod tests {
             for header_line in [1, 2] {
                 let mut read_as = plan(file);
                 read_as.read.header_line = std::num::NonZeroU32::new(header_line).unwrap();
-                let read = SheetCache::default().read(&read_as, &source).expect("read");
+                let read = SheetCache::default()
+                    .read(&read_as, &source, Path::new(file))
+                    .expect("read");
                 assert_eq!(
                     read.lines, TITLED_LINES,
                     "{file}, header on line {header_line}"
@@ -445,7 +460,9 @@ mod tests {
         for n in 0..=MAX_SHEETS {
             let name = format!("{n}.csv");
             std::fs::write(dir.path().join(&name), "Id\nA\n").unwrap();
-            cache.read(&plan(&name), &source).expect("read");
+            cache
+                .read(&plan(&name), &source, Path::new(&name))
+                .expect("read");
         }
         let held = cache.held.lock().unwrap();
         assert_eq!(held.len(), MAX_SHEETS);

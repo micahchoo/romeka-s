@@ -31,7 +31,7 @@ fn index(paths: &[&str]) -> Index {
                         size: 1,
                         modified: None,
                         sniffed: "image/jpeg".into(),
-                        decoded: None,
+                        disk: None,
                     })
                     .collect(),
                 ..Walk::default()

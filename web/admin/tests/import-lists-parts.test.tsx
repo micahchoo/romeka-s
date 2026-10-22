@@ -6,7 +6,7 @@
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { asRecord } from '../src/api/parse';
+import { asRecord, isRecord } from '../src/api/parse';
 import { ImportPage } from '../src/pages/import/page';
 import { listsServer, PATH } from './import-lists-server';
 import { installFetch, requestBody, requestsFor } from './stub';
@@ -120,7 +120,10 @@ describe.each([9, 40_000])('the list round trip at %i items', (size) => {
     fireEvent.click(screen.getByText('Show the 7 rows that belong to no item'));
     expect(screen.getByText('nobody_1#1')).toBeInTheDocument();
     expect(requestsFor(fetchMock, `${PATH}/sheets`)).toHaveLength(1);
-    const asked = requestsFor(fetchMock, `${PATH}/preview`).map(requestBody).filter((body) => body['entries'] !== undefined);
+    // The status line asks for the files no item takes; this asks for the list's rows.
+    const asked = requestsFor(fetchMock, `${PATH}/preview`)
+      .map(requestBody)
+      .filter((body) => isRecord(body['entries']) && body['entries']['sheet'] !== undefined);
     expect(asked.map((body) => body['entries'])).toEqual([{ sheet: 'list-1', paired: false, perPage: 50 }]);
   }, 20_000);
 });

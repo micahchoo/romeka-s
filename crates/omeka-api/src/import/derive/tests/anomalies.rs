@@ -135,9 +135,9 @@ fn a18_what_the_walk_skipped_and_decoded_is_an_anomaly() {
         dot: 3,
         ..Anomalies::default()
     };
-    index.sources[0].walk.entries[0].decoded = Some(crate::import::evidence::DecodedName {
-        encoding: crate::import::evidence::NameEncoding::Cp437,
+    index.sources[0].walk.entries[0].disk = Some(crate::import::evidence::DiskName {
         raw: b"A1\x81.jpg".to_vec(),
+        encoding: Some(crate::import::evidence::NameEncoding::Cp437),
     });
     let model = run(&index, &Sheets::new(), &plan(|_| {}));
     let walk = anomaly(&model, |anomaly| matches!(anomaly, Anomaly::Walk { .. }));
@@ -294,9 +294,9 @@ fn every_kind() -> Vec<Model> {
         ("Z.db", BINARY),
     ];
     let mut index = index(&files);
-    index.sources[0].walk.entries[0].decoded = Some(crate::import::evidence::DecodedName {
-        encoding: crate::import::evidence::NameEncoding::Latin1,
+    index.sources[0].walk.entries[0].disk = Some(crate::import::evidence::DiskName {
         raw: b"E1.jpg".to_vec(),
+        encoding: Some(crate::import::evidence::NameEncoding::Latin1),
     });
     for action in ["create", "update"] {
         let plan = plan_with(action);

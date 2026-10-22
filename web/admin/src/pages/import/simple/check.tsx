@@ -17,13 +17,14 @@ import { listHref } from '../lists/address';
 import { fileName, recordName, recordTitle } from '../lists/record-words';
 import { usePreview } from '../lists/use-preview';
 import { placeHref } from '../screens';
-import { CAUSE_ORDER, DEFAULT_POLICY, FACTS, HANDLED, UNTITLED, answerOf, checkFactsOf, isBlocking, suggestedOf, titleFlag, withAnswer, withSuggestions, wordsOf } from './causes';
-import type { CauseId, CheckFacts } from './causes';
+import { answerOf, checkFactsOf, suggestedOf, withAnswer, withSuggestions, wordsOf } from './causes';
+import type { CheckFacts } from './causes';
 import { readState, withState } from './example-state';
 import { MasterDetail, Segmented } from './master-detail';
 import { useSimpleText } from './messages';
 import type { SimpleMessageKey, SimpleTranslator } from './messages';
-import { allLists } from '../series';
+import { QUESTION_SECTIONS, factsOf, isBlocking, openOf, questionQuery, questionsOf } from './questions';
+import type { CauseId, CheckQuestion } from './questions';
 import './simple.css';
 
 interface Cause {
@@ -186,11 +187,6 @@ const Refused = ({ count, examples }: { readonly count: number; readonly example
   );
 };
 
-const order = (id: CauseId): number => CAUSE_ORDER.indexOf(id);
-
-/** A kind the run takes care of under its default policy; with another policy it is a question again. */
-const handledBy = (flag: FlagCount): boolean => HANDLED.some((kind) => kind === flag.kind && flag.policy === DEFAULT_POLICY[kind]);
-
 const Summary = ({ items, open, answered, onUseAll }: { readonly items: number; readonly open: number; readonly answered: number; readonly onUseAll: () => void }): ReactElement => {
   const { t, number } = useSimpleText();
   const draft = useDraft();
@@ -232,12 +228,7 @@ export const Check = (): ReactElement => {
   const draft = useDraft();
   const [seed, setSeed] = useState(0);
   const [shown, setShown] = useState<Readonly<Record<string, number>>>({});
-  const read = usePreview(['flags', 'identical', 'unpaired', 'entries', 'check', 'histogram', 'listCandidates'], {
-    identical: { perPage: 3 },
-    unpaired: { rows: { perPage: 1 }, files: { perPage: 3 } },
-    entries: { reason: 'unmatched', perPage: 3 },
-    seed,
-  });
+  const read = usePreview([...QUESTION_SECTIONS, 'histogram', 'listCandidates'], { ...questionQuery(3), seed });
   if (read.status === 'loading') {
     return <p role="status" className="import-slow">{t('shell.loading')}</p>;
   }
@@ -246,41 +237,27 @@ export const Check = (): ReactElement => {
   }
   const { flags, identical, unpaired, entries, check } = read.data;
   const facts = checkFactsOf(draft.plan, read.data);
-  const byKind = new Map<FlagCount['kind'], { count: number; samples: FlagSample[] }>();
-  for (const flag of flags) {
-    if (flag.count === 0 || handledBy(flag) || FACTS.includes(flag.kind) || titleFlag(flag)) {
-      continue;
+  const examplesFor = (question: CheckQuestion): readonly string[] => {
+    switch (question.id) {
+      case 'identical':
+        return identical.sets.items.map((set) => set.paths.map((path) => path.slice(path.lastIndexOf('/') + 1)).join(' = '));
+      case 'unmatchedFiles':
+        return entries.items.flatMap((entry) => ('file' in entry.entry ? [fileName(entry.entry.file)] : []));
+      case 'itemsWithoutRow':
+        return unpaired.files.items.map((file) => fileName(file.file));
+      default:
+        return question.kind === null || MATCHED.includes(question.kind) ? [] : question.samples.map(sampleWords).filter((words): words is string => words !== null);
     }
-    const kept = byKind.get(flag.kind) ?? { count: 0, samples: [] };
-    kept.count += flag.count;
-    kept.samples.push(...flag.samples);
-    byKind.set(flag.kind, kept);
-  }
-  const causes: Cause[] = [...byKind.entries()].map(([kind, found]) => {
-    const examples = MATCHED.includes(kind) ? [] : found.samples.map(sampleWords).filter((words): words is string => words !== null);
-    return { id: kind, count: found.count, examples, kind };
-  });
-  if (identical.files > 0) {
-    causes.push({ id: 'identical', count: identical.files, examples: identical.sets.items.map((set) => set.paths.map((path) => path.slice(path.lastIndexOf('/') + 1)).join(' = ')), kind: null });
-  }
-  if (entries.total > 0) {
-    causes.push({ id: 'unmatchedFiles', count: entries.total, examples: entries.items.flatMap((entry) => ('file' in entry.entry ? [fileName(entry.entry.file)] : [])), kind: null });
-  }
-  if (allLists(draft.plan).length > 0 && unpaired.items > 0) {
-    causes.push({ id: 'itemsWithoutRow', count: unpaired.items, examples: unpaired.files.items.map((file) => fileName(file.file)), kind: null });
-  }
-  if (check.itemsWithoutTitle > 0) {
-    causes.push({ id: UNTITLED, count: check.itemsWithoutTitle, examples: [], kind: null });
-  }
-  causes.sort((a, b) => order(a.id) - order(b.id));
+  };
+  const causes: Cause[] = questionsOf(draft.plan, read.data).map((question) => ({ id: question.id, count: question.count, examples: examplesFor(question), kind: question.kind }));
   const { answered } = readState(draft.plan);
-  const open = causes.filter((cause) => !isBlocking(cause.id) && !answered.includes(cause.id));
+  const open = openOf(draft.plan, causes);
   const done = causes.filter((cause) => !isBlocking(cause.id) && answered.includes(cause.id));
   const items = check.counts.filter((count) => count.kind === 'item' && count.does !== 'leave').reduce((sum, count) => sum + count.count, 0);
   const rows: Row[] = [
     ...causes.map((cause) => ({ kind: 'question' as const, key: `cause:${cause.id}`, cause })),
-    ...flags.filter((flag) => flag.count > 0 && FACTS.includes(flag.kind)).map((flag) => ({ kind: 'refused' as const, key: `fact:${flag.kind}`, flag, examples: examplesOf(flag) })),
-    ...flags.filter((flag) => handledBy(flag) && flag.count > 0).map((flag) => ({ kind: 'handled' as const, key: `handled:${flag.kind}/${flag.slot ?? ''}`, flag })),
+    ...factsOf(flags).refused.map((flag) => ({ kind: 'refused' as const, key: `fact:${flag.kind}`, flag, examples: examplesOf(flag) })),
+    ...factsOf(flags).handled.map((flag) => ({ kind: 'handled' as const, key: `handled:${flag.kind}/${flag.slot ?? ''}`, flag })),
   ];
   const useAll = (): void => {
     draft.change((plan) => {
