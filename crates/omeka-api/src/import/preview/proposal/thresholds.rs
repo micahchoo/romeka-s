@@ -29,3 +29,12 @@ pub const MIN_ITEMS_WITH_FILE_ROWS: usize = 1;
 /// column: with one kind, every row is that kind and no column is needed.
 /// S8's `Kind` names three.
 pub const MIN_KINDS: usize = 2;
+
+/// The sets a candidate must make before it is an offered split: with one,
+/// every item is in it and it sorts nothing. BHC006 `Documents (D)` splits
+/// into 2 by a name place (11 and 4 items), S3 into 2 (`AF`, `PH`).
+pub const MIN_SETS: usize = 2;
+
+/// The items one set of a split must hold: below two, every set holds one
+/// item and the split sorts nothing. S3 `AF` holds 2.
+pub const MIN_ITEMS_PER_SET: usize = 2;

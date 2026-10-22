@@ -110,7 +110,7 @@ fn kind_column(sheet: &Sheet) -> Option<ColumnRef> {
 /// Whether a column's cells are exactly the whole numbers 1 to n in row
 /// order, or n to 1. Such a column numbers the rows and names nothing, so it
 /// is never a key or a reference.
-fn numbers_rows(sheet: &Sheet, column: u32) -> bool {
+pub(super) fn numbers_rows(sheet: &Sheet, column: u32) -> bool {
     let rows = sheet.rows.len();
     let numbers: Option<Vec<usize>> = sheet
         .rows

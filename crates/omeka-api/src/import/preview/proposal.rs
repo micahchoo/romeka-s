@@ -9,10 +9,11 @@
 //! (which folders are series), then `names` (where each series' item key
 //! ends; `shape` writes its pattern), then a first derive of those patterns
 //! with no list, then `lists` (which list describes each series, counted on
-//! that derive) and `grain` (what each list's rows describe). Each edit is
-//! replayed by the detector whose choice it changes. The counts come from a
-//! second derive of the whole proposed tree, so the person sees what Run
-//! would do.
+//! that derive) and `grain` (what each list's rows describe). The counts
+//! come from a second derive of the whole proposed tree, so the person sees
+//! what Run would do. `sets` then counts the sets each series could split
+//! into on that derive; every set but a series folder is only offered. Each
+//! edit is replayed by the detector whose choice it changes.
 //!
 //! The rule against overfitting holds for every non-test file of this
 //! module: no file names a token, an extension or a depth. `lint_tests`
@@ -35,6 +36,9 @@ mod lists_tests;
 mod names;
 #[cfg(test)]
 mod names_tests;
+mod sets;
+#[cfg(test)]
+mod sets_tests;
 mod shape;
 pub mod thresholds;
 
@@ -54,12 +58,13 @@ use crate::import::model::{Fate, Model};
 use crate::import::plan::{
     ColumnOptions, ColumnPlan, ColumnRef, Combine, EachSet, EachValue, Edit, FolderScope, Grouping,
     ImportPlan, Level, LevelId, ListFile, PairRule, Placement as FilePlace, RecordKind, RelPath,
-    Series, SeriesIx, SeriesScope, SetByTitle, SetFrom, SetNames, SetSource, SheetId, SheetPlan,
-    SlotName, SlotRule, SourcePlan, SourceRef, Structure, default_plan,
+    Series, SeriesIx, SeriesScope, SetByTitle, SetFrom, SetLevel, SetNames, SetSource, SheetId,
+    SheetPlan, SlotName, SlotRule, SourcePlan, SourceRef, Structure, default_plan,
 };
 use crate::import::sheet::{Sheet, SheetError};
 use crate::import::values::ValueType;
 use names::SeriesCut;
+use sets::Sets;
 use shape::Key;
 
 /// Everything the proposer reads. Nothing else enters a proposal.
@@ -315,25 +320,30 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
     };
     let whole: Vec<Level> = series
         .iter()
-        .map(|one| level(one, Some(&Key::Whole), Plan::default()))
+        .map(|one| level(one, Some(&Key::Whole), Plan::default(), &[]))
         .collect();
     let cuts = Structure::build(whole, evidence.sources).map(|placed| {
         let names = series_names(evidence, &placed, series.len());
         let mut cuts: Vec<SeriesCut> = names.iter().map(|names| names::cut(names)).collect();
         names::same_as_sibling(&mut cuts, &names);
         names::replay(&mut cuts, &series, edits, &mut applied);
-        cuts
+        (cuts, names)
     });
-    let first = cuts.and_then(|cuts| {
+    let first = cuts.and_then(|(cuts, names)| {
         let levels = series
             .iter()
             .zip(&cuts)
-            .map(|(one, cut)| level(one, Some(&cut.chosen.key), Plan::default()))
+            .map(|(one, cut)| level(one, Some(&cut.chosen.key), Plan::default(), &[]))
             .collect();
         let structure = Structure::build(levels, evidence.sources)?;
-        Ok((default_plan(evidence.sources.to_vec())?, structure, cuts))
+        Ok((
+            default_plan(evidence.sources.to_vec())?,
+            structure,
+            cuts,
+            names,
+        ))
     });
-    let Ok((plan, structure, cuts)) = first else {
+    let Ok((plan, structure, cuts, names)) = first else {
         return Proposal {
             structure: evidence.structure.clone(),
             nodes: Vec::new(),
@@ -380,18 +390,13 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         })
         .collect();
     let rows = grain::detect(evidence, &mut lists, &read, edits, &mut applied);
-    let edits = results(edits, applied);
 
-    let mut ids = BTreeSet::new();
-    let levels = series
+    let keys: Vec<Option<&Key>> = cuts
         .iter()
-        .zip(&cuts)
         .zip(&rows)
-        .map(|((one, cut), rows)| {
-            let key = rows.items.is_none().then_some(&cut.chosen.key);
-            level(one, key, Plan::of(rows, &mut ids))
-        })
+        .map(|(cut, rows)| rows.items.is_none().then_some(&cut.chosen.key))
         .collect();
+    let levels = tree(&series, &keys, &rows, &Sets::default());
     let plan = match Structure::build(levels, evidence.sources) {
         Ok(structure) => ImportPlan {
             structure,
@@ -411,85 +416,139 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
     }
     let model = derive(evidence.index, &sheets, &plan, evidence.catalog, &NoTags);
 
-    let mut chosen_lists = lists.series.into_iter();
-    let nodes = plan
+    let read: Vec<sets::SeriesIn<'_>> = plan
         .structure
         .all_series()
-        .zip(series.iter().zip(cuts).zip(rows).zip(scopes))
-        .map(|((at, level), (((one, cut), rows), scope))| {
-            let here = chosen_lists.next().unwrap_or_default();
-            let (item, counted, rival) = match &rows.items {
-                Some((list, key)) => (
-                    ItemCut::Rows {
-                        list: list.clone(),
-                        key: key.clone(),
-                    },
-                    None,
-                    Some(cut.chosen),
-                ),
-                None => (cut.chosen.item, Some(cut.chosen.counts), cut.rival),
-            };
-            let items = cut_counts(&model, at, &scope, counted.as_ref());
-            let rival = rival.map(|rival| Pick {
-                counts: counted_counts(&rival.counts, scope.media),
-                value: rival.item,
-            });
-            let set = one.set.clone().map(|from| Pick {
-                value: Some(from),
-                counts: SetCounts {
-                    sets: vec![(folders::folder_title(one.scope()), items.items)],
-                    rows: None,
-                },
-            });
-            let list_pick = |one: lists::InSeries<'_>| Pick {
-                value: Some(one.file),
-                counts: Some(one.counted.counts),
-            };
-            NodeEvidence::Series(SeriesNode {
-                level: level.id().clone(),
-                items: Choice {
-                    chosen: Pick {
-                        value: item,
-                        counts: items,
-                    },
-                    rival,
-                },
-                list: Choice {
-                    chosen: here.joined.into_iter().next().map_or(
-                        Pick {
-                            value: None,
-                            counts: None,
-                        },
-                        list_pick,
-                    ),
-                    rival: here.rival.map(list_pick),
-                },
-                grain: rows.grain,
-                set: Choice {
-                    chosen: set.unwrap_or(Pick {
-                        value: None,
-                        counts: SetCounts {
-                            sets: Vec::new(),
-                            rows: None,
-                        },
-                    }),
-                    rival: None,
-                },
-                splits: one
-                    .numbered
-                    .then(|| folder_split(&model, at, one))
-                    .into_iter()
-                    .collect(),
-                pairing: Vec::new(),
-                scope,
-            })
+        .zip(&series)
+        .zip(keys.iter().zip(&names))
+        .map(|(((at, _), one), (key, names))| sets::SeriesIn {
+            at,
+            scope: one.scope(),
+            places: key
+                .map(|key| names::place_values(names, key))
+                .unwrap_or_default(),
+            numbered: one.numbered,
         })
         .collect();
+    let found_sets = sets::detect(&model, &plan.structure, &sheets, &read, edits, &mut applied);
+    let edits = results(edits, applied);
+    let plan = if found_sets.top_taken.is_some()
+        || found_sets.series.iter().any(|sets| !sets.taken.is_empty())
+    {
+        let levels = tree(&series, &keys, &rows, &found_sets);
+        match Structure::build(levels, evidence.sources) {
+            Ok(structure) => ImportPlan { structure, ..plan },
+            Err(_) => plan,
+        }
+    } else {
+        plan
+    };
+
+    let mut chosen_lists = lists.series.into_iter();
+    let mut series_sets = found_sets.series.into_iter();
+    let mut nodes = Vec::new();
+    if let Some((pick, title)) = found_sets.top_taken {
+        nodes.push(NodeEvidence::Set(SetNode {
+            level: LevelId(title.0),
+            from: pick.value,
+            counts: pick.counts,
+        }));
+    }
+    let each = plan
+        .structure
+        .all_series()
+        .zip(series.iter().zip(cuts).zip(rows).zip(scopes));
+    for ((at, level), (((one, cut), rows), scope)) in each {
+        let here = chosen_lists.next().unwrap_or_default();
+        let sets = series_sets.next().unwrap_or_default();
+        let (item, counted, rival) = match &rows.items {
+            Some((list, key)) => (
+                ItemCut::Rows {
+                    list: list.clone(),
+                    key: key.clone(),
+                },
+                None,
+                Some(cut.chosen),
+            ),
+            None => (cut.chosen.item, Some(cut.chosen.counts), cut.rival),
+        };
+        let items = cut_counts(&model, at, &scope, counted.as_ref());
+        let rival = rival.map(|rival| Pick {
+            counts: counted_counts(&rival.counts, scope.media),
+            value: rival.item,
+        });
+        let folder = one.set.clone().map(|from| Pick {
+            value: Some(from),
+            counts: SetCounts {
+                sets: vec![(folders::folder_title(one.scope()), items.items)],
+                rows: None,
+            },
+        });
+        let mut taken = sets.taken.into_iter();
+        let set = match folder {
+            Some(folder) => Some(folder),
+            // The first split taken is the series' own set when it has none.
+            None if rows.set.is_none() => taken.next().map(|first| Pick {
+                value: Some(first.pick.value),
+                counts: first.pick.counts,
+            }),
+            None => None,
+        };
+        let around: Vec<sets::Taken> = taken.collect();
+        for taken in around.into_iter().rev() {
+            nodes.push(NodeEvidence::Set(SetNode {
+                level: split_id(level.id(), &taken),
+                from: taken.pick.value,
+                counts: taken.pick.counts,
+            }));
+        }
+        let list_pick = |one: lists::InSeries<'_>| Pick {
+            value: Some(one.file),
+            counts: Some(one.counted.counts),
+        };
+        nodes.push(NodeEvidence::Series(SeriesNode {
+            level: level.id().clone(),
+            items: Choice {
+                chosen: Pick {
+                    value: item,
+                    counts: items,
+                },
+                rival,
+            },
+            list: Choice {
+                chosen: here.joined.into_iter().next().map_or(
+                    Pick {
+                        value: None,
+                        counts: None,
+                    },
+                    list_pick,
+                ),
+                rival: here.rival.map(list_pick),
+            },
+            grain: rows.grain,
+            set: Choice {
+                chosen: set.unwrap_or(Pick {
+                    value: None,
+                    counts: SetCounts {
+                        sets: Vec::new(),
+                        rows: None,
+                    },
+                }),
+                rival: sets.rival.map(|rival| Pick {
+                    value: Some(rival.value),
+                    counts: rival.counts,
+                }),
+            },
+            splits: sets.splits,
+            pairing: Vec::new(),
+            scope,
+        }));
+    }
     Proposal {
         matches_plan: plan.structure == *evidence.structure,
         structure: plan.structure,
         nodes,
-        top_sets: Vec::new(),
+        top_sets: found_sets.top,
         outside: found.outside,
         unattached: lists
             .unattached
@@ -524,7 +583,7 @@ impl Plan {
     /// Detector 4's choices for one series, each list with a sheet id not in
     /// `ids`: its file's path, and its source's id after it when another
     /// list has that path.
-    fn of(rows: &grain::SeriesRows, ids: &mut BTreeSet<SheetId>) -> Self {
+    fn of(rows: &grain::SeriesRows, ids: &mut BTreeSet<SheetId>, taken: &[sets::Taken]) -> Self {
         let mut of_file = BTreeMap::new();
         let lists = rows
             .lists
@@ -541,8 +600,17 @@ impl Plan {
                 plan.row_kind = list.row_kind.clone();
                 plan.join = list.join.clone();
                 plan.item_key = list.item_key.clone();
-                plan.columns = list
-                    .mapped
+                let mut mapped = list.mapped.clone();
+                let split = taken.iter().filter_map(|taken| match &taken.column {
+                    Some((file, column)) if *file == list.file => Some(column),
+                    _ => None,
+                });
+                for column in split {
+                    if !mapped.contains(column) {
+                        mapped.push(column.clone());
+                    }
+                }
+                plan.columns = mapped
                     .iter()
                     .map(|column| ColumnPlan {
                         column: column.clone(),
@@ -609,21 +677,74 @@ fn as_found(evidence: &Evidence<'_>) -> Vec<folders::FolderSeries> {
         .collect()
 }
 
+/// The proposed levels: each series with its key, lists and rules, and
+/// its sets. The first split taken is a series' own set when it has none;
+/// each other split is a set level around the series; a top set taken is a
+/// set level around everything.
+fn tree(
+    series: &[folders::FolderSeries],
+    keys: &[Option<&Key>],
+    rows: &[grain::SeriesRows],
+    sets: &Sets,
+) -> Vec<Level> {
+    let mut ids = BTreeSet::new();
+    let none = sets::SeriesSets::default();
+    let levels: Vec<Level> = series
+        .iter()
+        .zip(keys)
+        .zip(rows)
+        .enumerate()
+        .map(|(at, ((one, key), rows))| {
+            let taken = &sets.series.get(at).unwrap_or(&none).taken;
+            level(one, *key, Plan::of(rows, &mut ids, taken), taken)
+        })
+        .collect();
+    match &sets.top_taken {
+        Some((_, title)) => vec![Level::Set(SetLevel::new(
+            LevelId(title.0.clone()),
+            SetSource::Title(SetByTitle {
+                title: title.0.clone(),
+                description: None,
+            }),
+            levels,
+        ))],
+        None => levels,
+    }
+}
+
+/// The id of the set level a split taken around the series `series` makes.
+fn split_id(series: &LevelId, taken: &sets::Taken) -> LevelId {
+    let mut id = series.0.clone();
+    id.push_str(&taken.name);
+    LevelId(id)
+}
+
 /// The plan's series for one detected series. Its id is its folder's name,
 /// or its source's id when it takes the whole source. With no key, the files
 /// make no item of their own: the rows of a list are the items.
-fn level(one: &folders::FolderSeries, key: Option<&Key>, plan: Plan) -> Level {
+fn level(
+    one: &folders::FolderSeries,
+    key: Option<&Key>,
+    plan: Plan,
+    taken: &[sets::Taken],
+) -> Level {
     let scope = one.scope();
     let id = if scope.folder.as_str().is_empty() {
         scope.source.0.clone()
     } else {
         scope.folder.as_str().to_owned()
     };
+    let place = taken.iter().find_map(|taken| taken.place.as_ref());
+    let pattern = key.map(|key| match place {
+        Some(place) => key.pattern_with_set(place),
+        None => key.pattern(),
+    });
+    let id = LevelId(id);
     let mut series = Series::new(
-        LevelId(id),
+        id.clone(),
         SeriesScope::Folders(one.scopes.clone()),
         Grouping {
-            pattern: key.map(Key::pattern),
+            pattern,
             case_fold: false,
         },
     )
@@ -637,47 +758,30 @@ fn level(one: &folders::FolderSeries, key: Option<&Key>, plan: Plan) -> Level {
             description: None,
         })
     });
-    match folder.or(plan.set) {
-        Some(set) => Level::Series(series.with_set(set)),
-        None => Level::Series(series),
-    }
-}
-
-/// The offered split of numbered folders: one set per folder, with the
-/// items the derive put under it.
-fn folder_split(
-    model: &Model,
-    at: SeriesIx,
-    one: &folders::FolderSeries,
-) -> Pick<SetFrom, SetCounts> {
-    let mut sets: BTreeMap<&str, usize> = BTreeMap::new();
-    for record in model
-        .kept()
-        .filter(|record| record.kind == RecordKind::Item && record.series == at)
-    {
-        if let Some(top) = record
-            .files
-            .first()
-            .and_then(|file| file.path.segments().next())
-        {
-            *sets.entry(top).or_default() += 1;
-        }
-    }
-    let mut sets: Vec<(ScanText, usize)> = sets
-        .into_iter()
-        .map(|(name, items)| (ScanText(name.to_owned()), items))
-        .collect();
-    sets.sort_by(|(a, a_items), (b, b_items)| b_items.cmp(a_items).then_with(|| a.cmp(b)));
-    Pick {
-        value: SetFrom::FolderLevel {
-            scope: FolderScope {
-                source: one.scope().source.clone(),
-                folder: RelPath::root(),
+    let each = |taken: &sets::Taken| {
+        SetSource::Each(EachValue {
+            each: EachSet {
+                sources: vec![taken.source.clone()],
+                combine: Combine::First,
+                map: IndexMap::new(),
+                names: SetNames::Title,
             },
-            depth: 1,
-        },
-        counts: SetCounts { sets, rows: None },
+        })
+    };
+    let mut taken = taken.iter();
+    let own = folder.or(plan.set).or_else(|| taken.next().map(each));
+    let mut level = Level::Series(match own {
+        Some(set) => series.with_set(set),
+        None => series,
+    });
+    for around in taken {
+        level = Level::Set(SetLevel::new(
+            split_id(&id, around),
+            each(around),
+            vec![level],
+        ));
     }
+    level
 }
 
 /// The accepted files among `entries` by kind, most first.
