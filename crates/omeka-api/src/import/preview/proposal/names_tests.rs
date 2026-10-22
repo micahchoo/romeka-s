@@ -1,0 +1,296 @@
+//! Detector 2 and the pattern writer (design section 2, "Detector 2", and
+//! section 3).
+
+#![allow(clippy::expect_used, clippy::panic)]
+
+use super::bhc006_tests;
+use super::shape::{Key, KeyShape, places};
+use super::{CutRule, Evidence, ItemCut, NodeEvidence, Proposal, SeriesNode, propose};
+use crate::import::decisions::EntryRef;
+use crate::import::derive::tests::scenarios::{S1_TO_S8, Scenario};
+use crate::import::derive::tests::support::{JPEG, catalog, index, plan};
+use crate::import::derive::{NoTags, Sheets, derive};
+use crate::import::grouping::pattern::FilePattern;
+use crate::import::plan::{CutEdit, Edit, FolderScope, ImportPlan, RelPath, SetFrom, SourceId};
+use crate::import::preview::facts::Bucket;
+
+fn of(scenario: &Scenario, edits: &[Edit]) -> Proposal {
+    let evidence = Evidence {
+        index: &scenario.index,
+        lists: &[],
+        catalog: &scenario.catalog,
+        sources: &scenario.plan.sources,
+        structure: &scenario.plan.structure,
+    };
+    propose(&evidence, edits)
+}
+
+fn shape(name: &str) -> Scenario {
+    let (_, build) = S1_TO_S8
+        .iter()
+        .find(|(shape, _)| *shape == name)
+        .expect("a shape");
+    build()
+}
+
+fn series<'p>(proposal: &'p Proposal, folder: &str) -> &'p SeriesNode {
+    proposal
+        .nodes
+        .iter()
+        .find_map(|node| match node {
+            NodeEvidence::Series(series) if series.scope.scope.folder.as_str() == folder => {
+                Some(series)
+            }
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("a series at {folder:?}: {:?}", proposal.nodes))
+}
+
+fn scope(folder: &str) -> FolderScope {
+    FolderScope {
+        source: SourceId("s1".into()),
+        folder: RelPath::parse(folder).expect("folder"),
+    }
+}
+
+fn per_item(series: &SeriesNode) -> Vec<(Bucket, usize)> {
+    series
+        .items
+        .chosen
+        .counts
+        .per_item
+        .iter()
+        .filter(|bucket| bucket.count > 0)
+        .map(|bucket| (bucket.files, bucket.count))
+        .collect()
+}
+
+#[test]
+fn bhc006_artifacts_cut_after_the_number() {
+    let proposal = bhc006_tests::proposal(&[]);
+    let artifacts = series(&proposal, "Artifacts");
+    let chosen = &artifacts.items.chosen;
+    assert_eq!(
+        chosen.value,
+        ItemCut::Places {
+            places: 5,
+            rule: CutRule::RecurringParts
+        }
+    );
+    assert_eq!(chosen.counts.items, 318);
+    assert_eq!((chosen.counts.files.n, chosen.counts.files.of), (692, 696));
+    assert_eq!(
+        per_item(artifacts),
+        [
+            (Bucket::One, 43),
+            (Bucket::Two, 226),
+            (Bucket::Three, 22),
+            (Bucket::FourToSix, 25),
+            (Bucket::SevenOrMore, 2),
+        ]
+    );
+    let parts: Vec<(&str, usize)> = chosen
+        .counts
+        .parts
+        .iter()
+        .take(5)
+        .map(|(part, items)| (part.0.as_str(), *items))
+        .collect();
+    assert_eq!(
+        parts,
+        [("a", 279), ("b", 273), ("c", 45), ("d", 27), ("e", 14)]
+    );
+    assert_eq!(chosen.counts.names_ending_here, 38);
+    assert_eq!(chosen.counts.other_shapes, 4);
+    let rival = artifacts.items.rival.as_ref().expect("a rival");
+    assert_eq!((&rival.value, rival.counts.items), (&ItemCut::Whole, 696));
+
+    // The four of another shape make no item; the preview lists them as
+    // files the pattern does not match.
+    let plan = ImportPlan {
+        structure: proposal.structure.clone(),
+        ..bhc006_tests::draft()
+    };
+    let model = derive(
+        &bhc006_tests::index(),
+        &Sheets::new(),
+        &plan,
+        &bhc006_tests::install(),
+        &NoTags,
+    );
+    let unmatched: Vec<&str> = model
+        .entries
+        .iter()
+        .filter(|entry| entry.unmatched)
+        .filter_map(|entry| match &entry.entry {
+            EntryRef::File(file) => Some(file.path.as_str()),
+            EntryRef::Row(_) => None,
+        })
+        .filter(|path| path.starts_with("Artifacts/") && !path.ends_with(".json"))
+        .collect();
+    assert_eq!(
+        unmatched,
+        [
+            "Artifacts/0accebf6883150506f6ce8587d7fa7bd735a472b.jpg",
+            "Artifacts/img20241004_17295799.tif",
+            "Artifacts/img20241004_17321887.tif",
+            "Artifacts/img20241006_15124931.tif",
+        ]
+    );
+}
+
+#[test]
+fn a_sibling_shape_is_a_rival_only_when_it_joins_files() {
+    let proposal = bhc006_tests::proposal(&[]);
+    let documents = series(&proposal, "Documents (D)");
+    assert_eq!(documents.items.chosen.value, ItemCut::Whole);
+    assert_eq!(documents.items.chosen.counts.items, 15);
+    let rival = documents.items.rival.as_ref().expect("a rival");
+    assert_eq!(
+        rival.value,
+        ItemCut::Places {
+            places: 5,
+            rule: CutRule::SameAsSibling
+        }
+    );
+    assert_eq!(
+        rival.counts.items, 2,
+        "as a choice it would make 2 items of 15"
+    );
+    let narratives = series(&proposal, "Photo Narratives (PN)");
+    assert_eq!(narratives.items.chosen.counts.items, 189);
+    assert!(
+        narratives.items.rival.is_none(),
+        "the Artifacts key keeps each narrative an item, so it is no other choice"
+    );
+}
+
+#[test]
+fn s1_scans_take_the_sibling_shape_by_one_edit() {
+    let scenario = shape("s1");
+    let proposal = of(&scenario, &[]);
+    let artifacts = series(&proposal, "Artifacts");
+    assert_eq!(
+        artifacts.items.chosen.value,
+        ItemCut::Places {
+            places: 4,
+            rule: CutRule::RecurringParts
+        }
+    );
+    assert_eq!(artifacts.items.chosen.counts.items, 4);
+    let photographs = series(&proposal, "Photographs");
+    assert_eq!(photographs.items.chosen.value, ItemCut::Whole);
+    assert_eq!(photographs.items.chosen.counts.items, 4);
+    let scans = series(&proposal, "Scans");
+    assert_eq!(scans.items.chosen.value, ItemCut::Whole);
+    assert_eq!(scans.items.chosen.counts.items, 3);
+    let rival = scans.items.rival.as_ref().expect("a rival");
+    assert_eq!(
+        (&rival.value, rival.counts.items),
+        (
+            &ItemCut::Places {
+                places: 4,
+                rule: CutRule::SameAsSibling
+            },
+            1
+        )
+    );
+
+    let take = Edit::Items {
+        scope: scope("Scans"),
+        cut: CutEdit::Places { places: 4 },
+    };
+    let taken = of(&scenario, &[take.clone(), take]);
+    assert!(taken.edits.iter().all(|edit| edit.applied), "twice is once");
+    let scans = series(&taken, "Scans");
+    assert_eq!(scans.items.chosen.counts.items, 1);
+    assert_eq!(
+        scans.items.rival.as_ref().map(|rival| &rival.value),
+        Some(&ItemCut::Whole)
+    );
+    let not_offered = of(
+        &scenario,
+        &[Edit::Items {
+            scope: scope("Scans"),
+            cut: CutEdit::Places { places: 5 },
+        }],
+    );
+    assert!(!not_offered.edits[0].applied, "a cut no count offers");
+    assert_eq!(series(&not_offered, "Scans").items.chosen.counts.items, 3);
+}
+
+#[test]
+fn s2_names_end_after_the_number() {
+    let proposal = of(&shape("s2"), &[]);
+    let all = series(&proposal, "");
+    assert_eq!(
+        all.items.chosen.value,
+        ItemCut::Places {
+            places: 2,
+            rule: CutRule::NamesEndHere
+        }
+    );
+    assert_eq!(all.items.chosen.counts.items, 4);
+    assert_eq!(all.items.chosen.counts.names_ending_here, 3);
+}
+
+#[test]
+fn s4_colliding_names_cut_at_their_folder() {
+    let proposal = of(&shape("s4"), &[]);
+    let boxes = series(&proposal, "");
+    assert_eq!(boxes.items.chosen.value, ItemCut::Folder { depth: 2 });
+    assert_eq!(boxes.items.chosen.counts.items, 3);
+    let [split] = boxes.splits.as_slice() else {
+        panic!("one offered split: {:?}", boxes.splits);
+    };
+    assert!(matches!(split.value, SetFrom::FolderLevel { depth: 1, .. }));
+    let sets: Vec<(&str, usize)> = split
+        .counts
+        .sets
+        .iter()
+        .map(|(name, items)| (name.0.as_str(), *items))
+        .collect();
+    assert_eq!(sets, [("Box 1", 2), ("Box 2", 1)]);
+}
+
+#[test]
+fn a_key_as_long_as_its_endings_is_a_shared_prefix() {
+    let files = [
+        ("Budget 2019.jpg", JPEG),
+        ("Budget 2020.jpg", JPEG),
+        ("Minutes 2019.jpg", JPEG),
+        ("Minutes 2020.jpg", JPEG),
+    ];
+    let scenario = Scenario {
+        index: index(&files),
+        sheets: Sheets::new(),
+        plan: plan(|_| {}),
+        catalog: catalog(),
+    };
+    let proposal = of(&scenario, &[]);
+    let all = series(&proposal, "");
+    assert_eq!(all.items.chosen.value, ItemCut::Whole);
+    assert_eq!(all.items.chosen.counts.items, 4);
+}
+
+#[test]
+fn a_pattern_matches_the_names_its_key_shape_fits() {
+    let shape = KeyShape::of(&places("AB_CD"));
+    let pattern = FilePattern::compile(Some(&Key::Places(shape).pattern())).expect("compiles");
+    let key = |path: &str| {
+        pattern
+            .groups(path)
+            .map(|groups| groups["identifier"].text.clone())
+    };
+    assert_eq!(key("x/AB_CD_p1.jpg").as_deref(), Some("AB_CD"));
+    assert_eq!(key("AB-CD.tif").as_deref(), Some("AB-CD"));
+    assert_eq!(key("ABCD.jpg"), None, "one run of letters is one place");
+    assert_eq!(key("AB_CD"), None, "a name with no extension");
+    assert_eq!(key("12_CD.jpg"), None);
+
+    let folder = FilePattern::compile(Some(&Key::Folder(2).pattern())).expect("compiles");
+    let groups = folder.groups("Box 1/Folder 1/0001.tif").expect("a match");
+    assert_eq!(groups["identifier"].text, "Box 1/Folder 1");
+    assert_eq!(groups["part"].text, "0001");
+    assert!(folder.groups("Box 1/0001.tif").is_none());
+}

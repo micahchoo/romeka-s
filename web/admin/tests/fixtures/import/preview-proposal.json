@@ -16,11 +16,63 @@
           "chosen": {
             "counts": {
               "files": {
-                "n": 24,
-                "of": 25
+                "n": 8,
+                "of": 8
               },
-              "items": 24,
-              "namesEndingHere": 25,
+              "items": 4,
+              "namesEndingHere": 0,
+              "otherShapes": 0,
+              "parts": [
+                [
+                  "back",
+                  4
+                ],
+                [
+                  "front",
+                  4
+                ]
+              ],
+              "perItem": [
+                {
+                  "count": 0,
+                  "files": "0"
+                },
+                {
+                  "count": 0,
+                  "files": "1"
+                },
+                {
+                  "count": 4,
+                  "files": "2"
+                },
+                {
+                  "count": 0,
+                  "files": "3"
+                },
+                {
+                  "count": 0,
+                  "files": "4-6"
+                },
+                {
+                  "count": 0,
+                  "files": "7+"
+                }
+              ]
+            },
+            "value": {
+              "cut": "places",
+              "places": 4,
+              "rule": "recurringParts"
+            }
+          },
+          "rival": {
+            "counts": {
+              "files": {
+                "n": 8,
+                "of": 8
+              },
+              "items": 8,
+              "namesEndingHere": 8,
               "otherShapes": 0,
               "parts": [],
               "perItem": [
@@ -29,7 +81,263 @@
                   "files": "0"
                 },
                 {
-                  "count": 24,
+                  "count": 8,
+                  "files": "1"
+                },
+                {
+                  "count": 0,
+                  "files": "2"
+                },
+                {
+                  "count": 0,
+                  "files": "3"
+                },
+                {
+                  "count": 0,
+                  "files": "4-6"
+                },
+                {
+                  "count": 0,
+                  "files": "7+"
+                }
+              ]
+            },
+            "value": {
+              "cut": "whole"
+            }
+          }
+        },
+        "kind": "series",
+        "level": "Artifacts",
+        "list": {
+          "chosen": {
+            "counts": null,
+            "value": null
+          },
+          "rival": null
+        },
+        "pairing": [],
+        "scope": {
+          "files": 8,
+          "kinds": [
+            [
+              "image",
+              8
+            ]
+          ],
+          "media": 8,
+          "scope": {
+            "folder": "Artifacts",
+            "source": "s1"
+          }
+        },
+        "set": {
+          "chosen": {
+            "counts": {
+              "rows": null,
+              "sets": [
+                [
+                  "Artifacts",
+                  4
+                ]
+              ]
+            },
+            "value": {
+              "from": "folder",
+              "scope": {
+                "folder": "Artifacts",
+                "source": "s1"
+              }
+            }
+          },
+          "rival": null
+        },
+        "splits": []
+      },
+      {
+        "grain": null,
+        "items": {
+          "chosen": {
+            "counts": {
+              "files": {
+                "n": 7,
+                "of": 7
+              },
+              "items": 7,
+              "namesEndingHere": 7,
+              "otherShapes": 0,
+              "parts": [],
+              "perItem": [
+                {
+                  "count": 0,
+                  "files": "0"
+                },
+                {
+                  "count": 7,
+                  "files": "1"
+                },
+                {
+                  "count": 0,
+                  "files": "2"
+                },
+                {
+                  "count": 0,
+                  "files": "3"
+                },
+                {
+                  "count": 0,
+                  "files": "4-6"
+                },
+                {
+                  "count": 0,
+                  "files": "7+"
+                }
+              ]
+            },
+            "value": {
+              "cut": "whole"
+            }
+          },
+          "rival": {
+            "counts": {
+              "files": {
+                "n": 7,
+                "of": 7
+              },
+              "items": 1,
+              "namesEndingHere": 0,
+              "otherShapes": 0,
+              "parts": [
+                [
+                  "p1",
+                  1
+                ],
+                [
+                  "p2",
+                  1
+                ],
+                [
+                  "p3",
+                  1
+                ],
+                [
+                  "p4",
+                  1
+                ],
+                [
+                  "p5",
+                  1
+                ],
+                [
+                  "p6",
+                  1
+                ],
+                [
+                  "p7",
+                  1
+                ]
+              ],
+              "perItem": [
+                {
+                  "count": 0,
+                  "files": "0"
+                },
+                {
+                  "count": 0,
+                  "files": "1"
+                },
+                {
+                  "count": 0,
+                  "files": "2"
+                },
+                {
+                  "count": 0,
+                  "files": "3"
+                },
+                {
+                  "count": 0,
+                  "files": "4-6"
+                },
+                {
+                  "count": 1,
+                  "files": "7+"
+                }
+              ]
+            },
+            "value": {
+              "cut": "places",
+              "places": 4,
+              "rule": "sameAsSibling"
+            }
+          }
+        },
+        "kind": "series",
+        "level": "Bulk",
+        "list": {
+          "chosen": {
+            "counts": null,
+            "value": null
+          },
+          "rival": null
+        },
+        "pairing": [],
+        "scope": {
+          "files": 7,
+          "kinds": [
+            [
+              "image",
+              7
+            ]
+          ],
+          "media": 7,
+          "scope": {
+            "folder": "Bulk",
+            "source": "s1"
+          }
+        },
+        "set": {
+          "chosen": {
+            "counts": {
+              "rows": null,
+              "sets": [
+                [
+                  "Bulk",
+                  7
+                ]
+              ]
+            },
+            "value": {
+              "from": "folder",
+              "scope": {
+                "folder": "Bulk",
+                "source": "s1"
+              }
+            }
+          },
+          "rival": null
+        },
+        "splits": []
+      },
+      {
+        "grain": null,
+        "items": {
+          "chosen": {
+            "counts": {
+              "files": {
+                "n": 1,
+                "of": 2
+              },
+              "items": 1,
+              "namesEndingHere": 2,
+              "otherShapes": 0,
+              "parts": [],
+              "perItem": [
+                {
+                  "count": 0,
+                  "files": "0"
+                },
+                {
+                  "count": 1,
                   "files": "1"
                 },
                 {
@@ -57,7 +365,7 @@
           "rival": null
         },
         "kind": "series",
-        "level": "s1",
+        "level": "Misc",
         "list": {
           "chosen": {
             "counts": null,
@@ -67,20 +375,16 @@
         },
         "pairing": [],
         "scope": {
-          "files": 26,
+          "files": 2,
           "kinds": [
             [
               "image",
-              24
-            ],
-            [
-              "other",
-              1
+              2
             ]
           ],
-          "media": 25,
+          "media": 2,
           "scope": {
-            "folder": "",
+            "folder": "Misc",
             "source": "s1"
           }
         },
@@ -88,16 +392,284 @@
           "chosen": {
             "counts": {
               "rows": null,
-              "sets": []
+              "sets": [
+                [
+                  "Misc",
+                  1
+                ]
+              ]
             },
+            "value": {
+              "from": "folder",
+              "scope": {
+                "folder": "Misc",
+                "source": "s1"
+              }
+            }
+          },
+          "rival": null
+        },
+        "splits": []
+      },
+      {
+        "grain": null,
+        "items": {
+          "chosen": {
+            "counts": {
+              "files": {
+                "n": 4,
+                "of": 4
+              },
+              "items": 4,
+              "namesEndingHere": 4,
+              "otherShapes": 0,
+              "parts": [],
+              "perItem": [
+                {
+                  "count": 0,
+                  "files": "0"
+                },
+                {
+                  "count": 4,
+                  "files": "1"
+                },
+                {
+                  "count": 0,
+                  "files": "2"
+                },
+                {
+                  "count": 0,
+                  "files": "3"
+                },
+                {
+                  "count": 0,
+                  "files": "4-6"
+                },
+                {
+                  "count": 0,
+                  "files": "7+"
+                }
+              ]
+            },
+            "value": {
+              "cut": "whole"
+            }
+          },
+          "rival": null
+        },
+        "kind": "series",
+        "level": "Photographs",
+        "list": {
+          "chosen": {
+            "counts": null,
             "value": null
+          },
+          "rival": null
+        },
+        "pairing": [],
+        "scope": {
+          "files": 4,
+          "kinds": [
+            [
+              "image",
+              4
+            ]
+          ],
+          "media": 4,
+          "scope": {
+            "folder": "Photographs",
+            "source": "s1"
+          }
+        },
+        "set": {
+          "chosen": {
+            "counts": {
+              "rows": null,
+              "sets": [
+                [
+                  "Photographs",
+                  4
+                ]
+              ]
+            },
+            "value": {
+              "from": "folder",
+              "scope": {
+                "folder": "Photographs",
+                "source": "s1"
+              }
+            }
+          },
+          "rival": null
+        },
+        "splits": []
+      },
+      {
+        "grain": null,
+        "items": {
+          "chosen": {
+            "counts": {
+              "files": {
+                "n": 3,
+                "of": 3
+              },
+              "items": 3,
+              "namesEndingHere": 3,
+              "otherShapes": 0,
+              "parts": [],
+              "perItem": [
+                {
+                  "count": 0,
+                  "files": "0"
+                },
+                {
+                  "count": 3,
+                  "files": "1"
+                },
+                {
+                  "count": 0,
+                  "files": "2"
+                },
+                {
+                  "count": 0,
+                  "files": "3"
+                },
+                {
+                  "count": 0,
+                  "files": "4-6"
+                },
+                {
+                  "count": 0,
+                  "files": "7+"
+                }
+              ]
+            },
+            "value": {
+              "cut": "whole"
+            }
+          },
+          "rival": {
+            "counts": {
+              "files": {
+                "n": 3,
+                "of": 3
+              },
+              "items": 1,
+              "namesEndingHere": 0,
+              "otherShapes": 0,
+              "parts": [
+                [
+                  "p1",
+                  1
+                ],
+                [
+                  "p10",
+                  1
+                ],
+                [
+                  "p2",
+                  1
+                ]
+              ],
+              "perItem": [
+                {
+                  "count": 0,
+                  "files": "0"
+                },
+                {
+                  "count": 0,
+                  "files": "1"
+                },
+                {
+                  "count": 0,
+                  "files": "2"
+                },
+                {
+                  "count": 1,
+                  "files": "3"
+                },
+                {
+                  "count": 0,
+                  "files": "4-6"
+                },
+                {
+                  "count": 0,
+                  "files": "7+"
+                }
+              ]
+            },
+            "value": {
+              "cut": "places",
+              "places": 4,
+              "rule": "sameAsSibling"
+            }
+          }
+        },
+        "kind": "series",
+        "level": "Scans",
+        "list": {
+          "chosen": {
+            "counts": null,
+            "value": null
+          },
+          "rival": null
+        },
+        "pairing": [],
+        "scope": {
+          "files": 3,
+          "kinds": [
+            [
+              "image",
+              3
+            ]
+          ],
+          "media": 3,
+          "scope": {
+            "folder": "Scans",
+            "source": "s1"
+          }
+        },
+        "set": {
+          "chosen": {
+            "counts": {
+              "rows": null,
+              "sets": [
+                [
+                  "Scans",
+                  3
+                ]
+              ]
+            },
+            "value": {
+              "from": "folder",
+              "scope": {
+                "folder": "Scans",
+                "source": "s1"
+              }
+            }
           },
           "rival": null
         },
         "splits": []
       }
     ],
-    "outside": [],
+    "outside": [
+      {
+        "files": 2,
+        "kinds": [
+          [
+            "other",
+            1
+          ]
+        ],
+        "media": 1,
+        "reason": "noMedia",
+        "scope": {
+          "folder": "_scratch",
+          "source": "s1"
+        }
+      }
+    ],
     "structure": {
       "freeSets": [],
       "levels": [
@@ -105,18 +677,121 @@
           "example": null,
           "grouping": {
             "caseFold": false,
-            "pattern": "^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\\.[^./]*)?$"
+            "pattern": "^(?:[^/]+/)*[^\\p{L}\\p{M}\\p{Nd}/]*(?<identifier>[\\p{L}\\p{M}]+[^\\p{L}\\p{M}\\p{Nd}/]*\\p{Nd}+[^\\p{L}\\p{M}\\p{Nd}/]*[\\p{L}\\p{M}]+[^\\p{L}\\p{M}\\p{Nd}/]*\\p{Nd}+)(?:[^\\p{L}\\p{M}\\p{Nd}/]*(?<part>[^/]+))?[^\\p{L}\\p{M}\\p{Nd}/]*\\.[^./]+$"
           },
-          "id": "s1",
+          "id": "Artifacts",
           "kind": "series",
           "lists": [],
           "scope": [
             {
-              "folder": "",
+              "folder": "Artifacts",
               "source": "s1"
             }
           ],
-          "set": null,
+          "set": {
+            "description": null,
+            "title": "Artifacts"
+          },
+          "slots": {
+            "item": {},
+            "itemSet": {},
+            "media": {}
+          }
+        },
+        {
+          "example": null,
+          "grouping": {
+            "caseFold": false,
+            "pattern": "^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\\.[^./]*)?$"
+          },
+          "id": "Bulk",
+          "kind": "series",
+          "lists": [],
+          "scope": [
+            {
+              "folder": "Bulk",
+              "source": "s1"
+            }
+          ],
+          "set": {
+            "description": null,
+            "title": "Bulk"
+          },
+          "slots": {
+            "item": {},
+            "itemSet": {},
+            "media": {}
+          }
+        },
+        {
+          "example": null,
+          "grouping": {
+            "caseFold": false,
+            "pattern": "^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\\.[^./]*)?$"
+          },
+          "id": "Misc",
+          "kind": "series",
+          "lists": [],
+          "scope": [
+            {
+              "folder": "Misc",
+              "source": "s1"
+            }
+          ],
+          "set": {
+            "description": null,
+            "title": "Misc"
+          },
+          "slots": {
+            "item": {},
+            "itemSet": {},
+            "media": {}
+          }
+        },
+        {
+          "example": null,
+          "grouping": {
+            "caseFold": false,
+            "pattern": "^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\\.[^./]*)?$"
+          },
+          "id": "Photographs",
+          "kind": "series",
+          "lists": [],
+          "scope": [
+            {
+              "folder": "Photographs",
+              "source": "s1"
+            }
+          ],
+          "set": {
+            "description": null,
+            "title": "Photographs"
+          },
+          "slots": {
+            "item": {},
+            "itemSet": {},
+            "media": {}
+          }
+        },
+        {
+          "example": null,
+          "grouping": {
+            "caseFold": false,
+            "pattern": "^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\\.[^./]*)?$"
+          },
+          "id": "Scans",
+          "kind": "series",
+          "lists": [],
+          "scope": [
+            {
+              "folder": "Scans",
+              "source": "s1"
+            }
+          ],
+          "set": {
+            "description": null,
+            "title": "Scans"
+          },
           "slots": {
             "item": {},
             "itemSet": {},

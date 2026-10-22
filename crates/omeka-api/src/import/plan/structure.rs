@@ -456,6 +456,15 @@ impl Series {
         }
     }
 
+    /// The series with this set: its items join it.
+    #[must_use]
+    pub fn with_set(self, set: SetSource) -> Self {
+        Self {
+            set: Some(set),
+            ..self
+        }
+    }
+
     /// Unique among the plan's levels.
     #[must_use]
     pub fn id(&self) -> &LevelId {

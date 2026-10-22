@@ -16,7 +16,7 @@ use crate::import::preview::proposal::{Evidence, FoundList, NodeEvidence, Propos
 
 /// The shapes that pass today. The table changes in the commit that makes a
 /// shape pass, and only then.
-const PASSING: &[&str] = &[];
+const PASSING: &[&str] = &["s2", "s4"];
 
 fn scope(folder: &str) -> FolderScope {
     FolderScope {
