@@ -244,6 +244,9 @@ pub enum CutRule {
     RecurringParts,
     NamesEndHere,
     SameAsSibling,
+    /// The series is one item: after a key that ends in a number, its files
+    /// share every place but the last.
+    RecurringInItem,
 }
 
 #[derive(Debug, Clone, Serialize)]

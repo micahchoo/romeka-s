@@ -102,12 +102,13 @@ const everything = (): Record<string, unknown> => {
     splits: [{ value: fromPlace, counts: { sets: [['20170616', 11]], rows: { n: 15, of: 15 } } }],
     pairing: [{ value: { rule: 'lastPlaces', places: 2 }, counts: { rows: { n: 15, of: 15 }, more: 15 } }],
   };
+  const pages = { ...series, level: 'scans', items: { ...series.items, chosen: { ...series.items.chosen, value: { cut: 'places', places: 4, rule: 'recurringInItem' } } } };
   const rows = { ...series, level: 'docs', items: { chosen: { value: { cut: 'rows', list, key: column }, counts: series.items.chosen.counts }, rival: { value: { cut: 'folder', depth: 1 }, counts: series.items.chosen.counts } } };
   return {
     ...answer,
     proposal: {
       ...proposal,
-      nodes: [{ kind: 'set', level: 'top', from: { from: 'column', list, column }, counts: setCounts }, series, rows],
+      nodes: [{ kind: 'set', level: 'top', from: { from: 'column', list, column }, counts: setCounts }, series, pages, rows],
       topSets: [{ value: { from: 'column', list, column }, counts: { sets: [['Citizen Curators', 920]], rows: { n: 920, of: 920 } } }],
       outside: [
         { ...scopeCounts, scope: { source: 's1', folder: 'tiny-iiif' }, kinds: [], media: 0, reason: 'noMedia' },

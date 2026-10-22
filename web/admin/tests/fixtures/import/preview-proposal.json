@@ -210,47 +210,6 @@
                 "n": 7,
                 "of": 7
               },
-              "items": 7,
-              "namesEndingHere": 7,
-              "otherShapes": 0,
-              "parts": [],
-              "perItem": [
-                {
-                  "count": 0,
-                  "files": "0"
-                },
-                {
-                  "count": 7,
-                  "files": "1"
-                },
-                {
-                  "count": 0,
-                  "files": "2"
-                },
-                {
-                  "count": 0,
-                  "files": "3"
-                },
-                {
-                  "count": 0,
-                  "files": "4-6"
-                },
-                {
-                  "count": 0,
-                  "files": "7+"
-                }
-              ]
-            },
-            "value": {
-              "cut": "whole"
-            }
-          },
-          "rival": {
-            "counts": {
-              "files": {
-                "n": 7,
-                "of": 7
-              },
               "items": 1,
               "namesEndingHere": 0,
               "otherShapes": 0,
@@ -314,7 +273,48 @@
             "value": {
               "cut": "places",
               "places": 4,
-              "rule": "sameAsSibling"
+              "rule": "recurringInItem"
+            }
+          },
+          "rival": {
+            "counts": {
+              "files": {
+                "n": 7,
+                "of": 7
+              },
+              "items": 7,
+              "namesEndingHere": 7,
+              "otherShapes": 0,
+              "parts": [],
+              "perItem": [
+                {
+                  "count": 0,
+                  "files": "0"
+                },
+                {
+                  "count": 7,
+                  "files": "1"
+                },
+                {
+                  "count": 0,
+                  "files": "2"
+                },
+                {
+                  "count": 0,
+                  "files": "3"
+                },
+                {
+                  "count": 0,
+                  "files": "4-6"
+                },
+                {
+                  "count": 0,
+                  "files": "7+"
+                }
+              ]
+            },
+            "value": {
+              "cut": "whole"
             }
           }
         },
@@ -349,7 +349,7 @@
               "sets": [
                 [
                   "Bulk",
-                  7
+                  1
                 ]
               ]
             },
@@ -610,47 +610,6 @@
                 "n": 3,
                 "of": 3
               },
-              "items": 3,
-              "namesEndingHere": 3,
-              "otherShapes": 0,
-              "parts": [],
-              "perItem": [
-                {
-                  "count": 0,
-                  "files": "0"
-                },
-                {
-                  "count": 3,
-                  "files": "1"
-                },
-                {
-                  "count": 0,
-                  "files": "2"
-                },
-                {
-                  "count": 0,
-                  "files": "3"
-                },
-                {
-                  "count": 0,
-                  "files": "4-6"
-                },
-                {
-                  "count": 0,
-                  "files": "7+"
-                }
-              ]
-            },
-            "value": {
-              "cut": "whole"
-            }
-          },
-          "rival": {
-            "counts": {
-              "files": {
-                "n": 3,
-                "of": 3
-              },
               "items": 1,
               "namesEndingHere": 0,
               "otherShapes": 0,
@@ -698,7 +657,48 @@
             "value": {
               "cut": "places",
               "places": 4,
-              "rule": "sameAsSibling"
+              "rule": "recurringInItem"
+            }
+          },
+          "rival": {
+            "counts": {
+              "files": {
+                "n": 3,
+                "of": 3
+              },
+              "items": 3,
+              "namesEndingHere": 3,
+              "otherShapes": 0,
+              "parts": [],
+              "perItem": [
+                {
+                  "count": 0,
+                  "files": "0"
+                },
+                {
+                  "count": 3,
+                  "files": "1"
+                },
+                {
+                  "count": 0,
+                  "files": "2"
+                },
+                {
+                  "count": 0,
+                  "files": "3"
+                },
+                {
+                  "count": 0,
+                  "files": "4-6"
+                },
+                {
+                  "count": 0,
+                  "files": "7+"
+                }
+              ]
+            },
+            "value": {
+              "cut": "whole"
             }
           }
         },
@@ -733,7 +733,7 @@
               "sets": [
                 [
                   "Scans",
-                  3
+                  1
                 ]
               ]
             },
@@ -828,7 +828,7 @@
           "example": null,
           "grouping": {
             "caseFold": false,
-            "pattern": "^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\\.[^./]*)?$"
+            "pattern": "^(?:[^/]+/)*[^\\p{L}\\p{M}\\p{Nd}/]*(?<identifier>[\\p{L}\\p{M}]+[^\\p{L}\\p{M}\\p{Nd}/]*\\p{Nd}+[^\\p{L}\\p{M}\\p{Nd}/]*[\\p{L}\\p{M}]+[^\\p{L}\\p{M}\\p{Nd}/]*\\p{Nd}+)(?:[^\\p{L}\\p{M}\\p{Nd}/]*(?<part>[^/]+))?[^\\p{L}\\p{M}\\p{Nd}/]*\\.[^./]+$"
           },
           "id": "Bulk",
           "kind": "series",
@@ -903,7 +903,7 @@
           "example": null,
           "grouping": {
             "caseFold": false,
-            "pattern": "^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\\.[^./]*)?$"
+            "pattern": "^(?:[^/]+/)*[^\\p{L}\\p{M}\\p{Nd}/]*(?<identifier>[\\p{L}\\p{M}]+[^\\p{L}\\p{M}\\p{Nd}/]*\\p{Nd}+[^\\p{L}\\p{M}\\p{Nd}/]*[\\p{L}\\p{M}]+[^\\p{L}\\p{M}\\p{Nd}/]*\\p{Nd}+)(?:[^\\p{L}\\p{M}\\p{Nd}/]*(?<part>[^/]+))?[^\\p{L}\\p{M}\\p{Nd}/]*\\.[^./]+$"
           },
           "id": "Scans",
           "kind": "series",

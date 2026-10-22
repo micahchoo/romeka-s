@@ -8,7 +8,7 @@ use super::shape::{Key, KeyShape, places};
 use super::{CutRule, Evidence, FoundList, ItemCut, NodeEvidence, Proposal, SeriesNode, propose};
 use crate::import::decisions::EntryRef;
 use crate::import::derive::tests::scenarios::{S1_TO_S8, Scenario};
-use crate::import::derive::tests::support::{JPEG, catalog, index, plan};
+use crate::import::derive::tests::support::{JPEG, TIFF, catalog, index, plan};
 use crate::import::derive::{NoTags, Sheets, derive};
 use crate::import::grouping::pattern::FilePattern;
 use crate::import::placement::{ListFiles, Placement};
@@ -167,7 +167,7 @@ fn a_sibling_shape_is_a_rival_only_when_it_joins_files() {
 }
 
 #[test]
-fn s1_scans_take_the_sibling_shape_by_one_edit() {
+fn s1_scans_are_one_item_by_their_own_pages() {
     let scenario = shape("s1");
     let proposal = of(&scenario, &[]);
     let artifacts = series(&proposal, "Artifacts");
@@ -183,32 +183,36 @@ fn s1_scans_take_the_sibling_shape_by_one_edit() {
     assert_eq!(photographs.items.chosen.value, ItemCut::Whole);
     assert_eq!(photographs.items.chosen.counts.items, 4);
     let scans = series(&proposal, "Scans");
-    assert_eq!(scans.items.chosen.value, ItemCut::Whole);
-    assert_eq!(scans.items.chosen.counts.items, 3);
-    let rival = scans.items.rival.as_ref().expect("a rival");
     assert_eq!(
-        (&rival.value, rival.counts.items),
-        (
-            &ItemCut::Places {
-                places: 4,
-                rule: CutRule::SameAsSibling
-            },
-            1
-        )
+        scans.items.chosen.value,
+        ItemCut::Places {
+            places: 4,
+            rule: CutRule::RecurringInItem
+        }
     );
+    assert_eq!(scans.items.chosen.counts.items, 1);
+    let rival = scans.items.rival.as_ref().expect("a rival");
+    assert_eq!((&rival.value, rival.counts.items), (&ItemCut::Whole, 3));
 
     let take = Edit::Items {
         scope: scope("Scans"),
         cut: CutEdit::Places { places: 4 },
     };
     let taken = of(&scenario, &[take.clone(), take]);
-    assert!(taken.edits.iter().all(|edit| edit.applied), "twice is once");
-    let scans = series(&taken, "Scans");
-    assert_eq!(scans.items.chosen.counts.items, 1);
-    assert_eq!(
-        scans.items.rival.as_ref().map(|rival| &rival.value),
-        Some(&ItemCut::Whole)
+    assert!(
+        taken.edits.iter().all(|edit| edit.applied),
+        "the pinned edit asks for what the proposal does; twice is once"
     );
+    assert_eq!(series(&taken, "Scans").items.chosen.counts.items, 1);
+    let each = of(
+        &scenario,
+        &[Edit::Items {
+            scope: scope("Scans"),
+            cut: CutEdit::Whole,
+        }],
+    );
+    assert!(each.edits[0].applied, "the rival is offered");
+    assert_eq!(series(&each, "Scans").items.chosen.counts.items, 3);
     let not_offered = of(
         &scenario,
         &[Edit::Items {
@@ -217,7 +221,7 @@ fn s1_scans_take_the_sibling_shape_by_one_edit() {
         }],
     );
     assert!(!not_offered.edits[0].applied, "a cut no count offers");
-    assert_eq!(series(&not_offered, "Scans").items.chosen.counts.items, 3);
+    assert_eq!(series(&not_offered, "Scans").items.chosen.counts.items, 1);
 }
 
 #[test]
@@ -375,5 +379,59 @@ fn a_restarted_counter_keeps_each_photo_an_item() {
             .map(|rival| (&rival.value, rival.counts.items)),
         Some((&ItemCut::Whole, 5)),
         "each folder restarts its pages, so the folder is the item; each file is the rival"
+    );
+}
+
+fn flat(files: &[(&str, &str)]) -> (Scenario, Proposal) {
+    let scenario = Scenario {
+        index: index(files),
+        sheets: Sheets::new(),
+        plan: plan(|_| {}),
+        catalog: catalog(),
+    };
+    let proposal = of(&scenario, &[]);
+    (scenario, proposal)
+}
+
+#[test]
+fn one_item_alone_in_its_series_proves_its_cut_by_its_own_pages() {
+    let (_, ledger) = flat(&[
+        ("Ledger_1907_004_p1.tif", TIFF),
+        ("Ledger_1907_004_p2.tif", TIFF),
+        ("Ledger_1907_004_p10.tif", TIFF),
+    ]);
+    let pages = &series(&ledger, "").items.chosen;
+    assert_eq!(
+        pages.value,
+        ItemCut::Places {
+            places: 3,
+            rule: CutRule::RecurringInItem
+        },
+        "after the number, every file shares `p` and only the page differs"
+    );
+    assert_eq!(pages.counts.items, 1);
+
+    let (_, narratives) = flat(&[
+        ("Ledger_1907_PN_0100.tif", TIFF),
+        ("Ledger_1907_PN_0101.tif", TIFF),
+        ("Ledger_1907_PN_0102.tif", TIFF),
+    ]);
+    let each = &series(&narratives, "").items.chosen;
+    assert_eq!(
+        (&each.value, each.counts.items),
+        (&ItemCut::Whole, 3),
+        "a key that ends in letters is a shared prefix of numbered codes"
+    );
+
+    let (_, tapes) = flat(&[
+        ("Tape_2017_V1.jpg", JPEG),
+        ("Tape_2017_V2.jpg", JPEG),
+        ("Tape_2017_AI01.jpg", JPEG),
+    ]);
+    let each = &series(&tapes, "").items.chosen;
+    assert_eq!(
+        (&each.value, each.counts.items),
+        (&ItemCut::Whole, 3),
+        "parts that differ before their last place are two kinds of code"
     );
 }

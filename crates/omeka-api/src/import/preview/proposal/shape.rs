@@ -53,6 +53,11 @@ impl KeyShape {
         self.0.len()
     }
 
+    /// The class of its last place.
+    pub fn last(&self) -> Option<PlaceClass> {
+        self.0.last().copied()
+    }
+
     /// Whether a name with these places starts with this shape.
     pub fn starts(&self, places: &[Place]) -> bool {
         places.len() >= self.0.len()

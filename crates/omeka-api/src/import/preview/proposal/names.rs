@@ -90,6 +90,8 @@ impl SeriesCut {
 struct Part<'n> {
     text: Option<&'n str>,
     places: usize,
+    /// The text of each part place but the last.
+    lead: Vec<&'n str>,
     extension: Option<&'n str>,
     folders: usize,
 }
@@ -115,6 +117,7 @@ fn group<'n>(names: &'n [Name<'_>], key: &Key) -> Grouped<'n> {
                 Part {
                     text: None,
                     places: 0,
+                    lead: Vec::new(),
                     extension: name.extension,
                     folders,
                 },
@@ -124,6 +127,7 @@ fn group<'n>(names: &'n [Name<'_>], key: &Key) -> Grouped<'n> {
                 Part {
                     text: None,
                     places: 0,
+                    lead: Vec::new(),
                     extension: name.extension,
                     folders,
                 },
@@ -138,11 +142,20 @@ fn group<'n>(names: &'n [Name<'_>], key: &Key) -> Grouped<'n> {
                     let key = &name.stem[key.first()?.start..key.last()?.end];
                     // The rest of the name: `a (1)`, not the places alone.
                     let rest_text = rest.first().map(|place| &name.stem[place.start..]);
+                    let lead = rest
+                        .split_last()
+                        .map(|(_, lead)| {
+                            lead.iter()
+                                .map(|place| &name.stem[place.start..place.end])
+                                .collect()
+                        })
+                        .unwrap_or_default();
                     Some((
                         vec![key],
                         Part {
                             text: rest_text,
                             places: rest.len(),
+                            lead,
                             extension: Some(extension),
                             folders,
                         },
@@ -160,6 +173,7 @@ fn group<'n>(names: &'n [Name<'_>], key: &Key) -> Grouped<'n> {
                         Part {
                             text: Some(name.stem),
                             places: name.places.len(),
+                            lead: Vec::new(),
                             extension: Some(extension),
                             folders,
                         },
@@ -222,8 +236,24 @@ impl Grouped<'_> {
     }
 }
 
+/// Whether the cut makes one item whose files are its pages: the key ends
+/// in a number, and every file's parts share their places but the last
+/// (`p1`, `p2`, `p10`). Parts alone cannot recur in a series of one item, so
+/// the recurring places inside it are the count.
+fn pages_of_one(grouped: &Grouped<'_>, shape: &KeyShape) -> bool {
+    let mut items = grouped.items.values();
+    let (Some(files), None) = (items.next(), items.next()) else {
+        return false;
+    };
+    let mut leads = files.iter().map(|part| &part.lead);
+    let first = leads.next().filter(|lead| !lead.is_empty());
+    shape.last() == Some(PlaceClass::Digits)
+        && first.is_some_and(|first| leads.all(|lead| lead == first))
+}
+
 /// Which rule makes this name cut valid, if one does.
-fn valid(grouped: &Grouped<'_>, key_places: usize, counted: &Counted) -> Option<CutRule> {
+fn valid(grouped: &Grouped<'_>, shape: &KeyShape, counted: &Counted) -> Option<CutRule> {
+    let key_places = shape.len();
     let collides = grouped.collisions().next().is_some();
     let mut several = grouped.several().peekable();
     if collides || several.peek().is_none() {
@@ -242,6 +272,8 @@ fn valid(grouped: &Grouped<'_>, key_places: usize, counted: &Counted) -> Option<
         Some(CutRule::RecurringParts)
     } else if counted.names_ending_here > 0 {
         Some(CutRule::NamesEndHere)
+    } else if pages_of_one(grouped, shape) {
+        Some(CutRule::RecurringInItem)
     } else {
         None
     }
@@ -274,7 +306,7 @@ fn first_valid(names: &[Name<'_>]) -> Option<Cut> {
         for (shape, _) in shapes {
             let grouped = group(names, &Key::Places(shape.clone()));
             let counted = grouped.counted();
-            if let Some(rule) = valid(&grouped, key_places, &counted) {
+            if let Some(rule) = valid(&grouped, &shape, &counted) {
                 return Some(places_cut(shape, rule, counted));
             }
         }
