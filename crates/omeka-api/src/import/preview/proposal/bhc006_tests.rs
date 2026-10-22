@@ -61,7 +61,7 @@ pub fn index() -> Index {
             size,
             modified: None,
             sniffed,
-            decoded: None,
+            disk: None,
         };
         if is_sheet {
             walk.sheets.push(entry);

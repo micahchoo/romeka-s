@@ -20,7 +20,7 @@ fn entry(path: &str) -> FileEntry {
         size: 1,
         modified: None,
         sniffed: "image/jpeg".into(),
-        decoded: None,
+        disk: None,
     }
 }
 
@@ -65,7 +65,11 @@ fn derived(
         .filter_map(|(_, sheet)| {
             Some((
                 sheet.id.clone(),
-                caches.sheets.read(sheet, dirs.get(&sheet.source)?)?,
+                caches.sheets.read(
+                    sheet,
+                    dirs.get(&sheet.source)?,
+                    std::path::Path::new(sheet.file.as_str()),
+                )?,
             ))
         })
         .collect();
@@ -194,13 +198,21 @@ fn every_list_is_ranked_by_the_rows_it_pairs_with_its_grain_and_its_rivals() {
         .tags
         .caches
         .sheets
-        .read(&stale_added, &derived.tags.dirs[&SourceId("s1".into())])
+        .read(
+            &stale_added,
+            &derived.tags.dirs[&SourceId("s1".into())],
+            std::path::Path::new("lists/stale.csv"),
+        )
         .unwrap();
     let again = derived
         .tags
         .caches
         .sheets
-        .read(&stale_added, &derived.tags.dirs[&SourceId("s1".into())])
+        .read(
+            &stale_added,
+            &derived.tags.dirs[&SourceId("s1".into())],
+            std::path::Path::new("lists/stale.csv"),
+        )
         .unwrap();
     assert!(Arc::ptr_eq(&warm, &again));
     assert_eq!(warm.sheet.as_ref().unwrap().rows.len(), 5);

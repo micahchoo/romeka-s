@@ -134,7 +134,7 @@ fn a_plan_of_one_series_keeps_the_v2_record_key() {
 fn a_file_outside_every_scope_raises_no_file_flags_and_the_same_file_inside_does() {
     use crate::import::catalog::Catalog;
     use crate::import::derive::{NoTags, Sheets, derive};
-    use crate::import::evidence::{DecodedName, NameEncoding};
+    use crate::import::evidence::{DiskName, NameEncoding};
     use crate::import::plan::FlagKind;
     use omeka_media::validation::FileValidation;
 
@@ -146,9 +146,9 @@ fn a_file_outside_every_scope_raises_no_file_flags_and_the_same_file_inside_does
         ..super::support::catalog()
     };
     let mut index = index(&[("Letters/A1.jpg", JPEG), ("Extras/Z.db", BINARY)]);
-    index.sources[0].walk.entries[1].decoded = Some(DecodedName {
-        encoding: NameEncoding::Latin1,
+    index.sources[0].walk.entries[1].disk = Some(DiskName {
         raw: b"Z.db".to_vec(),
+        encoding: Some(NameEncoding::Latin1),
     });
     let raised = |folders: Json| {
         let mut letters = series("letters", "Letters", "register");

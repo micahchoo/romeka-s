@@ -14,6 +14,7 @@ pub(crate) mod records;
 pub(crate) mod tests;
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::PathBuf;
 
 use super::catalog::Catalog;
 use super::decisions::Act;
@@ -23,7 +24,7 @@ use super::join::{self, SheetIn};
 use super::matching::{self, Matching};
 use super::model::{Fate, Model, Parent, Record, RecordId, SlotValue, Subject};
 use super::plan::{
-    Action, FlagKind, ImportPlan, RecordKind, SheetId, SlotName, SourceId, TagId, Term,
+    Action, FlagKind, ImportPlan, RecordKind, RelPath, SheetId, SlotName, SourceId, TagId, Term,
 };
 use super::sheet::{Sheet, SheetError};
 use super::slots::{self, Ctx, named};
@@ -34,6 +35,29 @@ use super::{grouping, grouping::natural_cmp};
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Index {
     pub sources: Vec<IndexedSource>,
+}
+
+impl Index {
+    /// Where the file or sheet `path` of `source` is on the disk, relative
+    /// to the source: as the walk found it, else as `path` spells it.
+    #[must_use]
+    pub fn disk_path(&self, source: &SourceId, path: &RelPath) -> PathBuf {
+        self.sources
+            .iter()
+            .find(|indexed| indexed.id == *source)
+            .and_then(|indexed| {
+                let walk = &indexed.walk;
+                [&walk.entries, &walk.sheets]
+                    .into_iter()
+                    .find_map(|entries| {
+                        let at = entries
+                            .binary_search_by(|entry| entry.path.cmp(path))
+                            .ok()?;
+                        Some(entries[at].disk_path())
+                    })
+            })
+            .unwrap_or_else(|| PathBuf::from(path.as_str()))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

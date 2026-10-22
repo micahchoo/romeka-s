@@ -18,6 +18,12 @@ import { en as listsEn } from '../src/i18n/namespaces/import-lists';
 import { en as runEn } from '../src/i18n/namespaces/import-run';
 import { en as simple } from '../src/i18n/namespaces/import-simple';
 import { en as structure } from '../src/i18n/namespaces/import-structure';
+import { ml as mlImport } from '../src/i18n/namespaces/import/locales/ml';
+import { ml as mlAdvanced } from '../src/i18n/namespaces/import-advanced/locales/ml';
+import { ml as mlLists } from '../src/i18n/namespaces/import-lists/locales/ml';
+import { ml as mlRun } from '../src/i18n/namespaces/import-run/locales/ml';
+import { ml as mlSimple } from '../src/i18n/namespaces/import-simple/locales/ml';
+import { ml as mlStructure } from '../src/i18n/namespaces/import-structure/locales/ml';
 
 const en: Readonly<Record<string, string>> = { ...importEn, ...listsEn };
 
@@ -90,5 +96,25 @@ describe('import strings use plain words', () => {
     const found = Object.entries(advancedEn).flatMap(([key, text]) => bannedIn(key, text, true));
     expect(found).toEqual([]);
     expect(Object.keys(advancedEn).length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * One spelling of a term in each locale. A machine-translated table can spell
+ * a word two ways from one run to the next; the hand correction in the table
+ * survives a rerun, and this keeps a new key from bringing the other back.
+ */
+const SPELLINGS: readonly { readonly locale: string; readonly table: Readonly<Record<string, string>>; readonly term: string; readonly not: RegExp }[] = [
+  ...[mlImport, mlAdvanced, mlLists, mlRun, mlSimple, mlStructure].map((table) => ({ locale: 'ml', table, term: 'പാറ്റേൺ', not: /പാറ്തേ/u })),
+];
+
+describe('import strings spell a term one way in each locale', () => {
+  it('finds no other spelling of the term', () => {
+    const found = SPELLINGS.flatMap(({ locale, table, term, not }) =>
+      Object.entries(table)
+        .filter(([, text]) => not.test(text))
+        .map(([key, text]) => `${locale} ${key}: not "${term}" in "${text}"`),
+    );
+    expect(found).toEqual([]);
   });
 });

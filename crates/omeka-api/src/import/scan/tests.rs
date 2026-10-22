@@ -24,7 +24,7 @@ fn entry(path: &str) -> FileEntry {
         size: 12,
         modified: Some(UNIX_EPOCH + Duration::from_secs(1_700_000_000)),
         sniffed: "image/jpeg".into(),
-        decoded: None,
+        disk: None,
     }
 }
 
@@ -61,14 +61,19 @@ fn read_back(rows: Vec<NewEntry>) -> Vec<EntryRow> {
 #[test]
 fn a_walk_survives_the_rows_with_its_sheets_decoded_names_and_anomalies() {
     let mut decoded = entry("Año/a.jpg");
-    decoded.decoded = Some(DecodedName {
-        encoding: NameEncoding::Cp437,
+    decoded.disk = Some(DiskName {
         raw: b"A\xA4o/a.jpg".to_vec(),
+        encoding: Some(NameEncoding::Cp437),
     });
     let mut undated = entry("b.jpg");
     undated.modified = None;
+    let mut decomposed = entry("Caf\u{e9}.jpg");
+    decomposed.disk = Some(DiskName {
+        raw: "Cafe\u{301}.jpg".as_bytes().to_vec(),
+        encoding: None,
+    });
     let walk = Walk {
-        entries: vec![decoded.clone(), undated.clone()],
+        entries: vec![decoded.clone(), undated.clone(), decomposed],
         sheets: vec![entry("register.csv")],
         anomalies: Anomalies {
             symlinks: 2,
@@ -98,18 +103,18 @@ fn a_walk_survives_the_rows_with_its_sheets_decoded_names_and_anomalies() {
     expected.sort_by(|a, b| a.path.cmp(&b.path));
     assert_eq!(
         s1.walk.entries, expected,
-        "decoded bytes and a missing time"
+        "decoded bytes, NFD bytes and a missing time"
     );
     assert_eq!(s1.walk.sheets, walk.sheets);
     assert_eq!(s1.walk.anomalies, walk.anomalies);
     assert_eq!(stored.index.sources.len(), 2, "s3 was never scanned");
     assert_eq!(stored.sources.len(), 3);
-    assert_eq!(stored.sources[0].files, 2);
+    assert_eq!(stored.sources[0].files, 3);
     assert_eq!(stored.sources[0].sheet_files, ["register.csv"]);
     assert!(stored.sources[1].error.as_deref().unwrap().contains("gone"));
     assert!(stored.sources[1].scanned.is_some());
     assert_eq!(stored.sources[2].scanned, None);
-    assert_eq!(stored.size(), 3);
+    assert_eq!(stored.size(), 4);
 }
 
 async fn draft(pool: &sqlx::SqlitePool) -> ImportId {

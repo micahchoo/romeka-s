@@ -99,7 +99,7 @@ const openFound = (): ReturnType<typeof simpleServer> => {
 };
 
 describe('What we found, as a list of groups and an inspector', () => {
-  it('counts the files, items and files left out in one line; the kinds of problem show once, in the status line', async () => {
+  it('counts the files, items and files left out in one line; the open questions show once, in the status line', async () => {
     openFound();
     const files = await screen.findByText('Files', { selector: 'span' }, { timeout: 5000 });
     const line = files.parentElement ?? files;
@@ -107,7 +107,8 @@ describe('What we found, as a list of groups and an inspector', () => {
     expect(line).toHaveTextContent('Items 4');
     expect(line).toHaveTextContent('Files left out 1');
     expect(line).not.toHaveTextContent('Kinds of problem');
-    expect(screen.getAllByText(/7 kinds of problem/)).toHaveLength(1);
+    // The 7 that Check counts open over the same draft.
+    expect(screen.getAllByText(/7 questions open/)).toHaveLength(1);
   }, 20_000);
 
   it('names each group by chips of its facts on the left, and shows the selected group’s examples and actions on the right', async () => {
@@ -264,6 +265,20 @@ describe('Check', () => {
     expect(counts).toHaveTextContent('Items to add 4');
     expect(counts).toHaveTextContent('Questions open 7');
     expect(counts).toHaveTextContent('Answered 0');
+  }, 20_000);
+
+  it('the status line counts the questions Check counts as open, before and after an answer', async () => {
+    openCheck();
+    const counts = (await screen.findByText('Items to add', { selector: 'span' }, { timeout: 5000 })).parentElement;
+    expect(counts).toHaveTextContent('Questions open 7');
+    expect(await screen.findByRole('link', { name: '7 questions open' })).toHaveAttribute('href', '#/import/1/simple/check');
+    await question('Already in Omeka');
+    const known = await screen.findByRole('region', { name: '1 item is already in Omeka.' });
+    fireEvent.click(within(within(known).getByRole('group', { name: 'Answer for all 1' })).getByRole('button', { name: 'Add them again' }));
+    await waitFor(() => {
+      expect(counts).toHaveTextContent('Questions open 6');
+    }, { timeout: 3000 });
+    expect(await screen.findByRole('link', { name: '6 questions open' }, { timeout: 3000 })).toBeInTheDocument();
   }, 20_000);
 
   it('shows a fact with no answer to give, and the way to the setting behind it', async () => {
