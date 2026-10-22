@@ -22,7 +22,7 @@ use crate::imports_fixture::{self, fixture};
 /// edit applied. A listed shape that stops placing so fails, and so does an
 /// unlisted one that starts: the list moves by hand, with the reason in the
 /// commit.
-const HELDOUT_PASSING: &[&str] = &[];
+const HELDOUT_PASSING: &[&str] = &["oral_history"];
 
 fn pinned_edits(name: &str) -> Value {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
