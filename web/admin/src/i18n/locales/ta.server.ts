@@ -221,7 +221,7 @@ export const taServer: ServerCatalogue = {
   'server.importListSeriesNeeded':
     'இந்தத் திட்டத்தில் பல தொடர்கள் உள்ளன. பட்டியல் எந்தத் தொடருக்கானது என்பதைத் தேர்ந்தெடுக்கவும்.',
   'server.importListSeriesUnknown': 'இந்தத் திட்டத்தில் "{series}" என்ற தொடர் இல்லை.',
-  'server.importListUnknown': 'இந்தத் திட்டத்தில் "{list}" என்ற பட்டியல் இல்லை.',
+  'server.importListUnknown': 'திட்டத்தில் "{list}" என்ற பட்டியல் இல்லை.',
   'server.importListNoIdentifier':
     'பட்டியலில் அடையாளங்காட்டி (Identifier) நெடுவரிசை இல்லை, எனவே அதன் வரிசைகள் அவற்றின் உருப்படிகளைக் கண்டறிய முடியாது. நீங்கள் பதிவிறக்கிய பட்டியலின் அடையாளங்காட்டி நெடுவரிசையை வைத்திருக்கவும்.',
   'server.importPairsColumns':

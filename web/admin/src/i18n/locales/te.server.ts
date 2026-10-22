@@ -212,7 +212,7 @@ export const teServer: ServerCatalogue = {
   'server.importListSeriesNeeded':
     'ఈ ప్లాన్‌లో అనేక సిరీస్‌లు ఉన్నాయి. జాబితా దేనికోసం ఉందో ఆ సిరీస్‌ను ఎంచుకోండి.',
   'server.importListSeriesUnknown': 'ఈ ప్లాన్‌లో "{series}" సిరీస్ లేదు.',
-  'server.importListUnknown': 'ఈ ప్లాన్‌లో "{list}" జాబితా లేదు.',
+  'server.importListUnknown': 'ప్లాన్‌కు "{list}" జాబితా లేదు.',
   'server.importListNoIdentifier':
     'జాబితాలో ఐడెంటిఫైయర్ కాలమ్ లేదు, కాబట్టి దాని వరుసలు వాటి ఐటమ్స్‌ను కనుగొనలేవు. మీరు డౌన్‌లోడ్ చేసిన జాబితా యొక్క ఐడెంటిఫైయర్ కాలమ్‌ను ఉంచండి.',
   'server.importPairsColumns':
