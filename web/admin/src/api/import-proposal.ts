@@ -66,6 +66,14 @@ export interface CutCounts {
   readonly otherShapes: number;
 }
 
+/** A list's grain evidence, and what one answer makes of the series. */
+export interface GrainCounts extends Grain {
+  /** The list's rows that name no file with this answer. */
+  readonly rowsNamingNoFile: number;
+  /** The items the series keeps with this answer. */
+  readonly items: number;
+}
+
 export interface SetCounts {
   /** Each set with the items it would hold, most first. */
   readonly sets: readonly (readonly [string, number])[];
@@ -85,7 +93,7 @@ export interface SeriesNode {
   readonly items: Choice<ItemCut, CutCounts>;
   /** A choice of no list has no list counts. */
   readonly list: Choice<ListFile | null, ListCandidate | null>;
-  readonly grain: Choice<RecordKind, Grain> | null;
+  readonly grain: Choice<RecordKind, GrainCounts> | null;
   readonly set: Choice<SetFrom | null, SetCounts>;
   readonly splits: readonly Pick<SetFrom, SetCounts>[];
   readonly pairing: readonly Pick<PairRule, PairCounts>[];
@@ -123,6 +131,12 @@ export interface Proposal {
   /** Whether `structure` is the plan's own. */
   readonly matchesPlan: boolean;
 }
+
+const parseGrainCounts = (raw: unknown, path: Path): GrainCounts => {
+  const object = asRecord(raw, path);
+  const grain = Object.fromEntries(Object.entries(object).filter(([key]) => key !== 'rowsNamingNoFile' && key !== 'items'));
+  return { ...parseGrain(grain, path), rowsNamingNoFile: count(object, 'rowsNamingNoFile', path), items: count(object, 'items', path) };
+};
 
 const parseShare = (raw: unknown, path: Path): Share => {
   const object = strict(raw, path, ['n', 'of']);
@@ -229,7 +243,7 @@ const parseNodeEvidence = (raw: unknown, path: Path): NodeEvidence => {
     scope: member(only, 'scope', path, (value, at) => scopeCounts(strict(value, at, [...SCOPE_COUNTS]), at)),
     items: member(only, 'items', path, parseChoice(parseItemCut, parseCutCounts)),
     list: member(only, 'list', path, parseChoice(nullable(parseListFile), nullable(parseListCandidate))),
-    grain: member(only, 'grain', path, nullable(parseChoice(oneOf(RECORD_KINDS), parseGrain))),
+    grain: member(only, 'grain', path, nullable(parseChoice(oneOf(RECORD_KINDS), parseGrainCounts))),
     set: member(only, 'set', path, parseChoice(nullable(parseSetFrom), parseSetCounts)),
     splits: member(only, 'splits', path, list(parsePick(parseSetFrom, parseSetCounts))),
     pairing: member(only, 'pairing', path, list(parsePick(parsePairRule, parsePairCounts))),

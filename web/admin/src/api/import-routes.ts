@@ -180,11 +180,19 @@ export class ImportApi {
     return this.url(`${one(id)}/template.csv`, templateParams(columns, series));
   }
 
-  /** A filled list (`.csv` or `.tsv`, at most 50 MB) added to `series` as a sheet; a plan of several series needs `series`. */
-  async addList(id: ImportId, file: File, series?: LevelId): Promise<ImportDetail> {
+  /**
+   * A filled list (`.csv` or `.tsv`, at most 50 MB) added to `series` as a sheet; a plan of several series needs `series`.
+   * With `replace`, the sheet id of a list the person uploaded to that series, the file takes that list's place and keeps
+   * its choices. Without it the file is always a new list: the server cannot tell two lists of one template apart.
+   */
+  async addList(id: ImportId, file: File, series?: LevelId, replace?: string): Promise<ImportDetail> {
     const form = new FormData();
     form.append('file', file, file.name);
-    return parseImportDetail(await this.json('POST', `${one(id)}/sheets`, { form, params: seriesParams(series) }));
+    const params = seriesParams(series);
+    if (replace !== undefined) {
+      params.set('replace', replace);
+    }
+    return parseImportDetail(await this.json('POST', `${one(id)}/sheets`, { form, params }));
   }
 
   /** The address of the pairs list, for a link: one line for each list row that names no file, with an empty Files column to fill. */

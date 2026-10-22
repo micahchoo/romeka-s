@@ -207,6 +207,7 @@ export const neServer: ServerCatalogue = {
   'server.importListSeriesNeeded':
     'यो योजनामा धेरै शृङ्खलाहरू छन्। सूची जुन शृङ्खलाका लागि हो, त्यसलाई छान्नुहोस्।',
   'server.importListSeriesUnknown': 'योजनामा कुनै शृङ्खला "{series}" छैन।',
+  'server.importListUnknown': 'योजनामा कुनै सूची "{list}" छैन।',
   'server.importListNoIdentifier':
     'सूचीमा कुनै आइडेन्टिफायर कोलम छैन, त्यसैले यसका पङ्क्तिहरूले आफ्ना वस्तुहरू फेला पार्न सक्दैनन्। तपाईँले डाउनलोड गर्नुभएको सूचीको आइडेन्टिफायर कोलम सुरक्षित राख्नुहोस्।',
   'server.importPairsColumns':

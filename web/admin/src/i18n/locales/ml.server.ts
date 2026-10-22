@@ -218,6 +218,7 @@ export const mlServer: ServerCatalogue = {
   'server.importListSeriesNeeded':
     'ഈ പ്ലാനിൽ നിരവധി സീരീസുകൾ ഉണ്ട്. ലിസ്റ്റ് ഏത് സീരീസിനുള്ളതാണെന്ന് തിരഞ്ഞെടുക്കുക.',
   'server.importListSeriesUnknown': 'ഈ പ്ലാനിൽ "{series}" സീരീസ് ഇല്ല.',
+  'server.importListUnknown': 'ഈ പ്ലാനിൽ "{list}" ലിസ്റ്റ് ഇല്ല.',
   'server.importListNoIdentifier':
     'ലിസ്റ്റിൽ ഐഡന്റിഫയർ കോളം ഇല്ല, അതിനാൽ അതിലെ വരികൾക്ക് അവയുടെ ഐറ്റങ്ങൾ കണ്ടെത്താൻ കഴിയില്ല. നിങ്ങൾ ഡൗൺലോഡ് ചെയ്ത ലിസ്റ്റിന്റെ ഐഡന്റിഫയർ കോളം നിലനിർത്തുക.',
   'server.importPairsColumns':

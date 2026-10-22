@@ -56,7 +56,7 @@ use indexmap::IndexMap;
 
 use serde::Serialize;
 
-use super::candidates::{self, Grain, ListCandidate};
+use super::candidates::{self, ColumnGrain, ListCandidate};
 use super::columns::EVERY_FOLD;
 use super::facts::{Bucket, BucketCount, MediaKind};
 use crate::import::catalog::{self, Catalog};
@@ -290,8 +290,25 @@ pub struct PairCounts {
 
 /// A list's counts, as the `listCandidates` section counts them.
 pub type ListCounts = ListCandidate;
-/// What a list's rows describe, as the `listCandidates` section counts it.
-pub type GrainCounts = Grain;
+/// What a list's rows describe, as the `listCandidates` section counts it,
+/// and what one answer makes of the series, counted on a derive of the
+/// proposed tree with that answer.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GrainCounts {
+    /// Item groups that more than one paired row names a file of.
+    pub groups_with_many_rows: usize,
+    /// Rows naming a file of a group that an earlier row named another
+    /// file of.
+    pub rows_naming_other_files_of_a_group: usize,
+    /// Every column of the list, in sheet order.
+    pub columns: Vec<ColumnGrain>,
+    /// The list's rows that name no file of the import with this answer,
+    /// as the `unpaired` section lists them.
+    pub rows_naming_no_file: usize,
+    /// The items the series keeps with this answer.
+    pub items: usize,
+}
 
 /// A folder the proposal leaves outside, and why.
 #[derive(Debug, Clone, Serialize)]
@@ -454,6 +471,37 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         });
     }
     let model = derive(evidence.index, &sheets, &plan, evidence.catalog, &NoTags);
+    // One derive with every series' rival grain counts what each grain
+    // click would make: a series' items read only its own files and lists.
+    let flipped: Vec<Option<grain::SeriesRows>> = rows
+        .iter()
+        .map(grain::SeriesRows::with_rival_grain)
+        .collect();
+    let rival_model = if flipped.iter().any(Option::is_some) {
+        let rival_rows: Vec<grain::SeriesRows> = flipped
+            .into_iter()
+            .zip(&rows)
+            .map(|(flipped, rows)| flipped.unwrap_or_else(|| rows.clone()))
+            .collect();
+        let levels = tree(
+            evidence.structure,
+            &series,
+            &keys,
+            &rival_rows,
+            &Sets::default(),
+        );
+        Structure::build(levels, found.left.clone(), evidence.sources)
+            .ok()
+            .map(|structure| {
+                let rival = ImportPlan {
+                    structure,
+                    ..patterns.clone()
+                };
+                derive(evidence.index, &sheets, &rival, evidence.catalog, &NoTags)
+            })
+    } else {
+        None
+    };
 
     let read: Vec<sets::SeriesIn<'_>> = plan
         .structure
@@ -595,7 +643,12 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
                 rival: here.rival.map(list_pick),
                 others: here.others.into_iter().map(list_pick).collect(),
             },
-            grain: rows.grain,
+            grain: rows
+                .grain
+                .zip(plan.structure.series(at).lists().first())
+                .map(|(choice, first)| {
+                    grain::answers(choice, &model, rival_model.as_ref(), at, &first.id)
+                }),
             set: Choice {
                 chosen: set.unwrap_or(Pick {
                     value: None,
