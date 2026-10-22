@@ -100,7 +100,7 @@ test('an editor draws a box on a video frame and it is stored with its range', a
   diagnostics,
 }) => {
   const media = await uploadVideo(page.request);
-  await signIn(page, baseURL ?? '');
+  await signIn(page, baseURL);
   await page.goto(`/#/media/${String(media)}`);
   await page.locator('video.media-stage-player').waitFor();
 
@@ -134,7 +134,7 @@ test('the public page shows a box only while the player is inside its range', as
   baseURL,
 }) => {
   const media = await uploadVideo(page.request);
-  await signIn(page, baseURL ?? '');
+  await signIn(page, baseURL);
   const container = await page.request.get(`/annotations/media/${String(media)}/`, { headers: { accept: ANNO } });
   const canvas = container.headers()['romeka-canvas'] ?? '';
   const ids: number[] = [];
@@ -143,7 +143,7 @@ test('the public page shows a box only while the player is inside its range', as
     ['Late', 'xywh=pixel:50,30,40,30&t=0.3,0.5'],
   ] as const) {
     const answer = await page.request.post(`/annotations/media/${String(media)}/`, {
-      headers: { accept: ANNO, 'content-type': ANNO, origin: new URL(baseURL ?? '').origin },
+      headers: { accept: ANNO, 'content-type': ANNO, origin: new URL(baseURL).origin },
       data: {
         '@context': 'http://www.w3.org/ns/anno.jsonld',
         type: 'Annotation',
