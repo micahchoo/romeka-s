@@ -7,7 +7,9 @@
 //! root. It also starts the
 //! import staging sweep when it boots and then every hour, so uploaded files
 //! go even when nobody uploads, and goes on with every import run a restart
-//! killed ([`resume_imports`]).
+//! killed ([`resume_imports`]). When a signal stops it, it sends each job it
+//! started a TERM and waits for them ([`ProcessDispatch::shutdown`]): an
+//! import run ends after the record in hand, `interrupted`.
 
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
@@ -29,6 +31,11 @@ use crate::jobs::{JobCommand, ProcessDispatch};
 
 /// How often the server starts the staging sweep.
 const SWEEP_EVERY: Duration = Duration::from_secs(60 * 60);
+
+/// How long a stopping server waits for its jobs to end after their TERM
+/// before it kills them: inside `deploy/compose.yaml`'s `stop_grace_period`
+/// (60 s), so the server, not the container runtime, ends them.
+const JOB_GRACE: Duration = Duration::from_secs(50);
 
 /// Bind `host:port` and serve until the process stops. `store` is the file
 /// store root; `files` in the working directory when `None`, as before.
@@ -56,7 +63,7 @@ pub async fn run(
     config.set_address(address);
     config.set_base_url(base);
     let store_root = absolute(store.unwrap_or(Path::new(omeka_server::FILES_ROOT)))?;
-    let jobs = ProcessDispatch(JobCommand {
+    let dispatch = Arc::new(ProcessDispatch::new(JobCommand {
         program: None,
         database: match database {
             Location::File(path) => Location::File(absolute(path)?),
@@ -65,8 +72,8 @@ pub async fn run(
         store: Some(store_root.clone()),
         base_url: Some(base_url.to_string()),
         archive_root: config.archive_root.clone(),
-    });
-    let jobs: Arc<dyn JobDispatch> = Arc::new(jobs);
+    }));
+    let jobs: Arc<dyn JobDispatch> = dispatch.clone();
     tokio::spawn(sweep_every(pool.clone(), Arc::clone(&jobs), SWEEP_EVERY));
     let store = omeka_server::file_store(store_root)
         .map_err(|error| CliError::message(error.to_string()))?;
@@ -78,7 +85,9 @@ pub async fn run(
     let resuming = pool.clone();
     tokio::spawn(async move { resume_imports(&resuming, &resume, HEARTBEAT_EVERY).await });
     let services = Services::new(store).with_jobs(jobs);
-    Ok(omeka_server::serve_with_services(config, pool, services).await?)
+    let served = omeka_server::serve_with_services(config, pool, services).await;
+    let _ = tokio::task::spawn_blocking(move || dispatch.shutdown(JOB_GRACE)).await;
+    Ok(served?)
 }
 
 /// Start the staging sweep job now and then every `period`. The period is a

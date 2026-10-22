@@ -127,6 +127,9 @@ serve_pid=$!
 caddy run --config "$CADDYFILE" --adapter caddyfile &
 caddy_pid=$!
 
+# The TERM reaches the server, which passes it to each job it started and waits
+# up to 50 s for them (an import run ends after the record in hand), so wait
+# for it: once this script exits, the kernel kills whatever is left.
 shutdown() {
     kill "$serve_pid" "$caddy_pid" 2>/dev/null || true
     wait "$serve_pid" "$caddy_pid" 2>/dev/null || true

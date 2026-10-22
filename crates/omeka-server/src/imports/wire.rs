@@ -21,7 +21,7 @@ use omeka_api::import::start::AssessError;
 use omeka_api::messages;
 use omeka_db::DbError;
 use omeka_db::ids::ImportId;
-use omeka_db::repos::{DIED, HEARTBEAT, ImportRepo, RESUMED};
+use omeka_db::repos::{DIED, HEARTBEAT, INTERRUPTED, ImportRepo, RESUMED};
 use omeka_db::rows::ImportRow;
 use omeka_db::with_db;
 use serde::Serialize;
@@ -246,10 +246,11 @@ pub(crate) async fn load(state: &AppState, raw: &str) -> Result<ImportRow, Impor
 }
 
 /// One import as the routes answer it. `plan` and `ranPlan` are left out of
-/// the history list. Four stored summary members are not the run's report:
+/// the history list. Five stored summary members are not the run's report:
 /// the undo job's report `undo`, shown as `undoReport`; the time a reader
-/// found the job dead, shown as `died`; how often the server resumed the run
-/// by itself, shown as `resumed` once it did; and the worker's heartbeat, not
+/// found the job dead, shown as `died`; the time a TERM ended the run, shown
+/// as `interrupted` once one did; how often the server resumed the run by
+/// itself, shown as `resumed` once it did; and the worker's heartbeat, not
 /// shown.
 /// A stop request is the row's own `stopRequested`.
 #[derive(Debug, Serialize)]
@@ -265,6 +266,8 @@ pub(crate) struct ImportView {
     summary: Option<Value>,
     undo_report: Value,
     died: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    interrupted: Option<String>,
     #[serde(skip_serializing_if = "is_zero")]
     resumed: u64,
     stop_requested: bool,
@@ -303,6 +306,7 @@ impl ImportView {
             summary: split.report,
             undo_report: split.undo,
             died: split.died,
+            interrupted: split.interrupted,
             resumed: split.resumed,
             stop_requested: row.stop_requested,
             job_id: row.job_id.map(|job| job.0),
@@ -336,6 +340,7 @@ struct Split {
     report: Option<Value>,
     undo: Value,
     died: Option<String>,
+    interrupted: Option<String>,
     resumed: u64,
 }
 
@@ -348,14 +353,13 @@ fn split_summary(summary: Option<Value>) -> Split {
                 .remove(RESUMED)
                 .and_then(|resumed| resumed.as_u64())
                 .unwrap_or(0);
-            let died = members.remove(DIED).and_then(|died| match died {
-                Value::String(stored) => Some(format!("{}+00:00", stored.replacen(' ', "T", 1))),
-                _ => None,
-            });
+            let died = members.remove(DIED).and_then(iso);
+            let interrupted = members.remove(INTERRUPTED).and_then(iso);
             Split {
                 report: (!members.is_empty()).then_some(Value::Object(members)),
                 undo,
                 died,
+                interrupted,
                 resumed,
             }
         }
@@ -363,8 +367,17 @@ fn split_summary(summary: Option<Value>) -> Split {
             report,
             undo: Value::Null,
             died: None,
+            interrupted: None,
             resumed: 0,
         },
+    }
+}
+
+/// A stored time member as the wire writes times.
+fn iso(stored: Value) -> Option<String> {
+    match stored {
+        Value::String(stored) => Some(format!("{}+00:00", stored.replacen(' ', "T", 1))),
+        _ => None,
     }
 }
 

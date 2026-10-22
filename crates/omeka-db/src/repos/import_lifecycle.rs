@@ -132,6 +132,12 @@ fn resumable(summary: Option<&Value>, stop_requested: bool) -> bool {
         && (summary.get(DIED).is_some() || summary.get(INTERRUPTED).is_some())
 }
 
+/// Now, in the stored datetime format a summary member such as [`INTERRUPTED`] holds.
+#[must_use]
+pub fn stamp_now() -> String {
+    time::format(time::now())
+}
+
 /// How often the server has resumed the run of `summary` by itself.
 #[must_use]
 pub fn resumed_of(summary: Option<&Value>) -> u64 {

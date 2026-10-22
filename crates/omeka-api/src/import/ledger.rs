@@ -95,6 +95,9 @@ pub struct Summary {
     /// How often the server resumed the run by itself; it outlives each
     /// attempt, so the run carries it from the summary it found.
     pub resumed: u64,
+    /// When a TERM ended the run after the record in hand, in the stored
+    /// datetime format.
+    pub interrupted: Option<String>,
 }
 
 impl Summary {
@@ -111,7 +114,16 @@ impl Summary {
         if self.resumed > 0 {
             summary[omeka_db::repos::RESUMED] = json!(self.resumed);
         }
+        if let Some(at) = &self.interrupted {
+            summary[omeka_db::repos::INTERRUPTED] = json!(at);
+        }
         summary
+    }
+
+    /// Whether the run ended before its last record: a stop, or a TERM.
+    #[must_use]
+    pub fn ended_early(&self) -> bool {
+        self.stopped || self.interrupted.is_some()
     }
 }
 

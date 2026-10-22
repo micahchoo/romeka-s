@@ -51,10 +51,7 @@ where
             self.delete_one(record, &mut gone).await?;
             match self.pulse().await? {
                 Next::Go => {}
-                Next::Stop => {
-                    self.summary.stopped = true;
-                    break;
-                }
+                Next::Stop | Next::Interrupt => break,
                 Next::Lost => return Ok(RunEnd::Lost),
             }
         }

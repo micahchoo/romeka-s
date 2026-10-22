@@ -29,6 +29,8 @@ export type Stage =
       readonly summary: RunSummary;
       /** When a reader found the job dead. */
       readonly died: string | null;
+      /** A restart ended the run after the record in hand; the server goes on with it when it starts. */
+      readonly interrupted: boolean;
       readonly retry: boolean;
     }
   /** An undo ended. Only `undone` is final; the others may undo again. */
@@ -68,6 +70,7 @@ export const stageOf = (detail: ImportDetail): Stage => {
         stopped: detail.status === 'run_failed',
         summary,
         died: detail.died,
+        interrupted: detail.status === 'run_failed' && detail.interrupted !== undefined,
         retry: canRetry(detail),
       };
     }

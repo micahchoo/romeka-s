@@ -24,7 +24,9 @@
 //!
 //! A record whose key the ledger holds is skipped, so a retry converges.
 //! After each record the job proves it is alive and reads the stop request;
-//! a stop ends the run `run_failed` after the record in hand.
+//! a stop ends the run `run_failed` after the record in hand. A TERM to the
+//! worker ends it the same way, marked `interrupted`, so the server resumes
+//! it when it boots again.
 
 mod delete;
 mod fields;
@@ -36,6 +38,7 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use omeka_db::Backend;
 use omeka_db::DbError;
@@ -83,6 +86,9 @@ pub struct RunEnv<'a> {
     pub sites: &'a dyn SiteSync,
     /// The API's delete paths, which a `delete` run deletes through.
     pub removal: &'a dyn Removal,
+    /// Set when the worker's process is asked to go (a TERM): the run ends
+    /// after the record in hand, as on a stop, but `interrupted`.
+    pub interrupt: &'a AtomicBool,
 }
 
 /// Who pressed Run: the owner of `runner` in the plan, and the owners the
@@ -244,6 +250,7 @@ struct Run<'r, DB: Backend> {
 enum Next {
     Go,
     Stop,
+    Interrupt,
     Lost,
 }
 
@@ -306,34 +313,36 @@ where
             }
             match self.pulse().await? {
                 Next::Go => {}
-                Next::Stop => {
-                    self.summary.stopped = true;
-                    break;
-                }
+                Next::Stop | Next::Interrupt => break,
                 Next::Lost => return Ok(RunEnd::Lost),
             }
         }
-        if !self.summary.stopped {
+        if !self.summary.ended_early() {
             self.links().await?;
         }
         self.end().await
     }
 
     /// Prove the worker is alive, store the summary, and read the stop
-    /// request.
-    async fn pulse(&self) -> Result<Next, RunError> {
+    /// request and the TERM. Either is recorded in the summary.
+    async fn pulse(&mut self) -> Result<Next, RunError> {
         let imports = ImportRepo::<DB>::new(self.pool);
         if !imports.heartbeat(self.import, self.job).await? {
             return Ok(Next::Lost);
         }
-        imports
-            .set_summary(self.import, &self.summary.to_json())
-            .await?;
-        Ok(if imports.stop_requested(self.import).await? {
+        let next = if self.env.interrupt.load(Ordering::SeqCst) {
+            self.summary.interrupted = Some(omeka_db::repos::stamp_now());
+            Next::Interrupt
+        } else if imports.stop_requested(self.import).await? {
+            self.summary.stopped = true;
             Next::Stop
         } else {
             Next::Go
-        })
+        };
+        imports
+            .set_summary(self.import, &self.summary.to_json())
+            .await?;
+        Ok(next)
     }
 
     /// Count a record this attempt wrote or failed as done.
@@ -373,7 +382,7 @@ where
             .records
             .iter()
             .any(|record| self.written.holds(&record.origin.key()));
-        let ending = if committed && !self.summary.stopped {
+        let ending = if committed && !self.summary.ended_early() {
             ImportEnding::Done
         } else {
             ImportEnding::RunFailed

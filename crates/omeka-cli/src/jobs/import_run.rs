@@ -14,6 +14,7 @@
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use async_trait::async_trait;
 use omeka_api::import::access_copies;
@@ -53,7 +54,12 @@ impl Job for ImportRun {
 
     async fn perform(&self, context: &JobContext<'_>) -> Result<(), JobError> {
         let import = import_id(context)?;
-        let outcome = run(context, import).await;
+        let interrupt = Arc::new(AtomicBool::new(false));
+        let listener = on_term(Arc::clone(&interrupt));
+        let outcome = run(context, import, &interrupt).await;
+        if let Some(listener) = listener {
+            listener.abort();
+        }
         if outcome.is_err() {
             // The worker is alive and knows it failed; waiting for a reader
             // to find it dead would hold the install's one run slot.
@@ -70,6 +76,11 @@ impl Job for ImportRun {
                 summary.total,
                 summary.failures.len()
             ),
+            RunEnd::Failed(summary) if summary.interrupted.is_some() => format!(
+                "Import {} was interrupted after {} of {} records: the process was asked to \
+                 end. The server goes on with it when it starts.",
+                import.0, summary.done, summary.total
+            ),
             RunEnd::Failed(summary) if summary.stopped => {
                 format!("Import {} stopped on request.", import.0)
             }
@@ -84,10 +95,34 @@ impl Job for ImportRun {
             ),
         };
         context.log(&line).await?;
-        if end != RunEnd::Lost {
+        // An interrupted run leaves its playable copies to the run that goes
+        // on with it, so the process ends while the TERM's grace lasts.
+        if end != RunEnd::Lost && !interrupt.load(Ordering::SeqCst) {
             playable_copies(context, import).await?;
         }
         Ok(())
+    }
+}
+
+/// Set `interrupt` when the process gets a TERM, which the run reads after
+/// each record. `None` where the signal cannot be listened for; the TERM then
+/// ends the process as before, and the server resumes the run once it is
+/// found dead.
+fn on_term(interrupt: Arc<AtomicBool>) -> Option<tokio::task::JoinHandle<()>> {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{SignalKind, signal};
+        let mut term = signal(SignalKind::terminate()).ok()?;
+        Some(tokio::spawn(async move {
+            if term.recv().await.is_some() {
+                interrupt.store(true, Ordering::SeqCst);
+            }
+        }))
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = interrupt;
+        None
     }
 }
 
@@ -114,12 +149,20 @@ async fn playable_copies(context: &JobContext<'_>, import: ImportId) -> Result<(
         return Ok(());
     };
     let owner = runner(context.pool, context.job_id).await?.user;
-    omeka_server::jobs::start_derivatives(context.pool, &ProcessDispatch(command.clone()), owner)
-        .await;
+    omeka_server::jobs::start_derivatives(
+        context.pool,
+        &ProcessDispatch::new(command.clone()),
+        owner,
+    )
+    .await;
     Ok(())
 }
 
-async fn run(context: &JobContext<'_>, import: ImportId) -> Result<RunEnd, JobError> {
+async fn run(
+    context: &JobContext<'_>,
+    import: ImportId,
+    interrupt: &AtomicBool,
+) -> Result<RunEnd, JobError> {
     let pool = context.pool;
     let runner = runner(pool, context.job_id).await?;
     let validation = omeka_api::settings::file_validation(pool).await?;
@@ -141,6 +184,7 @@ async fn run(context: &JobContext<'_>, import: ImportId) -> Result<RunEnd, JobEr
             .with_max_bytes(usize::try_from(max_file).unwrap_or(usize::MAX)),
         sites: &sites,
         removal: &removal,
+        interrupt,
     };
     with_db!(pool, |db| run_import(
         db,

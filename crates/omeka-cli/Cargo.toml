@@ -47,6 +47,11 @@ tempfile = "3"
 thiserror.workspace = true
 tokio = { version = "1", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 
+# The server sends its job processes TERM, then KILL, on shutdown
+# (`jobs/dispatcher.rs`, `ProcessDispatch::shutdown`) without unsafe code.
+[target.'cfg(unix)'.dependencies]
+rustix = { version = "1", features = ["process"] }
+
 [dev-dependencies]
 # `tests/import_staging.rs` writes the ZIPs it uploads.
 flate2 = "1"
