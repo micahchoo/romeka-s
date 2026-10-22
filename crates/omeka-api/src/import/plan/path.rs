@@ -46,6 +46,12 @@ impl RelPath {
         Ok(Self(nfc))
     }
 
+    /// The empty path: the source itself.
+    #[must_use]
+    pub fn root() -> Self {
+        Self(String::new())
+    }
+
     #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0

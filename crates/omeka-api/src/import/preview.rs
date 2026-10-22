@@ -22,6 +22,7 @@ mod facts;
 mod identical;
 mod names;
 pub mod pairs;
+pub mod proposal;
 mod query;
 mod sample;
 mod sheets;
