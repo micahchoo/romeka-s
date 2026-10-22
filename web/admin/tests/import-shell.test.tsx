@@ -27,11 +27,11 @@ vi.mock('../src/pages/import/simple/bodies', async () => {
       <label>
         <input
           type="checkbox"
-          checked={seriesOf(draft.plan).grouping.caseFold}
+          checked={seriesOf(draft.plan, 'all').grouping.caseFold}
           disabled={!draft.editable}
           onChange={(event) => {
             const on = event.target.checked;
-            draft.change((plan) => withSeries(plan, (series) => ({ ...series, grouping: { ...series.grouping, caseFold: on } })));
+            draft.change((plan) => withSeries(plan, 'all', (series) => ({ ...series, grouping: { ...series.grouping, caseFold: on } })));
           }}
         />
         {CaseFold.label}
@@ -44,7 +44,7 @@ vi.mock('../src/pages/import/simple/bodies', async () => {
 vi.mock('../src/pages/import/advanced/bodies', async () => {
   const { useDraft } = await import('../src/pages/import/draft-context');
   const { seriesOf } = await import('../src/pages/import/series');
-  const Files = () => <p>caseFold: {String(seriesOf(useDraft().plan).grouping.caseFold)}</p>;
+  const Files = () => <p>caseFold: {String(seriesOf(useDraft().plan, 'all').grouping.caseFold)}</p>;
   return { ADVANCED_BODIES: { files: Files } };
 });
 

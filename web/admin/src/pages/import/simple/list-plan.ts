@@ -8,11 +8,11 @@
  */
 import type { ColumnCells, Grain, SheetColumnMatches, Varies } from '../../../api/import-sections';
 import type { SheetRead, SheetView } from '../../../api/import-sheet-views';
-import type { ColumnRef, ImportPlan, RecordKind, SheetPlan, SlotName, SlotRule, SlotRules, SourceRef, Term } from '../../../api/import-plan';
+import type { ColumnRef, ImportPlan, RecordKind, SheetPlan, SlotName, SlotRule, SlotRules, Slots, SourceRef, Term } from '../../../api/import-plan';
 import { isTerm } from '../../../api/import-plan';
 import type { CsvRead } from '../csv-records';
 import { readCsv } from '../csv-records';
-import { allLists, listOf, slotsOf, withList, withSlots } from '../series';
+import { allLists, listOf, seriesHolding, slotsOf, withList, withSlots } from '../series';
 
 /** Where a column goes: nowhere, a field, the item type, the item set, or a new field. */
 export type Target = '' | `field:${Term}` | 'template' | 'sets' | `new:${string}`;
@@ -96,13 +96,23 @@ interface Place {
   readonly rule: SlotRule;
 }
 
+/** The rules of the series that holds `sheet`, the only ones that may read its columns; none for a list no series holds. */
+const rulesFor = (plan: ImportPlan, sheet: string): Slots | null => {
+  const holder = seriesHolding(plan, sheet);
+  return holder === undefined ? null : slotsOf(plan, holder.id);
+};
+
 /** Every item and media rule that reads the column, items first. */
-const placesOf = (plan: ImportPlan, sheet: string, index: number): readonly Place[] =>
-  (['item', 'media'] as const).flatMap((kind) =>
-    Object.entries<SlotRule | undefined>(slotsOf(plan)[kind]).flatMap(([slot, rule]) =>
-      rule?.sources.some((source) => readsColumn(source, sheet, index)) === true ? [{ kind, slot, rule }] : [],
-    ),
-  );
+const placesOf = (plan: ImportPlan, sheet: string, index: number): readonly Place[] => {
+  const rules = rulesFor(plan, sheet);
+  return rules === null
+    ? []
+    : (['item', 'media'] as const).flatMap((kind) =>
+        Object.entries<SlotRule | undefined>(rules[kind]).flatMap(([slot, rule]) =>
+          rule?.sources.some((source) => readsColumn(source, sheet, index)) === true ? [{ kind, slot, rule }] : [],
+        ),
+      );
+};
 
 export const levelOf = (plan: ImportPlan, sheet: string, index: number): Level => {
   const places = placesOf(plan, sheet, index);
@@ -124,11 +134,12 @@ export const fileLevelAllowed = (plan: ImportPlan, sheet: string, index: number)
  * so that edit leaves the plan as it is.
  */
 export const withColumnLevel = (plan: ImportPlan, sheet: string, column: ColumnRef, level: Level): ImportPlan => {
-  if (level === 'file' && !fileLevelAllowed(plan, sheet, column.index)) {
+  const holder = seriesHolding(plan, sheet);
+  if (holder === undefined || (level === 'file' && !fileLevelAllowed(plan, sheet, column.index))) {
     return plan;
   }
   const places = placesOf(plan, sheet, column.index);
-  const rules = slotsOf(plan);
+  const rules = slotsOf(plan, holder.id);
   const without = (kind: 'item' | 'media'): SlotRules => {
     const next: { [slot: string]: SlotRule } = {};
     for (const [slot, rule] of Object.entries<SlotRule | undefined>(rules[kind])) {
@@ -145,7 +156,7 @@ export const withColumnLevel = (plan: ImportPlan, sheet: string, column: ColumnR
   };
   const slots = { ...rules, item: without('item'), media: without('media') };
   if (level === 'out') {
-    return withSlots(plan, slots);
+    return withSlots(plan, holder.id, slots);
   }
   const kind = KIND[level];
   const into: { [slot: string]: SlotRule | undefined } = { ...slots[kind] };
@@ -154,13 +165,14 @@ export const withColumnLevel = (plan: ImportPlan, sheet: string, column: ColumnR
     const there = into[place.slot];
     into[place.slot] = there === undefined ? { ...place.rule, sources: [source] } : { ...there, sources: [source, ...there.sources.filter((one) => !readsColumn(one, sheet, column.index))] };
   }
-  return withSlots(plan, { ...slots, [kind]: into });
+  return withSlots(plan, holder.id, { ...slots, [kind]: into });
 };
 
 /** The columns of `sheet` that some rule of `kinds` reads. */
 const columnsIn = (plan: ImportPlan, sheet: string, kinds: readonly ('item' | 'media')[]): readonly ColumnRef[] => {
   const found = new Map<number, ColumnRef>();
-  for (const rule of kinds.flatMap((kind) => Object.values<SlotRule | undefined>(slotsOf(plan)[kind]))) {
+  const rules = rulesFor(plan, sheet);
+  for (const rule of rules === null ? [] : kinds.flatMap((kind) => Object.values<SlotRule | undefined>(rules[kind]))) {
     for (const source of rule?.sources ?? []) {
       if (source.from === 'column' && source.sheet === sheet) {
         found.set(source.column.index, source.column);
@@ -321,8 +333,12 @@ export const targetOf = (plan: ImportPlan, sheet: string, index: number): Target
  * on each file, unless the target is an item's alone.
  */
 export const withTarget = (plan: ImportPlan, sheet: string, column: ColumnRef, target: Target): ImportPlan => {
+  const holder = seriesHolding(plan, sheet);
+  if (holder === undefined) {
+    return plan;
+  }
   const onFiles = levelOf(plan, sheet, column.index) === 'file' && !itemOnly(target);
-  const slots = slotsOf(plan);
+  const slots = slotsOf(plan, holder.id);
   const item = rulesWithout(slots.item, sheet, column.index);
   const media = rulesWithout(slots.media, sheet, column.index);
   const newTerms =
@@ -330,14 +346,14 @@ export const withTarget = (plan: ImportPlan, sheet: string, column: ColumnRef, t
       ? [...plan.newTerms, { label: target.slice('new:'.length) }]
       : plan.newTerms;
   if (target === '') {
-    return withSlots(plan, { ...slots, item, media });
+    return withSlots(plan, holder.id, { ...slots, item, media });
   }
   const slot = slotOf(target);
   const rules = onFiles ? media : item;
   const rule = rules[slot] ?? { sources: [], combine: 'first' as const };
   const source: SourceRef = { from: 'column', sheet, column };
   const placed = { ...rules, [slot]: { ...rule, sources: [source, ...rule.sources] } };
-  return withSlots({ ...plan, newTerms }, { ...slots, item: onFiles ? item : placed, media: onFiles ? placed : media });
+  return withSlots({ ...plan, newTerms }, holder.id, { ...slots, item: onFiles ? item : placed, media: onFiles ? placed : media });
 };
 
 /**

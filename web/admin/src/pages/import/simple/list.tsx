@@ -10,7 +10,7 @@
 import type { ReactElement } from 'react';
 import type { ListCandidate, SheetColumnMatches } from '../../../api/import-sections';
 import type { SheetView } from '../../../api/import-sheet-views';
-import type { RecordKind, SheetPlan } from '../../../api/import-plan';
+import type { LevelId, RecordKind, SheetPlan } from '../../../api/import-plan';
 import { ErrorNotice } from '../../../app/errors';
 import { useDraft } from '../draft-context';
 import { nameOf, stateOf, STATE_WORDS, useListChoice } from '../lists/list-picker';
@@ -25,7 +25,8 @@ import { folderSheets } from './list-read';
 import { MasterDetail, Segmented } from './master-detail';
 import { useSimpleText } from './messages';
 import type { SimpleMessageKey } from './messages';
-import { seriesOf, withSeries } from '../series';
+import { usePickedSeries } from '../picked-series';
+import { seriesOf, withList } from '../series';
 import './simple.css';
 
 const keyOf = (candidate: ListCandidate): string => `${candidate.source}/${candidate.file}`;
@@ -115,7 +116,7 @@ const HeaderLine = ({ sheet, view }: { readonly sheet: SheetPlan; readonly view:
             const line = Number(event.target.value);
             if (Number.isInteger(line) && line >= 1) {
               draft.change((plan) =>
-                withSeries(plan, (series) => ({ ...series, lists: series.lists.map((one) => (one.id === sheet.id ? { ...one, read: { ...one.read, headerLine: line } } : one)) })),
+                withList(plan, sheet.id, (one) => ({ ...one, read: { ...one.read, headerLine: line } })),
               );
             }
           }}
@@ -193,16 +194,16 @@ interface Read {
 }
 
 /** One list: whether it is used, what it pairs and, when in use, how. */
-const Inspector = ({ candidate, read }: { readonly candidate: ListCandidate; readonly read: Read }): ReactElement => {
+const Inspector = ({ level, candidate, read }: { readonly level: LevelId; readonly candidate: ListCandidate; readonly read: Read }): ReactElement => {
   const { t, number } = useSimpleText();
   const draft = useDraft();
-  const choice = useListChoice(candidate);
+  const choice = useListChoice(candidate, level);
   const { state } = choice;
   const sheet = state.kind === 'inUse' ? state.sheet : null;
   const view = sheet === null ? undefined : read.sheets.find((one) => one.id === sheet.id);
   const counts: ListCounts | null =
     sheet === null ? null : { grain: candidate.grain, matches: read.columnMatches.find((one) => one.sheet === sheet.id), cells: candidate.cells };
-  const overlaps = candidate.overlaps.filter((overlap) => seriesOf(draft.plan).lists.some((one) => one.source === overlap.source && one.file === overlap.file));
+  const overlaps = candidate.overlaps.filter((overlap) => seriesOf(draft.plan, level).lists.some((one) => one.source === overlap.source && one.file === overlap.file));
   const { name, folder } = nameOf(candidate.file);
   const encoding = view === undefined ? null : encodingWords(view, t);
   return (
@@ -338,7 +339,7 @@ const Help = (): ReactElement => {
   );
 };
 
-const Lists = (): ReactElement => {
+const Lists = ({ level }: { readonly level: LevelId }): ReactElement => {
   const { t } = useSimpleText();
   const draft = useDraft();
   const read = usePreview(['listCandidates', 'sheets', 'columnMatches', 'unpaired', 'flags'], { unpaired: { rows: { perPage: 1 }, files: { perPage: 1 } } });
@@ -357,7 +358,7 @@ const Lists = (): ReactElement => {
       </div>
     );
   }
-  const sheets = folderSheets(draft.plan);
+  const sheets = folderSheets(draft.plan, level);
   const rows = sheets.reduce((sum, sheet) => {
     const view = read.data.sheets.find((one) => one.id === sheet.id);
     return sum + (view?.read?.rows ?? read.data.columnMatches.find((one) => one.sheet === sheet.id)?.rows ?? 0);
@@ -384,22 +385,27 @@ const Lists = (): ReactElement => {
       >
         {(key) => {
           const candidate = candidates.find((one) => keyOf(one) === key);
-          return candidate === undefined ? null : <Inspector key={key} candidate={candidate} read={read.data} />;
+          return candidate === undefined ? null : <Inspector key={key} level={level} candidate={candidate} read={read.data} />;
         }}
       </MasterDetail>
     </div>
   );
 };
 
-export const YourList = (): ReactElement => {
+/** The plan's one series: this screen opens only on a plan of one (`screens.ts`, `landing`). */
+export const YourList = (): ReactElement | null => {
   const { t } = useSimpleText();
+  const series = usePickedSeries();
+  if (series === null) {
+    return null;
+  }
   return (
     <>
-      <Lists />
+      <Lists level={series.id} />
       <Help />
       <details className="guided-trip">
         <summary>{t('lists.trip.title')}</summary>
-        <RoundTrip />
+        <RoundTrip level={series.id} />
       </details>
     </>
   );

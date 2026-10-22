@@ -50,7 +50,7 @@ const useHand = (): Hand => {
 
 const ownOf = (scope: FolderScope): Edit => ({ edit: 'own', scope });
 
-const writeMark = (level: LevelId, { mark, path }: Marked): Write => (plan) => withSeries(plan, (series) => withMarkOn(series, path, mark), level);
+const writeMark = (level: LevelId, { mark, path }: Marked): Write => (plan) => withSeries(plan, level, (series) => withMarkOn(series, path, mark));
 
 /** What the written series makes: its items, and its files per item when an item has more than one. */
 const Makes = ({ items }: { readonly items: CutCounts }): ReactElement => {

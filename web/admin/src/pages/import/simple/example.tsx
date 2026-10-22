@@ -15,6 +15,7 @@
 import { useState } from 'react';
 import type { ComponentType, ReactElement, SyntheticEvent } from 'react';
 import type { Anomaly } from '../../../api/import-model';
+import type { LevelId } from '../../../api/import-plan';
 import type { BucketCount, NameWord, Paged } from '../../../api/import-sections';
 import { ErrorNotice } from '../../../app/errors';
 import { useDraft } from '../draft-context';
@@ -23,7 +24,8 @@ import { usePreview } from '../lists/use-preview';
 import { placeHref } from '../screens';
 import type { Mark } from '../example';
 import { endingOf, markOf, markedText, nameOf, stemParts } from './name-parts';
-import { readState, withMarks } from './example-state';
+import { marksOf, withMarks } from './example-state';
+import { usePickedSeries } from '../picked-series';
 import { useSimpleText } from './messages';
 import type { SimpleTranslator } from './messages';
 import './simple.css';
@@ -115,13 +117,13 @@ const biggest = (bars: readonly BucketCount[], anomalies: readonly Anomaly[], te
   return top.files === '1' || top.files === '2' || top.files === '3' ? filesWords(Number(top.files), t, number) : t(BUCKET_WORDS[top.files]);
 };
 
-/** The plan's one series with the mark: what its files make, and "Use this", which writes it. */
-const OneSeriesTrial = ({ mark, path }: Marked): ReactElement => {
+/** The series `level` with the mark: what its files make, and "Use this", which writes it. */
+const SeriesTrial = ({ level, mark, path }: Marked & { readonly level: LevelId }): ReactElement => {
   const text = useSimpleText();
   const { t, number } = text;
   const draft = useDraft();
-  const marks = [...readState(draft.plan).marks, mark];
-  const read = usePreview(['histogram', 'anomalies'], { plan: withMarks(draft.plan, marks, path) });
+  const marks = [...marksOf(draft.plan, level), mark];
+  const read = usePreview(['histogram', 'anomalies'], { plan: withMarks(draft.plan, level, marks, path) });
   if (read.status === 'loading') {
     return <p role="status" className="import-slow">{t('guided.example.counting')}</p>;
   }
@@ -143,7 +145,7 @@ const OneSeriesTrial = ({ mark, path }: Marked): ReactElement => {
           className="import-primary"
           disabled={!draft.editable || read.busy}
           onClick={() => {
-            draft.change((plan) => withMarks(plan, [...readState(plan).marks, mark], path));
+            draft.change((plan) => withMarks(plan, level, [...marksOf(plan, level), mark], path));
             goFound(draft.id);
           }}
         >
@@ -292,6 +294,12 @@ const Marking = ({ path, Trial }: { readonly path: string; readonly Trial: MarkF
       {body}
     </>
   );
+};
+
+/** The plan's one series: this screen opens only on a plan of one (`screens.ts`, `landing`). */
+const OneSeriesTrial = (marked: Marked): ReactElement | null => {
+  const series = usePickedSeries();
+  return series === null ? null : <SeriesTrial level={series.id} {...marked} />;
 };
 
 const ONE_SERIES: MarkFor = { Trial: OneSeriesTrial };

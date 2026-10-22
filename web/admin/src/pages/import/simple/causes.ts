@@ -71,10 +71,11 @@ export interface FileRows {
  * ("Each row describes"), so Check does not.
  */
 export const fileRowsOf = (plan: ImportPlan, candidates: readonly ListCandidate[]): FileRows | null => {
-  if (onlySeries(plan) === null) {
+  const one = onlySeries(plan);
+  if (one === null) {
     return null;
   }
-  for (const sheet of folderSheets(plan)) {
+  for (const sheet of folderSheets(plan, one.id)) {
     const grain = candidates.find((candidate) => candidate.inPlan === sheet.id)?.grain ?? null;
     if (sheet.rowKind === 'item' && sheet.join?.on === 'fileName' && grain !== null && grain.rowsNamingOtherFilesOfAGroup > 0) {
       return { sheet: sheet.id, grain };
@@ -239,7 +240,8 @@ const isAnomaly = (id: CauseId): id is AnomalyId => id === 'identical' || id ===
  * describes one file where the list looks like it does.
  */
 export const wordsOf = (id: CauseId, plan: ImportPlan, facts: CheckFacts): CauseWords => {
-  if (id === 'unmatchedFiles' && (exampleOf(plan)?.marks.length ?? 0) === 0) {
+  const one = onlySeries(plan);
+  if (id === 'unmatchedFiles' && (one === null ? 0 : (exampleOf(plan, one.id)?.marks.length ?? 0)) === 0) {
     return { ...ANOMALY_WORDS.unmatchedFiles, say: 'guided.check.noFitPlain', sayOne: 'guided.check.noFitPlainOne' };
   }
   if (id === 'duplicate-row' && facts.fileRows !== null) {

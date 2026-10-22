@@ -4,7 +4,7 @@
  * answer, so the groups on "What we found" can already say which items have
  * a row; "Not about these items" keeps a list out.
  */
-import type { ImportId, ImportPlan, SheetPlan } from '../../../api/import-plan';
+import type { ImportId, ImportPlan, LevelId, SheetPlan } from '../../../api/import-plan';
 import { importApi } from '../../../api/import-routes';
 import { loadProperties } from '../lists/catalog';
 import { seriesOf, withSeries } from '../series';
@@ -15,19 +15,19 @@ export interface ListFile {
   readonly file: string;
 }
 
-/** The plan's lists from a folder, which "Your list" talks about. */
-export const folderSheets = (plan: ImportPlan): readonly SheetPlan[] =>
-  seriesOf(plan).lists.filter((sheet) => plan.sources.some((source) => source.id === sheet.source && source.kind === 'folder'));
+/** The series' lists from a folder, which "Your list" talks about. */
+export const folderSheets = (plan: ImportPlan, level: LevelId): readonly SheetPlan[] =>
+  seriesOf(plan, level).lists.filter((sheet) => plan.sources.some((source) => source.id === sheet.source && source.kind === 'folder'));
 
-const withList = (plan: ImportPlan, sheet: SheetPlan): ImportPlan => withSeries(plan, (series) => ({ ...series, lists: [...series.lists, sheet] }));
+const withList = (plan: ImportPlan, level: LevelId, sheet: SheetPlan): ImportPlan => withSeries(plan, level, (series) => ({ ...series, lists: [...series.lists, sheet] }));
 
 /**
- * The edit that adds `list` to a plan: read once with automatic options, and
+ * The edit that adds `list` to the series `level`: read once with automatic options, and
  * once more on the header line the server guessed when that is not line 1;
  * its counts as that read gives them.
  */
-export const listEdit = async (id: ImportId, plan: ImportPlan, list: ListFile): Promise<(now: ImportPlan) => ImportPlan> => {
-  const readWith = (sheet: SheetPlan) => importApi.preview(id, ['sheets', 'columnMatches', 'listCandidates'], { plan: withList(plan, sheet) });
+export const listEdit = async (id: ImportId, plan: ImportPlan, level: LevelId, list: ListFile): Promise<(now: ImportPlan) => ImportPlan> => {
+  const readWith = (sheet: SheetPlan) => importApi.preview(id, ['sheets', 'columnMatches', 'listCandidates'], { plan: withList(plan, level, sheet) });
   const first = sheetOf(plan, list.source, list.file);
   let sheet = first;
   let preview = await readWith(first);
@@ -48,5 +48,5 @@ export const listEdit = async (id: ImportId, plan: ImportPlan, list: ListFile): 
     cells: preview.listCandidates.find((one) => one.inPlan === sheet.id)?.cells ?? [],
   };
   return (now) =>
-    seriesOf(now).lists.some((one) => one.file === sheet.file && one.source === sheet.source) ? now : withRead(withList(now, sheet), sheet.id, read, counts, fields);
+    seriesOf(now, level).lists.some((one) => one.file === sheet.file && one.source === sheet.source) ? now : withRead(withList(now, level, sheet), sheet.id, read, counts, fields);
 };

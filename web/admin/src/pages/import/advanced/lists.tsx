@@ -1,10 +1,11 @@
 /**
  * Advanced, Lists: the list files of the folder to choose from, as Simple
- * shows them; then for each list of the import, how it is read, which column
- * pairs its rows with items (chosen by exact counts) and how equal two keys
- * must be, what each row describes, the rows and items left unpaired, and
- * its columns with field, split, type, language, private and, for rows that
- * describe files, where their values go. Then the list round trip.
+ * shows them, read into the folder picked (`SeriesPicker`); then for each
+ * list of that folder, how it is read, which column pairs its rows with
+ * items (chosen by exact counts) and how equal two keys must be, what each
+ * row describes, the rows and items left unpaired, and its columns with
+ * field, split, type, language, private and, for rows that describe files,
+ * where their values go. Then the list round trip of that folder.
  */
 import { lazy, Suspense, useId } from 'react';
 import type { ReactElement } from 'react';
@@ -24,7 +25,8 @@ import { withRowKind } from '../simple/list-plan';
 import type { ListCounts } from '../simple/list-plan';
 import { NO_NORMALIZE, setItemKey, setJoin, setJoinColumn, setRead, setRowKindColumn } from './plan-edits';
 import { Setting } from './setting';
-import { allLists } from '../series';
+import { usePickedSeries } from '../picked-series';
+import { NoSeries, SeriesPicker } from './series-picker';
 import './advanced.css';
 
 const RoundTrip = lazy(() => import('../lists/round-trip'));
@@ -339,11 +341,16 @@ export const AdvancedLists = (): ReactElement => {
   const draft = useDraft();
   const read = usePreview(['sheets', 'columnMatches', 'unpaired', 'listCandidates'], { unpaired: { rows: { perPage: 1 }, files: { perPage: 1 } } });
   const data = read.status === 'ready' ? read.data : null;
-  const lists = allLists(draft.plan);
+  const series = usePickedSeries();
+  if (series === null) {
+    return <NoSeries />;
+  }
+  const { lists } = series;
   return (
     <div className="adv-section" aria-busy={read.status === 'loading' || (read.status === 'ready' && read.busy)}>
       {read.status === 'error' ? <ErrorNotice error={read.error} /> : null}
-      <ListPicker none={null} />
+      <SeriesPicker picked={series} />
+      <ListPicker none={null} level={series.id} />
       {lists.length === 0 ? <p className="import-note">{t('adv.lists.none')}</p> : null}
       {lists.map((sheet) => {
         const view = data?.sheets.find((one) => one.id === sheet.id);
@@ -381,7 +388,7 @@ export const AdvancedLists = (): ReactElement => {
       )}
       <h4>{t('adv.lists.roundTrip.title')}</h4>
       <Suspense fallback={null}>
-        <RoundTrip />
+        <RoundTrip level={series.id} />
       </Suspense>
     </div>
   );

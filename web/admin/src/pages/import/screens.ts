@@ -10,8 +10,8 @@
  * Simple's steps are Structure, Check and Add. "What we found", "Your list"
  * and "Where they go" were steps; each became questions of a Structure node.
  * They stay as sub-screens of Structure for a plan of one series, which they
- * edit; on a plan of several their addresses land on Structure, at the
- * question they asked (`landing`).
+ * edit; on a plan of several their addresses, and the marked example's, land
+ * on Structure, at the question they asked (`landing`).
  */
 import type { ImportDetail } from '../../api/import-view';
 import type { ImportId, ImportPlan } from '../../api/import-plan';
@@ -140,8 +140,8 @@ export const firstPlace = (detail: ImportDetail): Place => {
   return { mode: 'simple', screen: detail.plan.sources.length === 0 ? 'files' : 'structure' };
 };
 
-/** The old steps, and the Structure question each one asked. */
-const MOVED: Readonly<Partial<Record<SimpleScreen, Focus>>> = { found: 'items', list: 'list', where: 'set' };
+/** The old steps and the example they open, and the Structure question each one asked. */
+const MOVED: Readonly<Partial<Record<SimpleScreen, Focus>>> = { found: 'items', example: 'items', list: 'list', where: 'set' };
 
 /**
  * The place a screen opens as, for this plan: an old step of Simple edits the

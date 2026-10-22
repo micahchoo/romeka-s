@@ -1,12 +1,13 @@
 /**
  * Advanced, Files: where the files come from, files added from this
- * computer (looked at again as each arrives), the marked example with a
- * Remove for each mark, the pattern typed as a regex with what it fits, the
+ * computer (looked at again as each arrives), then for the folder picked
+ * (`SeriesPicker`) the marked example with a Remove for each mark and the
+ * pattern typed as a regex with what it fits, then for every folder the
  * identical files, the files chart and the groups of items by their facts.
  */
 import { lazy, Suspense } from 'react';
 import type { ReactElement } from 'react';
-import type { SourcePlan } from '../../../api/import-plan';
+import type { LevelId, SourcePlan } from '../../../api/import-plan';
 import { ErrorNotice } from '../../../app/errors';
 import { useDraft } from '../draft-context';
 import { exampleKept, exampleOf, patternIsMarked, removeExample, removeMark } from '../example';
@@ -19,7 +20,8 @@ import { whereWords } from '../words';
 import { useAdvancedText } from './messages';
 import { PatternEditor } from './pattern-editor';
 import { Setting } from './setting';
-import { seriesOf } from '../series';
+import { usePickedSeries } from '../picked-series';
+import { NoSeries, SeriesPicker } from './series-picker';
 import './advanced.css';
 
 const IdenticalFiles = lazy(() => import('../lists/identical'));
@@ -71,12 +73,12 @@ const markWords = (mark: Mark, t: ReturnType<typeof useAdvancedText>['t']): stri
   }
 };
 
-const Example = (): ReactElement => {
+const Example = ({ level }: { readonly level: LevelId }): ReactElement => {
   const { t } = useAdvancedText();
   const draft = useDraft();
-  const example = exampleOf(draft.plan);
-  const stored = exampleKept(draft.plan);
-  const followed = example !== null && patternIsMarked(draft.plan, example);
+  const example = exampleOf(draft.plan, level);
+  const stored = exampleKept(draft.plan, level);
+  const followed = example !== null && patternIsMarked(draft.plan, level, example);
   return (
     <Setting label={t('adv.files.example.label')} plain={t('adv.files.example.plain')}>
       {() => {
@@ -87,7 +89,7 @@ const Example = (): ReactElement => {
           return (
             <>
               <p>{t('adv.files.example.unread')}</p>
-              <button type="button" disabled={!draft.editable} onClick={() => { draft.change(removeExample); }}>
+              <button type="button" disabled={!draft.editable} onClick={() => { draft.change((plan) => removeExample(plan, level)); }}>
                 {t('adv.files.example.removeAll')}
               </button>
             </>
@@ -109,7 +111,7 @@ const Example = (): ReactElement => {
                     disabled={!draft.editable}
                     aria-label={t('adv.files.example.removeOne', { mark: markWords(mark, t) })}
                     onClick={() => {
-                      draft.change((plan) => removeMark(plan, at));
+                      draft.change((plan) => removeMark(plan, level, at));
                     }}
                   >
                     {t('adv.files.example.remove')}
@@ -128,7 +130,7 @@ const Example = (): ReactElement => {
 export const AdvancedFiles = (): ReactElement => {
   const { t } = useAdvancedText();
   const draft = useDraft();
-  const { pattern, caseFold } = seriesOf(draft.plan).grouping;
+  const series = usePickedSeries();
   const { look, lookAgain } = useLookAgain();
   return (
     <div className="adv-section">
@@ -137,8 +139,15 @@ export const AdvancedFiles = (): ReactElement => {
       <ComputerFiles lookAgain={lookAgain} />
       {look.at === 'failed' ? <ErrorNotice error={look.error} /> : null}
       <h4>{t('adv.files.pattern.title')}</h4>
-      <Example />
-      <PatternEditor key={JSON.stringify([pattern, caseFold])} />
+      {series === null ? (
+        <NoSeries />
+      ) : (
+        <>
+          <SeriesPicker picked={series} />
+          <Example level={series.id} />
+          <PatternEditor key={JSON.stringify([series.id, series.grouping.pattern, series.grouping.caseFold])} level={series.id} />
+        </>
+      )}
       <Suspense fallback={null}>
         <h4>{t('adv.files.facts.title')}</h4>
         <IdenticalFiles />

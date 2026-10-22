@@ -13,6 +13,7 @@
  */
 import { useState } from 'react';
 import type { ReactElement } from 'react';
+import type { LevelId } from '../../../api/import-plan';
 import type { ResourceTemplate } from '../../../api/types';
 import { ErrorNotice } from '../../../app/errors';
 import { Pager } from '../../../app/list';
@@ -29,6 +30,7 @@ import type { Segment } from './master-detail';
 import { useSimpleText } from './messages';
 import { folderName, setChoiceOf, setColumnOf, typeAnswerOf, typeFromOf, withSetChoice, withTypeAnswer, withTypeFrom, withoutTypeMap } from './where-plan';
 import type { SetChoice, TypeFrom } from './where-plan';
+import { usePickedSeries } from '../picked-series';
 import { seriesOf } from '../series';
 import './simple.css';
 
@@ -152,11 +154,11 @@ const ItemSets = ({ catalog }: { readonly catalog: Catalog | null }): ReactEleme
 
 const fromKey = (from: TypeFrom): string => (from.from === 'column' ? `column:${from.sheet}:${String(from.index)}` : from.from);
 
-const TypeValues = ({ templates }: { readonly templates: readonly ResourceTemplate[] }): ReactElement => {
+const TypeValues = ({ level, templates }: { readonly level: LevelId; readonly templates: readonly ResourceTemplate[] }): ReactElement => {
   const { t, number } = useSimpleText();
   const draft = useDraft();
   const [page, setPage] = useState(1);
-  const read = usePreview(['values'], { plan: withoutTypeMap(draft.plan), values: { page, perPage: PER_PAGE } });
+  const read = usePreview(['values'], { plan: withoutTypeMap(draft.plan, level), values: { page, perPage: PER_PAGE } });
   if (read.status === 'loading') {
     return <p role="status" className="import-slow">{t('shell.loading')}</p>;
   }
@@ -183,7 +185,7 @@ const TypeValues = ({ templates }: { readonly templates: readonly ResourceTempla
           <tbody>
             {values.items.map((value) => {
               const same = templates.find((template) => fold(template.label) === fold(value.text));
-              const answer = typeAnswerOf(draft.plan, value.text);
+              const answer = typeAnswerOf(draft.plan, level, value.text);
               const chosen =
                 answer.to === 'none' ? 'none' : answer.to === 'type' ? (newLabels.some((label) => fold(label) === fold(answer.label)) ? `new:${answer.label}` : `type:${answer.label}`) : same === undefined ? '' : `type:${same.label}`;
               return (
@@ -202,12 +204,12 @@ const TypeValues = ({ templates }: { readonly templates: readonly ResourceTempla
                         const next = event.target.value;
                         draft.change((plan) =>
                           next === ''
-                            ? withTypeAnswer(plan, value.text, { to: 'unset' }, false)
+                            ? withTypeAnswer(plan, level, value.text, { to: 'unset' }, false)
                             : next === 'none'
-                              ? withTypeAnswer(plan, value.text, { to: 'none' }, false)
+                              ? withTypeAnswer(plan, level, value.text, { to: 'none' }, false)
                               : next.startsWith('new:')
-                                ? withTypeAnswer(plan, value.text, { to: 'type', label: next.slice('new:'.length) }, true)
-                                : withTypeAnswer(plan, value.text, { to: 'type', label: next.slice('type:'.length) }, false),
+                                ? withTypeAnswer(plan, level, value.text, { to: 'type', label: next.slice('new:'.length) }, true)
+                                : withTypeAnswer(plan, level, value.text, { to: 'type', label: next.slice('type:'.length) }, false),
                         );
                       }}
                     >
@@ -232,11 +234,11 @@ const TypeValues = ({ templates }: { readonly templates: readonly ResourceTempla
   );
 };
 
-const ItemTypes = ({ catalog }: { readonly catalog: Catalog | null }): ReactElement => {
+const ItemTypes = ({ level, catalog }: { readonly level: LevelId; readonly catalog: Catalog | null }): ReactElement => {
   const { t } = useSimpleText();
   const draft = useDraft();
-  const from = typeFromOf(draft.plan);
-  const { lists } = seriesOf(draft.plan);
+  const from = typeFromOf(draft.plan, level);
+  const { lists } = seriesOf(draft.plan, level);
   const columns = lists.flatMap((sheet) => sheet.columns.map((column) => ({ sheet: sheet.id, file: sheet.file, column: column.column })));
   const several = lists.length > 1;
   return (
@@ -253,7 +255,7 @@ const ItemTypes = ({ catalog }: { readonly catalog: Catalog | null }): ReactElem
               const value = event.target.value;
               const column = columns.find((one) => `column:${one.sheet}:${String(one.column.index)}` === value);
               const next: TypeFrom = column !== undefined ? { from: 'column', sheet: column.sheet, index: column.column.index } : value === 'top' ? { from: 'top' } : { from: 'none' };
-              draft.change((plan) => withTypeFrom(plan, next));
+              draft.change((plan) => withTypeFrom(plan, level, next));
             }}
           >
             <option value="none">{t('guided.where.fromNone')}</option>
@@ -266,7 +268,7 @@ const ItemTypes = ({ catalog }: { readonly catalog: Catalog | null }): ReactElem
           </select>
         </dd>
       </dl>
-      {from.from === 'none' ? null : <TypeValues templates={catalog?.templates ?? []} />}
+      {from.from === 'none' ? null : <TypeValues level={level} templates={catalog?.templates ?? []} />}
     </section>
   );
 };
@@ -283,14 +285,19 @@ const Help = (): ReactElement => {
   );
 };
 
-export const WhereTheyGo = (): ReactElement => {
+/** The plan's one series: this screen opens only on a plan of one (`screens.ts`, `landing`). */
+export const WhereTheyGo = (): ReactElement | null => {
   const catalog = useAsync(loadCatalog, []);
   const ready = catalog.status === 'ready' ? catalog.data : null;
+  const series = usePickedSeries();
+  if (series === null) {
+    return null;
+  }
   return (
     <div className="guided-dials guided-stack">
       {catalog.status === 'error' ? <ErrorNotice error={catalog.error} /> : null}
       <ItemSets catalog={ready} />
-      <ItemTypes catalog={ready} />
+      <ItemTypes level={series.id} catalog={ready} />
       <Help />
     </div>
   );

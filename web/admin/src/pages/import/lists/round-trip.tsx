@@ -8,7 +8,7 @@
 import { useId, useState } from 'react';
 import type { ReactElement } from 'react';
 import { importApi } from '../../../api/import-routes';
-import type { ImportPlan, SlotRule, SlotRules, SourceRef } from '../../../api/import-plan';
+import type { ImportPlan, LevelId, SlotRule, SlotRules, SourceRef } from '../../../api/import-plan';
 import type { ImportDetail } from '../../../api/import-view';
 import { ErrorNotice } from '../../../app/errors';
 import { TableScroll } from '../../../app/table-scroll';
@@ -145,7 +145,8 @@ const Result = ({ result, onRemove, onAgain }: { readonly result: UploadResult; 
   );
 };
 
-export const RoundTrip = (): ReactElement => {
+/** The list of the series `level`: its download, and the filled file sent back to it. */
+export const RoundTrip = ({ level }: { readonly level: LevelId }): ReactElement => {
   const { t, number } = useListsText();
   const draft = useDraft();
   const id = useId();
@@ -154,7 +155,7 @@ export const RoundTrip = (): ReactElement => {
   /** The uploaded list the next file is sent in place of. */
   const [again, setAgain] = useState<{ readonly sheet: string; readonly file: string } | null>(null);
   const properties = useAsync(loadProperties, []);
-  const head = useAsync(() => importApi.templateCsv(draft.id, columns).then((text) => readCsv(text, ',', ROWS_SHOWN + 1)), [draft.id, draft.detail.revision, columns.join(',')]);
+  const head = useAsync(() => importApi.templateCsv(draft.id, columns, level).then((text) => readCsv(text, ',', ROWS_SHOWN + 1)), [draft.id, draft.detail.revision, columns.join(','), level]);
   const known = properties.status === 'ready' ? properties.data : [];
   const slotWords: Readonly<Record<(typeof SLOT_COLUMNS)[number], string>> = {
     sets: t('lists.trip.colSets'),
@@ -179,7 +180,7 @@ export const RoundTrip = (): ReactElement => {
         if (matched !== null && 'lacking' in matched) {
           return { lacking: matched.lacking };
         }
-        const detail = await importApi.addList(draft.id, file, undefined, replaced);
+        const detail = await importApi.addList(draft.id, file, level, replaced);
         draft.adopt(detail);
         if (matched !== null && JSON.stringify(matched.follow(detail.plan)) !== JSON.stringify(detail.plan)) {
           draft.change(matched.follow);
@@ -279,7 +280,7 @@ export const RoundTrip = (): ReactElement => {
       ) : null}
       <p className="import-note">{t('lists.trip.keep')}</p>
       <p>
-        <a className="button-link" href={importApi.templateUrl(draft.id, columns)} download>
+        <a className="button-link" href={importApi.templateUrl(draft.id, columns, level)} download>
           {head.status === 'ready'
             ? t('lists.trip.download', { count: number(Math.max(0, head.data.count - 1)) })
             : t('lists.trip.downloadPlain')}

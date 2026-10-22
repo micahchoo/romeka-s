@@ -1,12 +1,13 @@
 /**
- * Advanced, Fields: the defaults every new record gets, then one rule per
- * field for the record kind chosen (items, media or item sets), and a field
- * to give a rule of its own.
+ * Advanced, Fields: the defaults every new record gets, then, for the folder
+ * picked (`SeriesPicker`), one rule per field for the record kind chosen
+ * (items, media or item sets), and a field to give a rule of its own. The
+ * item set rule is the plan's, so every folder shows the same one.
  */
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { RECORD_KINDS } from '../../../api/import-plan';
-import type { NamedSlot, RecordKind } from '../../../api/import-plan';
+import type { LevelId, NamedSlot, RecordKind } from '../../../api/import-plan';
 import { api } from '../../../api/client';
 import type { ResourceTemplate, Site, User } from '../../../api/types';
 import { ALL_PAGES_PER_PAGE as PER_PAGE, allPages } from '../../../app/all-pages';
@@ -21,7 +22,9 @@ import { addRule, entriesOf, setDefaults } from './plan-edits';
 import { RuleCard } from './rule-card';
 import { Setting } from './setting';
 import { sourceChoices } from './source-words';
-import { slotsOf } from '../series';
+import { usePickedSeries } from '../picked-series';
+import { seriesOf, slotsOf } from '../series';
+import { NoSeries, SeriesPicker } from './series-picker';
 import './advanced.css';
 
 const KIND_WORDS: Readonly<Record<RecordKind, AdvancedMessageKey>> = {
@@ -156,17 +159,19 @@ const Defaults = (): ReactElement => {
   );
 };
 
-const Rules = ({ kind }: { readonly kind: RecordKind }): ReactElement => {
+const Rules = ({ level, kind }: { readonly level: LevelId; readonly kind: RecordKind }): ReactElement => {
   const { t } = useAdvancedText();
   const draft = useDraft();
   const properties = useProperties();
   const read = usePreview(['sheets'], {});
   const known = properties.status === 'ready' ? properties.data : [];
-  const sheets = read.status === 'ready' ? read.data.sheets : [];
+  // A rule reads only the columns of its own series' lists.
+  const { lists } = seriesOf(draft.plan, level);
+  const sheets = read.status === 'ready' ? read.data.sheets.filter((sheet) => lists.some((list) => list.id === sheet.id)) : [];
   const pattern = read.status === 'ready' ? read.data.pattern : 'missing';
   const groups = typeof pattern === 'object' && 'groups' in pattern ? pattern.groups : [];
   const choices = sourceChoices(draft.plan, sheets, groups, t);
-  const rules = entriesOf(slotsOf(draft.plan)[kind]);
+  const rules = entriesOf(slotsOf(draft.plan, level)[kind]);
   const options = fieldOptions(NAMED_OF[kind], known, t).filter((option) => !rules.some(([slot]) => slot === option.value));
   return (
     <>
@@ -174,7 +179,7 @@ const Rules = ({ kind }: { readonly kind: RecordKind }): ReactElement => {
       {read.status === 'error' ? <ErrorNotice error={read.error} /> : null}
       {rules.length === 0 ? <p className="import-note">{t('adv.fields.rules.none')}</p> : null}
       {rules.map(([slot, rule]) => (
-        <RuleCard key={slot} kind={kind} slot={slot} rule={rule} properties={known} choices={choices} />
+        <RuleCard key={slot} at={{ level, kind, slot }} rule={rule} properties={known} choices={choices} />
       ))}
       <Setting label={t('adv.fields.rules.add')} plain={t('adv.fields.rules.addPlain')}>
         {(described) => (
@@ -186,7 +191,7 @@ const Rules = ({ kind }: { readonly kind: RecordKind }): ReactElement => {
             onChange={(event) => {
               const slot = optionFor(options, event.target.value);
               if (slot !== null) {
-                draft.change((plan) => addRule(plan, kind, slot));
+                draft.change((plan) => addRule(plan, { level, kind, slot }));
               }
             }}
           >
@@ -208,20 +213,28 @@ export const AdvancedFields = (): ReactElement => {
   const { t, number } = useAdvancedText();
   const draft = useDraft();
   const [kind, setKind] = useState<RecordKind>('item');
+  const series = usePickedSeries();
   return (
     <div className="adv-section">
       <h4>{t('adv.fields.defaults.title')}</h4>
       <Defaults />
       <h4>{t('adv.fields.rules.title')}</h4>
-      <p className="adv-plain">{t('adv.fields.rules.plain')}</p>
-      <div className="import-mode" role="group" aria-label={t('adv.fields.kind.label')}>
-        {RECORD_KINDS.map((one) => (
-          <button key={one} type="button" aria-pressed={one === kind} onClick={() => { setKind(one); }}>
-            {t(KIND_WORDS[one], { count: number(entriesOf(slotsOf(draft.plan)[one]).length) })}
-          </button>
-        ))}
-      </div>
-      <Rules kind={kind} />
+      {series === null ? (
+        <NoSeries />
+      ) : (
+        <>
+          <SeriesPicker picked={series} />
+          <p className="adv-plain">{t('adv.fields.rules.plain')}</p>
+          <div className="import-mode" role="group" aria-label={t('adv.fields.kind.label')}>
+            {RECORD_KINDS.map((one) => (
+              <button key={one} type="button" aria-pressed={one === kind} onClick={() => { setKind(one); }}>
+                {t(KIND_WORDS[one], { count: number(entriesOf(slotsOf(draft.plan, series.id)[one]).length) })}
+              </button>
+            ))}
+          </div>
+          <Rules level={series.id} kind={kind} />
+        </>
+      )}
     </div>
   );
 };

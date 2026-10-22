@@ -36,10 +36,10 @@ describe('PlanStore.adopt', () => {
     vi.useFakeTimers();
     installFetch(() => jsonResponse({}));
     const store = new PlanStore(api, draft());
-    store.change((plan) => withSeries(plan, (series) => ({ ...series, grouping: { ...series.grouping, caseFold: true } })));
+    store.change((plan) => withSeries(plan, 'all', (series) => ({ ...series, grouping: { ...series.grouping, caseFold: true } })));
     store.adopt(added());
     expect(store.snapshot().detail.revision).toBe(0);
-    expect(seriesOf(store.snapshot().plan).grouping.caseFold).toBe(true);
+    expect(seriesOf(store.snapshot().plan, 'all').grouping.caseFold).toBe(true);
     store.close();
   });
 });

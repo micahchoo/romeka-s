@@ -8,7 +8,7 @@
  */
 import { useEffect, useId, useState } from 'react';
 import type { ReactElement } from 'react';
-import type { ImportPlan } from '../../../api/import-plan';
+import type { ImportPlan, LevelId } from '../../../api/import-plan';
 import type { PatternState } from '../../../api/import-model';
 import { importApi } from '../../../api/import-routes';
 import { toError } from '../../../app/useAsync';
@@ -92,18 +92,18 @@ const Parts = ({ pattern, path }: { readonly pattern: string; readonly path: str
   );
 };
 
-/** Keyed by the saved pattern, so a pattern saved from elsewhere (a mark removed, Simple) starts it again. */
-export const PatternEditor = (): ReactElement => {
+/** The pattern of the series `level`. Keyed by the series and its saved pattern, so a pattern saved from elsewhere (a mark removed, Simple) starts it again. */
+export const PatternEditor = ({ level }: { readonly level: LevelId }): ReactElement => {
   const { t, number } = useAdvancedText();
   const draft = useDraft();
-  const saved = seriesOf(draft.plan).grouping;
-  const example = exampleOf(draft.plan);
+  const saved = seriesOf(draft.plan, level).grouping;
+  const example = exampleOf(draft.plan, level);
   const [text, setText] = useState(saved.pattern ?? '');
   const [caseFold, setCaseFold] = useState(saved.caseFold);
   const [counting, setCounting] = useState<Counting>({ status: 'counting', last: null });
   const fieldId = useId();
   const typed = text.trim() === '' ? null : text;
-  const tried = setPattern(draft.plan, typed, caseFold);
+  const tried = setPattern(draft.plan, level, typed, caseFold);
   const changed = typed !== saved.pattern || caseFold !== saved.caseFold;
   const triedKey = JSON.stringify(tried);
 
@@ -144,7 +144,7 @@ export const PatternEditor = (): ReactElement => {
           onSubmit={(event) => {
             event.preventDefault();
             if (usable) {
-              draft.change((plan) => setPattern(plan, typed, caseFold));
+              draft.change((plan) => setPattern(plan, level, typed, caseFold));
             }
           }}
         >
