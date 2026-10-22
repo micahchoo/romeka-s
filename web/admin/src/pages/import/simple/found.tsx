@@ -36,6 +36,7 @@ import { MasterDetail } from './master-detail';
 import { marksWords } from './mark-words';
 import { useSimpleText } from './messages';
 import type { SimpleTranslator } from './messages';
+import { seriesOf, withSeries } from '../series';
 import './simple.css';
 
 const GROUPS_PER_PAGE = 20;
@@ -64,7 +65,7 @@ const chipsOf = (group: ShapeGroup, plan: ImportPlan, t: SimpleTranslator['t']):
   }
   if (facts.origin === 'row') {
     chips.push({ text: t('guided.found.chipRowOnly'), kind: 'fact' });
-  } else if (plan.sheets.length > 0) {
+  } else if (seriesOf(plan).lists.length > 0) {
     chips.push({ text: facts.row ? t('guided.found.chipRow') : t('guided.found.chipNoRow'), kind: 'fact' });
   }
   const folders = facts.folders.filter((folder) => folder !== '');
@@ -140,7 +141,7 @@ const Confirm = ({ groups }: { readonly groups: number }): ReactElement | null =
   if (groups === 0) {
     return null;
   }
-  if (readState(draft.plan).groupsOk === draft.plan.grouping.pattern) {
+  if (readState(draft.plan).groupsOk === seriesOf(draft.plan).grouping.pattern) {
     return <span className="guided-chip is-ok">{t('guided.found.confirmed')}</span>;
   }
   return (
@@ -149,7 +150,7 @@ const Confirm = ({ groups }: { readonly groups: number }): ReactElement | null =
       className="import-primary"
       disabled={!draft.editable}
       onClick={() => {
-        draft.change((plan) => withState(plan, { groupsOk: plan.grouping.pattern }));
+        draft.change((plan) => withState(plan, { groupsOk: seriesOf(plan).grouping.pattern }));
       }}
     >
       {t('guided.found.confirm')}
@@ -316,7 +317,7 @@ const Help = (): ReactElement => {
 export const WhatWeFound = (): ReactElement => {
   const { t } = useSimpleText();
   const draft = useDraft();
-  const unset = draft.plan.grouping.pattern === null;
+  const unset = seriesOf(draft.plan).grouping.pattern === null;
   const read = usePreview(['shapes', 'flags'], { shapes: { page: 1, perPage: 1 } });
   const listing = useRef(false);
   const [listError, setListError] = useState<Error | null>(null);
@@ -348,7 +349,7 @@ export const WhatWeFound = (): ReactElement => {
             className="import-primary"
             disabled={!draft.editable}
             onClick={() => {
-              draft.change((plan) => ({ ...plan, grouping: { ...plan.grouping, pattern: patternOf([]) } }));
+              draft.change((plan) => withSeries(plan, (series) => ({ ...series, grouping: { ...series.grouping, pattern: patternOf([]) } })));
             }}
           >
             {t('guided.found.byName')}
