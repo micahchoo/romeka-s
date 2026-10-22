@@ -324,9 +324,8 @@ several.
 `?series=<level id>`. A plan of one series may leave it out. With several series and none named,
 both answer 400 with code `seriesNeeded`. A name no series has answers 400 with code
 `unknownSeries`. Both carry `series`, the plan's series ids. The template lists that series' items
-only, and the list joins only that series' groups. In a v3 plan a list's `[sets]` column makes one
-more free set with `names: 'title'`; it gives nothing to an item of another series. In a v2 plan
-the column joins the one sets rule, read as `text`.
+only, and the list joins only that series' groups. A list's `[sets]` column makes one more free set
+with `names: 'title'`; it gives nothing to an item of another series.
 
 **On the preview wire**, a member that names a series appears only in a plan of several series, as
 a record key does, so a v2 admin reads the answer it knows. `pattern` is the first series' state.

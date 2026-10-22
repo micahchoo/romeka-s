@@ -562,7 +562,7 @@ fn a_sets_column_in_a_v3_plan_names_sets_by_title_for_its_own_series() {
 }
 
 #[test]
-fn a_sets_column_in_a_v2_plan_keeps_v2s_reading() {
+fn a_sets_column_in_a_lifted_v2_plan_names_sets_by_title_as_in_v3() {
     use crate::import::model::SetRef;
     let mut value = plan_json();
     value["grouping"]["pattern"] = json!(r"^(?:.*/)?(?<identifier>[A-Z]+_\d+)\.jpg$");
@@ -571,12 +571,12 @@ fn a_sets_column_in_a_v2_plan_keeps_v2s_reading() {
     let sets = &stored["structure"]["freeSets"][0]["each"];
     assert_eq!(sets["sources"][0]["sheet"], "list-1");
     assert_eq!(
-        sets["names"], "text",
-        "the one free set the lift reads as v2 did"
+        sets["names"], "title",
+        "the plan no longer remembers it came as v2"
     );
     assert_eq!(
         sets_of(&model, "AF_001"),
-        [SetRef::Existing(2018)],
-        "v2 read an id that exists first"
+        [SetRef::New(0)],
+        "2018 is a title, not set #2018"
     );
 }

@@ -88,13 +88,10 @@ use super::decisions::Decision;
 use super::values::Visibility;
 
 /// The plan the engine reads. Its pattern, lists and slot rules sit in
-/// [`Structure`]; its JSON is [`v2::PlanV2`] or [`v3::PlanV3`], by
-/// [`Self::version`].
+/// [`Structure`]; it is read from [`v2::PlanV2`] (lifted) or
+/// [`v3::PlanV3`], and written as [`v3::PlanV3`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportPlan {
-    /// The version the plan came in as, which it is written back in, so a
-    /// v2 admin gets a v2 plan back. P4 deletes it with the lower.
-    pub version: PlanVersion,
     pub sources: Vec<SourcePlan>,
     pub structure: Structure,
     pub action: ActionPlan,
@@ -111,13 +108,6 @@ pub struct ImportPlan {
     /// The person's edits on the proposal, in the order made. The proposer
     /// replays them on every proposal; derive and run never read them.
     pub edits: Vec<Edit>,
-}
-
-/// The wire version a plan came in as.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum PlanVersion {
-    V2,
-    V3,
 }
 
 /// The member `version: N` of a wire plan.
@@ -266,8 +256,6 @@ pub enum PlanError {
     ShapeV3(serde_json::Error),
     #[error("the plan's version is {0}, not 2 or 3")]
     Version(String),
-    #[error("the plan cannot be written as version 2: {0}")]
-    NotV2(&'static str),
     #[error("the plan has no series, so it imports nothing")]
     NoSeries,
     #[error("two levels have the id {0:?}")]
@@ -392,7 +380,10 @@ impl ImportPlan {
 /// `sources`: what tests that build a plan from v2 members edit, read
 /// through the lift.
 #[cfg(test)]
-#[expect(clippy::expect_used, reason = "a test helper over a fixture the repo holds")]
+#[expect(
+    clippy::expect_used,
+    reason = "a test helper over a fixture the repo holds"
+)]
 pub(crate) fn v2_default(sources: &[SourcePlan]) -> serde_json::Value {
     let mut plan: serde_json::Value =
         serde_json::from_str(include_str!("fixtures/default.json")).expect("default.json");
@@ -418,7 +409,6 @@ pub fn default_plan(sources: Vec<SourcePlan>) -> Result<ImportPlan, PlanError> {
         scope: Scope::Named(NamedScope::ImportSets),
     };
     let plan = ImportPlan {
-        version: PlanVersion::V3,
         sources,
         structure: Structure::lifted(
             Grouping {

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use super::structure::Structure;
 use super::{
     ActionPlan, AnomalyAnswers, Defaults, Edit, FlagKind, FlagPolicy, ImportPlan, NewTerm, NewType,
-    PlanVersion, SourcePlan, WireVersion,
+    SourcePlan, WireVersion,
 };
 use crate::import::decisions::Decision;
 
@@ -38,7 +38,6 @@ pub(super) struct PlanV3 {
 impl From<PlanV3> for ImportPlan {
     fn from(wire: PlanV3) -> Self {
         Self {
-            version: PlanVersion::V3,
             sources: wire.sources,
             structure: wire.structure,
             action: wire.action,

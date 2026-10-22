@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 
 use super::sets::{EachSet, EachValue, SetNames, SetSource};
 use super::{
-    Combine, Grouping, ImportPlan, PlanError, RecordKind, RelPath, SheetId, SheetPlan, SlotName,
-    SlotRule, SlotRules, Slots, SourceId, SourcePlan,
+    Grouping, ImportPlan, PlanError, RecordKind, RelPath, SheetId, SheetPlan, SlotName, SlotRule,
+    SlotRules, Slots, SourceId, SourcePlan,
 };
 
 /// The archive's tree as the person confirmed it. Its members are private
@@ -27,11 +27,6 @@ pub struct Structure {
     /// whatever its scope: what the person left out inside a series' folder.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub(super) outside: Vec<FolderScope>,
-    /// Where a lifted v2 plan's `item.sets` rule stood among its item
-    /// rules, so the lower writes the plan back byte for byte. Not on the
-    /// v3 wire.
-    #[serde(skip)]
-    pub(super) v2_sets_at: Option<usize>,
 }
 
 /// One node of the tree.
@@ -153,7 +148,6 @@ impl Structure {
             levels,
             free_sets: Vec::new(),
             outside,
-            v2_sets_at: None,
         };
         let plan = ImportPlan {
             structure,
@@ -171,10 +165,10 @@ impl Structure {
         lists: Vec<SheetPlan>,
         mut slots: Slots,
     ) -> Self {
-        let sets = slots.item.shift_remove_full(&SlotName::Sets);
-        let v2_sets_at = sets.as_ref().map(|(at, _, _)| *at);
-        let free_sets = sets
-            .map(|(_, _, rule)| {
+        let free_sets = slots
+            .item
+            .shift_remove(&SlotName::Sets)
+            .map(|rule| {
                 SetSource::Each(EachValue {
                     each: EachSet {
                         sources: rule.sources,
@@ -198,51 +192,7 @@ impl Structure {
             })],
             free_sets,
             outside: Vec::new(),
-            v2_sets_at,
         }
-    }
-
-    /// The one series of a tree a v2 plan can say, with its free set back
-    /// as its `item.sets` rule, or why the tree is not one: the exact
-    /// reverse of [`Self::lifted`]. A rule a v3 plan gave ends its kind.
-    pub(super) fn into_lifted(self) -> Result<Series, &'static str> {
-        if !self.outside.is_empty() {
-            return Err("it leaves paths out inside a series' folder");
-        }
-        let mut free_sets = self.free_sets.into_iter();
-        let rule = match (free_sets.next(), free_sets.next()) {
-            (None, _) => None,
-            (Some(SetSource::Each(EachValue { each })), None) if each.names == SetNames::Text => {
-                Some(SlotRule {
-                    sources: each.sources,
-                    combine: each.combine,
-                    map: each.map,
-                })
-            }
-            _ => return Err("it has free sets other than the version 2 sets rule"),
-        };
-        let mut levels = self.levels.into_iter();
-        let (Some(level), None) = (levels.next(), levels.next()) else {
-            return Err("it has more than one top level, or none");
-        };
-        let Level::Series(mut series) = level else {
-            return Err("it has a set level");
-        };
-        if series.id.0 != LIFTED {
-            return Err("its series is not the series \"all\"");
-        }
-        if series.set.is_some() {
-            return Err("its series has a set");
-        }
-        if series.scope != SeriesScope::All(AllFiles::All) {
-            return Err("its series takes some folders, not every file");
-        }
-        if let Some(rule) = rule {
-            let item = &mut series.slots.item;
-            let at = self.v2_sets_at.unwrap_or(item.len()).min(item.len());
-            item.shift_insert(at, SlotName::Sets, rule);
-        }
-        Ok(series)
     }
 
     /// The series that takes this file, and the path its pattern matches:
@@ -364,30 +314,6 @@ impl Structure {
             }
         });
         sources
-    }
-
-    /// The free set a list's `sets` column joins: the first one read as v2
-    /// read sets, made when there is none, so a lifted v2 plan keeps its
-    /// one sets rule.
-    pub fn text_sets_mut(&mut self) -> &mut EachSet {
-        let at = self.free_sets.iter().position(|set| {
-            matches!(set, SetSource::Each(EachValue { each }) if each.names == SetNames::Text)
-        });
-        let at = at.unwrap_or_else(|| {
-            self.free_sets.push(SetSource::Each(EachValue {
-                each: EachSet {
-                    sources: Vec::new(),
-                    combine: Combine::First,
-                    map: indexmap::IndexMap::new(),
-                    names: SetNames::Text,
-                },
-            }));
-            self.free_sets.len() - 1
-        });
-        match &mut self.free_sets[at] {
-            SetSource::Each(EachValue { each }) => each,
-            _ => unreachable!("the position found or made is a text set"),
-        }
     }
 
     /// Add a free set after the others.
