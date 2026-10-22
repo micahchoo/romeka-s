@@ -37,9 +37,11 @@ import type {
   Change,
   ColumnPlan,
   ColumnRef,
+  CutEdit,
   Decision,
   DecisionValue,
   Defaults,
+  Edit,
   Encoding,
   EntryRef,
   FileEntryRef,
@@ -52,16 +54,20 @@ import type {
   ImportPlanV3,
   Join,
   Level,
+  ListFile,
   MatchRule,
   NewTerm,
   NewType,
+  PairRule,
   Quote,
   ReadOptions,
   RecordKind,
   RowRef,
   Scope,
   SeriesScope,
+  SetFrom,
   SetSource,
+  Structure,
   SheetPlan,
   SlotName,
   SlotRule,
@@ -108,7 +114,7 @@ const asRecordKind = oneOf(RECORD_KINDS);
 const asFlagKind = oneOf(FLAG_KINDS);
 const asFlagPolicy = oneOf(FLAG_POLICIES);
 
-const parseColumnRef: Parser<ColumnRef> = (raw, path = []) => {
+export const parseColumnRef: Parser<ColumnRef> = (raw, path = []) => {
   const object = strict(raw, path, ['index', 'header']);
   return { index: member(object, 'index', path, asCount), header: text(object, 'header', path) };
 };
@@ -167,18 +173,23 @@ const parseColumnPlan: Parser<ColumnPlan> = (raw, path = []) => {
   };
 };
 
+const parseNormalize: Parser<Join['normalize']> = (raw, path = []) => {
+  const normalize = strict(raw, path, ['caseFold', 'leadingZeros', 'separators']);
+  return {
+    caseFold: flag(normalize, 'caseFold', path),
+    leadingZeros: flag(normalize, 'leadingZeros', path),
+    separators: flag(normalize, 'separators', path),
+  };
+};
+
+export const asJoinOn = oneOf<Join['on']>(['identifier', 'fileName']);
+
 const parseJoin: Parser<Join> = (raw, path = []) => {
   const object = strict(raw, path, ['on', 'column', 'normalize']);
-  const at = [...path, 'normalize'];
-  const normalize = strict(object['normalize'], at, ['caseFold', 'leadingZeros', 'separators']);
   return {
-    on: member(object, 'on', path, oneOf<'identifier' | 'fileName'>(['identifier', 'fileName'])),
+    on: member(object, 'on', path, asJoinOn),
     column: member(object, 'column', path, parseColumnRef),
-    normalize: {
-      caseFold: flag(normalize, 'caseFold', at),
-      leadingZeros: flag(normalize, 'leadingZeros', at),
-      separators: flag(normalize, 'separators', at),
-    },
+    normalize: member(object, 'normalize', path, parseNormalize),
   };
 };
 
@@ -520,7 +531,7 @@ export const parseImportPlan: Parser<ImportPlan> = (raw, path = []) => {
 
 
 
-const parseFolderScope: Parser<FolderScope> = (raw, path = []) => {
+export const parseFolderScope: Parser<FolderScope> = (raw, path = []) => {
   const object = strict(raw, path, ['source', 'folder']);
   return { source: text(object, 'source', path), folder: text(object, 'folder', path) };
 };
@@ -577,6 +588,104 @@ const parseLevel: Parser<Level> = (raw, path = []) => {
   };
 };
 
+export const parseStructure: Parser<Structure> = (raw, path = []) => {
+  const structure = strict(raw, path, ['levels', 'freeSets']);
+  return {
+    levels: member(structure, 'levels', path, list(parseLevel)),
+    freeSets: member(structure, 'freeSets', path, list(parseSetSource)),
+  };
+};
+
+export const parseListFile: Parser<ListFile> = (raw, path = []) => {
+  const object = strict(raw, path, ['source', 'file']);
+  return { source: text(object, 'source', path), file: text(object, 'file', path) };
+};
+
+export const parseSetFrom: Parser<SetFrom> = (raw, path = []) => {
+  const from = member(asRecord(raw, path), 'from', path, oneOf(['folder', 'column', 'namePlace', 'folderLevel'] as const));
+  switch (from) {
+    case 'folder':
+      return { from, scope: member(strict(raw, path, ['from', 'scope']), 'scope', path, parseFolderScope) };
+    case 'column': {
+      const only = strict(raw, path, ['from', 'list', 'column']);
+      return { from, list: member(only, 'list', path, parseListFile), column: member(only, 'column', path, parseColumnRef) };
+    }
+    case 'namePlace': {
+      const only = strict(raw, path, ['from', 'scope', 'place']);
+      return { from, scope: member(only, 'scope', path, parseFolderScope), place: member(only, 'place', path, asCount) };
+    }
+    case 'folderLevel': {
+      const only = strict(raw, path, ['from', 'scope', 'depth']);
+      return { from, scope: member(only, 'scope', path, parseFolderScope), depth: member(only, 'depth', path, asCount) };
+    }
+  }
+};
+
+export const parsePairRule: Parser<PairRule> = (raw, path = []) => {
+  const rule = member(asRecord(raw, path), 'rule', path, oneOf(['folds', 'column', 'lastPlaces'] as const));
+  switch (rule) {
+    case 'folds':
+      return { rule, normalize: member(strict(raw, path, ['rule', 'normalize']), 'normalize', path, parseNormalize) };
+    case 'column': {
+      const only = strict(raw, path, ['rule', 'column', 'on']);
+      return { rule, column: member(only, 'column', path, parseColumnRef), on: member(only, 'on', path, asJoinOn) };
+    }
+    case 'lastPlaces':
+      return { rule, places: member(strict(raw, path, ['rule', 'places']), 'places', path, asCount) };
+  }
+};
+
+const parseCutEdit: Parser<CutEdit> = (raw, path = []) => {
+  const cut = member(asRecord(raw, path), 'cut', path, oneOf(['whole', 'places', 'folder'] as const));
+  switch (cut) {
+    case 'whole':
+      strict(raw, path, ['cut']);
+      return { cut };
+    case 'places':
+      return { cut, places: member(strict(raw, path, ['cut', 'places']), 'places', path, asCount) };
+    case 'folder':
+      return { cut, depth: member(strict(raw, path, ['cut', 'depth']), 'depth', path, asCount) };
+  }
+};
+
+/** One edit of a plan's `edits` (`plan/edits.rs`). */
+export const parseEdit: Parser<Edit> = (raw, path = []) => {
+  const edit = member(
+    asRecord(raw, path),
+    'edit',
+    path,
+    oneOf(['leaveOut', 'keep', 'items', 'list', 'grain', 'addSet', 'dropSet', 'pair', 'title'] as const),
+  );
+  switch (edit) {
+    case 'leaveOut':
+    case 'keep':
+      return { edit, scope: member(strict(raw, path, ['edit', 'scope']), 'scope', path, parseFolderScope) };
+    case 'items': {
+      const only = strict(raw, path, ['edit', 'scope', 'cut']);
+      return { edit, scope: member(only, 'scope', path, parseFolderScope), cut: member(only, 'cut', path, parseCutEdit) };
+    }
+    case 'list': {
+      const only = strict(raw, path, ['edit', 'scope', 'list']);
+      return { edit, scope: member(only, 'scope', path, parseFolderScope), list: member(only, 'list', path, nullable(parseListFile)) };
+    }
+    case 'grain': {
+      const only = strict(raw, path, ['edit', 'list', 'describes']);
+      return { edit, list: member(only, 'list', path, parseListFile), describes: member(only, 'describes', path, asRecordKind) };
+    }
+    case 'addSet':
+    case 'dropSet':
+      return { edit, from: member(strict(raw, path, ['edit', 'from']), 'from', path, parseSetFrom) };
+    case 'pair': {
+      const only = strict(raw, path, ['edit', 'list', 'rule']);
+      return { edit, list: member(only, 'list', path, parseListFile), rule: member(only, 'rule', path, parsePairRule) };
+    }
+    case 'title': {
+      const only = strict(raw, path, ['edit', 'from', 'title']);
+      return { edit, from: member(only, 'from', path, parseSetFrom), title: text(only, 'title', path) };
+    }
+  }
+};
+
 /**
  * Refuses what the server's serde types refuse: an unknown member, a wrong
  * `kind` or `version`, a value of the wrong type, a set source of two shapes.
@@ -590,20 +699,15 @@ export const parseImportPlanV3: Parser<ImportPlanV3> = (raw, path = []) => {
     raw,
     path,
     ['version', 'sources', 'structure', 'action', 'defaults', 'flags', 'decisions', 'newTypes', 'newTerms'],
-    ['anomalies', 'simple'],
+    ['anomalies', 'simple', 'edits'],
   );
   if (member(object, 'version', path, asNumber) !== 3) {
     throw new ParseError([...path, 'version'], 'version 3');
   }
-  const at = [...path, 'structure'];
-  const structure = strict(object['structure'], at, ['levels', 'freeSets']);
   const plan: ImportPlanV3 = {
     version: 3,
     sources: member(object, 'sources', path, list(parseSource)),
-    structure: {
-      levels: member(structure, 'levels', at, list(parseLevel)),
-      freeSets: member(structure, 'freeSets', at, list(parseSetSource)),
-    },
+    structure: member(object, 'structure', path, parseStructure),
     action: member(object, 'action', path, parseActionPlan),
     defaults: member(object, 'defaults', path, parseDefaults),
     flags: member(object, 'flags', path, parseFlags),
@@ -611,5 +715,6 @@ export const parseImportPlanV3: Parser<ImportPlanV3> = (raw, path = []) => {
     newTypes: member(object, 'newTypes', path, list(parseNewType)),
     newTerms: member(object, 'newTerms', path, list(parseNewTerm)),
   };
-  return withAdminState(plan, object, path);
+  const withState = withAdminState(plan, object, path);
+  return object['edits'] === undefined ? withState : { ...withState, edits: member(object, 'edits', path, list(parseEdit)) };
 };

@@ -359,6 +359,8 @@ export interface ImportPlanV3 {
   readonly anomalies?: AnomalyAnswers;
   /** Admin state keyed by level id. The server keeps it and never reads it. */
   readonly simple?: Readonly<Record<string, JsonValue>>;
+  /** The person's edits on the proposal, in the order made; absent when there are none. The server replays them. */
+  readonly edits?: readonly Edit[];
 }
 
 /** Unique in the plan; `simple` keys on it. A string, as a sheet id is. */
@@ -401,6 +403,45 @@ export interface FolderScope {
   readonly source: string;
   readonly folder: string;
 }
+
+/** A list file by where it is. Edits and the proposal name lists this way, never by sheet id. */
+export interface ListFile {
+  readonly source: string;
+  readonly file: string;
+}
+
+export type JoinNormalize = Join['normalize'];
+
+/** Where a set takes its name or names from (`plan/edits.rs`). */
+export type SetFrom =
+  | { readonly from: 'folder'; readonly scope: FolderScope }
+  | { readonly from: 'column'; readonly list: ListFile; readonly column: ColumnRef }
+  | { readonly from: 'namePlace'; readonly scope: FolderScope; readonly place: number }
+  | { readonly from: 'folderLevel'; readonly scope: FolderScope; readonly depth: number };
+
+/** How a list's rows find their files. `lastPlaces` is offered; the plan cannot state it yet. */
+export type PairRule =
+  | { readonly rule: 'folds'; readonly normalize: JoinNormalize }
+  | { readonly rule: 'column'; readonly column: ColumnRef; readonly on: Join['on'] }
+  | { readonly rule: 'lastPlaces'; readonly places: number };
+
+/** The cut an `items` edit asks for. The proposer works the shape out again. */
+export type CutEdit =
+  | { readonly cut: 'whole' }
+  | { readonly cut: 'places'; readonly places: number }
+  | { readonly cut: 'folder'; readonly depth: number };
+
+/** One act of the person on a proposal, named by what it changes in the archive, never by a level id. */
+export type Edit =
+  | { readonly edit: 'leaveOut'; readonly scope: FolderScope }
+  | { readonly edit: 'keep'; readonly scope: FolderScope }
+  | { readonly edit: 'items'; readonly scope: FolderScope; readonly cut: CutEdit }
+  | { readonly edit: 'list'; readonly scope: FolderScope; readonly list: ListFile | null }
+  | { readonly edit: 'grain'; readonly list: ListFile; readonly describes: RecordKind }
+  | { readonly edit: 'addSet'; readonly from: SetFrom }
+  | { readonly edit: 'dropSet'; readonly from: SetFrom }
+  | { readonly edit: 'pair'; readonly list: ListFile; readonly rule: PairRule }
+  | { readonly edit: 'title'; readonly from: SetFrom; readonly title: string };
 
 /** The shape says what the text means: an install id, a title, or one set per value. */
 export type SetSource = SetById | SetByTitle | { readonly each: EachSet };

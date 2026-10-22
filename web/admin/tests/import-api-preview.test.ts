@@ -31,7 +31,8 @@ describe('the sections', () => {
     expect([...SECTIONS].sort()).toEqual(
       [
         'anomalies', 'check', 'columnMatches', 'entries', 'flags', 'histogram', 'identical',
-        'listCandidates', 'nameWords', 'orphans', 'records', 'sheets', 'shapes', 'tags', 'unpaired', 'values',
+        'listCandidates', 'nameWords', 'orphans', 'proposal', 'records', 'sheets', 'shapes', 'tags', 'unpaired',
+        'values',
       ].sort(),
     );
   });
