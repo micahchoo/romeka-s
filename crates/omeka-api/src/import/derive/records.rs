@@ -4,7 +4,7 @@
 
 use super::super::catalog::{self, Catalog, extension};
 use super::super::decisions::EntryRef;
-use super::super::flags::{FlagBook, expected_types};
+use super::super::flags::{FlagBook, format_mismatch};
 use super::super::grouping::Grouping;
 use super::super::join::{Joined, RowAt, SheetIn};
 use super::super::model::{LeftBy, Origin, RecordId, Subject};
@@ -102,13 +102,7 @@ fn file_flags(
                 found.push((FlagKind::ListedNotMedia, detail));
             }
         }
-        let mismatch = extension(name).and_then(|extension| {
-            let expected = expected_types(&extension)?;
-            let sniffed = file.entry.sniffed.as_str();
-            (sniffed != "application/octet-stream" && !expected.contains(&sniffed))
-                .then(|| format!(".{extension} {sniffed}"))
-        });
-        if let Some(detail) = mismatch {
+        if let Some(detail) = format_mismatch(name, &file.entry.sniffed) {
             found.push((FlagKind::FormatMismatch, detail));
         }
         for (kind, detail) in found {

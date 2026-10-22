@@ -59,6 +59,7 @@ use super::facts::{Bucket, BucketCount, MediaKind};
 use crate::import::catalog::{self, Catalog};
 use crate::import::derive::{Index, NoTags, Sheets, derive};
 use crate::import::evidence::FileEntry;
+use crate::import::flags::format_mismatch;
 use crate::import::model::{Fate, Model};
 use crate::import::plan::{
     ColumnOptions, ColumnPlan, ColumnRef, Combine, EachSet, EachValue, Edit, FolderScope, Grouping,
@@ -212,7 +213,8 @@ pub struct ScopeCounts {
     pub scope: FolderScope,
     /// Every file in the scope.
     pub files: usize,
-    /// The files the install's media table accepts.
+    /// The files that are media: the install's media table accepts them,
+    /// they have bytes, and their bytes are what their extension names.
     pub media: usize,
     /// The accepted files by kind, most first.
     pub kinds: Vec<(MediaKind, usize)>,
@@ -327,7 +329,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         .iter()
         .map(|one| level(one, Some(&Key::Whole), Plan::default(), &[]))
         .collect();
-    let cuts = Structure::build(whole, evidence.sources).map(|placed| {
+    let cuts = Structure::build(whole, found.left.clone(), evidence.sources).map(|placed| {
         let names = series_names(evidence, &placed, series.len());
         let mut cuts: Vec<SeriesCut> = names.iter().map(|names| names::cut(names)).collect();
         names::same_as_sibling(&mut cuts, &names);
@@ -340,7 +342,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
             .zip(&cuts)
             .map(|(one, cut)| level(one, Some(&cut.chosen.key), Plan::default(), &[]))
             .collect();
-        let structure = Structure::build(levels, evidence.sources)?;
+        let structure = Structure::build(levels, found.left.clone(), evidence.sources)?;
         Ok((
             default_plan(evidence.sources.to_vec())?,
             structure,
@@ -404,7 +406,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         .map(|(cut, rows)| rows.items.is_none().then_some(&cut.chosen.key))
         .collect();
     let levels = tree(&series, &keys, &rows, &Sets::default());
-    let plan = match Structure::build(levels, evidence.sources) {
+    let plan = match Structure::build(levels, found.left.clone(), evidence.sources) {
         Ok(structure) => ImportPlan {
             structure,
             ..patterns.clone()
@@ -443,7 +445,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         || found_sets.series.iter().any(|sets| !sets.taken.is_empty())
     {
         let levels = tree(&series, &keys, &rows, &found_sets);
-        match Structure::build(levels, evidence.sources) {
+        match Structure::build(levels, found.left.clone(), evidence.sources) {
             Ok(structure) => ImportPlan { structure, ..plan },
             Err(_) => plan,
         }
@@ -798,14 +800,27 @@ fn level(
     level
 }
 
-/// The accepted files among `entries` by kind, most first.
+/// Whether the install's media table accepts the file.
+fn accepted(evidence: &Evidence<'_>, entry: &FileEntry) -> bool {
+    catalog::refusal(&evidence.catalog.files, entry.name(), &entry.sniffed).is_none()
+}
+
+/// Whether the file is media: the media table accepts it, it has bytes, and
+/// its bytes are what its extension names. Any other file makes no item.
+fn is_media(evidence: &Evidence<'_>, entry: &FileEntry) -> bool {
+    entry.size > 0
+        && accepted(evidence, entry)
+        && format_mismatch(entry.name(), &entry.sniffed).is_none()
+}
+
+/// The media among `entries` by kind, most first.
 fn kinds_most_first<'e>(
     evidence: &Evidence<'_>,
     entries: impl Iterator<Item = &'e FileEntry>,
 ) -> Vec<(MediaKind, usize)> {
     let mut kinds: BTreeMap<MediaKind, usize> = BTreeMap::new();
     for entry in entries {
-        if catalog::refusal(&evidence.catalog.files, entry.name(), &entry.sniffed).is_none() {
+        if is_media(evidence, entry) {
             *kinds
                 .entry(MediaKind::of(&entry.sniffed, entry.path.as_str()))
                 .or_default() += 1;
@@ -858,8 +873,7 @@ fn series_names<'e>(
             let FilePlace::Series { at, path } = placed.place(&source.id, &entry.path) else {
                 continue;
             };
-            let media =
-                catalog::refusal(&evidence.catalog.files, entry.name(), &entry.sniffed).is_none();
+            let media = is_media(evidence, entry);
             if let Some(name) = media.then(|| names::Name::of(entry, path)).flatten()
                 && let Some(names) = out.get_mut(at.index())
             {

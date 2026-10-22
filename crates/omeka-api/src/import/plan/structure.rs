@@ -23,6 +23,10 @@ pub struct Structure {
     /// Sets every item of the import is also put in, after its tree sets.
     /// A set source here names no level and has no place in the tree.
     pub(super) free_sets: Vec<SetSource>,
+    /// Paths under a source, folders or single files, that no series takes,
+    /// whatever its scope: what the person left out inside a series' folder.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(super) outside: Vec<FolderScope>,
     /// Where a lifted v2 plan's `item.sets` rule stood among its item
     /// rules, so the lower writes the plan back byte for byte. Not on the
     /// v3 wire.
@@ -140,10 +144,15 @@ impl Structure {
     ///
     /// # Errors
     /// What [`ImportPlan::from_json`] refuses about the tree or the sources.
-    pub fn build(levels: Vec<Level>, sources: &[SourcePlan]) -> Result<Self, PlanError> {
+    pub fn build(
+        levels: Vec<Level>,
+        outside: Vec<FolderScope>,
+        sources: &[SourcePlan],
+    ) -> Result<Self, PlanError> {
         let structure = Self {
             levels,
             free_sets: Vec::new(),
+            outside,
             v2_sets_at: None,
         };
         let plan = ImportPlan {
@@ -188,6 +197,7 @@ impl Structure {
                 slots,
             })],
             free_sets,
+            outside: Vec::new(),
             v2_sets_at,
         }
     }
@@ -196,6 +206,9 @@ impl Structure {
     /// as its `item.sets` rule, or why the tree is not one: the exact
     /// reverse of [`Self::lifted`]. A rule a v3 plan gave ends its kind.
     pub(super) fn into_lifted(self) -> Result<Series, &'static str> {
+        if !self.outside.is_empty() {
+            return Err("it leaves paths out inside a series' folder");
+        }
         let mut free_sets = self.free_sets.into_iter();
         let rule = match (free_sets.next(), free_sets.next()) {
             (None, _) => None,
@@ -239,6 +252,15 @@ impl Structure {
     #[must_use]
     pub fn place<'p>(&self, source: &SourceId, path: &'p RelPath) -> Placement<'p> {
         let path = path.as_str();
+        let left_out = self.outside.iter().any(|left| {
+            left.source == *source
+                && path
+                    .strip_prefix(left.folder.as_str())
+                    .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
+        });
+        if left_out {
+            return Placement::Outside;
+        }
         // `None` is `all`, shorter than every folder, the whole source too.
         let mut best: Option<(Option<usize>, usize, &'p str)> = None;
         let mut offer = |prefix: Option<usize>, ix: usize, within: &'p str| {
@@ -282,6 +304,12 @@ impl Structure {
             }
         });
         found.unwrap_or_else(|| unreachable!("a SeriesIx names a series of its own structure"))
+    }
+
+    /// The paths left out inside a series' folder.
+    #[must_use]
+    pub fn outside(&self) -> &[FolderScope] {
+        &self.outside
     }
 
     /// Every series, in plan order (depth first).
