@@ -381,7 +381,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         edits,
         &mut applied,
     );
-    let offers = pairing::detect(evidence, &patterns.structure, &mut lists);
+    let mut offers = pairing::detect(evidence, &patterns.structure, &mut lists);
     let read: Vec<grain::SeriesRead<'_>> = series
         .iter()
         .zip(&scopes)
@@ -395,7 +395,8 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
             }),
         })
         .collect();
-    let rows = grain::detect(evidence, &mut lists, &read, edits, &mut applied);
+    let mut rows = grain::detect(evidence, &mut lists, &read, edits, &mut applied);
+    pairing::replay(&mut offers, &mut rows, edits, &mut applied);
 
     let keys: Vec<Option<&Key>> = cuts
         .iter()

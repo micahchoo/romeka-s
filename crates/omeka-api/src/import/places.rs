@@ -109,6 +109,7 @@ mod tests {
         );
         assert_eq!(last_places("BHC006_GMT_D01.JPG", 2), "D/01");
         assert_eq!(last_places("BHC006_GMT_D01.JPG", 1), "01");
+        assert_eq!(last_places("BHC006_GMT_D01", 2), "D/01", "no ending");
         assert_eq!(last_places("D01", 3), "", "fewer places than asked");
         assert_eq!(last_places(".hidden", 1), "hidden");
         assert_eq!(last_places("पत्र_001.jpg", 2), "पत्र/001");

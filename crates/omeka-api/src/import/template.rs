@@ -404,6 +404,7 @@ pub fn add_list(
                     case_fold: false,
                     leading_zeros: false,
                     separators: false,
+                    last_places: None,
                 },
             }),
             item_key: None,

@@ -1,11 +1,15 @@
 #![allow(clippy::expect_used)]
 
 use std::collections::BTreeMap;
+use std::num::NonZeroU8;
 
 use super::bhc006_tests::{draft, index, install, lists, proposal_with_lists};
 use super::pairing::Media;
 use super::{Evidence, NodeEvidence, Proposal, SeriesNode, Share};
-use crate::import::plan::{PairRule, RecordKind, RowKind};
+use crate::import::derive::{NoTags, Sheets, derive};
+use crate::import::plan::{
+    Edit, ImportPlan, ListFile, PairRule, RecordKind, RelPath, RowKind, SourceId,
+};
 
 fn series<'p>(proposal: &'p Proposal, id: &str) -> &'p SeriesNode {
     proposal
@@ -69,6 +73,11 @@ fn documents_pair_by_the_last_two_places() {
         Some("Identifier"),
         "joined by file name on the column the suggestion reads"
     );
+    assert_eq!(
+        list.join.as_ref().map(|join| join.normalize.last_places),
+        Some(None),
+        "nothing pairs until the person takes the offer"
+    );
 
     // The last place alone is refused: it pairs rows into other series.
     let index = index();
@@ -118,4 +127,51 @@ fn documents_pair_by_the_last_two_places() {
         by_series(2, &mut media),
         BTreeMap::from([("Documents (D)", 15)])
     );
+}
+
+#[test]
+fn taking_the_offer_states_it_as_the_join_fold() {
+    let pair = Edit::Pair {
+        list: ListFile {
+            source: SourceId("s1".into()),
+            file: RelPath::parse(DOCUMENTS).expect("a path"),
+        },
+        rule: PairRule::LastPlaces { places: 2 },
+    };
+    let proposal = proposal_with_lists(&[pair.clone(), pair]);
+    assert!(
+        proposal.edits.iter().all(|edit| edit.applied),
+        "twice is once"
+    );
+    assert!(series(&proposal, "Documents (D)").pairing.is_empty());
+    let (_, list) = proposal
+        .structure
+        .lists()
+        .find(|(_, list)| list.file.as_str() == DOCUMENTS)
+        .expect("in the plan");
+    let normalize = list.join.as_ref().expect("a join").normalize;
+    assert_eq!(normalize.last_places.map(NonZeroU8::get), Some(2));
+
+    let plan = ImportPlan {
+        structure: proposal.structure.clone(),
+        ..draft()
+    };
+    let found = lists();
+    let sheets: Sheets = plan
+        .structure
+        .lists()
+        .filter_map(|(_, list)| {
+            let read = found.iter().find(|one| one.file.file == list.file)?;
+            Some((list.id.clone(), read.sheet.clone()))
+        })
+        .collect();
+    let model = derive(&index(), &sheets, &plan, &install(), &NoTags);
+    let paired: Vec<&str> = model
+        .kept()
+        .filter(|record| record.kind == RecordKind::Media)
+        .filter(|record| record.rows.iter().any(|row| row.sheet == list.id))
+        .filter_map(|record| Some(record.files.first()?.path.as_str()))
+        .collect();
+    assert_eq!(paired.len(), 15, "{paired:?}");
+    assert!(paired.iter().all(|path| path.starts_with("Documents (D)/")));
 }

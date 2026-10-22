@@ -44,7 +44,7 @@ const QUOTES: readonly (readonly [Quote, AdvancedMessageKey])[] = [
   ['none', 'adv.lists.quote.none'],
 ];
 
-const NORMALIZE: readonly (readonly [keyof Join['normalize'], AdvancedMessageKey])[] = [
+const NORMALIZE: readonly (readonly [Exclude<keyof Join['normalize'], 'lastPlaces'>, AdvancedMessageKey])[] = [
   ['caseFold', 'adv.lists.normalize.caseFold'],
   ['leadingZeros', 'adv.lists.normalize.leadingZeros'],
   ['separators', 'adv.lists.normalize.separators'],

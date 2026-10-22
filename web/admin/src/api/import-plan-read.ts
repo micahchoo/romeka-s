@@ -174,12 +174,15 @@ const parseColumnPlan: Parser<ColumnPlan> = (raw, path = []) => {
 };
 
 const parseNormalize: Parser<Join['normalize']> = (raw, path = []) => {
-  const normalize = strict(raw, path, ['caseFold', 'leadingZeros', 'separators']);
-  return {
+  const normalize = strict(raw, path, ['caseFold', 'leadingZeros', 'separators'], ['lastPlaces']);
+  const folds = {
     caseFold: flag(normalize, 'caseFold', path),
     leadingZeros: flag(normalize, 'leadingZeros', path),
     separators: flag(normalize, 'separators', path),
   };
+  return normalize['lastPlaces'] === undefined
+    ? folds
+    : { ...folds, lastPlaces: member(normalize, 'lastPlaces', path, asCount) };
 };
 
 export const asJoinOn = oneOf<Join['on']>(['identifier', 'fileName']);

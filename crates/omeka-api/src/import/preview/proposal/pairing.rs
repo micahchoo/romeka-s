@@ -8,19 +8,22 @@
 //! the list's rows, each to exactly one file of the whole archive, all in
 //! one series, and more rows than the stated join. Of these rules, the
 //! fewest places win. A list that pairs no row by any stated rule describes
-//! the series its suggestion pairs into (detector 3, rule 3).
+//! the series its suggestion pairs into (detector 3, rule 3). A `pair` edit
+//! takes an offer: the list's join then states it as its `lastPlaces` fold.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::num::NonZeroU8;
 
 use unicode_normalization::UnicodeNormalization;
 
+use super::grain::SeriesRows;
 use super::lists::{Counted, Found, InSeries};
 use super::thresholds::MIN_SUGGESTION_SHARE;
 use super::{Evidence, PairCounts, Pick, Share};
 use crate::import::catalog;
 use crate::import::join::cell;
 use crate::import::places::{last_places, places, stem};
-use crate::import::plan::{ColumnRef, PairRule, Placement, Structure};
+use crate::import::plan::{ColumnRef, Edit, ListFile, PairRule, Placement, Structure};
 use crate::import::sheet::Sheet;
 
 /// What comparing the last `places` places of a column's cells pairs.
@@ -113,6 +116,7 @@ impl<'e> Media<'e> {
 
 /// A rule offered for one list.
 pub(super) struct Offer {
+    pub list: ListFile,
     pub column: ColumnRef,
     pub series: usize,
     pub pick: Pick<PairRule, PairCounts>,
@@ -190,6 +194,7 @@ pub(super) fn detect(
                 && series == at
             {
                 offers[at].push(Offer {
+                    list: first.file.clone(),
                     column: join.column.clone(),
                     series,
                     pick,
@@ -225,6 +230,7 @@ pub(super) fn detect(
                 attached.push((
                     place,
                     Offer {
+                        list: list.file.clone(),
                         column,
                         series,
                         pick,
@@ -244,4 +250,44 @@ pub(super) fn detect(
         }
     }
     offers
+}
+
+/// Replay the `pair` edits: each takes an offer, and the list's join then
+/// compares the offer's last places. A taken offer is no longer offered.
+/// Each edit it applies is marked in `applied`.
+pub(super) fn replay(
+    offers: &mut [Vec<Offer>],
+    rows: &mut [SeriesRows],
+    edits: &[Edit],
+    applied: &mut [bool],
+) {
+    for (at, edit) in edits.iter().enumerate() {
+        let Edit::Pair { list, rule } = edit else {
+            continue;
+        };
+        let PairRule::LastPlaces { places } = rule else {
+            continue;
+        };
+        let Some(count) = NonZeroU8::new(*places) else {
+            continue;
+        };
+        for (offered, rows) in offers.iter_mut().zip(rows.iter_mut()) {
+            let Some(plan) = rows.lists.iter_mut().find(|plan| plan.file == *list) else {
+                continue;
+            };
+            let Some(join) = plan.join.as_mut() else {
+                continue;
+            };
+            if join.normalize.last_places == Some(count) {
+                applied[at] = true;
+            } else if let Some(taken) = offered
+                .iter()
+                .position(|offer| offer.list == *list && offer.pick.value == *rule)
+            {
+                offered.remove(taken);
+                join.normalize.last_places = Some(count);
+                applied[at] = true;
+            }
+        }
+    }
 }

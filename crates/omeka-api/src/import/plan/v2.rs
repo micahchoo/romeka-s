@@ -77,6 +77,13 @@ impl TryFrom<ImportPlan> for PlanV2 {
             slots,
             ..
         } = plan.structure.into_lifted().map_err(PlanError::NotV2)?;
+        let last_places = lists
+            .iter()
+            .filter_map(|list| list.join.as_ref())
+            .any(|join| join.normalize.last_places.is_some());
+        if last_places {
+            return Err(PlanError::NotV2("a list joins by the last places of names"));
+        }
         Ok(Self {
             version: WireVersion,
             sources: plan.sources,

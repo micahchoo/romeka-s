@@ -21,6 +21,7 @@ use unicode_normalization::UnicodeNormalization;
 use super::decisions::{Decision, EntryRef, RowRef};
 use super::grouping::Grouping;
 use super::model::{GroupKey, Orphan, Subject};
+use super::places::last_places;
 use super::plan::{
     FlagKind, FlagPolicy, JoinNormalize, JoinOn, RecordKind, RowKind, SeriesIx, SheetPlan,
 };
@@ -116,12 +117,16 @@ fn target_of(found: Option<&Found>, kind: RecordKind) -> Option<Target> {
     }
 }
 
-/// NFC and trimmed always; then the optional case fold, separator fold
+/// NFC and trimmed always; then, with `lastPlaces`, only the last places of
+/// the name (`places::last_places`); then the optional case fold, separator fold
 /// (`_`, `-`, `.` and space, in runs, become one `_`) and leading-zero strip
 /// (each run of digits loses its leading zeros, keeping one digit).
 #[must_use]
 pub fn normalize(text: &str, how: JoinNormalize) -> String {
     let mut text: String = text.trim().nfc().collect();
+    if let Some(count) = how.last_places {
+        text = last_places(&text, usize::from(count.get()));
+    }
     if how.case_fold {
         text = text.to_lowercase();
     }
@@ -169,6 +174,7 @@ const EXACT: JoinNormalize = JoinNormalize {
     case_fold: false,
     leading_zeros: false,
     separators: false,
+    last_places: None,
 };
 
 /// `media_by_file` holds for a series when a media row without an item key
@@ -361,7 +367,8 @@ fn groups_by_key(
 
 /// Each file of the series by its normalised name and by its normalised
 /// path. A name two files share finds the first in path order; the path
-/// still finds each.
+/// still finds each, except with `lastPlaces`, where a path folds to the
+/// places of its name and so finds the first file too.
 fn files_by_name(
     grouping: &Grouping<'_>,
     series: SeriesIx,
@@ -381,7 +388,13 @@ fn files_by_name(
         .filter(|(_, file)| file.series == Some(series));
     for (at, file) in of_series {
         let found = Found::File(at, group_of.get(&at).cloned());
-        by_name.insert(normalize(file.entry.path.as_str(), how), found.clone());
+        let path = normalize(file.entry.path.as_str(), how);
+        if how.last_places.is_some() {
+            // The path folds as the name does: the first in path order.
+            by_name.entry(path).or_insert_with(|| found.clone());
+        } else {
+            by_name.insert(path, found.clone());
+        }
         by_name
             .entry(normalize(file.entry.name(), how))
             .or_insert(found);
@@ -391,6 +404,8 @@ fn files_by_name(
 
 #[cfg(test)]
 mod tests {
+    use std::num::NonZeroU8;
+
     use super::*;
 
     fn how(case_fold: bool, leading_zeros: bool, separators: bool) -> JoinNormalize {
@@ -398,7 +413,52 @@ mod tests {
             case_fold,
             leading_zeros,
             separators,
+            last_places: None,
         }
+    }
+
+    #[test]
+    fn last_places_pair_documents() {
+        const LISTING: &str =
+            include_str!("../../../omeka-server/tests/import_shapes/bhc006.listing");
+        const IDENTIFIERS: &str =
+            include_str!("../../../omeka-server/tests/import_shapes/bhc006.identifiers");
+        let mut last_two = how(false, false, false);
+        last_two.last_places = NonZeroU8::new(2);
+        let mut last_one = last_two;
+        last_one.last_places = NonZeroU8::new(1);
+        let media: Vec<&str> = LISTING
+            .lines()
+            .filter_map(|line| line.split_once('\t'))
+            .map(|(path, _)| path)
+            .filter(|path| !path.ends_with(".json") && !path.ends_with(".xlsx"))
+            .collect();
+        let finds = |cell: &str, how: JoinNormalize| -> Vec<&str> {
+            media
+                .iter()
+                .filter(|path| normalize(path, how) == normalize(cell, how))
+                .copied()
+                .collect()
+        };
+        let cells: Vec<&str> = IDENTIFIERS
+            .lines()
+            .filter_map(|line| line.split_once('\t'))
+            .filter(|(sheet, _)| *sheet == "BHC006_GMT_D")
+            .map(|(_, cell)| cell)
+            .collect();
+        assert_eq!(cells.len(), 15);
+        for cell in &cells {
+            let found = finds(cell, last_two);
+            assert_eq!(found.len(), 1, "{cell}: {found:?}");
+            assert!(found[0].starts_with("Documents (D)/"), "{cell}: {found:?}");
+            assert_eq!(normalize(cell, EXACT), *cell, "off, the cell is itself");
+        }
+        assert!(
+            cells.iter().any(|cell| finds(cell, last_one)
+                .iter()
+                .any(|path| path.starts_with("Video (V)/"))),
+            "the last place alone finds files of other series"
+        );
     }
 
     #[test]

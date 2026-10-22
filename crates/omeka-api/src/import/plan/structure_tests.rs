@@ -403,6 +403,36 @@ fn the_lower_refuses_what_v2_cannot_say() {
 }
 
 #[test]
+fn a_join_by_last_places_is_said_only_in_v3() {
+    let full = parse(FULL);
+    assert!(
+        !full.to_json().contains("lastPlaces"),
+        "the member is left out when off"
+    );
+    let mut value: Value = serde_json::from_str(FULL).expect("json");
+    value["sheets"][1]["join"]["normalize"]["lastPlaces"] = json!(2);
+    let plan = parse(&value.to_string());
+    let written: Value = serde_json::from_str(&plan.to_json()).expect("json");
+    assert_eq!(written["version"], 3, "v2 cannot say it");
+    let joins: Vec<&Value> = written["structure"]["levels"][0]["lists"]
+        .as_array()
+        .expect("lists")
+        .iter()
+        .map(|list| &list["join"]["normalize"]["lastPlaces"])
+        .collect();
+    assert_eq!(joins, [&Value::Null, &json!(2)]);
+    assert!(matches!(
+        v2::PlanV2::try_from(plan),
+        Err(PlanError::NotV2(_))
+    ));
+    value["sheets"][1]["join"]["normalize"]["lastPlaces"] = json!(0);
+    assert!(
+        ImportPlan::from_json(&value.to_string()).is_err(),
+        "no places is no fold"
+    );
+}
+
+#[test]
 fn a_plan_with_no_series_is_refused() {
     let set_alone = json!({ "kind": "set", "id": "p", "set": { "id": 4 }, "levels": [] });
     for levels in [json!([]), json!([set_alone])] {

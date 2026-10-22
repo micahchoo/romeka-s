@@ -86,6 +86,26 @@ describe("the v3 plan", () => {
     expect(roundTrip(raw)).toEqual(raw);
   });
 
+  it("writes back a join by the last places of names, and leaves it out when off", () => {
+    const raw: unknown = JSON.parse(JSON.stringify(rustPlan("bhc006.json")));
+    const levels = isRecord(raw) && isRecord(raw["structure"]) ? raw["structure"]["levels"] : undefined;
+    const project = isUnknownArray(levels) ? levels[0] : undefined;
+    const series = isRecord(project) && isUnknownArray(project["levels"]) ? project["levels"][2] : undefined;
+    const lists = isRecord(series) ? series["lists"] : undefined;
+    const list = isUnknownArray(lists) ? lists[0] : undefined;
+    const join = isRecord(list) ? list["join"] : undefined;
+    const folds = isRecord(join) ? join["normalize"] : undefined;
+    if (!isRecord(join) || !isRecord(folds)) {
+      throw new Error("bhc006 joins its D list");
+    }
+    expect(roundTrip(raw)).toEqual(raw);
+    expect(JSON.stringify(roundTrip(raw))).not.toContain("lastPlaces");
+    join["normalize"] = { ...folds, lastPlaces: 2 };
+    expect(roundTrip(raw)).toEqual(raw);
+    join["normalize"] = { ...folds, lastPlaces: "2" };
+    expect(() => parseImportPlanV3(raw)).toThrow("lastPlaces");
+  });
+
   it("refuses a member serde does not know", () => {
     expect(() =>
       parseImportPlanV3({
