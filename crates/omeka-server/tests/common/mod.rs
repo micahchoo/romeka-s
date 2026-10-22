@@ -1080,3 +1080,31 @@ pub fn assert_envelope(document: &serde_json::Value, id: u64) {
         "document has wrong o:id: {document}"
     );
 }
+
+/// Claim the access copy row a create queued, as the worker would, so a test can
+/// settle it. Any other row claimed on the way (the poster) stays claimed until
+/// the access row is, then goes back: a claim takes the oldest row, and a poster
+/// queued a second earlier would be claimed again each time it went back.
+pub async fn claim_access_copy(pool: &DbPool, commands: &[&str]) -> omeka_db::rows::DerivativeRow {
+    use omeka_db::repos::MediaDerivativeRepo;
+    use omeka_db::rows::DerivativeKind;
+    let mut others = Vec::new();
+    let claimed = loop {
+        let row = with_db!(pool, |db| MediaDerivativeRepo::new(db)
+            .claim_next(commands)
+            .await)
+        .expect("a claim")
+        .expect("the access row a create queued");
+        if row.kind == DerivativeKind::AccessCopy {
+            break row;
+        }
+        others.push(row);
+    };
+    for other in others {
+        with_db!(pool, |db| MediaDerivativeRepo::new(db)
+            .requeue(other.media_id, other.kind)
+            .await)
+        .expect("the other row goes back to the queue");
+    }
+    claimed
+}

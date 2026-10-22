@@ -70,6 +70,10 @@ const handlesOf = (region: Region): readonly Point[] =>
       ]
     : region.points;
 
+/**
+ * A shape's number on a filled badge at its top-left corner, the same badge the
+ * list entry carries, so the two read as one thing on any picture.
+ */
 const Label = ({
   region,
   unitPerPx,
@@ -78,18 +82,28 @@ const Label = ({
   readonly region: Region;
   readonly unitPerPx: number;
   readonly children: string | number;
-}): ReactElement => (
-  <text
-    className="region-number"
-    x={boundsOf(region).x + unitPerPx * 12}
-    y={boundsOf(region).y + unitPerPx * 12}
-    fontSize={unitPerPx * 12}
-    strokeWidth={unitPerPx * 3}
-    dominantBaseline="hanging"
-  >
-    {children}
-  </text>
-);
+}): ReactElement => {
+  const { x, y } = boundsOf(region);
+  const text = String(children);
+  const height = unitPerPx * 18;
+  const width = unitPerPx * (10 + 7 * text.length);
+  const left = x + unitPerPx * 4;
+  const top = y + unitPerPx * 4;
+  return (
+    <g className="region-number">
+      <rect x={left} y={top} width={width} height={height} rx={unitPerPx * 4} />
+      <text
+        x={left + width / 2}
+        y={top + height / 2}
+        fontSize={unitPerPx * 12}
+        textAnchor="middle"
+        dominantBaseline="central"
+      >
+        {text}
+      </text>
+    </g>
+  );
+};
 
 export const RegionShapes = (props: RegionShapesProps): ReactElement => {
   const { t } = useTranslator(annotations);
@@ -108,6 +122,7 @@ export const RegionShapes = (props: RegionShapesProps): ReactElement => {
             data-iri={row.note.iri}
             data-number={row.number}
           >
+            <Geometry region={geometry} className="region-halo" />
             <Geometry region={geometry} className="region-shape" />
             {dense && !chosen ? null : (
               <Label region={geometry} unitPerPx={unitPerPx}>
@@ -132,6 +147,7 @@ export const RegionShapes = (props: RegionShapesProps): ReactElement => {
 
       {draft === null ? null : (
         <g className="region-draft" data-draft="true">
+          <Geometry region={draft} className="region-halo" />
           <Geometry region={draft} className="region-shape" />
           <Label region={draft} unitPerPx={unitPerPx}>
             {t('region.draft')}

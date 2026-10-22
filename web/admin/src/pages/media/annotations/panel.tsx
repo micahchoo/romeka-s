@@ -5,14 +5,16 @@
  * The state machine (the read, the drafts, the conditional writes) is
  * `use-notes.ts`; this file renders it and owns no request of its own.
  *
- * The region editor (A-4) and the time editor (A-5) mount at
- * `.media-notes-surface`: they read `surface` and `notes`, call `open` with the
- * entry they select, and start a draft with a drawn selector through
- * `beginDraft`. This unit starts whole-file notes only.
+ * The region editor and the time editor draw on the stage itself, in the
+ * places it hands the page (`StageSlots`): the tools above the media, the
+ * shapes over it, the timeline under it. They read `surface` and `notes`, call
+ * `open` with the entry they select, and start a draft with a drawn selector
+ * through `beginDraft`. With no stage they render at `.media-notes-surface`.
  */
 import type { ReactElement, ReactNode } from 'react';
 import { Suspense, lazy, useEffect, useId, useRef, useState } from 'react';
 import type { Media } from '../../../api/types';
+import type { StageSlots } from '../stage/slots';
 import { ErrorNotice } from '../../../app/errors';
 import { mediaKind } from '../../../app/media';
 import { useTranslator } from '../../../i18n';
@@ -22,7 +24,7 @@ import type { TrackSummary } from './client';
 import type { NotesFocus } from './link';
 import type { Editing } from './use-notes';
 import type { Note, Selector } from './wire';
-import { noteIdOf } from './wire';
+import { noteIdOf, spanOf } from './wire';
 import { NoteList, placedNotes } from './note-list';
 import { seek } from './player';
 import { useNotes } from './use-notes';
@@ -79,6 +81,8 @@ export const MediaNotes = ({
   player,
   focus,
   onTracks,
+  stage = null,
+  onClaim,
 }: {
   readonly media: Media;
   /** The stage's player element, when the media has one. */
@@ -87,6 +91,10 @@ export const MediaNotes = ({
   readonly focus?: NotesFocus | null;
   /** The caption languages, for the stage's `<track>` elements. */
   readonly onTracks?: (tracks: readonly TrackSummary[]) => void;
+  /** The places on the stage to draw in; null renders the editors here. */
+  readonly stage?: StageSlots | null;
+  /** The region editor draws the picture, so the stage leaves its own out. */
+  readonly onClaim?: (claimed: boolean) => void;
 }): ReactElement => {
   const { t } = useTranslator(annotations, common);
   const headingId = useId();
@@ -131,8 +139,9 @@ export const MediaNotes = ({
     applied.current = key;
     notes.open(note);
     notes.focusNote(note.iri);
-    if (note.selector.kind === 'time') {
-      setUrlSeek(note.selector.startMs);
+    const span = spanOf(note.selector);
+    if (span !== null) {
+      setUrlSeek(span.startMs);
     }
   }, [focus, ready, notes]);
 
@@ -249,12 +258,14 @@ export const MediaNotes = ({
         </p>
       ) : null}
 
-      {/* The region editor (A-4) mounts here; the time editor (A-5) joins it. */}
+      {/* The editors draw on the stage's slots; with no stage, they render here. */}
       {ready === null ? null : (
         <div className="media-notes-surface" data-surface={ready.surface.kind}>
           {ready.surface.kind === 'image' ? (
             <Suspense fallback={null}>
               <RegionEditor
+                slots={stage}
+                onClaim={onClaim}
                 surface={ready.surface}
                 rows={placedNotes(ready.notes)}
                 selected={notes.selected}
@@ -274,6 +285,7 @@ export const MediaNotes = ({
           ) : ready.surface.kind === 'time' ? (
             <Suspense fallback={null}>
               <TimeEditor
+                slots={stage}
                 surface={ready.surface}
                 rows={placedNotes(ready.notes)}
                 selected={notes.selected}
@@ -285,6 +297,13 @@ export const MediaNotes = ({
                 onRange={notes.setRange}
                 onDraw={notes.beginDraft}
                 onSelect={notes.open}
+                onReshape={(selector) => {
+                  // The keys move the open box, saved or not, so Save sends the
+                  // box the frame shows.
+                  if (editing.kind === 'new' || editing.kind === 'edit' || editing.kind === 'conflict') {
+                    notes.changeDraft({ ...editing.draft, selector });
+                  }
+                }}
               />
             </Suspense>
           ) : null}
@@ -378,8 +397,9 @@ export const MediaNotes = ({
             // A time note's entry does what its segment does: the editor hears
             // the moment the note is about, from either click.
             notes.open(note);
-            if (note.selector.kind === 'time') {
-              seek(player ?? null, note.selector.startMs);
+            const span = spanOf(note.selector);
+            if (span !== null) {
+              seek(player ?? null, span.startMs);
             }
           }}
           onAdd={() => {

@@ -23,11 +23,11 @@ import { clockText } from './time-text';
 /** Where a note sits in the media. */
 export type Place = 'region' | 'time' | 'whole';
 
-/** A note with the place that orders it and its region's number. */
+/** A note with the place that orders it and its shape's number. */
 export interface PlacedNote {
   readonly note: Note;
   readonly place: Place;
-  /** The shape's number for a region; 0 for the other places. */
+  /** The number its shape carries: a region's, or a box's on a video; else 0. */
   readonly number: number;
 }
 
@@ -45,13 +45,16 @@ export const placedNotes = (notes: readonly Note[]): readonly PlacedNote[] => {
     // A tie keeps the server's order (id order), which is creation order.
     return a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
   });
+  // A picture's regions and a video's boxes are never on one media, so one
+  // count numbers whichever shapes it has, in the order the list shows them.
   let number = 0;
   return rows.map((note) => {
     const place = placeOf(note.selector);
-    if (place === 'region') {
+    const shaped = place === 'region' || note.selector.kind === 'box';
+    if (shaped) {
       number += 1;
     }
-    return { note, place, number: place === 'region' ? number : 0 };
+    return { note, place, number: shaped ? number : 0 };
   });
 };
 
@@ -72,6 +75,7 @@ const placeOf = (selector: Selector): Place => {
     case 'polygon':
       return 'region';
     case 'time':
+    case 'box':
       return 'time';
     case 'whole':
       return 'whole';
@@ -86,6 +90,7 @@ const orderOf = (note: Note): readonly [number, number, number] => {
     case 'polygon':
       return [0, least(note.selector.points.map(([, y]) => y)), least(note.selector.points.map(([x]) => x))];
     case 'time':
+    case 'box':
       return [1, note.selector.startMs, 0];
     case 'whole':
       return [2, changedAt(note), 0];
@@ -124,13 +129,22 @@ export const placeLabel = (
   switch (row.place) {
     case 'region':
       return translator.t('notes.region', { number: row.number });
-    case 'time':
-      return row.note.selector.kind === 'time'
+    case 'time': {
+      const { selector } = row.note;
+      if (selector.kind === 'box') {
+        return translator.t('notes.box', {
+          number: row.number,
+          start: clockText(selector.startMs),
+          end: clockText(selector.endMs),
+        });
+      }
+      return selector.kind === 'time'
         ? translator.t('notes.timeRange', {
-            start: clockText(row.note.selector.startMs),
-            end: clockText(row.note.selector.endMs),
+            start: clockText(selector.startMs),
+            end: clockText(selector.endMs),
           })
         : '';
+    }
     case 'whole':
       return translator.t(
         surface.kind === 'image'

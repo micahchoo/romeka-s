@@ -321,3 +321,54 @@
     transform: none;
   }
 }
+
+/* The editors' toolbars, on the stage above the media: groups of joined
+ * buttons, one pressed per group, at the shell's 32 px target floor. */
+.region-toolbar,
+.time-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.tool-segments {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.tool-segments > button,
+.tool-plain {
+  min-width: 2rem;
+  min-height: 2rem;
+  margin: 0;
+  padding: 0 var(--space-2);
+  font-size: 0.85rem;
+}
+
+.tool-segments > button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.tool-segments > button + button,
+.tool-segments > * + button {
+  border-inline-start: 1px solid var(--border);
+}
+
+.tool-segments > button[aria-pressed='true'],
+.tool-plain[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.tool-segments > button:disabled {
+  color: var(--text-muted);
+  opacity: 0.5;
+}

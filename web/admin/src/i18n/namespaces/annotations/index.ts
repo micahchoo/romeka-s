@@ -28,6 +28,7 @@ export const en = {
   'notes.add.file': 'Add a note about this file',
   'notes.region': 'Region {number}',
   'notes.timeRange': '{start} to {end}',
+  'notes.box': 'Box {number}, {start} to {end}',
   'notes.wholeImage': 'Whole image',
   'notes.wholeFile': 'Whole file',
   'notes.wholeTime': 'Whole recording',
@@ -93,8 +94,7 @@ export const en = {
   'region.tool.rect': 'Rectangle',
   'region.tool.polygon': 'Polygon',
   'region.advanced': 'Advanced',
-  'region.hint.move':
-    'Pick a shape to change it. Shift and drag marks a rectangle, and the arrows move the selected shape while the picture has the focus.',
+  'region.hint.move': 'Click a shape to open its note. Shift and drag marks a rectangle. The arrows move the open shape.',
   'region.hint.rect': 'Drag on the picture to mark a rectangle. Esc cancels.',
   'region.hint.polygon':
     'Click each corner. Enter or a click on the first corner closes the shape. Backspace removes the last corner.',
@@ -123,6 +123,10 @@ export const en = {
   'time.length': 'Length',
   'time.unknownLength': 'Length unknown. The player still plays the file.',
   'time.fromHere': 'Note from here',
+  'time.tool.box': 'Box on this frame',
+  'time.hint.box':
+    'Drag on the picture to mark a box. It covers five seconds from here; change its Start and End under the player. Esc cancels.',
+  'time.frame': 'The video frame. Draw a box on it.',
   'time.playRange': 'Play this range',
   'time.hint': 'Press [ to set the start and ] to set the end while the player has focus.',
   'time.start': 'Start',

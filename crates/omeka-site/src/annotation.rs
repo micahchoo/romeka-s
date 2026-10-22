@@ -60,6 +60,16 @@ pub enum Place {
     Polygon(Vec<(u32, u32)>),
     /// A range of a recording, in milliseconds.
     Time { start_ms: u64, end_ms: u64 },
+    /// A box on a video's frames, in frame pixels, shown while the player is
+    /// inside its range.
+    BoxDuring {
+        x: u32,
+        y: u32,
+        w: u32,
+        h: u32,
+        start_ms: u64,
+        end_ms: u64,
+    },
 }
 
 impl Place {
@@ -68,7 +78,9 @@ impl Place {
     fn bounds(&self) -> Option<(u32, u32, u32, u32)> {
         match self {
             Self::Whole | Self::Time { .. } => None,
-            Self::Rect { x, y, w, h } => Some((*x, *y, *w, *h)),
+            Self::Rect { x, y, w, h } | Self::BoxDuring { x, y, w, h, .. } => {
+                Some((*x, *y, *w, *h))
+            }
             Self::Polygon(points) => {
                 let (first_x, first_y) = *points.first()?;
                 let (mut left, mut top, mut right, mut bottom) =
@@ -93,7 +105,21 @@ impl Place {
                 let (x, y, _, _) = self.bounds().unwrap_or((0, 0, 0, 0));
                 (1, u64::from(y), u64::from(x))
             }
-            Self::Time { start_ms, end_ms } => (2, *start_ms, *end_ms),
+            Self::Time { start_ms, end_ms }
+            | Self::BoxDuring {
+                start_ms, end_ms, ..
+            } => (2, *start_ms, *end_ms),
+        }
+    }
+
+    /// The range of a recording this place covers.
+    fn span(&self) -> Option<(u64, u64)> {
+        match self {
+            Self::Time { start_ms, end_ms }
+            | Self::BoxDuring {
+                start_ms, end_ms, ..
+            } => Some((*start_ms, *end_ms)),
+            Self::Whole | Self::Rect { .. } | Self::Polygon(_) => None,
         }
     }
 }
@@ -170,10 +196,10 @@ pub fn annotated(
     ordered.sort_by_key(|line| line.place.sort_key());
     let overlay = overlay(notes, &ordered);
     let media = notes.media_id;
-    let picture = if overlay.is_some() {
-        " annotated-image"
-    } else {
-        ""
+    let picture = match (overlay.is_some(), notes.surface) {
+        (false, _) => "",
+        (true, Surface::Time) => " annotated-video",
+        (true, _) => " annotated-image",
     };
     let mut out = format!(
         "<figure class=\"annotated-media{picture}\" data-notes=\"{media}\" data-surface=\"{}\"",
@@ -208,10 +234,12 @@ pub fn annotated(
 
 /// The `<svg>` of shapes and the HTML markers, `None` when nothing can be
 /// drawn. Shapes are larger-first so a small region inside a large one stays
-/// hittable, but the markers keep the list's numbers.
+/// hittable, but the markers keep the list's numbers. A picture shows every
+/// region; a video's boxes show only while their note plays (the script marks
+/// them, and with no script none shows).
 fn overlay(notes: &NotesView, ordered: &[&NoteLine]) -> Option<(String, String)> {
     let (width, height) = notes.canvas?;
-    if notes.surface != Surface::Image || width == 0 || height == 0 {
+    if notes.surface == Surface::Whole || width == 0 || height == 0 {
         return None;
     }
     let mut regions: Vec<Region<'_>> = Vec::new();
@@ -262,7 +290,7 @@ struct Region<'a> {
 fn shape(number: usize, line: &NoteLine) -> String {
     let title = format!("<title>{} {}</title>", number, escape_html(&line.text));
     let (body, halo) = match &line.place {
-        Place::Rect { x, y, w, h } => (
+        Place::Rect { x, y, w, h } | Place::BoxDuring { x, y, w, h, .. } => (
             format!(
                 "<rect class=\"region-line\" x=\"{x}\" y=\"{y}\" width=\"{w}\" height=\"{h}\"/>"
             ),
@@ -367,7 +395,7 @@ fn facts(notes: &NotesView, ordered: &[&NoteLine], messages: &Messages) -> Strin
         .count();
     let moments = ordered
         .iter()
-        .filter(|line| matches!(line.place, Place::Time { .. }))
+        .filter(|line| line.place.span().is_some())
         .count();
     let whole = ordered
         .iter()
@@ -413,14 +441,14 @@ fn rail(notes: &NotesView, ordered: &[&NoteLine]) -> String {
     let moments: Vec<&NoteLine> = ordered
         .iter()
         .copied()
-        .filter(|line| matches!(line.place, Place::Time { .. }))
+        .filter(|line| line.place.span().is_some())
         .collect();
     if moments.is_empty() {
         return String::new();
     }
     let mut out = String::from("<div class=\"note-rail\" aria-hidden=\"true\">");
     for line in moments {
-        let Place::Time { start_ms, .. } = line.place else {
+        let Some((start_ms, _)) = line.place.span() else {
             continue;
         };
         let percent = start_ms as f64 / duration as f64 * 100.0;
@@ -440,7 +468,7 @@ fn entry(number: usize, line: &NoteLine, notes: &NotesView, messages: &Messages)
         "id=\"note-{}\" class=\"annotation-item\" data-note=\"{}\"",
         line.id, line.id
     );
-    if let Place::Time { start_ms, end_ms } = line.place {
+    if let Some((start_ms, end_ms)) = line.place.span() {
         attrs.push_str(&format!(
             " data-start-ms=\"{start_ms}\" data-end-ms=\"{end_ms}\""
         ));
@@ -467,11 +495,19 @@ fn place(line: &NoteLine, notes: &NotesView, messages: &Messages) -> String {
             line.id,
             escape_html(messages.notes_region)
         ),
-        Place::Time { start_ms, end_ms } => {
+        Place::Time { start_ms, end_ms }
+        | Place::BoxDuring {
+            start_ms, end_ms, ..
+        } => {
             let range = sprintf(messages.notes_range, &[&clock(*start_ms), &clock(*end_ms)]);
             let label = sprintf(messages.notes_play, &[&clock(*start_ms), &clock(*end_ms)]);
+            let boxed = if matches!(line.place, Place::BoxDuring { .. }) {
+                " note-box"
+            } else {
+                ""
+            };
             format!(
-                "<a class=\"note-place note-time\" href=\"{}#player\" aria-label=\"{}\">{}</a>",
+                "<a class=\"note-place note-time{boxed}\" href=\"{}#player\" aria-label=\"{}\">{}</a>",
                 escape_html(&media_start_url(&notes.page_url, start_ms / 1000)),
                 escape_html(&label),
                 escape_html(&range)
@@ -484,9 +520,9 @@ fn place(line: &NoteLine, notes: &NotesView, messages: &Messages) -> String {
 /// either way the entry itself. A time note carries the start moment too.
 fn cite(line: &NoteLine, notes: &NotesView, messages: &Messages) -> String {
     let base = format!("{}?note={}#note-{}", notes.page_url, line.id, line.id);
-    let url = match line.place {
-        Place::Time { start_ms, .. } => media_start_url(&base, start_ms / 1000),
-        Place::Whole | Place::Rect { .. } | Place::Polygon(_) => base,
+    let url = match line.place.span() {
+        Some((start_ms, _)) => media_start_url(&base, start_ms / 1000),
+        None => base,
     };
     format!(
         " <a class=\"note-link\" href=\"{}\">{}</a>",

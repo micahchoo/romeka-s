@@ -105,16 +105,24 @@
     var entries = Array.prototype.slice.call(
       figure.querySelectorAll('.annotation-item[data-start-ms][data-end-ms]')
     );
-    media.addEventListener('timeupdate', function () {
+    // A rail mark, and on a video a box and its marker, play when their entry
+    // does: the stylesheet shows a video's box only then.
+    var followers = figure.querySelectorAll(
+      '.note-rail-mark, .annotated-video .annotation-region, .annotated-video .note-marker'
+    );
+    var update = function () {
       playingLine(entries, media.currentTime * 1000);
-      figure.querySelectorAll('.note-rail-mark').forEach(function (mark) {
-        var entry = entryOf(figure, mark.getAttribute('data-note'));
-        mark.classList.toggle(
+      followers.forEach(function (follower) {
+        var entry = entryOf(figure, follower.getAttribute('data-note'));
+        follower.classList.toggle(
           'is-playing',
           Boolean(entry && entry.classList.contains('is-playing'))
         );
       });
-    });
+    };
+    media.addEventListener('timeupdate', update);
+    media.addEventListener('seeked', update);
+    update();
   }
 
   function cited(figure) {
@@ -169,7 +177,10 @@
         }
       });
     });
-    if (figure.getAttribute('data-duration-ms')) {
+    if (
+      figure.getAttribute('data-duration-ms') ||
+      figure.classList.contains('annotated-video')
+    ) {
       playing(figure);
     }
     cited(figure);

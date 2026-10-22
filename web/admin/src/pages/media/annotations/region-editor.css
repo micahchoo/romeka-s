@@ -6,43 +6,36 @@
   gap: var(--space-2);
 }
 
-.region-toolbar,
-.region-advanced {
+.region-tools {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: var(--space-1);
-  align-items: center;
 }
 
 .region-advanced {
-  align-items: start;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
 }
 
-/* 32 by 32 targets with 24 px spacing, the floor for a toolbar (design, floor
- * rules). The buttons keep the shell's own styling. */
-.region-toolbar button {
-  min-width: 2rem;
-  min-height: 2rem;
-}
-
-.region-toolbar button[aria-pressed='true'],
-.region-advanced button[aria-pressed='true'] {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent);
+.region-more {
+  margin-inline-start: auto;
 }
 
 .region-readout {
-  min-width: 3.5ch;
+  min-width: 4ch;
+  padding: 0 var(--space-1);
   font-variant-numeric: tabular-nums;
   text-align: center;
+  font-size: 0.85rem;
 }
 
 .region-hint,
 .region-count {
   margin: 0;
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .region-refusal {
@@ -55,10 +48,15 @@
   font-weight: 700;
 }
 
+/* A live region read as a line of text, not the shell's boxed status card. */
 .region-selected {
   margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .region-by-numbers {
@@ -78,14 +76,14 @@
   flex-basis: 100%;
 }
 
-.region-number {
+.region-number-field {
   display: flex;
   flex-direction: column;
   gap: 2px;
   width: 6rem;
 }
 
-.region-number span {
+.region-number-field span {
   color: var(--text-muted);
   font-size: 0.8rem;
 }
@@ -94,14 +92,20 @@
 .region-scroll {
   max-height: 70vh;
   overflow: auto;
-  border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg);
 }
 
+/* At the first step the whole picture fits the box, however tall it is; each
+ * zoom step multiplies that width, and the box scrolls. */
 .region-figure {
   position: relative;
-  margin: 0;
+  margin: 0 auto;
+  width: calc(min(100%, 70vh * var(--region-aspect, 1)) * var(--region-zoom, 1));
+}
+
+.region-figure img.is-svg {
+  background-color: var(--surface);
 }
 
 .region-figure img {
@@ -148,8 +152,21 @@
   vector-effect: non-scaling-stroke;
 }
 
+/* A light halo under every line, so a shape reads on a dark picture and on a
+ * busy one alike. */
+.region-shapes .region-halo {
+  fill: none;
+  stroke: oklch(1 0 0 / 0.85);
+  stroke-width: 4;
+  vector-effect: non-scaling-stroke;
+}
+
 .region-shapes .is-selected .region-shape {
   stroke-width: 3;
+}
+
+.region-shapes .is-selected .region-halo {
+  stroke-width: 6;
 }
 
 .region-shapes.is-dense .region-shape {
@@ -177,11 +194,22 @@
   vector-effect: non-scaling-stroke;
 }
 
-.region-number {
-  fill: var(--accent);
-  stroke: var(--bg);
-  paint-order: stroke;
+.region-number rect {
+  fill: var(--text);
+  stroke: oklch(1 0 0 / 0.85);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.region-number text {
+  fill: var(--surface);
+  stroke: none;
   font-weight: 600;
+}
+
+.region-shapes .is-selected .region-number rect,
+.region-draft .region-number rect {
+  fill: var(--accent);
 }
 
 .region-outline polyline {
