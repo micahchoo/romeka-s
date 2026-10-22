@@ -30,17 +30,34 @@ fn text_of(literal: &syn::Lit) -> String {
     }
 }
 
-/// The only text the pattern writer holds, by the file allowed to hold it.
+/// The only text the pattern writer holds, by the file allowed to hold it:
+/// the class fragments, then the regex syntax that joins them. No syntax
+/// piece holds a letter or a digit (`syntax_names_nothing`).
 const FRAGMENTS: &[(&str, &[&str])] = &[(
     "shape.rs",
     &[
         r"[\p{L}\p{M}]+",
         r"\p{Nd}+",
         r"[^\p{L}\p{M}\p{Nd}/]*",
+        r"[^\p{L}\p{M}\p{Nd}/]+",
         r"(?:[^/]+/)*",
+        r"[^/]+",
         r"\.[^./]+",
+        "^",
+        "$",
+        "/",
+        "(",
+        "(?<",
+        ">",
+        "(?:",
+        ")",
+        ")?",
+        "|",
     ],
 )];
+
+/// The class fragments: every allowed text that is not syntax.
+const CLASSES: usize = 7;
 
 /// The one file that may hold numbers.
 const THRESHOLDS: &str = "thresholds.rs";
@@ -266,4 +283,15 @@ fn the_lint_sees_a_token() {
         .map(|finding| finding.what)
         .collect();
     assert_eq!(found, ["A gives no reason"]);
+}
+
+#[test]
+fn syntax_names_nothing() {
+    let (_, texts) = FRAGMENTS[0];
+    for syntax in &texts[CLASSES..] {
+        assert!(
+            !syntax.chars().any(char::is_alphanumeric),
+            "{syntax} could name a token"
+        );
+    }
 }

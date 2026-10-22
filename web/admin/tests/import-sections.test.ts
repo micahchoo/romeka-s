@@ -120,9 +120,10 @@ const everything = (): Record<string, unknown> => {
 };
 
 describe('the proposal section', () => {
-  it('parses the archive as found the server proposed', () => {
+  it('parses the proposal the server recorded', () => {
     const proposal = parseProposal(parsePreview(['proposal'])(recorded()).proposal);
-    expect(proposal.nodes.map((node) => node.kind)).toEqual(['series']);
+    const series = proposal.structure.levels.filter((level) => level.kind === 'series');
+    expect(proposal.nodes.map((node) => node.kind)).toEqual(series.map(() => 'series'));
     expect(proposal.edits).toEqual([]);
     expect(proposal.matchesPlan).toBe(false);
   });

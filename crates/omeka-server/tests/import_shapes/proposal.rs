@@ -46,12 +46,14 @@ async fn the_proposal_section_writes_nothing() {
     assert_eq!(node["kind"], "series");
     assert_eq!(
         node["scope"]["scope"],
-        json!({ "source": "s1", "folder": "" })
+        json!({ "source": "s1", "folder": "Artifacts" })
     );
     assert!(node["items"]["chosen"]["counts"]["items"].as_u64().unwrap() > 0);
 
     let mut tried = before.plan.clone();
-    let leave_out = json!({ "edit": "leaveOut", "scope": { "source": "s1", "folder": "Extras" } });
+    // tiny-iiif is outside by its counts, so no proposal offers to leave it out.
+    let leave_out =
+        json!({ "edit": "leaveOut", "scope": { "source": "s1", "folder": "tiny-iiif" } });
     tried["edits"] = json!([leave_out.clone()]);
     let tried = fixture
         .preview(&id, &json!({ "include": ["proposal"], "plan": tried }))

@@ -4,10 +4,11 @@
 //! proposal; only the person's save writes `plan.structure`, and the
 //! person's acts are kept as the plan's `edits`.
 //!
-//! [`propose`] is the one call. It is pure. No detector exists yet, so it
-//! proposes the archive as found: one series per source, each name one
-//! item, no list and no set. Its counts come from a derive of that tree, so
-//! the person sees what Run would do.
+//! [`propose`] is the one call. It is pure. The detectors run in order,
+//! each reading only the scan and what an earlier one chose: `folders`
+//! (which folders are series). Each edit is replayed by the detector whose
+//! choice it changes. The counts come from a derive of the proposed tree,
+//! so the person sees what Run would do.
 //!
 //! The rule against overfitting holds for every non-test file of this
 //! module: no file names a token, an extension or a depth. `lint_tests`
@@ -15,7 +16,13 @@
 //! constant in [`thresholds`].
 
 #[cfg(test)]
+mod bhc006_tests;
+mod folders;
+#[cfg(test)]
+mod folders_tests;
+#[cfg(test)]
 mod lint_tests;
+mod shape;
 pub mod thresholds;
 
 use std::cmp::Reverse;
@@ -27,11 +34,12 @@ use super::candidates::{Grain, ListCandidate};
 use super::facts::{Bucket, BucketCount, MediaKind};
 use crate::import::catalog::{self, Catalog};
 use crate::import::derive::{Index, NoTags, Sheets, derive};
+use crate::import::evidence::FileEntry;
 use crate::import::model::{Fate, Model};
 use crate::import::plan::{
     ColumnRef, Edit, FolderScope, Grouping, ImportPlan, Level, LevelId, ListFile, NAME_ALONE,
-    PairRule, Placement as FilePlace, RecordKind, RelPath, Series, SeriesIx, SeriesScope, SetFrom,
-    SourcePlan, Structure, default_plan,
+    PairRule, Placement as FilePlace, RecordKind, RelPath, Series, SeriesIx, SeriesScope,
+    SetByTitle, SetFrom, SetSource, SourcePlan, Structure, default_plan,
 };
 use crate::import::sheet::{Sheet, SheetError};
 
@@ -254,35 +262,20 @@ pub struct EditResult {
 /// plan's own tree, with no evidence.
 #[must_use]
 pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
-    let found: Vec<(FolderScope, ItemCut)> = evidence
-        .sources
-        .iter()
-        .map(|source| {
-            let scope = FolderScope {
-                source: source.id().clone(),
-                folder: RelPath::root(),
-            };
-            (scope, ItemCut::Whole)
-        })
-        .collect();
-    let levels = found
-        .iter()
-        .map(|(scope, _)| {
-            Level::Series(Series::new(
-                LevelId(scope.source.0.clone()),
-                SeriesScope::Folders(vec![scope.clone()]),
-                Grouping {
-                    pattern: Some(NAME_ALONE.to_owned()),
-                    case_fold: false,
-                },
-            ))
-        })
-        .collect();
+    let mut applied = vec![false; edits.len()];
+    let found = folders::detect(evidence, edits, &mut applied);
+    let series = if found.series.is_empty() {
+        as_found(evidence)
+    } else {
+        found.series
+    };
+    let levels = series.iter().map(level).collect();
     let edits = edits
         .iter()
-        .map(|edit| EditResult {
+        .zip(applied)
+        .map(|(edit, applied)| EditResult {
             edit: edit.clone(),
-            applied: false,
+            applied,
         })
         .collect();
     let built = Structure::build(levels, evidence.sources)
@@ -292,7 +285,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
             structure: evidence.structure.clone(),
             nodes: Vec::new(),
             top_sets: Vec::new(),
-            outside: Vec::new(),
+            outside: found.outside,
             unattached: Vec::new(),
             edits,
             matches_plan: true,
@@ -309,16 +302,26 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
     let nodes = plan
         .structure
         .all_series()
-        .zip(found)
-        .map(|((at, series), (scope, cut))| {
-            let scope = scope_counts(evidence, &plan.structure, at, scope);
+        .zip(&series)
+        .map(|((at, level), one)| {
+            let scope = scope_counts(evidence, &plan.structure, at, one.scope().clone());
             let items = cut_counts(&model, at, &scope);
+            let set = one.set.clone().map(|from| {
+                let counts = SetCounts {
+                    sets: vec![(folders::folder_title(one.scope()), items.items)],
+                    rows: None,
+                };
+                Pick {
+                    value: from,
+                    counts,
+                }
+            });
             NodeEvidence::Series(SeriesNode {
-                level: series.id().clone(),
+                level: level.id().clone(),
                 scope,
                 items: Choice {
                     chosen: Pick {
-                        value: cut,
+                        value: ItemCut::Whole,
                         counts: items,
                     },
                     rival: None,
@@ -332,16 +335,26 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
                 },
                 grain: None,
                 set: Choice {
-                    chosen: Pick {
-                        value: None,
-                        counts: SetCounts {
-                            sets: Vec::new(),
-                            rows: None,
+                    chosen: set.map_or_else(
+                        || Pick {
+                            value: None,
+                            counts: SetCounts {
+                                sets: Vec::new(),
+                                rows: None,
+                            },
                         },
-                    },
+                        |set| Pick {
+                            value: Some(set.value),
+                            counts: set.counts,
+                        },
+                    ),
                     rival: None,
                 },
-                splits: Vec::new(),
+                splits: one
+                    .numbered
+                    .then(|| folder_split(&model, at, one))
+                    .into_iter()
+                    .collect(),
                 pairing: Vec::new(),
             })
         })
@@ -351,10 +364,114 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         structure: plan.structure,
         nodes,
         top_sets: Vec::new(),
-        outside: Vec::new(),
+        outside: found.outside,
         unattached: Vec::new(),
         edits,
     }
+}
+
+/// The archive as found: one series per source, over the whole source.
+fn as_found(evidence: &Evidence<'_>) -> Vec<folders::FolderSeries> {
+    evidence
+        .sources
+        .iter()
+        .map(|source| {
+            let scope = FolderScope {
+                source: source.id().clone(),
+                folder: RelPath::root(),
+            };
+            folders::FolderSeries {
+                folders: vec![scope.clone()],
+                scopes: vec![scope],
+                set: None,
+                numbered: false,
+            }
+        })
+        .collect()
+}
+
+/// The plan's series for one detected series. Its id is its folder's name,
+/// or its source's id when it takes the whole source.
+fn level(one: &folders::FolderSeries) -> Level {
+    let scope = one.scope();
+    let id = if scope.folder.as_str().is_empty() {
+        scope.source.0.clone()
+    } else {
+        scope.folder.as_str().to_owned()
+    };
+    let series = Series::new(
+        LevelId(id),
+        SeriesScope::Folders(one.scopes.clone()),
+        Grouping {
+            pattern: Some(NAME_ALONE.to_owned()),
+            case_fold: false,
+        },
+    );
+    let set = one.set.as_ref().map(|_| {
+        SetSource::Title(SetByTitle {
+            title: folders::folder_title(scope).0,
+            description: None,
+        })
+    });
+    match set {
+        Some(set) => Level::Series(series.with_set(set)),
+        None => Level::Series(series),
+    }
+}
+
+/// The offered split of numbered folders: one set per folder, with the
+/// items the derive put under it.
+fn folder_split(
+    model: &Model,
+    at: SeriesIx,
+    one: &folders::FolderSeries,
+) -> Pick<SetFrom, SetCounts> {
+    let mut sets: BTreeMap<&str, usize> = BTreeMap::new();
+    for record in model
+        .kept()
+        .filter(|record| record.kind == RecordKind::Item && record.series == at)
+    {
+        if let Some(top) = record
+            .files
+            .first()
+            .and_then(|file| file.path.segments().next())
+        {
+            *sets.entry(top).or_default() += 1;
+        }
+    }
+    let mut sets: Vec<(ScanText, usize)> = sets
+        .into_iter()
+        .map(|(name, items)| (ScanText(name.to_owned()), items))
+        .collect();
+    sets.sort_by(|(a, a_items), (b, b_items)| b_items.cmp(a_items).then_with(|| a.cmp(b)));
+    Pick {
+        value: SetFrom::FolderLevel {
+            scope: FolderScope {
+                source: one.scope().source.clone(),
+                folder: RelPath::root(),
+            },
+            depth: 1,
+        },
+        counts: SetCounts { sets, rows: None },
+    }
+}
+
+/// The accepted files among `entries` by kind, most first.
+fn kinds_most_first<'e>(
+    evidence: &Evidence<'_>,
+    entries: impl Iterator<Item = &'e FileEntry>,
+) -> Vec<(MediaKind, usize)> {
+    let mut kinds: BTreeMap<MediaKind, usize> = BTreeMap::new();
+    for entry in entries {
+        if catalog::refusal(&evidence.catalog.files, entry.name(), &entry.sniffed).is_none() {
+            *kinds
+                .entry(MediaKind::of(&entry.sniffed, entry.path.as_str()))
+                .or_default() += 1;
+        }
+    }
+    let mut kinds: Vec<(MediaKind, usize)> = kinds.into_iter().collect();
+    kinds.sort_by_key(|(kind, files)| (Reverse(*files), *kind));
+    kinds
 }
 
 /// The files the series at `at` takes, by the rule the engine places them.
@@ -364,7 +481,7 @@ fn scope_counts(
     at: SeriesIx,
     scope: FolderScope,
 ) -> ScopeCounts {
-    let entries: Vec<_> = evidence
+    let entries: Vec<&FileEntry> = evidence
         .index
         .sources
         .iter()
@@ -377,16 +494,7 @@ fn scope_counts(
         })
         .map(|(_, entry)| entry)
         .collect();
-    let mut kinds: BTreeMap<MediaKind, usize> = BTreeMap::new();
-    for entry in &entries {
-        if catalog::refusal(&evidence.catalog.files, entry.name(), &entry.sniffed).is_none() {
-            *kinds
-                .entry(MediaKind::of(&entry.sniffed, entry.path.as_str()))
-                .or_default() += 1;
-        }
-    }
-    let mut kinds: Vec<(MediaKind, usize)> = kinds.into_iter().collect();
-    kinds.sort_by_key(|(kind, files)| (Reverse(*files), *kind));
+    let kinds = kinds_most_first(evidence, entries.iter().copied());
     ScopeCounts {
         scope,
         files: entries.len(),

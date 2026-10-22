@@ -56,6 +56,11 @@ impl RelPath {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+
+    /// Its segments in order; none for the source itself.
+    pub fn segments(&self) -> impl Iterator<Item = &str> {
+        self.0.split('/').filter(|segment| !segment.is_empty())
+    }
 }
 
 /// Works on bytes because a decoded `%FF` need not be UTF-8, and a path
