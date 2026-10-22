@@ -210,6 +210,8 @@
  "lists.picker.declined": "Turned down",
  "lists.picker.offered": "Not used",
  "lists.picker.unreadable": "Not read",
+ "lists.picker.usedBy": "Used by {folder}",
+ "lists.picker.move": "Move here",
  "lists.picker.byNames": "{count} of {rows} rows name a file, by “{column}”.",
  "lists.picker.byCodes": "{count} of {rows} rows give an item code, by “{column}”.",
  "lists.picker.loose": "+{count} ignoring case, zeros and _ - .",

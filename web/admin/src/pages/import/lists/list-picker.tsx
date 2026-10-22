@@ -6,6 +6,13 @@
  * item are allowed, and so is a newer one in place of an old copy.
  * `useListChoice` holds those edits for one list, so Advanced's picker below
  * and Simple's "Your list" inspector make the same plan.
+ *
+ * The picker is of one folder. A list that another folder reads shows as
+ * used there, and "Move here" takes it from that folder: it never offers
+ * "Stop using", which would take it from a folder the person is not looking
+ * at. Which lists a folder reads is an owned write (`advanced/writes.ts`):
+ * each folder whose lists change is then written by hand, so the proposer
+ * neither gives the list back nor reads it twice.
  */
 import { useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
@@ -19,11 +26,13 @@ import { listEdit } from '../simple/list-read';
 import { useListsText } from './messages';
 import { removeSheet } from './round-trip';
 import { usePreview } from './use-preview';
-import { allLists } from '../series';
+import { allLists, seriesHolding } from '../series';
+import { written } from '../advanced/writes';
 
-/** Where a list stands in the plan. A list the plan reads is in use even when its automatic read fails. */
+/** Where a list stands for the series a picker is of. A list the series reads is in use even when its automatic read fails. */
 export type ListState =
   | { readonly kind: 'inUse'; readonly sheet: SheetPlan }
+  | { readonly kind: 'usedBy'; readonly sheet: SheetPlan; readonly series: LevelId }
   | { readonly kind: 'declined' }
   | { readonly kind: 'offered' }
   | { readonly kind: 'unreadable' };
@@ -31,10 +40,12 @@ export type ListState =
 const sheetFor = (plan: ImportPlan, source: string, file: string): SheetPlan | undefined =>
   allLists(plan).find((sheet) => sheet.source === source && sheet.file === file);
 
-export const stateOf = (plan: ImportPlan, candidate: ListCandidate): ListState => {
+/** The plan names the folder that reads a list, as the scan's `ListCandidate.series` does, and stays current before the next scan answers. */
+export const stateOf = (plan: ImportPlan, candidate: ListCandidate, level: LevelId): ListState => {
   const sheet = sheetFor(plan, candidate.source, candidate.file);
-  if (sheet !== undefined) {
-    return { kind: 'inUse', sheet };
+  const holder = sheet === undefined ? undefined : seriesHolding(plan, sheet.id);
+  if (sheet !== undefined && holder !== undefined) {
+    return holder.id === level ? { kind: 'inUse', sheet } : { kind: 'usedBy', sheet, series: holder.id };
   }
   if (candidate.read !== 'ok') {
     return { kind: 'unreadable' };
@@ -64,12 +75,15 @@ export const nameOf = (file: string): { readonly name: string; readonly folder: 
   return at < 0 ? { name: file, folder: '' } : { name: file.slice(at + 1), folder: file.slice(0, at) };
 };
 
-export const STATE_WORDS = {
+const STATE_WORDS = {
   inUse: 'lists.picker.inUse',
   declined: 'lists.picker.declined',
   offered: 'lists.picker.offered',
   unreadable: 'lists.picker.unreadable',
 } as const;
+
+export const stateWords = (state: ListState, t: ReturnType<typeof useListsText>['t']): string =>
+  state.kind === 'usedBy' ? t('lists.picker.usedBy', { folder: state.series }) : t(STATE_WORDS[state.kind]);
 
 /** What the scan counted for one list, and where it stands. */
 const Facts = ({ candidate, state }: { readonly candidate: ListCandidate; readonly state: ListState }): ReactElement => {
@@ -82,7 +96,7 @@ const Facts = ({ candidate, state }: { readonly candidate: ListCandidate; readon
       <p>
         <b>{name}</b> {folder === '' ? null : <span className="muted">{t('lists.picker.folder', { folder })} </span>}
         {candidate.read === 'ok' ? <>· {candidate.rows === 1 ? t('lists.picker.rowsOne') : t('lists.picker.rows', { count: number(candidate.rows) })} </> : null}
-        · <b>{t(STATE_WORDS[state.kind])}</b>
+        · <b>{stateWords(state, t)}</b>
       </p>
       {candidate.read === 'ok' ? null : <p role="alert">{t('lists.picker.unread', { message: candidate.read.error })}</p>}
       {candidate.read === 'ok' && params === null ? <p className="muted">{t('lists.picker.none')}</p> : null}
@@ -134,6 +148,8 @@ export interface ListChoice {
   readonly busy: boolean;
   /** Reads the list into the plan, asking first when it pairs the same items as a list in use. */
   readonly use: () => void;
+  /** Takes the list from the folder that reads it into this one. */
+  readonly move: () => void;
   /** Takes the list out, and keeps it out. */
   readonly stop: () => void;
   /** Says the list is not about these items. */
@@ -146,7 +162,7 @@ export interface ListChoice {
 export const useListChoice = (candidate: ListCandidate, level: LevelId): ListChoice => {
   const draft = useDraft();
   const [step, setStep] = useState<Step>({ at: 'idle' });
-  const state = stateOf(draft.plan, candidate);
+  const state = stateOf(draft.plan, candidate, level);
   const { source, file } = candidate;
   const busy = !draft.editable || step.at === 'reading';
 
@@ -155,7 +171,10 @@ export const useListChoice = (candidate: ListCandidate, level: LevelId): ListCho
     const before = replacing === null ? draft.plan : removeSheet(draft.plan, replacing.id);
     listEdit(draft.id, before, level, candidate)
       .then((edit) => {
-        draft.change((plan) => edit(withoutDecline(replacing === null ? plan : removeSheet(plan, replacing.id), source, file)));
+        draft.change((plan) => {
+          const freed = replacing === null ? plan : written(plan, 'list', seriesHolding(plan, replacing.id)?.id, (now) => removeSheet(now, replacing.id));
+          return written(freed, 'list', level, (now) => edit(withoutDecline(now, source, file)));
+        });
         setStep({ at: 'idle' });
       })
       .catch((error: unknown) => {
@@ -170,11 +189,16 @@ export const useListChoice = (candidate: ListCandidate, level: LevelId): ListCho
       setStep({ at: 'asking', other: overlap.sheet, shared: overlap.shared });
     }
   };
+  const move = (): void => {
+    if (state.kind === 'usedBy') {
+      add(state.sheet);
+    }
+  };
   const stop = (): void => {
     if (state.kind === 'inUse') {
       const sheet = state.sheet;
       // A list taken out stays out: "What we found" adds the first list only while no list was ever turned down.
-      draft.change((plan) => withDecline(removeSheet(plan, sheet.id), source, file));
+      draft.change((plan) => written(plan, 'list', level, (now) => withDecline(removeSheet(now, sheet.id), source, file)));
     }
   };
   const decline = (): void => {
@@ -200,7 +224,7 @@ export const useListChoice = (candidate: ListCandidate, level: LevelId): ListCho
   } else if (step.at === 'failed') {
     notice = <ErrorNotice error={step.error} />;
   }
-  return { state, reading: step.at === 'reading', asking: step.at === 'asking', busy, use, stop, decline, notice };
+  return { state, reading: step.at === 'reading', asking: step.at === 'asking', busy, use, move, stop, decline, notice };
 };
 
 const Row = ({ candidate, level }: { readonly candidate: ListCandidate; readonly level: LevelId }): ReactElement => {
@@ -215,6 +239,14 @@ const Row = ({ candidate, level }: { readonly candidate: ListCandidate; readonly
       <p className="import-row-actions">
         <button type="button" disabled={busy} onClick={choice.stop}>
           {t('lists.picker.stop')}
+        </button>
+      </p>
+    );
+  } else if (state.kind === 'usedBy') {
+    actions = (
+      <p className="import-row-actions">
+        <button type="button" disabled={busy} onClick={choice.move}>
+          {choice.reading ? t('lists.picker.reading') : t('lists.picker.move')}
         </button>
       </p>
     );

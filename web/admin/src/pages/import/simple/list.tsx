@@ -13,7 +13,7 @@ import type { SheetView } from '../../../api/import-sheet-views';
 import type { LevelId, RecordKind, SheetPlan } from '../../../api/import-plan';
 import { ErrorNotice } from '../../../app/errors';
 import { useDraft } from '../draft-context';
-import { nameOf, stateOf, STATE_WORDS, useListChoice } from '../lists/list-picker';
+import { nameOf, stateOf, stateWords, useListChoice } from '../lists/list-picker';
 import type { ListState } from '../lists/list-picker';
 import { RoundTrip } from '../lists/round-trip';
 import { usePreview } from '../lists/use-preview';
@@ -364,7 +364,7 @@ const Lists = ({ level }: { readonly level: LevelId }): ReactElement => {
     return sum + (view?.read?.rows ?? read.data.columnMatches.find((one) => one.sheet === sheet.id)?.rows ?? 0);
   }, 0);
   const refused = read.data.flags.filter((flag) => flag.kind === 'listed-not-media').reduce((sum, flag) => sum + flag.count, 0);
-  const states = candidates.map((candidate) => ({ candidate, state: stateOf(draft.plan, candidate) }));
+  const states = candidates.map((candidate) => ({ candidate, state: stateOf(draft.plan, candidate, level) }));
   const inUse = states.find(({ state }) => state.kind === 'inUse');
   return (
     <div aria-busy={read.busy} className="guided-dials">
@@ -377,7 +377,7 @@ const Lists = ({ level }: { readonly level: LevelId }): ReactElement => {
           name: <span className="guided-file">{candidate.file}</span>,
           facts: (
             <>
-              {state.kind === 'offered' ? null : <span className={state.kind === 'inUse' ? 'guided-chip is-ok' : 'guided-chip'}>{t(STATE_WORDS[state.kind])}</span>}
+              {state.kind === 'offered' ? null : <span className={state.kind === 'inUse' ? 'guided-chip is-ok' : 'guided-chip'}>{stateWords(state, t)}</span>}
               {candidate.read === 'ok' ? <Matched candidate={candidate} state={state} /> : null}
             </>
           ),

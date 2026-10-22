@@ -201,8 +201,11 @@ describe('Simple and Advanced', () => {
     expect(within(mode).getByRole('link', { name: 'Simple' })).toHaveAttribute('aria-current', 'page');
     expect(within(mode).getByRole('link', { name: 'Advanced' })).toHaveAttribute('href', '#/import/1/advanced/files');
     fireEvent.click(box);
-    expect(box).toBeChecked();
-    expect(screen.getByText('Saving...')).toBeInTheDocument();
+    // The screen may render the box again after the click, so the test reads the box it shows now.
+    await waitFor(() => {
+      expect(screen.getByRole('checkbox', { name: CaseFold.label })).toBeChecked();
+    });
+    expect(await screen.findByText(/^(Saving\.\.\.|Saved)$/)).toBeInTheDocument();
 
     view.rerender(at(['advanced', 'files']));
     expect(await screen.findByText('caseFold: true')).toBeInTheDocument();

@@ -228,6 +228,8 @@ export const ml: ImportListsMessages = {
   'lists.picker.declined': 'നിരസിക്കപ്പെട്ടു',
   'lists.picker.offered': 'ഉപയോഗിച്ചിട്ടില്ല',
   'lists.picker.unreadable': 'വായിച്ചിട്ടില്ല',
+  'lists.picker.usedBy': '{folder} ഉപയോഗിക്കുന്നു',
+  'lists.picker.move': 'ഇവിടേക്ക് നീക്കുക',
   'lists.picker.byNames': '“{column}” വഴി, {rows}-ൽ {count} വരികൾ ഒരു ഫയലിന്റെ പേര് നൽകുന്നു.',
   'lists.picker.byCodes': '“{column}” വഴി, {rows}-ൽ {count} വരികൾ ഒരു ഇനത്തിന്റെ കോഡ് നൽകുന്നു.',
   'lists.picker.loose': '+{count} വലിയ അക്ഷരങ്ങൾ, തുടക്കത്തിലെ പൂജ്യങ്ങൾ, _ - . എന്നിവ അവഗണിച്ചാൽ',

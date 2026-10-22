@@ -226,6 +226,8 @@ export const te: ImportListsMessages = {
   'lists.picker.declined': 'తిరస్కరించబడింది',
   'lists.picker.offered': 'ఉపయోగించబడలేదు',
   'lists.picker.unreadable': 'చదవబడలేదు',
+  'lists.picker.usedBy': '{folder} ద్వారా ఉపయోగించబడింది',
+  'lists.picker.move': 'ఇక్కడకు తరలించండి',
   'lists.picker.byNames': '“{column}” ద్వారా, {rows} వరుసలలో {count} ఒక ఫైల్ పేరును సూచిస్తాయి.',
   'lists.picker.byCodes': '“{column}” ద్వారా, {rows} వరుసలలో {count} ఒక వస్తువు కోడ్‌ను ఇస్తాయి.',
   'lists.picker.loose': '+{count} పెద్ద అక్షరాలు, మొదటి సున్నాలు, _ - . విస్మరిస్తే',

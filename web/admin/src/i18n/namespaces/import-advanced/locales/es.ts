@@ -71,6 +71,7 @@ export const es: ImportAdvancedMessages = {
   'adv.files.pattern.syntax': 'No se puede leer la regex: {message}',
   'adv.files.fit.counting': 'Contando...',
   'adv.files.fit.unread': 'No se pudieron leer las cuentas: {message}',
+  'adv.files.fit.gone': 'Los archivos ya no tienen la carpeta {folder}.',
   'adv.files.fit.count': '{fit} de {files} archivos encajan. Los archivos que encajan forman {items} elementos.',
   'adv.files.fit.unfit': '{count} no encajan.',
   'adv.files.fit.unfitOne': '1 no encaja.',

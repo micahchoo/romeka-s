@@ -226,6 +226,8 @@ export const ne: ImportListsMessages = {
   'lists.picker.declined': 'अस्वीकृत',
   'lists.picker.offered': 'प्रयोग नभएको',
   'lists.picker.unreadable': 'नपढिएको',
+  'lists.picker.usedBy': '{folder} द्वारा प्रयोग गरिएको',
+  'lists.picker.move': 'यहाँ सार्नुहोस्',
   'lists.picker.byNames':
     '“{column}” अनुसार, {rows} पङ्क्तिमध्ये {count} पङ्क्तिले कुनै फाइलको नाम दिन्छन्।',
   'lists.picker.byCodes':

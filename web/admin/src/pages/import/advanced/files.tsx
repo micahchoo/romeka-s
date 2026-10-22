@@ -20,6 +20,7 @@ import { whereWords } from '../words';
 import { useAdvancedText } from './messages';
 import { PatternEditor } from './pattern-editor';
 import { Setting } from './setting';
+import { written } from './writes';
 import { usePickedSeries } from '../picked-series';
 import { NoSeries, SeriesPicker } from './series-picker';
 import './advanced.css';
@@ -89,7 +90,7 @@ const Example = ({ level }: { readonly level: LevelId }): ReactElement => {
           return (
             <>
               <p>{t('adv.files.example.unread')}</p>
-              <button type="button" disabled={!draft.editable} onClick={() => { draft.change((plan) => removeExample(plan, level)); }}>
+              <button type="button" disabled={!draft.editable} onClick={() => { draft.change((plan) => written(plan, 'example', level, (now) => removeExample(now, level))); }}>
                 {t('adv.files.example.removeAll')}
               </button>
             </>
@@ -111,7 +112,7 @@ const Example = ({ level }: { readonly level: LevelId }): ReactElement => {
                     disabled={!draft.editable}
                     aria-label={t('adv.files.example.removeOne', { mark: markWords(mark, t) })}
                     onClick={() => {
-                      draft.change((plan) => removeMark(plan, level, at));
+                      draft.change((plan) => written(plan, 'example', level, (now) => removeMark(now, level, at)));
                     }}
                   >
                     {t('adv.files.example.remove')}

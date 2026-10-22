@@ -229,6 +229,8 @@ export const kn: ImportListsMessages = {
   'lists.picker.declined': 'ತಿರಸ್ಕರಿಸಲ್ಪಟ್ಟಿದೆ',
   'lists.picker.offered': 'ಬಳಸಲಾಗಿಲ್ಲ',
   'lists.picker.unreadable': 'ಓದಿಲ್ಲ',
+  'lists.picker.usedBy': '{folder} ನಿಂದ ಬಳಸಲ್ಪಟ್ಟಿದೆ',
+  'lists.picker.move': 'ಇಲ್ಲಿಗೆ ಸರಿಸಿ',
   'lists.picker.byNames':
     '“{column}” ಮೂಲಕ, {rows} ಸಾಲುಗಳಲ್ಲಿ {count} ಸಾಲುಗಳು ಒಂದು ಫೈಲ್‌ನ ಹೆಸರನ್ನು ಹೇಳುತ್ತವೆ.',
   'lists.picker.byCodes':
