@@ -4,7 +4,10 @@
 
 pub use crate::shapes::*;
 
+pub mod accession_register;
 pub mod born_digital;
+pub mod negative_archive;
 pub mod oral_history;
 mod outcomes;
 pub mod paper_archive;
+mod proposals;
