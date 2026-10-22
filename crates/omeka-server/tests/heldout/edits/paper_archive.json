@@ -1,0 +1,21 @@
+{
+  "edits": [
+    {
+      "edit": "leaveOut",
+      "scope": { "source": "s1", "folder": "Scanning project" }
+    },
+    {
+      "edit": "addSet",
+      "from": {
+        "from": "column",
+        "list": { "source": "s1", "file": "container-list.xlsx" },
+        "column": { "index": 5, "header": "Series" }
+      }
+    }
+  ],
+  "because": [
+    "The scanning project's log and checksums are the project's own files, not the family's papers.",
+    "The Series column names the three groups the archivist arranged the papers in, and each is a set."
+  ],
+  "note": "No set per box is wanted. A proposal that makes one fails the frozen outcome; no edit here steers around it."
+}

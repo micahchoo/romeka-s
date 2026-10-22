@@ -11,7 +11,7 @@ use crate::import::decisions::EntryRef;
 use crate::import::model::{LeftBy, Record};
 use crate::import::plan::{ImportPlan, RecordKind};
 
-const BORN_DIGITAL: &str = include_str!("../../fixtures/v3/born_digital.json");
+const ONE_SERIES: &str = include_str!("../../fixtures/v3/one_series.json");
 
 /// `<identifier>[_<part>].<ext>`, relative to the series' folder.
 const NAME: &str = r"^(?<identifier>[^/_]+)(?:_(?<part>[^/.]+))?\.[^/.]+$";
@@ -35,7 +35,7 @@ fn series(id: &str, folder: &str, list: &str) -> Json {
 }
 
 fn plan_of(levels: Json) -> ImportPlan {
-    let mut value: Json = serde_json::from_str(BORN_DIGITAL).expect("fixture json");
+    let mut value: Json = serde_json::from_str(ONE_SERIES).expect("fixture json");
     value["structure"]["levels"] = levels;
     ImportPlan::from_json(&value.to_string()).unwrap_or_else(|error| panic!("{error}: {value}"))
 }
