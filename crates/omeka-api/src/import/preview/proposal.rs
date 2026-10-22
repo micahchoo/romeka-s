@@ -23,7 +23,7 @@
 //! constant in [`thresholds`].
 
 #[cfg(test)]
-mod bhc006_tests;
+pub(crate) mod bhc006_tests;
 mod folders;
 #[cfg(test)]
 mod folders_tests;
