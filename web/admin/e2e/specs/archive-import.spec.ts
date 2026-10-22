@@ -190,14 +190,16 @@ test('an answer given in Advanced shows in Simple', async ({ page }) => {
   const id = await startOn(page, BHC);
   await page.getByRole('link', { name: 'Advanced', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`#/import/${String(id)}/advanced/`));
+  // The old Files address opens Structure at the first folder, its Items section open.
   await page.goto(`/#/import/${String(id)}/advanced/files`);
   const regex = page.getByLabel('Regex', { exact: true });
   await regex.fill('^(?:[^/]*/)*(?<identifier>BHC_006_[A-Z]+_\\d+).*$');
   await page.getByRole('button', { name: 'Use this pattern' }).click();
   await saved(page);
-  await page.goto(`/#/import/${String(id)}/simple/found`);
-  await expect(page.getByText('You changed how names are read in Advanced mode.')).toBeVisible();
-  await expect(fact(page, 'Items', 5)).toBeVisible();
+  // A typed pattern writes the folder by hand, and Simple's Structure says so.
+  await page.getByRole('link', { name: 'Simple', exact: true }).click();
+  await expect(page.getByRole('option', { name: 'Artifacts' })).toContainText('5 items');
+  await expect(page.getByRole('option', { name: 'Artifacts' })).toContainText('written by you');
 });
 
 test('the pairs list pairs every row of a register that names no file', async ({ page }) => {

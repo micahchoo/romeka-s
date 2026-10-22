@@ -32,10 +32,14 @@ export const mr: ImportAdvancedMessages = {
   'adv.source.tagAll': 'प्रत्येक फाईलचा टॅग {tag}',
   'adv.source.tagPart': 'ज्या फाईलचा भाग “{part}” आहे, त्या फाईलचा टॅग {tag}',
   'adv.source.constant': 'स्थिरांक “{value}”',
-  'adv.series.label': 'फोल्डर',
-  'adv.series.plain':
-    'प्रत्येक फोल्डरला स्वतःचा नमुना, सूची आणि फील्ड्स असतात. खालील सेटिंग्ज या फोल्डरसाठी आहेत.',
-  'adv.series.none': 'कोणतेही फोल्डर आयात केलेले नाही, त्यामुळे येथे सेट करण्यासाठी काहीही नाही.',
+  'adv.structure.files': 'कोणत्या फाईल्स',
+  'adv.structure.items': 'घटक',
+  'adv.structure.lists': 'सूची',
+  'adv.structure.fields': 'फील्ड',
+  'adv.structure.set': 'संच',
+  'adv.structure.rules': '{count} फील्ड नियम',
+  'adv.structure.rulesOne': '1 फील्ड नियम',
+  'adv.structure.setWritten': 'हा फोल्डर ज्या संचासह लिहिला गेला तो संच. दुसरा निवडण्यासाठी आमच्या सूचनेकडे परत जा.',
   'adv.files.sources.title': 'स्रोत',
   'adv.files.sources.label': 'स्रोत',
   'adv.files.sources.plain':
@@ -44,7 +48,6 @@ export const mr: ImportAdvancedMessages = {
   'adv.files.sources.filesOne': '1 फाईल',
   'adv.files.sources.notRead': 'अद्याप वाचले नाही',
   'adv.files.sources.error': 'हे वाचता आले नाही: {message}',
-  'adv.files.pattern.title': 'नमुना',
   'adv.files.example.label': 'चिन्हांकित उदाहरण',
   'adv.files.example.plain':
     'एका फाईलच्या नावातील तुम्ही चिन्हांकित केलेले भाग. हे चिन्हांकन खालील नमुना लिहितात.',
@@ -207,7 +210,6 @@ export const mr: ImportAdvancedMessages = {
   'adv.fields.sites.label': 'साइट्स',
   'adv.fields.sites.plain': 'नवीन आयटम दाखवणारी साइट्स.',
   'adv.fields.sites.none': 'ओमेकाकडे अद्यापि कोणतीही साइट्स नाहीत.',
-  'adv.fields.rules.title': 'फील्ड्स',
   'adv.fields.rules.plain':
     'प्रत्येक फील्डसाठी एक नियम: त्याचे मूल्य कोठून येते, कोणत्या क्रमाने, ते कसे एकत्र येतात आणि एक मूल्य नकाशा.',
   'adv.fields.kind.label': 'नियम',

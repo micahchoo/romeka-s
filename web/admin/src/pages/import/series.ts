@@ -7,9 +7,9 @@
  * `with…` (`import-series.test.ts` holds them to it).
  *
  * Every reader and writer of one series names it by its level id. Simple's
- * old steps open only on a plan of one series (`screens.ts`, `landing`) and
- * Advanced's screens of one series edit the one the person picks
- * (`picked-series.ts`). The readers keyed by a list id (`listOf`, `withList`,
+ * old steps open only on a plan of one series (`screens.ts`, `landing`), and
+ * Advanced's rule zoom edits the series of the node picked in the tree
+ * (`picked-node.ts`). The readers keyed by a list id (`listOf`, `withList`,
  * `seriesHolding`) and the ones that read every series (`allLists`,
  * `withEverySeries`) need no level.
  *
@@ -91,6 +91,23 @@ export const setLevelsOf = (plan: ImportPlan): readonly SetLevel[] => {
   const visit = (levels: readonly Level[]): readonly SetLevel[] =>
     levels.flatMap((level) => (level.kind === 'set' ? [level, ...visit(level.levels)] : []));
   return visit(plan.structure.levels);
+};
+
+/** The set levels around the series `level` in `structure`, outermost first; none when no series is `level`. */
+export const setLevelsAround = (structure: Structure, level: LevelId): readonly SetLevel[] => {
+  const path = (levels: readonly Level[]): readonly SetLevel[] | null => {
+    for (const one of levels) {
+      if (one.kind === 'series' && one.id === level) {
+        return [];
+      }
+      const inner = one.kind === 'set' ? path(one.levels) : null;
+      if (one.kind === 'set' && inner !== null) {
+        return [one, ...inner];
+      }
+    }
+    return null;
+  };
+  return path(structure.levels) ?? [];
 };
 
 export const withSets = (plan: ImportPlan, change: (sets: readonly SetSource[]) => readonly SetSource[]): ImportPlan => ({

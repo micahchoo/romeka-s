@@ -32,11 +32,14 @@ export const ta: ImportAdvancedMessages = {
   'adv.source.tagAll': 'ஒவ்வொரு கோப்பின் டேக் {tag}',
   'adv.source.tagPart': '“{part}” பகுதியைக் கொண்ட கோப்பின் டேக் {tag}',
   'adv.source.constant': 'மாறிலி “{value}”',
-  'adv.series.label': 'கோப்புறை',
-  'adv.series.plain':
-    'ஒவ்வொரு கோப்புறைக்கும் அதன் சொந்த வடிவம், பட்டியல்கள் மற்றும் புலங்கள் உள்ளன. கீழே உள்ள அமைப்புகள் இந்த கோப்புறைக்கானவை.',
-  'adv.series.none':
-    'எந்தக் கோப்புறையும் இறக்குமதி செய்யப்படவில்லை, எனவே இங்கே அமைக்க எதுவும் இல்லை.',
+  'adv.structure.files': 'எந்தக் கோப்புகள்',
+  'adv.structure.items': 'உருப்படிகள்',
+  'adv.structure.lists': 'பட்டியல்கள்',
+  'adv.structure.fields': 'புலங்கள்',
+  'adv.structure.set': 'தொகுப்பு',
+  'adv.structure.rules': '{count} புல விதிகள்',
+  'adv.structure.rulesOne': '1 புல விதி',
+  'adv.structure.setWritten': 'இந்தக் கோப்புறை எழுதப்பட்ட தொகுப்பு. வேறொன்றைத் தேர்ந்தெடுக்க எங்கள் பரிந்துரைக்குத் திரும்புங்கள்.',
   'adv.files.sources.title': 'ஆதாரங்கள்',
   'adv.files.sources.label': 'ஆதாரங்கள்',
   'adv.files.sources.plain':
@@ -45,7 +48,6 @@ export const ta: ImportAdvancedMessages = {
   'adv.files.sources.filesOne': '1 கோப்பு',
   'adv.files.sources.notRead': 'இன்னும் வாசிக்கப்படவில்லை',
   'adv.files.sources.error': 'இதைப் படிக்க முடியவில்லை: {message}',
-  'adv.files.pattern.title': 'வடிவம்',
   'adv.files.example.label': 'குறிக்கப்பட்ட உதாரணம்',
   'adv.files.example.plain':
     'ஒரு கோப்புப் பெயரில் நீங்கள் குறிக்கும் பகுதிகள். இந்த அடையாளங்கள் கீழே உள்ள வடிவத்தை எழுதுகின்றன.',
@@ -217,7 +219,6 @@ export const ta: ImportAdvancedMessages = {
   'adv.fields.sites.label': 'தளங்கள்',
   'adv.fields.sites.plain': 'புதிய உருப்படிகளைக் காட்டும் தளங்கள்.',
   'adv.fields.sites.none': 'Omeka-வில் இன்னும் தளங்கள் இல்லை.',
-  'adv.fields.rules.title': 'புலங்கள்',
   'adv.fields.rules.plain':
     'ஒவ்வொரு புலத்திற்கும் ஒன்று: அதன் மதிப்புகள் எங்கிருந்து வருகின்றன, வரிசைப்படி, அவை எவ்வாறு இணைகின்றன, மற்றும் ஒரு மதிப்பு வரைபடம்.',
   'adv.fields.kind.label': 'விதிகள்',

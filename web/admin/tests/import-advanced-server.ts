@@ -7,13 +7,15 @@
  * The pattern is matched here as the server matches it: a regex over each
  * file's path, the `identifier` group naming the item. A preview may carry a
  * plan in place of the stored one, as the pattern editor sends, and is
- * answered from that plan. Every other section is the P4-api fixture's, so
+ * answered from that plan, its proposal the plan's own tree
+ * (`import-plan-proposal.ts`). Every other section is the P4-api fixture's, so
  * the screens run through the real client and its parsers.
  */
 import { asRecord, isRecord } from '../src/api/parse';
 import { patternOf } from '../src/pages/import/example';
 import { loadFixture } from './loadFixture';
 import { flatPlan, withMembers } from './import-plan-members';
+import { planProposal } from './import-plan-proposal';
 import { jsonResponse, listResponse, route } from './stub';
 import type { Handler } from './stub';
 
@@ -169,6 +171,8 @@ export const advancedServer = (items: number): AdvancedServer => {
         const check = asRecord(sectionOf('preview-check.json', 'check'), []);
         const action = asRecord(asked['action'], [])['action'];
         answer['check'] = { ...check, action, deletes: action === 'delete' ? items : 0 };
+      } else if (section === 'proposal') {
+        answer['proposal'] = planProposal(isRecord(body['plan']) ? body['plan'] : plan, paths.length);
       } else if (section === 'orphans') {
         answer['orphans'] = [{ decision: 1, reason: 'missingEntry', entry: { file: { source: 's1', path: 'Letters/notes.txt' } } }];
       } else {

@@ -1,7 +1,7 @@
 /**
- * Advanced, Lists: the list files of the folder to choose from, as Simple
- * shows them, read into the folder picked (`SeriesPicker`); then for each
- * list of that folder, how it is read, which column pairs its rows with
+ * A folder's Lists section in Advanced's Structure (`structure-rules.tsx`):
+ * the list files to choose from, as Simple shows them, read into the folder;
+ * then for each list of that folder, how it is read, which column pairs its rows with
  * items (chosen by exact counts) and how equal two keys must be, what each
  * row describes, the rows and items left unpaired, and its columns with
  * field, split, type, language, private and, for rows that describe files,
@@ -10,12 +10,13 @@
 import { lazy, Suspense, useId } from 'react';
 import type { ReactElement } from 'react';
 import { DELIMITERS, ENCODINGS } from '../../../api/import-plan';
-import type { ColumnRef, Delimiter, Encoding, Join, Quote, ReadOptions, SheetPlan } from '../../../api/import-plan';
+import type { ColumnRef, Delimiter, Encoding, Join, LevelId, Quote, ReadOptions, SheetPlan } from '../../../api/import-plan';
 import type { SheetColumnMatches } from '../../../api/import-sections';
 import type { SheetView } from '../../../api/import-sheet-views';
 import { ErrorNotice } from '../../../app/errors';
 import { useDraft } from '../draft-context';
 import { ListPicker } from '../lists/list-picker';
+import type { OfferedList } from '../lists/list-picker';
 import { usePreview } from '../lists/use-preview';
 import { placeHref } from '../screens';
 import { ColumnsTable } from './columns-table';
@@ -26,9 +27,7 @@ import type { ListCounts } from '../simple/list-plan';
 import { NO_NORMALIZE, setItemKey, setJoin, setJoinColumn, setRead, setRowKindColumn } from './plan-edits';
 import { Setting } from './setting';
 import { written } from './writes';
-import { seriesHolding } from '../series';
-import { usePickedSeries } from '../picked-series';
-import { NoSeries, SeriesPicker } from './series-picker';
+import { seriesHolding, seriesOf } from '../series';
 import './advanced.css';
 
 const RoundTrip = lazy(() => import('../lists/round-trip'));
@@ -338,21 +337,17 @@ const RowKind = ({ sheet, matches }: { readonly sheet: SheetPlan; readonly match
   );
 };
 
-export const AdvancedLists = (): ReactElement => {
+/** The lists of the folder `level`; on a suggested folder, a list the proposal offers is `offered`'s click. */
+export const ListsRules = ({ level, offered }: { readonly level: LevelId; readonly offered?: OfferedList }): ReactElement => {
   const { t, number } = useAdvancedText();
   const draft = useDraft();
   const read = usePreview(['sheets', 'columnMatches', 'unpaired', 'listCandidates'], { unpaired: { rows: { perPage: 1 }, files: { perPage: 1 } } });
   const data = read.status === 'ready' ? read.data : null;
-  const series = usePickedSeries();
-  if (series === null) {
-    return <NoSeries />;
-  }
-  const { lists } = series;
+  const { lists } = seriesOf(draft.plan, level);
   return (
     <div className="adv-section" aria-busy={read.status === 'loading' || (read.status === 'ready' && read.busy)}>
       {read.status === 'error' ? <ErrorNotice error={read.error} /> : null}
-      <SeriesPicker picked={series} />
-      <ListPicker none={null} level={series.id} />
+      <ListPicker none={null} level={level} {...(offered === undefined ? {} : { offered })} />
       {lists.length === 0 ? <p className="import-note">{t('adv.lists.none')}</p> : null}
       {lists.map((sheet) => {
         const view = data?.sheets.find((one) => one.id === sheet.id);
@@ -390,10 +385,8 @@ export const AdvancedLists = (): ReactElement => {
       )}
       <h4>{t('adv.lists.roundTrip.title')}</h4>
       <Suspense fallback={null}>
-        <RoundTrip level={series.id} />
+        <RoundTrip level={level} />
       </Suspense>
     </div>
   );
 };
-
-export default AdvancedLists;

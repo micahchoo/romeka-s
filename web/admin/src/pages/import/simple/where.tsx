@@ -30,7 +30,7 @@ import type { Segment } from './master-detail';
 import { useSimpleText } from './messages';
 import { folderName, setChoiceOf, setColumnOf, typeAnswerOf, typeFromOf, withSetChoice, withTypeAnswer, withTypeFrom, withoutTypeMap } from './where-plan';
 import type { SetChoice, TypeFrom } from './where-plan';
-import { usePickedSeries } from '../picked-series';
+import { usePickedSeries } from '../picked-node';
 import { seriesOf } from '../series';
 import './simple.css';
 

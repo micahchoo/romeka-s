@@ -1,8 +1,9 @@
 /**
- * Advanced, Fields: the defaults every new record gets, then, for the folder
- * picked (`SeriesPicker`), one rule per field for the record kind chosen
- * (items, media or item sets), and a field to give a rule of its own. The
- * item set rule is the plan's, so every folder shows the same one.
+ * The field rules of Advanced's Structure (`structure-rules.tsx`). On the
+ * archive's node: the defaults every new record gets. In a folder's Fields
+ * section: one rule per field for the record kind chosen (items, media or
+ * item sets), and a field to give a rule of its own. The item set rule is
+ * the plan's, so every folder shows the same one.
  */
 import { useState } from 'react';
 import type { ReactElement } from 'react';
@@ -22,9 +23,7 @@ import { addRule, entriesOf, setDefaults } from './plan-edits';
 import { RuleCard } from './rule-card';
 import { Setting } from './setting';
 import { sourceChoices } from './source-words';
-import { usePickedSeries } from '../picked-series';
 import { seriesOf, slotsOf } from '../series';
-import { NoSeries, SeriesPicker } from './series-picker';
 import './advanced.css';
 
 const KIND_WORDS: Readonly<Record<RecordKind, AdvancedMessageKey>> = {
@@ -56,7 +55,7 @@ const loadInstall = async (): Promise<Install> => {
   return { templates, sites, users };
 };
 
-const Defaults = (): ReactElement => {
+export const Defaults = (): ReactElement => {
   const { t } = useAdvancedText();
   const draft = useDraft();
   const install = useAsync(loadInstall, []);
@@ -209,35 +208,23 @@ const Rules = ({ level, kind }: { readonly level: LevelId; readonly kind: Record
   );
 };
 
-export const AdvancedFields = (): ReactElement => {
+/** A folder's field rules, one record kind at a time. */
+export const FieldRules = ({ level }: { readonly level: LevelId }): ReactElement => {
   const { t, number } = useAdvancedText();
   const draft = useDraft();
   const [kind, setKind] = useState<RecordKind>('item');
-  const series = usePickedSeries();
   return (
     <div className="adv-section">
-      <h4>{t('adv.fields.defaults.title')}</h4>
-      <Defaults />
-      <h4>{t('adv.fields.rules.title')}</h4>
-      {series === null ? (
-        <NoSeries />
-      ) : (
-        <>
-          <SeriesPicker picked={series} />
-          <p className="adv-plain">{t('adv.fields.rules.plain')}</p>
-          <div className="import-mode" role="group" aria-label={t('adv.fields.kind.label')}>
-            {RECORD_KINDS.map((one) => (
-              <button key={one} type="button" aria-pressed={one === kind} onClick={() => { setKind(one); }}>
-                {t(KIND_WORDS[one], { count: number(entriesOf(slotsOf(draft.plan, series.id)[one]).length) })}
-              </button>
-            ))}
-          </div>
-          <Rules level={series.id} kind={kind} />
-        </>
-      )}
+      <p className="adv-plain">{t('adv.fields.rules.plain')}</p>
+      <div className="import-mode" role="group" aria-label={t('adv.fields.kind.label')}>
+        {RECORD_KINDS.map((one) => (
+          <button key={one} type="button" aria-pressed={one === kind} onClick={() => { setKind(one); }}>
+            {t(KIND_WORDS[one], { count: number(entriesOf(slotsOf(draft.plan, level)[one]).length) })}
+          </button>
+        ))}
+      </div>
+      <Rules level={level} kind={kind} />
     </div>
   );
 };
-
-export default AdvancedFields;
 

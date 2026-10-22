@@ -12,8 +12,10 @@
  *   reads). On a suggested folder the same save adds one `own` edit, so the
  *   proposer keeps the folder as written and the screen says "written by you".
  * - `offered`: the proposal offers the choice, so Advanced sends the edit
- *   Simple sends, and the server replays it. No Advanced setting writes one
- *   yet: the rule zoom (unit C2) sends them through the Structure clicks.
+ *   Simple sends through the Structure clicks, and the server replays it:
+ *   a list the proposal offers a suggested folder, picked in its Lists
+ *   section (`lists/list-picker.tsx`, `OfferedList`). The rule zoom's
+ *   questions (items, list, set, splits) are Simple's own controls.
  *
  * Every function of `plan-edits.ts` that writes the plan is a key of
  * `WRITES`, so the type checker refuses a writer with no kind.
@@ -36,7 +38,9 @@ type OtherWrites =
   /** A column on the item or on each file (`simple/list-plan.ts`, `withColumnLevel`). */
   | 'columnLevel'
   /** A mark of the example taken away, or the example (`example.ts`). */
-  | 'example';
+  | 'example'
+  /** A list the proposal offers a suggested folder, picked in Advanced (`lists/list-picker.tsx`). */
+  | 'listChoice';
 
 export type Writer = WritersOf<typeof PlanEdits> | OtherWrites;
 
@@ -68,7 +72,11 @@ export const WRITES = {
   rowKind: 'owned',
   columnLevel: 'carried',
   example: 'owned',
+  listChoice: 'offered',
 } as const satisfies Record<Writer, WriteKind>;
+
+/** The writes the proposal offers: sent as Simple's click, never written into the plan by Advanced. */
+export type OfferedWriter = keyof { [K in Writer as (typeof WRITES)[K] extends 'offered' ? K : never]: K };
 
 /** Where a folder stands for the proposer: the archive as found (no proposal holds it yet), suggested, or written by the person. */
 export type Standing = 'asFound' | 'suggested' | 'written';

@@ -12,11 +12,13 @@
  * "Stop using", which would take it from a folder the person is not looking
  * at. Which lists a folder reads is an owned write (`advanced/writes.ts`):
  * each folder whose lists change is then written by hand, so the proposer
- * neither gives the list back nor reads it twice.
+ * neither gives the list back nor reads it twice. On a suggested folder of
+ * Advanced's Structure, a list the proposal offers that folder is a click
+ * instead (`OfferedList`): Use and Stop using send the edit Simple sends.
  */
 import { useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
-import type { ImportPlan, LevelId, SheetPlan } from '../../../api/import-plan';
+import type { ImportPlan, LevelId, ListFile, SheetPlan } from '../../../api/import-plan';
 import type { ListCandidate } from '../../../api/import-sections';
 import { ErrorNotice } from '../../../app/errors';
 import { toError } from '../../../app/useAsync';
@@ -28,6 +30,7 @@ import { removeSheet } from './round-trip';
 import { usePreview } from './use-preview';
 import { allLists, seriesHolding } from '../series';
 import { written } from '../advanced/writes';
+import type { OfferedWriter } from '../advanced/writes';
 
 /** Where a list stands for the series a picker is of. A list the series reads is in use even when its automatic read fails. */
 export type ListState =
@@ -140,6 +143,16 @@ type Step =
   | { readonly at: 'reading' }
   | { readonly at: 'failed'; readonly error: Error };
 
+/**
+ * The lists the proposal offers a suggested folder, and the click that picks
+ * one (`null`: no list). `by` is the offered write it is (`advanced/writes.ts`).
+ */
+export interface OfferedList {
+  readonly by: OfferedWriter;
+  readonly lists: readonly ListFile[];
+  readonly send: (list: ListFile | null) => void;
+}
+
 /** One list's place in the plan, and the edits that change it. */
 export interface ListChoice {
   readonly state: ListState;
@@ -158,12 +171,13 @@ export interface ListChoice {
   readonly notice: ReactNode;
 }
 
-/** The list `candidate`, read into the series `level` when used. */
-export const useListChoice = (candidate: ListCandidate, level: LevelId): ListChoice => {
+/** The list `candidate`, read into the series `level` when used, or picked by `offered`'s click when it offers it. */
+export const useListChoice = (candidate: ListCandidate, level: LevelId, offered?: OfferedList): ListChoice => {
   const draft = useDraft();
   const [step, setStep] = useState<Step>({ at: 'idle' });
   const state = stateOf(draft.plan, candidate, level);
   const { source, file } = candidate;
+  const offers = offered?.lists.some((one) => one.source === source && one.file === file) === true ? offered : undefined;
   const busy = !draft.editable || step.at === 'reading';
 
   const add = (replacing: SheetPlan | null): void => {
@@ -182,6 +196,10 @@ export const useListChoice = (candidate: ListCandidate, level: LevelId): ListCho
       });
   };
   const use = (): void => {
+    if (offers !== undefined) {
+      offers.send({ source, file });
+      return;
+    }
     const overlap = overlapInUse(draft.plan, candidate);
     if (overlap === null) {
       add(null);
@@ -195,7 +213,9 @@ export const useListChoice = (candidate: ListCandidate, level: LevelId): ListCho
     }
   };
   const stop = (): void => {
-    if (state.kind === 'inUse') {
+    if (state.kind === 'inUse' && offers !== undefined) {
+      offers.send(null);
+    } else if (state.kind === 'inUse') {
       const sheet = state.sheet;
       // A list taken out stays out: "What we found" adds the first list only while no list was ever turned down.
       draft.change((plan) => written(plan, 'list', level, (now) => withDecline(removeSheet(now, sheet.id), source, file)));
@@ -227,9 +247,9 @@ export const useListChoice = (candidate: ListCandidate, level: LevelId): ListCho
   return { state, reading: step.at === 'reading', asking: step.at === 'asking', busy, use, move, stop, decline, notice };
 };
 
-const Row = ({ candidate, level }: { readonly candidate: ListCandidate; readonly level: LevelId }): ReactElement => {
+const Row = ({ candidate, level, offered }: { readonly candidate: ListCandidate; readonly level: LevelId; readonly offered: OfferedList | undefined }): ReactElement => {
   const { t } = useListsText();
-  const choice = useListChoice(candidate, level);
+  const choice = useListChoice(candidate, level, offered);
   const { state, busy } = choice;
   let actions: ReactNode = null;
   if (choice.asking) {
@@ -274,7 +294,7 @@ const Row = ({ candidate, level }: { readonly candidate: ListCandidate; readonly
 };
 
 /** The picker, which reads a list into the series `level`; `none` is what to show when the folders hold no list file. */
-export const ListPicker = ({ none, level }: { readonly none: ReactNode; readonly level: LevelId }): ReactElement => {
+export const ListPicker = ({ none, level, offered }: { readonly none: ReactNode; readonly level: LevelId; readonly offered?: OfferedList }): ReactElement => {
   const { t } = useListsText();
   const read = usePreview(['listCandidates'], {});
   if (read.status === 'loading') {
@@ -293,7 +313,7 @@ export const ListPicker = ({ none, level }: { readonly none: ReactNode; readonly
       <p className="muted">{t('lists.picker.order')}</p>
       <ul className="import-pick">
         {candidates.map((candidate) => (
-          <Row key={`${candidate.source}/${candidate.file}`} candidate={candidate} level={level} />
+          <Row key={`${candidate.source}/${candidate.file}`} candidate={candidate} level={level} offered={offered} />
         ))}
       </ul>
     </section>

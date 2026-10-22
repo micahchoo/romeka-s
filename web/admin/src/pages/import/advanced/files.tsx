@@ -1,9 +1,10 @@
 /**
- * Advanced, Files: where the files come from, files added from this
- * computer (looked at again as each arrives), then for the folder picked
- * (`SeriesPicker`) the marked example with a Remove for each mark and the
- * pattern typed as a regex with what it fits, then for every folder the
- * identical files, the files chart and the groups of items by their facts.
+ * The files rules of Advanced's Structure (`structure-rules.tsx`). On the
+ * archive's node: where the files come from, files added from this computer
+ * (looked at again as each arrives), the identical files, the files chart
+ * and the groups of items by their facts. In a folder's Items section: the
+ * marked example with a Remove for each mark, and the pattern typed as a
+ * regex with what it fits.
  */
 import { lazy, Suspense } from 'react';
 import type { ReactElement } from 'react';
@@ -21,8 +22,7 @@ import { useAdvancedText } from './messages';
 import { PatternEditor } from './pattern-editor';
 import { Setting } from './setting';
 import { written } from './writes';
-import { usePickedSeries } from '../picked-series';
-import { NoSeries, SeriesPicker } from './series-picker';
+import { seriesOf } from '../series';
 import './advanced.css';
 
 const IdenticalFiles = lazy(() => import('../lists/identical'));
@@ -128,10 +128,10 @@ const Example = ({ level }: { readonly level: LevelId }): ReactElement => {
   );
 };
 
-export const AdvancedFiles = (): ReactElement => {
+/** The archive's files: sources, files from this computer, and what every file is. */
+export const ArchiveFiles = (): ReactElement => {
   const { t } = useAdvancedText();
   const draft = useDraft();
-  const series = usePickedSeries();
   const { look, lookAgain } = useLookAgain();
   return (
     <div className="adv-section">
@@ -139,16 +139,6 @@ export const AdvancedFiles = (): ReactElement => {
       <Sources />
       <ComputerFiles lookAgain={lookAgain} />
       {look.at === 'failed' ? <ErrorNotice error={look.error} /> : null}
-      <h4>{t('adv.files.pattern.title')}</h4>
-      {series === null ? (
-        <NoSeries />
-      ) : (
-        <>
-          <SeriesPicker picked={series} />
-          <Example level={series.id} />
-          <PatternEditor key={JSON.stringify([series.id, series.grouping.pattern, series.grouping.caseFold])} level={series.id} />
-        </>
-      )}
       <Suspense fallback={null}>
         <h4>{t('adv.files.facts.title')}</h4>
         <IdenticalFiles />
@@ -162,4 +152,14 @@ export const AdvancedFiles = (): ReactElement => {
   );
 };
 
-export default AdvancedFiles;
+/** A folder's items: its marked example and its pattern. */
+export const ItemsRules = ({ level }: { readonly level: LevelId }): ReactElement => {
+  const { plan } = useDraft();
+  const series = seriesOf(plan, level);
+  return (
+    <div className="adv-section">
+      <Example level={level} />
+      <PatternEditor key={JSON.stringify([level, series.grouping.pattern, series.grouping.caseFold])} level={level} />
+    </div>
+  );
+};

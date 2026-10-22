@@ -1,7 +1,8 @@
 /**
  * The inspectors of the Structure screen's nodes that are not a folder of
- * items: the archive, the sets over every item, a set level, a folder not
- * imported and a list no folder uses. They are a lazy chunk of their own:
+ * items: the archive, the sets over every item, a set level (counted, or
+ * kept around a folder written by hand), a folder not imported and a list
+ * no folder uses. They are a lazy chunk of their own:
  * the screen opens on a folder, and loads these when the person selects one.
  */
 import { useState } from 'react';
@@ -10,7 +11,7 @@ import type { OutsideFolder, Pick, SeriesNode, SetCounts } from '../../../api/im
 import type { SetFrom } from '../../../api/import-plan';
 import type { ListCandidate } from '../../../api/import-sections';
 import { QUESTIONS } from './structure-edits';
-import { folderName, kindsWords, listsIn, setName, setNote } from './structure-lines';
+import { folderName, keptSetName, kindsWords, listsIn, setName, setNote } from './structure-lines';
 import type { TreeNode } from './structure-lines';
 import { Offer, Row, useScreen } from './structure-parts';
 
@@ -147,6 +148,13 @@ export const OtherInspector = ({
         <div className="guided-inspect">
           <h4>{setName(node.node.counts, words.t, words.number)}</h4>
           <p>{setNote(node.node.from, node.node.counts, words.t, words.number)}</p>
+        </div>
+      );
+    case 'kept':
+      return (
+        <div className="guided-inspect">
+          <h4>{keptSetName(node.level.set, words.t)}</h4>
+          <p>{words.t('structure.keptSet.note')}</p>
         </div>
       );
     case 'outside':
