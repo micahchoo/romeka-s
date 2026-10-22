@@ -62,11 +62,12 @@ async fn a_draft_starts_with_the_default_plan_on_its_sources() {
     let draft = made.json();
     assert_eq!(draft["status"], "draft");
     assert_eq!(draft["revision"], 0);
-    assert_eq!(draft["plan"]["version"], 2);
+    assert_eq!(draft["plan"]["version"], 3);
     assert_eq!(draft["plan"]["sources"][0]["path"], "Box 1");
     assert_eq!(draft["plan"]["defaults"]["visibility"], "private");
     assert_eq!(
-        draft["plan"]["grouping"]["pattern"], r"^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\.[^./]*)?$",
+        draft["plan"]["structure"]["levels"][0]["grouping"]["pattern"],
+        r"^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\.[^./]*)?$",
         "a new draft makes one item per name, whatever the ending"
     );
     assert_eq!(draft["sources"], draft["plan"]["sources"]);
@@ -127,7 +128,7 @@ async fn a_save_carries_the_revision_and_a_second_admin_on_an_old_one_gets_stale
     let draft = fixture.draft().await;
     let uri = format!("/api/romeka/imports/{}", draft["id"]);
     let mut plan = draft["plan"].clone();
-    plan["grouping"]["pattern"] = json!(r"^(?<identifier>.+)\.jpg$");
+    plan["structure"]["levels"][0]["grouping"]["pattern"] = json!(r"^(?<identifier>.+)\.jpg$");
 
     let first = fixture
         .call("PUT", &uri, Some(&json!({ "plan": plan, "revision": 0 })))
@@ -135,8 +136,8 @@ async fn a_save_carries_the_revision_and_a_second_admin_on_an_old_one_gets_stale
     assert_eq!(first.status, StatusCode::OK, "{}", first.body);
     assert_eq!(first.json()["revision"], 1);
     assert_eq!(
-        first.json()["plan"]["grouping"]["pattern"],
-        plan["grouping"]["pattern"]
+        first.json()["plan"]["structure"]["levels"][0]["grouping"]["pattern"],
+        plan["structure"]["levels"][0]["grouping"]["pattern"]
     );
 
     let second = fixture
@@ -185,7 +186,7 @@ async fn a_save_refuses_a_v1_plan_a_bad_plan_and_a_type_that_exists() {
 
     let keys = fixture
         .save(&draft, |plan| {
-            plan["slots"]["item"]["template"] = json!({
+            plan["structure"]["levels"][0]["slots"]["item"]["template"] = json!({
                 "sources": [{ "from": "constant", "value": "AF" }],
                 "combine": "first",
                 "map": { "AF": "Artifact", "af": "Photograph" }

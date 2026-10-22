@@ -82,7 +82,11 @@ async fn the_wire_fixtures_are_what_the_routes_answer() {
     let draft = fixture.draft().await;
     let id = draft["id"].clone();
     out.json("import-draft.json", &draft);
-    let saved = ok(fixture.save(&draft, rich_plan).await).await;
+    // Sent as an admin before P4 sent it: the answer is its lift, version 3.
+    let saved = ok(fixture
+        .save(&imports_fixture::as_v2(&draft), rich_plan)
+        .await)
+    .await;
     out.json("import-saved.json", &saved);
     out.json(
         "import-show.json",
@@ -284,7 +288,7 @@ async fn conflicts_before_a_run(fixture: &Fixture, out: &mut Fixtures, draft: &V
     );
 
     let mut unknown_term = current["plan"].clone();
-    unknown_term["slots"]["item"]["dcterms:nothing"] =
+    unknown_term["structure"]["levels"][0]["slots"]["item"]["dcterms:nothing"] =
         json!({ "sources": [{ "from": "constant", "value": "x" }], "combine": "first" });
     let unknown = fixture
         .preview(id, &json!({ "include": ["check"], "plan": unknown_term }))
@@ -292,7 +296,7 @@ async fn conflicts_before_a_run(fixture: &Fixture, out: &mut Fixtures, draft: &V
     let blocked_digest = ok(unknown).await["check"]["digest"].clone();
     let blocked = fixture
         .save(&current, |plan| {
-            plan["slots"]["item"]["dcterms:nothing"] =
+            plan["structure"]["levels"][0]["slots"]["item"]["dcterms:nothing"] =
                 json!({ "sources": [{ "from": "constant", "value": "x" }], "combine": "first" });
         })
         .await;
@@ -314,7 +318,7 @@ async fn conflicts_before_a_run(fixture: &Fixture, out: &mut Fixtures, draft: &V
     );
     let restored = fixture
         .save(&blocked_draft, |plan| {
-            plan["slots"]["item"]
+            plan["structure"]["levels"][0]["slots"]["item"]
                 .as_object_mut()
                 .unwrap()
                 .remove("dcterms:nothing");
@@ -330,7 +334,9 @@ async fn conflicts_before_a_run(fixture: &Fixture, out: &mut Fixtures, draft: &V
     // A new draft makes one item per name; with no pattern it makes nothing.
     let made = fixture.draft().await;
     let empty = ok(fixture
-        .save(&made, |plan| plan["grouping"]["pattern"] = json!(null))
+        .save(&made, |plan| {
+            plan["structure"]["levels"][0]["grouping"]["pattern"] = json!(null)
+        })
         .await)
     .await;
     ok(fixture.call("POST", &at(&empty["id"], "/scan"), None).await).await;
@@ -348,7 +354,7 @@ async fn conflicts_before_a_run(fixture: &Fixture, out: &mut Fixtures, draft: &V
 
     let delete = fixture
         .save(&empty, |plan| {
-            plan["grouping"]["pattern"] = json!(BHC_PATTERN);
+            plan["structure"]["levels"][0]["grouping"]["pattern"] = json!(BHC_PATTERN);
             plan["action"]["action"] = json!("delete");
             plan["action"]["match"]["item"] =
                 json!({ "key": "dcterms:identifier", "scope": "all" });

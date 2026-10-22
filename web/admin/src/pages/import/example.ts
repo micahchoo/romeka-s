@@ -11,13 +11,14 @@
  * `''` when the place is glued to a number before it (`010a`).
  *
  * Both modes read and write this one example. Simple keeps its answers in
- * `plan.simple` (`simple/example-state.ts`). A draft saved before that
- * member holds them in this object, so a change here moves them across.
+ * the plan's `simple`, under the series' id (`simple/example-state.ts`). A
+ * draft saved before that member holds them in this object, so a change
+ * here moves them across.
  */
 import type { ImportPlan, Series } from '../../api/import-plan';
 import { isRecord, isUnknownArray } from '../../api/parse';
 import type { JsonValue } from '../../api/types';
-import { seriesOf, withSeries } from './series';
+import { seriesOf, simpleOf, withSeries, withSimple } from './series';
 
 export type Mark =
   | { readonly kind: 'words'; readonly words: readonly string[]; readonly sep: string }
@@ -129,10 +130,11 @@ export const patternIsMarked = (plan: ImportPlan, example: MarkedExample): boole
 /** The keys Simple's answers had inside `example`, before `plan.simple`. */
 const LEGACY_KEYS = ['groupsOk', 'answered', 'notLists'] as const;
 
-/** Simple's answers as the plan holds them: `simple`, or else the old keys of `example`, or `null`. */
+/** Simple's answers for the series as the plan holds them: its state in `simple`, or else the old keys of `example`, or `null`. */
 export const simpleRecordOf = (plan: ImportPlan): Readonly<Record<string, JsonValue>> | null => {
-  if (plan.simple !== undefined) {
-    return plan.simple;
+  const kept = simpleOf(plan);
+  if (kept !== null) {
+    return kept;
   }
   const { example } = seriesOf(plan);
   const old = Object.fromEntries(LEGACY_KEYS.flatMap((key) => (example?.[key] === undefined ? [] : [[key, example[key]] as const])));
@@ -161,7 +163,7 @@ const marksJson = (marks: readonly Mark[]): JsonValue =>
  */
 export const withExample = (plan: ImportPlan, path: string | null, marks: readonly Mark[]): ImportPlan => {
   const simple = simpleRecordOf(plan);
-  const moved: ImportPlan = simple === null ? plan : { ...plan, simple };
+  const moved: ImportPlan = simple === null ? plan : withSimple(plan, simple);
   return withSeries(moved, (series) => ({ ...series, example: marks.length === 0 ? null : { ...(path === null ? {} : { path }), marks: marksJson(marks) } }));
 };
 

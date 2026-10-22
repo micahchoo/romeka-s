@@ -20,17 +20,18 @@ const CaseFold = vi.hoisted(() => ({ label: 'Names differ only in capitals' }));
 
 vi.mock('../src/pages/import/simple/bodies', async () => {
   const { useDraft } = await import('../src/pages/import/draft-context');
+  const { seriesOf, withSeries } = await import('../src/pages/import/series');
   const Found = () => {
     const draft = useDraft();
     return (
       <label>
         <input
           type="checkbox"
-          checked={draft.plan.grouping.caseFold}
+          checked={seriesOf(draft.plan).grouping.caseFold}
           disabled={!draft.editable}
           onChange={(event) => {
             const on = event.target.checked;
-            draft.change((plan) => ({ ...plan, grouping: { ...plan.grouping, caseFold: on } }));
+            draft.change((plan) => withSeries(plan, (series) => ({ ...series, grouping: { ...series.grouping, caseFold: on } })));
           }}
         />
         {CaseFold.label}
@@ -42,7 +43,8 @@ vi.mock('../src/pages/import/simple/bodies', async () => {
 
 vi.mock('../src/pages/import/advanced/bodies', async () => {
   const { useDraft } = await import('../src/pages/import/draft-context');
-  const Files = () => <p>caseFold: {String(useDraft().plan.grouping.caseFold)}</p>;
+  const { seriesOf } = await import('../src/pages/import/series');
+  const Files = () => <p>caseFold: {String(seriesOf(useDraft().plan).grouping.caseFold)}</p>;
   return { ADVANCED_BODIES: { files: Files } };
 });
 

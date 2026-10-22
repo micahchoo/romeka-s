@@ -220,22 +220,9 @@
       "template": null,
       "visibility": "private"
     },
-    "example": {
-      "labels": {
-        "n0": "identifier"
-      },
-      "optional": [
-        "part"
-      ],
-      "path": "Artifacts/BHC_006_AF_001_front.jpg"
-    },
     "flags": {
       "space-at-ends": "keep",
       "unmatched": "leave"
-    },
-    "grouping": {
-      "caseFold": false,
-      "pattern": "^(?<set>[^/]+)/(?:[^/]+/)*(?<identifier>BHC_006_[A-Z]{2}_\\d{3})(?:_(?<part>[a-z0-9]+))?\\.(?:jpg|tif)$"
     },
     "newTerms": [
       {
@@ -249,165 +236,6 @@
         "label": "Artifact"
       }
     ],
-    "sheets": [
-      {
-        "columns": [
-          {
-            "column": {
-              "header": "Title",
-              "index": 1
-            },
-            "options": {
-              "lang": "en",
-              "private": false,
-              "split": null,
-              "type": "literal"
-            }
-          },
-          {
-            "column": {
-              "header": "Date",
-              "index": 2
-            },
-            "options": {
-              "lang": null,
-              "private": false,
-              "split": "|",
-              "type": {
-                "dataType": "edtf"
-              }
-            }
-          }
-        ],
-        "file": "register.csv",
-        "hash": "stale-hash",
-        "id": "register",
-        "itemKey": null,
-        "join": {
-          "column": {
-            "header": "Id",
-            "index": 0
-          },
-          "normalize": {
-            "caseFold": true,
-            "leadingZeros": false,
-            "separators": false
-          },
-          "on": "identifier"
-        },
-        "read": {
-          "delimiter": "auto",
-          "encoding": "auto",
-          "headerLine": 1,
-          "quote": "\"",
-          "trim": true
-        },
-        "rowKind": "item",
-        "source": "s1"
-      },
-      {
-        "columns": [],
-        "file": "lost.csv",
-        "hash": null,
-        "id": "lost",
-        "itemKey": null,
-        "join": null,
-        "read": {
-          "delimiter": ",",
-          "encoding": "windows-1252",
-          "headerLine": 2,
-          "quote": "'",
-          "trim": false
-        },
-        "rowKind": "media",
-        "source": "s1"
-      }
-    ],
-    "slots": {
-      "item": {
-        "dcterms:date": {
-          "combine": "all",
-          "sources": [
-            {
-              "column": {
-                "header": "Date",
-                "index": 2
-              },
-              "from": "column",
-              "sheet": "register"
-            }
-          ]
-        },
-        "dcterms:title": {
-          "combine": "first",
-          "sources": [
-            {
-              "column": {
-                "header": "Title",
-                "index": 1
-              },
-              "from": "column",
-              "sheet": "register"
-            },
-            {
-              "from": "group",
-              "name": "identifier"
-            }
-          ]
-        },
-        "local:shelfMark": {
-          "combine": "all",
-          "sources": [
-            {
-              "from": "folder",
-              "level": 1
-            },
-            {
-              "from": "folder",
-              "level": "path"
-            }
-          ]
-        },
-        "sets": {
-          "combine": "first",
-          "map": {
-            "Scans": ""
-          },
-          "sources": [
-            {
-              "from": "group",
-              "name": "set"
-            }
-          ]
-        },
-        "template": {
-          "combine": "first",
-          "sources": [
-            {
-              "from": "constant",
-              "value": "Artifact"
-            }
-          ]
-        }
-      },
-      "itemSet": {},
-      "media": {
-        "dcterms:title": {
-          "combine": "first",
-          "sources": [
-            {
-              "fact": "name",
-              "from": "file"
-            },
-            {
-              "files": "first",
-              "from": "tag",
-              "tag": "File name"
-            }
-          ]
-        }
-      }
-    },
     "sources": [
       {
         "id": "s1",
@@ -416,7 +244,194 @@
         "root": "archive"
       }
     ],
-    "version": 2
+    "structure": {
+      "freeSets": [
+        {
+          "each": {
+            "combine": "first",
+            "map": {
+              "Scans": ""
+            },
+            "names": "text",
+            "sources": [
+              {
+                "from": "group",
+                "name": "set"
+              }
+            ]
+          }
+        }
+      ],
+      "levels": [
+        {
+          "example": {
+            "labels": {
+              "n0": "identifier"
+            },
+            "optional": [
+              "part"
+            ],
+            "path": "Artifacts/BHC_006_AF_001_front.jpg"
+          },
+          "grouping": {
+            "caseFold": false,
+            "pattern": "^(?<set>[^/]+)/(?:[^/]+/)*(?<identifier>BHC_006_[A-Z]{2}_\\d{3})(?:_(?<part>[a-z0-9]+))?\\.(?:jpg|tif)$"
+          },
+          "id": "all",
+          "kind": "series",
+          "lists": [
+            {
+              "columns": [
+                {
+                  "column": {
+                    "header": "Title",
+                    "index": 1
+                  },
+                  "options": {
+                    "lang": "en",
+                    "private": false,
+                    "split": null,
+                    "type": "literal"
+                  }
+                },
+                {
+                  "column": {
+                    "header": "Date",
+                    "index": 2
+                  },
+                  "options": {
+                    "lang": null,
+                    "private": false,
+                    "split": "|",
+                    "type": {
+                      "dataType": "edtf"
+                    }
+                  }
+                }
+              ],
+              "file": "register.csv",
+              "hash": "stale-hash",
+              "id": "register",
+              "itemKey": null,
+              "join": {
+                "column": {
+                  "header": "Id",
+                  "index": 0
+                },
+                "normalize": {
+                  "caseFold": true,
+                  "leadingZeros": false,
+                  "separators": false
+                },
+                "on": "identifier"
+              },
+              "read": {
+                "delimiter": "auto",
+                "encoding": "auto",
+                "headerLine": 1,
+                "quote": "\"",
+                "trim": true
+              },
+              "rowKind": "item",
+              "source": "s1"
+            },
+            {
+              "columns": [],
+              "file": "lost.csv",
+              "hash": null,
+              "id": "lost",
+              "itemKey": null,
+              "join": null,
+              "read": {
+                "delimiter": ",",
+                "encoding": "windows-1252",
+                "headerLine": 2,
+                "quote": "'",
+                "trim": false
+              },
+              "rowKind": "media",
+              "source": "s1"
+            }
+          ],
+          "scope": "all",
+          "set": null,
+          "slots": {
+            "item": {
+              "dcterms:date": {
+                "combine": "all",
+                "sources": [
+                  {
+                    "column": {
+                      "header": "Date",
+                      "index": 2
+                    },
+                    "from": "column",
+                    "sheet": "register"
+                  }
+                ]
+              },
+              "dcterms:title": {
+                "combine": "first",
+                "sources": [
+                  {
+                    "column": {
+                      "header": "Title",
+                      "index": 1
+                    },
+                    "from": "column",
+                    "sheet": "register"
+                  },
+                  {
+                    "from": "group",
+                    "name": "identifier"
+                  }
+                ]
+              },
+              "local:shelfMark": {
+                "combine": "all",
+                "sources": [
+                  {
+                    "from": "folder",
+                    "level": 1
+                  },
+                  {
+                    "from": "folder",
+                    "level": "path"
+                  }
+                ]
+              },
+              "template": {
+                "combine": "first",
+                "sources": [
+                  {
+                    "from": "constant",
+                    "value": "Artifact"
+                  }
+                ]
+              }
+            },
+            "itemSet": {},
+            "media": {
+              "dcterms:title": {
+                "combine": "first",
+                "sources": [
+                  {
+                    "fact": "name",
+                    "from": "file"
+                  },
+                  {
+                    "files": "first",
+                    "from": "tag",
+                    "tag": "File name"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "version": 3
   },
   "revision": 0,
   "sources": [

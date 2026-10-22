@@ -16,12 +16,13 @@ import { scenario } from './import-simple-scenarios';
 import type { Scenario } from './import-simple-scenarios';
 import { simpleServer } from './import-simple-server';
 import { loadFixture } from './loadFixture';
+import { flatPlan } from './import-plan-members';
 import { installFetch } from './stub';
 
 const last = (saved: readonly Record<string, unknown>[]): Record<string, unknown> => saved[saved.length - 1] ?? {};
 
 const savedPlan = asRecord(asRecord(loadFixture('import/import-saved.json'), [])['plan'], []);
-const savedSheets = savedPlan['sheets'];
+const savedSheets = flatPlan(savedPlan)['sheets'];
 
 /** A list is read, so the flags that need one are counted. */
 const LISTED = {

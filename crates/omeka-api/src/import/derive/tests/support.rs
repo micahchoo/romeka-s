@@ -10,7 +10,7 @@ use crate::import::evidence::{FileEntry, Walk};
 use crate::import::model::{Flag, Model, Record};
 use crate::import::plan::{
     FlagKind, ImportPlan, RecordKind, RelPath, SheetPlan, SlotName, SourceId, SourcePlan, TagId,
-    Term, default_plan,
+    Term, v2_default,
 };
 use crate::import::sheet::{self, key_column};
 use crate::import::tags::Embedded;
@@ -52,9 +52,10 @@ pub fn sources(list: &[(&str, &[(&str, &str)])]) -> Index {
     }
 }
 
-/// The default plan of a draft on source `s1`, as JSON to edit.
+/// The default plan of a draft on source `s1`, as v2 JSON to edit: these
+/// tests read their plans through the lift.
 pub fn base() -> Json {
-    let plan = default_plan(vec![
+    v2_default(&[
         SourcePlan::Folder {
             id: SourceId("s1".into()),
             root: "archive".into(),
@@ -64,8 +65,6 @@ pub fn base() -> Json {
             id: SourceId("s2".into()),
         },
     ])
-    .expect("default plan");
-    serde_json::to_value(plan).expect("json")
 }
 
 pub fn plan(edit: impl FnOnce(&mut Json)) -> ImportPlan {

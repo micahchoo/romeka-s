@@ -6,7 +6,7 @@ use super::*;
 use crate::import::catalog::Catalog;
 use crate::import::derive::{Index, IndexedSource, NoTags, Sheets, derive};
 use crate::import::evidence::{FileEntry, Walk};
-use crate::import::plan::{RecordKind, default_plan};
+use crate::import::plan::{RecordKind, v2_default};
 use crate::import::sheet;
 
 fn catalog() -> Catalog {
@@ -40,20 +40,23 @@ fn index(paths: &[&str]) -> Index {
     }
 }
 
-fn plan() -> ImportPlan {
-    let plan = default_plan(vec![SourcePlan::Folder {
+/// The plan of [`plan`] as v2 JSON, to edit before the lift reads it.
+fn plan_json() -> serde_json::Value {
+    let mut value = v2_default(&[SourcePlan::Folder {
         id: SourceId("s1".into()),
         root: "archive".into(),
         path: RelPath::parse("").unwrap(),
-    }])
-    .unwrap();
-    let mut value = serde_json::to_value(plan).unwrap();
+    }]);
     value["grouping"]["pattern"] =
         json!(r"^(?:.*/)?(?<identifier>[A-Z]+_\d+)(?:_(?<part>[a-z]+))?\.jpg$");
     value["slots"]["item"]["dcterms:title"] = json!({
         "sources": [{ "from": "constant", "value": "Untitled, \"draft\"" }], "combine": "first"
     });
-    ImportPlan::from_json(&value.to_string()).unwrap()
+    value
+}
+
+fn plan() -> ImportPlan {
+    ImportPlan::from_json(&plan_json().to_string()).unwrap()
 }
 
 /// The one series of a plan of one.
@@ -234,7 +237,7 @@ fn a_list_without_an_identifier_column_is_refused() {
 }
 
 fn plan_titled(title: &str) -> ImportPlan {
-    let mut value = serde_json::to_value(plan()).unwrap();
+    let mut value = plan_json();
     value["slots"]["item"]["dcterms:title"]["sources"][0]["value"] = json!(title);
     ImportPlan::from_json(&value.to_string()).unwrap()
 }
@@ -308,7 +311,7 @@ fn the_template_leaves_safe_text_alone() {
 #[test]
 fn a_file_name_that_starts_like_a_formula_is_quoted_in_the_files_column() {
     let index = index(&["=cmd.jpg"]);
-    let mut value = serde_json::to_value(plan()).unwrap();
+    let mut value = plan_json();
     value["grouping"]["pattern"] = json!(r"^(?<identifier>.+)\.jpg$");
     let plan = ImportPlan::from_json(&value.to_string()).unwrap();
     let model = derive(&index, &Sheets::new(), &plan, &catalog(), &NoTags);
@@ -352,7 +355,7 @@ fn only_a_quote_before_a_formula_character_comes_off_and_only_in_the_identifier_
 #[test]
 fn an_identifier_that_starts_like_a_formula_round_trips_and_joins_its_item() {
     let index = index(&["-001.jpg", "=X.jpg"]);
-    let mut value = serde_json::to_value(plan()).unwrap();
+    let mut value = plan_json();
     value["grouping"]["pattern"] = json!(r"^(?<identifier>[^/]+)\.jpg$");
     let mut plan = ImportPlan::from_json(&value.to_string()).unwrap();
     let model = derive(&index, &Sheets::new(), &plan, &catalog(), &NoTags);
@@ -559,20 +562,21 @@ fn a_sets_column_in_a_v3_plan_names_sets_by_title_for_its_own_series() {
 }
 
 #[test]
-fn a_sets_column_in_a_v2_plan_keeps_v2s_reading() {
+fn a_sets_column_in_a_lifted_v2_plan_names_sets_by_title_as_in_v3() {
     use crate::import::model::SetRef;
-    let mut value = serde_json::to_value(plan()).unwrap();
+    let mut value = plan_json();
     value["grouping"]["pattern"] = json!(r"^(?:.*/)?(?<identifier>[A-Z]+_\d+)\.jpg$");
     let (plan, model) = with_sets_column(ImportPlan::from_json(&value.to_string()).unwrap(), None);
     let stored: serde_json::Value = serde_json::from_str(&plan.to_json()).unwrap();
-    assert_eq!(stored["version"], 2);
+    let sets = &stored["structure"]["freeSets"][0]["each"];
+    assert_eq!(sets["sources"][0]["sheet"], "list-1");
     assert_eq!(
-        stored["slots"]["item"]["sets"]["sources"][0]["sheet"],
-        "list-1"
+        sets["names"], "title",
+        "the plan no longer remembers it came as v2"
     );
     assert_eq!(
         sets_of(&model, "AF_001"),
-        [SetRef::Existing(2018)],
-        "v2 read an id that exists first"
+        [SetRef::New(0)],
+        "2018 is a title, not set #2018"
     );
 }

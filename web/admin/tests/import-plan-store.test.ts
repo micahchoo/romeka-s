@@ -7,10 +7,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ImportPlan } from '../src/api/import-plan';
 import { ImportApi } from '../src/api/import-routes';
-import { parseImportDetail } from '../src/api/import-view';
+import { parseImportDetail } from '../src/api/import-detail-read';
 import type { ImportDetail } from '../src/api/import-view';
 import { asRecord } from '../src/api/parse';
 import { PlanStore, SAVE_DELAY_MS } from '../src/pages/import/plan-store';
+import { seriesOf, withSeries } from '../src/pages/import/series';
 import { loadFixture } from './loadFixture';
 import { installFetch, jsonResponse, requestBody, requestsFor, route } from './stub';
 import type { Handler } from './stub';
@@ -26,7 +27,7 @@ const savedAs = (init: RequestInit | undefined, revision: number): Response => {
 };
 const conflict = (name: string): Response => jsonResponse(loadFixture(`import/${name}`), { status: 409 });
 
-const caseFold = (on: boolean) => (plan: ImportPlan): ImportPlan => ({ ...plan, grouping: { ...plan.grouping, caseFold: on } });
+const caseFold = (on: boolean) => (plan: ImportPlan): ImportPlan => withSeries(plan, (series) => ({ ...series, grouping: { ...series.grouping, caseFold: on } }));
 const sentRevisions = (fetchMock: ReturnType<typeof installFetch>): readonly unknown[] =>
   requestsFor(fetchMock, PATH)
     .filter((request) => request.init?.method === 'PUT')
@@ -65,7 +66,22 @@ describe('saving', () => {
     store.change(caseFold(false));
     await vi.advanceTimersByTimeAsync(SAVE_DELAY_MS);
     expect(sentRevisions(fetchMock)).toEqual([0, 1]);
-    expect(store.snapshot().plan.grouping.caseFold).toBe(false);
+    expect(seriesOf(store.snapshot().plan).grouping.caseFold).toBe(false);
+  });
+
+  it('saves a v3 plan', async () => {
+    const fetchMock = installFetch(counting());
+    const store = new PlanStore(api, draft());
+    store.change(caseFold(true));
+    await vi.advanceTimersByTimeAsync(SAVE_DELAY_MS);
+    const [put] = requestsFor(fetchMock, PATH).filter((request) => request.init?.method === 'PUT');
+    const sent = asRecord(put === undefined ? null : requestBody(put)['plan'], []);
+    expect(sent['version']).toBe(3);
+    for (const member of ['grouping', 'example', 'sheets', 'slots']) {
+      expect(sent).not.toHaveProperty(member);
+    }
+    expect(sent).toMatchObject({ structure: { levels: [{ kind: 'series', id: 'all', grouping: { caseFold: true } }] } });
+    expect(sent).toEqual(JSON.parse(JSON.stringify(store.snapshot().plan)));
   });
 
   it('sends the edits made while a save is out in one later save', async () => {
@@ -133,7 +149,7 @@ describe('refusals', () => {
     expect(store.snapshot().save).toEqual({ status: 'stale', revision: 1 });
     expect(store.snapshot().editable).toBe(false);
     store.change(caseFold(false));
-    expect(store.snapshot().plan.grouping.caseFold).toBe(true);
+    expect(seriesOf(store.snapshot().plan).grouping.caseFold).toBe(true);
     await vi.advanceTimersByTimeAsync(SAVE_DELAY_MS);
     expect(sentRevisions(fetchMock)).toEqual([0]);
 
@@ -141,7 +157,7 @@ describe('refusals', () => {
     expect(stored).toBe(true);
     expect(store.snapshot().save.status).toBe('saved');
     expect(store.snapshot().detail.revision).toBe(1);
-    expect(store.snapshot().plan.grouping.caseFold).toBe(false);
+    expect(seriesOf(store.snapshot().plan).grouping.caseFold).toBe(false);
     expect(store.snapshot().editable).toBe(true);
   });
 

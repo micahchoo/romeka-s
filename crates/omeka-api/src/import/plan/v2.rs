@@ -1,22 +1,23 @@
-//! The v2 plan as the wire and the database hold it: the members flat.
-//! A v2 plan is read by lifting it to one series ([`Structure::lifted`]) and
-//! written by lowering that series back, so its JSON keeps the v2 members,
-//! their order and their errors.
+//! The v2 plan as the database still holds it for drafts and done imports
+//! saved before the admin wrote v3: the members flat. It is only read,
+//! lifted to one series ([`Structure::lifted`]); every plan is written as
+//! v3.
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-use super::structure::{Series, Structure};
+use super::structure::{LIFTED, Structure};
 use super::{
     ActionPlan, AnomalyAnswers, Defaults, FlagKind, FlagPolicy, Grouping, ImportPlan, NewTerm,
-    NewType, PlanError, PlanVersion, SheetPlan, Slots, SourcePlan, WireVersion,
+    NewType, SheetPlan, Slots, SourcePlan, WireVersion,
 };
 use crate::import::decisions::Decision;
 
 /// Named as the plan, so a shape error reads "expected struct ImportPlan"
 /// as it did before this type.
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 #[serde(rename = "ImportPlan", rename_all = "camelCase", deny_unknown_fields)]
 pub(super) struct PlanV2 {
+    #[expect(dead_code, reason = "read only to refuse a version other than 2")]
     version: WireVersion<2>,
     sources: Vec<SourcePlan>,
     grouping: Grouping,
@@ -32,20 +33,18 @@ pub(super) struct PlanV2 {
     decisions: Vec<Decision>,
     new_types: Vec<NewType>,
     new_terms: Vec<NewTerm>,
-    /// Missing means the defaults, and the defaults are not written, so a
-    /// plan stored before this member keeps its bytes.
-    #[serde(default, skip_serializing_if = "AnomalyAnswers::is_default")]
+    /// Missing means the defaults: a plan stored before this member.
+    #[serde(default)]
     anomalies: AnomalyAnswers,
-    /// Absent is not written, so a stored plan keeps its bytes.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     simple: Option<serde_json::Map<String, serde_json::Value>>,
 }
 
-/// The lift.
+/// The lift: the v2 members into one series `all`, and Simple's flat
+/// state under that series' id.
 impl From<PlanV2> for ImportPlan {
     fn from(wire: PlanV2) -> Self {
         Self {
-            version: PlanVersion::V2,
             sources: wire.sources,
             structure: Structure::lifted(wire.grouping, wire.example, wire.sheets, wire.slots),
             action: wire.action,
@@ -55,50 +54,10 @@ impl From<PlanV2> for ImportPlan {
             new_types: wire.new_types,
             new_terms: wire.new_terms,
             anomalies: wire.anomalies,
-            simple: wire.simple,
+            simple: wire.simple.map(|simple| {
+                serde_json::Map::from_iter([(LIFTED.to_owned(), serde_json::Value::Object(simple))])
+            }),
             edits: Vec::new(),
         }
-    }
-}
-
-/// The lower: refused for a plan that is not one series `all` with no set,
-/// taking every file, with at most the one `text` free set.
-impl TryFrom<ImportPlan> for PlanV2 {
-    type Error = PlanError;
-
-    fn try_from(plan: ImportPlan) -> Result<Self, PlanError> {
-        if !plan.edits.is_empty() {
-            return Err(PlanError::NotV2("it has edits"));
-        }
-        let Series {
-            grouping,
-            example,
-            lists,
-            slots,
-            ..
-        } = plan.structure.into_lifted().map_err(PlanError::NotV2)?;
-        let last_places = lists
-            .iter()
-            .filter_map(|list| list.join.as_ref())
-            .any(|join| join.normalize.last_places.is_some());
-        if last_places {
-            return Err(PlanError::NotV2("a list joins by the last places of names"));
-        }
-        Ok(Self {
-            version: WireVersion,
-            sources: plan.sources,
-            grouping,
-            example,
-            sheets: lists,
-            slots,
-            action: plan.action,
-            defaults: plan.defaults,
-            flags: plan.flags,
-            decisions: plan.decisions,
-            new_types: plan.new_types,
-            new_terms: plan.new_terms,
-            anomalies: plan.anomalies,
-            simple: plan.simple,
-        })
     }
 }

@@ -21,9 +21,9 @@ use super::catalog::Catalog;
 use super::model::{Model, Origin, Record};
 use super::plan::{
     Auto, ColumnOptions, ColumnPlan, ColumnRef, Combine, Delimiter, EachSet, EachValue,
-    EncodingChoice, ImportPlan, Join, JoinNormalize, JoinOn, PlanVersion, Quote, ReadOptions,
-    RecordKind, RelPath, RowKind, SeriesIx, SetNames, SetSource, SheetId, SheetPlan, SlotName,
-    SlotRule, SourceId, SourcePlan, SourceRef, Term,
+    EncodingChoice, ImportPlan, Join, JoinNormalize, JoinOn, Quote, ReadOptions, RecordKind,
+    RelPath, RowKind, SeriesIx, SetNames, SetSource, SheetId, SheetPlan, SlotName, SlotRule,
+    SourceId, SourcePlan, SourceRef, Term,
 };
 use super::sheet::Sheet;
 use super::values::{ValueType, Visibility};
@@ -303,10 +303,8 @@ pub struct ListAdded {
 /// bracketed column mapped first in its slot. A staging source is added
 /// when the plan has none.
 ///
-/// The `sets` columns of a v2 plan join the free set read as v2 read sets,
-/// first, so the plan keeps one sets rule. In a v3 plan they make one more
-/// free set whose values are titles; a column of this list gives nothing
-/// to an item of another series.
+/// The `sets` columns make one more free set whose values are titles; a
+/// column of this list gives nothing to an item of another series.
 ///
 /// # Errors
 /// [`ListError::NoIdentifier`] when no header is `Identifier`.
@@ -356,10 +354,7 @@ pub fn add_list(
             column: column_ref,
         };
         if slot == SlotName::Sets {
-            match plan.version {
-                PlanVersion::V2 => plan.structure.text_sets_mut().sources.insert(0, from),
-                PlanVersion::V3 => set_columns.push(from),
-            }
+            set_columns.push(from);
             mapped.push(column.index);
             continue;
         }

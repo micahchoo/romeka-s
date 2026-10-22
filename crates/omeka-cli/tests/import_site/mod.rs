@@ -243,6 +243,18 @@ impl Reply {
     }
 }
 
+/// The plan a draft on `sources` started with before the admin wrote v3, as
+/// v2 JSON: these tests edit its v2 members, and the server reads it through
+/// the lift.
+pub fn v2_plan(sources: &Value) -> Value {
+    let mut plan: Value = serde_json::from_str(include_str!(
+        "../../../omeka-api/src/import/fixtures/default.json"
+    ))
+    .unwrap();
+    plan["sources"] = sources.clone();
+    plan
+}
+
 pub fn write(root: &Path, relative: &str, bytes: &[u8]) {
     let path = root.join(relative);
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -421,7 +433,7 @@ impl Site {
         assert_eq!(made.status, 201, "{}", made.body);
         let draft = made.json();
         let id = draft["id"].as_u64().unwrap();
-        let mut plan = draft["plan"].clone();
+        let mut plan = v2_plan(&draft["plan"]["sources"]);
         edit(&mut plan);
         let saved = self
             .send(

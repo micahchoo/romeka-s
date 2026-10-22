@@ -27,7 +27,7 @@ import { fold } from './list-plan';
 import { Segmented } from './master-detail';
 import type { Segment } from './master-detail';
 import { useSimpleText } from './messages';
-import { folderName, setChoiceOf, setColumnOf, typeAnswerOf, typeFromOf, withSets, withTypeAnswer, withTypeFrom, withoutTypeMap } from './where-plan';
+import { folderName, setChoiceOf, setColumnOf, typeAnswerOf, typeFromOf, withSetChoice, withTypeAnswer, withTypeFrom, withoutTypeMap } from './where-plan';
 import type { SetChoice, TypeFrom } from './where-plan';
 import { seriesOf } from '../series';
 import './simple.css';
@@ -86,7 +86,7 @@ const SetName = ({ saved }: { readonly saved: string }): ReactElement => {
         const text = event.target.value;
         setTyped(text);
         if (text.trim() !== '') {
-          draft.change((plan) => withSets(plan, 'one', text.trim()));
+          draft.change((plan) => withSetChoice(plan, 'one', text.trim()));
         }
       }}
     />
@@ -122,7 +122,7 @@ const ItemSets = ({ catalog }: { readonly catalog: Catalog | null }): ReactEleme
             suggestedWord={t('guided.check.suggested')}
             onChange={(choice) => {
               const first = existing[0];
-              draft.change((plan) => withSets(plan, choice, choice === 'old' ? (first === undefined ? null : String(first.id)) : null));
+              draft.change((plan) => withSetChoice(plan, choice, choice === 'old' ? (first === undefined ? null : String(first.id)) : null));
             }}
           />
           {current.choice === 'one' ? <SetName saved={current.set ?? folderName(draft.plan)} /> : null}
@@ -133,7 +133,7 @@ const ItemSets = ({ catalog }: { readonly catalog: Catalog | null }): ReactEleme
               disabled={!draft.editable}
               onChange={(event) => {
                 const set = event.target.value;
-                draft.change((plan) => withSets(plan, 'old', set));
+                draft.change((plan) => withSetChoice(plan, 'old', set));
               }}
             >
               {existing.slice(0, 200).map((set) => (

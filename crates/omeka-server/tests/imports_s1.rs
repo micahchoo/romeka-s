@@ -21,7 +21,7 @@ use serde_json::{Value, json};
 async fn s1_the_bhc_006_demo_through_the_routes() {
     let fixture = fixture().await;
     bhc_006(fixture.archive.path());
-    let draft = fixture.draft().await;
+    let draft = imports_fixture::as_v2(&fixture.draft().await);
     let id = draft["id"].clone();
     let saved = fixture
         .save(&draft, |plan| {
@@ -107,7 +107,7 @@ fn count(check: &Value, kind: &str, does: &str) -> u64 {
 async fn a_preview_of_10000_and_40000_entries_fits_the_budget() {
     for (entries, budget) in [(10_000_usize, 150_u64), (40_000, 600)] {
         let fixture = fixture().await;
-        let draft = fixture.draft().await;
+        let draft = imports_fixture::as_v2(&fixture.draft().await);
         let id = ImportId(draft["id"].as_u64().unwrap());
         let mut register = String::from("Id,Title,Date\n");
         let rows: Vec<NewEntry> = (0..entries)

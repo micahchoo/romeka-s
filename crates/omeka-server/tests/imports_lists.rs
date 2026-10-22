@@ -34,7 +34,7 @@ async fn add_date(fixture: &Fixture) {
 
 async fn s1(fixture: &Fixture) -> Value {
     bhc_006(fixture.archive.path());
-    let draft = fixture.draft().await;
+    let draft = imports_fixture::as_v2(&fixture.draft().await);
     let saved = fixture
         .save(&draft, |plan| {
             plan["grouping"]["pattern"] = json!(BHC_PATTERN);
@@ -190,7 +190,10 @@ async fn the_list_round_trips_from_template_to_values_on_the_records() {
     assert_eq!(uploaded.status, StatusCode::CREATED, "{}", uploaded.body);
     let view = uploaded.json();
     assert_eq!(view["revision"], 2);
-    assert_eq!(view["plan"]["sheets"][0]["file"], "lists/1.csv");
+    assert_eq!(
+        view["plan"]["structure"]["levels"][0]["lists"][0]["file"],
+        "lists/1.csv"
+    );
     assert_eq!(
         view["plan"]["sources"][1],
         json!({ "kind": "staging", "id": "staging" })
@@ -242,7 +245,10 @@ async fn the_list_round_trips_from_template_to_values_on_the_records() {
         )
         .await;
     assert_eq!(second.status, StatusCode::CREATED, "{}", second.body);
-    assert_eq!(second.json()["plan"]["sheets"][1]["file"], "lists/2.tsv");
+    assert_eq!(
+        second.json()["plan"]["structure"]["levels"][0]["lists"][1]["file"],
+        "lists/2.tsv"
+    );
 }
 
 /// The filled list as an Excel user saves it: the template's header, a
@@ -277,9 +283,12 @@ async fn a39_a_filled_xlsx_list_is_stored_read_and_joined_on_its_identifier() {
     let uploaded = fixture.upload(&id, "list.xlsx", &filled_xlsx()).await;
     assert_eq!(uploaded.status, StatusCode::CREATED, "{}", uploaded.body);
     let view = uploaded.json();
-    assert_eq!(view["plan"]["sheets"][0]["file"], "lists/1.xlsx");
     assert_eq!(
-        view["plan"]["sheets"][0]["join"]["column"]["header"],
+        view["plan"]["structure"]["levels"][0]["lists"][0]["file"],
+        "lists/1.xlsx"
+    );
+    assert_eq!(
+        view["plan"]["structure"]["levels"][0]["lists"][0]["join"]["column"]["header"],
         "Identifier"
     );
     assert!(
@@ -415,7 +424,7 @@ async fn a_preview_of_40000_entries_with_every_fact_section_fits_the_budget() {
 
     let entries = 40_000_usize;
     let fixture = fixture().await;
-    let draft = fixture.draft().await;
+    let draft = imports_fixture::as_v2(&fixture.draft().await);
     let id = ImportId(draft["id"].as_u64().unwrap());
     let mut register = String::from("Id,Title,Date,Set\n");
     let rows: Vec<NewEntry> = (0..entries)

@@ -9,6 +9,7 @@
  */
 import { asRecord, isRecord } from '../src/api/parse';
 import { loadFixture } from './loadFixture';
+import { flatPlan, withMembers } from './import-plan-members';
 import type { Scenario, ScenarioGroup, ScenarioList } from './import-simple-scenarios';
 import { jsonResponse, listResponse, route } from './stub';
 import type { Handler } from './stub';
@@ -19,7 +20,7 @@ export const PATH = '/api/romeka/imports/1';
 
 export interface SimpleServer {
   readonly handler: Handler;
-  /** The plan of each PUT, in order. */
+  /** The plan of each PUT, in order, with its one series' members flat (`flatPlan`). */
   readonly saved: Record<string, unknown>[];
   /** The body of each run request. */
   readonly runs: Record<string, unknown>[];
@@ -152,7 +153,7 @@ export const simpleServer = (scenario: Scenario, planEdits: Record<string, unkno
   const runs: Record<string, unknown>[] = [];
   let revision = 0;
   let status = 'draft';
-  let plan: Record<string, unknown> = { ...asRecord(fixture('import-draft.json')['plan'], []), ...planEdits };
+  let plan: Record<string, unknown> = withMembers(asRecord(fixture('import-draft.json')['plan'], []), planEdits);
   const detail = (): Record<string, unknown> => ({ ...fixture('import-draft.json'), revision, status, plan });
   const sources = (): unknown[] => [
     { source: 's1', scanned: '2026-10-21T09:00:00+00:00', files: scenario.files, sheetFiles: (scenario.lists ?? [scenario.sheet]).map((list) => list.file), error: null },
@@ -205,7 +206,7 @@ export const simpleServer = (scenario: Scenario, planEdits: Record<string, unkno
 
   const preview: Handler = (_url, init) => {
     const body = asRecord(JSON.parse(typeof init?.body === 'string' ? init.body : '{}'), []);
-    const asked = isRecord(body['plan']) ? body['plan'] : plan;
+    const asked = flatPlan(isRecord(body['plan']) ? body['plan'] : plan);
     const marks = marksOf(asked);
     const listed = (Array.isArray(asked['sheets']) ? asked['sheets'] : []).length > 0;
     const groups = merged(shownGroups(scenario, marks), marks, listed);
@@ -376,7 +377,7 @@ export const simpleServer = (scenario: Scenario, planEdits: Record<string, unkno
       if (init?.method === 'PUT') {
         const sent = asRecord(JSON.parse(typeof init.body === 'string' ? init.body : '{}'), []);
         plan = asRecord(sent['plan'], []);
-        saved.push(plan);
+        saved.push(flatPlan(plan));
         revision += 1;
       }
       return jsonResponse(detail());

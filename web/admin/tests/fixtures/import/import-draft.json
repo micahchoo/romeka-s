@@ -32,20 +32,9 @@
       "template": null,
       "visibility": "private"
     },
-    "example": null,
     "flags": {},
-    "grouping": {
-      "caseFold": false,
-      "pattern": "^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\\.[^./]*)?$"
-    },
     "newTerms": [],
     "newTypes": [],
-    "sheets": [],
-    "slots": {
-      "item": {},
-      "itemSet": {},
-      "media": {}
-    },
     "sources": [
       {
         "id": "s1",
@@ -54,7 +43,29 @@
         "root": "archive"
       }
     ],
-    "version": 2
+    "structure": {
+      "freeSets": [],
+      "levels": [
+        {
+          "example": null,
+          "grouping": {
+            "caseFold": false,
+            "pattern": "^(?:[^/]*/)*(?<identifier>[^/]+?)(?:\\.[^./]*)?$"
+          },
+          "id": "all",
+          "kind": "series",
+          "lists": [],
+          "scope": "all",
+          "set": null,
+          "slots": {
+            "item": {},
+            "itemSet": {},
+            "media": {}
+          }
+        }
+      ]
+    },
+    "version": 3
   },
   "revision": 0,
   "sources": [

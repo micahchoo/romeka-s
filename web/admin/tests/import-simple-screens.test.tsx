@@ -16,6 +16,7 @@ import { bhc006, IN_USE } from './import-bhc006-lists';
 import { scenario } from './import-simple-scenarios';
 import { PATH, simpleServer } from './import-simple-server';
 import { loadFixture } from './loadFixture';
+import { flatPlan, withMembers } from './import-plan-members';
 import { installFetch, jsonResponse } from './stub';
 
 const subscribe = (listener: () => void): (() => void) => {
@@ -67,14 +68,15 @@ describe('What we found', () => {
     render(<ImportPage param="1" rest={['1', 'simple', 'found']} />);
     expect(await screen.findByText('Items: names equal but for the ending.', {}, { timeout: 5000 })).toBeInTheDocument();
     const patterns = server.saved.map((plan) => asRecord(plan['grouping'], [])['pattern']);
-    expect(patterns.every((pattern) => pattern === asRecord(asRecord(asRecord(loadFixture('import/import-draft.json'), [])['plan'], [])['grouping'], [])['pattern'])).toBe(true);
+    const drafted = flatPlan(asRecord(asRecord(loadFixture('import/import-draft.json'), [])['plan'], []));
+    expect(patterns.every((pattern) => pattern === asRecord(drafted['grouping'], [])['pattern'])).toBe(true);
   });
 
   it('says a pattern cleared in Advanced makes no items, and offers one item per name', async () => {
     const server = simpleServer(scenario('meera', 9));
     const draft = asRecord(loadFixture('import/import-draft.json'), []);
     const plan = asRecord(draft['plan'], []);
-    const cleared = { ...draft, plan: { ...plan, grouping: { ...asRecord(plan['grouping'], []), pattern: null } } };
+    const cleared = { ...draft, plan: withMembers(plan, { grouping: { ...asRecord(flatPlan(plan)['grouping'], []), pattern: null } }) };
     installFetch((url, init) =>
       url.pathname === PATH && init?.method !== 'PUT' && server.saved.length === 0 ? jsonResponse(cleared) : server.handler(url, init),
     );
