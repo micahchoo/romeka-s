@@ -304,3 +304,37 @@ pub fn media_view_with_data_and_env(data: MediaData, env: RenderEnv) -> MediaVie
         "/media/1",
     )
 }
+
+/// Writes an executable shell script to `path`, through a child `sh`.
+///
+/// A script written by this process cannot be run while any process holds it
+/// open for writing (`Text file busy`). Tests run in parallel threads, and a
+/// child forked by another thread inherits every open descriptor until its
+/// own `exec`. So a script written with `std::fs::write` sometimes fails to
+/// start. This process never opens the script, so no fork can inherit it.
+///
+/// # Errors
+///
+/// When `sh` cannot start or cannot write the file.
+#[cfg(unix)]
+pub fn write_script(path: &std::path::Path, body: &str) -> std::io::Result<()> {
+    use std::io::Write as _;
+    use std::process::{Command, Stdio};
+
+    let mut child = Command::new("sh")
+        .args(["-c", "cat > \"$0\" && chmod 755 \"$0\""])
+        .arg(path)
+        .stdin(Stdio::piped())
+        .spawn()?;
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin.write_all(body.as_bytes())?;
+    }
+    if child.wait()?.success() {
+        Ok(())
+    } else {
+        Err(std::io::Error::other(format!(
+            "sh could not write {}",
+            path.display()
+        )))
+    }
+}
