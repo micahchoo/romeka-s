@@ -32,6 +32,10 @@ export const hi: ImportAdvancedMessages = {
   'adv.source.tagAll': 'हर फ़ाइल का टैग {tag}',
   'adv.source.tagPart': 'उस फ़ाइल का टैग {tag} जिसका भाग “{part}” है',
   'adv.source.constant': 'स्थिरांक "{value}"',
+  'adv.series.label': 'फोल्डर',
+  'adv.series.plain':
+    'प्रत्येक फोल्डर का अपना पैटर्न, सूचियाँ और फ़ील्ड हैं। नीचे दी गई सेटिंग्स इस फोल्डर के लिए हैं।',
+  'adv.series.none': 'कोई फोल्डर आयात नहीं किया गया है, इसलिए यहाँ सेट करने के लिए कुछ भी नहीं है।',
   'adv.files.sources.title': 'स्रोत',
   'adv.files.sources.label': 'स्रोत',
   'adv.files.sources.plain': 'फ़ाइलें कहाँ से आती हैं। एक आयात एक से अधिक स्थान से पढ़ सकता है।',

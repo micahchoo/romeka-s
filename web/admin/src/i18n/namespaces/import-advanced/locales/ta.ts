@@ -32,6 +32,11 @@ export const ta: ImportAdvancedMessages = {
   'adv.source.tagAll': 'ஒவ்வொரு கோப்பின் டேக் {tag}',
   'adv.source.tagPart': '“{part}” பகுதியைக் கொண்ட கோப்பின் டேக் {tag}',
   'adv.source.constant': 'மாறிலி “{value}”',
+  'adv.series.label': 'கோப்புறை',
+  'adv.series.plain':
+    'ஒவ்வொரு கோப்புறைக்கும் அதன் சொந்த வடிவம், பட்டியல்கள் மற்றும் புலங்கள் உள்ளன. கீழே உள்ள அமைப்புகள் இந்த கோப்புறைக்கானவை.',
+  'adv.series.none':
+    'எந்தக் கோப்புறையும் இறக்குமதி செய்யப்படவில்லை, எனவே இங்கே அமைக்க எதுவும் இல்லை.',
   'adv.files.sources.title': 'ஆதாரங்கள்',
   'adv.files.sources.label': 'ஆதாரங்கள்',
   'adv.files.sources.plain':
