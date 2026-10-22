@@ -244,8 +244,9 @@ const listed = async (page: Page): Promise<number> => {
   await expect
     .poll(async () => {
       const { json } = await api(page, 'GET', `/api/romeka/imports/${String(id)}`);
-      const sheets = record(record(json, 'import')['plan'], 'plan')['sheets'];
-      return isArray(sheets) ? sheets.length : 0;
+      const levels = record(record(record(json, 'import')['plan'], 'plan')['structure'], 'structure')['levels'];
+      const lists = (isArray(levels) ? levels : []).map((level) => record(level, 'level')['lists']);
+      return lists.reduce<number>((sum, one) => sum + (isArray(one) ? one.length : 0), 0);
     }, { timeout: 15_000 })
     .toBe(1);
   await page.goto(`/#/import/${String(id)}/simple/list`);
