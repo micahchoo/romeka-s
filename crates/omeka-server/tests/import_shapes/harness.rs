@@ -295,7 +295,8 @@ fn named(slots: &Value, names: &[&str]) -> BTreeMap<String, Vec<String>> {
 /// `slots` named, on items and on media alike. An item is keyed by its
 /// `dcterms:identifier`; a record the import leaves out is no item.
 pub fn outcome_of(preview: &Value, shape: &Shape, slots: &[&str]) -> Outcome {
-    let made = |record: &&Value| record["fate"] != "leave";
+    // A left record's fate is `{ "left": <why> }`; every other fate makes it.
+    let made = |record: &&Value| record["fate"].get("left").is_none();
     let media: BTreeMap<u64, &Value> = preview["media"]
         .as_array()
         .unwrap()
