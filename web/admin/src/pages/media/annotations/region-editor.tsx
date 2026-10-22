@@ -9,12 +9,18 @@
  * rendition smaller than the canvas, as a camera RAW's is, still maps exactly
  * (`draw.ts`).
  *
+ * On a media page the editor draws on the stage itself (`StageSlots`): the
+ * tools above the picture, the picture with its shapes where the stage's own
+ * was, and the selected shape's numbers under it. At the first zoom step it
+ * shows the file the stage already loaded, so the picture never loads twice.
+ *
  * Nothing here writes. A completed shape goes to the panel through `onDraw`,
  * which opens the note form, and a moved shape through `onMove`, which edits the
  * open draft; the panel owns the save. A reader gets the picture, its numbered
  * shapes and nothing to click.
  */
 import type {
+  CSSProperties,
   KeyboardEvent as KeyboardEventOf,
   PointerEvent as PointerEventOf,
   ReactElement,
@@ -47,10 +53,16 @@ import type { DrawnRegion, LiveBox } from './region-shapes';
 import { RegionShapes } from './region-shapes';
 import type { Tool } from './region-toolbar';
 import { RegionToolbar } from './region-toolbar';
+import type { StageSlots } from '../stage/slots';
+import { InSlot } from './in-slot';
 import type { Note, Selector, Surface } from './wire';
 import './region-editor.css';
 
 export interface RegionEditorProps {
+  /** The stage's places to draw in, or null to render in the panel. */
+  readonly slots?: StageSlots | null;
+  /** Told when the editor draws the stage's picture, so the stage shows none. */
+  readonly onClaim?: ((claimed: boolean) => void) | undefined;
   readonly surface: Extract<Surface, { readonly kind: 'image' }>;
   /** The media's notes in list order, so a shape's number is its entry's number. */
   readonly rows: readonly PlacedNote[];
@@ -76,8 +88,11 @@ const arrowOf = (key: string): Point | null => ARROWS[key] ?? null;
 export const RegionEditor = (props: RegionEditorProps): ReactElement => {
   const { t } = useTranslator(annotations);
   const { surface, rows, selected, draft, writable, onDraw, onSelect, onMove } = props;
+  const slots = props.slots ?? null;
+  const onClaim = props.onClaim;
   const size: CanvasSize = { width: surface.width, height: surface.height };
   const scroll = useRef<HTMLDivElement>(null);
+  const figure = useRef<HTMLDivElement>(null);
   const overlay = useRef<SVGSVGElement>(null);
   const zoomedFrom = useRef<{
     readonly zoom: number;
@@ -100,7 +115,19 @@ export const RegionEditor = (props: RegionEditorProps): ReactElement => {
   const [refusal, setRefusal] = useState<string | null>(null);
 
   useEffect(() => {
-    const element = scroll.current;
+    if (slots === null || onClaim === undefined) {
+      return;
+    }
+    onClaim(true);
+    return () => {
+      onClaim(false);
+    };
+  }, [slots, onClaim]);
+
+  // The figure's own width is what the picture is shown at, zoom included, so
+  // the labels keep their screen size and the rendition matches the screen.
+  useEffect(() => {
+    const element = figure.current;
     if (element === null) {
       return;
     }
@@ -115,9 +142,9 @@ export const RegionEditor = (props: RegionEditorProps): ReactElement => {
     return () => {
       observer.disconnect();
     };
-  }, []);
+  }, [slots]);
 
-  const shownWidth = box * zoom;
+  const shownWidth = box;
   const unitPerPx = shownWidth > 0 ? surface.width / shownWidth : 1;
 
   const geometryOf = (row: PlacedNote): Region | null =>
@@ -361,13 +388,22 @@ export const RegionEditor = (props: RegionEditorProps): ReactElement => {
       : tool === 'rect'
         ? t('region.hint.rect')
         : t('region.hint.move');
-  const source = renditionUrl(surface.service, size, shownWidth, Math.max(1, devicePixelRatio));
+  const picture = slots?.picture ?? null;
+  // The stage's file at the first step (or always, for a drawing, which scales
+  // without loss); a rendition sized to the screen once the editor zooms in.
+  const source =
+    picture !== null && (picture.svg || zoom === 1)
+      ? picture.url
+      : renditionUrl(surface.service, size, shownWidth, Math.max(1, devicePixelRatio));
+  const fit: CSSProperties & Readonly<Record<'--region-aspect' | '--region-zoom', string>> = {
+    '--region-aspect': String(surface.width / surface.height),
+    '--region-zoom': String(zoom),
+    aspectRatio: `${String(surface.width)} / ${String(surface.height)}`,
+  };
 
-  return (
-    <section className="region-editor" aria-label={t('region.label')}>
-      {writable ? (
-        <>
-          <RegionToolbar
+  const tools = writable ? (
+    <div className="region-tools">
+      <RegionToolbar
             tool={tool}
             zoom={zoom}
             hidden={hidden}
@@ -377,73 +413,78 @@ export const RegionEditor = (props: RegionEditorProps): ReactElement => {
             onZoom={zoomTo}
             onHidden={setHidden}
             onAdvanced={setAdvanced}
-            onAdd={addRegion}
-          />
-          <p className="region-hint">{hint}</p>
-          {corners.length >= CORNER_COUNT_FROM ? (
-            <p className="region-count">
-              {t('region.corners', { count: corners.length, max: MAX_CORNERS })}
-            </p>
-          ) : null}
-          {refusal === null ? null : (
-            <p className="region-refusal" role="alert">
-              {refusal}
-            </p>
-          )}
-        </>
+        onAdd={addRegion}
+      />
+      <p className="region-hint">{hint}</p>
+      {corners.length >= CORNER_COUNT_FROM ? (
+        <p className="region-count">
+          {t('region.corners', { count: corners.length, max: MAX_CORNERS })}
+        </p>
       ) : null}
-
-      {selectedBounds === null || selectedRegion === null ? null : (
-        <p className="region-selected" role="status">
-          {t('region.selected', {
-            number: selectedRegion.row.number,
-            x: selectedBounds.x,
-            y: selectedBounds.y,
-            width: selectedBounds.width,
-            height: selectedBounds.height,
-          })}
+      {refusal === null ? null : (
+        <p className="region-refusal" role="alert">
+          {refusal}
         </p>
       )}
+    </div>
+  ) : null;
 
-      <div className="region-scroll" ref={scroll} data-zoom={zoom}>
-        <div
-          className="region-figure"
-          style={{
-            width: `${String(zoom * 100)}%`,
-            aspectRatio: `${String(surface.width)} / ${String(surface.height)}`,
-          }}
-        >
-          <img src={source} alt="" />
-          <svg
-            ref={overlay}
-            className={tool === 'move' ? 'region-overlay' : 'region-overlay is-drawing'}
-            viewBox={`0 0 ${String(surface.width)} ${String(surface.height)}`}
-            preserveAspectRatio="none"
-            role={writable ? 'application' : 'presentation'}
-            aria-label={writable ? t('region.canvas') : undefined}
-            tabIndex={writable ? 0 : -1}
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerCancel={() => {
-              setDrag(null);
-            }}
-            onKeyDown={onKeyDown}
-          >
-            <RegionShapes
-              regions={regions}
-              draft={fresh}
-              selected={selected}
-              hidden={hidden}
-              dense={regions.length > 200}
-              unitPerPx={unitPerPx}
-              drag={drag}
-              corners={corners}
-              cursor={cursor}
+  const status =
+    selectedBounds === null || selectedRegion === null ? null : (
+      <p className="region-selected" role="status">
+        {t('region.selected', {
+          number: selectedRegion.row.number,
+          x: selectedBounds.x,
+          y: selectedBounds.y,
+          width: selectedBounds.width,
+          height: selectedBounds.height,
+        })}
+      </p>
+    );
+
+  return (
+    <section className="region-editor" aria-label={t('region.label')}>
+      <InSlot into={slots?.tools ?? null}>{tools}</InSlot>
+      <InSlot into={slots?.over ?? null}>
+        <div className="region-scroll" ref={scroll} data-zoom={zoom}>
+          <div className="region-figure" ref={figure} style={fit}>
+            <img
+              src={source}
+              alt={picture?.alt ?? ''}
+              className={picture?.svg === true ? 'is-svg' : undefined}
             />
-          </svg>
+            <svg
+              ref={overlay}
+              className={tool === 'move' ? 'region-overlay' : 'region-overlay is-drawing'}
+              viewBox={`0 0 ${String(surface.width)} ${String(surface.height)}`}
+              preserveAspectRatio="none"
+              role={writable ? 'application' : 'presentation'}
+              aria-label={writable ? t('region.canvas') : undefined}
+              tabIndex={writable ? 0 : -1}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerCancel={() => {
+                setDrag(null);
+              }}
+              onKeyDown={onKeyDown}
+            >
+              <RegionShapes
+                regions={regions}
+                draft={fresh}
+                selected={selected}
+                hidden={hidden}
+                dense={regions.length > 200}
+                unitPerPx={unitPerPx}
+                drag={drag}
+                corners={corners}
+                cursor={cursor}
+              />
+            </svg>
+          </div>
         </div>
-      </div>
+      </InSlot>
+      <InSlot into={slots?.under ?? null}>{status}</InSlot>
     </section>
   );
 };

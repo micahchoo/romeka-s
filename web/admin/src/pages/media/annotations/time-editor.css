@@ -27,21 +27,41 @@
 
 .range-segment {
   border: 0;
-  border-radius: var(--radius);
+  border-inline-start: 3px solid var(--accent);
+  border-radius: 3px;
   background: var(--accent-soft);
+  color: var(--text);
   cursor: pointer;
+}
+
+/* A box's segment carries the box's number, as its list entry does. */
+.range-segment.is-box {
+  border-inline-start-color: var(--text);
+  background: oklch(from var(--text) l c h / 0.14);
+}
+
+.range-segment > span {
+  display: block;
+  padding-inline-start: 3px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1rem;
+  text-align: start;
+  overflow: hidden;
 }
 
 .range-track:not(.is-flat) .range-segment {
   position: absolute;
-  top: 2px;
-  bottom: 2px;
-  min-width: 4px;
+  height: 1rem;
+  min-width: 6px;
+  min-height: 0;
   padding: 0;
 }
 
-.range-track:not(.is-flat) .range-segment.is-selected {
-  border: 2px solid var(--accent);
+.range-segment.is-selected {
+  border-inline-start-color: var(--accent);
+  background: var(--accent);
+  color: var(--surface);
 }
 
 .range-track.is-flat .range-segment {
@@ -57,8 +77,7 @@
 
 .range-draft {
   position: absolute;
-  top: 2px;
-  bottom: 2px;
+  height: 1rem;
   min-width: 4px;
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius);
@@ -78,45 +97,143 @@
   pointer-events: none;
 }
 
-.range-draft-note {
-  margin: var(--space-1) 0 0;
+.range-foot {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
+  margin-top: var(--space-1);
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
+.range-draft-note,
 .range-end,
 .range-unknown {
-  margin: var(--space-1) 0 0;
+  margin: 0;
+}
+
+.range-unknown {
+  margin-bottom: var(--space-1);
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .range-end {
-  text-align: end;
+  margin-inline-start: auto;
+  font-variant-numeric: tabular-nums;
 }
 
 .range-end-label {
   margin-inline-end: var(--space-1);
 }
 
-.time-actions {
+.time-tools {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
 .time-hint {
-  margin: 0 0 var(--space-2);
+  margin: var(--space-1) 0 0;
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
+/* The open note's range, right under the bar it is drawn on. */
 .time-fields {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
   align-items: end;
+  margin-top: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+/* The boxes over the player, in the frame's pixels. The layer passes every
+ * pointer to the player except on a shown box, and takes all of them while the
+ * Box tool draws. */
+.frame-boxes {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.frame-boxes.is-drawing {
+  pointer-events: all;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.frame-boxes:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.frame-box {
+  cursor: pointer;
+}
+
+.frame-box-halo,
+.frame-box-line,
+.frame-box-live {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.frame-box-halo {
+  stroke: oklch(0 0 0 / 0.55);
+  stroke-width: 4;
+}
+
+.frame-box-line {
+  stroke: oklch(1 0 0);
+  stroke-width: 2;
+  pointer-events: all;
+}
+
+.frame-boxes.is-drawing .frame-box-line {
+  pointer-events: none;
+}
+
+.frame-box.is-selected .frame-box-line {
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+
+.frame-box.is-draft .frame-box-line,
+.frame-box-live {
+  stroke-dasharray: 6 4;
+}
+
+.frame-box-live {
+  stroke: oklch(1 0 0);
+  stroke-width: 2;
+  fill: oklch(1 0 0 / 0.12);
+}
+
+.frame-box-label {
+  pointer-events: none;
+}
+
+.frame-box-label rect {
+  fill: oklch(0.2 0 0);
+  stroke: oklch(1 0 0 / 0.85);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.frame-box-label text {
+  fill: oklch(1 0 0);
+  font-weight: 600;
+}
+
+.frame-box.is-selected .frame-box-label rect {
+  fill: var(--accent);
 }
 
 .time-field {

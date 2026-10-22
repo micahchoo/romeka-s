@@ -27,7 +27,12 @@ const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 /** What a selector on a media may point at (contract 4.1). */
 export type Surface =
   | { readonly kind: 'image'; readonly width: number; readonly height: number; readonly service: string }
-  | { readonly kind: 'time'; readonly durationMs: number | null }
+  | {
+      readonly kind: 'time';
+      readonly durationMs: number | null;
+      /** A video's frame in the pixels its boxes are drawn in; null for a sound. */
+      readonly frame: { readonly width: number; readonly height: number } | null;
+    }
   | { readonly kind: 'whole' };
 
 /** The canonical selector forms the server writes (contract 6.3). */
@@ -35,7 +40,27 @@ export type Selector =
   | { readonly kind: 'whole' }
   | { readonly kind: 'rect'; readonly x: number; readonly y: number; readonly w: number; readonly h: number }
   | { readonly kind: 'polygon'; readonly points: readonly (readonly [number, number])[] }
-  | { readonly kind: 'time'; readonly startMs: number; readonly endMs: number };
+  | { readonly kind: 'time'; readonly startMs: number; readonly endMs: number }
+  /** A box on a video's frames while the player is inside its range. */
+  | {
+      readonly kind: 'box';
+      readonly x: number;
+      readonly y: number;
+      readonly w: number;
+      readonly h: number;
+      readonly startMs: number;
+      readonly endMs: number;
+    };
+
+/** The range a selector covers on a recording: a time note's or a box's. */
+export const spanOf = (selector: Selector): { readonly startMs: number; readonly endMs: number } | null =>
+  selector.kind === 'time' || selector.kind === 'box'
+    ? { startMs: selector.startMs, endMs: selector.endMs }
+    : null;
+
+/** The selector with its range moved, or as it was when it has none. */
+export const withSpan = (selector: Selector, startMs: number, endMs: number): Selector =>
+  selector.kind === 'time' || selector.kind === 'box' ? { ...selector, startMs, endMs } : selector;
 
 export type Motivation = 'commenting' | 'tagging' | 'describing' | 'supplementing';
 
@@ -91,7 +116,16 @@ export const parseSurface = (header: string | null): Surface => {
       return { kind: 'whole' };
     case 'time': {
       const duration = item.params.get('duration');
-      return { kind: 'time', durationMs: duration === undefined ? null : secondsToMs(duration, ['duration']) };
+      const width = item.params.get('width');
+      const height = item.params.get('height');
+      return {
+        kind: 'time',
+        durationMs: duration === undefined ? null : secondsToMs(duration, ['duration']),
+        frame:
+          width === undefined || height === undefined
+            ? null
+            : { width: positiveInteger(width, ['width']), height: positiveInteger(height, ['height']) },
+      };
     }
     case 'image': {
       const service = item.params.get('service');
@@ -272,25 +306,38 @@ const selectorOf = (target: unknown, path: Path): Selector => {
   return fragmentOf(value, [...path, 'selector', 'value']);
 };
 
+/**
+ * A media fragment: `xywh=`, `t=`, or both joined by `&` in either order (a box
+ * on a video's frames over a range).
+ */
 const fragmentOf = (value: string, path: Path): Selector => {
-  const box = /^xywh=(?:pixel:)?(\d+(?:\.\d+)?),(\d+(?:\.\d+)?),(\d+(?:\.\d+)?),(\d+(?:\.\d+)?)$/.exec(value);
-  if (box !== null) {
-    const [x, y, w, h] = box.slice(1).map((part) => Math.round(Number(part)));
-    if (x === undefined || y === undefined || w === undefined || h === undefined) {
-      throw new ParseError(path, 'a pixel box');
+  let rect: Extract<Selector, { kind: 'rect' }> | null = null;
+  let time: Extract<Selector, { kind: 'time' }> | null = null;
+  for (const part of value.split('&')) {
+    const box = /^xywh=(?:pixel:)?(\d+(?:\.\d+)?),(\d+(?:\.\d+)?),(\d+(?:\.\d+)?),(\d+(?:\.\d+)?)$/.exec(part);
+    const range = /^t=(\d+(?:\.\d+)?),(\d+(?:\.\d+)?)$/.exec(part);
+    if (box !== null && rect === null) {
+      const [x, y, w, h] = box.slice(1).map((number) => Math.round(Number(number)));
+      if (x === undefined || y === undefined || w === undefined || h === undefined) {
+        throw new ParseError(path, 'a pixel box');
+      }
+      rect = { kind: 'rect', x, y, w, h };
+    } else if (range !== null && time === null) {
+      const start = Number(range[1]);
+      const end = Number(range[2]);
+      time = { kind: 'time', startMs: Math.round(start * 1000), endMs: Math.round(end * 1000) };
+    } else {
+      throw new ParseError(path, 'a pixel box, a time range, or both');
     }
-    return { kind: 'rect', x, y, w, h };
   }
-  const time = /^t=(\d+(?:\.\d+)?),(\d+(?:\.\d+)?)$/.exec(value);
-  if (time !== null) {
-    const start = Number(time[1]);
-    const end = Number(time[2]);
-    if (!Number.isFinite(start) || !Number.isFinite(end)) {
-      throw new ParseError(path, 'a time range');
-    }
-    return { kind: 'time', startMs: Math.round(start * 1000), endMs: Math.round(end * 1000) };
+  if (rect !== null && time !== null) {
+    return { ...rect, kind: 'box', startMs: time.startMs, endMs: time.endMs };
   }
-  throw new ParseError(path, 'a pixel box or a time range');
+  const only = rect ?? time;
+  if (only === null) {
+    throw new ParseError(path, 'a pixel box or a time range');
+  }
+  return only;
 };
 
 const POINT_PATTERN = /(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)/g;
@@ -362,6 +409,12 @@ const selectorJson = (selector: Selector): Record<string, unknown> => {
         type: 'FragmentSelector',
         conformsTo: MEDIA_FRAGS,
         value: `t=${seconds(selector.startMs)},${seconds(selector.endMs)}`,
+      };
+    case 'box':
+      return {
+        type: 'FragmentSelector',
+        conformsTo: MEDIA_FRAGS,
+        value: `xywh=pixel:${String(Math.round(selector.x))},${String(Math.round(selector.y))},${String(Math.round(selector.w))},${String(Math.round(selector.h))}&t=${seconds(selector.startMs)},${seconds(selector.endMs)}`,
       };
     case 'whole':
       return {};

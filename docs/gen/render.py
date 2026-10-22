@@ -393,7 +393,10 @@ def annotations_section(out: list[str]) -> None:
     out.append(
         "Two headers state what the documents do not. `Romeka-Surface` is an RFC 8941 item naming "
         "what a selector may address: `image; width=…; height=…; service=\"…\"` for a stored image, "
-        "`time[; duration=…]` for audio and video, or `whole`. `Romeka-Canvas` is the media canvas "
+        "`time[; duration=…]` for audio and video, with `; width=…; height=…` for a video whose "
+        "frame size is known (the pixels a box on its frames is drawn in), or `whole`. A box on a "
+        "video frame is one `FragmentSelector`, `xywh=pixel:x,y,w,h&t=start,end`; a box with no "
+        "range, or any shape on audio, is a 400. `Romeka-Canvas` is the media canvas "
         "IRI a create targets, so an empty container can still make its first note. "
         "`Romeka-Track-Ids` lists the numeric ids of the caption rows on the page it answers, and is "
         "absent when there are none. `Allow` says which of these methods the caller holds."

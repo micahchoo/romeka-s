@@ -7,7 +7,7 @@
  * is one component with one job, because the notes panel (A-3) mounts beside it
  * and owns everything about notes.
  */
-import type { ReactElement, RefCallback } from 'react';
+import type { ReactElement, ReactNode, RefCallback } from 'react';
 import { useEffect, useState } from 'react';
 import type { Media } from '../../../api/types';
 import { defaultBaseUrl } from '../../../api/client';
@@ -20,6 +20,7 @@ import { resources } from '../../../i18n/namespaces/resources';
 import { originalFacts, showsOriginal } from '../access';
 import { recallPosition, rememberPosition } from './play-position';
 import { EmbedCard, ManifestCard, ThirdPartyCard } from './third-party';
+import type { StageSlots } from './slots';
 import { stageView } from './view';
 import type { FileFacts, StageView } from './view';
 import './stage.css';
@@ -409,30 +410,95 @@ const StageBody = ({
 };
 
 /**
+ * The tools, the media with a layer exactly over it, and a lane under it: the
+ * places the notes panel draws in (`StageSlots`). A claimed picture is drawn
+ * by the panel itself, at its zoom, so the stage leaves its own out and the
+ * file shows once.
+ */
+const SlottedBody = ({
+  view,
+  claimed,
+  slots,
+  children,
+}: {
+  readonly view: StageView;
+  readonly claimed: boolean;
+  readonly slots: (slots: StageSlots | null) => void;
+  readonly children: ReactNode;
+}): ReactElement => {
+  const [tools, setTools] = useState<HTMLElement | null>(null);
+  const [over, setOver] = useState<HTMLElement | null>(null);
+  const [under, setUnder] = useState<HTMLElement | null>(null);
+  const image = view.element === 'image' && view.url !== null ? view : null;
+  const url = image?.url ?? null;
+  const svg = image?.svg ?? false;
+  const alt = image?.alt ?? '';
+  useEffect(() => {
+    if (tools === null || over === null || under === null) {
+      return;
+    }
+    slots({ tools, over, under, picture: url === null ? null : { url, svg, alt } });
+    return () => {
+      slots(null);
+    };
+  }, [tools, over, under, url, svg, alt, slots]);
+  const drawn = claimed && image !== null;
+  return (
+    <>
+      <div className="media-stage-tools" ref={setTools} />
+      <div className={drawn ? 'media-stage-canvas is-claimed' : 'media-stage-canvas'}>
+        {drawn ? null : children}
+        <div className="media-stage-over" ref={setOver} />
+      </div>
+      <div className="media-stage-under" ref={setUnder} />
+    </>
+  );
+};
+
+/** The kinds the notes panel draws on: a picture's regions, a recording's times. */
+const SLOTTED: ReadonlySet<StageView['element']> = new Set(['image', 'audio', 'video']);
+
+/**
  * One media's stage, with the facts line the server can state about it. The
  * page hands in a ref callback and keeps the element it names, so the notes
- * panel can seek the player the editor is watching.
+ * panel can seek the player the editor is watching, and `slots` to learn the
+ * places around the media where the panel's editor draws.
  */
 export const MediaStage = ({
   media,
   player,
   tracks,
+  slots,
+  claimed = false,
 }: {
   readonly media: Media;
   readonly player?: RefCallback<HTMLMediaElement>;
   readonly tracks?: readonly CaptionTrack[];
+  readonly slots?: (slots: StageSlots | null) => void;
+  /** The panel draws the picture itself, so the stage shows none of its own. */
+  readonly claimed?: boolean;
 }): ReactElement => {
   const translator = useTranslator(resources);
   const view = stageView(media);
+  const body = (
+    <StageBody
+      view={view}
+      media={media}
+      player={player}
+      tracks={tracks ?? []}
+      translator={translator}
+    />
+  );
+  const slotted = slots !== undefined && SLOTTED.has(view.element) && !(view.element === 'image' && view.url === null);
   return (
     <div className="media-stage" data-stage={view.element}>
-      <StageBody
-        view={view}
-        media={media}
-        player={player}
-        tracks={tracks ?? []}
-        translator={translator}
-      />
+      {slotted ? (
+        <SlottedBody view={view} claimed={claimed} slots={slots}>
+          {body}
+        </SlottedBody>
+      ) : (
+        body
+      )}
       {view.element === 'none' ? null : showsOriginal(media) && media.originalUrl !== null ? (
         <p className="media-stage-original">
           <a href={media.originalUrl}>

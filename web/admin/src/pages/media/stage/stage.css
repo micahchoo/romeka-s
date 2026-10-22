@@ -46,6 +46,41 @@
   max-width: 40rem;
 }
 
+/* The media with the panel's layer exactly over it. The layer takes no pointer
+ * of its own: what it holds decides, so a player's controls stay reachable. */
+.media-stage-canvas {
+  position: relative;
+}
+
+.media-stage-canvas > .media-stage-player {
+  max-width: none;
+}
+
+.media-stage-over {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* A claimed picture is drawn by the panel in the flow, at its own zoom. */
+.media-stage-canvas.is-claimed > .media-stage-over {
+  position: static;
+  pointer-events: auto;
+}
+
+.media-stage-tools:empty,
+.media-stage-under:empty {
+  display: none;
+}
+
+.media-stage-tools {
+  margin-bottom: var(--space-2);
+}
+
+.media-stage-under {
+  margin-top: var(--space-2);
+}
+
 .media-stage-pdf {
   display: flex;
   flex-direction: column;

@@ -1,7 +1,7 @@
 /**
- * The region editor's toolbar: the tool modes, the six zoom steps, the hide
- * switch, and under Advanced the polygon tool and the form that takes a region
- * as four numbers (the rectangle's keyboard path).
+ * The region editor's toolbar: the three tools as one segmented control, the
+ * six zoom steps, the hide switch, and under Advanced the form that takes a
+ * region as four numbers (the rectangle's keyboard path).
  *
  * A tool is a short-lived mode made visible here: the pressed button, the
  * crosshair on the overlay, the hint line under it. The hint always names the
@@ -77,7 +77,7 @@ const BoxForm = ({
         {t('region.byNumbers.hint', { width: size.width, height: size.height })}
       </p>
       {NUMBER_FIELDS.map((field) => (
-        <label key={field.name} className="region-number">
+        <label key={field.name} className="region-number-field">
           <span>{t(field.label)}</span>
           <input
             type="number"
@@ -101,62 +101,63 @@ const BoxForm = ({
   );
 };
 
+/** The three drawing tools, as one segmented control: one is always pressed. */
+const TOOLS: readonly { readonly tool: Tool; readonly label: 'region.tool.move' | 'region.tool.rect' | 'region.tool.polygon' }[] = [
+  { tool: 'move', label: 'region.tool.move' },
+  { tool: 'rect', label: 'region.tool.rect' },
+  { tool: 'polygon', label: 'region.tool.polygon' },
+];
+
 export const RegionToolbar = (props: RegionToolbarProps): ReactElement => {
   const { t } = useTranslator(annotations);
   const { tool, zoom, hidden, advanced, size, onTool, onZoom, onHidden, onAdvanced, onAdd } = props;
   return (
     <>
-      <div className="region-toolbar" role="group" aria-label={t('region.tools')}>
-        <button
-          type="button"
-          aria-pressed={tool === 'move'}
-          onClick={() => {
-            onTool('move');
-          }}
-        >
-          {t('region.tool.move')}
-        </button>
-        <button
-          type="button"
-          aria-pressed={tool === 'rect'}
-          onClick={() => {
-            onTool('rect');
-          }}
-        >
-          {t('region.tool.rect')}
-        </button>
-        <button
-          type="button"
-          aria-expanded={advanced}
-          onClick={() => {
-            onAdvanced(!advanced);
-          }}
-        >
-          {t('region.advanced')}
-        </button>
-        {zoom > MIN_ZOOM ? (
+      <div className="region-toolbar">
+        <div className="tool-segments" role="group" aria-label={t('region.tools')}>
+          {TOOLS.map((entry) => (
+            <button
+              key={entry.tool}
+              type="button"
+              aria-pressed={tool === entry.tool}
+              onClick={() => {
+                onTool(entry.tool);
+              }}
+            >
+              {t(entry.label)}
+            </button>
+          ))}
+        </div>
+        {/* The zoom keeps its place at either end of the ladder: a control
+            that vanishes moves every one after it. */}
+        <div className="tool-segments region-zoom">
           <button
             type="button"
+            aria-label={t('region.zoom.out')}
+            title={t('region.zoom.out')}
+            disabled={zoom <= MIN_ZOOM}
             onClick={() => {
               onZoom(-1);
             }}
           >
-            {t('region.zoom.out')}
+            −
           </button>
-        ) : null}
-        <span className="region-readout">{t('region.zoom', { zoom })}</span>
-        {zoom < MAX_ZOOM ? (
+          <span className="region-readout">{t('region.zoom', { zoom })}</span>
           <button
             type="button"
+            aria-label={t('region.zoom.in')}
+            title={t('region.zoom.in')}
+            disabled={zoom >= MAX_ZOOM}
             onClick={() => {
               onZoom(1);
             }}
           >
-            {t('region.zoom.in')}
+            +
           </button>
-        ) : null}
+        </div>
         <button
           type="button"
+          className="tool-plain"
           aria-pressed={hidden}
           onClick={() => {
             onHidden(!hidden);
@@ -164,19 +165,20 @@ export const RegionToolbar = (props: RegionToolbarProps): ReactElement => {
         >
           {hidden ? t('region.show') : t('region.hide')}
         </button>
+        <button
+          type="button"
+          className="tool-plain region-more"
+          aria-expanded={advanced}
+          onClick={() => {
+            onAdvanced(!advanced);
+          }}
+        >
+          {t('region.advanced')}
+        </button>
       </div>
 
       {advanced ? (
         <div className="region-advanced">
-          <button
-            type="button"
-            aria-pressed={tool === 'polygon'}
-            onClick={() => {
-              onTool('polygon');
-            }}
-          >
-            {t('region.tool.polygon')}
-          </button>
           <BoxForm size={size} onAdd={onAdd} />
         </div>
       ) : null}

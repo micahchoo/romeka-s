@@ -27,6 +27,7 @@ import { annotations } from '../../../i18n/namespaces/annotations';
 import { common } from '../../../i18n/namespaces/common';
 import { NoteConflict, NoteGone, notesClient } from './client';
 import type { Container, Draft, Note, Selector, Surface } from './wire';
+import { spanOf, withSpan } from './wire';
 import { defaultRange, rangeProblem } from './time-text';
 import type { TimeProblem, TimeRange } from './time-text';
 import {
@@ -219,10 +220,7 @@ export const useNotes = (media: Media): NotesController => {
     editing.kind === 'new' || editing.kind === 'edit' || editing.kind === 'conflict'
       ? editing.draft
       : null;
-  const range: TimeRange | null =
-    openDraft !== null && openDraft.selector.kind === 'time'
-      ? { startMs: openDraft.selector.startMs, endMs: openDraft.selector.endMs }
-      : nextRange;
+  const range: TimeRange | null = (openDraft === null ? null : spanOf(openDraft.selector)) ?? nextRange;
   const timeProblem =
     range === null ? null : rangeProblem(range.startMs, range.endMs, durationMs);
 
@@ -238,8 +236,9 @@ export const useNotes = (media: Media): NotesController => {
 
   /** A saved time range becomes the next note's start, as dictation does. */
   const keepNext = (selector: Selector): void => {
-    if (selector.kind === 'time') {
-      setNextRange(defaultRange(selector.endMs, durationMs));
+    const span = spanOf(selector);
+    if (span !== null) {
+      setNextRange(defaultRange(span.endMs, durationMs));
     }
   };
 
@@ -317,8 +316,9 @@ export const useNotes = (media: Media): NotesController => {
     if (ready === null || !ready.writable) {
       return;
     }
-    if (selector.kind === 'time') {
-      setNextRange({ startMs: selector.startMs, endMs: selector.endMs });
+    const span = spanOf(selector);
+    if (span !== null) {
+      setNextRange(span);
     }
     const stored = recallDraft(newDraftKey(media.id));
     setEditing({
@@ -427,16 +427,17 @@ export const useNotes = (media: Media): NotesController => {
   };
 
   /**
-   * The Start and End fields: they edit the open time draft, so Save sends the
-   * range they show, or the range the next note will start from.
+   * The Start and End fields: they edit the open draft's range, a time note's or
+   * a box's, so Save sends the range they show, or the range the next note will
+   * start from.
    */
   const setRange = (startMs: number, endMs: number): void => {
     const draft =
       editing.kind === 'new' || editing.kind === 'edit' || editing.kind === 'conflict'
         ? editing.draft
         : null;
-    if (draft !== null && draft.selector.kind === 'time') {
-      changeDraft({ ...draft, selector: { kind: 'time', startMs, endMs } });
+    if (draft !== null && spanOf(draft.selector) !== null) {
+      changeDraft({ ...draft, selector: withSpan(draft.selector, startMs, endMs) });
       return;
     }
     setNextRange({ startMs, endMs });

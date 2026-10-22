@@ -246,6 +246,17 @@ pub enum Selector {
         start_ms: u64,
         end_ms: u64,
     },
+    /// A box on a video's frames from `start_ms` to `end_ms`: the
+    /// `xywh=…&t=…` media fragment. Pixels of the original frame, inside it
+    /// when its size is known; the time obeys `Time`'s rules.
+    BoxDuring {
+        x: u32,
+        y: u32,
+        w: u32,
+        h: u32,
+        start_ms: u64,
+        end_ms: u64,
+    },
 }
 
 /// Who wrote the row: a person, or a caption import.
@@ -324,8 +335,10 @@ pub enum Problem {
     ForeignTarget,
     #[error("This media takes notes about the whole file only.")]
     WholeFileOnly,
-    #[error("A box on a video frame is not supported yet.")]
-    BoxOnTimedMedia,
+    #[error("A shape on a video frame is a box with a time range.")]
+    VideoShapeNeedsTime,
+    #[error("A recording without a picture takes a time range, not a shape.")]
+    ShapeOnSound,
     #[error("A time range belongs on audio or video.")]
     TimeOnImage,
     #[error("The note's selector is not one this server accepts.")]
@@ -379,12 +392,22 @@ fn selector_of_row(row: &MediaAnnotationRow) -> Result<Selector, DbError> {
             let [x, y, w, h] = numbers.as_slice() else {
                 return Err(column("selector", text));
             };
-            Ok(Selector::Rect {
-                x: *x,
-                y: *y,
-                w: *w,
-                h: *h,
-            })
+            let (x, y, w, h) = (*x, *y, *w, *h);
+            // A box over a time span is a rect row that also holds the span.
+            match (row.t_start_ms, row.t_end_ms) {
+                (None, None) => Ok(Selector::Rect { x, y, w, h }),
+                (Some(start), Some(end)) => Ok(Selector::BoxDuring {
+                    x,
+                    y,
+                    w,
+                    h,
+                    start_ms: u64::try_from(start)
+                        .map_err(|_| column("t_start_ms", &start.to_string()))?,
+                    end_ms: u64::try_from(end)
+                        .map_err(|_| column("t_end_ms", &end.to_string()))?,
+                }),
+                _ => Err(column("t_end_ms", "a box with half a time range")),
+            }
         }
         "polygon" => {
             let text = row

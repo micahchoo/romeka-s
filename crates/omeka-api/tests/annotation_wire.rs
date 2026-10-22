@@ -442,6 +442,59 @@ async fn a_time_note_keeps_millisecond_precision() {
 }
 
 #[tokio::test]
+async fn a_box_on_a_video_frame_keeps_its_time_range() {
+    let seed = seed().await;
+    let api = api(&seed, seed.editor, "editor").await;
+    let extents = FakeExtents::of(&seed);
+    let notes = Annotations::new(&api, &extents);
+    let iris = Iris::new(BASE);
+    let target = canvas(&notes, &iris, seed.video).await;
+
+    let annotation = create_ok(
+        &notes,
+        seed.video,
+        doc(
+            "commenting",
+            fragment(&target, "xywh=pixel:100,200,300,150&t=62,70.5"),
+            Some(body("The speaker's hands")),
+        ),
+        &iris,
+    )
+    .await;
+    assert_eq!(
+        annotation.draft.selector,
+        Selector::BoxDuring {
+            x: 100,
+            y: 200,
+            w: 300,
+            h: 150,
+            start_ms: 62_000,
+            end_ms: 70_500,
+        }
+    );
+    assert_eq!(
+        render(&annotation, &iris)["target"]["selector"]["value"],
+        "xywh=pixel:100,200,300,150&t=62,70.5"
+    );
+
+    let reversed = create_ok(
+        &notes,
+        seed.video,
+        doc(
+            "commenting",
+            fragment(&target, "t=1,2&xywh=percent:50,50,10,10"),
+            Some(body("Either order, either unit")),
+        ),
+        &iris,
+    )
+    .await;
+    assert_eq!(
+        render(&reversed, &iris)["target"]["selector"]["value"],
+        "xywh=pixel:960,540,192,108&t=1,2"
+    );
+}
+
+#[tokio::test]
 async fn a_percent_box_becomes_canvas_pixels() {
     let seed = seed().await;
     let api = api(&seed, seed.editor, "editor").await;
@@ -498,7 +551,30 @@ async fn a_selector_the_media_cannot_take_is_refused() {
         (
             seed.video,
             fragment(&video, "xywh=pixel:0,0,10,10"),
-            Problem::BoxOnTimedMedia,
+            Problem::VideoShapeNeedsTime,
+        ),
+        (
+            seed.video,
+            svg(
+                &video,
+                "<svg><polygon points=\"0,0 10,0 10,10\"/></svg>",
+            ),
+            Problem::VideoShapeNeedsTime,
+        ),
+        (
+            seed.video,
+            fragment(&video, "xywh=pixel:1900,0,40,40&t=0,1"),
+            Problem::BoxOutsideCanvas,
+        ),
+        (
+            seed.video,
+            fragment(&video, "xywh=pixel:0,0,40,40&t=0,900"),
+            Problem::PastDuration,
+        ),
+        (
+            seed.image,
+            fragment(&image, "xywh=pixel:0,0,40,40&t=0,1"),
+            Problem::TimeOnImage,
         ),
         (
             seed.video,

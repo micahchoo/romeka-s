@@ -2605,6 +2605,12 @@ a.pdf-card:focus-visible {
   display: none;
 }
 
+/* A box on a video belongs to its time range: the script marks it while its
+   note plays, and with no script no box shows over the moving picture. */
+.annotated-video :is(.annotation-region, .note-marker):not(.is-playing) {
+  display: none;
+}
+
 /* A recording's note rail: one mark per moment note at its start, so the
    density reads before the visitor reads the list. The marks are decorative;
    the list is the path. */

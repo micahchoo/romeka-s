@@ -16,7 +16,9 @@ use common::{
     router, router_with_store, seeded_pool, send, visibility_pool,
 };
 use omeka_db::ids::{ItemId, MediaId};
-use omeka_db::repos::{Cue, MediaAnnotationRepo, MediaAnnotationWrite, MediaRepo};
+use omeka_db::repos::{
+    Cue, ExtentRow, MediaAnnotationRepo, MediaAnnotationWrite, MediaExtentRepo, MediaRepo,
+};
 use omeka_db::rows::{NewMedia, NewResource};
 use omeka_media::store::FileStore;
 use serde_json::{Value, json};
@@ -824,6 +826,76 @@ async fn seed_notes(pool: &sqlx::SqlitePool, seed: &Seed, count: u32) {
             .await
             .expect("insert a note");
     }
+}
+
+/// A video's frame is a drawing surface over time: its surface names the frame,
+/// a box with a time range is a note on it, and a box with no range is refused
+/// with the sentence that says what it needs.
+#[tokio::test]
+async fn a_video_takes_a_box_over_a_time_range() {
+    let (pool, seed) = common::seeded_pool().await;
+    let app = router(pool.clone());
+    let video = add_media(&pool, &seed, "A talk", "talk.mp4", "mp4", "video/mp4", true).await;
+    MediaExtentRepo::new(&pool)
+        .put(
+            video,
+            "original/mp4-missing.mp4",
+            &ExtentRow {
+                duration_ms: Some(90_000),
+                width: Some(640),
+                height: Some(360),
+            },
+        )
+        .await
+        .expect("the recorded extent");
+    let target = canvas(seed.item.0, video.0);
+
+    let empty = send(app.clone(), get(&container(video.0), true)).await;
+    assert_eq!(
+        header(&empty, "romeka-surface"),
+        Some("time; duration=90; width=640; height=360")
+    );
+
+    let boxed = send(
+        app.clone(),
+        wap_request(
+            "POST",
+            &container(video.0),
+            &note(
+                &target,
+                "The speaker's hands",
+                Some(json!({
+                    "type": "FragmentSelector",
+                    "conformsTo": "http://www.w3.org/TR/media-frags/",
+                    "value": "xywh=pixel:10,20,300,150&t=1.5,4",
+                })),
+            ),
+            &[],
+        ),
+    )
+    .await;
+    assert_eq!(boxed.status, StatusCode::CREATED, "{}", boxed.body);
+    let page = send(app.clone(), get(&container(video.0), true)).await.json();
+    assert_eq!(
+        page["first"]["items"][0]["target"]["selector"]["value"],
+        "xywh=pixel:10,20,300,150&t=1.5,4"
+    );
+
+    let bare = send(
+        app,
+        wap_request(
+            "POST",
+            &container(video.0),
+            &note(&target, "Boxed", Some(box_selector(0, 0, 10, 10))),
+            &[],
+        ),
+    )
+    .await;
+    assert_eq!(bare.status, StatusCode::BAD_REQUEST);
+    assert_eq!(
+        bare.json()["errors"]["error"],
+        "A shape on a video frame is a box with a time range."
+    );
 }
 
 /// A PDF and an audio row on the seeded item: the first has no drawing surface,

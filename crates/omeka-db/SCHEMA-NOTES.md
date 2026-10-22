@@ -262,3 +262,10 @@ The MySQL directory has no `0004`: that migration only makes SQLite's term colum
 
 - The `resource_type` prefix index and the FULLTEXT behaviour are the only MySQL-specific index
   features; both are handled above.
+
+`0011_media_annotation_box_time.sql` lets a `rect` row of `romeka_media_annotation` also hold
+`t_start_ms`/`t_end_ms`: a box on a video's frames over a range, the `xywh=…&t=…` media fragment.
+The range keeps the `time` rule (`t_start_ms >= 0`, `t_end_ms > t_start_ms`), both columns or
+neither; a `polygon` still holds none. SQLite cannot change a `CHECK` in place, so the migration
+rebuilds the table as 0004 does, keeping every id (the external-content text index names rows by
+id), the indexes, the triggers and the sequence; MySQL drops and adds the constraint.
