@@ -178,6 +178,7 @@ fn of(files: &[(&str, &str)], edits: &[Edit]) -> (Scenario, Proposal) {
         catalog: &scenario.catalog,
         sources: &scenario.plan.sources,
         structure: &scenario.plan.structure,
+        sheets: &Sheets::new(),
     };
     let proposal = propose(&evidence, edits);
     (scenario, proposal)
@@ -287,6 +288,7 @@ fn a_dropped_set_and_a_titled_set_are_replayed() {
         catalog: &scenario.catalog,
         sources: &scenario.plan.sources,
         structure: &scenario.plan.structure,
+        sheets: &Sheets::new(),
     };
     let proposal = propose(&evidence, &edits);
     let applied: Vec<bool> = proposal.edits.iter().map(|edit| edit.applied).collect();
@@ -346,6 +348,7 @@ fn a_set_from_any_column_of_the_series_list_applies() {
         catalog: &scenario.catalog,
         sources: &scenario.plan.sources,
         structure: &scenario.plan.structure,
+        sheets: &Sheets::new(),
     };
     let note = SetFrom::Column {
         list: register,

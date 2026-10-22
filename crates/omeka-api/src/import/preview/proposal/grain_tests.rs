@@ -71,6 +71,7 @@ fn proposal_of(shape: &str) -> Proposal {
         catalog: &scenario.catalog,
         sources: &scenario.plan.sources,
         structure: &scenario.plan.structure,
+        sheets: &Sheets::new(),
     };
     propose(&evidence, &[])
 }
@@ -309,6 +310,7 @@ fn proposal_from(files: &[(&str, &str)], lists: &[(&str, &str)]) -> Proposal {
         catalog: &scenario.catalog,
         sources: &scenario.plan.sources,
         structure: &scenario.plan.structure,
+        sheets: &Sheets::new(),
     };
     propose(&evidence, &[])
 }

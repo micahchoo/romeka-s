@@ -120,6 +120,10 @@ const everything = (): Record<string, unknown> => {
     },
     splits: [{ value: fromPlace, counts: { sets: [['20170616', 11]], rows: { n: 15, of: 15 } } }],
     pairing: [{ value: { rule: 'lastPlaces', places: 2 }, counts: { rows: { n: 15, of: 15 }, more: 15 } }],
+    kept: [
+      { list: 'list-1', file: { source: 'staging', file: 'lists/1.csv' }, rows: { n: 1, of: 2 } },
+      { list: 'list-2', file: { source: 'staging', file: 'lists/2.csv' }, rows: null },
+    ],
   };
   const pages = { ...series, level: 'scans', items: { ...series.items, chosen: { ...series.items.chosen, value: { cut: 'places', places: 4, rule: 'recurringInItem' } } } };
   const rows = {
@@ -136,6 +140,7 @@ const everything = (): Record<string, unknown> => {
     level: 'af',
     scope: scopeCounts,
     items: { items: 318, files: share, perItem: [{ files: '1', count: 43 }], parts: [], namesEndingHere: 0, otherShapes: 0 },
+    kept: [{ list: 'list-3', file: { source: 'staging', file: 'lists/3.csv' }, rows: { n: 4, of: 4 } }],
   };
   return {
     ...answer,
@@ -180,6 +185,10 @@ describe('the proposal section', () => {
       (value) => ({ ...value, outside: [{ scope, files: 1, media: 0, kinds: [['image']], reason: 'noMedia' }] }),
       (value) => ({ ...value, nodes: [{ kind: 'set', level: 'top', from: { from: 'column', list, column }, counts: setCounts, others: [] }] }),
       (value) => ({ ...value, nodes: [{ ...object(isUnknownArray(value['nodes']) ? value['nodes'][4] : null), splits: [] }] }),
+      (value) => ({
+        ...value,
+        nodes: [{ ...object(isUnknownArray(value['nodes']) ? value['nodes'][1] : null), kept: [{ list: 'list-1', file: list, rows: null, read: false }] }],
+      }),
       (value) => ({
         ...value,
         nodes: [{ ...object(isUnknownArray(value['nodes']) ? value['nodes'][1] : null), grain: { chosen: { value: 'item', counts: candidate.grain }, rival: null, others: [] } }],

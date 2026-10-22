@@ -908,7 +908,23 @@
       }
     ],
     "structure": {
-      "freeSets": [],
+      "freeSets": [
+        {
+          "each": {
+            "combine": "first",
+            "map": {
+              "Scans": ""
+            },
+            "names": "text",
+            "sources": [
+              {
+                "from": "group",
+                "name": "set"
+              }
+            ]
+          }
+        }
+      ],
       "levels": [
         {
           "example": null,

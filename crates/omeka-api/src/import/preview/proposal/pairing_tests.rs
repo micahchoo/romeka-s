@@ -90,6 +90,7 @@ fn documents_pair_by_the_last_two_places() {
         catalog: &catalog,
         sources: &plan.sources,
         structure: &plan.structure,
+        sheets: &Sheets::new(),
     };
     let sheet = found
         .iter()

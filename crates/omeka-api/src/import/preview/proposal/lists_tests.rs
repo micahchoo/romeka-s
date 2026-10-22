@@ -238,6 +238,7 @@ fn every_list_that_pairs_rows_here_is_a_choice() {
         catalog: &catalog,
         sources: &plan.sources,
         structure: &plan.structure,
+        sheets: &Sheets::new(),
     };
     let names = |node: &SeriesNode| -> Vec<Option<String>> {
         std::iter::once(&node.list.chosen)
@@ -299,6 +300,7 @@ fn a_list_that_pairs_two_series_alike_describes_neither() {
         catalog: &catalog,
         sources: &plan.sources,
         structure: &plan.structure,
+        sheets: &Sheets::new(),
     };
     let proposal = propose(&evidence, &[]);
     assert_eq!(
@@ -342,6 +344,7 @@ fn a_box_list_pairs_folders_by_the_first_places_of_their_names() {
         catalog: &catalog,
         sources: &plan.sources,
         structure: &plan.structure,
+        sheets: &Sheets::new(),
     };
     let proposal = propose(&evidence, &[]);
     let boxes = series(&proposal, "s1");
@@ -383,6 +386,7 @@ fn a_new_proposal_keeps_the_column_choices_of_its_list() {
         catalog: &catalog,
         sources: &kept.sources,
         structure: &kept.structure,
+        sheets: &Sheets::new(),
     };
     // A click on Items after the person chose where each column goes.
     let proposal = propose(

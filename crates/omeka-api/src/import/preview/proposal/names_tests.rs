@@ -22,6 +22,7 @@ fn of(scenario: &Scenario, edits: &[Edit]) -> Proposal {
         catalog: &scenario.catalog,
         sources: &scenario.plan.sources,
         structure: &scenario.plan.structure,
+        sheets: &Sheets::new(),
     };
     propose(&evidence, edits)
 }
