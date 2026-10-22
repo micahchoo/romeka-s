@@ -118,11 +118,11 @@ where
     }
 
     pub(super) async fn item_set(&mut self, record: &'r Record) -> Result<(), RunError> {
-        self.done();
         let key = record.origin.key();
         if self.written.holds(&key) {
             return Ok(());
         }
+        self.done();
         let mut tx = self.pool.begin().await?;
         let wrote = self.write_item_set(&mut tx, record).await;
         self.settle(tx, wrote, Vec::new(), &key).await
@@ -170,7 +170,6 @@ where
         for at in &record.media {
             let one = model.record(*at);
             if self.written.holds(&one.origin.key()) {
-                self.done();
                 continue;
             }
             let arrived = if one.fate == Fate::Create {
@@ -190,9 +189,12 @@ where
                 arrived,
             });
         }
-        self.done();
-        if self.written.holds(&key) && media.is_empty() {
-            return Ok(());
+        if self.written.holds(&key) {
+            if media.is_empty() {
+                return Ok(());
+            }
+        } else {
+            self.done();
         }
         let mut tx = self.pool.begin().await?;
         let wrote = self.write_item(&mut tx, record, &media).await;
@@ -345,11 +347,11 @@ where
 
     /// A media record of an item already in the install.
     pub(super) async fn loose_media(&mut self, record: &'r Record) -> Result<(), RunError> {
-        self.done();
         let key = record.origin.key();
         if self.written.holds(&key) {
             return Ok(());
         }
+        self.done();
         let Some(Parent::Existing(raw)) = record.parent else {
             self.fail(
                 key,

@@ -673,3 +673,59 @@ async fn a_new_set_named_by_title_is_written_with_its_description() {
         assert_eq!(texts, expected, "{:?}", set.resource.title);
     }
 }
+
+/// W4's retry read "525 of 1,094": the items the killed attempt made were
+/// matched as already in Omeka, so they left the total and the run counted
+/// them again as it skipped them.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_retry_after_a_kill_keeps_its_total_and_starts_at_the_units_done() {
+    let site = site().await;
+    bhc_006(&site);
+    let id = site.draft(bhc_plan).await;
+    let gate = site.store.hold_after(5);
+    let job = site.start(id).await;
+    tokio::task::spawn_blocking(move || {
+        gate.reached
+            .recv_timeout(Duration::from_secs(30))
+            .expect("the run reached the sixth file");
+        gate
+    })
+    .await
+    .map(|gate| {
+        for task in site.jobs.tasks.lock().unwrap().drain(..) {
+            task.abort();
+        }
+        drop(gate.release);
+    })
+    .unwrap();
+    let killed = summary(&site.row(id).await)["progress"].clone();
+    assert_eq!(killed["total"], 24, "{killed}");
+    assert!(killed["done"].as_u64().unwrap() > 0, "{killed}");
+    JobRepo::new(&site.pool)
+        .finish(JobId::from(job), "error")
+        .await
+        .unwrap();
+
+    let gate = site.store.hold_after(0);
+    site.start(id).await;
+    let gate = tokio::task::spawn_blocking(move || {
+        gate.reached
+            .recv_timeout(Duration::from_secs(30))
+            .expect("the retry reached its first new file");
+        gate
+    })
+    .await
+    .unwrap();
+    let resumed = summary(&site.row(id).await)["progress"].clone();
+    drop(gate.release);
+    let row = site.ended(id).await;
+
+    assert_eq!(resumed, killed, "the retry starts at the units done");
+    assert_eq!(summary(&row)["progress"]["total"], 24, "{}", summary(&row));
+    let ledger = site.ledger(id).await;
+    let mut keys: Vec<_> = ledger.iter().map(|row| row.record.clone()).collect();
+    keys.sort();
+    keys.dedup();
+    assert_eq!(keys.len(), ledger.len(), "one ledger row per record");
+    assert_eq!(site.items().await.len(), 9, "no duplicate item");
+}

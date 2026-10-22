@@ -200,10 +200,18 @@ where
         ids: HashMap::new(),
         set_ids: HashMap::new(),
         lookup: Lookup::default(),
-        summary: Summary {
-            total: derived.model.kept().count(),
-            ..Summary::default()
-        },
+        summary: Summary::default(),
+    };
+    // A retry starts where the last attempt stopped: each record the ledger
+    // already holds is done, and the record loop counts only the others.
+    run.summary = Summary {
+        done: run
+            .model()
+            .kept()
+            .filter(|record| run.written.holds(&record.origin.key()))
+            .count(),
+        total: run.model().kept().count(),
+        ..Summary::default()
     };
     run.go().await
 }
@@ -327,7 +335,7 @@ where
         })
     }
 
-    /// Count a record as done, written or skipped.
+    /// Count a record this attempt wrote or failed as done.
     fn done(&mut self) {
         self.summary.done += 1;
     }
