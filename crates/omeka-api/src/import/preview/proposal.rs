@@ -9,7 +9,9 @@
 //! (which folders are series), then `names` (where each series' item key
 //! ends; `shape` writes its pattern), then a first derive of those patterns
 //! with no list, then `lists` (which list describes each series, counted on
-//! that derive) and `grain` (what each list's rows describe). The counts
+//! that derive), `pairing` (join rules that would pair more rows, offered;
+//! a list no stated rule pairs describes the series its offer pairs into)
+//! and `grain` (what each list's rows describe). The counts
 //! come from a second derive of the whole proposed tree, so the person sees
 //! what Run would do. `sets` then counts the sets each series could split
 //! into on that derive; every set but a series folder is only offered. Each
@@ -36,6 +38,9 @@ mod lists_tests;
 mod names;
 #[cfg(test)]
 mod names_tests;
+mod pairing;
+#[cfg(test)]
+mod pairing_tests;
 mod sets;
 #[cfg(test)]
 mod sets_tests;
@@ -268,7 +273,7 @@ pub struct SetCounts {
 pub struct PairCounts {
     /// Rows the rule pairs to exactly one file of the archive, of the rows.
     pub rows: Share,
-    /// Rows it pairs that the stated join does not.
+    /// How many more rows it pairs than the stated join.
     pub more: usize,
 }
 
@@ -376,6 +381,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         edits,
         &mut applied,
     );
+    let offers = pairing::detect(evidence, &patterns.structure, &mut lists);
     let read: Vec<grain::SeriesRead<'_>> = series
         .iter()
         .zip(&scopes)
@@ -445,6 +451,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
     };
 
     let mut chosen_lists = lists.series.into_iter();
+    let mut offers = offers.into_iter();
     let mut series_sets = found_sets.series.into_iter();
     let mut nodes = Vec::new();
     if let Some((pick, title)) = found_sets.top_taken {
@@ -461,6 +468,12 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
     for ((at, level), (((one, cut), rows), scope)) in each {
         let here = chosen_lists.next().unwrap_or_default();
         let sets = series_sets.next().unwrap_or_default();
+        let pairing = offers
+            .next()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|offer| offer.pick)
+            .collect();
         let (item, counted, rival) = match &rows.items {
             Some((list, key)) => (
                 ItemCut::Rows {
@@ -540,7 +553,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
                 }),
             },
             splits: sets.splits,
-            pairing: Vec::new(),
+            pairing,
             scope,
         }));
     }

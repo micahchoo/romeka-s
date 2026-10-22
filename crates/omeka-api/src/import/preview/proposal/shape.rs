@@ -3,19 +3,15 @@
 //! A place is one run of letters or one run of digits in a name; every
 //! other character only separates places. The writer takes a key, never
 //! text: the fragments and the regex syntax below are the only text it
-//! holds, and `lint_tests` keeps it so. The same two class fragments split
-//! names into places and write patterns, so what a detector counts and what
-//! the pattern matches cannot drift apart.
-
-use std::sync::LazyLock;
-
-use regex::Regex;
+//! holds, and `lint_tests` keeps it so. The two class fragments are
+//! `import::places`', which splits names into places for the detectors and
+//! for the join's `lastPlaces` fold, so what a detector counts, what the
+//! pattern matches and what the join compares cannot drift apart.
 
 use crate::import::grouping::pattern::{IDENTIFIER, PART, SET};
+pub use crate::import::places::{Place, PlaceClass, places};
 use crate::import::plan::NAME_ALONE;
 
-const LETTERS: &str = r"[\p{L}\p{M}]+";
-const DIGITS: &str = r"\p{Nd}+";
 const SEPARATORS: &str = r"[^\p{L}\p{M}\p{Nd}/]*";
 /// Two places of one class are two places only with a separator between.
 const SEPARATOR: &str = r"[^\p{L}\p{M}\p{Nd}/]+";
@@ -30,62 +26,11 @@ const ENDING: &str = r"(?:\.[^./]*)?";
 const START: &str = "^";
 const END: &str = "$";
 const SLASH: &str = "/";
-const GROUP: &str = "(";
 const NAMED: &str = "(?<";
 const NAMED_END: &str = ">";
 const UNNAMED: &str = "(?:";
 const CLOSE: &str = ")";
 const CLOSE_OPTIONAL: &str = ")?";
-const OR: &str = "|";
-
-/// Letters, or digits.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum PlaceClass {
-    Letters,
-    Digits,
-}
-
-impl PlaceClass {
-    fn fragment(self) -> &'static str {
-        match self {
-            Self::Letters => LETTERS,
-            Self::Digits => DIGITS,
-        }
-    }
-}
-
-/// One place of a name: its class and its bytes in the text it was cut from.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Place {
-    pub class: PlaceClass,
-    pub start: usize,
-    pub end: usize,
-}
-
-static PLACES: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(&[GROUP, LETTERS, CLOSE, OR, GROUP, DIGITS, CLOSE].concat())
-        .unwrap_or_else(|_| unreachable!())
-});
-
-/// The places of `text`, in order.
-pub fn places(text: &str) -> Vec<Place> {
-    PLACES
-        .captures_iter(text)
-        .filter_map(|found| {
-            let class = if found.get(1).is_some() {
-                PlaceClass::Letters
-            } else {
-                PlaceClass::Digits
-            };
-            let all = found.get(0)?;
-            Some(Place {
-                class,
-                start: all.start(),
-                end: all.end(),
-            })
-        })
-        .collect()
-}
 
 /// The classes of a key's places, in order.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

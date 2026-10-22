@@ -38,3 +38,9 @@ pub const MIN_SETS: usize = 2;
 /// The items one set of a split must hold: below two, every set holds one
 /// item and the split sorts nothing. S3 `AF` holds 2.
 pub const MIN_ITEMS_PER_SET: usize = 2;
+
+/// The share of a list's rows a pairing suggestion must pair, each to one
+/// file, before it is offered: below half, the rule explains a minority of
+/// the list, which is then more likely about something else. BHC006
+/// `BHC006_GMT_D.xlsx` pairs 15 of 15 rows by its last two places.
+pub const MIN_SUGGESTION_SHARE: Share = Share { n: 1, of: 2 };

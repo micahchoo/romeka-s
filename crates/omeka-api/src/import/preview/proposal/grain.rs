@@ -248,7 +248,30 @@ fn grain(one: &InSeries<'_>) -> (ListPlan, Option<Choice<RecordKind, GrainCounts
     let join = one.counted.join.clone();
     let mut describes = RecordKind::Item;
     let mut choice = None;
-    if let (
+    let by_name = join
+        .as_ref()
+        .is_some_and(|join| join.on == JoinOn::FileName);
+    if by_name && one.counted.paired == 0 {
+        // Detector 3 rule 3: only a suggestion that pairs each row to one
+        // file attaches it, so each row describes a file. Item rows would
+        // each make an item of no file.
+        describes = RecordKind::Media;
+        let counts = GrainCounts {
+            groups_with_many_rows: 0,
+            rows_naming_other_files_of_a_group: 0,
+            columns: Vec::new(),
+        };
+        choice = Some(Choice {
+            chosen: Pick {
+                value: RecordKind::Media,
+                counts: counts.clone(),
+            },
+            rival: Some(Pick {
+                value: RecordKind::Item,
+                counts,
+            }),
+        });
+    } else if let (
         Some(Join {
             on: JoinOn::FileName,
             ..

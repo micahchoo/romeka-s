@@ -73,12 +73,13 @@ fn each_bhc006_list_goes_to_the_series_it_pairs() {
         "86 rows exactly, 189 with the folds"
     );
 
-    for id in [
-        "Documents (D)",
-        "Video (V)",
-        "Audio Interviews (AI)",
-        "Extras",
-    ] {
+    // Rule 3: no stated rule pairs a row of the D list, and detector 6's
+    // suggestion pairs its rows in Documents only.
+    assert_eq!(
+        chosen(series(&proposal, "Documents (D)")),
+        Some("BHC006_GMT_D.xlsx")
+    );
+    for id in ["Video (V)", "Audio Interviews (AI)", "Extras"] {
         assert_eq!(chosen(series(&proposal, id)), None, "{id} has no list");
     }
 
@@ -92,7 +93,6 @@ fn each_bhc006_list_goes_to_the_series_it_pairs() {
         [
             ("Artifacts/BHC006_GMT_AF.ods", false),
             ("BHC006_CC_SECOND_AF.xlsx", true),
-            ("BHC006_GMT_D.xlsx", true),
         ]
     );
     assert!(
@@ -113,6 +113,7 @@ fn each_bhc006_list_goes_to_the_series_it_pairs() {
         lists,
         [
             ("Artifacts", "BHC006_GMT_AF.xlsx", false),
+            ("Documents (D)", "BHC006_GMT_D.xlsx", false),
             ("Photo Narratives (PN)", "BHC006_GMT_PN.xlsx", true),
         ],
         "a fold is on only where it pairs more rows"
@@ -150,7 +151,11 @@ fn a_list_edit_takes_the_rival_or_no_list() {
     let none = take(None);
     assert!(none.edits.iter().all(|edit| edit.applied));
     assert_eq!(chosen(series(&none, "Artifacts")), None);
-    assert_eq!(none.structure.lists().count(), 1, "only PN keeps its list");
+    assert_eq!(
+        none.structure.lists().count(),
+        2,
+        "only PN and Documents keep their lists"
+    );
 
     let not_offered = take(Some(file("BHC006_CC_SECOND_AF.xlsx")));
     assert!(not_offered.edits.iter().all(|edit| !edit.applied));
