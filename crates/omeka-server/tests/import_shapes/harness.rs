@@ -14,6 +14,11 @@ use std::path::Path;
 
 use serde_json::{Value, json};
 
+use omeka_api::import::decisions::RowRef;
+use omeka_api::import::derive::Sheets;
+use omeka_api::import::placement::{FileAt, ItemAt, ListFiles, Placement, RowAt};
+use omeka_api::import::plan::{ImportPlan, RelPath, SourceId};
+use omeka_api::import::sheet;
 use omeka_db::repos::{PropertyRepo, VocabularyRepo};
 use omeka_db::rows::NewProperty;
 use omeka_db::with_db;
@@ -186,7 +191,7 @@ pub struct Outcome {
 
 /// Give the install the Dublin Core terms in `slots` it lacks (the seed has
 /// only the title), as an archivist's install has them all.
-async fn add_terms(fixture: &Fixture, slots: &[&str]) {
+pub async fn add_terms(fixture: &Fixture, slots: &[&str]) {
     let dcterms = with_db!(&fixture.pool, |db| VocabularyRepo::new(db)
         .get_by_prefix("dcterms")
         .await)
@@ -484,4 +489,152 @@ pub async fn v3_outcome(shape: &Shape, slots: &[&str], plan_text: &'static str) 
         outside,
         outcome: outcome_of(&preview, shape, slots),
     }
+}
+
+/// The plan a draft on the archive root holds after [`v3_plan`]: the plan
+/// file with the draft's one source, through the plan's boundary.
+pub fn v3_plan_of(plan_text: &str) -> ImportPlan {
+    let mut plan: Value = serde_json::from_str(plan_text).unwrap();
+    plan["sources"] = json!([{ "kind": "folder", "id": "s1", "root": "archive", "path": "" }]);
+    ImportPlan::from_json(&plan.to_string()).unwrap()
+}
+
+/// The placement (`omeka-api`'s `import::placement`) a preview read by
+/// [`run`] describes, for the plan it ran. `root` is the archive root, which
+/// holds the plan's lists: a row is named by its line, read as the plan reads
+/// the list.
+pub fn placement_of(preview: &Value, plan: &ImportPlan, root: &Path) -> Placement {
+    let sheets: Sheets = plan
+        .structure
+        .lists()
+        .map(|(_, list)| {
+            let bytes = std::fs::read(root.join(list.file.as_str())).unwrap();
+            let read = sheet::read(&bytes, &list.read, sheet::key_column(list));
+            (list.id.clone(), read)
+        })
+        .collect();
+    let lists = ListFiles::new(plan, &sheets);
+    let file_at = |file: &Value| -> FileAt {
+        let source = SourceId(file["source"].as_str().unwrap().to_string());
+        (
+            source,
+            RelPath::parse(file["path"].as_str().unwrap()).unwrap(),
+        )
+    };
+    let rows_of = |record: &Value| -> Vec<RowAt> {
+        record["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|row| {
+                let row: RowRef = serde_json::from_value(row.clone()).unwrap();
+                lists.row(&row).expect("the row is in its list")
+            })
+            .collect()
+    };
+    let made = |record: &&Value| record["fate"].get("left").is_none();
+    let id = |record: &Value| record["id"].as_u64().unwrap();
+    let media: BTreeMap<u64, &Value> = preview["media"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(made)
+        .map(|record| (id(record), record))
+        .collect();
+
+    let mut placement = Placement::default();
+    let mut item_of: BTreeMap<u64, ItemAt> = BTreeMap::new();
+    let mut series: BTreeMap<String, BTreeSet<ItemAt>> = BTreeMap::new();
+    let items: Vec<&Value> = preview["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(made)
+        .collect();
+    for record in &items {
+        let files: BTreeSet<FileAt> = record["media"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|media_id| media.get(&media_id.as_u64().unwrap()))
+            .flat_map(|media| media["files"].as_array().unwrap().iter().map(file_at))
+            .collect();
+        let at = match files.first() {
+            Some(file) => ItemAt::File(file.clone()),
+            None => match rows_of(record).into_iter().min() {
+                Some(row) => ItemAt::Row(row),
+                None => continue,
+            },
+        };
+        item_of.insert(id(record), at.clone());
+        series
+            .entry(record["series"].to_string())
+            .or_default()
+            .insert(at.clone());
+        placement.items.insert(at, files);
+    }
+
+    let mut sets: BTreeMap<String, BTreeSet<ItemAt>> = BTreeMap::new();
+    for record in &items {
+        let Some(at) = item_of.get(&id(record)) else {
+            continue;
+        };
+        for set in record["resolved"]["sets"].as_array().unwrap() {
+            sets.entry(set.to_string()).or_default().insert(at.clone());
+        }
+    }
+    placement.sets = sets
+        .into_values()
+        .filter(|set| set.len() < placement.items.len())
+        .collect();
+
+    let names = plan.structure.series_names();
+    for (at, list) in plan.structure.lists() {
+        let name = json!(names[at.index()]).to_string();
+        let described = series.get(&name).cloned().unwrap_or_default();
+        placement
+            .lists
+            .insert(lists.list(&list.id).unwrap().clone(), described);
+    }
+    placement.series = series.into_values().collect();
+
+    for record in &items {
+        if let Some(at) = item_of.get(&id(record)) {
+            for row in rows_of(record) {
+                placement.rows.insert(row, (at.clone(), None));
+            }
+        }
+    }
+    for record in media.values() {
+        let Some(parent) = record.pointer("/parent/record").and_then(Value::as_u64) else {
+            continue;
+        };
+        let Some(at) = item_of.get(&parent) else {
+            continue;
+        };
+        let several = placement.items[at].len() > 1;
+        let file = record["files"]
+            .as_array()
+            .unwrap()
+            .first()
+            .map(file_at)
+            .filter(|_| several);
+        for row in rows_of(record) {
+            placement.rows.insert(row, (at.clone(), file.clone()));
+        }
+    }
+    for record in preview["itemSets"].as_array().unwrap().iter().filter(made) {
+        placement.set_rows.extend(rows_of(record));
+    }
+
+    let placed: BTreeSet<&FileAt> = placement.items.values().flatten().collect();
+    placement.left_out = preview["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|entry| entry.pointer("/entry/file"))
+        .map(file_at)
+        .filter(|file| !placed.contains(file))
+        .collect();
+    placement
 }

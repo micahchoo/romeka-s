@@ -126,11 +126,15 @@ impl ListFiles {
         )
     }
 
-    fn list(&self, sheet: &SheetId) -> Option<&ListFile> {
+    /// Where the plan's list `sheet` is.
+    #[must_use]
+    pub fn list(&self, sheet: &SheetId) -> Option<&ListFile> {
         self.0.get(sheet).map(|(file, _)| file)
     }
 
-    fn row(&self, row: &RowRef) -> Option<RowAt> {
+    /// The list and line of a row, or `None` for a row its list does not hold.
+    #[must_use]
+    pub fn row(&self, row: &RowRef) -> Option<RowAt> {
         let (file, lines) = self.0.get(&row.sheet)?;
         Some((file.clone(), *lines.get(&row.key)?))
     }
