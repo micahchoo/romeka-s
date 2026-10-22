@@ -7,8 +7,8 @@
  * `ImportApi` throws an `ImportConflictError` for a 409 whose code and members
  * it knows, and a plain `ApiError` for anything else, so a page branches with
  * `conflictOf(error)` and a switch over `code` that `tsc` checks for
- * completeness. The two 400 codes of a list round trip in a plan of several
- * series are a `SeriesRefusalError` the same way (`seriesRefusalOf`).
+ * completeness. The 400 codes of a list round trip that name the wrong series
+ * or list are a `SeriesRefusalError` the same way (`seriesRefusalOf`).
  */
 import { ApiError } from './client';
 import type { ApiErrors } from './types';
@@ -146,14 +146,16 @@ export class ImportConflictError extends ApiError {
 export const conflictOf = (error: unknown): ImportConflict | null =>
   error instanceof ImportConflictError ? error.conflict : null;
 
-export const SERIES_CODES = ['seriesNeeded', 'unknownSeries'] as const;
+export const SERIES_CODES = ['seriesNeeded', 'unknownSeries', 'unknownList'] as const;
 export type SeriesCode = (typeof SERIES_CODES)[number];
 
 /**
  * The 400 a list round trip (`template.csv`, `POST …/sheets`) answers in a
  * plan of several series: `?series=` was left out (`seriesNeeded`) or names
- * no series (`unknownSeries`). `series` is every series id of the plan, so
- * the admin can ask which one the list is for.
+ * no series (`unknownSeries`). `POST …/sheets` also answers it when
+ * `?replace=` names no list the person uploaded to the series
+ * (`unknownList`). `series` is every series id of the plan, so the admin can
+ * ask which one the list is for.
  */
 export interface SeriesRefusal {
   readonly code: SeriesCode;

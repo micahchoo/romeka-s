@@ -107,7 +107,11 @@ const everything = (): Record<string, unknown> => {
       rival: { value: null, counts: null },
       others: [{ value: { source: 's1', file: 'Artifacts/BHC006_GMT_AF.csv' }, counts: candidate }],
     },
-    grain: { chosen: { value: 'media', counts: candidate.grain }, rival: null, others: [] },
+    grain: {
+      chosen: { value: 'media', counts: { ...candidate.grain, rowsNamingNoFile: 10, items: 318 } },
+      rival: { value: 'item', counts: { ...candidate.grain, rowsNamingNoFile: 10, items: 328 } },
+      others: [],
+    },
     set: {
       chosen: { value: { from: 'folder', scope }, counts: setCounts },
       rival: null,
@@ -168,6 +172,10 @@ describe('the proposal section', () => {
       (value) => ({ ...value, topSets: [{ value: { from: 'everything' }, counts: setCounts }] }),
       (value) => ({ ...value, outside: [{ scope, files: 1, media: 0, kinds: [['image']], reason: 'noMedia' }] }),
       (value) => ({ ...value, nodes: [{ kind: 'set', level: 'top', from: { from: 'column', list, column }, counts: setCounts, others: [] }] }),
+      (value) => ({
+        ...value,
+        nodes: [{ ...object(isUnknownArray(value['nodes']) ? value['nodes'][1] : null), grain: { chosen: { value: 'item', counts: candidate.grain }, rival: null, others: [] } }],
+      }),
     ];
     for (const change of changes) {
       expect(() => parseProposal(parsePreview(['proposal'])({ ...raw, proposal: change(proposal) }).proposal)).toThrow(ParseError);

@@ -2,10 +2,10 @@
 //! `GET …/template.csv?columns=&series=` answers the list of one series'
 //! items to fill in, and `POST …/sheets?series=` stores a filled list (CSV,
 //! TSV, .xlsx, .xls or .ods) in the import's staging area and adds it to
-//! that series of the draft's plan. A plan of one series may leave
-//! `series` out. The rules live in
-//! `omeka_api::import::template`; these handlers read the request, move
-//! the bytes through the store, and save the plan.
+//! that series of the draft's plan, or with `&replace=<sheet id>` puts it
+//! in that list's place. A plan of one series may leave `series` out. The
+//! rules live in `omeka_api::import::template`; these handlers read the
+//! request, move the bytes through the store, and save the plan.
 
 use axum::body::Body;
 use axum::extract::{Path, State};
@@ -13,11 +13,12 @@ use axum::http::{HeaderMap, StatusCode, Uri, header};
 use axum::response::Response;
 use omeka_api::import::catalog_load;
 use omeka_api::import::draft;
-use omeka_api::import::plan::{ImportPlan, ReadOptions, RelPath, SeriesIx};
+use omeka_api::import::plan::{ImportPlan, ReadOptions, RelPath, SeriesIx, SheetId};
 use omeka_api::import::preview::staging_path;
 use omeka_api::import::sheet;
 use omeka_api::import::template::{
-    ListColumn, ListError, MAX_LIST_BYTES, add_list, list_read, list_series, template_csv,
+    ListColumn, ListError, MAX_LIST_BYTES, add_list, list_read, list_series, replace_list,
+    template_csv,
 };
 use omeka_api::messages;
 use omeka_db::rows::{ImportRow, ImportStatus};
@@ -80,9 +81,11 @@ pub(super) async fn template(
     )
 }
 
-/// `POST /api/romeka/imports/{id}/sheets?series=<level id>` (multipart,
-/// one file): store a filled list in staging and add it to that series of
-/// the draft's plan. Answers the import with its new plan and revision, in
+/// `POST /api/romeka/imports/{id}/sheets?series=<level id>&replace=<sheet id>`
+/// (multipart, one file): store a filled list in staging and add it to that
+/// series of the draft's plan, or put it in the place of the list `replace`
+/// names. Only `replace` makes a replacement: two lists of one template have
+/// the same header row, so the bytes cannot say which list they are. Answers the import with its new plan and revision, in
 /// the version the plan was stored in.
 pub(super) async fn upload(
     State(state): State<AppState>,
@@ -101,6 +104,9 @@ pub(super) async fn upload(
                 (upload.extension, upload.read, upload.bytes, upload.list);
             let mut plan = stored_plan(&row)?;
             let series = series_of(&plan, &uri)?;
+            let replace = omeka_api::read::Params::parse(uri.query().unwrap_or(""))
+                .get("replace")
+                .map(|named| SheetId(named.to_string()));
             let files = omeka_api::settings::file_validation(&state.pool).await?;
             let catalog = with_db!(&state.pool, |db| catalog_load::load(
                 db,
@@ -134,9 +140,16 @@ pub(super) async fn upload(
                 Ok(file)
             })
             .await?;
-            let added = add_list(&mut plan, series, stored.clone(), read, &list, &catalog);
-            let saved = match added {
-                Ok(_) => {
+            let old = match &replace {
+                Some(replace) => {
+                    replace_list(&mut plan, series, replace, stored.clone(), read, &list).map(Some)
+                }
+                None => {
+                    add_list(&mut plan, series, stored.clone(), read, &list, &catalog).map(|_| None)
+                }
+            };
+            let saved = match old {
+                Ok(old) => {
                     let value: serde_json::Value = serde_json::from_str(&plan.to_json())
                         .map_err(|error| ImportError::Internal(error.to_string()))?;
                     with_db!(&state.pool, |db| draft::save(
@@ -146,15 +159,28 @@ pub(super) async fn upload(
                         row.revision
                     )
                     .await)
+                    .map(|_| old)
                     .map_err(|error| draft_error(error, row.id, false))
                 }
                 Err(error) => Err(list_error(error, &plan)),
             };
-            if let Err(error) = saved {
-                let store = state.store.clone();
-                let path = staging_path(import, &stored);
-                blocking(move || store.delete(&path).map(|_| ()).map_err(internal)).await?;
-                return Err(error);
+            match saved {
+                Err(error) => {
+                    let store = state.store.clone();
+                    let path = staging_path(import, &stored);
+                    blocking(move || store.delete(&path).map(|_| ()).map_err(internal)).await?;
+                    return Err(error);
+                }
+                Ok(Some(old)) => {
+                    // The plan is saved and no longer reads the old file: one
+                    // left behind is never read, so failing here would only
+                    // report a saved change as failed.
+                    let store = state.store.clone();
+                    let path = staging_path(import, &old);
+                    let _ =
+                        blocking(move || store.delete(&path).map(|_| ()).map_err(internal)).await;
+                }
+                Ok(None) => {}
             }
             let row = load(&state, &id).await?;
             Ok(json(StatusCode::CREATED, &ImportView::of(row, true)))
@@ -170,8 +196,9 @@ fn series_of(plan: &ImportPlan, uri: &Uri) -> Result<SeriesIx, ImportError> {
     list_series(plan, named).map_err(|error| list_error(error, plan))
 }
 
-/// A refused list as the admin reads it. A series error is coded, with the
-/// plan's series ids, so the admin can ask which series the list is for.
+/// A refused list as the admin reads it. A series or `replace` error is
+/// coded, with the plan's series ids, so the admin can ask which series or
+/// list the upload is for.
 fn list_error(error: ListError, plan: &ImportPlan) -> ImportError {
     let ids = || {
         json!(
@@ -194,6 +221,10 @@ fn list_error(error: ListError, plan: &ImportPlan) -> ImportError {
         }
         ListError::UnknownSeries(named) => {
             ImportError::refused("unknownSeries", messages::import_list_series_unknown(named))
+                .with("series", ids())
+        }
+        ListError::UnknownList(named) => {
+            ImportError::refused("unknownList", messages::import_list_unknown(named))
                 .with("series", ids())
         }
     }

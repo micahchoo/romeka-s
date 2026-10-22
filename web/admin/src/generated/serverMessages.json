@@ -159,6 +159,7 @@
     "server.importListUnread": "The list cannot be read: {reason}",
     "server.importListSeriesNeeded": "This plan has several series. Choose the series the list is for.",
     "server.importListSeriesUnknown": "The plan has no series \"{series}\".",
+    "server.importListUnknown": "The plan has no list \"{list}\".",
     "server.importListNoIdentifier": "The list has no Identifier column, so its rows cannot find their items. Keep the Identifier column of the list you downloaded.",
     "server.importPairsColumns": "The list needs the Row column and the Files column. Keep both columns of the list you downloaded.",
     "server.importFileUnreadable": "The file \"{path}\" could not be read: {reason}",
