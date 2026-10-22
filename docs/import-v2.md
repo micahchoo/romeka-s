@@ -370,7 +370,8 @@ item-set records; for media, the media of the matched item.
 - `importSets` for items and item sets is the union of existing sets any record of this import
   names; for media, the media of the matched item.
 - `duplicate-row` also fires when two cells join one group; with `keep` the duplicate row is a
-  record of its own. `unknown-kind` with `keep` reads the row as an item.
+  record of its own. A kept media row that names a file is a second media record of that file,
+  under the item of the first. `unknown-kind` with `keep` reads the row as an item.
 - A media row finds its file through a `fileName` join only; an `identifier` join on media rows is
   ignored. A media row whose item key names no item flags `unmatched`.
 - `many-matches` with `keep` takes the lowest id. Match keys compare NFC and trimmed, no case fold.
@@ -581,7 +582,7 @@ ones that would write broken data or have no defined result.
 | `encoding-suspect` (U+FFFD, or text that round-trips as 1252 mojibake) | value | keep | no |
 | `name-encoding` | entry | keep | no |
 | `cells-count` | row | leave | no |
-| `no-file` | item record, or a media row (create import, `fileName` join, no item key, names no file: no record is made) | keep | no |
+| `no-file` | item record, or a media row (create import, `fileName` join, no item key, names no file: no record is made). Not raised on an item whose every file a file flag left out: that flag already counts it | keep | no |
 | `not-media` | file | leave | no |
 | `listed-not-media` (a file a list row names that the install refuses; detail is the row key and the extension) | file | leave (only policy: the run's ingest refuses it again) | no |
 | `format-mismatch` | file | keep | no |

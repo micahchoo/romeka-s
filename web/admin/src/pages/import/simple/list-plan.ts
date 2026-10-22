@@ -10,6 +10,8 @@ import type { ColumnCells, Grain, SheetColumnMatches, Varies } from '../../../ap
 import type { SheetRead, SheetView } from '../../../api/import-sheet-views';
 import type { ColumnRef, ImportPlan, RecordKind, SheetPlan, SlotName, SlotRule, SlotRules, SourceRef, Term } from '../../../api/import-plan';
 import { isTerm } from '../../../api/import-plan';
+import type { CsvRead } from '../csv-records';
+import { readCsv } from '../csv-records';
 
 /** Where a column goes: nowhere, a field, the item type, the item set, or a new field. */
 export type Target = '' | `field:${Term}` | 'template' | 'sets' | `new:${string}`;
@@ -384,68 +386,18 @@ export const withRead = (
   return next;
 };
 
-/** One record of a sheet view's lines: the line it starts on, and its cells. */
-export interface LineRecord {
-  readonly line: number;
-  readonly cells: readonly string[];
-}
-
-/**
- * The records of a sheet view's lines, which start at line 1, read with the
- * list's delimiter and double quotes; a quoted cell may run onto the next
- * line. A record the last line leaves open is cut short, so it is dropped.
- */
-export const recordsOf = (lines: readonly string[], delimiter: string): readonly LineRecord[] => {
-  const records: LineRecord[] = [];
-  let cells: string[] = [];
-  let cell = '';
-  let quoted = false;
-  let start = 1;
-  lines.forEach((line, at) => {
-    if (quoted) {
-      cell += '\n';
-    } else {
-      start = at + 1;
-    }
-    for (let char = 0; char < line.length; char += 1) {
-      const here = line.charAt(char);
-      if (quoted) {
-        if (here === '"' && line.charAt(char + 1) === '"') {
-          cell += '"';
-          char += 1;
-        } else if (here === '"') {
-          quoted = false;
-        } else {
-          cell += here;
-        }
-      } else if (here === '"' && cell === '') {
-        quoted = true;
-      } else if (here === delimiter) {
-        cells.push(cell);
-        cell = '';
-      } else {
-        cell += here;
-      }
-    }
-    if (!quoted) {
-      cells.push(cell);
-      records.push({ line: start, cells });
-      cells = [];
-      cell = '';
-    }
-  });
-  return records;
-};
-
 /** The delimiter a sheet view's lines are written with. */
-export const delimiterOf = (view: SheetView): string => {
+const delimiterOf = (view: SheetView): string => {
   const delimiter = view.read?.delimiter ?? view.guess?.delimiter ?? ',';
   return delimiter === 'auto' ? ',' : delimiter;
 };
 
+/** The records of a sheet view's lines, which start at line 1. */
+export const linesOf = (view: SheetView): CsvRead => readCsv(view.lines.join('\n'), delimiterOf(view));
+
 /** The first row under the header on `headerLine`, as the reader skips a row with no text; none when the lines stop first. */
 export const firstRowOf = (view: SheetView, headerLine: number): readonly string[] => {
-  const records = recordsOf(view.lines, delimiterOf(view));
+  const { records } = linesOf(view);
   const header = records.findIndex((record) => record.line === headerLine);
   const row = header === -1 ? undefined : records.slice(header + 1).find((record) => record.cells.some((cell) => cell.trim() !== ''));
   return row?.cells ?? [];
