@@ -14,6 +14,7 @@ import type { Check } from '../../../api/import-sections';
 import { ErrorNotice } from '../../../app/errors';
 import { useDraft } from '../draft-context';
 import { placeHref } from '../screens';
+import { nodeHref } from '../picked-node';
 import { useRunText } from './messages';
 import type { RunTranslator } from './messages';
 import { StartControl, useStart } from './start';
@@ -71,7 +72,7 @@ export const Ready = ({ live, summary: SimpleSummary }: { readonly live: LiveImp
         </p>
         <p>{t('run.empty.note')}</p>
         <p>
-          <a href={placeHref(draft.id, advanced ? { mode: 'advanced', screen: 'files' } : { mode: 'simple', screen: 'files' })}>
+          <a href={advanced ? nodeHref(draft.id, { mode: 'advanced', screen: 'structure' }, 'archive') : placeHref(draft.id, { mode: 'simple', screen: 'files' })}>
             {t('run.empty.link')}
           </a>
         </p>

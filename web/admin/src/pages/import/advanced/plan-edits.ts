@@ -2,11 +2,15 @@
  * Every change an Advanced setting makes, as a pure edit of the plan
  * (`(plan) => plan`, what `useDraft().change` takes). A setting reads the plan
  * and calls one of these; Simple's answers edit the same members, so one
- * answer has one home in the plan whichever mode gave it.
+ * answer has one home in the plan whichever mode gave it. Each writer goes
+ * through `written` with its name, so its kind in `WRITES` (`writes.ts`)
+ * decides whether it also owns the folder it writes.
  */
 import { NAMED_SLOTS, isMultiValued, isTerm } from '../../../api/import-plan';
 import { allSeries, seriesHolding, setsRuleOf, slotsOf, withEverySeries, withList, withSeries, withSetsRule, withSlots } from '../series';
 import { itemOnly, levelOf } from '../simple/list-plan';
+import { written } from './writes';
+import type { Writer } from './writes';
 import type {
   Action,
   ColumnOptions,
@@ -30,22 +34,24 @@ import type {
 /** Titles compare after trim, NFC and lower-casing (`docs/import-v2.md`, "Boundary details"). */
 export const foldTitle = (text: string): string => text.trim().normalize('NFC').toLowerCase();
 
-const onSheet = (plan: ImportPlan, sheet: string, edit: (one: SheetPlan) => SheetPlan): ImportPlan => withList(plan, sheet, edit);
+/** The write `name` of the list `sheet`, on the series that holds it. */
+const onSheet = (plan: ImportPlan, name: Writer, sheet: string, edit: (one: SheetPlan) => SheetPlan): ImportPlan =>
+  written(plan, name, seriesHolding(plan, sheet)?.id, (now) => withList(now, sheet, edit));
 
 export const setRead = (plan: ImportPlan, sheet: string, read: Partial<ReadOptions>): ImportPlan =>
-  onSheet(plan, sheet, (one) => ({ ...one, read: { ...one.read, ...read } }));
+  onSheet(plan, 'setRead', sheet, (one) => ({ ...one, read: { ...one.read, ...read } }));
 
 export const NO_NORMALIZE: Join['normalize'] = { caseFold: false, leadingZeros: false, separators: false };
 
 /** The sheet joined on `column`, keeping how it joined before; `null` joins it to nothing. */
 export const setJoinColumn = (plan: ImportPlan, sheet: string, column: ColumnRef | null): ImportPlan =>
-  onSheet(plan, sheet, (one) => ({
+  onSheet(plan, 'setJoinColumn', sheet, (one) => ({
     ...one,
     join: column === null ? null : { on: one.join?.on ?? 'identifier', column, normalize: one.join?.normalize ?? NO_NORMALIZE },
   }));
 
 export const setJoin = (plan: ImportPlan, sheet: string, join: Partial<Omit<Join, 'column'>>): ImportPlan =>
-  onSheet(plan, sheet, (one) => (one.join === null ? one : { ...one, join: { ...one.join, ...join } }));
+  onSheet(plan, 'setJoin', sheet, (one) => (one.join === null ? one : { ...one, join: { ...one.join, ...join } }));
 
 const sameColumn = (a: ColumnRef, b: ColumnRef): boolean => a.index === b.index;
 
@@ -98,10 +104,10 @@ const withoutColumn = (rules: SlotRules, sheet: string, column: ColumnRef): Slot
  */
 export const mapColumn = (plan: ImportPlan, sheet: string, column: ColumnRef, slot: SlotName | null): ImportPlan => {
   const holder = seriesHolding(plan, sheet);
-  if (holder === undefined) {
-    return plan;
-  }
-  const level = holder.id;
+  return holder === undefined ? plan : written(plan, 'mapColumn', holder.id, (now) => mappedColumn(now, holder.id, sheet, column, slot));
+};
+
+const mappedColumn = (plan: ImportPlan, level: LevelId, sheet: string, column: ColumnRef, slot: SlotName | null): ImportPlan => {
   const onFiles = levelOf(plan, sheet, column.index) === 'file' && (slot === null || !itemOnly(slot));
   const cleared = withRules(
     withRules(plan, level, 'item', withoutColumn(rulesOf(plan, level, 'item'), sheet, column)),
@@ -123,10 +129,10 @@ export const mapColumn = (plan: ImportPlan, sheet: string, column: ColumnRef, sl
 };
 
 /** Each row's kind read from `column`, whose cells name it. */
-export const setRowKindColumn = (plan: ImportPlan, sheet: string, column: ColumnRef): ImportPlan => onSheet(plan, sheet, (one) => ({ ...one, rowKind: { column } }));
+export const setRowKindColumn = (plan: ImportPlan, sheet: string, column: ColumnRef): ImportPlan => onSheet(plan, 'setRowKindColumn', sheet, (one) => ({ ...one, rowKind: { column } }));
 
 /** For media rows that do not join by file name: the column naming their item. */
-export const setItemKey = (plan: ImportPlan, sheet: string, column: ColumnRef | null): ImportPlan => onSheet(plan, sheet, (one) => ({ ...one, itemKey: column }));
+export const setItemKey = (plan: ImportPlan, sheet: string, column: ColumnRef | null): ImportPlan => onSheet(plan, 'setItemKey', sheet, (one) => ({ ...one, itemKey: column }));
 
 export const DEFAULT_COLUMN_OPTIONS: ColumnOptions = { split: null, type: 'literal', lang: null, private: false };
 
@@ -134,7 +140,7 @@ export const columnOptions = (sheet: SheetPlan, column: ColumnRef): ColumnOption
   sheet.columns.find((one) => sameColumn(one.column, column))?.options ?? DEFAULT_COLUMN_OPTIONS;
 
 export const setColumnOptions = (plan: ImportPlan, sheet: string, column: ColumnRef, options: Partial<ColumnOptions>): ImportPlan =>
-  onSheet(plan, sheet, (one) => {
+  onSheet(plan, 'setColumnOptions', sheet, (one) => {
     const next = { ...columnOptions(one, column), ...options };
     const has = one.columns.some((each) => sameColumn(each.column, column));
     return {
@@ -152,20 +158,23 @@ export interface RuleAt {
   readonly slot: SlotName;
 }
 
-const onRule = (plan: ImportPlan, { level, kind, slot }: RuleAt, edit: (rule: SlotRule) => SlotRule): ImportPlan => {
-  const rule = rulesOf(plan, level, kind)[slot];
-  return rule === undefined ? plan : withRules(plan, level, kind, { ...rulesOf(plan, level, kind), [slot]: edit(rule) });
-};
+const onRule = (plan: ImportPlan, name: Writer, { level, kind, slot }: RuleAt, edit: (rule: SlotRule) => SlotRule): ImportPlan =>
+  written(plan, name, level, (now) => {
+    const rule = rulesOf(now, level, kind)[slot];
+    return rule === undefined ? now : withRules(now, level, kind, { ...rulesOf(now, level, kind), [slot]: edit(rule) });
+  });
 
 export const addRule = (plan: ImportPlan, { level, kind, slot }: RuleAt): ImportPlan =>
-  rulesOf(plan, level, kind)[slot] === undefined ? withRules(plan, level, kind, { ...rulesOf(plan, level, kind), [slot]: { sources: [], combine: 'first' } }) : plan;
+  written(plan, 'addRule', level, (now) =>
+    rulesOf(now, level, kind)[slot] === undefined ? withRules(now, level, kind, { ...rulesOf(now, level, kind), [slot]: { sources: [], combine: 'first' } }) : now,
+  );
 
 export const removeRule = (plan: ImportPlan, { level, kind, slot }: RuleAt): ImportPlan =>
-  withRules(plan, level, kind, rulesFrom(entriesOf(rulesOf(plan, level, kind)).filter(([name]) => name !== slot)));
+  written(plan, 'removeRule', level, (now) => withRules(now, level, kind, rulesFrom(entriesOf(rulesOf(now, level, kind)).filter(([name]) => name !== slot))));
 
 /** Source `index` moved `by` places (-1 up, 1 down); a move past either end does nothing. */
 export const moveSource = (plan: ImportPlan, at: RuleAt, index: number, by: -1 | 1): ImportPlan =>
-  onRule(plan, at, (rule) => {
+  onRule(plan, 'moveSource', at, (rule) => {
     const to = index + by;
     const moving = rule.sources[index];
     const other = rule.sources[to];
@@ -179,13 +188,13 @@ export const moveSource = (plan: ImportPlan, at: RuleAt, index: number, by: -1 |
   });
 
 export const removeSource = (plan: ImportPlan, at: RuleAt, index: number): ImportPlan =>
-  onRule(plan, at, (rule) => ({ ...rule, sources: rule.sources.filter((_, place) => place !== index) }));
+  onRule(plan, 'removeSource', at, (rule) => ({ ...rule, sources: rule.sources.filter((_, place) => place !== index) }));
 
-export const addSource = (plan: ImportPlan, at: RuleAt, source: SourceRef): ImportPlan => onRule(plan, at, (rule) => ({ ...rule, sources: [...rule.sources, source] }));
+export const addSource = (plan: ImportPlan, at: RuleAt, source: SourceRef): ImportPlan => onRule(plan, 'addSource', at, (rule) => ({ ...rule, sources: [...rule.sources, source] }));
 
 /** `all` only where the field keeps more than one value: the boundary refuses it elsewhere. */
 export const setCombine = (plan: ImportPlan, at: RuleAt, combine: SlotRule['combine']): ImportPlan =>
-  combine === 'all' && !isMultiValued(at.slot) ? plan : onRule(plan, at, (rule) => ({ ...rule, combine }));
+  combine === 'all' && !isMultiValued(at.slot) ? plan : onRule(plan, 'setCombine', at, (rule) => ({ ...rule, combine }));
 
 /** What the value map makes of `value`: its mapped text, or the value itself. */
 export const mappedText = (rule: SlotRule, value: string): string => {
@@ -199,37 +208,36 @@ export const mappedText = (rule: SlotRule, value: string): string => {
  * mapped to itself needs no key; an empty map is absent.
  */
 export const setMapped = (plan: ImportPlan, at: RuleAt, value: string, to: string): ImportPlan =>
-  onRule(plan, at, (rule) => {
+  onRule(plan, 'setMapped', at, (rule) => {
     const rest = Object.entries(rule.map ?? {}).filter(([key]) => foldTitle(key) !== foldTitle(value));
     const map = Object.fromEntries(to === value ? rest : [...rest, [value, to]]);
     return Object.keys(map).length === 0 ? { sources: rule.sources, combine: rule.combine } : { sources: rule.sources, combine: rule.combine, map };
   });
 
-export const setDefaults = (plan: ImportPlan, defaults: Partial<Defaults>): ImportPlan => ({
-  ...plan,
-  defaults: { ...plan.defaults, ...defaults },
-});
+export const setDefaults = (plan: ImportPlan, defaults: Partial<Defaults>): ImportPlan =>
+  written(plan, 'setDefaults', undefined, (now) => ({ ...now, defaults: { ...now.defaults, ...defaults } }));
 
 /**
  * The `unmatched` flag's policy falls back to `action.unmatched`, so the one
  * answer to it lives there: a policy stored for the kind would hide it.
  */
-export const setUnmatched = (plan: ImportPlan, unmatched: ImportPlan['action']['unmatched']): ImportPlan => {
-  const flags = Object.fromEntries(Object.entries(plan.flags).filter(([kind]) => kind !== 'unmatched'));
-  return { ...plan, flags, action: { ...plan.action, unmatched } };
-};
+export const setUnmatched = (plan: ImportPlan, unmatched: ImportPlan['action']['unmatched']): ImportPlan =>
+  written(plan, 'setUnmatched', undefined, (now) => {
+    const flags = Object.fromEntries(Object.entries(now.flags).filter(([kind]) => kind !== 'unmatched'));
+    return { ...now, flags, action: { ...now.action, unmatched } };
+  });
 
 export const setFlagPolicy = (plan: ImportPlan, kind: FlagKind, policy: FlagPolicy): ImportPlan =>
-  kind === 'unmatched' ? setUnmatched(plan, policy === 'leave' ? 'leave' : 'create') : { ...plan, flags: { ...plan.flags, [kind]: policy } };
+  kind === 'unmatched'
+    ? setUnmatched(plan, policy === 'leave' ? 'leave' : 'create')
+    : written(plan, 'setFlagPolicy', undefined, (now) => ({ ...now, flags: { ...now.flags, [kind]: policy } }));
 
 export const DEFAULT_ANOMALIES: NonNullable<ImportPlan['anomalies']> = { identical: 'keepOne', unmatchedFiles: 'leave', itemsWithoutRow: 'keep' };
 
 export const anomaliesOf = (plan: ImportPlan): NonNullable<ImportPlan['anomalies']> => plan.anomalies ?? DEFAULT_ANOMALIES;
 
-export const setAnomalies = (plan: ImportPlan, answers: Partial<NonNullable<ImportPlan['anomalies']>>): ImportPlan => ({
-  ...plan,
-  anomalies: { ...anomaliesOf(plan), ...answers },
-});
+export const setAnomalies = (plan: ImportPlan, answers: Partial<NonNullable<ImportPlan['anomalies']>>): ImportPlan =>
+  written(plan, 'setAnomalies', undefined, (now) => ({ ...now, anomalies: { ...anomaliesOf(now), ...answers } }));
 
 /** The rules Fields lists, in every series and the item sets rule: the field rules a delete plan cannot hold, and the sets it would not use. */
 export const ruleCount = (plan: ImportPlan): number =>
@@ -237,22 +245,22 @@ export const ruleCount = (plan: ImportPlan): number =>
   (setsRuleOf(plan) === undefined ? 0 : 1);
 
 /** The plan with `action`; a delete drops every rule Fields lists, in every series: the boundary refuses field rules on a delete. */
-export const setAction = (plan: ImportPlan, action: Action): ImportPlan => {
-  const next = { ...plan, action: { ...plan.action, action } };
-  return action === 'delete' ? withSetsRule(withEverySeries(next, (series) => ({ ...series, slots: { item: {}, media: {}, itemSet: {} } })), undefined) : next;
-};
+export const setAction = (plan: ImportPlan, action: Action): ImportPlan =>
+  written(plan, 'setAction', undefined, (now) => {
+    const next = { ...now, action: { ...now.action, action } };
+    return action === 'delete' ? withSetsRule(withEverySeries(next, (series) => ({ ...series, slots: { item: {}, media: {}, itemSet: {} } })), undefined) : next;
+  });
 
-export const setMatch = (plan: ImportPlan, kind: RecordKind, match: Partial<MatchRule>): ImportPlan => ({
-  ...plan,
-  action: { ...plan.action, match: { ...plan.action.match, [kind]: { ...plan.action.match[kind], ...match } } },
-});
+export const setMatch = (plan: ImportPlan, kind: RecordKind, match: Partial<MatchRule>): ImportPlan =>
+  written(plan, 'setMatch', undefined, (now) => ({
+    ...now,
+    action: { ...now.action, match: { ...now.action.match, [kind]: { ...now.action.match[kind], ...match } } },
+  }));
 
-export const removeDecision = (plan: ImportPlan, index: number): ImportPlan => ({
-  ...plan,
-  decisions: plan.decisions.filter((_, at) => at !== index),
-});
+export const removeDecision = (plan: ImportPlan, index: number): ImportPlan =>
+  written(plan, 'removeDecision', undefined, (now) => ({ ...now, decisions: now.decisions.filter((_, at) => at !== index) }));
 
-export const removeDecisions = (plan: ImportPlan): ImportPlan => ({ ...plan, decisions: [] });
+export const removeDecisions = (plan: ImportPlan): ImportPlan => written(plan, 'removeDecisions', undefined, (now) => ({ ...now, decisions: [] }));
 
 export const setPattern = (plan: ImportPlan, level: LevelId, pattern: string | null, caseFold: boolean): ImportPlan =>
-  withSeries(plan, level, (series) => ({ ...series, grouping: { pattern, caseFold } }));
+  written(plan, 'setPattern', level, (now) => withSeries(now, level, (series) => ({ ...series, grouping: { pattern, caseFold } })));

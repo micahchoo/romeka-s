@@ -279,6 +279,24 @@ describe('the Structure screen', () => {
     });
   });
 
+  it('a set level kept around a folder written by hand shows in the tree, and its click is kept', async () => {
+    const kept = asRecord(loadFixture('import/proposal-bhc006-own-set.json'), []);
+    structureServer({ stored: { edits: [DOCUMENTS_PLACE_4, OWN_DOCUMENTS], structure: kept['structure'] } });
+    render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
+    const tree = await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 });
+    const lines = within(tree)
+      .getAllByRole('option')
+      .map((option) => [option.querySelector('.guided-row-name')?.textContent, option.querySelector('.guided-row-facts')?.textContent]);
+    const at = lines.findIndex(([name]) => name === 'Documents (D)');
+    expect(lines[at - 1]).toEqual(['One set per value', 'written by you · changed']);
+    expect(lines[at]?.[1]).toMatch(/written by you$/);
+    expect(within(select('One set per value')).getByText('Kept as you made it, around the folder you wrote.')).toBeTruthy();
+
+    const [split] = strip();
+    expect(split).toEqual(['Documents (D) · Set: part 5 of the name', 'Kept as you made it.']);
+    expect(screen.queryByText('Waits while you write this folder by hand.')).toBeNull();
+  });
+
   it('a list the person uploaded shows on its folder as kept', async () => {
     const proposal = asRecord(loadFixture('import/proposal-bhc006.json'), []);
     const nodes: readonly unknown[] = Array.isArray(proposal['nodes']) ? proposal['nodes'] : [];
@@ -296,6 +314,8 @@ describe('the Structure screen', () => {
 });
 
 const OWN_ARTIFACTS = { edit: 'own', scope: { source: 's1', folder: 'Artifacts' } };
+const OWN_DOCUMENTS = { edit: 'own', scope: { source: 's1', folder: 'Documents (D)' } };
+const DOCUMENTS_PLACE_4 = { edit: 'addSet', from: { from: 'namePlace', scope: { source: 's1', folder: 'Documents (D)' }, place: 4 } };
 const ITEMS_WHOLE = { edit: 'items', scope: { source: 's1', folder: 'Artifacts' }, cut: { cut: 'whole' } };
 /** The pattern a mark of any letters glued after the number writes (`bhc006_tests::MARKED_PATTERN`). */
 const MARKED_PATTERN = String.raw`^(?:[^/]*/)*(?<identifier>[^/]*?\d|[^/]*?[^/.][\p{L}\p{M}]*)(?:(?<part>[\p{L}\p{M}]+))?(?:\.[^./]*)?$`;
@@ -316,6 +336,7 @@ const RECORDED: Readonly<Record<string, string>> = {
   [canonical([OWN_ARTIFACTS])]: 'import/proposal-bhc006-own.json',
   [canonical([ITEMS_WHOLE])]: 'import/proposal-bhc006-whole.json',
   [canonical([ITEMS_WHOLE, OWN_ARTIFACTS])]: 'import/proposal-bhc006-own-waiting.json',
+  [canonical([DOCUMENTS_PLACE_4, OWN_DOCUMENTS])]: 'import/proposal-bhc006-own-set.json',
 };
 
 /** Two files of one Artifacts item, as the entries the picker asks for. */

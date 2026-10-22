@@ -22,7 +22,7 @@ import type { EditResult, ItemCut, Proposal } from '../../../api/import-proposal
 import type { CutEdit, Edit, FolderScope, ImportId, ImportPlan, ListFile, SetFrom } from '../../../api/import-plan';
 import { useDraft } from '../draft-context';
 import { withStructure } from '../series';
-import { totalsOf } from './structure-lines';
+import { isSplitOf, totalsOf } from './structure-lines';
 import type { TreeNode } from './structure-lines';
 
 /** The proposal's parser, which the screen loads as a chunk of its own. */
@@ -118,6 +118,13 @@ const names = (node: TreeNode, edit: Edit): boolean => {
   }
   if (node.kind === 'every') {
     return edit.edit === 'addSet' && node.offers.some((offer) => canonical(offer.value) === canonical(edit.from));
+  }
+  if (node.kind === 'kept') {
+    return (
+      (edit.edit === 'addSet' || edit.edit === 'dropSet' || edit.edit === 'title' || edit.edit === 'existing') &&
+      isSplitOf(node.level.set, edit.from) &&
+      (edit.from.from === 'column' || sameScope(edit.from.scope, node.scope))
+    );
   }
   if (node.kind !== 'series' && node.kind !== 'own') {
     return false;

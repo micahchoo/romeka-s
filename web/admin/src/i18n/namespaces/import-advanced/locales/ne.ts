@@ -32,10 +32,14 @@ export const ne: ImportAdvancedMessages = {
   'adv.source.tagAll': 'प्रत्येक फाइलको ट्याग {tag}',
   'adv.source.tagPart': 'जसको भाग “{part}” छ, त्यस्तो फाइलको ट्याग {tag}',
   'adv.source.constant': 'स्थिर “{value}”',
-  'adv.series.label': 'फोल्डर',
-  'adv.series.plain':
-    'प्रत्येक फोल्डरको आफ्नै ढाँचा, सूची र क्षेत्रहरू हुन्छन्। तलका सेटिङहरू यस फोल्डरका लागि हुन्।',
-  'adv.series.none': 'कुनै पनि फोल्डर आयात गरिएको छैन, त्यसैले यहाँ सेट गर्न केही छैन।',
+  'adv.structure.files': 'कुन फाइलहरू',
+  'adv.structure.items': 'वस्तुहरू',
+  'adv.structure.lists': 'सूचीहरू',
+  'adv.structure.fields': 'क्षेत्रहरू',
+  'adv.structure.set': 'सेट',
+  'adv.structure.rules': '{count} क्षेत्र नियमहरू',
+  'adv.structure.rulesOne': '1 क्षेत्र नियम',
+  'adv.structure.setWritten': 'यो फोल्डर कुन सेटसँग लेखिएको थियो। अर्को छनोट गर्न हाम्रो सुझावमा फर्कनुहोस्।',
   'adv.files.sources.title': 'स्रोतहरू',
   'adv.files.sources.label': 'स्रोतहरू',
   'adv.files.sources.plain': 'फाइलहरू कहाँबाट आउँछन्। एउटा आयातले एकभन्दा बढी स्थानबाट पढ्न सक्छ।',
@@ -43,7 +47,6 @@ export const ne: ImportAdvancedMessages = {
   'adv.files.sources.filesOne': '1 फाइल',
   'adv.files.sources.notRead': 'अहिलेसम्म पढिएको छैन',
   'adv.files.sources.error': 'यसलाई पढ्न सकिएन: {message}',
-  'adv.files.pattern.title': 'ढाँचा',
   'adv.files.example.label': 'चिन्ह लगाइएको उदाहरण',
   'adv.files.example.plain':
     'एउटा फाइलको नाममा तपाईँले चिन्ह लगाउनुभएका भागहरू। यी चिन्हहरूले ढाँचालाई तल लेख्छन्।',
@@ -77,6 +80,7 @@ export const ne: ImportAdvancedMessages = {
   'adv.files.pattern.syntax': 'regex पढ्न सकिएन: {message}',
   'adv.files.fit.counting': 'गणना गर्दै...',
   'adv.files.fit.unread': 'गणनाहरू पढ्न सकिएन: {message}',
+  'adv.files.fit.gone': 'फाइलहरूमा अहिले {folder} फोल्डर छैन।',
   'adv.files.fit.count':
     '{files} फाइलहरूमध्ये {fit} मिल्छन्। मिल्ने फाइलहरूले {items} वस्तुहरू बनाउँछन्।',
   'adv.files.fit.unfit': '{count} मिल्दैनन्।',
@@ -203,7 +207,6 @@ export const ne: ImportAdvancedMessages = {
   'adv.fields.sites.label': 'साइटहरू',
   'adv.fields.sites.plain': 'नयाँ वस्तुहरू देखाउने साइटहरू।',
   'adv.fields.sites.none': 'Omeka मा अहिलेसम्म कुनै साइटहरू छैनन्।',
-  'adv.fields.rules.title': 'क्षेत्रहरू',
   'adv.fields.rules.plain':
     'प्रत्येक क्षेत्रका लागि एउटा नियम: यसको मान कहाँबाट आउँछ, क्रममा, तिनीहरू कसरी जोडिन्छन्, र एउटा मान नक्सा।',
   'adv.fields.kind.label': 'नियमहरू',

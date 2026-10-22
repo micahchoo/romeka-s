@@ -2020,6 +2020,7 @@ dependencies = [
  "omeka-db",
  "omeka-media",
  "omeka-server",
+ "rustix",
  "serde",
  "serde_json",
  "sha2 0.10.9",

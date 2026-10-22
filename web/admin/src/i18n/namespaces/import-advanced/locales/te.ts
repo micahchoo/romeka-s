@@ -32,10 +32,14 @@ export const te: ImportAdvancedMessages = {
   'adv.source.tagAll': 'ప్రతి ఫైల్ యొక్క ట్యాగ్ {tag}',
   'adv.source.tagPart': '“{part}” భాగం కలిగిన ఫైల్ యొక్క ట్యాగ్ {tag}',
   'adv.source.constant': 'స్థిరమైన “{value}”',
-  'adv.series.label': 'ఫోల్డర్',
-  'adv.series.plain':
-    'ప్రతి ఫోల్డర్‌కు దాని స్వంత నమూనా, జాబితాలు మరియు ఫీల్డ్‌లు ఉంటాయి. కింద ఉన్న సెట్టింగ్‌లు ఈ ఫోల్డర్‌కు సంబంధించినవి.',
-  'adv.series.none': 'ఏ ఫోల్డర్ ఇంపోర్ట్ చేయబడలేదు, కాబట్టి ఇక్కడ సెట్ చేయడానికి ఏమీ లేదు.',
+  'adv.structure.files': 'ఏ ఫైల్‌లు',
+  'adv.structure.items': 'అంశాలు',
+  'adv.structure.lists': 'జాబితాలు',
+  'adv.structure.fields': 'ఫీల్డ్‌లు',
+  'adv.structure.set': 'సెట్',
+  'adv.structure.rules': '{count} ఫీల్డ్ నియమాలు',
+  'adv.structure.rulesOne': '1 ఫీల్డ్ నియమం',
+  'adv.structure.setWritten': 'ఈ ఫోల్డర్ ఏ సెట్‌తో వ్రాయబడిందో అది. మరొకటి ఎంచుకోవడానికి మా సూచనకు తిరిగి వెళ్ళండి.',
   'adv.files.sources.title': 'మూలాలు',
   'adv.files.sources.label': 'మూలాలు',
   'adv.files.sources.plain':
@@ -44,7 +48,6 @@ export const te: ImportAdvancedMessages = {
   'adv.files.sources.filesOne': '1 ఫైల్',
   'adv.files.sources.notRead': 'ఇంకా చదవలేదు',
   'adv.files.sources.error': 'దీనిని చదవడం సాధ్యం కాలేదు: {message}',
-  'adv.files.pattern.title': 'నమూనా',
   'adv.files.example.label': 'గుర్తించిన ఉదాహరణ',
   'adv.files.example.plain':
     'మీరు ఒక ఫైల్ పేరులో గుర్తించిన భాగాలు. ఈ గుర్తులు కింద ఉన్న నమూనాను రాస్తాయి.',
@@ -79,6 +82,7 @@ export const te: ImportAdvancedMessages = {
   'adv.files.pattern.syntax': 'రెజెక్స్‌ను చదవడం సాధ్యం కాలేదు: {message}',
   'adv.files.fit.counting': 'లెక్కించడం...',
   'adv.files.fit.unread': 'లెక్కింపును చదవడం సాధ్యం కాలేదు: {message}',
+  'adv.files.fit.gone': 'ఫైల్‌లకు ఇప్పుడు {folder} ఫోల్డర్ లేదు.',
   'adv.files.fit.count':
     '{files} ఫైల్‌లలో {fit} సరిపోతాయి. సరిపోయే ఫైల్‌లు {items} వస్తువులను చేస్తాయి.',
   'adv.files.fit.unfit': '{count} సరిపోవు.',
@@ -206,7 +210,6 @@ export const te: ImportAdvancedMessages = {
   'adv.fields.sites.label': 'సైట్లు',
   'adv.fields.sites.plain': 'కొత్త అంశాలను చూపే సైట్లు.',
   'adv.fields.sites.none': 'Omeka లో ఇంకా సైట్లు లేవు.',
-  'adv.fields.rules.title': 'ఫీల్డ్‌లు',
   'adv.fields.rules.plain':
     'ప్రతి ఫీల్డ్‌కు ఒకటి: దాని విలువలు ఎక్కడ నుండి వస్తాయి, ఏ క్రమంలో, అవి ఎలా కలుస్తాయి మరియు ఒక విలువ మ్యాప్.',
   'adv.fields.kind.label': 'నియమాలు',

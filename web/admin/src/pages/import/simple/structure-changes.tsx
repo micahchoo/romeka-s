@@ -3,7 +3,8 @@
  * it changed, or why it does not apply now, and a way to take it back. It
  * shows only once the person has a change, so it is a lazy chunk of its own,
  * which the screen starts loading as it opens. A click on a folder written
- * by hand waits while the folder stays so, with the way back beside it.
+ * by hand waits while the folder stays so, with the way back beside it; a
+ * split taken before it was written stays as its set level, and is kept.
  */
 import type { ReactElement } from 'react';
 import type { NotApplied } from '../../../api/import-proposal';
@@ -59,6 +60,9 @@ const placeOf = (edit: Edit, tree: readonly TreeNode[], where: string, t: Words[
   if (node?.kind === 'series' || node?.kind === 'own') {
     return folderName(node.node.scope.scope.folder, where);
   }
+  if (node?.kind === 'kept') {
+    return folderName(node.scope.folder, where);
+  }
   if (node?.kind === 'every') {
     return t('structure.every');
   }
@@ -104,8 +108,12 @@ export const Changes = ({ tree, where, id }: { readonly tree: readonly TreeNode[
           // A click on a folder written by hand is not offered while the folder stays so: it waits, and comes back with the suggestion.
           const owner = result.reason === 'notOffered' ? nodeOf(result.edit, tree) : undefined;
           const waitsOn = owner?.kind === 'own' ? owner.node.scope.scope : null;
+          // A split taken before the folder was written by hand stays as its set level: it is kept, not waiting.
+          const kept = owner?.kind === 'kept';
           const after =
-            waitsOn !== null
+            kept
+              ? t('structure.change.kept')
+              : waitsOn !== null
               ? t('structure.change.waiting')
               : result.reason !== null
                 ? t(REASONS[result.reason])
@@ -113,7 +121,7 @@ export const Changes = ({ tree, where, id }: { readonly tree: readonly TreeNode[
                   ? null
                   : t('structure.change.effect', { before: number(effect.before), after: number(effect.after) });
           return (
-            <li key={JSON.stringify(result.edit)} className={result.applied ? undefined : 'is-waiting'}>
+            <li key={JSON.stringify(result.edit)} className={result.applied || kept ? undefined : 'is-waiting'}>
               <span>{t('structure.change.line', { where: placeOf(result.edit, tree, where, t), question, answer })}</span>
               {after === null ? null : <span className="structure-change-effect">{after}</span>}
               {waitsOn === null ? null : (

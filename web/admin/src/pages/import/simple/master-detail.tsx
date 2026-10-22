@@ -4,8 +4,8 @@
  * column when it is narrower than 720 px. The list is a listbox: the arrow
  * keys, Home and End move the selection, and Enter moves focus into the
  * inspector. Rows that share a `group` sit under its heading, in a listbox
- * group. The selection is this component's state, because the import's
- * address names screens only. `Segmented` is one choice of a few, with the
+ * group. The selection is this component's state; `onSelect` hears each
+ * change, so a screen can keep it in its address. `Segmented` is one choice of a few, with the
  * answer the counts suggest marked and each answer's counts under its name.
  */
 import { useId, useRef, useState } from 'react';
@@ -39,11 +39,13 @@ export const MasterDetail = ({
   label,
   rows,
   initial,
+  onSelect,
   children,
 }: {
   readonly label: string;
   readonly rows: readonly MasterRow[];
   readonly initial: string | null;
+  readonly onSelect?: (key: string) => void;
   readonly children: (key: string) => ReactNode;
 }): ReactElement => {
   const id = useId();
@@ -57,6 +59,7 @@ export const MasterDetail = ({
     const row = rows[index];
     if (row !== undefined) {
       setChosen(row.key);
+      onSelect?.(row.key);
       document.getElementById(optionId(index))?.focus();
     }
   };

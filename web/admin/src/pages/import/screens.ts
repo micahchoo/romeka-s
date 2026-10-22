@@ -12,6 +12,10 @@
  * They stay as sub-screens of Structure for a plan of one series, which they
  * edit; on a plan of several their addresses, and the marked example's, land
  * on Structure, at the question they asked (`landing`).
+ *
+ * Advanced's Structure is the same tree, each node with its rules (the rule
+ * zoom). Files, Lists and Fields were Advanced screens; their contents are
+ * sections of a node now, so their addresses open Structure at that section.
  */
 import type { ImportDetail } from '../../api/import-view';
 import type { ImportId, ImportPlan } from '../../api/import-plan';
@@ -32,9 +36,7 @@ export const SIMPLE_SCREENS = [
   'add',
 ] as const;
 export const ADVANCED_SCREENS = [
-  'files',
-  'lists',
-  'fields',
+  'structure',
   'problems',
   'existing',
   'changes',
@@ -51,9 +53,12 @@ export type Mode = 'simple' | 'advanced';
 /** The question of a Structure node an old step's address lands on. */
 export type Focus = 'items' | 'list' | 'set';
 
+/** A section of a node in Advanced's rule zoom. */
+export type Section = 'files' | 'items' | 'lists' | 'fields' | 'set';
+
 export type Place =
   | { readonly mode: 'simple'; readonly screen: SimpleScreen; readonly focus?: Focus }
-  | { readonly mode: 'advanced'; readonly screen: AdvancedScreen };
+  | { readonly mode: 'advanced'; readonly screen: AdvancedScreen; readonly section?: Section };
 
 interface Screen<Own, Other> {
   /** The heading over the screen. */
@@ -66,30 +71,28 @@ interface Screen<Own, Other> {
 }
 
 export const SIMPLE: Readonly<Record<SimpleScreen, Screen<SimpleScreen, AdvancedScreen>>> = {
-  structure: { title: 'simple.structure.title', step: 'simple.structure.step', other: 'files' },
-  files: { title: 'simple.files.title', parent: 'structure', other: 'files' },
-  found: { title: 'simple.found.title', parent: 'structure', other: 'files' },
-  example: { title: 'simple.example.title', parent: 'found', other: 'files' },
+  structure: { title: 'simple.structure.title', step: 'simple.structure.step', other: 'structure' },
+  files: { title: 'simple.files.title', parent: 'structure', other: 'structure' },
+  found: { title: 'simple.found.title', parent: 'structure', other: 'structure' },
+  example: { title: 'simple.example.title', parent: 'found', other: 'structure' },
   'all-files': { title: 'simple.allFiles.title', parent: 'found', other: 'all-files' },
-  list: { title: 'simple.list.title', parent: 'structure', other: 'lists' },
+  list: { title: 'simple.list.title', parent: 'structure', other: 'structure' },
   pair: { title: 'simple.pair.title', parent: 'list', other: 'pair' },
-  where: { title: 'simple.where.title', parent: 'structure', other: 'fields' },
+  where: { title: 'simple.where.title', parent: 'structure', other: 'structure' },
   check: { title: 'simple.check.title', step: 'simple.check.step', other: 'problems' },
   'all-items': { title: 'simple.allItems.title', parent: 'check', other: 'items' },
   add: { title: 'simple.add.title', step: 'simple.add.step', other: 'run' },
 };
 
 export const ADVANCED: Readonly<Record<AdvancedScreen, Screen<AdvancedScreen, SimpleScreen>>> = {
-  files: { title: 'advanced.files.title', step: 'advanced.files.step', other: 'found' },
-  lists: { title: 'advanced.lists.title', step: 'advanced.lists.step', other: 'list' },
-  fields: { title: 'advanced.fields.title', step: 'advanced.fields.step', other: 'where' },
+  structure: { title: 'advanced.structure.title', step: 'advanced.structure.step', other: 'structure' },
   problems: { title: 'advanced.problems.title', step: 'advanced.problems.step', other: 'check' },
   existing: { title: 'advanced.existing.title', step: 'advanced.existing.step', other: 'add' },
   changes: { title: 'advanced.changes.title', step: 'advanced.changes.step', other: 'check' },
   items: { title: 'advanced.items.title', step: 'advanced.items.step', other: 'all-items' },
   run: { title: 'advanced.run.title', step: 'advanced.run.step', other: 'add' },
-  'all-files': { title: 'advanced.allFiles.title', parent: 'files', other: 'all-files' },
-  pair: { title: 'advanced.pair.title', parent: 'lists', other: 'pair' },
+  'all-files': { title: 'advanced.allFiles.title', parent: 'structure', other: 'all-files' },
+  pair: { title: 'advanced.pair.title', parent: 'structure', other: 'pair' },
 };
 
 /** The screen itself when it is a step, else its nearest parent that is one. */
@@ -160,6 +163,13 @@ export const placeHref = (id: ImportId, place: Place): string => `${importHref(i
 const simpleScreen = (slug: string): SimpleScreen | undefined => SIMPLE_SCREENS.find((id) => id === slug);
 const advancedScreen = (slug: string): AdvancedScreen | undefined => ADVANCED_SCREENS.find((id) => id === slug);
 
+/** Advanced's old screens, by the section of a node each one's contents moved to. */
+const MOVED_ADVANCED = new Map<string, Section>([
+  ['files', 'items'],
+  ['lists', 'lists'],
+  ['fields', 'fields'],
+]);
+
 /** The place `[mode, screen]` names, `null` when the address names none, or `'unknown'` for one no screen has. */
 export const placeFromSegments = (segments: readonly string[]): Place | null | 'unknown' => {
   const [mode, screen] = segments;
@@ -171,8 +181,9 @@ export const placeFromSegments = (segments: readonly string[]): Place | null | '
     return id === undefined ? 'unknown' : { mode, screen: id };
   }
   if (mode === 'advanced') {
-    const id = advancedScreen(screen ?? 'files');
-    return id === undefined ? 'unknown' : { mode, screen: id };
+    const section = MOVED_ADVANCED.get(screen ?? '');
+    const id = advancedScreen(screen ?? 'structure');
+    return section !== undefined ? { mode, screen: 'structure', section } : id === undefined ? 'unknown' : { mode, screen: id };
   }
   return 'unknown';
 };

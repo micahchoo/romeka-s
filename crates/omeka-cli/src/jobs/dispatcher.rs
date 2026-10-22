@@ -1,7 +1,10 @@
 //! The job context, and the dispatcher that starts a job in a new process.
 
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use omeka_db::DbPool;
 use omeka_db::Location;
@@ -229,15 +232,103 @@ impl<'a> Dispatcher<'a> {
 
 /// Starts each job in a new `romeka job run` process and reaps it when it
 /// exits, so a long-lived server leaves no zombie processes.
-pub struct ProcessDispatch(pub JobCommand);
+///
+/// Each job leads its own process group, so the server's shutdown reaches
+/// the jobs it started and nothing else ([`Self::shutdown`]).
+pub struct ProcessDispatch {
+    command: JobCommand,
+    /// The pid of each job this dispatcher started that has not exited.
+    live: Arc<Mutex<HashSet<u32>>>,
+}
+
+impl ProcessDispatch {
+    #[must_use]
+    pub fn new(command: JobCommand) -> Self {
+        Self {
+            command,
+            live: Arc::default(),
+        }
+    }
+
+    /// End the jobs this dispatcher started, for a server that is stopping.
+    ///
+    /// Each job process gets a TERM, and only it: a job that runs tools of
+    /// its own (the derivative worker's ffmpeg and soffice) decides what they
+    /// do, since a TERM to a tool fails its copy and spends one of its
+    /// attempts. An import run ends after the record in hand. After `grace`,
+    /// or once every job has exited, each job's process group gets a KILL, so
+    /// no tool outlives the server. Blocks until then.
+    pub fn shutdown(&self, grace: Duration) {
+        let started: Vec<u32> = self.live().iter().copied().collect();
+        for pid in &started {
+            signal(*pid, Ending::Term);
+        }
+        let deadline = Instant::now() + grace;
+        while !self.live().is_empty() && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        for pid in &started {
+            signal(*pid, Ending::KillGroup);
+        }
+    }
+
+    fn live(&self) -> std::sync::MutexGuard<'_, HashSet<u32>> {
+        self.live
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+}
 
 impl JobDispatch for ProcessDispatch {
     fn start(&self, job: JobId) -> Result<(), DispatchError> {
-        let mut child = self
-            .0
-            .spawn(job)
+        let mut command = self
+            .command
+            .command(job)
             .map_err(|error| DispatchError(error.to_string()))?;
-        std::thread::spawn(move || child.wait());
+        #[cfg(unix)]
+        std::os::unix::process::CommandExt::process_group(&mut command, 0);
+        let mut child = command
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .map_err(|error| DispatchError(format!("cannot start job {}: {error}", job.0)))?;
+        let pid = child.id();
+        self.live().insert(pid);
+        let live = Arc::clone(&self.live);
+        std::thread::spawn(move || {
+            let _ = child.wait();
+            live.lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .remove(&pid);
+        });
         Ok(())
+    }
+}
+
+enum Ending {
+    /// TERM to the job process alone.
+    Term,
+    /// KILL to the job's whole process group.
+    KillGroup,
+}
+
+/// Send `ending` to job `pid`. A job that already exited answers no such
+/// process, which is the outcome wanted.
+fn signal(pid: u32, ending: Ending) {
+    #[cfg(unix)]
+    {
+        use rustix::process::{Pid, Signal, kill_process, kill_process_group};
+        let Some(pid) = i32::try_from(pid).ok().and_then(Pid::from_raw) else {
+            return;
+        };
+        let _ = match ending {
+            Ending::Term => kill_process(pid, Signal::TERM),
+            Ending::KillGroup => kill_process_group(pid, Signal::KILL),
+        };
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (pid, ending);
     }
 }

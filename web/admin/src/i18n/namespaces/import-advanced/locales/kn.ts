@@ -32,10 +32,14 @@ export const kn: ImportAdvancedMessages = {
   'adv.source.tagAll': 'ಪ್ರತಿ ಫೈಲ್‌ನ ಟ್ಯಾಗ್ {tag}',
   'adv.source.tagPart': 'ಭಾಗವು “{part}” ಆಗಿರುವ ಫೈಲ್‌ನ ಟ್ಯಾಗ್ {tag}',
   'adv.source.constant': 'ಸ್ಥಿರ “{value}”',
-  'adv.series.label': 'ಫೋಲ್ಡರ್',
-  'adv.series.plain':
-    'ಪ್ರತಿ ಫೋಲ್ಡರ್ ತನ್ನದೇ ಆದ ಮಾದರಿ, ಪಟ್ಟಿಗಳು ಮತ್ತು ಕ್ಷೇತ್ರಗಳನ್ನು ಹೊಂದಿದೆ. ಕೆಳಗಿನ ಸೆಟ್ಟಿಂಗ್‌ಗಳು ಈ ಫೋಲ್ಡರ್‌ಗೆ ಸೇರಿವೆ.',
-  'adv.series.none': 'ಯಾವುದೇ ಫೋಲ್ಡರ್ ಆಮದು ಮಾಡಿಕೊಳ್ಳಲಾಗಿಲ್ಲ, ಆದ್ದರಿಂದ ಇಲ್ಲಿ ಹೊಂದಿಸಲು ಏನೂ ಇಲ್ಲ.',
+  'adv.structure.files': 'ಯಾವ ಫೈಲ್‌ಗಳು',
+  'adv.structure.items': 'ಅಂಶಗಳು',
+  'adv.structure.lists': 'ಪಟ್ಟಿಗಳು',
+  'adv.structure.fields': 'ಕ್ಷೇತ್ರಗಳು',
+  'adv.structure.set': 'ಸೆಟ್',
+  'adv.structure.rules': '{count} ಕ್ಷೇತ್ರದ ನಿಯಮಗಳು',
+  'adv.structure.rulesOne': '1 ಕ್ಷೇತ್ರದ ನಿಯಮ',
+  'adv.structure.setWritten': 'ಈ ಫೋಲ್ಡರ್ ಅನ್ನು ಬರೆದ ಸೆಟ್. ಇನ್ನೊಂದನ್ನು ಆರಿಸಲು ನಮ್ಮ ಸಲಹೆಗೆ ಹಿಂತಿರುಗಿ.',
   'adv.files.sources.title': 'ಮೂಲಗಳು',
   'adv.files.sources.label': 'ಮೂಲಗಳು',
   'adv.files.sources.plain':
@@ -44,7 +48,6 @@ export const kn: ImportAdvancedMessages = {
   'adv.files.sources.filesOne': '1 ಫೈಲ್',
   'adv.files.sources.notRead': 'ಇನ್ನೂ ಓದಿಲ್ಲ',
   'adv.files.sources.error': 'ಇದನ್ನು ಓದಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ: {message}',
-  'adv.files.pattern.title': 'ಮಾದರಿ',
   'adv.files.example.label': 'ಗುರುತಿಸಲಾದ ಉದಾಹರಣೆ',
   'adv.files.example.plain':
     'ಒಂದು ಫೈಲ್ ಹೆಸರಿನಲ್ಲಿ ನೀವು ಗುರುತಿಸಿದ ಭಾಗಗಳು. ಗುರುತುಗಳು ಕೆಳಗಿನ ಮಾದರಿಯನ್ನು ಬರೆಯುತ್ತವೆ.',
@@ -80,6 +83,7 @@ export const kn: ImportAdvancedMessages = {
   'adv.files.pattern.syntax': 'ರೆಜೆಕ್ಸ್ ಅನ್ನು ಓದಲಾಗುವುದಿಲ್ಲ: {message}',
   'adv.files.fit.counting': 'ಎಣಿಕೆ...',
   'adv.files.fit.unread': 'ಎಣಿಕೆಗಳನ್ನು ಓದಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ: {message}',
+  'adv.files.fit.gone': 'ಫೈಲ್‌ಗಳಲ್ಲಿ ಈಗ {folder} ಫೋಲ್ಡರ್ ಇಲ್ಲ.',
   'adv.files.fit.count':
     '{files} ಕಡತಗಳಲ್ಲಿ {fit} ಹೊಂದಿಕೆಯಾಗುತ್ತದೆ. ಹೊಂದಿಕೆಯಾಗುವ ಕಡತಗಳು {items} ಐಟಂಗಳನ್ನು ಮಾಡುತ್ತವೆ.',
   'adv.files.fit.unfit': '{count} ಹೊಂದಿಕೆಯಾಗುವುದಿಲ್ಲ.',
@@ -208,7 +212,6 @@ export const kn: ImportAdvancedMessages = {
   'adv.fields.sites.label': 'ಸೈಟ್‌ಗಳು',
   'adv.fields.sites.plain': 'ಹೊಸ ಐಟಂಗಳನ್ನು ತೋರಿಸುವ ಸೈಟ್‌ಗಳು.',
   'adv.fields.sites.none': 'Omeka ಇನ್ನೂ ಯಾವುದೇ ಸೈಟ್‌ಗಳನ್ನು ಹೊಂದಿಲ್ಲ.',
-  'adv.fields.rules.title': 'ಕ್ಷೇತ್ರಗಳು',
   'adv.fields.rules.plain':
     'ಪ್ರತಿ ಕ್ಷೇತ್ರಕ್ಕೆ ಒಂದು ನಿಯಮ: ಅದರ ಮೌಲ್ಯಗಳು ಎಲ್ಲಿಂದ ಬರುತ್ತವೆ, ಯಾವ ಕ್ರಮದಲ್ಲಿ, ಅವು ಹೇಗೆ ಸಂಯೋಜನೆಗೊಳ್ಳುತ್ತವೆ ಮತ್ತು ಒಂದು ಮೌಲ್ಯದ ನಕ್ಷೆ.',
   'adv.fields.kind.label': 'ನಿಯಮಗಳು',

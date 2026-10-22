@@ -7,9 +7,9 @@
  * `with…` (`import-series.test.ts` holds them to it).
  *
  * Every reader and writer of one series names it by its level id. Simple's
- * old steps open only on a plan of one series (`screens.ts`, `landing`) and
- * Advanced's screens of one series edit the one the person picks
- * (`picked-series.ts`). The readers keyed by a list id (`listOf`, `withList`,
+ * old steps open only on a plan of one series (`screens.ts`, `landing`), and
+ * Advanced's rule zoom edits the series of the node picked in the tree
+ * (`picked-node.ts`). The readers keyed by a list id (`listOf`, `withList`,
  * `seriesHolding`) and the ones that read every series (`allLists`,
  * `withEverySeries`) need no level.
  *
@@ -93,6 +93,23 @@ export const setLevelsOf = (plan: ImportPlan): readonly SetLevel[] => {
   return visit(plan.structure.levels);
 };
 
+/** The set levels around the series `level` in `structure`, outermost first; none when no series is `level`. */
+export const setLevelsAround = (structure: Structure, level: LevelId): readonly SetLevel[] => {
+  const path = (levels: readonly Level[]): readonly SetLevel[] | null => {
+    for (const one of levels) {
+      if (one.kind === 'series' && one.id === level) {
+        return [];
+      }
+      const inner = one.kind === 'set' ? path(one.levels) : null;
+      if (one.kind === 'set' && inner !== null) {
+        return [one, ...inner];
+      }
+    }
+    return null;
+  };
+  return path(structure.levels) ?? [];
+};
+
 export const withSets = (plan: ImportPlan, change: (sets: readonly SetSource[]) => readonly SetSource[]): ImportPlan => ({
   ...plan,
   structure: { ...plan.structure, freeSets: change(plan.structure.freeSets) },
@@ -164,6 +181,12 @@ export const simpleOf = (plan: ImportPlan, level?: LevelId): Readonly<Record<str
 export const withSimple = (plan: ImportPlan, state: Readonly<Record<string, JsonValue>>, level?: LevelId): ImportPlan => {
   const ids = level === undefined ? allSeries(plan).map((series) => series.id) : [seriesOf(plan, level).id];
   return { ...plan, simple: { ...plan.simple, ...Object.fromEntries(ids.map((id) => [id, state])) } };
+};
+
+/** Whether the plan still holds the archive as found: one series over everything, which no proposal made. */
+export const isAsFound = (plan: ImportPlan): boolean => {
+  const series = allSeries(plan);
+  return series.length === 1 && series[0]?.scope === 'all' && setLevelsOf(plan).length === 0;
 };
 
 /** The plan's one series; `null` when it has several, where only a node of the structure screen names one. */

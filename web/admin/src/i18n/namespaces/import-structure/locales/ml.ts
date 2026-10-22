@@ -146,6 +146,9 @@ export const ml: ImportStructureMessages = {
   "structure.own.back": "നമ്മുടെ നിർദ്ദേശത്തിലേക്ക് തിരിച്ചുപോകുക",
   "structure.change.waiting":
     "നിങ്ങൾ കൈകൊണ്ട് ഈ ഫോൾഡർ എഴുതുമ്പോൾ കാത്തിരിക്കുന്നു.",
+  "structure.keptSet.each": "ഒരു മൂല്യത്തിന് ഒരു സെറ്റ്",
+  "structure.keptSet.note": "നിങ്ങൾ ഉണ്ടാക്കിയതുപോലെ സൂക്ഷിച്ചു, നിങ്ങൾ എഴുതിയ ഫോൾഡറിന് ചുറ്റും.",
+  "structure.change.kept": "നിങ്ങൾ ഉണ്ടാക്കിയതുപോലെ സൂക്ഷിച്ചു.",
   "structure.kept.title": "അപ്‌ലോഡ് ചെയ്ത പട്ടികകൾ",
   "structure.kept.rows":
     "{file}: നിങ്ങൾ അപ്‌ലോഡ് ചെയ്ത പട്ടിക, സൂക്ഷിച്ചു. {of} വരികളിൽ {n} എണ്ണം ജോടിയാകുന്നു.",

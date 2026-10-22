@@ -32,10 +32,14 @@ export const hi: ImportAdvancedMessages = {
   'adv.source.tagAll': 'हर फ़ाइल का टैग {tag}',
   'adv.source.tagPart': 'उस फ़ाइल का टैग {tag} जिसका भाग “{part}” है',
   'adv.source.constant': 'स्थिरांक "{value}"',
-  'adv.series.label': 'फोल्डर',
-  'adv.series.plain':
-    'प्रत्येक फोल्डर का अपना पैटर्न, सूचियाँ और फ़ील्ड हैं। नीचे दी गई सेटिंग्स इस फोल्डर के लिए हैं।',
-  'adv.series.none': 'कोई फोल्डर आयात नहीं किया गया है, इसलिए यहाँ सेट करने के लिए कुछ भी नहीं है।',
+  'adv.structure.files': 'कौन सी फ़ाइलें',
+  'adv.structure.items': 'आइटम',
+  'adv.structure.lists': 'सूचियाँ',
+  'adv.structure.fields': 'फ़ील्ड',
+  'adv.structure.set': 'सेट',
+  'adv.structure.rules': '{count} फ़ील्ड नियम',
+  'adv.structure.rulesOne': '1 फ़ील्ड नियम',
+  'adv.structure.setWritten': 'यह फोल्डर जिस सेट के साथ लिखा गया था। हमारे सुझाव पर वापस जाएँ ताकि दूसरा चुन सकें।',
   'adv.files.sources.title': 'स्रोत',
   'adv.files.sources.label': 'स्रोत',
   'adv.files.sources.plain': 'फ़ाइलें कहाँ से आती हैं। एक आयात एक से अधिक स्थान से पढ़ सकता है।',
@@ -43,7 +47,6 @@ export const hi: ImportAdvancedMessages = {
   'adv.files.sources.filesOne': '1 फ़ाइल',
   'adv.files.sources.notRead': 'अभी तक नहीं पढ़ा',
   'adv.files.sources.error': 'इसे पढ़ा नहीं जा सका: {message}',
-  'adv.files.pattern.title': 'पैटर्न',
   'adv.files.example.label': 'चिह्नित उदाहरण',
   'adv.files.example.plain':
     'एक फ़ाइल नाम में आपने जो हिस्से चिह्नित किए हैं। निशान पैटर्न को नीचे लिखते हैं।',
@@ -78,6 +81,7 @@ export const hi: ImportAdvancedMessages = {
   'adv.files.pattern.syntax': 'रेगेक्स पढ़ा नहीं जा सकता: {message}',
   'adv.files.fit.counting': 'गणना...',
   'adv.files.fit.unread': 'गणना नहीं पढ़ी जा सकी: {message}',
+  'adv.files.fit.gone': 'फ़ाइलों में अब {folder} फोल्डर नहीं है।',
   'adv.files.fit.count':
     '{files} फ़ाइलों में से {fit} फिट होती हैं। फिट होने वाली फ़ाइलें {items} आइटम बनाती हैं।',
   'adv.files.fit.unfit': '{count} फिट नहीं होते।',
@@ -205,7 +209,6 @@ export const hi: ImportAdvancedMessages = {
   'adv.fields.sites.label': 'साइटें',
   'adv.fields.sites.plain': 'वे साइटें जो नए आइटम दिखाती हैं।',
   'adv.fields.sites.none': 'ओमेका (Omeka) में अभी तक कोई साइट नहीं है।',
-  'adv.fields.rules.title': 'फ़ील्ड्स',
   'adv.fields.rules.plain':
     'प्रत्येक फ़ील्ड के लिए एक नियम: उसके मान कहाँ से आते हैं, किस क्रम में, वे कैसे जुड़ते हैं, और एक वैल्यू मैप।',
   'adv.fields.kind.label': 'नियमों के लिए',

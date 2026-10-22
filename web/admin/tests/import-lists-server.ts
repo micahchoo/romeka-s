@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { asRecord, isRecord } from '../src/api/parse';
 import { loadFixture } from './loadFixture';
 import { flatPlan } from './import-plan-members';
+import { planProposal } from './import-plan-proposal';
 import { jsonResponse, listResponse, route } from './stub';
 import type { Handler } from './stub';
 
@@ -158,6 +159,8 @@ export const listsServer = (items: number, options: { readonly strays?: number; 
           { header: 'Notes', index: 4, mappable: true },
         ];
         answer['sheets'] = [{ ...first, id: 'list-1', file: 'lists/1.csv', source: 'staging', read: { ...read, rows, columns, notes: [] } }];
+      } else if (section === 'proposal') {
+        answer['proposal'] = planProposal(isRecord(body['plan']) ? body['plan'] : asRecord(draft()['plan'], []), entries.length);
       } else {
         const name = { shapes: 'preview-shapes.json', flags: 'preview-flags.json', check: 'preview-check.json', histogram: 'preview-histogram.json', identical: 'preview-identical.json' }[section];
         if (name !== undefined) {

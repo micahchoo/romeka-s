@@ -169,3 +169,73 @@ fn a_series_written_by_hand_keeps_the_set_levels_around_it() {
         proposal.edits
     );
 }
+
+#[test]
+fn a_suggested_folder_takes_back_a_list_moved_away_so_move_here_writes_both() {
+    // "Move here" (P5 unit A3): the person reads Documents' list into
+    // Artifacts and writes Artifacts by hand. While Documents stays
+    // suggested, the proposer gives it the list again, so the list would be
+    // read twice. The admin's Move here therefore writes both folders.
+    let mut structure = serde_json::to_value(&bhc006_tests::proposal_with_lists(&[]).structure)
+        .expect("the structure as JSON");
+    let levels = structure["levels"].as_array_mut().expect("levels");
+    let at = |id: &str| {
+        levels
+            .iter()
+            .position(|level| level["id"] == id)
+            .expect("a suggested series")
+    };
+    let (artifacts, documents) = (at("Artifacts"), at("Documents (D)"));
+    let moved = levels[documents]["lists"][0].clone();
+    assert_eq!(
+        moved["file"], "BHC006_GMT_D.xlsx",
+        "the list Documents reads"
+    );
+    levels[documents]["lists"] = serde_json::json!([]);
+    levels[artifacts]["lists"]
+        .as_array_mut()
+        .expect("lists")
+        .push(moved);
+    let mut plan = serde_json::to_value(bhc006_tests::draft()).expect("the draft as JSON");
+    plan["structure"] = structure;
+    let person = ImportPlan::from_json(&plan.to_string()).expect("the plan after Move here");
+
+    let index = bhc006_tests::index();
+    let lists = bhc006_tests::lists();
+    let catalog = bhc006_tests::install();
+    let evidence = Evidence {
+        index: &index,
+        lists: &lists,
+        catalog: &catalog,
+        sources: &person.sources,
+        structure: &person.structure,
+        sheets: &Sheets::new(),
+    };
+    let readers = |edits: &[Edit]| -> Vec<String> {
+        propose(&evidence, edits)
+            .structure
+            .all_series()
+            .filter(|(_, series)| {
+                series
+                    .lists()
+                    .iter()
+                    .any(|list| list.file.as_str() == "BHC006_GMT_D.xlsx")
+            })
+            .map(|(_, series)| series.id().0.clone())
+            .collect()
+    };
+    let own = |folder: &str| Edit::Own {
+        scope: scope(folder),
+    };
+
+    assert_eq!(
+        readers(&[own("Artifacts")]),
+        ["Artifacts", "Documents (D)"],
+        "the suggested holder takes the list back"
+    );
+    assert_eq!(
+        readers(&[own("Documents (D)"), own("Artifacts")]),
+        ["Artifacts"],
+        "with both folders written, only the folder it was moved to reads it"
+    );
+}

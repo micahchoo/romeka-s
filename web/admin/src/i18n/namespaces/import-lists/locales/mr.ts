@@ -221,6 +221,8 @@ export const mr: ImportListsMessages = {
   'lists.picker.declined': 'नाकारले',
   'lists.picker.offered': 'वापरले नाही',
   'lists.picker.unreadable': 'वाचले नाही',
+  'lists.picker.usedBy': '{folder} द्वारे वापरले जाते',
+  'lists.picker.move': 'येथे हलवा',
   'lists.picker.byNames': '“{column}” द्वारे, {rows} ओळींपैकी {count} ओळी एका फाईलचे नाव देतात.',
   'lists.picker.byCodes': '“{column}” द्वारे, {rows} ओळींपैकी {count} ओळी एका घटकाचा कोड देतात.',
   'lists.picker.loose': '+{count} कॅपिटल अक्षरे, सुरुवातीची शून्ये आणि _ - . दुर्लक्षित केल्यास',

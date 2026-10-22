@@ -49,6 +49,9 @@ pub struct Go<'a> {
     pub digest: Option<&'a str>,
     /// The count of resources a delete removes.
     pub confirm: Option<u64>,
+    /// The server goes on with a run whose worker went without the person
+    /// asking (`ImportRepo::start_resume`); nobody pressed Run.
+    pub resume: bool,
 }
 
 /// Why a run did not start.
@@ -181,10 +184,13 @@ where
         }
         .into());
     }
-    match ImportRepo::new(pool)
-        .start_run(row.id, row.revision)
-        .await?
-    {
+    let imports = ImportRepo::new(pool);
+    let outcome = if go.resume {
+        imports.start_resume(row.id, row.revision).await?
+    } else {
+        imports.start_run(row.id, row.revision).await?
+    };
+    match outcome {
         StartOutcome::Started => Ok(()),
         StartOutcome::Missing => Err(Refusal::Missing.into()),
         StartOutcome::Refused(status) => Err(Refusal::CannotRun(status).into()),

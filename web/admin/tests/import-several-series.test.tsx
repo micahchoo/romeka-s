@@ -2,9 +2,10 @@
  * Every import screen on a plan of several series: the BHC006 replica's
  * proposal (`fixtures/import/proposal-bhc006.json`, six series), which a
  * plan holds after the first click on the Structure screen. No screen fails
- * on it. Advanced's screens of one series (Files, Lists, Fields) offer a
- * picker of the plan's folders; what they show and edit is the picked
- * series, and the address keeps the pick.
+ * on it. Advanced's Structure shows every folder in its tree; what a
+ * folder's sections show and edit is that series, the address keeps the
+ * folder picked, and Advanced's old Files, Lists and Fields addresses land
+ * on it.
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Component } from 'react';
@@ -109,7 +110,13 @@ const settled = async (): Promise<void> => {
   );
 };
 
-const picker = (): HTMLElement => screen.getByRole('combobox', { name: 'Folder' });
+/** The folder the tree has selected. */
+const selected = (): string | null | undefined =>
+  within(screen.getByRole('listbox', { name: 'Your archive' }))
+    .getAllByRole('option')
+    .find((option) => option.getAttribute('aria-selected') === 'true')
+    ?.querySelector('.guided-row-name')?.textContent;
+
 
 afterEach(() => {
   cleanup();
@@ -138,22 +145,29 @@ describe('a plan of several series', () => {
     expect(await screen.findByRole('heading', { name: 'How your archive becomes items and sets' }, { timeout: 5000 })).toBeInTheDocument();
   });
 
-  it.each(['files', 'lists', 'fields'])('offers every folder on Advanced %s, the first one picked', async (place) => {
+  it.each([
+    ['files', 'Items'],
+    ['lists', 'Lists'],
+    ['fields', 'Fields'],
+  ])('lands Advanced’s old %s address on Structure, at the first folder, its section %s open', async (place, section) => {
     several();
     render(at('advanced', place));
-    const folder = await screen.findByRole('combobox', { name: 'Folder' }, { timeout: 5000 });
-    expect(within(folder).getAllByRole('option').map((option) => option.textContent)).toEqual(FOLDERS);
-    expect(folder).toHaveValue(FOLDERS[0]);
+    expect(await screen.findByRole('heading', { name: 'Structure: each folder with its rules' }, { timeout: 5000 })).toBeInTheDocument();
+    const tree = await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 });
+    const names = within(tree).getAllByRole('option').map((option) => option.querySelector('.guided-row-name')?.textContent);
+    expect(names.filter((name) => FOLDERS.includes(name ?? ''))).toEqual(FOLDERS);
+    expect(selected()).toBe(FOLDERS[0]);
+    expect(screen.getByRole('button', { name: section })).toHaveAttribute('aria-expanded', 'true');
   });
 
-  it('an edit with the second folder picked changes that series alone', async () => {
+  it('an edit on the second folder changes that series alone', async () => {
     const { saved } = several();
     render(at('advanced', 'fields'));
-    fireEvent.change(await screen.findByRole('combobox', { name: 'Folder' }, { timeout: 5000 }), { target: { value: FOLDERS[1] } });
+    fireEvent.click(await screen.findByRole('option', { name: FOLDERS[1] ?? '' }, { timeout: 5000 }));
     await waitFor(() => {
-      expect(picker()).toHaveValue(FOLDERS[1]);
+      expect(selected()).toBe(FOLDERS[1]);
     });
-    fireEvent.change(screen.getByRole('combobox', { name: 'Add a rule' }), { target: { value: 'visibility' } });
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Add a rule' }), { target: { value: 'visibility' } });
     expect(await screen.findByRole('article', { name: 'Visibility' })).toBeInTheDocument();
     await waitFor(() => {
       expect(saved).toHaveLength(1);
@@ -169,10 +183,10 @@ describe('a plan of several series', () => {
 
   it('keeps the picked folder in the address, so a reload opens on it', async () => {
     several();
-    render(at('advanced', 'files'));
-    fireEvent.change(await screen.findByRole('combobox', { name: 'Folder' }, { timeout: 5000 }), { target: { value: FOLDERS[2] } });
+    render(at('advanced', 'structure'));
+    fireEvent.click(await screen.findByRole('option', { name: FOLDERS[2] ?? '' }, { timeout: 5000 }));
     await waitFor(() => {
-      expect(window.location.hash.startsWith('#/import/1/advanced/files/')).toBe(true);
+      expect(window.location.hash.startsWith('#/import/1/advanced/structure/')).toBe(true);
     });
     const kept = window.location.hash;
     cleanup();
@@ -181,9 +195,10 @@ describe('a plan of several series', () => {
     window.location.hash = kept;
     render(at(...kept.split('/').slice(3)));
     await waitFor(() => {
-      expect(picker()).toHaveValue(FOLDERS[2]);
+      expect(selected()).toBe(FOLDERS[2]);
     }, { timeout: 5000 });
+    fireEvent.click(screen.getByRole('button', { name: 'Items' }));
     const pattern = asRecord(LEVELS[2]?.['grouping'], [])['pattern'];
-    expect(screen.getByLabelText('Regex')).toHaveValue(typeof pattern === 'string' ? pattern : '');
+    expect(await screen.findByLabelText('Regex')).toHaveValue(typeof pattern === 'string' ? pattern : '');
   });
 });
