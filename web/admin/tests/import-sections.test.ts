@@ -1,5 +1,5 @@
 /**
- * The `proposal` section and the plan's `edits` (`src/api/import-sections.ts`,
+ * The `proposal` section and the plan's `edits` (`src/api/import-proposal.ts`,
  * `src/api/import-plan-read.ts`) against every shape the server's types
  * define: a proposal with each kind of node, cut, set source, pair rule and
  * edit parses and serialises back to its JSON, and a member the server never
@@ -11,6 +11,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { parsePreview } from '../src/api/import-sections';
+import { parseProposal } from '../src/api/import-proposal';
 import { parseImportPlanV3 } from '../src/api/import-plan-read';
 import { ParseError } from '../src/api/parse';
 import { loadFixture } from './loadFixture';
@@ -120,7 +121,7 @@ const everything = (): Record<string, unknown> => {
 
 describe('the proposal section', () => {
   it('parses the archive as found the server proposed', () => {
-    const { proposal } = parsePreview(['proposal'])(recorded());
+    const proposal = parseProposal(parsePreview(['proposal'])(recorded()).proposal);
     expect(proposal.nodes.map((node) => node.kind)).toEqual(['series']);
     expect(proposal.edits).toEqual([]);
     expect(proposal.matchesPlan).toBe(false);
@@ -128,9 +129,9 @@ describe('the proposal section', () => {
 
   it('parses one of every node, cut, set source, pair rule and edit, and writes it back unchanged', () => {
     const raw = everything();
-    const parsed = parsePreview(['proposal'])(raw);
-    expect(roundTrip(parsed)).toEqual(raw);
-    expect(parsed.proposal.edits).toHaveLength(EDITS.length);
+    const parsed = parseProposal(parsePreview(['proposal'])(raw).proposal);
+    expect(roundTrip(parsed)).toEqual(raw['proposal']);
+    expect(parsed.edits).toHaveLength(EDITS.length);
   });
 
   it('refuses a member the server never writes, at any depth', () => {
@@ -143,8 +144,16 @@ describe('the proposal section', () => {
       (value) => ({ ...value, outside: [{ scope, files: 1, media: 0, kinds: [['image']], reason: 'noMedia' }] }),
     ];
     for (const change of changes) {
-      expect(() => parsePreview(['proposal'])({ ...raw, proposal: change(proposal) })).toThrow(ParseError);
+      expect(() => parseProposal(parsePreview(['proposal'])({ ...raw, proposal: change(proposal) }).proposal)).toThrow(ParseError);
     }
+  });
+});
+
+describe('the preview', () => {
+  it('refuses a proposal that is not an object, and a member it was not asked for', () => {
+    const raw = recorded();
+    expect(() => parsePreview(['proposal'])({ ...raw, proposal: null })).toThrow(ParseError);
+    expect(() => parsePreview(['proposal'])({ ...raw, ranked: true })).toThrow(ParseError);
   });
 });
 
