@@ -58,14 +58,16 @@ afterEach(() => {
   window.location.hash = '';
 });
 
+/** Simple's Files screen, and Advanced's Structure at the archive's node, which holds the sources. */
 describe.each([
-  ['simple', 'files'],
-  ['advanced', 'files'],
-] as const)('files from this computer in %s', (mode, screenId) => {
+  ['simple', 'files', null],
+  ['advanced', 'structure', '{"node":"archive"}'],
+] as const)('files from this computer in %s', (mode, screenId, node) => {
   it('adds a staging source with the first file, then looks at the files again and counts again', async () => {
     const server = simpleServer(scenario('meera', 9));
     const { handler, calls } = withUploads(server.handler);
     installFetch(handler);
+    window.location.hash = `#/import/1/${mode}/${screenId}${node === null ? '' : `/${node}`}`;
     render(<ImportPage param="1" rest={['1', mode, screenId]} />);
     expect(await screen.findByRole('button', { name: 'Choose files' }, { timeout: 5000 })).toBeInTheDocument();
     expect(calls).not.toContain(`POST ${PATH}/scan`);

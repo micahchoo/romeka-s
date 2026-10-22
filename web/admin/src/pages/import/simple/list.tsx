@@ -25,7 +25,7 @@ import { folderSheets } from './list-read';
 import { MasterDetail, Segmented } from './master-detail';
 import { useSimpleText } from './messages';
 import type { SimpleMessageKey } from './messages';
-import { usePickedSeries } from '../picked-series';
+import { usePickedSeries } from '../picked-node';
 import { seriesOf, withList } from '../series';
 import './simple.css';
 

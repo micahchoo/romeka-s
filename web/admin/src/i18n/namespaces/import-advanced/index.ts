@@ -40,10 +40,15 @@ export const en = {
   'adv.source.tagPart': 'Tag {tag} of the file whose part is “{part}”',
   'adv.source.constant': 'Constant “{value}”',
 
-  // The folder a screen of one series shows, once the plan has several.
-  'adv.series.label': 'Folder',
-  'adv.series.plain': 'Each folder has its own pattern, lists and fields. The settings below are for this folder.',
-  'adv.series.none': 'No folder is imported, so there is nothing to set here.',
+  // The sections of a folder in the rule zoom of Advanced's Structure.
+  'adv.structure.files': 'Which files',
+  'adv.structure.items': 'Items',
+  'adv.structure.lists': 'Lists',
+  'adv.structure.fields': 'Fields',
+  'adv.structure.set': 'Set',
+  'adv.structure.rules': '{count} field rules',
+  'adv.structure.rulesOne': '1 field rule',
+  'adv.structure.setWritten': 'The set this folder was written with. Go back to our suggestion to choose another.',
 
   // Files.
   'adv.files.sources.title': 'Sources',
@@ -53,7 +58,6 @@ export const en = {
   'adv.files.sources.filesOne': '1 file',
   'adv.files.sources.notRead': 'Not read yet',
   'adv.files.sources.error': 'It could not be read: {message}',
-  'adv.files.pattern.title': 'Pattern',
   'adv.files.example.label': 'Marked example',
   'adv.files.example.plain': 'The parts you marked in one file name. The marks write the pattern below.',
   'adv.files.example.none': 'None. Files are one item only when their names are equal except for the extension.',
@@ -203,7 +207,6 @@ export const en = {
   'adv.fields.sites.label': 'Sites',
   'adv.fields.sites.plain': 'The sites that show the new items.',
   'adv.fields.sites.none': 'Omeka has no sites yet.',
-  'adv.fields.rules.title': 'Fields',
   'adv.fields.rules.plain': 'One rule for each field: where its values come from, in order, how they combine, and a value map.',
   'adv.fields.kind.label': 'Rules for',
   'adv.fields.kind.item': 'Items ({count})',

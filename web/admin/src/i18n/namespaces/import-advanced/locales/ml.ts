@@ -32,11 +32,14 @@ export const ml: ImportAdvancedMessages = {
   'adv.source.tagAll': 'എല്ലാ ഫയലുകളുടെയും ടാഗ് {tag}',
   'adv.source.tagPart': '“{part}” ഭാഗമുള്ള ഫയലിന്റെ ടാഗ് {tag}',
   'adv.source.constant': 'സ്ഥിരാങ്കം “{value}”',
-  'adv.series.label': 'ഫോൾഡർ',
-  'adv.series.plain':
-    'ഓരോ ഫോൾഡറിനും അതിന്റേതായ പാറ്റേൺ, പട്ടികകൾ, ഫീൽഡുകൾ എന്നിവയുണ്ട്. താഴെ നൽകിയിരിക്കുന്ന ക്രമീകരണങ്ങൾ ഈ ഫോൾഡറിന്റേതാണ്.',
-  'adv.series.none':
-    'ഫോൾഡറുകളൊന്നും ഇറക്കുമതി ചെയ്തിട്ടില്ല, അതിനാൽ ഇവിടെ ക്രമീകരിക്കാൻ ഒന്നുമില്ല.',
+  'adv.structure.files': 'ഏതൊക്കെ ഫയലുകൾ',
+  'adv.structure.items': 'ഇനങ്ങൾ',
+  'adv.structure.lists': 'പട്ടികകൾ',
+  'adv.structure.fields': 'ഫീൽഡുകൾ',
+  'adv.structure.set': 'സെറ്റ്',
+  'adv.structure.rules': '{count} ഫീൽഡ് നിയമങ്ങൾ',
+  'adv.structure.rulesOne': '1 ഫീൽഡ് നിയമം',
+  'adv.structure.setWritten': 'ഈ ഫോൾഡർ എഴുതിയ സെറ്റ്. മറ്റൊന്ന് തിരഞ്ഞെടുക്കാൻ ഞങ്ങളുടെ നിർദ്ദേശത്തിലേക്ക് മടങ്ങുക.',
   'adv.files.sources.title': 'സ്രോതസ്സുകൾ',
   'adv.files.sources.label': 'സ്രോതസ്സുകൾ',
   'adv.files.sources.plain':
@@ -45,7 +48,6 @@ export const ml: ImportAdvancedMessages = {
   'adv.files.sources.filesOne': '1 ഫയൽ',
   'adv.files.sources.notRead': 'ഇതുവരെ വായിച്ചിട്ടില്ല',
   'adv.files.sources.error': 'ഇത് വായിക്കാൻ കഴിഞ്ഞില്ല: {message}',
-  'adv.files.pattern.title': 'പാറ്റേൺ',
   'adv.files.example.label': 'അടയാളപ്പെടുത്തിയ ഉദാഹരണം',
   'adv.files.example.plain':
     'ഒരു ഫയൽ നാമത്തിൽ നിങ്ങൾ അടയാളപ്പെടുത്തിയ ഭാഗങ്ങൾ. അടയാളങ്ങൾ പാറ്റേൺ താഴെ എഴുതുന്നു.',
@@ -211,7 +213,6 @@ export const ml: ImportAdvancedMessages = {
   'adv.fields.sites.label': 'സൈറ്റുകൾ',
   'adv.fields.sites.plain': 'പുതിയ ഇനങ്ങൾ കാണിക്കുന്ന സൈറ്റുകൾ.',
   'adv.fields.sites.none': 'Omeka-യിൽ ഇതുവരെ സൈറ്റുകൾ ഇല്ല.',
-  'adv.fields.rules.title': 'ഫീൽഡുകൾ',
   'adv.fields.rules.plain':
     'ഓരോ ഫീൽഡിനും: മൂല്യങ്ങൾ എവിടെ നിന്ന് വരുന്നു, ക്രമത്തിൽ, അവ എങ്ങനെ സംയോജിക്കുന്നു, ഒരു വാല്യൂ മാപ്പ്.',
   'adv.fields.kind.label': 'നിയമങ്ങൾ',

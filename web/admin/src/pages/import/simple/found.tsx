@@ -36,7 +36,7 @@ import { MasterDetail } from './master-detail';
 import { marksWords } from './mark-words';
 import { useSimpleText } from './messages';
 import type { SimpleTranslator } from './messages';
-import { usePickedSeries } from '../picked-series';
+import { nodeHref, seriesKey, usePickedSeries } from '../picked-node';
 import { seriesOf, withSeries } from '../series';
 import './simple.css';
 
@@ -102,7 +102,7 @@ const Rule = ({ level }: { readonly level: LevelId }): ReactElement => {
   if (typedElsewhere(draft.plan, level)) {
     return (
       <span className="guided-rule" data-decision="example">
-        {t('guided.found.typed')} <a href={placeHref(draft.id, { mode: 'advanced', screen: 'files' })}>{t('guided.found.seeAdvanced')}</a>
+        {t('guided.found.typed')} <a href={nodeHref(draft.id, { mode: 'advanced', screen: 'structure' }, seriesKey(level))}>{t('guided.found.seeAdvanced')}</a>
       </span>
     );
   }

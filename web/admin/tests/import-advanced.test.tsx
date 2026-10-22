@@ -182,7 +182,7 @@ describe('Advanced, Lists', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Answer in Simple' }));
     view.rerender(at('advanced', 'lists'));
     expect(await screen.findByRole('combobox', { name: 'Join column' })).toHaveValue('1');
-    expect(screen.getByText(/^Every row has a file\. 1 item has files but no row\./)).toBeInTheDocument();
+    expect(await screen.findByText(/^Every row has a file\. 1 item has files but no row\./)).toBeInTheDocument();
   });
 });
 
@@ -197,7 +197,10 @@ describe('Advanced, Fields', () => {
     fireEvent.change(within(sets).getByRole('combobox', { name: 'Add a source to Item set' }), { target: { value: JSON.stringify({ from: 'folder', level: 2 }) } });
     fireEvent.change(within(sets).getByRole('combobox', { name: 'Combine for Item set' }), { target: { value: 'all' } });
     fireEvent.change(await within(sets).findByRole('textbox', { name: 'Artifacts becomes' }), { target: { value: 'Letters' } });
-    fireEvent.change(screen.getByRole('combobox', { name: 'Visibility' }), { target: { value: 'public' } });
+    // The defaults are the archive's: its node holds them.
+    const [archive, letters] = within(screen.getByRole('listbox', { name: 'Your archive' })).getAllByRole('option');
+    fireEvent.click(archive ?? document.body);
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Visibility' }), { target: { value: 'public' } });
 
     await waitFor(() => {
       expect(pathOf(lastSaved(server.saved), 'defaults', 'visibility')).toBe('public');
@@ -212,7 +215,9 @@ describe('Advanced, Fields', () => {
       combine: 'all',
       map: { Artifacts: 'Letters' },
     });
-    fireEvent.change(screen.getByRole('combobox', { name: 'Add a rule' }), { target: { value: 'visibility' } });
+    // Back on the folder, its Fields section is open again: the address named it.
+    fireEvent.click(letters ?? document.body);
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Add a rule' }), { target: { value: 'visibility' } });
     const visibility = await screen.findByRole('article', { name: 'Visibility' });
     expect(within(visibility).getByRole('option', { name: 'Combine: all' })).toBeDisabled();
     expect(within(visibility).getByText('This field keeps one value, so only “first” can combine its sources.')).toBeInTheDocument();

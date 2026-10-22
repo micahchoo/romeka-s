@@ -25,7 +25,7 @@ import { placeHref } from '../screens';
 import type { Mark } from '../example';
 import { endingOf, markOf, markedText, nameOf, stemParts } from './name-parts';
 import { marksOf, withMarks } from './example-state';
-import { usePickedSeries } from '../picked-series';
+import { usePickedSeries } from '../picked-node';
 import { useSimpleText } from './messages';
 import type { SimpleTranslator } from './messages';
 import './simple.css';

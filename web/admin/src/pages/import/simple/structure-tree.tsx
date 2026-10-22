@@ -15,6 +15,7 @@ import { ErrorNotice } from '../../../app/errors';
 import { toError } from '../../../app/useAsync';
 import { useDraft } from '../draft-context';
 import { usePreview } from '../lists/use-preview';
+import { pickNode, usePickedNode } from '../picked-node';
 import type { Focus } from '../screens';
 import { whereWords } from '../words';
 import { MasterDetail } from './master-detail';
@@ -204,6 +205,7 @@ const Shown = ({ read, under, sources, parse, Inspector }: ShownProps): ReactEle
   const files = filesIn(sources);
   const tree = treeOf(proposal);
   const folders = proposal.nodes.flatMap((node) => (node.kind === 'series' ? [node] : []));
+  const picked = usePickedNode();
   const focus = useRef(draft.place.mode === 'simple' ? draft.place.focus : undefined);
   const takesFocus = (kind: Focus): boolean => {
     const asked = focus.current === kind;
@@ -212,13 +214,21 @@ const Shown = ({ read, under, sources, parse, Inspector }: ShownProps): ReactEle
     }
     return asked;
   };
-  // An old step's address opens the first folder at its question; a person who comes back finds the first node a click changed.
+  // The node the address names opens; else an old step's address opens the first folder at its question, and a person who comes back finds the first node a click changed.
+  const named = tree.find((node) => node.key === picked);
   const changed = focus.current === undefined ? tree.find((node) => editsOn(node, proposal).length > 0) : undefined;
-  const first = changed ?? tree.find((node) => node.kind === 'series') ?? tree[0];
+  const first = named ?? changed ?? tree.find((node) => node.kind === 'series' || node.kind === 'own') ?? tree[0];
   return (
     <ScreenContext.Provider value={{ clicks, editable: draft.editable, proposal, words, takesFocus }}>
       <StatusPanel />
-      <MasterDetail label={words.t('structure.tree')} rows={tree.map((node) => rowOf(node, where, files, proposal, words))} initial={first?.key ?? null}>
+      <MasterDetail
+        label={words.t('structure.tree')}
+        rows={tree.map((node) => rowOf(node, where, files, proposal, words))}
+        initial={first?.key ?? null}
+        onSelect={(key) => {
+          pickNode(draft.id, draft.place, key);
+        }}
+      >
         {(key) => {
           const node = tree.find((one) => one.key === key);
           return node === undefined ? null : <Inspector node={node} where={where} files={files} folders={folders} />;

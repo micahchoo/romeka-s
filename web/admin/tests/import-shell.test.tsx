@@ -44,8 +44,8 @@ vi.mock('../src/pages/import/simple/bodies', async () => {
 vi.mock('../src/pages/import/advanced/bodies', async () => {
   const { useDraft } = await import('../src/pages/import/draft-context');
   const { seriesOf } = await import('../src/pages/import/series');
-  const Files = () => <p>caseFold: {String(seriesOf(useDraft().plan, 'all').grouping.caseFold)}</p>;
-  return { ADVANCED_BODIES: { files: Files } };
+  const Structure = () => <p>caseFold: {String(seriesOf(useDraft().plan, 'all').grouping.caseFold)}</p>;
+  return { ADVANCED_BODIES: { structure: Structure } };
 });
 
 const fixture = (name: string): Record<string, unknown> => asRecord(loadFixture(`import/${name}`), []);
@@ -199,7 +199,7 @@ describe('Simple and Advanced', () => {
     const box = await screen.findByRole('checkbox', { name: CaseFold.label });
     const mode = screen.getByRole('group', { name: 'Mode' });
     expect(within(mode).getByRole('link', { name: 'Simple' })).toHaveAttribute('aria-current', 'page');
-    expect(within(mode).getByRole('link', { name: 'Advanced' })).toHaveAttribute('href', '#/import/1/advanced/files');
+    expect(within(mode).getByRole('link', { name: 'Advanced' })).toHaveAttribute('href', '#/import/1/advanced/structure');
     fireEvent.click(box);
     // The screen may render the box again after the click, so the test reads the box it shows now.
     await waitFor(() => {
@@ -207,14 +207,14 @@ describe('Simple and Advanced', () => {
     });
     expect(await screen.findByText(/^(Saving\.\.\.|Saved)$/)).toBeInTheDocument();
 
-    view.rerender(at(['advanced', 'files']));
+    view.rerender(at(['advanced', 'structure']));
     expect(await screen.findByText('caseFold: true')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Sources, pattern and files' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Structure: each folder with its rules' })).toBeInTheDocument();
     const index = screen.getByRole('navigation', { name: 'Settings' });
-    expect(within(index).getByRole('link', { name: 'Files' })).toHaveAttribute('aria-current', 'page');
+    expect(within(index).getByRole('link', { name: 'Structure' })).toHaveAttribute('aria-current', 'page');
     expect(within(screen.getByRole('group', { name: 'Mode' })).getByRole('link', { name: 'Simple' })).toHaveAttribute(
       'href',
-      '#/import/1/simple/found',
+      '#/import/1/simple/structure',
     );
     expect(await screen.findByText('Saved')).toBeInTheDocument();
 

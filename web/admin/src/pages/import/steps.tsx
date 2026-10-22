@@ -5,6 +5,7 @@
  */
 import type { ReactElement } from 'react';
 import type { ImportId } from '../../api/import-plan';
+import { useHash } from '../../app/router';
 import { useImportText } from './messages';
 import { counterpart, parentOf, placeHref, samePlace, screenOf, stepsOf } from './screens';
 import type { Mode, Place } from './screens';
@@ -14,11 +15,17 @@ const MODE_KEYS = {
   advanced: { name: 'shell.advanced', note: 'shell.advancedNote' },
 } as const;
 
-/** Two links, one per mode; the other mode's link lands on the screen that shows the same thing. */
+/**
+ * Two links, one per mode; the other mode's link lands on the screen that
+ * shows the same thing. Both zooms of Structure read the node the address
+ * names (`picked-node.ts`), so the switch keeps it.
+ */
 export const ModeSwitch = ({ id, place }: { readonly id: ImportId; readonly place: Place }): ReactElement => {
   const { t } = useImportText();
   const other = counterpart(place);
-  const hrefOf = (mode: Mode): string => placeHref(id, mode === place.mode ? place : other);
+  const node = useHash().split('/')[5];
+  const kept = node === undefined || other.screen !== 'structure' ? '' : `/${node}`;
+  const hrefOf = (mode: Mode): string => (mode === place.mode ? placeHref(id, place) : placeHref(id, other) + kept);
   return (
     <div className="import-mode-row">
       <div className="import-mode" role="group" aria-label={t('shell.mode')}>

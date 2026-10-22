@@ -7,9 +7,9 @@
  * `with…` (`import-series.test.ts` holds them to it).
  *
  * Every reader and writer of one series names it by its level id. Simple's
- * old steps open only on a plan of one series (`screens.ts`, `landing`) and
- * Advanced's screens of one series edit the one the person picks
- * (`picked-series.ts`). The readers keyed by a list id (`listOf`, `withList`,
+ * old steps open only on a plan of one series (`screens.ts`, `landing`), and
+ * Advanced's rule zoom edits the series of the node picked in the tree
+ * (`picked-node.ts`). The readers keyed by a list id (`listOf`, `withList`,
  * `seriesHolding`) and the ones that read every series (`allLists`,
  * `withEverySeries`) need no level.
  *

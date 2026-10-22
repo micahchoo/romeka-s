@@ -10,6 +10,7 @@
 import { asRecord, isRecord } from '../src/api/parse';
 import { loadFixture } from './loadFixture';
 import { flatPlan, withMembers } from './import-plan-members';
+import { planProposal } from './import-plan-proposal';
 import type { Scenario, ScenarioGroup, ScenarioList } from './import-simple-scenarios';
 import { jsonResponse, listResponse, route } from './stub';
 import type { Handler } from './stub';
@@ -334,6 +335,8 @@ export const simpleServer = (scenario: Scenario, planEdits: Record<string, unkno
               : { ...one, matches: flagged.matches, flags: [{ kind: flagged.kind, subject: { record: one['id'] }, slot: null, policy: 'leave', detail: flagged.detail }] },
           );
         answer['records'] = { total: hits.length, page: page.page, perPage: page.perPage, items: slice };
+      } else if (section === 'proposal') {
+        answer['proposal'] = planProposal(isRecord(body['plan']) ? body['plan'] : plan, scenario.files);
       } else if (section === 'check') {
         const check = asRecord(fixture('preview-check.json')['check'], []);
         answer['check'] = {

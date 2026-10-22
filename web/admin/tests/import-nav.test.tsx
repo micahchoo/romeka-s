@@ -160,3 +160,25 @@ describe('Simple’s steps', () => {
     failed.mockRestore();
   });
 });
+
+const indexLinks = (): readonly (readonly [string | null, string | null])[] =>
+  within(screen.getByRole('navigation', { name: 'Settings' }))
+    .getAllByRole('link')
+    .map((link) => [link.textContent, link.getAttribute('aria-current')] as const);
+
+describe('Advanced’s steps', () => {
+  it('Advanced has six steps: Structure, Problems, Existing items, Changes, Items, Run', async () => {
+    draftOf('proposed');
+    render(<ImportPage param="1" rest={['1', 'advanced', 'structure']} />);
+    expect(await screen.findByRole('heading', { name: 'Structure: each folder with its rules' })).toBeInTheDocument();
+    expect(indexLinks()).toEqual([
+      ['Structure', 'page'],
+      ['Problems', null],
+      ['Existing items', null],
+      ['Changes', null],
+      ['Items', null],
+      ['Run', null],
+    ]);
+    expect(await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 })).toBeInTheDocument();
+  });
+});
