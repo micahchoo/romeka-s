@@ -79,6 +79,7 @@ export const te: ImportStructureMessages = {
     "{count} అంశాలు 2 లేదా అంతకంటే ఎక్కువ ఫైల్‌ల కోసం వరుసలను కలిగి ఉన్నాయి.",
   "structure.q.set": "సెట్",
   "structure.set.none": "సెట్ లేదు",
+  "structure.set.existing": "Omekaలో ఇప్పటికే ఉన్న సెట్ #{id}",
   "structure.set.several": "{count} సెట్‌లు",
   "structure.from.folder": "ఫోల్డర్ పేరు",
   "structure.from.column": "కాలమ్ {column}",

@@ -78,6 +78,7 @@ export const es: ImportStructureMessages = {
     "{count} elementos tienen filas para 2 archivos o más.",
   "structure.q.set": "Conjunto",
   "structure.set.none": "Sin conjunto",
+  "structure.set.existing": "Conjunto existente n.º {id} de Omeka",
   "structure.set.several": "{count} conjuntos",
   "structure.from.folder": "nombre de la carpeta",
   "structure.from.column": "columna {column}",

@@ -109,6 +109,7 @@ pub fn offered(proposal: &Proposal) -> Vec<Edit> {
                 out.push(Edit::Title {
                     from: chosen.clone(),
                     title,
+                    description: None,
                 });
             }
         }

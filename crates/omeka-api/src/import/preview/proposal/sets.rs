@@ -8,13 +8,18 @@
 //!
 //! A candidate is a name place, a column of a list that describes the
 //! series, or a level of numbered folders. It is a split when it makes at
-//! least [`MIN_SETS`] sets and one of them holds [`MIN_ITEMS_PER_SET`]
-//! items. A candidate whose one set holds the items of its series is never
-//! offered: a column with one value in every row is the rival title of the
-//! series' set. A column with one value in every row of every list that
-//! describes a series is offered at the top, as one set over everything.
-//! Every other column of a series' lists is a further choice of its set,
-//! and an `addSet` edit may take it.
+//! least [`MIN_SETS`] sets, one of them holds [`MIN_ITEMS_PER_SET`] items,
+//! and at least [`MIN_GROUPED_SHARE`] of its memberships are in such sets.
+//! A column must also come from a list the series reads (detector 4's
+//! choice, or a list the person uploaded), not a list the plan keeps only
+//! for a free set, and [`MIN_ITEMS_OF_ONE_VALUE`] of the items it places
+//! must hold one of its values. A candidate that fails is a further choice ("More…"),
+//! never dropped. A candidate whose one set holds the items of its series is
+//! never offered: a column with one value in every row is the rival title
+//! of the series' set. A column with one value in every row of every list
+//! that describes a series is offered at the top, as one set over
+//! everything. Every other column of a series' lists is a further choice of
+//! its set, and an `addSet` edit may take it.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::num::NonZeroU32;
@@ -23,14 +28,14 @@ use unicode_normalization::UnicodeNormalization;
 
 use super::names::PlaceValues;
 use super::shape::KeyShape;
-use super::thresholds::{MIN_ITEMS_PER_SET, MIN_SETS};
+use super::thresholds::{MIN_GROUPED_SHARE, MIN_ITEMS_OF_ONE_VALUE, MIN_ITEMS_PER_SET, MIN_SETS};
 use super::{Pick, ScanText, SetCounts, Share};
 use crate::import::derive::Sheets;
 use crate::import::join::cell;
 use crate::import::model::Model;
 use crate::import::plan::{
     ColumnRef, Edit, FolderLevel, FolderScope, ListFile, RecordKind, RelPath, RowKind, SeriesIx,
-    SetFrom, SheetPlan, SourceId, SourceRef, Structure,
+    SetById, SetByTitle, SetFrom, SetSource, SheetPlan, SourceId, SourceRef, Structure,
 };
 use crate::import::sheet::{Row, Sheet};
 
@@ -44,14 +49,56 @@ pub(super) struct SeriesIn<'s> {
     pub numbered: bool,
     /// The set its folder's name could make (detector 1).
     pub folder: Option<&'s SetFrom>,
+    /// The lists it reads: a column of any other list is no split.
+    pub reads: Vec<ListFile>,
+}
+
+/// What the plan writes for one set the proposal holds: a new set by a
+/// title, or a set already in Omeka (an `existing` edit).
+#[derive(Debug, Clone)]
+pub(super) enum OneSet {
+    /// The scan's name, or the title and description a `title` edit gave.
+    Title {
+        title: ScanText,
+        description: Option<String>,
+    },
+    /// `shown` is the title the counts keep showing.
+    Existing { shown: ScanText, set: SetById },
+}
+
+impl OneSet {
+    fn named(title: ScanText) -> Self {
+        Self::Title {
+            title,
+            description: None,
+        }
+    }
+
+    /// The title the counts show and a set level's id is made of.
+    pub fn shown(&self) -> &ScanText {
+        match self {
+            Self::Title { title, .. } => title,
+            Self::Existing { shown, .. } => shown,
+        }
+    }
+
+    pub fn source(&self) -> SetSource {
+        match self {
+            Self::Title { title, description } => SetSource::Title(SetByTitle {
+                title: title.0.clone(),
+                description: description.clone(),
+            }),
+            Self::Existing { set, .. } => SetSource::Id(*set),
+        }
+    }
 }
 
 /// A series' folder set: chosen by detector 1, or offered.
 #[derive(Debug, Clone)]
 pub(super) struct FolderSet {
     pub from: SetFrom,
-    /// The folder's name, or the title a `title` edit gave it.
-    pub title: ScanText,
+    /// The folder's name, or what a `title` or `existing` edit made it.
+    pub set: OneSet,
     pub chosen: bool,
     /// The items of the series.
     pub items: usize,
@@ -62,7 +109,7 @@ impl FolderSet {
         Pick {
             value: self.from.clone(),
             counts: SetCounts {
-                sets: vec![(self.title.clone(), self.items)],
+                sets: vec![(self.set.shown().clone(), self.items)],
                 rows: None,
             },
         }
@@ -106,8 +153,8 @@ pub(super) struct SeriesSets {
 pub(super) struct Sets {
     /// Sets that would hold every item, not taken.
     pub top: Vec<Pick<SetFrom, SetCounts>>,
-    /// The one top set taken, with its title.
-    pub top_taken: Option<(Pick<SetFrom, SetCounts>, ScanText)>,
+    /// The one top set taken, with what the plan writes for it.
+    pub top_taken: Option<(Pick<SetFrom, SetCounts>, OneSet)>,
     pub series: Vec<SeriesSets>,
 }
 
@@ -141,6 +188,18 @@ fn sorts(sets: &[(ScanText, usize)], items: usize) -> bool {
     sets.len() >= MIN_SETS
         && sets.iter().any(|(_, held)| *held >= MIN_ITEMS_PER_SET)
         && sets.iter().all(|(_, held)| *held < items)
+}
+
+/// Whether at least [`MIN_GROUPED_SHARE`] of the memberships of these sets
+/// are in sets of [`MIN_ITEMS_PER_SET`] items or more.
+fn groups(sets: &[(ScanText, usize)]) -> bool {
+    let all: usize = sets.iter().map(|(_, held)| held).sum();
+    let grouped: usize = sets
+        .iter()
+        .map(|(_, held)| *held)
+        .filter(|held| *held >= MIN_ITEMS_PER_SET)
+        .sum();
+    grouped * MIN_GROUPED_SHARE.of >= MIN_GROUPED_SHARE.n * all
 }
 
 /// One list of a series, as its rows describe the series' items.
@@ -178,16 +237,22 @@ impl ListIn<'_> {
             })
     }
 
-    /// Each filled value of `column` with the items that hold it, and the
-    /// rows that hold a value.
-    fn values(&self, column: &ColumnRef) -> (BTreeMap<String, usize>, Share) {
+    /// Each filled value of `column` with the items that hold it, the rows
+    /// that hold a value, and the items that hold one value of the items
+    /// that hold any.
+    fn values(&self, column: &ColumnRef) -> (BTreeMap<String, usize>, Share, Share) {
         let mut values: BTreeMap<String, usize> = BTreeMap::new();
+        let mut one_value = Share { n: 0, of: 0 };
         for rows in &self.rows_of_items {
             let held: BTreeSet<String> = rows
                 .iter()
                 .map(|row| text(row, column.index))
                 .filter(|value| !value.is_empty())
                 .collect();
+            if !held.is_empty() {
+                one_value.of += 1;
+                one_value.n += usize::from(held.len() == 1);
+            }
             for value in held {
                 *values.entry(value).or_default() += 1;
             }
@@ -202,7 +267,7 @@ impl ListIn<'_> {
             n: filled,
             of: self.sheet.rows.len(),
         };
-        (values, rows)
+        (values, rows, one_value)
     }
 }
 
@@ -324,7 +389,9 @@ fn candidates(
                 *sets.entry(top).or_default() += 1;
             }
         }
+        let sets = most_first(sets);
         found.push(Candidate {
+            split: groups(&sets),
             pick: Pick {
                 value: SetFrom::FolderLevel {
                     scope: FolderScope {
@@ -333,10 +400,7 @@ fn candidates(
                     },
                     depth: 1,
                 },
-                counts: SetCounts {
-                    sets: most_first(sets),
-                    rows: None,
-                },
+                counts: SetCounts { sets, rows: None },
             },
             source: SourceRef::Folder {
                 level: FolderLevel::Level(NonZeroU32::MIN),
@@ -344,7 +408,6 @@ fn candidates(
             place: None,
             column: None,
             name: NonZeroU32::MIN.to_string(),
-            split: true,
         });
     }
     for (place, values) in one.places.iter().enumerate() {
@@ -354,6 +417,7 @@ fn candidates(
         };
         if sorts(&sets, items) {
             found.push(Candidate {
+                split: groups(&sets),
                 pick: Pick {
                     value: SetFrom::NamePlace {
                         scope: one.scope.clone(),
@@ -367,14 +431,13 @@ fn candidates(
                 place: Some(values.classes.clone()),
                 column: None,
                 name: place.to_string(),
-                split: true,
             });
         }
     }
     let mut rival = None;
     for list in lists {
         for column in list.columns() {
-            let (values, rows) = list.values(&column);
+            let (values, rows, one_value) = list.values(&column);
             let sets = most_first(values);
             let pick = Pick {
                 value: SetFrom::Column {
@@ -400,7 +463,12 @@ fn candidates(
                 place: None,
                 column: Some((list.file.clone(), column.clone())),
                 name: column.header.clone(),
-                split: !one_set && sorts(&pick.counts.sets, items),
+                split: !one_set
+                    && sorts(&pick.counts.sets, items)
+                    && groups(&pick.counts.sets)
+                    && one_value.n * MIN_ITEMS_OF_ONE_VALUE.of
+                        >= MIN_ITEMS_OF_ONE_VALUE.n * one_value.of
+                    && one.reads.contains(&list.file),
                 pick,
             });
         }
@@ -476,7 +544,7 @@ pub(super) fn detect(
         found.series.push(SeriesSets {
             folder: one.folder.map(|from| FolderSet {
                 from: from.clone(),
-                title: super::folders::folder_title(one.scope),
+                set: OneSet::named(super::folders::folder_title(one.scope)),
                 chosen: folder_sets,
                 items,
             }),
@@ -492,8 +560,23 @@ pub(super) fn detect(
             Edit::DropSet { from } => {
                 applied[at] = drop(&mut found, &mut top, &mut offered, series, from);
             }
-            Edit::Title { from, title } => {
-                applied[at] = retitle(&mut found, from, title);
+            Edit::Title {
+                from,
+                title,
+                description,
+            } => {
+                let set = |_: &ScanText| OneSet::Title {
+                    title: ScanText(title.clone()),
+                    description: description.clone(),
+                };
+                applied[at] = rename(&mut found, from, &set);
+            }
+            Edit::Existing { from, id } => {
+                let set = |shown: &ScanText| OneSet::Existing {
+                    shown: shown.clone(),
+                    set: SetById { id: *id },
+                };
+                applied[at] = rename(&mut found, from, &set);
             }
             _ => {}
         }
@@ -548,7 +631,7 @@ fn folder_offers(found: &Sets, series: &[SeriesIn<'_>]) -> Vec<Pick<SetFrom, Set
         .map(|(value, folders)| {
             let mut sets: Vec<(ScanText, usize)> = folders
                 .iter()
-                .map(|folder| (folder.title.clone(), folder.items))
+                .map(|folder| (folder.set.shown().clone(), folder.items))
                 .collect();
             sets.sort_by(|(a, a_items), (b, b_items)| b_items.cmp(a_items).then_with(|| a.cmp(b)));
             Pick {
@@ -604,7 +687,8 @@ fn add(
     if found.top_taken.is_none()
         && let Some(taken) = top.iter().position(|(pick, _)| pick.value == *from)
     {
-        found.top_taken = Some(top.remove(taken));
+        let (pick, title) = top.remove(taken);
+        found.top_taken = Some((pick, OneSet::named(title)));
         return true;
     }
     for (sets, candidates) in found.series.iter_mut().zip(offered) {
@@ -646,9 +730,9 @@ fn drop(
         .top_taken
         .as_ref()
         .is_some_and(|(pick, _)| pick.value == *from)
-        && let Some(taken) = found.top_taken.take()
+        && let Some((pick, set)) = found.top_taken.take()
     {
-        top.push(taken);
+        top.push((pick, set.shown().clone()));
     }
     shown |= top.iter().any(|(pick, _)| pick.value == *from);
     for (sets, candidates) in found.series.iter_mut().zip(offered) {
@@ -671,9 +755,10 @@ fn drop(
     shown
 }
 
-/// Replay one `title` edit on a folder set or the top set the proposal
-/// holds: whether it found one.
-fn retitle(found: &mut Sets, from: &SetFrom, title: &str) -> bool {
+/// Replay one `title` or `existing` edit on a folder set or the top set
+/// the proposal holds: whether it found one. `named` makes the new set
+/// from the title the counts show now.
+fn rename(found: &mut Sets, from: &SetFrom, named: &dyn Fn(&ScanText) -> OneSet) -> bool {
     let mut found_one = false;
     for sets in &mut found.series {
         if let Some(folder) = sets
@@ -681,19 +766,20 @@ fn retitle(found: &mut Sets, from: &SetFrom, title: &str) -> bool {
             .as_mut()
             .filter(|folder| folder.chosen && folder.from == *from)
         {
-            folder.title = ScanText(title.to_owned());
+            folder.set = named(folder.set.shown());
             found_one = true;
         }
     }
-    if let Some((pick, name)) = found.top_taken.as_mut()
+    if let Some((pick, set)) = found.top_taken.as_mut()
         && pick.value == *from
     {
-        *name = ScanText(title.to_owned());
+        *set = named(set.shown());
+        let shown = set.shown();
         pick.counts.sets = pick
             .counts
             .sets
             .iter()
-            .map(|(_, items)| (name.clone(), *items))
+            .map(|(_, items)| (shown.clone(), *items))
             .collect();
         found_one = true;
     }
