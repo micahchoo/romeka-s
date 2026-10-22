@@ -40,6 +40,13 @@ pub const HEARTBEAT: &str = "heartbeat";
 /// The summary member that records when a reader found the import's worker dead.
 pub const DIED: &str = "died";
 
+/// The summary member that records when the worker ended its run on a TERM, after the record in
+/// hand: the process was asked to go, so the run did not end on its own.
+pub const INTERRUPTED: &str = "interrupted";
+
+/// The summary member that counts how often the server resumed the run by itself.
+pub const RESUMED: &str = "resumed";
+
 /// The job statuses of a worker that may still write: upstream's `STATUS_STARTING`,
 /// `STATUS_IN_PROGRESS` and `STATUS_STOPPING`.
 const LIVE_JOB: [&str; 3] = ["starting", "in_progress", "stopping"];
@@ -65,13 +72,18 @@ pub enum StartOutcome {
 enum Start {
     /// The revision the caller checked.
     Run(u64),
+    /// A run the server goes on with by itself, at the revision it checked.
+    Resume(u64),
     Undo,
 }
 
 impl Start {
-    fn allows(self, status: ImportStatus, summary: Option<&Value>) -> bool {
+    fn allows(self, status: ImportStatus, summary: Option<&Value>, stop_requested: bool) -> bool {
         match self {
             Self::Run(_) => may_run(status, summary),
+            Self::Resume(_) => {
+                status == ImportStatus::RunFailed && resumable(summary, stop_requested)
+            }
             Self::Undo => matches!(
                 status,
                 ImportStatus::Done
@@ -86,7 +98,7 @@ impl Start {
     /// plan its first run froze.
     fn update(self) -> &'static str {
         match self {
-            Self::Run(_) => {
+            Self::Run(_) | Self::Resume(_) => {
                 "UPDATE romeka_import
                  SET status = 'running', ran_plan = COALESCE(ran_plan, plan), finished = NULL,
                      stop_requested = 0, summary = ?
@@ -106,6 +118,27 @@ impl Start {
 fn is_dead(job: Option<&str>, pulse: Option<NaiveDateTime>, now: NaiveDateTime) -> bool {
     job.is_some_and(|status| !LIVE_JOB.contains(&status))
         || pulse.is_none_or(|beat| now - beat > DEAD_AFTER)
+}
+
+/// Whether a failed run's worker went without the person asking: a reader found it dead, or a
+/// TERM interrupted it. A run the person stopped, or asked to stop, never resumes.
+fn resumable(summary: Option<&Value>, stop_requested: bool) -> bool {
+    let Some(summary) = summary else {
+        return false;
+    };
+    let stopped = summary.get("stopped").and_then(Value::as_bool) == Some(true);
+    !stop_requested
+        && !stopped
+        && (summary.get(DIED).is_some() || summary.get(INTERRUPTED).is_some())
+}
+
+/// How often the server has resumed the run of `summary` by itself.
+#[must_use]
+pub fn resumed_of(summary: Option<&Value>) -> u64 {
+    summary
+        .and_then(|summary| summary.get(RESUMED))
+        .and_then(Value::as_u64)
+        .unwrap_or(0)
 }
 
 fn heartbeat_of(summary: Option<&Value>) -> Option<NaiveDateTime> {
@@ -174,6 +207,43 @@ where
     /// otherwise). Refused for any other state, or while another import is live.
     pub async fn start_run(&self, id: ImportId, revision: u64) -> Result<StartOutcome, DbError> {
         self.start(id, Start::Run(revision)).await
+    }
+
+    /// Move a failed run whose worker went without the person asking (its summary records
+    /// [`DIED`] or [`INTERRUPTED`], and no stop was asked for) back to `running`, and count the
+    /// resume in [`RESUMED`]. Refused like [`Self::start_run`] otherwise, so two servers that
+    /// both resume at boot start it once.
+    pub async fn start_resume(&self, id: ImportId, revision: u64) -> Result<StartOutcome, DbError> {
+        self.start(id, Start::Resume(revision)).await
+    }
+
+    /// The failed runs [`Self::start_resume`] would move, oldest first. It reads only stored
+    /// states, so call [`Self::settle_dead`] first.
+    pub async fn resumable(&self) -> Result<Vec<ImportId>, DbError> {
+        let rows = sqlx::query(
+            "SELECT id, summary, stop_requested FROM romeka_import
+             WHERE status = 'run_failed' ORDER BY id",
+        )
+        .fetch_all(self.pool)
+        .await?;
+        let mut found = Vec::new();
+        for row in &rows {
+            let summary = DB::opt_json(row, "summary")?;
+            if resumable(summary.as_ref(), DB::boolean(row, "stop_requested")?) {
+                found.push(DB::id(row, "id")?);
+            }
+        }
+        Ok(found)
+    }
+
+    /// Each running import with the job that runs it, alive or not yet proven dead.
+    pub async fn running(&self) -> Result<Vec<(ImportId, Option<JobId>)>, DbError> {
+        Ok(claims(self.pool, "")
+            .await?
+            .into_iter()
+            .filter(|claim| claim.status == ImportStatus::Running)
+            .map(|claim| (claim.id, claim.job))
+            .collect())
     }
 
     /// Move an import that is `done`, `run_failed`, `undo_failed` or `partly_undone` to
@@ -336,7 +406,7 @@ where
 {
     let lock = DB::for_update();
     let Some(row) = sqlx::query(&format!(
-        "SELECT status, revision, summary FROM romeka_import WHERE id = ?{lock}"
+        "SELECT status, revision, summary, stop_requested FROM romeka_import WHERE id = ?{lock}"
     ))
     .bind(bind_id(id))
     .fetch_optional(&mut **tx)
@@ -346,13 +416,17 @@ where
     };
     let status = ImportStatus::parse(&DB::text(&row, "status")?)?;
     let mut summary = DB::opt_json(&row, "summary")?;
-    if !start.allows(status, summary.as_ref()) {
+    if !start.allows(
+        status,
+        summary.as_ref(),
+        DB::boolean(&row, "stop_requested")?,
+    ) {
         return Ok(StartOutcome::Refused(status));
     }
     if start == Start::Undo && deleted_any(tx, id).await? {
         return Ok(StartOutcome::Deleted);
     }
-    if let Start::Run(checked) = start {
+    if let Start::Run(checked) | Start::Resume(checked) = start {
         let stored: u64 = DB::id(&row, "revision")?;
         if stored != checked {
             return Ok(StartOutcome::Changed { revision: stored });
@@ -367,8 +441,13 @@ where
     if let Some(busy) = busy {
         return Ok(StartOutcome::Busy(DB::id(&busy, "id")?));
     }
+    let resumed = resumed_of(summary.as_ref());
     if let Some(Value::Object(members)) = &mut summary {
         members.remove(DIED);
+        members.remove(INTERRUPTED);
+        if let Start::Resume(_) = start {
+            members.insert(RESUMED.to_string(), Value::from(resumed + 1));
+        }
     }
     let summary = with_member(summary, HEARTBEAT, Value::String(time::format(now)));
     sqlx::query(start.update())
@@ -427,6 +506,20 @@ mod tests {
             is_dead(Some("in_progress"), None, now),
             "no evidence of life"
         );
+    }
+
+    #[test]
+    fn a_run_resumes_only_when_its_worker_went_without_the_person_asking() {
+        let died = serde_json::json!({ "stopped": false, "died": "2026-10-22 12:00:00" });
+        let interrupted = serde_json::json!({ "interrupted": "2026-10-22 12:00:00" });
+        let stopped = serde_json::json!({ "stopped": true, "died": "2026-10-22 12:00:00" });
+        let failed = serde_json::json!({ "stopped": false });
+        assert!(resumable(Some(&died), false));
+        assert!(resumable(Some(&interrupted), false));
+        assert!(!resumable(Some(&died), true), "a stop was asked for");
+        assert!(!resumable(Some(&stopped), false));
+        assert!(!resumable(Some(&failed), false), "the worker ended it");
+        assert!(!resumable(None, false));
     }
 
     #[test]

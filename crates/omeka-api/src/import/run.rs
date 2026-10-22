@@ -211,6 +211,7 @@ where
             .filter(|record| run.written.holds(&record.origin.key()))
             .count(),
         total: run.model().kept().count(),
+        resumed: omeka_db::repos::resumed_of(row.summary.as_ref()),
         ..Summary::default()
     };
     run.go().await

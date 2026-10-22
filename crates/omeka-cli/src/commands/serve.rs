@@ -6,7 +6,8 @@
 //! starts `romeka job run` with the same database, store, base URL and archive
 //! root. It also starts the
 //! import staging sweep when it boots and then every hour, so uploaded files
-//! go even when nobody uploads.
+//! go even when nobody uploads, and goes on with every import run a restart
+//! killed ([`resume_imports`]).
 
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
@@ -17,10 +18,11 @@ use omeka_api::import::sweep::SWEEP_JOB;
 use omeka_api::jsonld::BaseUrl;
 use omeka_db::DbPool;
 use omeka_db::Location;
+use omeka_db::repos::HEARTBEAT_EVERY;
 use omeka_db::repos::JobRepo;
 use omeka_db::rows::NewJob;
 use omeka_db::with_db;
-use omeka_server::{Config, JobDispatch, Services};
+use omeka_server::{Config, JobDispatch, ResumeEnv, Services, resume_imports};
 
 use crate::error::CliError;
 use crate::jobs::{JobCommand, ProcessDispatch};
@@ -68,6 +70,13 @@ pub async fn run(
     tokio::spawn(sweep_every(pool.clone(), Arc::clone(&jobs), SWEEP_EVERY));
     let store = omeka_server::file_store(store_root)
         .map_err(|error| CliError::message(error.to_string()))?;
+    let resume = ResumeEnv {
+        jobs: Arc::clone(&jobs),
+        store: Arc::clone(&store),
+        roots: config.archive_roots.clone(),
+    };
+    let resuming = pool.clone();
+    tokio::spawn(async move { resume_imports(&resuming, &resume, HEARTBEAT_EVERY).await });
     let services = Services::new(store).with_jobs(jobs);
     Ok(omeka_server::serve_with_services(config, pool, services).await?)
 }

@@ -73,6 +73,8 @@ export interface ImportRow {
   readonly copiedFrom: number | null;
   /** Present while a run writes its progress. */
   readonly progress?: RunProgress;
+  /** How often the server went on with the run by itself after a restart; absent until it did. */
+  readonly resumed?: number;
 }
 
 /** One import with its plan, as every route but the history answers it. */
@@ -147,12 +149,16 @@ export const rowFields = (object: Record<string, unknown>, path: Path): ImportRo
     jobId: member(object, 'jobId', path, nullable(asCount)),
     copiedFrom: member(object, 'copiedFrom', path, nullable(asCount)),
   };
-  return object['progress'] === undefined ? row : { ...row, progress: member(object, 'progress', path, parseProgress) };
+  const withProgress =
+    object['progress'] === undefined ? row : { ...row, progress: member(object, 'progress', path, parseProgress) };
+  return object['resumed'] === undefined
+    ? withProgress
+    : { ...withProgress, resumed: member(object, 'resumed', path, asCount) };
 };
 
 /** A row of the history: no plan. */
 export const parseImportRow: Parser<ImportRow> = (raw, path = []) =>
-  rowFields(strict(raw, path, ROW_KEYS, ['progress']), path);
+  rowFields(strict(raw, path, ROW_KEYS, ['progress', 'resumed']), path);
 
 /** Why a filled `Files` cell made no pair (`preview/pairs.rs`, `Why`). */
 export type PairsWhy = 'noRow' | 'noFile' | 'manyFiles' | 'noItem';

@@ -19,6 +19,8 @@ export type Stage =
       readonly total: number | null;
       readonly secondsLeft: number | null;
       readonly stopping: boolean;
+      /** A restart stopped the run, and the server went on with it by itself. */
+      readonly resumed: boolean;
     }
   /** A run ended: every record written, or it stopped. Undo may follow; a retry when the run may go again. */
   | {
@@ -46,6 +48,7 @@ export const stageOf = (detail: ImportDetail): Stage => {
         total: detail.progress?.total ?? detail.summary?.progress.total ?? null,
         secondsLeft: detail.progress?.secondsLeft ?? null,
         stopping: detail.stopRequested,
+        resumed: (detail.resumed ?? 0) > 0,
       };
     case 'undoing':
       return {
@@ -55,6 +58,7 @@ export const stageOf = (detail: ImportDetail): Stage => {
         total: detail.undoReport?.progress.total ?? null,
         secondsLeft: null,
         stopping: detail.stopRequested,
+        resumed: false,
       };
     case 'done':
     case 'run_failed': {

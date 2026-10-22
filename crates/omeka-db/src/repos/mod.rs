@@ -65,7 +65,9 @@ pub use fulltext::{FulltextMatch, FulltextRepo, has_word, match_expression};
 pub use identifiers::IdentifierRepo;
 pub use import_evidence::{EntryRepo, UploadAdvance, UploadRepo};
 pub use import_ledger::{BeforeImageRepo, ImportResourceRepo};
-pub use import_lifecycle::{DEAD_AFTER, DIED, HEARTBEAT, HEARTBEAT_EVERY, StartOutcome};
+pub use import_lifecycle::{
+    DEAD_AFTER, DIED, HEARTBEAT, HEARTBEAT_EVERY, INTERRUPTED, RESUMED, StartOutcome, resumed_of,
+};
 pub use import_touched::{ImportTouchRepo, Pointer, Presence, PropertyUsers};
 pub use import_writes::ImportWrites;
 pub use imports::{ImportRepo, PlanSave};

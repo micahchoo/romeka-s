@@ -70,6 +70,7 @@ export const Working = ({
         </>
       )}
       {run ? <p>{timeLeftWords(translator, stage.secondsLeft)}</p> : null}
+      {stage.resumed ? <p>{t('run.work.resumed')}</p> : null}
       <p className="muted">{run ? t('run.work.leave') : t('run.work.leaveUndo')}</p>
       {asked ? (
         <p role="status">{t('run.work.stopping')}</p>

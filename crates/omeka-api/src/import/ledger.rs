@@ -92,6 +92,9 @@ pub struct Summary {
     pub total: usize,
     pub failures: Vec<Failure>,
     pub stopped: bool,
+    /// How often the server resumed the run by itself; it outlives each
+    /// attempt, so the run carries it from the summary it found.
+    pub resumed: u64,
 }
 
 impl Summary {
@@ -100,11 +103,15 @@ impl Summary {
     /// lists failures.
     #[must_use]
     pub fn to_json(&self) -> Value {
-        json!({
+        let mut summary = json!({
             "progress": { "done": self.done, "total": self.total },
             "failures": self.failures,
             "stopped": self.stopped,
-        })
+        });
+        if self.resumed > 0 {
+            summary[omeka_db::repos::RESUMED] = json!(self.resumed);
+        }
+        summary
     }
 }
 

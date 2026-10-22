@@ -77,6 +77,7 @@ export const en = {
   'run.work.stopUndo': 'Stop the undo after the one in hand',
   'run.work.stopUndoNote': 'What is undone stays undone. Then you can undo the rest.',
   'run.work.stopping': 'Stopping after the one in hand...',
+  'run.work.resumed': 'Stopped by a restart. It goes on by itself.',
   'run.work.log': 'See the log on the Jobs page',
   // The end of a run.
   'run.end.done': 'The import is done.',

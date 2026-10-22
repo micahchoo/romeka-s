@@ -13,7 +13,7 @@ import { asString } from './parse';
 import type { Parser } from './types';
 
 export const parseImportDetail: Parser<ImportDetail> = (raw, path = []) => {
-  const object = strict(raw, path, [...ROW_KEYS, 'plan'], ['progress', 'ranPlan']);
+  const object = strict(raw, path, [...ROW_KEYS, 'plan'], ['progress', 'resumed', 'ranPlan']);
   const detail: ImportDetail = { ...rowFields(object, path), plan: member(object, 'plan', path, parseImportPlan) };
   return object['ranPlan'] === undefined
     ? detail

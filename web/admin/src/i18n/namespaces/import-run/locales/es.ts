@@ -71,6 +71,7 @@ export const es: ImportRunMessages = {
   'run.work.stopUndo': 'Detener el deshacer después del que está en curso',
   'run.work.stopUndoNote': 'Lo deshecho queda deshecho. Después puedes deshacer el resto.',
   'run.work.stopping': 'Deteniéndose después del que está en curso...',
+  'run.work.resumed': 'Se detuvo por un reinicio. Continúa por sí sola.',
   'run.work.log': 'Ver el registro en la página Trabajos',
   'run.end.done': 'La importación ha terminado.',
   'run.end.stopped': 'La importación se detuvo antes del final.',
