@@ -10,13 +10,12 @@
  * Each answer the person picks is one click (`structure-edits.ts`): it turns
  * on at once, its counts follow, and the changes strip under the tree lists
  * every click with what it changed and a way to take it back. The proposal's
- * parser loads with this screen's chunk and no other.
+ * parser is a chunk of its own, which loads beside this screen's and no other.
  */
-import { createContext, useContext, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { ReactElement, ReactNode } from 'react';
-import { parseProposal } from '../../../api/import-proposal';
-import type { Choice, EditResult, NotApplied, OutsideFolder, Pick, Proposal, SeriesNode, SetCounts } from '../../../api/import-proposal';
-import type { CutEdit, Edit, ListFile, SetFrom } from '../../../api/import-plan';
+import { Suspense, lazy, use, useMemo, useRef, useState } from 'react';
+import type { ReactElement } from 'react';
+import type { Choice, EditResult, Pick, Proposal, SeriesNode, SetCounts } from '../../../api/import-proposal';
+import type { Edit, ListFile, SetFrom } from '../../../api/import-plan';
 import type { ListCandidate, RawProposal, SourceState } from '../../../api/import-sections';
 import { ErrorNotice } from '../../../app/errors';
 import { toError } from '../../../app/useAsync';
@@ -24,10 +23,10 @@ import { useDraft } from '../draft-context';
 import { usePreview } from '../lists/use-preview';
 import type { Focus } from '../screens';
 import { whereWords } from '../words';
-import { MasterDetail, Segmented } from './master-detail';
+import { MasterDetail } from './master-detail';
 import type { MasterRow } from './master-detail';
-import { QUESTIONS, cutEditOf, editsOn, effectOf, heldBy, nodeOf, questionOf, useClicks } from './structure-edits';
-import type { Clicks, Question as Asked } from './structure-edits';
+import { QUESTIONS, cutEditOf, editsOn, heldBy, useClicks } from './structure-edits';
+import type { Parse } from './structure-edits';
 import {
   bucketsWords,
   cutWords,
@@ -48,94 +47,25 @@ import {
   treeOf,
   useStructureText,
 } from './structure-lines';
-import type { StructureMessageKey, StructureTranslator, TreeNode } from './structure-lines';
+import type { TreeNode } from './structure-lines';
+import { Notes, Offer, Question, Row, ScreenContext, useScreen } from './structure-parts';
+import type { Answer, Words } from './structure-parts';
 import './simple.css';
 import './structure.css';
+
+/** The proposal's parser, which only this screen and its chunks use, starts loading with the screen. */
+const parser = import('../../../api/import-proposal');
+
+/** The strip shows once there is a change; its chunk starts loading with the screen's, so a first click finds it. */
+const changesChunk = import('./structure-changes');
+const Changes = lazy(() => changesChunk.then((module) => ({ default: module.Changes })));
+const OtherInspector = lazy(() => import('./structure-nodes').then((module) => ({ default: module.OtherInspector })));
 
 /** A split shows this many of its sets, then how many more. */
 const SETS_SHOWN = 3;
 /** The endings line shows this many endings. */
 const PARTS_SHOWN = 8;
 
-type Words = StructureTranslator;
-
-/** One answer of a question: what it shows, and what a click on it sends. */
-interface Answer {
-  /** `chosen`, `rival` or `none`: its place among the answers. */
-  readonly value: string;
-  readonly label: string;
-  /** What this answer makes, shown before the click. */
-  readonly note?: string;
-  /** The suggestion's own answer: it carries the ✓. */
-  readonly draft: boolean;
-  /** The answer the proposal holds now. */
-  readonly pressed: boolean;
-  /** The edit a click sends; `null` takes the question's edit back. */
-  readonly edit: Edit | null;
-}
-
-/** What every question reads: the clicks, whether the plan takes edits, the proposal and the words. */
-interface Screen {
-  readonly clicks: Clicks;
-  readonly editable: boolean;
-  /** The proposal on screen: the one a click brought back, or the read. */
-  readonly proposal: Proposal;
-  readonly words: Words;
-  /** Whether the question `kind` takes the focus: true once, for the question an old step's address named. */
-  readonly takesFocus: (kind: Focus) => boolean;
-}
-
-const ScreenContext = createContext<Screen | null>(null);
-
-const useScreen = (): Screen => {
-  const screen = useContext(ScreenContext);
-  if (screen === null) {
-    throw new Error('a question is drawn outside the Structure screen');
-  }
-  return screen;
-};
-
-/** A question's control: the answer the proposal holds is pressed, and a click on another sends its edit. */
-const Question = ({ label, asked, answers, kind }: { readonly label: string; readonly asked: Asked; readonly answers: readonly Answer[]; readonly kind?: Focus }): ReactElement => {
-  const { clicks, editable, words, takesFocus } = useScreen();
-  const waiting = clicks.pending?.asked === asked ? clicks.pending : null;
-  const pressed = waiting?.value ?? answers.find((answer) => answer.pressed)?.value ?? null;
-  const here = useRef<HTMLDivElement>(null);
-  // In the commit that draws the question, so the focus is there as soon as it shows; only when it first shows.
-  useLayoutEffect(() => {
-    if (kind !== undefined && takesFocus(kind)) {
-      here.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus();
-    }
-  }, []);
-  return (
-    <div ref={here} className="structure-question">
-      <Segmented
-        label={label}
-        segments={answers.map((answer) => ({
-          value: answer.value,
-          label: answer.label,
-          suggested: answer.draft,
-          ...(answer.note === undefined ? {} : { note: answer.note }),
-        }))}
-        value={pressed}
-        disabled={!editable}
-        suggestedWord={words.t('structure.suggested')}
-        onChange={(value) => {
-          const answer = answers.find((one) => one.value === value);
-          if (answer !== undefined) {
-            clicks.answer(asked, value, answer.edit);
-          }
-        }}
-      />
-      {waiting?.slow === true ? (
-        <p role="status" className="import-slow">
-          {words.t('structure.counting')}
-        </p>
-      ) : null}
-      {clicks.failed === asked ? <p role="alert">{words.t('structure.click.failed')}</p> : null}
-    </div>
-  );
-};
 
 /**
  * The answers of a choice. With no edit of the person's, the chosen answer is
@@ -171,41 +101,6 @@ const answersOf = <T, C>(
   ];
 };
 
-const Row = ({ label, children }: { readonly label: string; readonly children: ReactNode }): ReactElement => (
-  <>
-    <dt>{label}</dt>
-    <dd>{children}</dd>
-  </>
-);
-
-const Notes = ({ lines }: { readonly lines: readonly string[] }): ReactElement | null =>
-  lines.length === 0 ? null : (
-    <div className="structure-notes">
-      {lines.map((line) => (
-        <p key={line}>{line}</p>
-      ))}
-    </div>
-  );
-
-/** An offer: one button that sends its edit. */
-const Offer = ({ text, action, asked, edit }: { readonly text: ReactNode; readonly action: string; readonly asked: Asked; readonly edit: Edit }): ReactElement => {
-  const { clicks, editable, words } = useScreen();
-  return (
-    <div className="structure-offer">
-      <span>{text}</span>
-      <button
-        type="button"
-        disabled={!editable}
-        onClick={() => {
-          clicks.answer(asked, 'offer', edit);
-        }}
-      >
-        {action}
-      </button>
-      {clicks.failed === asked ? <p role="alert">{words.t('structure.click.failed')}</p> : null}
-    </div>
-  );
-};
 
 const ItemsQuestion = ({ node }: { readonly node: SeriesNode }): ReactElement => {
   const { proposal, words } = useScreen();
@@ -413,115 +308,6 @@ const SeriesInspector = ({ node, name }: { readonly node: SeriesNode; readonly n
   );
 };
 
-const ArchiveInspector = ({ where, files }: { readonly where: string; readonly files: number }): ReactElement => {
-  const { proposal, words } = useScreen();
-  const { t, number } = words;
-  const lists = listsIn(proposal);
-  const series = proposal.nodes.filter((node) => node.kind === 'series').length;
-  return (
-    <div className="guided-inspect">
-      <h4>{where}</h4>
-      <dl className="guided-kv">
-        <Row label={t('structure.root.files')}>{t('structure.root.filesIn', { files: number(files), where })}</Row>
-        <Row label={t('structure.root.folders')}>{t('structure.root.foldersLine', { in: number(series), out: number(proposal.outside.length) })}</Row>
-        <Row label={t('structure.root.lists')}>{t('structure.root.listsLine', { used: number(lists.used), unused: number(lists.unused) })}</Row>
-      </dl>
-    </div>
-  );
-};
-
-const EveryInspector = ({ offers }: { readonly offers: readonly Pick<SetFrom, SetCounts>[] }): ReactElement => {
-  const { words } = useScreen();
-  const { t, number } = words;
-  return (
-    <div className="guided-inspect">
-      <h4>{t('structure.every.title')}</h4>
-      <p>{t('structure.every.note')}</p>
-      <dl className="guided-kv">
-        {offers.map((offer) => (
-          <Row key={JSON.stringify(offer.value)} label={setName(offer.counts, t, number)}>
-            <Offer text={setNote(offer.value, offer.counts, t, number)} action={t('structure.every.add')} asked={QUESTIONS.set(offer.value)} edit={{ edit: 'addSet', from: offer.value }} />
-          </Row>
-        ))}
-      </dl>
-    </div>
-  );
-};
-
-/** A folder not imported. One the person left out comes back by taking the edit back; one with nothing to show takes a `keep`. */
-const OutsideInspector = ({ folder, name }: { readonly folder: OutsideFolder; readonly name: string }): ReactElement => {
-  const { clicks, editable, words } = useScreen();
-  const { t, number } = words;
-  const asked = QUESTIONS.import(folder.scope);
-  return (
-    <div className="guided-inspect">
-      <h4>{name}</h4>
-      <p>{folder.reason === 'noMedia' ? t('structure.out.why') : t('structure.out.whyEdit')}</p>
-      <p>{t('structure.import.files', { files: number(folder.files), kinds: kindsWords(folder.kinds, t, number) })}</p>
-      <button
-        type="button"
-        disabled={!editable}
-        onClick={() => {
-          clicks.answer(asked, 'keep', folder.reason === 'edit' ? null : { edit: 'keep', scope: folder.scope });
-        }}
-      >
-        {t('structure.out.keep')}
-      </button>
-      {clicks.failed === asked ? <p role="alert">{t('structure.click.failed')}</p> : null}
-    </div>
-  );
-};
-
-/** A list no folder uses: it may describe any folder that is imported. */
-const UnusedInspector = ({ list, folders, where }: { readonly list: ListCandidate; readonly folders: readonly SeriesNode[]; readonly where: string }): ReactElement => {
-  const { clicks, editable, words } = useScreen();
-  const { t, number } = words;
-  const [folder, setFolder] = useState(0);
-  const paired = list.best?.paired ?? 0;
-  const why =
-    list.read !== 'ok'
-      ? t('structure.unused.error', { error: list.read.error })
-      : paired === 0
-        ? t('structure.unused.noRow')
-        : t('structure.unused.rows', { n: number(paired), of: number(list.rows) });
-  const scope = folders[folder]?.scope.scope;
-  return (
-    <div className="guided-inspect">
-      <h4 className="guided-file">{list.file}</h4>
-      <p>{why}</p>
-      {list.read !== 'ok' || scope === undefined ? null : (
-        <div className="structure-offer">
-          <label>
-            {t('structure.unused.folder')}{' '}
-            <select
-              value={folder}
-              disabled={!editable}
-              onChange={(event) => {
-                setFolder(Number(event.target.value));
-              }}
-            >
-              {folders.map((one, at) => (
-                <option key={one.level} value={at}>
-                  {folderName(one.scope.scope.folder, where)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="button"
-            disabled={!editable}
-            onClick={() => {
-              clicks.answer(QUESTIONS.list(scope), 'use', { edit: 'list', scope, list: { source: list.source, file: list.file } });
-            }}
-          >
-            {t('structure.unused.use')}
-          </button>
-          {clicks.failed === QUESTIONS.list(scope) ? <p role="alert">{t('structure.click.failed')}</p> : null}
-        </div>
-      )}
-    </div>
-  );
-};
 
 /** The tree row of one node: its name, its one line of facts, and a mark when a click changed it. */
 const rowOf = (node: TreeNode, where: string, files: number, proposal: Proposal, words: Words): MasterRow => {
@@ -580,134 +366,16 @@ const rowOf = (node: TreeNode, where: string, files: number, proposal: Proposal,
   }
 };
 
+
 const Inspector = ({ node, where, files, folders }: { readonly node: TreeNode; readonly where: string; readonly files: number; readonly folders: readonly SeriesNode[] }): ReactElement => {
   const { words } = useScreen();
-  switch (node.kind) {
-    case 'archive':
-      return <ArchiveInspector where={where} files={files} />;
-    case 'every':
-      return <EveryInspector offers={node.offers} />;
-    case 'set':
-      return (
-        <div className="guided-inspect">
-          <h4>{setName(node.node.counts, words.t, words.number)}</h4>
-          <p>{setNote(node.node.from, node.node.counts, words.t, words.number)}</p>
-        </div>
-      );
-    case 'series':
-      return <SeriesInspector node={node.node} name={folderName(node.node.scope.scope.folder, where)} />;
-    case 'outside':
-      return <OutsideInspector folder={node.folder} name={folderName(node.folder.scope.folder, where)} />;
-    case 'unused':
-      return <UnusedInspector list={node.list} folders={folders} where={where} />;
-  }
-};
-
-const cutEditWords = (cut: CutEdit, t: Words['t']): string => {
-  switch (cut.cut) {
-    case 'whole':
-      return t('structure.cut.whole');
-    case 'places':
-      return t('structure.cut.places', { places: String(cut.places) });
-    case 'folder':
-      return t('structure.cut.folder', { depth: String(cut.depth) });
-  }
-};
-
-/** An edit as the question it answers and the answer, in the words of the inspector. */
-const editWords = (edit: Edit, t: Words['t']): { readonly question: string; readonly answer: string } => {
-  switch (edit.edit) {
-    case 'leaveOut':
-      return { question: t('structure.q.import'), answer: t('structure.import.no') };
-    case 'keep':
-      return { question: t('structure.q.import'), answer: t('structure.import.yes') };
-    case 'items':
-      return { question: t('structure.q.items'), answer: cutEditWords(edit.cut, t) };
-    case 'list':
-      return { question: t('structure.q.list'), answer: edit.list === null ? t('structure.list.no') : listName(edit.list) };
-    case 'grain':
-      return { question: t('structure.q.grain'), answer: grainWords(edit.describes, t) };
-    case 'pair':
-      return { question: t('structure.q.pair'), answer: pairWords(edit.rule, t) };
-    case 'addSet':
-      return { question: t('structure.q.set'), answer: setFromWords(edit.from, t) };
-    case 'dropSet':
-      return { question: t('structure.q.set'), answer: t('structure.set.none') };
-    case 'title':
-      return { question: t('structure.q.set'), answer: edit.title };
-  }
-};
-
-/** Where an edit acts, by the name of the node it names, else by the folder or list it names. */
-const placeOf = (edit: Edit, tree: readonly TreeNode[], where: string, t: Words['t']): string => {
-  const node = nodeOf(edit, tree);
-  if (node?.kind === 'series') {
-    return folderName(node.node.scope.scope.folder, where);
-  }
-  if (node?.kind === 'every') {
-    return t('structure.every');
-  }
-  switch (edit.edit) {
-    case 'leaveOut':
-    case 'keep':
-    case 'items':
-    case 'list':
-      return folderName(edit.scope.folder, where);
-    case 'grain':
-    case 'pair':
-      return listName(edit.list);
-    case 'addSet':
-    case 'dropSet':
-    case 'title':
-      return edit.from.from === 'column' ? listName(edit.from.list) : folderName(edit.from.scope.folder, where);
-  }
-};
-
-const REASONS: Readonly<Record<NotApplied, StructureMessageKey>> = {
-  gone: 'structure.change.gone',
-  notOffered: 'structure.change.notOffered',
-  replaced: 'structure.change.replaced',
-};
-
-/** The changes strip: each click with what it changed, or why it does not apply now, and a way to take it back. */
-const Changes = ({ tree, where, id }: { readonly tree: readonly TreeNode[]; readonly where: string; readonly id: Parameters<typeof effectOf>[0] }): ReactElement | null => {
-  const { clicks, editable, proposal, words } = useScreen();
-  const { t, number } = words;
-  if (proposal.edits.length === 0 && clicks.pending?.saved !== true) {
-    return null;
+  if (node.kind === 'series') {
+    return <SeriesInspector node={node.node} name={folderName(node.node.scope.scope.folder, where)} />;
   }
   return (
-    <section className="structure-changes" aria-label={t('structure.count.changes')}>
-      <h3>{t('structure.changes.title', { count: number(proposal.edits.length) })}</h3>
-      {clicks.pending?.saved === true ? <p role="status">{t('structure.change.saved')}</p> : null}
-      <ul>
-        {proposal.edits.map((result) => {
-          const { question, answer } = editWords(result.edit, t);
-          const effect = effectOf(id, result.edit);
-          const after =
-            result.reason !== null
-              ? t(REASONS[result.reason])
-              : effect === undefined
-                ? null
-                : t('structure.change.effect', { before: number(effect.before), after: number(effect.after) });
-          return (
-            <li key={JSON.stringify(result.edit)} className={result.applied ? undefined : 'is-waiting'}>
-              <span>{t('structure.change.line', { where: placeOf(result.edit, tree, where, t), question, answer })}</span>
-              {after === null ? null : <span className="structure-change-effect">{after}</span>}
-              <button
-                type="button"
-                disabled={!editable}
-                onClick={() => {
-                  clicks.answer(questionOf(result.edit), 'back', null);
-                }}
-              >
-                {t('structure.change.remove')}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
+    <Suspense fallback={<p className="import-slow">{words.t('shell.loading')}</p>}>
+      <OtherInspector node={node} where={where} files={files} folders={folders} />
+    </Suspense>
   );
 };
 
@@ -773,9 +441,9 @@ const StatusPanel = (): ReactElement => {
   );
 };
 
-const parsed = (raw: RawProposal): Proposal | Error => {
+const parsed = (raw: RawProposal, parse: Parse): Proposal | Error => {
   try {
-    return parseProposal(raw);
+    return parse(raw);
   } catch (error: unknown) {
     return toError(error);
   }
@@ -784,10 +452,10 @@ const parsed = (raw: RawProposal): Proposal | Error => {
 const filesIn = (sources: readonly SourceState[]): number => sources.reduce((sum, source) => sum + source.files, 0);
 
 /** The screen over a proposal that read: the status, the tree with its inspector, and the changes strip. */
-const Shown = ({ read, under, sources }: { readonly read: Proposal; readonly under: unknown; readonly sources: readonly SourceState[] }): ReactElement => {
+const Shown = ({ read, under, sources, parse }: { readonly read: Proposal; readonly under: unknown; readonly sources: readonly SourceState[]; readonly parse: Parse }): ReactElement => {
   const words = useStructureText();
   const draft = useDraft();
-  const clicks = useClicks(read, under);
+  const clicks = useClicks(read, under, parse);
   const proposal = clicks.shown;
   const where = whereWords(draft.plan.sources, words.t, sources);
   const files = filesIn(sources);
@@ -813,16 +481,19 @@ const Shown = ({ read, under, sources }: { readonly read: Proposal; readonly und
           return node === undefined ? null : <Inspector node={node} where={where} files={files} folders={folders} />;
         }}
       </MasterDetail>
-      <Changes tree={tree} where={where} id={draft.id} />
+      <Suspense fallback={null}>
+        <Changes tree={tree} where={where} id={draft.id} />
+      </Suspense>
     </ScreenContext.Provider>
   );
 };
 
 export const Structure = (): ReactElement => {
   const words = useStructureText();
+  const { parseProposal } = use(parser);
   const read = usePreview(['proposal'], {});
   const raw = read.status === 'ready' ? read.data.proposal : null;
-  const proposal = useMemo(() => (raw === null ? null : parsed(raw)), [raw]);
+  const proposal = useMemo(() => (raw === null ? null : parsed(raw, parseProposal)), [raw, parseProposal]);
   if (read.status === 'loading') {
     return (
       <p role="status" className="import-slow">
@@ -838,7 +509,7 @@ export const Structure = (): ReactElement => {
   }
   return (
     <div className="guided-dials" aria-busy={read.busy}>
-      <Shown read={proposal} under={read.data} sources={read.data.sources} />
+      <Shown read={proposal} under={read.data} sources={read.data.sources} parse={parseProposal} />
     </div>
   );
 };

@@ -13,13 +13,15 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { importApi } from '../../../api/import-routes';
-import { parseProposal } from '../../../api/import-proposal';
 import type { EditResult, ItemCut, Proposal } from '../../../api/import-proposal';
 import type { CutEdit, Edit, FolderScope, ImportId, ImportPlan, ListFile, SetFrom } from '../../../api/import-plan';
 import { useDraft } from '../draft-context';
 import { withStructure } from '../series';
 import { totalsOf } from './structure-lines';
 import type { TreeNode } from './structure-lines';
+
+/** The proposal's parser, which the screen loads as a chunk of its own. */
+export type Parse = (raw: unknown) => Proposal;
 
 /** After this long, the screen says it is counting. */
 export const SLOW_MS = 1000;
@@ -191,9 +193,9 @@ export interface Clicks {
 /**
  * The clicks over `read`, the proposal of the stored plan. `under` is the
  * read's answer; a proposal a click brought back is shown until the read
- * answers again with something else.
+ * answers again with something else. `parse` reads each proposal a click brings.
  */
-export const useClicks = (read: Proposal, under: unknown): Clicks => {
+export const useClicks = (read: Proposal, under: unknown, parse: Parse): Clicks => {
   const draft = useDraft();
   const [trial, setTrial] = useState<{ readonly proposal: Proposal; readonly under: unknown } | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
@@ -233,7 +235,7 @@ export const useClicks = (read: Proposal, under: unknown): Clicks => {
         }
         stop();
         asking.current = null;
-        const proposal = parseProposal(data.proposal);
+        const proposal = parse(data.proposal);
         if (edit !== null) {
           effects.set(effectKey(draft.id, edit), { before, after: totalsOf(proposal).items });
         }
