@@ -425,7 +425,10 @@ export type Edit =
   | { readonly edit: 'addSet'; readonly from: SetFrom }
   | { readonly edit: 'dropSet'; readonly from: SetFrom }
   | { readonly edit: 'pair'; readonly list: ListFile; readonly rule: PairRule }
-  | { readonly edit: 'title'; readonly from: SetFrom; readonly title: string }
+  /** A typed title for a set, and a description when the person typed one. */
+  | { readonly edit: 'title'; readonly from: SetFrom; readonly title: string; readonly description?: string }
+  /** The set's items go into a set already in Omeka, by its id, in place of a new set. */
+  | { readonly edit: 'existing'; readonly from: SetFrom; readonly id: number }
   /** Keep the plan's series for this folder as the person wrote it: counted, with nothing offered on it. */
   | { readonly edit: 'own'; readonly scope: FolderScope };
 

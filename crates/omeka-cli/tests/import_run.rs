@@ -780,3 +780,37 @@ async fn an_item_made_before_a_kill_joins_its_sites_after_the_resume() {
     let joined = sites.site_items(synced.id).await.unwrap();
     assert_eq!(joined.len(), 9, "every item the import made is in the site");
 }
+
+/// A macOS-made archive spells `é` as `e` and a combining accent (NFD): its
+/// folder, its file and its list. The plan names each composed (NFC), as
+/// the preview shows it, and so does the person's list. The row pairs, and
+/// the run reads the list and the file by the names the disk holds.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_decomposed_file_name_pairs_its_list_row_and_runs() {
+    let site = site().await;
+    site.write_object("Re\u{301}sume\u{301}/Cafe\u{301}.jpg", &jpeg());
+    site.write(
+        "Re\u{301}sume\u{301}.csv",
+        "File,Title\nCaf\u{e9}.jpg,Terrace\n".as_bytes(),
+    );
+    let id = site
+        .draft(|plan| {
+            plan["grouping"]["pattern"] = json!(r"^(?:.*/)?(?<identifier>[^/]+)\.jpg$");
+            plan["sheets"] = json!([sheet_plan("list", &["File", "Title"])]);
+            plan["sheets"][0]["file"] = json!("R\u{e9}sum\u{e9}.csv");
+            plan["sheets"][0]["join"] = json!({
+                "on": "fileName", "column": { "index": 0, "header": "File" },
+                "normalize": { "caseFold": false, "leadingZeros": false, "separators": false }
+            });
+            plan["slots"]["item"]["dcterms:title"] =
+                rule(json!([col("list", 1, "Title")]), "first");
+        })
+        .await;
+
+    let row = site.run(id).await;
+
+    assert_eq!(row.status, ImportStatus::Done, "{}", summary(&row));
+    assert_eq!(summary(&row)["failures"], json!([]));
+    let terrace = site.item("Terrace").await;
+    assert_eq!(site.media_of(&terrace).await.len(), 1, "the file arrived");
+}

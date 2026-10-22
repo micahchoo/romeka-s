@@ -32,7 +32,7 @@ use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Type};
 
 use super::archive::ArchiveRoots;
 use super::derive::{Index, IndexedSource};
-use super::evidence::{self, Anomalies, DecodedName, FileEntry, Identical, NameEncoding, Walk};
+use super::evidence::{self, Anomalies, DiskName, FileEntry, Identical, NameEncoding, Walk};
 use super::plan::{ImportPlan, PlanError, RelPath, SourceId, SourcePlan};
 
 /// A rescan of an index larger than this runs as a job, not in the request.
@@ -95,15 +95,18 @@ struct StoredAnomalies {
 struct Stored {
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     sheet: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    decoded: Option<StoredName>,
+    /// Rows scanned before NFD names were kept call it `decoded`.
+    #[serde(default, alias = "decoded", skip_serializing_if = "Option::is_none")]
+    disk: Option<StoredName>,
 }
 
-/// A name that is not UTF-8 on disk: its encoding, and its bytes in hex, so
-/// a later read finds the file by the bytes the disk holds.
+/// A name the disk spells otherwise than its path: its bytes in hex, so a
+/// later read finds the file by the bytes the disk holds, and its encoding
+/// when it is not UTF-8.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct StoredName {
-    encoding: NameEncoding,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    encoding: Option<NameEncoding>,
     raw: String,
 }
 
@@ -191,9 +194,9 @@ pub fn rows(walked: &[Walked], now: NaiveDateTime) -> (Vec<NewScan>, Vec<NewEntr
                 media_type: Some(entry.sniffed.clone()),
                 flags: to_flags(&Stored {
                     sheet,
-                    decoded: entry.decoded.as_ref().map(|decoded| StoredName {
-                        encoding: decoded.encoding,
-                        raw: hex(&decoded.raw),
+                    disk: entry.disk.as_ref().map(|disk| StoredName {
+                        encoding: disk.encoding,
+                        raw: hex(&disk.raw),
                     }),
                 }),
             });
@@ -237,10 +240,10 @@ pub fn index_of(
             size: row.size,
             modified: (row.modified != epoch()).then(|| from_naive(row.modified)),
             sniffed: row.media_type.unwrap_or_default(),
-            decoded: stored
-                .decoded
+            disk: stored
+                .disk
                 .map(|name| {
-                    Ok::<_, DbError>(DecodedName {
+                    Ok::<_, DbError>(DiskName {
                         encoding: name.encoding,
                         raw: unhex(&name.raw).ok_or_else(|| bad(&"raw name"))?,
                     })

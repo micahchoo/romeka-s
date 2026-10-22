@@ -144,11 +144,11 @@ fn a18_names_that_are_not_utf8_are_decoded_and_kept() {
     let walk = walk(&source(dir.path())).expect("walk");
     let entry = &walk.entries[0];
     assert_eq!(entry.path.as_str(), "Año 1950/café.png");
-    let decoded = entry.decoded.as_ref().expect("decoded");
+    let decoded = entry.disk.as_ref().expect("decoded");
     assert_eq!(decoded.raw, b"A\xA4o 1950/caf\xE9.png");
     assert_eq!(
         decoded.encoding,
-        NameEncoding::Cp437,
+        Some(NameEncoding::Cp437),
         "the first name that needed decoding sets the flag"
     );
     assert_eq!(
@@ -168,6 +168,26 @@ fn a18_names_that_are_not_utf8_are_decoded_and_kept() {
     );
     let disk = source(dir.path()).locate(&entry.disk_path());
     assert!(disk.is_ok(), "{disk:?}");
+}
+
+/// A macOS-made archive spells `é` as `e` and a combining accent (NFD). The
+/// identity is NFC, so a list typed in NFC names it; the run opens the bytes
+/// the disk holds.
+#[test]
+fn a_decomposed_name_is_kept_as_the_disk_spells_it() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    write(dir.path(), "Re\u{301}sume\u{301}/Cafe\u{301}.png", PNG);
+    let walk = walk(&source(dir.path())).expect("walk");
+    let entry = &walk.entries[0];
+    assert_eq!(entry.path.as_str(), "R\u{e9}sum\u{e9}/Caf\u{e9}.png");
+    assert_eq!(entry.sniffed, "image/png");
+    let disk = source(dir.path()).locate(&entry.disk_path());
+    assert!(disk.is_ok(), "the run opens the disk's name: {disk:?}");
+    assert_eq!(
+        walk.decoded_names().count(),
+        0,
+        "a decomposed name is UTF-8, not a name to flag"
+    );
 }
 
 #[cfg(unix)]

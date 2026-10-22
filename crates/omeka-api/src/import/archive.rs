@@ -11,6 +11,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use unicode_normalization::UnicodeNormalization;
+
 use super::plan::RelPath;
 
 /// The root a v1 `ROMEKA_ARCHIVE_ROOT` becomes.
@@ -104,7 +106,7 @@ impl ArchiveRoots {
             .get(root)
             .ok_or_else(|| ArchiveError::UnknownRoot(root.to_string()))?;
         let boundary = canonical_folder(base)?;
-        let dir = inside(&boundary, &boundary.join(path.as_str()), path.as_str())?;
+        let dir = inside(&boundary, &on_disk(&boundary, path), path.as_str())?;
         if !dir.is_dir() {
             return Err(ArchiveError::NotAFolder(path.to_string()));
         }
@@ -160,6 +162,33 @@ impl SourceDir {
         }
         Ok(file)
     }
+}
+
+/// `path` under `base` as the disk spells it. A plan names a folder by its
+/// NFC identity, and macOS writes names NFD; a segment the disk does not
+/// hold as written is matched by its NFC form. Files below a source need no
+/// such search: the walk keeps their disk spelling (`FileEntry::disk_path`).
+fn on_disk(base: &Path, path: &RelPath) -> PathBuf {
+    let mut at = base.to_path_buf();
+    for segment in path
+        .as_str()
+        .split('/')
+        .filter(|segment| !segment.is_empty())
+    {
+        let written = at.join(segment);
+        let found = fs::symlink_metadata(&written)
+            .is_err()
+            .then(|| {
+                fs::read_dir(&at).ok()?.flatten().find_map(|child| {
+                    let name = child.file_name();
+                    let same = name.to_str()?.nfc().eq(segment.chars());
+                    same.then(|| at.join(name))
+                })
+            })
+            .flatten();
+        at = found.unwrap_or(written);
+    }
+    at
 }
 
 fn canonical_folder(path: &Path) -> Result<PathBuf, ArchiveError> {
@@ -243,6 +272,21 @@ mod tests {
             source.locate(Path::new("../../secret.txt")),
             Err(ArchiveError::Outside(_))
         ));
+    }
+
+    /// A plan names a folder by its NFC identity; macOS writes NFD.
+    #[test]
+    fn a_source_folder_the_disk_spells_decomposed_resolves() {
+        let (dir, roots) = tree();
+        let decomposed = dir.path().join("photos/Re\u{301}sume\u{301}/1950");
+        fs::create_dir_all(&decomposed).expect("mkdir");
+        let source = roots
+            .source("photos", &rel("R\u{e9}sum\u{e9}/1950"))
+            .expect("source");
+        assert_eq!(
+            source.dir(),
+            fs::canonicalize(decomposed).expect("canonical")
+        );
     }
 
     #[cfg(unix)]

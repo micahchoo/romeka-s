@@ -51,7 +51,14 @@ vi.mock('../src/pages/import/advanced/bodies', async () => {
 const fixture = (name: string): Record<string, unknown> => asRecord(loadFixture(`import/${name}`), []);
 const PATH = '/api/romeka/imports/1';
 
-const preview: Handler = () => jsonResponse({ ...fixture('preview-check.json'), flags: fixture('preview-flags.json')['flags'] });
+const preview: Handler = () =>
+  jsonResponse({
+    ...fixture('preview-check.json'),
+    flags: fixture('preview-flags.json')['flags'],
+    identical: fixture('preview-identical.json')['identical'],
+    entries: fixture('preview-entries.json')['entries'],
+    unpaired: fixture('preview-unpaired.json')['unpaired'],
+  });
 
 const savedAs = (init: RequestInit | undefined, revision: number): Response => {
   const sent = typeof init?.body === 'string' ? asRecord(JSON.parse(init.body), []) : {};
@@ -84,7 +91,8 @@ describe('the frame', () => {
     expect(screen.queryByRole('link', { name: 'Next' })).not.toBeInTheDocument();
     expect(await screen.findByText('10 items so far.')).toBeInTheDocument();
     const line = screen.getByText('10 items so far.').closest('p');
-    expect(line).toHaveTextContent('10 items so far. 1 left out. 6 kinds of problem to look at. Nothing is in Omeka until you add it.');
+    // Open questions: date-form, name-encoding, cells-count, no-file; identical files, files no item takes, items with no title.
+    expect(line).toHaveTextContent('10 items so far. 1 left out. 7 questions open. Nothing is in Omeka until you add it.');
     expect(within(line ?? document.body).getByRole('link')).toHaveAttribute('href', '#/import/1/simple/check');
   });
 

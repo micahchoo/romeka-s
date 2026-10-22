@@ -333,6 +333,50 @@ impl Structure {
         sources
     }
 
+    /// `level` inside the set levels of this structure that hold the series
+    /// at `at` and no other, nearest innermost: what a series written by
+    /// hand keeps around it. A set level over several series is the
+    /// proposer's to make again.
+    #[must_use]
+    pub fn inside_its_sets(&self, at: SeriesIx, level: Level) -> Level {
+        fn path_to<'s>(
+            levels: &'s [Level],
+            at: usize,
+            next: &mut usize,
+            path: &mut Vec<&'s SetLevel>,
+        ) -> bool {
+            for level in levels {
+                match level {
+                    Level::Series(_) if *next == at => return true,
+                    Level::Series(_) => *next += 1,
+                    Level::Set(set) => {
+                        path.push(set);
+                        if path_to(&set.levels, at, next, path) {
+                            return true;
+                        }
+                        path.pop();
+                    }
+                }
+            }
+            false
+        }
+        let mut path = Vec::new();
+        if !path_to(&self.levels, at.0, &mut 0, &mut path) {
+            return level;
+        }
+        let alone = |set: &SetLevel| {
+            let mut series = 0;
+            walk(&set.levels, &mut |_, _, _| series += 1);
+            series == 1
+        };
+        path.into_iter()
+            .rev()
+            .take_while(|set| alone(set))
+            .fold(level, |inner, set| {
+                Level::Set(SetLevel::new(set.id.clone(), set.set.clone(), vec![inner]))
+            })
+    }
+
     /// Sets every item of the import is also put in, after its tree sets.
     #[must_use]
     pub fn free_sets(&self) -> &[SetSource] {

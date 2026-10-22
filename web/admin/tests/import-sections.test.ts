@@ -59,6 +59,8 @@ const EDITS = [
   { edit: 'pair', list, rule: { rule: 'column', column, on: 'identifier' } },
   { edit: 'pair', list, rule: { rule: 'lastPlaces', places: 2 } },
   { edit: 'title', from: fromPlace, title: 'Artifacts' },
+  { edit: 'title', from: { from: 'folder', scope }, title: 'Objects', description: 'Brass and copper, 1890 to 1950' },
+  { edit: 'existing', from: { from: 'folder', scope }, id: 42 },
   { edit: 'own', scope },
 ];
 
@@ -275,6 +277,8 @@ describe('the plan edits', () => {
       { edit: 'list', scope },
       { edit: 'items', scope, cut: { cut: 'places' } },
       { edit: 'pair', list, rule: { rule: 'lastPlaces', places: -1 } },
+      { edit: 'existing', from: fromPlace, id: 4.5 },
+      { edit: 'existing', from: fromPlace, title: 'Artifacts', id: 4 },
     ]) {
       expect(() => parseImportPlan({ ...v3(), edits: [edit] })).toThrow(ParseError);
     }

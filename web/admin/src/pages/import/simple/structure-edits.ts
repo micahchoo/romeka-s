@@ -57,7 +57,7 @@ export const QUESTIONS = {
   list: (scope: FolderScope) => question('list', scope),
   grain: (list: ListFile) => question('grain', list),
   pair: (list: ListFile) => question('pair', list),
-  /** A set added, taken away or given a title: every edit that names the set `from`. */
+  /** A set added, taken away, given a title or put in a set in Omeka: every edit that names the set `from`. */
   set: (from: SetFrom) => question('set', from),
   /** Whether the folder's series is written by hand. */
   own: (scope: FolderScope) => question('own', scope),
@@ -80,6 +80,7 @@ export const questionOf = (edit: Edit): Question => {
     case 'addSet':
     case 'dropSet':
     case 'title':
+    case 'existing':
       return QUESTIONS.set(edit.from);
     case 'own':
       return QUESTIONS.own(edit.scope);
@@ -135,7 +136,8 @@ const names = (node: TreeNode, edit: Edit): boolean => {
       return lists.some((one) => sameList(edit.list, one));
     case 'addSet':
     case 'dropSet':
-    case 'title': {
+    case 'title':
+    case 'existing': {
       const { from } = edit;
       return from.from === 'column' ? lists.some((one) => sameList(from.list, one)) : sameScope(from.scope, scope);
     }

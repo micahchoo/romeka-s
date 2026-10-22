@@ -43,7 +43,7 @@ fn derived(paths: &[&str], list: Option<&str>) -> Derived {
                         size: 1,
                         modified: None,
                         sniffed: "image/jpeg".into(),
-                        decoded: None,
+                        disk: None,
                     })
                     .collect(),
                 ..Walk::default()

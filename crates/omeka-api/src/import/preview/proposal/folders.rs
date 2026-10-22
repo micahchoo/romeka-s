@@ -65,8 +65,10 @@ impl FolderSeries {
         match edit {
             Edit::Items { scope, .. } | Edit::List { scope, .. } => self.names(scope),
             Edit::Grain { list, .. } | Edit::Pair { list, .. } => held(list),
-            Edit::AddSet { from } | Edit::DropSet { from } | Edit::Title { from, .. } => match from
-            {
+            Edit::AddSet { from }
+            | Edit::DropSet { from }
+            | Edit::Title { from, .. }
+            | Edit::Existing { from, .. } => match from {
                 SetFrom::Folder { scope }
                 | SetFrom::NamePlace { scope, .. }
                 | SetFrom::FolderLevel { scope, .. } => self.names(scope),

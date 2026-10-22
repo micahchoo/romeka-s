@@ -1,14 +1,11 @@
 /**
- * The questions Check asks: one per kind of problem the server counted (a
- * flag kind), one per anomaly with an answer in the plan (identical files,
- * files the example does not fit, items with no row), and one for items the
- * run adds with no title, whatever their item type requires. Each has a
- * suggested answer, which is what the run does when the person gives none:
- * the flag kind's default policy, or the anomaly's default answer
- * (`docs/import-v2.md`, "Flags" and "Answers to anomalies").
+ * What each Check question says and how it is answered (which questions
+ * there are is `questions.ts`). Each has a suggested answer, which is what
+ * the run does when the person gives none: the flag kind's default policy,
+ * or the anomaly's default answer (`docs/import-v2.md`, "Flags" and
+ * "Answers to anomalies").
  */
 import type { AnomalyAnswers, FlagKind, FlagPolicy, ImportPlan, SlotRule } from '../../../api/import-plan';
-import { BLOCKING_FLAG_KINDS, FLAG_KINDS } from '../../../api/import-plan';
 import type { PatternState } from '../../../api/import-model';
 import type { BucketCount, Grain, ListCandidate } from '../../../api/import-sections';
 import { exampleOf } from '../example';
@@ -17,38 +14,8 @@ import { readState } from './example-state';
 import { withFileRows } from './list-plan';
 import { folderSheets } from './list-read';
 import type { SimpleMessageKey } from './messages';
-
-export const DEFAULT_POLICY: Readonly<Record<FlagKind, FlagPolicy>> = {
-  'empty-required': 'keep',
-  'date-form': 'keep',
-  'space-at-ends': 'repair',
-  'encoding-suspect': 'keep',
-  'name-encoding': 'keep',
-  'cells-count': 'leave',
-  'no-file': 'keep',
-  'not-media': 'leave',
-  'listed-not-media': 'leave',
-  'format-mismatch': 'keep',
-  exists: 'leave',
-  unmatched: 'leave',
-  'many-matches': 'leave',
-  'many-values': 'keep',
-  'link-missing': 'keep',
-  'unknown-type': 'keep',
-  'unknown-set': 'keep',
-  'unknown-kind': 'leave',
-  'duplicate-row': 'leave',
-  'unknown-term': 'leave',
-  'template-missing': 'leave',
-  'type-exists': 'leave',
-  'encoding-unsupported': 'leave',
-};
-
-/** Kinds the run handles without a question: the screen lists them under "We took care of". */
-export const HANDLED: readonly FlagKind[] = ['space-at-ends', 'not-media'];
-
-/** Kinds Check states as a fact: the person has no choice about them, so no card asks. */
-export const FACTS: readonly FlagKind[] = ['listed-not-media'];
+import { DEFAULT_POLICY, TITLE, UNTITLED } from './questions';
+import type { AnomalyId, CauseId } from './questions';
 
 /** What the preview says about the items, for the answers that depend on it. */
 export interface CheckFacts {
@@ -94,27 +61,7 @@ export const checkFactsOf = (plan: ImportPlan, read: { readonly pattern: Pattern
   fileRows: fileRowsOf(plan, read.listCandidates),
 });
 
-export type AnomalyId = 'identical' | 'unmatchedFiles' | 'itemsWithoutRow';
-/** Items to add with no title: the server's count, not a flag, so it asks for every item type. */
-export const UNTITLED = 'untitled';
-export type CauseId = FlagKind | AnomalyId | typeof UNTITLED;
-
 export const DEFAULT_ANOMALIES: AnomalyAnswers = { identical: 'keepOne', unmatchedFiles: 'leave', itemsWithoutRow: 'keep' };
-
-/** Proto order: problems of the list first, then of the files, then of the values. */
-export const CAUSE_ORDER: readonly CauseId[] = [
-  'cells-count',
-  'no-file',
-  'itemsWithoutRow',
-  'identical',
-  'unmatchedFiles',
-  'exists',
-  'date-form',
-  UNTITLED,
-  'empty-required',
-  'unknown-type',
-  ...FLAG_KINDS.filter((kind) => !['cells-count', 'no-file', 'exists', 'date-form', 'empty-required', 'unknown-type'].includes(kind)),
-];
 
 export interface Option {
   readonly value: string;
@@ -230,8 +177,6 @@ const generic = (kind: FlagKind): CauseWords => ({
   options: DEFAULT_POLICY[kind] === 'leave' ? [LEAVE, KEEP] : [KEEP, LEAVE],
 });
 
-export const isBlocking = (id: CauseId): boolean => BLOCKING_FLAG_KINDS.some((kind) => kind === id);
-
 const isAnomaly = (id: CauseId): id is AnomalyId => id === 'identical' || id === 'unmatchedFiles' || id === 'itemsWithoutRow';
 
 /**
@@ -256,10 +201,6 @@ export const wordsOf = (id: CauseId, plan: ImportPlan, facts: CheckFacts): Cause
   return isAnomaly(id) ? ANOMALY_WORDS[id] : (FLAG_WORDS[id] ?? generic(id));
 };
 
-const TITLE = 'dcterms:title';
-
-/** An empty title the item type requires: the untitled question asks it, so no card of its own. */
-export const titleFlag = (flag: { readonly kind: FlagKind; readonly slot: string | null }): boolean => flag.kind === 'empty-required' && flag.slot === TITLE;
 const fromName = (rule: SlotRule | undefined): boolean => rule?.sources.some((source) => source.from === 'file' && source.fact === 'name') === true;
 const isCode = (source: SlotRule['sources'][number]): boolean => source.from === 'group' && source.name === 'identifier';
 const fromCode = (rule: SlotRule | undefined): boolean => rule?.sources.some(isCode) === true;

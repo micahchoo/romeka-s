@@ -87,8 +87,8 @@ fn file_flags(
         }
         let entry = [EntryRef::File(file.file.clone())];
         let mut found = Vec::new();
-        if let Some(decoded) = &file.entry.decoded {
-            found.push((FlagKind::NameEncoding, format!("{:?}", decoded.encoding)));
+        if let Some(encoding) = file.entry.disk.as_ref().and_then(|disk| disk.encoding) {
+            found.push((FlagKind::NameEncoding, format!("{encoding:?}")));
         }
         let name = file.entry.name();
         if let Some(refused) = catalog::refusal(&catalog.files, name, &file.entry.sniffed) {

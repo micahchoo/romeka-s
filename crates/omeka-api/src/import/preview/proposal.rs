@@ -74,8 +74,8 @@ use crate::import::model::{Fate, Model};
 use crate::import::plan::{
     ColumnOptions, ColumnPlan, ColumnRef, Combine, EachSet, EachValue, Edit, FolderScope, Grouping,
     ImportPlan, Level, LevelId, ListFile, PairRule, Placement as FilePlace, RecordKind, RelPath,
-    Series, SeriesIx, SeriesScope, SetByTitle, SetFrom, SetLevel, SetNames, SetSource, SheetId,
-    SheetPlan, SlotName, SlotRule, SourcePlan, SourceRef, Structure, default_plan,
+    Series, SeriesIx, SeriesScope, SetFrom, SetLevel, SetNames, SetSource, SheetId, SheetPlan,
+    SlotName, SlotRule, SourcePlan, SourceRef, Structure, default_plan,
 };
 use crate::import::sheet::{Sheet, SheetError};
 use crate::import::values::ValueType;
@@ -606,7 +606,8 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         .all_series()
         .zip(&series)
         .zip(keys.iter().zip(&names))
-        .map(|(((at, _), one), (key, names))| sets::SeriesIn {
+        .zip(&rows)
+        .map(|((((at, _), one), (key, names)), rows)| sets::SeriesIn {
             at,
             scope: one.scope(),
             places: key
@@ -614,6 +615,16 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
                 .unwrap_or_default(),
             numbered: one.numbered,
             folder: one.set.as_ref(),
+            reads: rows
+                .lists
+                .iter()
+                .map(|list| list.file.clone())
+                .chain(
+                    kept.iter()
+                        .filter(|kept| kept.at == at.index() && kept.staged)
+                        .map(|kept| list_file(kept.list)),
+                )
+                .collect(),
         })
         .collect();
     let found_sets = sets::detect(
@@ -676,9 +687,9 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
     let mut offers = offers.into_iter();
     let mut series_sets = found_sets.series.into_iter();
     let mut nodes = Vec::new();
-    if let Some((pick, title)) = found_sets.top_taken {
+    if let Some((pick, set)) = found_sets.top_taken {
         nodes.push(NodeEvidence::Set(SetNode {
-            level: LevelId(title.0),
+            level: LevelId(set.shown().0.clone()),
             from: pick.value,
             counts: pick.counts,
         }));
@@ -919,7 +930,7 @@ impl<'e> Question<'e> {
             Edit::Grain { list, .. } => Self::Grain(list),
             Edit::AddSet { from } | Edit::DropSet { from } => Self::Set(from),
             Edit::Pair { list, .. } => Self::Pair(list),
-            Edit::Title { from, .. } => Self::Title(from),
+            Edit::Title { from, .. } | Edit::Existing { from, .. } => Self::Title(from),
             Edit::Own { scope } => Self::Own(scope),
         }
     }
@@ -974,7 +985,10 @@ fn in_scan(evidence: &Evidence<'_>, edit: &Edit) -> bool {
         | Edit::Own { scope } => folder(scope),
         Edit::List { scope, list: asked } => folder(scope) && asked.as_ref().is_none_or(list),
         Edit::Grain { list: file, .. } | Edit::Pair { list: file, .. } => list(file),
-        Edit::AddSet { from } | Edit::DropSet { from } | Edit::Title { from, .. } => set(from),
+        Edit::AddSet { from }
+        | Edit::DropSet { from }
+        | Edit::Title { from, .. }
+        | Edit::Existing { from, .. } => set(from),
     }
 }
 
@@ -1150,6 +1164,9 @@ struct Kept<'e> {
     at: usize,
     /// Its paired rows there, of its rows; `None` when it cannot be read.
     rows: Option<Share>,
+    /// The person uploaded it, so the series reads it. Otherwise a free set
+    /// reads it and the series only holds it.
+    staged: bool,
 }
 
 impl Kept<'_> {
@@ -1248,6 +1265,7 @@ fn kept_lists<'e>(
             Kept {
                 list,
                 at,
+                staged: staged(list),
                 rows: read.as_ref().map(|(paired, of)| Share {
                     n: paired.get(at).copied().unwrap_or_default(),
                     of: *of,
@@ -1351,7 +1369,8 @@ fn as_found(evidence: &Evidence<'_>) -> Vec<folders::FolderSeries> {
 }
 
 /// The proposed levels: each series with its key, lists and rules, and
-/// its sets; a series written by hand as the person wrote it. Each list in
+/// its sets; a series written by hand as the person wrote it, inside the
+/// set levels the plan holds around it alone. Each list in
 /// `kept_lists` goes, as written, after the lists of its series. The first
 /// split taken is a series' own set when it has none; each other split is a
 /// set level around the series; a top set taken is a set level around
@@ -1389,7 +1408,11 @@ fn tree(
                     .into_iter()
                     .filter(|list| own.lists().iter().all(|held| held.id != list.id));
                 let lists = own.lists().iter().chain(more).cloned().collect();
-                return Level::Series(own.clone().with_lists(lists));
+                let written = Level::Series(own.clone().with_lists(lists));
+                return match kept.all_series().find(|(_, held)| held.id() == own.id()) {
+                    Some((held, _)) => kept.inside_its_sets(held, written),
+                    None => written,
+                };
             }
             let sets = sets.series.get(at).unwrap_or(&none);
             let scope = SeriesScope::Folders(one.scopes.clone());
@@ -1398,12 +1421,9 @@ fn tree(
         })
         .collect();
     match &sets.top_taken {
-        Some((_, title)) => vec![Level::Set(SetLevel::new(
-            LevelId(title.0.clone()),
-            SetSource::Title(SetByTitle {
-                title: title.0.clone(),
-                description: None,
-            }),
+        Some((_, set)) => vec![Level::Set(SetLevel::new(
+            LevelId(set.shown().0.clone()),
+            set.source(),
             levels,
         ))],
         None => levels,
@@ -1455,12 +1475,7 @@ fn level(
         .folder
         .as_ref()
         .filter(|folder| folder.chosen)
-        .map(|folder| {
-            SetSource::Title(SetByTitle {
-                title: folder.title.0.clone(),
-                description: None,
-            })
-        });
+        .map(|folder| folder.set.source());
     let each = |taken: &sets::Taken| {
         SetSource::Each(EachValue {
             each: EachSet {
