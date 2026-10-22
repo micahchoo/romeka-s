@@ -188,6 +188,13 @@ describe('while it works', () => {
     expect(screen.getByRole('link', { name: 'See the log on the Jobs page' })).toHaveAttribute('href', '#/jobs/1');
   });
 
+  it('says a restart stopped the run and it goes on by itself, once the server resumed it', async () => {
+    installFetch(runRoutes(1, { reads: [{ ...fixture('import-running.json'), resumed: 1 }] }));
+    render(at(1));
+    expect(await screen.findByText('Stopped by a restart. It goes on by itself.')).toBeInTheDocument();
+    expect(screen.getByText('3 of 9 done.')).toBeInTheDocument();
+  });
+
   it('asks the job to stop, then says it is stopping until it has', async () => {
     const fetchMock = installFetch(
       runRoutes(1, { reads: [fixture('import-running.json'), fixture('import-stopping.json')] }),

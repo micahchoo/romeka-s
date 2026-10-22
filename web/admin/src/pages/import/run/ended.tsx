@@ -110,6 +110,7 @@ export const Ended = ({
       <p className="muted">{t('run.work.unit')}</p>
       {summary.stopped ? <p>{t('run.end.asked')}</p> : null}
       {stage.died === null ? null : <p>{t('run.end.died', { time: formatDateTime(stage.died, locale) })}</p>}
+      {stage.interrupted ? <p>{t('run.restarted')}</p> : null}
       {summary.failures.length > 0 ? <Failures failures={summary.failures} /> : null}
       <LeftOut />
       {stage.retry ? <Retry live={live} left={Math.max(total - done, summary.failures.length)} /> : null}

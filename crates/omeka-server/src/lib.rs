@@ -70,6 +70,7 @@ mod vocab_import;
 
 pub use config::{Config, ConfigError, MailConfig, MailTls};
 pub use config_store::{StoreConfig, file_store, local_store, store_for};
+pub use imports::{ResumeEnv, resume_imports};
 pub use jobs::{DispatchError, JobDispatch, NoDispatch};
 pub use logging::init_logging;
 pub use serve::{serve, serve_with_config, serve_with_services, shutdown_signal};

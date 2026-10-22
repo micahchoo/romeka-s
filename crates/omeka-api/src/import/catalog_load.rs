@@ -18,7 +18,7 @@ use omeka_db::repos::{
     MediaFilter, MediaRepo, Paging, PropertyFilter, PropertyRepo, TemplateRepo, UserFilter,
     UserRepo, ValueRewriteRepo, VocabularyFilter, VocabularyRepo,
 };
-use omeka_db::rows::{ImportTarget, resource_type};
+use omeka_db::rows::{ImportChange, ImportTarget, resource_type};
 use omeka_media::validation::FileValidation;
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Type};
 
@@ -61,9 +61,12 @@ fn raw(id: u64) -> i64 {
 /// Read the catalog `plan` derives against. `files` is the install's
 /// file-validation settings, which the caller reads.
 ///
-/// The item types and fields import `import`'s own ledger records are left
-/// out: an earlier attempt of the same import made them from this plan, so a
-/// retry derives as the first attempt did, with no `type-exists` flag.
+/// Every type, field, set, item and media import `import`'s own ledger
+/// records as created is left out: an earlier attempt of the same import
+/// made it from this plan, so a retry derives the model the first attempt
+/// derived. Its records come out `Create` again, the ledger skips them, and
+/// the run's total does not move. A resource the import changed stays in,
+/// so its record still matches it.
 ///
 /// # Errors
 /// A [`DbError`] when a read fails.
@@ -92,6 +95,7 @@ where
     let all = Paging::default();
     let mut own_templates = HashSet::new();
     let mut own_properties = HashSet::new();
+    let mut own_resources = HashSet::new();
     for row in ImportResourceRepo::new(pool).list(import, None).await? {
         match row.target {
             ImportTarget::ResourceTemplate(id) => {
@@ -99,6 +103,15 @@ where
             }
             ImportTarget::Property(id) => {
                 own_properties.insert(id);
+            }
+            ImportTarget::Item(id) if row.change == ImportChange::Created => {
+                own_resources.insert(raw(id.0));
+            }
+            ImportTarget::Media(id) if row.change == ImportChange::Created => {
+                own_resources.insert(raw(id.0));
+            }
+            ImportTarget::ItemSet(id) if row.change == ImportChange::Created => {
+                own_resources.insert(raw(id.0));
             }
             _ => {}
         }
@@ -214,9 +227,12 @@ where
     let by_id = |key: &MatchKey| matches!(key, MatchKey::InternalId);
     let rules = &plan.action.match_by;
 
-    let set_rows = ItemSetRepo::new(pool)
+    let set_rows: Vec<_> = ItemSetRepo::new(pool)
         .list(&ItemSetFilter::default(), &all)
-        .await?;
+        .await?
+        .into_iter()
+        .filter(|set| !own_resources.contains(&raw(set.id().0)))
+        .collect();
     let item_repo = ItemRepo::new(pool);
     let mut sets_of: HashMap<i64, Vec<i64>> = HashMap::new();
     for set in &set_rows {
@@ -249,6 +265,7 @@ where
             item_ids.insert(raw(item.id().0));
         }
     }
+    item_ids.retain(|id| !own_resources.contains(id));
     let items = item_ids
         .into_iter()
         .map(|id| ExistingItem {
@@ -268,6 +285,7 @@ where
             .into_iter()
             .map(|row| (raw(row.resource.id.0), raw(row.item_id.0)))
             .filter(|(id, _)| by_id(&rules.media.key) || media_keyed.contains(id))
+            .filter(|(id, _)| !own_resources.contains(id))
             .map(|(id, item)| ExistingMedia {
                 id,
                 keys: keys.get(&id).cloned().unwrap_or_default(),

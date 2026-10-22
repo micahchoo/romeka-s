@@ -6,6 +6,7 @@
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { asRecord } from '../src/api/parse';
 import { ImportPage } from '../src/pages/import/page';
 import { checks, conflict, fixture, handFixture, pathOf, reported, runRoutes } from './import-run-server';
 import { installFetch, jsonResponse, requestBody, requestsFor } from './stub';
@@ -55,6 +56,16 @@ describe('a run that ended', () => {
     expect(screen.getByText('8 of 9 done.')).toBeInTheDocument();
     expect(screen.getByText('It stopped because someone asked it to.')).toBeInTheDocument();
     expect(await screen.findByText('The file could not be read.')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Try again: the 1 not done yet' })).toBeInTheDocument();
+  });
+
+  it('run_failed by a restart: says it goes on by itself, and still offers a retry', async () => {
+    const failed = fixture('import-run-failed.json');
+    const summary = { ...asRecord(failed['summary'], []), stopped: false };
+    installFetch(runRoutes(1, { reads: [{ ...failed, summary, interrupted: '2026-10-22T12:00:00+00:00' }] }));
+    render(at(1));
+    expect(await screen.findByText('Stopped by a restart. It goes on by itself.')).toBeInTheDocument();
+    expect(screen.queryByText('It stopped because someone asked it to.')).not.toBeInTheDocument();
     expect(await screen.findByRole('button', { name: 'Try again: the 1 not done yet' })).toBeInTheDocument();
   });
 

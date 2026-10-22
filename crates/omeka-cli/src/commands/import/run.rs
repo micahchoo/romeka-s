@@ -197,6 +197,7 @@ async fn go(
     let go = Go {
         digest: None,
         confirm: options.confirm,
+        resume: false,
     };
     with_db!(&session.pool, |db| start::begin(db, &row, &check, go).await).map_err(refused)?;
     writeln!(progress, "import {} running", import.0)?;
