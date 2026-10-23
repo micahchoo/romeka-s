@@ -1,11 +1,12 @@
 /**
  * The inspectors of the Structure screen's nodes that are not a folder of
- * items: the archive, the sets over every item, a set level (counted, or
+ * items: the archive (with the person's own sets, `../advanced/free-sets.tsx`,
+ * a lazy chunk), the sets over every item, a set level (counted, or
  * kept around a folder written by hand), a folder not imported and a list
  * no folder uses. They are a lazy chunk of their own:
  * the screen opens on a folder, and loads these when the person selects one.
  */
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import type { ReactElement } from 'react';
 import type { OutsideFolder, Pick, SeriesNode, SetCounts } from '../../../api/import-proposal';
 import type { SetFrom } from '../../../api/import-plan';
@@ -15,9 +16,13 @@ import { folderName, keptSetName, kindsWords, listsIn, setName, setNote, setsWor
 import type { TreeNode } from './structure-lines';
 import { Offer, Row, useScreen } from './structure-parts';
 
+const FreeSets = lazy(() => import('../advanced/free-sets').then((module) => ({ default: module.FreeSets })));
+
+/** The archive: its files, folders and lists, and the person's own sets, which cross the folders (Advanced's control, opened in place). */
 const ArchiveInspector = ({ where, files }: { readonly where: string; readonly files: number }): ReactElement => {
   const { proposal, words } = useScreen();
   const { t, number } = words;
+  const [sets, setSets] = useState(false);
   const lists = listsIn(proposal);
   const series = proposal.nodes.filter((node) => node.kind === 'series' || node.kind === 'own').length;
   return (
@@ -27,7 +32,17 @@ const ArchiveInspector = ({ where, files }: { readonly where: string; readonly f
         <Row label={t('structure.root.files')}>{t('structure.root.filesIn', { files: number(files), where })}</Row>
         <Row label={t('structure.root.folders')}>{t('structure.root.foldersLine', { in: number(series), out: number(proposal.outside.length) })}</Row>
         <Row label={t('structure.root.lists')}>{t('structure.root.listsLine', { used: number(lists.used), unused: number(lists.unused) })}</Row>
+        <Row label={t('structure.root.sets')}>
+          <button type="button" aria-expanded={sets} onClick={() => { setSets((open) => !open); }}>
+            {t('structure.root.setsOpen')}
+          </button>
+        </Row>
       </dl>
+      {sets ? (
+        <Suspense fallback={<p className="import-slow">{t('shell.loading')}</p>}>
+          <FreeSets />
+        </Suspense>
+      ) : null}
     </div>
   );
 };

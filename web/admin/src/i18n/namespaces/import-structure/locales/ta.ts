@@ -123,6 +123,8 @@ export const ta: ImportStructureMessages = {
   "structure.root.lists": "பட்டியல்கள்",
   "structure.root.listsLine":
     "{used} ஒரு கோப்புறையை விவரிக்கிறது. {unused} எதையும் விவரிக்கவில்லை.",
+  "structure.root.sets": "உங்கள் சொந்தத் தொகுப்புகள்",
+  "structure.root.setsOpen": "அவற்றைக் காட்டுங்கள் மற்றும் மாற்றவும்",
   "structure.every.title": "ஒவ்வொரு உருப்படியின் மீதும் ஒரு தொகுப்பு",
   "structure.every.note":
     "ஒவ்வொரு நெடுவரிசையிலும் ஒவ்வொரு வரிசையிலும் ஒரு மதிப்பு உள்ளது.",

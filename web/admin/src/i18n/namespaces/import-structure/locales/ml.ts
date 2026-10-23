@@ -121,6 +121,8 @@ export const ml: ImportStructureMessages = {
   "structure.root.lists": "പട്ടികകൾ",
   "structure.root.listsLine":
     "{used} ഒരു ഫോൾഡർ വിവരിക്കുന്നു. {unused} ഒന്നും വിവരിക്കുന്നില്ല.",
+  "structure.root.sets": "നിങ്ങളുടെ സ്വന്തം സെറ്റുകൾ",
+  "structure.root.setsOpen": "അവ കാണിക്കുകയും മാറ്റുകയും ചെയ്യുക",
   "structure.every.title": "ഓരോ ഇനത്തിനും മേൽ ഒരു സെറ്റ്",
   "structure.every.note": "ഓരോ കോളത്തിനും ഓരോ വരിയിലും ഒരു മൂല്യം ഉണ്ട്.",
   "structure.every.add": "സെറ്റ് ചേർക്കുക",

@@ -126,6 +126,8 @@ export const en = {
   'structure.root.foldersLine': '{in} imported, {out} not imported',
   'structure.root.lists': 'Lists',
   'structure.root.listsLine': '{used} describe a folder. {unused} describe none.',
+  'structure.root.sets': 'Your own sets',
+  'structure.root.setsOpen': 'Show and change them',
   'structure.every.title': 'A set over every item',
   'structure.every.note': 'Each column has one value in every row.',
   'structure.every.add': 'Add set',

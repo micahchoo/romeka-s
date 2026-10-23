@@ -119,6 +119,8 @@ export const hi: ImportStructureMessages = {
   "structure.root.lists": "सूचियाँ",
   "structure.root.listsLine":
     "{used} एक फ़ोल्डर का वर्णन करता है। {unused} किसी का नहीं।",
+  "structure.root.sets": "आपके अपने सेट",
+  "structure.root.setsOpen": "उन्हें दिखाएँ और बदलें",
   "structure.every.title": "प्रत्येक आइटम पर एक सेट",
   "structure.every.note":
     "प्रत्येक कॉलम में प्रत्येक पंक्ति में एक मान होता है।",

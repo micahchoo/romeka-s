@@ -120,6 +120,8 @@ export const mr: ImportStructureMessages = {
   "structure.root.lists": "यादी",
   "structure.root.listsLine":
     "{used} फोल्डरचे वर्णन करते. {unused} कशाचेही वर्णन करत नाही.",
+  "structure.root.sets": "तुमचे स्वतःचे संच",
+  "structure.root.setsOpen": "त्यांना दाखवा आणि बदला",
   "structure.every.title": "प्रत्येक घटकावर एक संच",
   "structure.every.note": "प्रत्येक स्तंभात प्रत्येक ओळीत एक मूल्य असते.",
   "structure.every.add": "संच जोडा",

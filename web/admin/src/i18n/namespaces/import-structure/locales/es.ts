@@ -119,6 +119,8 @@ export const es: ImportStructureMessages = {
   "structure.root.lists": "Listas",
   "structure.root.listsLine":
     "{used} describen una carpeta. {unused} no describen ninguna.",
+  "structure.root.sets": "Tus propios conjuntos",
+  "structure.root.setsOpen": "Verlos y cambiarlos",
   "structure.every.title": "Un conjunto con todos los elementos",
   "structure.every.note":
     "Cada columna tiene un solo valor en todas las filas.",

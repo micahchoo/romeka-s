@@ -118,6 +118,8 @@ export const ne: ImportStructureMessages = {
   "structure.root.lists": "सूचीहरू",
   "structure.root.listsLine":
     "{used} ले एउटा फोल्डर वर्णन गर्छ। {unused} ले कुनै पनि वर्णन गर्दैन।",
+  "structure.root.sets": "तपाईँका आफ्नै सेटहरू",
+  "structure.root.setsOpen": "तिनीहरूलाई देखाउनुहोस् र परिवर्तन गर्नुहोस्",
   "structure.every.title": "हरेक वस्तुमाथि एउटा सेट",
   "structure.every.note":
     "प्रत्येक स्तम्भमा प्रत्येक पङ्क्तिमा एउटा मान हुन्छ।",

@@ -412,6 +412,28 @@ describe('the Structure screen', () => {
     expect(asRecord(asRecord(seriesIn(server.saved[0] ?? {}, 'Artifacts')['slots'], [])['item'], [])['dcterms:description']).toEqual({ ...CURATOR_ON_THE_ITEM, map: { 'Dilp Patil': 'Dilip Patil' } });
   });
 
+  it('the archive opens your own sets, and a set removed there leaves the plan', { timeout: 20_000 }, async () => {
+    const draft = asRecord(asRecord(loadFixture('import/import-draft.json'), [])['plan'], []);
+    const structure = { ...asRecord(draft['structure'], []), freeSets: [{ title: 'Exhibition 2018', description: null }] };
+    const server = structureServer({ stored: { structure } });
+    render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
+    await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 });
+
+    const archive = select('All of archive');
+    fireEvent.click(await within(archive).findByRole('button', { name: 'Show and change them' }, { timeout: 5000 }));
+    const sets = await within(inspectorOf()).findByRole('region', { name: 'Your own sets' }, { timeout: 5000 });
+    const exhibition = within(sets).getByText('A new set titled “Exhibition 2018”').closest('li');
+    if (!(exhibition instanceof HTMLElement)) {
+      throw new Error('no free set');
+    }
+    fireEvent.click(within(exhibition).getByRole('button', { name: 'Remove' }));
+    await waitFor(() => {
+      expect(server.saved).toHaveLength(1);
+    });
+    expect(asRecord(server.saved[0]?.['structure'], [])['freeSets']).toEqual([]);
+    expect(await within(sets).findByText('You have no set of your own.')).toBeTruthy();
+  });
+
   it('a folder opens Pair by hand and Every file with itself in the address, and fills in a list once the structure is used', async () => {
     structureServer();
     render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);

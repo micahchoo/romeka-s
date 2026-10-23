@@ -120,6 +120,8 @@ export const kn: ImportStructureMessages = {
   "structure.root.lists": "ಪಟ್ಟಿಗಳು",
   "structure.root.listsLine":
     "{used} ಒಂದು ಫೋಲ್ಡರ್ ಅನ್ನು ವಿವರಿಸುತ್ತದೆ. {unused} ಯಾವುದನ್ನೂ ವಿವರಿಸುವುದಿಲ್ಲ.",
+  "structure.root.sets": "ನಿಮ್ಮ ಸ್ವಂತ ಸೆಟ್‌ಗಳು",
+  "structure.root.setsOpen": "ಅವುಗಳನ್ನು ತೋರಿಸಿ ಮತ್ತು ಬದಲಾಯಿಸಿ",
   "structure.every.title": "ಪ್ರತಿ ಐಟಂ ಮೇಲೆ ಒಂದು ಸೆಟ್",
   "structure.every.note":
     "ಪ್ರತಿ ಕಾಲಮ್ ಪ್ರತಿ ಸಾಲಿನಲ್ಲಿ ಒಂದು ಮೌಲ್ಯವನ್ನು ಹೊಂದಿದೆ.",
