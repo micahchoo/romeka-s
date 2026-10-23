@@ -103,6 +103,8 @@ export const es: ImportStructureMessages = {
   "structure.columns.differ": "{count} columnas · {differ} cambian dentro de los elementos",
   "structure.columns.differOne": "{count} columnas · 1 cambia dentro de los elementos",
   "structure.q.rollUp": "Dónde va {column}",
+  "structure.columns.open": "Adónde va cada columna",
+  "structure.trip.first": "Usa primero esta estructura; luego rellena aquí una lista.",
   "structure.rollUp.item": "En el elemento",
   "structure.rollUp.file": "En cada archivo",
   "structure.rollUp.files": "{count} archivos",

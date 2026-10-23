@@ -10,6 +10,10 @@
  * on at once, its counts follow, and the changes strip under the tree lists
  * every click with what it changed and a way to take it back.
  *
+ * Under the questions, a folder's node opens what "Your list" did for it
+ * (`structure-list.tsx`, a lazy chunk): where each column goes, pair by
+ * hand, fill in a list yourself and every file.
+ *
  * A folder can also be written by hand: "Mark an example" opens the hand
  * edit (`structure-hand.tsx`, a lazy chunk of its own). The folder is then
  * "written by you" until the person goes back to the suggestion, and the
@@ -27,8 +31,9 @@ import type { InspectorProps } from './structure-tree';
 const OtherInspector = lazy(() => import('./structure-nodes').then((module) => ({ default: module.OtherInspector })));
 const HandPanel = lazy(() => import('./structure-hand').then((module) => ({ default: module.HandPanel })));
 const OwnInspector = lazy(() => import('./structure-hand').then((module) => ({ default: module.OwnInspector })));
+const ListHomes = lazy(() => import('./structure-list').then((module) => ({ default: module.ListHomes })));
 
-const SeriesInspector = ({ node, name }: { readonly node: SeriesNode; readonly name: string }): ReactElement => {
+const SeriesInspector = ({ node, name, nodeKey }: { readonly node: SeriesNode; readonly name: string; readonly nodeKey: string }): ReactElement => {
   const { clicks, editable, words } = useScreen();
   const { t, number } = words;
   const [marking, setMarking] = useState(false);
@@ -75,6 +80,9 @@ const SeriesInspector = ({ node, name }: { readonly node: SeriesNode; readonly n
           </Row>
         ))}
       </dl>
+      <Suspense fallback={null}>
+        <ListHomes nodeKey={nodeKey} level={node.level} folder={node.scope.scope.folder} />
+      </Suspense>
     </div>
   );
 };
@@ -83,11 +91,11 @@ const Inspector = ({ node, where, files, folders }: InspectorProps): ReactElemen
   const { words } = useScreen();
   switch (node.kind) {
     case 'series':
-      return <SeriesInspector node={node.node} name={folderName(node.node.scope.scope.folder, where)} />;
+      return <SeriesInspector node={node.node} name={folderName(node.node.scope.scope.folder, where)} nodeKey={node.key} />;
     case 'own':
       return (
         <Suspense fallback={<p className="import-slow">{words.t('shell.loading')}</p>}>
-          <OwnInspector node={node.node} name={folderName(node.node.scope.scope.folder, where)} />
+          <OwnInspector node={node.node} name={folderName(node.node.scope.scope.folder, where)} nodeKey={node.key} />
         </Suspense>
       );
     default:

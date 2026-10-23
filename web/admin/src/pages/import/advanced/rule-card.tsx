@@ -1,22 +1,18 @@
 /**
  * One field's rule: its sources in order (the first with a value wins under
  * "first", all add up under "all"), each with up, down and remove; a source
- * to add; and, for a field that names things, the value map with the count
- * of items that hold each value. A column of a list whose rows describe
+ * to add; and the value map, with the count of records that hold each
+ * value (`../value-map.tsx`). A column of a list whose rows describe
  * files shows where it goes, with the proposer's pick, as the Structure
  * node asks it.
  */
-import { useContext, useId, useState } from 'react';
+import { Suspense, lazy, useContext, useId, useState } from 'react';
 import type { ReactElement } from 'react';
 import { isMultiValued } from '../../../api/import-plan';
 import type { LevelId, SlotName, SlotRule, SourceRef } from '../../../api/import-plan';
 import type { NodeEvidence } from '../../../api/import-proposal';
 import type { Property } from '../../../api/types';
-import { ErrorNotice } from '../../../app/errors';
-import { Pager } from '../../../app/list';
-import { TableScroll } from '../../../app/table-scroll';
 import { useDraft } from '../draft-context';
-import { usePreview } from '../lists/use-preview';
 import { fileRowsOf } from '../simple/structure-lines';
 import type { PlacedColumn } from '../simple/structure-lines';
 import { ScreenContext } from '../simple/structure-parts';
@@ -24,15 +20,12 @@ import { RollUpQuestion } from '../simple/structure-questions';
 import { slotWords } from './field-names';
 import { useAdvancedText } from './messages';
 import type { AdvancedMessageKey } from './messages';
-import { addSource, mappedText, moveSource, removeRule, removeSource, setCombine, setMapped } from './plan-edits';
+import { addSource, moveSource, removeRule, removeSource, setCombine } from './plan-edits';
 import type { RuleAt } from './plan-edits';
 import { choiceFor, sourceWords } from './source-words';
 import type { SourceChoice } from './source-words';
 
-export const VALUES_PER_PAGE = 50;
-
-/** The fields whose values name things, which the server counts (`values`). */
-const NAMING: readonly SlotName[] = ['template', 'class'];
+const ValueMap = lazy(() => import('../value-map'));
 
 const RULE_PLAIN: Partial<Record<SlotName, AdvancedMessageKey>> = {
   template: 'adv.fields.rule.plainTemplate',
@@ -40,65 +33,23 @@ const RULE_PLAIN: Partial<Record<SlotName, AdvancedMessageKey>> = {
   visibility: 'adv.fields.rule.plainVisibility',
 };
 
-const ValueMap = ({ at, rule }: { readonly at: RuleAt; readonly rule: SlotRule }): ReactElement | null => {
-  const { kind, slot } = at;
-  const { t, number } = useAdvancedText();
-  const draft = useDraft();
-  const [page, setPage] = useState(1);
-  const read = usePreview(['values'], { values: { kind, page, perPage: VALUES_PER_PAGE } });
-  if (read.status === 'loading') {
-    return <p className="import-slow">{t('adv.fields.map.loading')}</p>;
-  }
-  if (read.status === 'error') {
-    return <ErrorNotice error={read.error} />;
-  }
-  const values = read.data.values.find((one) => one.slot === slot)?.values;
-  if (values === undefined || values.total === 0) {
-    return <p className="adv-plain">{t('adv.fields.map.none')}</p>;
-  }
-  const lastPage = Math.max(1, Math.ceil(values.total / values.perPage));
-  const name = slotWords(slot, [], t);
+/** The rule's value map, read only once opened: each open card asks the server for its values. */
+const Values = ({ at, name }: { readonly at: RuleAt; readonly name: string }): ReactElement => {
+  const { t } = useAdvancedText();
+  const [open, setOpen] = useState(false);
+  const label = t('adv.fields.map.label', { field: name });
   return (
-    <div className="adv-map" aria-busy={read.busy}>
-      <p className="adv-plain">{t('adv.fields.map.plain')}</p>
-      <TableScroll label={t('adv.fields.map.label', { field: name })}>
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">{t('adv.fields.map.value')}</th>
-              <th scope="col" className="num">
-                {t('adv.fields.map.items')}
-              </th>
-              <th scope="col">{t('adv.fields.map.becomes')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {values.items.map((value) => (
-              <tr key={value.text}>
-                <th scope="row">
-                  {value.text}
-                  {value.spellings.length > 1 ? <p className="adv-plain">{t('adv.fields.map.spellings', { spellings: value.spellings.join(', ') })}</p> : null}
-                </th>
-                <td className="num">{number(value.count)}</td>
-                <td>
-                  <input
-                    type="text"
-                    aria-label={t('adv.fields.map.becomesOf', { value: value.text })}
-                    value={mappedText(rule, value.text)}
-                    disabled={!draft.editable}
-                    onChange={(event) => {
-                      const to = event.target.value;
-                      draft.change((plan) => setMapped(plan, at, value.text, to));
-                    }}
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </TableScroll>
-      {lastPage > 1 ? <Pager page={page} lastPage={lastPage} total={values.total} label={t('adv.fields.map.resource')} onPage={setPage} /> : null}
-    </div>
+    <details className="adv-map" onToggle={(event) => { setOpen(event.currentTarget.open); }}>
+      <summary>{label}</summary>
+      {open ? (
+        <>
+          <p className="adv-plain">{t('adv.fields.map.plain')}</p>
+          <Suspense fallback={null}>
+            <ValueMap home={at} label={label} />
+          </Suspense>
+        </>
+      ) : null}
+    </details>
   );
 };
 
@@ -220,7 +171,7 @@ export const RuleCard = ({ at, rule, properties, choices }: RuleCardProps): Reac
       </p>
       {one ? <p className="adv-plain">{t('adv.fields.rule.oneValue')}</p> : null}
       <AddConstant at={at} />
-      {NAMING.includes(slot) ? <ValueMap at={at} rule={rule} /> : null}
+      <Values at={at} name={name} />
       <p>
         <button type="button" disabled={!draft.editable} onClick={() => { edit((plan) => removeRule(plan, at)); }}>
           {t('adv.fields.rule.removeRule', { field: name })}

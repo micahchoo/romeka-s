@@ -109,6 +109,9 @@ export const en = {
   'structure.columns.differ': '{count} columns · {differ} differ inside items',
   'structure.columns.differOne': '{count} columns · 1 differs inside items',
   'structure.q.rollUp': 'Where {column} goes',
+  // What "Your list" did for one folder, on its node: each column's field, and filling in a list.
+  'structure.columns.open': 'Where each column goes',
+  'structure.trip.first': 'Use this structure first, then fill in a list here.',
   'structure.rollUp.item': 'On the item',
   'structure.rollUp.file': 'On each file',
   'structure.rollUp.files': '{count} files',

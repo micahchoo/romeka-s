@@ -11,7 +11,7 @@
  * This is a lazy chunk of its own: the Structure screen loads it only when
  * the person marks an example or selects a folder written by hand.
  */
-import { createContext, useContext, useState } from 'react';
+import { Suspense, createContext, lazy, useContext, useState } from 'react';
 import type { ReactElement } from 'react';
 import { parseProposal } from '../../../api/import-proposal';
 import type { CutCounts, OwnNode } from '../../../api/import-proposal';
@@ -27,6 +27,8 @@ import { QUESTIONS } from './structure-edits';
 import type { Clicks, Write } from './structure-edits';
 import { bucketsWords, itemsWords, keptWords, useStructureText } from './structure-lines';
 import { ImportQuestion, useScreen } from './structure-parts';
+
+const ListHomes = lazy(() => import('./structure-list').then((module) => ({ default: module.ListHomes })));
 
 /** The folder written by hand, and the clicks that write it. */
 export interface Hand {
@@ -127,7 +129,7 @@ export const HandPanel = (hand: Hand): ReactElement => {
 };
 
 /** A folder written by hand: whether it is imported, what it makes as written, the lists it keeps, the way back, and another mark. */
-export const OwnInspector = ({ node, name }: { readonly node: OwnNode; readonly name: string }): ReactElement => {
+export const OwnInspector = ({ node, name, nodeKey }: { readonly node: OwnNode; readonly name: string; readonly nodeKey: string }): ReactElement => {
   const { clicks, editable, words } = useScreen();
   const { t, number } = words;
   const [marking, setMarking] = useState(false);
@@ -176,6 +178,9 @@ export const OwnInspector = ({ node, name }: { readonly node: OwnNode; readonly 
           }}
         />
       ) : null}
+      <Suspense fallback={null}>
+        <ListHomes nodeKey={nodeKey} level={node.level} folder={scope.folder} />
+      </Suspense>
     </div>
   );
 };

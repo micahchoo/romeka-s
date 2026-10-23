@@ -102,6 +102,8 @@ export const te: ImportStructureMessages = {
   "structure.columns.differ": "{count} కాలమ్‌లు · {differ} అంశాల లోపల భిన్నంగా ఉన్నాయి",
   "structure.columns.differOne": "{count} కాలమ్‌లు · 1 అంశాల లోపల భిన్నంగా ఉంది",
   "structure.q.rollUp": "{column} ఎక్కడికి వెళ్తుంది",
+  "structure.columns.open": "ప్రతి కాలమ్ ఎక్కడ వెళ్తుంది",
+  "structure.trip.first": "ఈ నిర్మాణాన్ని ముందుగా ఉపయోగించండి, ఆపై ఇక్కడ ఒక జాబితాను పూరించండి.",
   "structure.rollUp.item": "అంశంపై",
   "structure.rollUp.file": "ప్రతి ఫైల్‌పై",
   "structure.rollUp.files": "{count} ఫైల్‌లు",

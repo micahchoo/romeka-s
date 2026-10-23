@@ -18,7 +18,7 @@ import { useDraft } from '../draft-context';
 import { ListPicker } from '../lists/list-picker';
 import type { OfferedList } from '../lists/list-picker';
 import { usePreview } from '../lists/use-preview';
-import { placeHref } from '../screens';
+import { nodeHref, seriesKey } from '../picked-node';
 import { ColumnsTable } from './columns-table';
 import { useAdvancedText } from './messages';
 import type { AdvancedMessageKey, AdvancedTranslator } from './messages';
@@ -381,7 +381,7 @@ export const ListsRules = ({ level, offered }: { readonly level: LevelId; readon
             <p>
               {countWords(data.unpaired.rows.total, ['adv.lists.unpaired.rowsNone', 'adv.lists.unpaired.rowsOne', 'adv.lists.unpaired.rows'], t, number)}{' '}
               {countWords(data.unpaired.items, ['adv.lists.unpaired.itemsNone', 'adv.lists.unpaired.itemsOne', 'adv.lists.unpaired.items'], t, number)}{' '}
-              <a href={placeHref(draft.id, { mode: 'advanced', screen: 'pair' })}>{t('adv.lists.unpaired.pair')}</a>
+              <a href={nodeHref(draft.id, { mode: 'advanced', screen: 'pair' }, seriesKey(level))}>{t('adv.lists.unpaired.pair')}</a>
             </p>
           )}
         </Setting>

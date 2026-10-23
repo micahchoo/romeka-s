@@ -161,6 +161,34 @@ describe('Simple’s steps', () => {
   });
 });
 
+const segment = (value: Record<string, string>): string => encodeURIComponent(JSON.stringify(value));
+
+/** Opens the address `#/import/1/<mode>/<screen>/<last>`, as the router hands it to the page. */
+const at = (mode: string, screen: string, last: string): ReturnType<typeof render> => {
+  window.location.hash = `#/import/1/${mode}/${screen}/${last}`;
+  return render(<ImportPage param="1" rest={['1', mode, screen, last]} />);
+};
+
+const modeLink = (name: string): HTMLElement => within(screen.getByRole('group', { name: 'Mode' })).getByRole('link', { name });
+
+describe('a sub-screen of a folder', () => {
+  it('Every file and Pair by hand name their folder, and Back, the index and the mode switch keep it', async () => {
+    draftOf('proposed');
+    const files = segment({ node: 'series:Artifacts', folder: 'Artifacts' });
+    const { unmount } = at('simple', 'all-files', files);
+    expect(await screen.findByRole('heading', { name: 'Every file' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', `#/import/1/simple/structure/${files}`);
+    expect(modeLink('Advanced')).toHaveAttribute('href', `#/import/1/advanced/all-files/${files}`);
+    unmount();
+
+    const pair = segment({ node: 'series:Documents (D)' });
+    at('advanced', 'pair', pair);
+    expect(await screen.findByRole('heading', { name: 'Pair rows and files by hand' })).toBeInTheDocument();
+    expect(within(screen.getByRole('navigation', { name: 'Settings' })).getByRole('link', { name: 'Structure' })).toHaveAttribute('href', `#/import/1/advanced/structure/${pair}`);
+    expect(modeLink('Simple')).toHaveAttribute('href', `#/import/1/simple/pair/${pair}`);
+  });
+});
+
 const indexLinks = (): readonly (readonly [string | null, string | null])[] =>
   within(screen.getByRole('navigation', { name: 'Settings' }))
     .getAllByRole('link')

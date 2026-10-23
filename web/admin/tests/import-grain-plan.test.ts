@@ -8,10 +8,10 @@ import { describe, expect, it } from 'vitest';
 import type { ColumnRef, ImportPlan } from '../src/api/import-plan';
 import type { ColumnRollUp } from '../src/api/import-proposal';
 import { parseImportPlan } from '../src/api/import-plan-tree-read';
-import { levelOf, withColumnLevel, withCountedTarget, withFileRows, withRowKind, withTarget } from '../src/pages/import/simple/list-plan';
+import { asTarget, levelOf, targetOf, withColumnLevel, withCountedTarget, withFileRows, withRowKind, withTarget } from '../src/pages/import/simple/list-plan';
 import type { Level } from '../src/pages/import/simple/list-plan';
 import { loadFixture } from './loadFixture';
-import { seriesOf, slotsOf, withSeries, withSlots } from '../src/pages/import/series';
+import { seriesOf, setsOf, slotsOf, withSeries, withSets, withSlots } from '../src/pages/import/series';
 
 const FILE: ColumnRef = { index: 0, header: 'File' };
 const KEYWORDS: ColumnRef = { index: 1, header: 'Keywords' };
@@ -169,5 +169,26 @@ describe('withCountedTarget', () => {
   it('reads a pick only for the column it names, by place and header', () => {
     const moved = { ...onEachFile(YEAR), header: 'Year Of Digitization' };
     expect(levelOf(withCountedTarget(files(), 'af', YEAR, 'field:dcterms:format', counts([moved])), 'af', YEAR.index)).toBe('item');
+  });
+});
+
+describe('a column’s field', () => {
+  /** The plan with a free set that makes one set per Keywords value, as a v2 plan's sets column lifts to. */
+  const withKeywordSets = (): ImportPlan => withSets(plan(), () => [{ each: { sources: [column('af', KEYWORDS)], combine: 'all', names: 'title' } }]);
+
+  it('is never an item set: the free sets are the archive’s, and a column’s field leaves them as they are', () => {
+    expect(asTarget('sets')).toBeNull();
+    const sets = withKeywordSets();
+    expect(targetOf(sets, 'af', KEYWORDS.index)).toBe('field:dcterms:subject');
+    expect(targetOf(withTarget(sets, 'af', KEYWORDS, ''), 'af', KEYWORDS.index)).toBe('');
+    expect(setsOf(withTarget(sets, 'af', KEYWORDS, 'field:dcterms:description'))).toEqual(setsOf(sets));
+    expect(setsOf(withTarget(sets, 'af', KEYWORDS, ''))).toEqual(setsOf(sets));
+  });
+
+  it('maps the column in its list, as the server refuses a rule that reads a column the list does not map', () => {
+    const bare = withSeries(plan(), 'all', (series) => ({ ...series, lists: series.lists.map((list) => ({ ...list, columns: [] })) }));
+    const placed = withTarget(bare, 'af', YEAR, 'field:dcterms:date');
+    expect(sheetOf(placed)?.columns).toEqual([{ column: YEAR, options: { split: null, type: 'literal', lang: null, private: false } }]);
+    expect(sheetOf(withTarget(placed, 'af', YEAR, 'field:dcterms:issued'))?.columns).toHaveLength(1);
   });
 });

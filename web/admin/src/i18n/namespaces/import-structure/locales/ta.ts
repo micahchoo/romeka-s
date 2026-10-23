@@ -106,6 +106,8 @@ export const ta: ImportStructureMessages = {
   "structure.columns.differ": "{count} நெடுவரிசைகள் · {differ} உருப்படிகளுக்குள் வேறுபடுகின்றன",
   "structure.columns.differOne": "{count} நெடுவரிசைகள் · 1 உருப்படிகளுக்குள் வேறுபடுகிறது",
   "structure.q.rollUp": "{column} எங்கே செல்கிறது",
+  "structure.columns.open": "ஒவ்வொரு நெடுவரிசையும் எங்கே செல்கிறது",
+  "structure.trip.first": "முதலில் இந்த கட்டமைப்பைப் பயன்படுத்தவும், பின்னர் இங்கே ஒரு பட்டியலை நிரப்பவும்.",
   "structure.rollUp.item": "உருப்படியில்",
   "structure.rollUp.file": "ஒவ்வொரு கோப்பிலும்",
   "structure.rollUp.files": "{count} கோப்புகள்",

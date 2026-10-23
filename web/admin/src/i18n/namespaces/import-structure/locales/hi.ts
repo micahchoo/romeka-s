@@ -103,6 +103,8 @@ export const hi: ImportStructureMessages = {
   "structure.columns.differ": "{count} कॉलम · {differ} आइटमों के अंदर भिन्न हैं",
   "structure.columns.differOne": "{count} कॉलम · 1 आइटमों के अंदर भिन्न है",
   "structure.q.rollUp": "{column} कहाँ जाता है",
+  "structure.columns.open": "प्रत्येक कॉलम कहाँ जाता है",
+  "structure.trip.first": "पहले इस संरचना का उपयोग करें, फिर यहाँ एक सूची भरें।",
   "structure.rollUp.item": "आइटम पर",
   "structure.rollUp.file": "प्रत्येक फ़ाइल पर",
   "structure.rollUp.files": "{count} फ़ाइलें",

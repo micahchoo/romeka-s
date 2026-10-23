@@ -104,6 +104,8 @@ export const kn: ImportStructureMessages = {
   "structure.columns.differ": "{count} ಕಾಲಮ್‌ಗಳು · {differ} ಐಟಂಗಳ ಒಳಗೆ ಭಿನ್ನವಾಗಿವೆ",
   "structure.columns.differOne": "{count} ಕಾಲಮ್‌ಗಳು · 1 ಐಟಂಗಳ ಒಳಗೆ ಭಿನ್ನವಾಗಿದೆ",
   "structure.q.rollUp": "{column} ಎಲ್ಲಿಗೆ ಹೋಗುತ್ತದೆ",
+  "structure.columns.open": "ಪ್ರತಿ ಕಾಲಮ್ ಎಲ್ಲಿಗೆ ಹೋಗುತ್ತದೆ",
+  "structure.trip.first": "ಈ ರಚನೆಯನ್ನು ಮೊದಲು ಬಳಸಿ, ನಂತರ ಇಲ್ಲಿ ಪಟ್ಟಿಯನ್ನು ಭರ್ತಿ ಮಾಡಿ.",
   "structure.rollUp.item": "ಐಟಂ ಮೇಲೆ",
   "structure.rollUp.file": "ಪ್ರತಿ ಫೈಲ್‌ಗೆ",
   "structure.rollUp.files": "{count} ಫೈಲ್‌ಗಳು",

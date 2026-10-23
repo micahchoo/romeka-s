@@ -11,7 +11,9 @@
  * and "Where they go" were steps; each became questions of a Structure node.
  * They stay as sub-screens of Structure for a plan of one series, which they
  * edit; on a plan of several their addresses, and the marked example's, land
- * on Structure, at the question they asked (`landing`).
+ * on Structure, at the question they asked (`landing`). Every file and Pair
+ * by hand open from a folder's node: their address names the node, and Back
+ * returns to it.
  *
  * Advanced's Structure is the same tree, each node with its rules (the rule
  * zoom). Files, Lists and Fields were Advanced screens; their contents are
@@ -75,9 +77,9 @@ export const SIMPLE: Readonly<Record<SimpleScreen, Screen<SimpleScreen, Advanced
   files: { title: 'simple.files.title', parent: 'structure', other: 'structure' },
   found: { title: 'simple.found.title', parent: 'structure', other: 'structure' },
   example: { title: 'simple.example.title', parent: 'found', other: 'structure' },
-  'all-files': { title: 'simple.allFiles.title', parent: 'found', other: 'all-files' },
+  'all-files': { title: 'simple.allFiles.title', parent: 'structure', other: 'all-files' },
   list: { title: 'simple.list.title', parent: 'structure', other: 'structure' },
-  pair: { title: 'simple.pair.title', parent: 'list', other: 'pair' },
+  pair: { title: 'simple.pair.title', parent: 'structure', other: 'pair' },
   where: { title: 'simple.where.title', parent: 'structure', other: 'structure' },
   check: { title: 'simple.check.title', step: 'simple.check.step', other: 'problems' },
   'all-items': { title: 'simple.allItems.title', parent: 'check', other: 'items' },

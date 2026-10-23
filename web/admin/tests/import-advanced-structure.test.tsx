@@ -164,6 +164,14 @@ describe('Advanced’s Structure', () => {
     expect(saved[0]?.['structure']).toEqual(PROPOSAL['structure']);
   });
 
+  it('Pair by hand opens from a folder’s Lists section with the folder in its address', async () => {
+    bhc006();
+    await open();
+    fireEvent.click(within(inspector()).getByRole('button', { name: 'Lists' }));
+    const pair = await within(inspector()).findByRole('link', { name: 'Pair them by hand' }, { timeout: 5000 });
+    expect(pair).toHaveAttribute('href', `#/import/1/advanced/pair/${encodeURIComponent(JSON.stringify({ node: 'series:Artifacts' }))}`);
+  });
+
   it('the mode switch keeps the node picked', async () => {
     bhc006();
     const tree = await open();

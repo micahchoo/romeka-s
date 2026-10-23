@@ -15,8 +15,12 @@ import type { CsvRead } from '../csv-records';
 import { readCsv } from '../csv-records';
 import { allLists, listOf, seriesHolding, slotsOf, withList, withSlots } from '../series';
 
-/** Where a column goes: nowhere, a field, the item type, the item set, or a new field. */
-export type Target = '' | `field:${Term}` | 'template' | 'sets' | `new:${string}`;
+/**
+ * Where a column goes: nowhere, a field, the item type, or a new field. Never
+ * an item set: sets are a folder's Set and the archive's own sets
+ * (`advanced/free-sets.tsx`), and a column becomes sets only through them.
+ */
+export type Target = '' | `field:${Term}` | 'template' | `new:${string}`;
 
 export const fold = (text: string): string => text.trim().normalize('NFC').toLowerCase();
 
@@ -68,11 +72,12 @@ export const withNormalize = (plan: ImportPlan, sheet: string, on: boolean): Imp
 
 const readsColumn = (source: SourceRef, sheet: string, index: number): boolean => source.from === 'column' && source.sheet === sheet && source.column.index === index;
 
+/** The rules without the column; a free set that reads it (`slotsOf`'s `sets`) stays, as no column target writes one. */
 const rulesWithout = (rules: SlotRules, sheet: string, index: number): SlotRules => {
   const next: { [slot: string]: SlotRule } = {};
   for (const [slot, rule] of Object.entries<SlotRule | undefined>(rules)) {
     if (rule !== undefined) {
-      next[slot] = { ...rule, sources: rule.sources.filter((source) => !readsColumn(source, sheet, index)) };
+      next[slot] = slot === 'sets' ? rule : { ...rule, sources: rule.sources.filter((source) => !readsColumn(source, sheet, index)) };
     }
   }
   return next;
@@ -256,15 +261,10 @@ export const splitOf = (plan: ImportPlan, sheet: string, index: number): string 
 
 /** The column's cells cut at `split` into several values, or kept whole for `null`. */
 export const withSplit = (plan: ImportPlan, sheet: string, column: ColumnRef, split: string | null): ImportPlan =>
-  withList(plan, sheet, (one) => {
-    const has = one.columns.some((each) => each.column.index === column.index);
-    return {
-      ...one,
-      columns: has
-        ? one.columns.map((each) => (each.column.index === column.index ? { ...each, options: { ...each.options, split } } : each))
-        : [...one.columns, { column, options: { split, type: 'literal' as const, lang: null, private: false } }],
-    };
-  });
+  withList(withMapped(plan, sheet, column), sheet, (one) => ({
+    ...one,
+    columns: one.columns.map((each) => (each.column.index === column.index ? { ...each, options: { ...each.options, split } } : each)),
+  }));
 
 /**
  * `after` is `before` with an edit that may give the column its first field.
@@ -290,7 +290,7 @@ export const withCountedTarget = (plan: ImportPlan, sheet: string, column: Colum
   withCounted(plan, withTarget(plan, sheet, column, target), sheet, column, counts);
 
 const slotOf = (target: Exclude<Target, ''>): SlotName => {
-  if (target === 'template' || target === 'sets') {
+  if (target === 'template') {
     return target;
   }
   if (target.startsWith('field:')) {
@@ -312,13 +312,13 @@ export const localTerm = (label: string): Term => {
   return `local:${camel.join('')}`;
 };
 
-/** The column's place in the rules, on the item or on each file: the first rule that reads it. */
+/** The column's place in the rules, on the item or on each file: the first rule but a free set's that reads it. */
 export const targetOf = (plan: ImportPlan, sheet: string, index: number): Target => {
-  const slot = placesOf(plan, sheet, index)[0]?.slot;
+  const slot = placesOf(plan, sheet, index).find((place) => place.slot !== 'sets')?.slot;
   if (slot === undefined) {
     return '';
   }
-  if (slot === 'template' || slot === 'sets') {
+  if (slot === 'template') {
     return slot;
   }
   const made = plan.newTerms.find((term) => localTerm(term.label) === slot);
@@ -354,8 +354,16 @@ export const withTarget = (plan: ImportPlan, sheet: string, column: ColumnRef, t
   const rule = rules[slot] ?? { sources: [], combine: 'first' as const };
   const source: SourceRef = { from: 'column', sheet, column };
   const placed = { ...rules, [slot]: { ...rule, sources: [source, ...rule.sources] } };
-  return withSlots({ ...plan, newTerms }, holder.id, { ...slots, item: onFiles ? item : placed, media: onFiles ? placed : media });
+  return withSlots(withMapped({ ...plan, newTerms }, sheet, column), holder.id, { ...slots, item: onFiles ? item : placed, media: onFiles ? placed : media });
 };
+
+/** The list maps the column, with plain options when it did not: the server refuses a rule that reads a column its list does not map. */
+const withMapped = (plan: ImportPlan, sheet: string, column: ColumnRef): ImportPlan =>
+  withList(plan, sheet, (one) =>
+    one.columns.some((each) => each.column.index === column.index)
+      ? one
+      : { ...one, columns: [...one.columns, { column, options: { split: null, type: 'literal' as const, lang: null, private: false } }] },
+  );
 
 /**
  * The list read: every column with plain options, the pairing column with the
@@ -405,7 +413,7 @@ export const firstRowOf = (view: SheetView, headerLine: number): readonly string
 
 /** A `<select>` value read back as a target, or `null` for one no option has. */
 export const asTarget = (value: string): Target | null => {
-  if (value === '' || value === 'template' || value === 'sets') {
+  if (value === '' || value === 'template') {
     return value;
   }
   if (value.startsWith('new:')) {

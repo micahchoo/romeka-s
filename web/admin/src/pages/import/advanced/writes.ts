@@ -40,7 +40,9 @@ type OtherWrites =
   /** A mark of the example taken away, or the example (`example.ts`). */
   | 'example'
   /** A list the proposal offers a suggested folder, picked in Advanced (`lists/list-picker.tsx`). */
-  | 'listChoice';
+  | 'listChoice'
+  /** What a value of a field or a free set becomes (`value-map-edits.ts`). */
+  | 'valueMap';
 
 export type Writer = WritersOf<typeof PlanEdits> | OtherWrites;
 
@@ -58,7 +60,6 @@ export const WRITES = {
   removeSource: 'carried',
   addSource: 'carried',
   setCombine: 'carried',
-  setMapped: 'carried',
   setDefaults: 'carried',
   setUnmatched: 'carried',
   setFlagPolicy: 'carried',
@@ -76,6 +77,7 @@ export const WRITES = {
   columnLevel: 'carried',
   example: 'owned',
   listChoice: 'offered',
+  valueMap: 'carried',
 } as const satisfies Record<Writer, WriteKind>;
 
 /** The writes the proposal offers: sent as Simple's click, never written into the plan by Advanced. */
