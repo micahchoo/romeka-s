@@ -46,7 +46,7 @@ export const te: ImportAdvancedMessages = {
   'adv.free.asIds': 'వీటిని id లుగా చదవండి',
   'adv.free.asTitlesCount': '{made} కొత్త సెట్‌లను చేస్తుంది, {found} కనుగొంటుంది',
   'adv.free.asTitles': 'వీటిని శీర్షికలుగా చదవండి',
-  'adv.free.text': 'ఈ విలువలు v2 చదివినట్లే చదవబడతాయి: ఒక సెట్‌కు ఆ id ఉంటే id, లేకపోతే శీర్షిక.',
+  'adv.free.text': 'v2 లో లాగే, ప్రతి విలువ ఒక సెట్ యొక్క id, లేకపోతే ఒక శీర్షిక.',
   'adv.free.add': 'ఒక సెట్‌ను జోడించు',
   'adv.free.remove': 'తొలగించు',
   'adv.free.items': '{count} అంశాలు దీనిలో జాయిన్ అవుతాయి',

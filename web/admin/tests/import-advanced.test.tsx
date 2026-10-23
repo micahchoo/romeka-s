@@ -6,6 +6,8 @@
  * Simple's screens are stand-ins that read and edit the plan through
  * `useDraft()`, the seam every real body uses: each shows the plan member
  * its screen answers and gives that answer the way the Simple screen does.
+ * An old step's address opens Structure at the question it asked, so the
+ * Structure stand-in answers that question.
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -28,30 +30,28 @@ vi.mock('../src/pages/import/simple/bodies', async () => {
       </div>
     );
   };
-  const { seriesOf, setsRuleOf, withSeries, withSetsRule } = await import('../src/pages/import/series');
+  const { seriesOf, withSeries } = await import('../src/pages/import/series');
+  /** Simple's Structure, standing in for the question an old step's address opens it at. */
+  const Structure = () => {
+    const { place } = useDraft();
+    const focus = place.mode === 'simple' ? place.focus : undefined;
+    return focus === 'list' ? (
+      <Stand
+        show={(plan) => seriesOf(plan, 'all').lists[0]?.join?.column}
+        answer={(plan) =>
+          withSeries(plan, 'all', (series) => ({
+            ...series,
+            lists: series.lists.map((sheet) => (sheet.join === null ? sheet : { ...sheet, join: { ...sheet.join, column: { index: 1, header: 'Title' } } })),
+          }))
+        }
+      />
+    ) : (
+      <Stand show={(plan) => seriesOf(plan, 'all').grouping} answer={(plan) => withSeries(plan, 'all', (series) => ({ ...series, grouping: { ...series.grouping, caseFold: true } }))} />
+    );
+  };
   return {
     SIMPLE_BODIES: {
-      found: () => <Stand show={(plan) => seriesOf(plan, 'all').grouping} answer={(plan) => withSeries(plan, 'all', (series) => ({ ...series, grouping: { ...series.grouping, caseFold: true } }))} />,
-      list: () => (
-        <Stand
-          show={(plan) => seriesOf(plan, 'all').lists[0]?.join?.column}
-          answer={(plan) =>
-            withSeries(plan, 'all', (series) => ({
-              ...series,
-              lists: series.lists.map((sheet) => (sheet.join === null ? sheet : { ...sheet, join: { ...sheet.join, column: { index: 1, header: 'Title' } } })),
-            }))
-          }
-        />
-      ),
-      where: () => (
-        <Stand
-          show={(plan) => setsRuleOf(plan)?.map}
-          answer={(plan) => {
-            const sets = setsRuleOf(plan);
-            return sets === undefined ? plan : withSetsRule(plan, { ...sets, map: { Photographs: 'Photos' } });
-          }}
-        />
-      ),
+      structure: Structure,
       check: () => (
         <Stand
           show={(plan) => [plan.flags, plan.anomalies, plan.decisions.length]}

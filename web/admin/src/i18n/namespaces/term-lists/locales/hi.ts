@@ -32,7 +32,6 @@ export const hi: TermListMessages = {
   'termLists.columnKind': 'होल्ड्स',
   'termLists.columnEntries': 'प्रविष्टियाँ',
   'termLists.columnUsage': 'इसका उपयोग करने वाले आइटम',
-  'termLists.editLabel': 'इस शब्द सूची को संपादित करें',
   'termLists.deleteLabel': 'इस शब्द सूची को हटाएँ',
   'termLists.deleteNote':
     'सूची को हटाने से उसमें से चुने गए मान हट जाते हैं। वे उनके आइटम पर सादे टेक्स्ट के रूप में बने रहते हैं।',

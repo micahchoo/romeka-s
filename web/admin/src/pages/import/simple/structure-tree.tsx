@@ -8,7 +8,7 @@
  * The proposal's parser is a chunk of its own, which loads beside the
  * screen's and no other.
  */
-import { Suspense, lazy, use, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, use, useMemo, useState } from 'react';
 import type { ComponentType, ReactElement } from 'react';
 import type { Proposal, SeriesNode } from '../../../api/import-proposal';
 import type { RawProposal, SourceState } from '../../../api/import-sections';
@@ -210,20 +210,27 @@ const Shown = ({ read, under, sources, parse, Inspector }: ShownProps): ReactEle
   const moved = new Set(columnChangesOf(draft.plan, proposal).map((change) => change.node.level));
   const folders = proposal.nodes.flatMap((node) => (node.kind === 'series' ? [node] : []));
   const picked = usePickedNode();
-  const focus = useRef(draft.place.mode === 'simple' ? draft.place.focus : undefined);
+  // The question an old step's address asks for, until it takes the focus; a new old address in the same page asks again.
+  const asked = draft.place.mode === 'simple' ? draft.place.focus : undefined;
+  const [focus, setFocus] = useState(asked);
+  const [seen, setSeen] = useState(asked);
+  if (asked !== seen) {
+    setSeen(asked);
+    setFocus(asked);
+  }
   const takesFocus = (kind: Focus): boolean => {
-    const asked = focus.current === kind;
-    if (asked) {
-      focus.current = undefined;
+    const taken = focus === kind;
+    if (taken) {
+      setFocus(undefined);
     }
-    return asked;
+    return taken;
   };
   // The node the address names opens; else an old step's address opens the first folder at its question, and a person who comes back finds the first node a click changed.
   const named = tree.find((node) => node.key === picked);
-  const changed = focus.current === undefined ? tree.find((node) => editsOn(node, proposal).length > 0) : undefined;
+  const changed = focus === undefined ? tree.find((node) => editsOn(node, proposal).length > 0) : undefined;
   const first = named ?? changed ?? tree.find((node) => node.kind === 'series' || node.kind === 'own') ?? tree[0];
   return (
-    <ScreenContext.Provider value={{ clicks, editable: draft.editable, proposal, words, takesFocus }}>
+    <ScreenContext.Provider value={{ clicks, editable: draft.editable, proposal, words, focus, takesFocus }}>
       <StatusPanel />
       <MasterDetail
         label={words.t('structure.tree')}

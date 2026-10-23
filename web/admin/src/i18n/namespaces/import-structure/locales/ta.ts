@@ -13,9 +13,9 @@ export const ta: ImportStructureMessages = {
   "structure.status.use": "இந்த கட்டமைப்பைப் பயன்படுத்தவும்",
   "structure.status.inUse": "பயன்பாட்டில் உள்ளது. உங்கள் மாற்றங்கள்: {count}.",
   "structure.status.changed":
-    "உங்கள் கோப்புகள் மாற்றப்பட்டுள்ளன. எங்களது புதிய பரிந்துரை yours-லிருந்து மாறுபடுகிறது.",
+    "உங்கள் கோப்புகள் மாற்றப்பட்டுள்ளன. எங்களது புதிய பரிந்துரை உங்களுடையதிலிருந்து மாறுபடுகிறது.",
   "structure.status.useNew": "புதிய பரிந்துரையைப் பயன்படுத்தவும்",
-  "structure.status.keep": "எங்களது பரிந்துரையை வைத்திருக்கவும்",
+  "structure.status.keep": "என்னுடையதை வைத்திருக்கவும்",
   "structure.status.refused": "புதியவற்றை நாங்கள் பரிந்துரைக்கவில்லை. எங்களது பரிந்துரையைப் பயன்படுத்த முடியவில்லை: {reason}",
   "structure.count.items": "சேர்க்க வேண்டிய பொருட்கள்",
   "structure.count.sets": "தொகுப்புகள்",

@@ -2,8 +2,8 @@
  * The series seam (`src/pages/import/series.ts`) over the server's own v3
  * plans (`fixtures/v3`): a series read and written through it, by its level
  * id, is the series of the tree, the readers
- * keyed by a list find it in any series, the item sets rule is a free set and
- * never a series' rule, and Simple's state is kept under the series' id. And
+ * keyed by a list find it in any series, item sets are free sets and never a
+ * slot rule, and Simple's state is kept under the series' id. And
  * the seam is the only way in: no other import page reads the plan's tree or
  * Simple's state, as the type checker sees the code.
  */
@@ -86,25 +86,18 @@ describe('the series of a plan', () => {
   });
 });
 
-describe('the item sets rule', () => {
+describe('item sets are no slot rule', () => {
   const RULE = { sources: [{ from: 'folder' as const, level: 1 as const }], combine: 'first' as const };
 
-  it('is written to a free set that names sets by title, never to the series', () => {
-    const plan = rustPlan('archive_as_found.json');
-    const edited = withSlots(plan, 'all', { ...slotsOf(plan, 'all'), item: { ...slotsOf(plan, 'all').item, sets: RULE } });
-    expect(seriesOf(edited, 'all').slots.item).toEqual({});
-    expect(setsOf(edited)).toEqual([{ each: { ...RULE, names: 'title' } }]);
-    expect(slotsOf(edited, 'all').item.sets).toEqual(RULE);
-  });
-
-  it('keeps how a set read as v2 read it names its sets, and goes when the rule goes', () => {
+  it('the slot rules are the series’ own: a free set is not among them, and writing them leaves the free sets', () => {
     const plan = rustPlan('archive_as_found.json');
     const lifted: ImportPlan = { ...plan, structure: { ...plan.structure, freeSets: [{ title: 'Kept', description: null }, { each: { ...RULE, names: 'text' } }] } };
-    const mapped = { ...RULE, map: { Scans: '' } };
-    const edited = withSlots(lifted, 'all', { ...slotsOf(lifted, 'all'), item: { sets: mapped } });
-    expect(setsOf(edited)).toEqual([{ title: 'Kept', description: null }, { each: { ...mapped, names: 'text' } }]);
-    const item = Object.fromEntries(Object.entries(slotsOf(edited, 'all').item).filter(([slot]) => slot !== 'sets'));
-    expect(setsOf(withSlots(edited, 'all', { ...slotsOf(edited, 'all'), item }))).toEqual([{ title: 'Kept', description: null }]);
+    expect(slotsOf(lifted, 'all')).toBe(seriesOf(lifted, 'all').slots);
+    expect(slotsOf(lifted, 'all').item).not.toHaveProperty('sets');
+    const date = { sources: [{ from: 'file' as const, fact: 'name' as const }], combine: 'first' as const };
+    const edited = withSlots(lifted, 'all', { ...slotsOf(lifted, 'all'), item: { 'dcterms:date': date } });
+    expect(seriesOf(edited, 'all').slots.item).toEqual({ 'dcterms:date': date });
+    expect(setsOf(edited)).toBe(setsOf(lifted));
   });
 });
 

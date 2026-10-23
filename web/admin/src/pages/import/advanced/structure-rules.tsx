@@ -81,11 +81,22 @@ const useRulesLine = (level: LevelId): string => {
   return count === 1 ? t('adv.structure.rulesOne') : t('adv.structure.rules', { count: number(count) });
 };
 
-/** A folder's sections, open or shut: the one an old address names opens. */
+/**
+ * A folder's sections, open or shut: the one an old address names opens,
+ * also when the address changes in the same page, as a reload would open it.
+ */
 const useSections = (): ((id: Section, fact: string, body: ReactNode) => ReactElement) => {
   const { t } = useAdvancedText();
   const { place } = useDraft();
-  const [open, setOpen] = useState<ReadonlySet<Section>>(() => new Set(place.mode === 'advanced' && place.section !== undefined ? [place.section] : []));
+  const asked = place.mode === 'advanced' ? place.section : undefined;
+  const [open, setOpen] = useState<ReadonlySet<Section>>(() => new Set(asked === undefined ? [] : [asked]));
+  const [seen, setSeen] = useState(asked);
+  if (asked !== seen) {
+    setSeen(asked);
+    if (asked !== undefined) {
+      setOpen(new Set([asked]));
+    }
+  }
   const toggle = (id: Section): void => {
     setOpen((now) => {
       const next = new Set(now);

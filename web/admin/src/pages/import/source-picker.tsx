@@ -1,7 +1,7 @@
 /**
  * "Where are your files?": a folder under one of the server's archive roots
  * (`GET /api/romeka/archive`), or this computer. The folder button names the
- * folder it starts a draft over, and the draft opens on "What we found"; the
+ * folder it starts a draft over, and the draft opens on Structure; the
  * computer button starts a draft over the import's own staging area, and it
  * opens on "Your files", where the files are added.
  */

@@ -32,7 +32,6 @@ export const ne: TermListMessages = {
   'termLists.columnKind': 'धारण गर्ने',
   'termLists.columnEntries': 'प्रविष्टिहरू',
   'termLists.columnUsage': 'यसको प्रयोग गर्ने वस्तुहरू',
-  'termLists.editLabel': 'यो शब्द सूची सम्पादन गर्नुहोस्',
   'termLists.deleteLabel': 'यो शब्द सूची मेटाउनुहोस्',
   'termLists.deleteNote':
     'सूची मेटाउँदा यसबाट छानिएका मानहरू हट्छन्। ती मानहरू तिनीहरूका वस्तुहरूमा साधारण पाठको रूपमा रहन्छन्।',

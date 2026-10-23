@@ -1,8 +1,9 @@
 /**
- * "Where they go" and "Add" as dials, read back from the plan they save and
- * the facts they show: each item set choice is one segment and saves the
- * item set rule it always did, a new set's name is edited in place, the item
- * type source is one select, and Add shows the check as label and value rows.
+ * What "Where they go" chose, now on Structure, and "Add", read back from
+ * the plan they save and the facts they show: the archive's own sets save
+ * each set source as a free set of its own, a new set takes its title, the
+ * item type source is one select on the folder's node, and Add shows the
+ * check as label and value rows.
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -50,65 +51,85 @@ afterEach(() => {
   window.location.hash = '';
 });
 
-describe('Where they go: item sets as one segmented dial', () => {
+describe('the archive’s own sets, where “Where they go” chose the item sets', () => {
   const COLUMN = { from: 'column', sheet: 'register', column: { index: 1, header: 'Collection' } };
-  const open = (): ReturnType<typeof simpleServer> => {
+  const each = (...sources: unknown[]) => ({ each: { sources, combine: 'first', names: 'title' } });
+  /** The plan's free sets: in v3 every item set the import adds is one, never a series' rule. */
+  const freeSets = (plan: Record<string, unknown>): unknown => asRecord(plan['structure'], [])['freeSets'];
+  const open = async (): Promise<{ readonly server: ReturnType<typeof simpleServer>; readonly sets: HTMLElement }> => {
     const slots = { item: { sets: { sources: [COLUMN], combine: 'first' } }, media: {}, itemSet: {} };
     const server = simpleServer(scenario('meera', 9), { slots });
     installFetch(withSetValues(server));
     render(<ImportPage param="1" rest={['1', 'simple', 'where']} />);
-    return server;
+    // The old step's address lands on Structure; the archive's node opens its own sets.
+    const tree = await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 });
+    // The root first; the one folder over everything is named like it.
+    fireEvent.click(within(tree).getAllByRole('option', { name: 'All of archive' })[0] ?? tree);
+    fireEvent.click(await screen.findByRole('button', { name: 'Show and change them' }, { timeout: 5000 }));
+    return { server, sets: await screen.findByRole('region', { name: 'Your own sets' }, { timeout: 5000 }) };
   };
-  /** The plan's free sets: in v3 every item set the import adds is one, never a series' rule. */
-  const freeSets = (plan: Record<string, unknown>): unknown => asRecord(plan['structure'], [])['freeSets'];
-  const each = (...sources: unknown[]) => ({ each: { sources, combine: 'first', names: 'title' } });
-  const choose = async (server: ReturnType<typeof simpleServer>, name: string, sets: unknown): Promise<void> => {
-    const dial = await screen.findByRole('group', { name: 'Item sets' }, { timeout: 5000 });
-    fireEvent.click(within(dial).getByRole('button', { name }));
+  const add = async (server: ReturnType<typeof simpleServer>, sets: HTMLElement, kind: string, fill: (form: HTMLElement) => void, after: unknown): Promise<void> => {
+    const form = within(sets).getByRole('form', { name: 'Add a set' });
+    fireEvent.change(within(form).getByRole('combobox', { name: 'Add a set' }), { target: { value: kind } });
+    fill(within(sets).getByRole('form', { name: 'Add a set' }));
+    fireEvent.click(within(within(sets).getByRole('form', { name: 'Add a set' })).getByRole('button', { name: 'Use' }));
     await waitFor(() => {
-      expect(freeSets(last(server.saved))).toEqual(sets);
+      expect(freeSets(last(server.saved))).toEqual(after);
     }, { timeout: 3000 });
     expect(JSON.stringify(asRecord(last(server.saved)['structure'], [])['levels'])).not.toContain('"sets"');
-    expect(within(dial).getByRole('button', { name })).toHaveAttribute('aria-pressed', 'true');
+  };
+  const valuesFrom = (name: string) => (form: HTMLElement): void => {
+    const from = within(form).getByRole('combobox', { name: 'Values from' });
+    fireEvent.change(from, { target: { value: within(from).getByRole('option', { name }).getAttribute('value') } });
   };
 
-  it('saves the sets each choice names, a list column first: one set by its title, one in Omeka by its id', async () => {
-    const server = open();
-    const dial = await screen.findByRole('group', { name: 'Item sets' }, { timeout: 5000 });
-    expect(within(dial).getByRole('button', { name: 'Column “Collection”' })).toHaveAttribute('aria-pressed', 'true');
-    await choose(server, 'Per folder', [each(COLUMN, { from: 'folder', level: 'path' })]);
-    await choose(server, 'Per top folder', [each(COLUMN, { from: 'folder', level: 1 })]);
-    await choose(server, 'One set', [each(COLUMN), { title: 'archive', description: null }]);
-    await choose(server, 'One in Omeka', [each(COLUMN), { id: 1 }]);
-    await choose(server, 'Column “Collection”', [each(COLUMN)]);
-    fireEvent.click(within(dial).getByRole('button', { name: 'None' }));
-    await waitFor(() => {
-      expect(freeSets(last(server.saved))).toEqual([]);
-    }, { timeout: 3000 });
+  it('saves the sets each choice names beside the list column’s: per folder, per top folder, one set by its title, one in Omeka by its id', async () => {
+    const { server, sets } = await open();
+    expect(within(sets).getByText('One set per value of List register, column “Collection”')).toBeInTheDocument();
+    const path = { from: 'folder', level: 'path' };
+    const top = { from: 'folder', level: 1 };
+    await add(server, sets, 'each', valuesFrom('Folder path'), [each(COLUMN), each(path)]);
+    await add(server, sets, 'each', valuesFrom('Folder level 1'), [each(COLUMN), each(path), each(top)]);
+    await add(server, sets, 'title', (form) => {
+      fireEvent.change(within(form).getByRole('textbox', { name: 'Title' }), { target: { value: 'archive' } });
+    }, [each(COLUMN), each(path), each(top), { title: 'archive', description: null }]);
+    await add(server, sets, 'existing', (form) => {
+      const which = within(form).getByRole('combobox', { name: 'Set in Omeka' });
+      fireEvent.change(which, { target: { value: within(which).getAllByRole('option')[1]?.getAttribute('value') } });
+    }, [each(COLUMN), each(path), each(top), { title: 'archive', description: null }, { id: 1 }]);
+    // "None": each one removed.
+    for (let left = 5; left > 0; left -= 1) {
+      fireEvent.click(within(sets).getAllByRole('button', { name: 'Remove' })[0] ?? sets);
+      await waitFor(() => {
+        expect(freeSets(last(server.saved))).toHaveLength(left - 1);
+      }, { timeout: 3000 });
+    }
+    expect(await within(sets).findByText('You have no set of your own.')).toBeInTheDocument();
   }, 20_000);
 
-  it('names the one new set in place, and an empty name saves nothing', async () => {
-    const server = open();
-    await choose(server, 'One set', [each(COLUMN), { title: 'archive', description: null }]);
-    const name = screen.getByRole('textbox', { name: 'Name of the new item set' });
-    expect(name).toHaveValue('archive');
-    fireEvent.change(name, { target: { value: 'Citizen Curators' } });
+  it('names one new set by its title, and an empty title saves nothing', async () => {
+    const { server, sets } = await open();
+    const form = within(sets).getByRole('form', { name: 'Add a set' });
+    fireEvent.change(within(form).getByRole('combobox', { name: 'Add a set' }), { target: { value: 'title' } });
+    const title = within(form).getByRole('textbox', { name: 'Title' });
+    fireEvent.change(title, { target: { value: '  ' } });
+    expect(within(form).getByRole('button', { name: 'Use' })).toBeDisabled();
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    expect(server.saved).toHaveLength(0);
+    fireEvent.change(title, { target: { value: 'Citizen Curators' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Use' }));
     await waitFor(() => {
       expect(freeSets(last(server.saved))).toEqual([each(COLUMN), { title: 'Citizen Curators', description: null }]);
     }, { timeout: 3000 });
-    const saves = server.saved.length;
-    fireEvent.change(name, { target: { value: '  ' } });
-    await new Promise((resolve) => setTimeout(resolve, 700));
-    expect(server.saved).toHaveLength(saves);
-    expect(name).toHaveValue('  ');
   }, 20_000);
 
-  it('says what the choice makes in one row: the count, then each set with its items', async () => {
-    open();
-    await screen.findByRole('group', { name: 'Item sets' }, { timeout: 5000 });
+  it('says what a set per value makes: each set with its items', async () => {
+    const { sets } = await open();
+    const row = within(sets).getByText('One set per value of List register, column “Collection”').closest('li');
     await waitFor(() => {
-      expect(fact('Makes')).toHaveTextContent('1 set: Citizen Curators · 512');
+      expect(row).toHaveTextContent('Citizen Curators');
     }, { timeout: 3000 });
+    expect(row).toHaveTextContent('512');
   }, 20_000);
 });
 

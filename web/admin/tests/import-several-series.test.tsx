@@ -160,6 +160,17 @@ describe('a plan of several series', () => {
     expect(screen.getByRole('button', { name: section })).toHaveAttribute('aria-expanded', 'true');
   });
 
+  it('Advanced’s old addresses one after another in the same page each open their own section', async () => {
+    several();
+    const view = render(at('advanced', 'files'));
+    expect(await screen.findByRole('button', { name: 'Items' }, { timeout: 5000 })).toHaveAttribute('aria-expanded', 'true');
+    view.rerender(at('advanced', 'lists'));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Lists' })).toHaveAttribute('aria-expanded', 'true');
+    });
+    expect(screen.getByRole('button', { name: 'Items' })).toHaveAttribute('aria-expanded', 'false');
+  }, 15_000);
+
   it('an edit on the second folder changes that series alone', async () => {
     const { saved } = several();
     render(at('advanced', 'fields'));

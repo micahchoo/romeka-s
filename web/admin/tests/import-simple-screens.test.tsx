@@ -1,12 +1,14 @@
 /**
- * Single answers on the Simple screens, read back from the plan they save:
- * What we found lists the groups beside the inspector of one and leaves a
- * group out after a confirmation, turning down the folder's list keeps it
- * out, an item type value maps to a new item type or to none, and Check lists
- * its questions and facts beside the inspector of one, suggests each kind's
- * default policy and saves an answer given there.
+ * Single answers, read back from the plan they save, where Simple's old steps
+ * asked them: Structure opens without a write; Advanced's archive node lists
+ * the groups of items by facts and leaves a group out after a confirmation;
+ * the folder's Lists section uses its list, and turning it down keeps it out;
+ * the archive's own sets show a list column's sets; the folder's node maps an
+ * item type value to a new item type or to none. Check lists its questions
+ * and facts beside the inspector of one, suggests each kind's default policy
+ * and saves an answer given there.
  */
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useSyncExternalStore } from 'react';
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -14,10 +16,10 @@ import { asRecord } from '../src/api/parse';
 import { ImportPage } from '../src/pages/import/page';
 import { bhc006, IN_USE } from './import-bhc006-lists';
 import { scenario } from './import-simple-scenarios';
-import { PATH, simpleServer } from './import-simple-server';
+import { simpleServer } from './import-simple-server';
 import { loadFixture } from './loadFixture';
-import { flatPlan, withMembers } from './import-plan-members';
-import { installFetch, jsonResponse } from './stub';
+import { flatPlan } from './import-plan-members';
+import { installFetch } from './stub';
 
 const subscribe = (listener: () => void): (() => void) => {
   window.addEventListener('hashchange', listener);
@@ -32,25 +34,25 @@ const Routed = (): ReactElement => {
   return <ImportPage param={rest[0] ?? null} rest={rest} />;
 };
 
-const go = (screenName: string): void => {
-  window.location.hash = `#/import/1/simple/${screenName}`;
+const go = (place: string): void => {
+  window.location.hash = `#/import/1/${place.includes('/') ? place : `simple/${place}`}`;
   window.dispatchEvent(new HashChangeEvent('hashchange'));
 };
 
 const last = (saved: readonly Record<string, unknown>[]): Record<string, unknown> => saved[saved.length - 1] ?? {};
 
-/** The "use this list" box of the folder's one list, which "Your list" selects first. */
-const useBox = async (): Promise<HTMLElement> =>
-  within(await screen.findByRole('region', { name: 'register.csv' }, { timeout: 5000 })).getByRole('checkbox', { name: 'use this list' });
-
 const sheetsOf = (plan: Record<string, unknown>): readonly unknown[] => (Array.isArray(plan['sheets']) ? plan['sheets'] : []);
 
-/** Opens "What we found", which sets the pattern and reads the folder's list, and waits for both to be saved. */
+/** The folder's one list in its node's Lists section, Advanced's rule zoom. */
+const listRow = async (): Promise<HTMLElement> => screen.findByRole('listitem', { name: 'register.csv' }, { timeout: 5000 });
+
+/** Opens the folder's Lists section in Advanced and uses its one list, as "What we found" did on the first visit; waits for it to be saved. */
 const opened = async (): Promise<ReturnType<typeof simpleServer>> => {
   const server = simpleServer(scenario('meera', 9));
   installFetch(server.handler);
-  window.location.hash = '#/import/1/simple/found';
+  window.location.hash = '#/import/1/advanced/lists';
   render(<Routed />);
+  fireEvent.click(within(await listRow()).getByRole('button', { name: 'Use this list' }));
   await waitFor(() => {
     expect(sheetsOf(last(server.saved))).toHaveLength(1);
   }, { timeout: 5000 });
@@ -61,81 +63,70 @@ afterEach(() => {
   window.location.hash = '';
 });
 
-describe('What we found', () => {
+describe('Structure, where “What we found” was', () => {
   it('writes nothing on the first visit: the draft already groups by the name alone', async () => {
     const server = simpleServer(scenario('meera', 9));
     installFetch(server.handler);
     render(<ImportPage param="1" rest={['1', 'simple', 'found']} />);
-    expect(await screen.findByText('Items: names equal but for the ending.', {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 })).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 700));
     const patterns = server.saved.map((plan) => asRecord(plan['grouping'], [])['pattern']);
     const drafted = flatPlan(asRecord(asRecord(loadFixture('import/import-draft.json'), [])['plan'], []));
     expect(patterns.every((pattern) => pattern === asRecord(drafted['grouping'], [])['pattern'])).toBe(true);
   });
-
-  it('says a pattern cleared in Advanced makes no items, and offers one item per name', async () => {
-    const server = simpleServer(scenario('meera', 9));
-    const draft = asRecord(loadFixture('import/import-draft.json'), []);
-    const plan = asRecord(draft['plan'], []);
-    const cleared = { ...draft, plan: withMembers(plan, { grouping: { ...asRecord(flatPlan(plan)['grouping'], []), pattern: null } }) };
-    installFetch((url, init) =>
-      url.pathname === PATH && init?.method !== 'PUT' && server.saved.length === 0 ? jsonResponse(cleared) : server.handler(url, init),
-    );
-    render(<ImportPage param="1" rest={['1', 'simple', 'found']} />);
-    expect(await screen.findByText('Files are not put into items. Advanced mode chose this.', {}, { timeout: 5000 })).toBeInTheDocument();
-    expect(server.saved).toHaveLength(0);
-    fireEvent.click(screen.getByRole('button', { name: 'Make one item per name' }));
-    await waitFor(() => {
-      expect(String(asRecord(last(server.saved)['grouping'], [])['pattern'])).toContain('(?<identifier>');
-    }, { timeout: 3000 });
-  });
 });
 
-/** "What we found" over BHC006's two workbooks in use, before any example: four groups of one file each. */
-const openFound = (): ReturnType<typeof simpleServer> => {
+/** Advanced's archive node over BHC006's two workbooks in use, before any example: four groups of one file each. */
+const openGroups = async (): Promise<{ readonly server: ReturnType<typeof simpleServer>; readonly groups: HTMLElement }> => {
   const server = simpleServer(bhc006(), IN_USE);
   installFetch(server.handler);
-  render(<ImportPage param="1" rest={['1', 'simple', 'found']} />);
-  return server;
+  render(<ImportPage param="1" rest={['1', 'advanced', 'structure']} />);
+  const tree = await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 });
+  // The archive's node is the first; the one folder over everything is named like it.
+  fireEvent.click(within(tree).getAllByRole('option', { name: 'All of archive' })[0] ?? tree);
+  return { server, groups: await screen.findByRole('region', { name: 'Your items in groups' }, { timeout: 5000 }) };
 };
 
-describe('What we found, as a list of groups and an inspector', () => {
-  it('counts the files, items and files left out in one line; the open questions show once, in the status line', async () => {
-    openFound();
-    const files = await screen.findByText('Files', { selector: 'span' }, { timeout: 5000 });
-    const line = files.parentElement ?? files;
-    expect(line).toHaveTextContent('Files 16');
-    expect(line).toHaveTextContent('Items 4');
-    expect(line).toHaveTextContent('Files left out 1');
-    expect(line).not.toHaveTextContent('Kinds of problem');
+/** One group of the archive's groups, by the words that name its facts. */
+const groupOf = (groups: HTMLElement, facts: string): HTMLElement => {
+  const group = within(groups).getByText((_, element) => element?.tagName === 'P' && element.textContent.startsWith(facts)).closest('article');
+  if (!(group instanceof HTMLElement)) {
+    throw new Error(`no group ${facts}`);
+  }
+  return group;
+};
+
+describe('the groups of items by facts, on Advanced’s archive node', () => {
+  it('counts the files and the items, and the open questions show once, in Simple’s status line', async () => {
+    const { groups } = await openGroups();
+    expect(groups).toHaveTextContent('Your 4 items make 4 groups with the same facts.');
+    expect(screen.getAllByText('16 files · 0 lists')).not.toHaveLength(0);
+    cleanup();
+    installFetch(simpleServer(bhc006(), IN_USE).handler);
+    render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
     // The 7 that Check counts open over the same draft.
-    expect(screen.getAllByText(/7 questions open/)).toHaveLength(1);
+    expect(await screen.findAllByText(/7 questions open/, {}, { timeout: 5000 })).toHaveLength(1);
   }, 20_000);
 
-  it('names each group by chips of its facts on the left, and shows the selected group’s examples and actions on the right', async () => {
-    openFound();
-    const groups = await screen.findByRole('listbox', { name: 'Your items in groups' }, { timeout: 5000 });
-    expect(within(groups).getAllByRole('option').map((option) => option.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false', 'false']);
-    expect(within(groups).getByRole('option', { name: '1 file, pictures, row, Photographs' })).toHaveTextContent('1 item');
-    expect(within(groups).getByRole('option', { name: '1 file, pictures, no row, _scratch' })).toBeInTheDocument();
-
-    fireEvent.click(within(groups).getByRole('option', { name: '1 file, pictures, no row, _scratch' }));
-    const group = await screen.findByRole('region', { name: '1 item' });
-    expect(group).toHaveTextContent('bhc_7');
-    expect(group).toHaveTextContent('bhc_7_0.jpg');
-    expect(within(group).getByRole('link', { name: 'Show all 1' }).getAttribute('href')).toMatch(/^#\/import\/1\/simple\/all-items\//);
-    expect(within(group).getByRole('button', { name: 'Leave out' })).toBeEnabled();
-    expect(within(group).queryByRole('button', { name: 'Each file its own item' })).toBeNull();
+  it('names each group by its facts, and shows its example and actions', async () => {
+    const { groups } = await openGroups();
+    expect(within(groups).getAllByRole('article')).toHaveLength(4);
+    expect(groupOf(groups, '1 item has 1 file, all pictures, a row in your list. They are in the folder “Photographs”.')).toHaveTextContent('bhc_4');
+    const scratch = groupOf(groups, '1 item has 1 file, all pictures, no row in your list. They are in the folder “_scratch”.');
+    expect(scratch).toHaveTextContent('bhc_7');
+    expect(scratch).toHaveTextContent('bhc_7_0.jpg');
+    expect(within(scratch).getByRole('link', { name: 'Show all 1' }).getAttribute('href')).toMatch(/^#\/import\/1\/advanced\/items\//);
+    expect(within(scratch).getByRole('button', { name: 'Leave them out' })).toBeEnabled();
+    expect(within(scratch).queryByRole('button', { name: 'Make each file an item of its own' })).toBeNull();
   }, 20_000);
 
   it('leaves a group out only after naming what changes, and saves one decision for its items', async () => {
-    const server = openFound();
-    const groups = await screen.findByRole('listbox', { name: 'Your items in groups' }, { timeout: 5000 });
-    fireEvent.click(within(groups).getByRole('option', { name: '1 file, pictures, no row, _scratch' }));
-    const group = await screen.findByRole('region', { name: '1 item' });
-    fireEvent.click(within(group).getByRole('button', { name: 'Leave out' }));
-    expect(await within(group).findByText('This changes 1: bhc_200001.', {}, { timeout: 5000 })).toBeInTheDocument();
+    const { server, groups } = await openGroups();
+    const scratch = groupOf(groups, '1 item has 1 file, all pictures, no row in your list. They are in the folder “_scratch”.');
+    fireEvent.click(within(scratch).getByRole('button', { name: 'Leave them out' }));
+    expect(await within(scratch).findByText('This changes 1: bhc_200001.', {}, { timeout: 5000 })).toBeInTheDocument();
     expect(server.saved.some((plan) => Array.isArray(plan['decisions']) && plan['decisions'].length > 0)).toBe(false);
-    fireEvent.click(within(group).getByRole('button', { name: 'Change these 1' }));
+    fireEvent.click(within(scratch).getByRole('button', { name: 'Change these 1' }));
     await waitFor(() => {
       expect(last(server.saved)['decisions']).toEqual([
         { kind: 'many', entries: [{ file: { source: 's1', path: '_scratch/bhc_200001_0.jpg' } }], change: { kind: 'leave' } },
@@ -144,53 +135,57 @@ describe('What we found, as a list of groups and an inspector', () => {
   }, 20_000);
 });
 
-describe('Your list', () => {
-  it('uses the folder’s list as the suggested answer, and turning “use this list” off takes it out and keeps it out', async () => {
+describe('the folder’s list, in its Lists section', () => {
+  it('uses the folder’s list, and turning it down takes it out and keeps it out', async () => {
     const server = await opened();
     expect(String(asRecord(last(server.saved)['grouping'], [])['pattern'])).toContain('(?<identifier>');
-    go('list');
-    fireEvent.click(await useBox());
+    fireEvent.click(within(await listRow()).getByRole('button', { name: 'Stop using it' }));
     await waitFor(() => {
       expect(sheetsOf(last(server.saved))).toHaveLength(0);
     }, { timeout: 3000 });
     expect(asRecord(last(server.saved)['simple'], [])['notLists']).toEqual([{ source: 's1', file: 'register.csv' }]);
     expect(last(server.saved)['example']).toBeNull();
-    expect(await screen.findByRole('option', { name: 'register.csv' })).toHaveTextContent('Turned down');
-    expect(await useBox()).not.toBeChecked();
-    expect(await useBox()).toBeEnabled();
+    await waitFor(async () => {
+      expect(await listRow()).toHaveTextContent('Turned down');
+    });
+    expect(within(await listRow()).getByRole('button', { name: 'Use this list' })).toBeEnabled();
 
     const saves = server.saved.length;
-    go('found');
-    expect(await screen.findByRole('listbox', { name: 'Your items in groups' }, { timeout: 5000 })).toBeInTheDocument();
+    go('structure');
+    // Advanced's tree has the same name, so the step bar says Simple's is drawn.
+    await screen.findByRole('list', { name: 'Steps' }, { timeout: 5000 });
+    expect(await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 })).toBeInTheDocument();
     await new Promise((resolve) => setTimeout(resolve, 700));
     expect(server.saved).toHaveLength(saves);
   }, 20_000);
 });
 
-describe('Where they go', () => {
-  it('shows the list column that feeds the item sets as the pressed choice, and “None” takes it out', async () => {
+describe('what “Where they go” chose, on Structure', () => {
+  it('shows the list column that feeds the item sets among the archive’s own sets, and Remove takes it out', async () => {
     const column = { index: 1, header: 'Collection' };
     const slots = { item: { sets: { sources: [{ from: 'column', sheet: 'register', column }], combine: 'first' } }, media: {}, itemSet: {} };
     const server = simpleServer(scenario('meera', 9), { slots });
     installFetch(server.handler);
     render(<ImportPage param="1" rest={['1', 'simple', 'where']} />);
-    const dial = await screen.findByRole('group', { name: 'Item sets' }, { timeout: 5000 });
-    expect(within(dial).getByRole('button', { name: 'Column “Collection”' })).toHaveAttribute('aria-pressed', 'true');
-    expect(within(dial).getByRole('button', { name: 'None' })).toHaveAttribute('aria-pressed', 'false');
-    fireEvent.click(within(dial).getByRole('button', { name: 'None' }));
+    const tree = await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 });
+    fireEvent.click(within(tree).getAllByRole('option', { name: 'All of archive' })[0] ?? tree);
+    fireEvent.click(await screen.findByRole('button', { name: 'Show and change them' }, { timeout: 5000 }));
+    const sets = await screen.findByRole('region', { name: 'Your own sets' }, { timeout: 5000 });
+    const row = within(sets).getByText('One set per value of List register, column “Collection”').closest('li');
+    fireEvent.click(within(row instanceof HTMLElement ? row : sets).getByRole('button', { name: 'Remove' }));
     await waitFor(() => {
       expect(asRecord(asRecord(last(server.saved)['slots'], [])['item'], [])['sets']).toBeUndefined();
     }, { timeout: 3000 });
-    expect(within(dial).queryByRole('button', { name: 'Column “Collection”' })).toBeNull();
-    expect(within(dial).getByRole('button', { name: 'None' })).toHaveAttribute('aria-pressed', 'true');
+    expect(asRecord(last(server.saved)['structure'], [])['freeSets']).toEqual([]);
+    expect(await within(sets).findByText('You have no set of your own.')).toBeInTheDocument();
   }, 20_000);
 
-  it('maps a value to a new item type, and another to no item type', async () => {
+  it('maps a value to a new item type, and another to no item type, on the folder’s node', async () => {
     const server = await opened();
-    go('list');
-    const type = await screen.findByRole('combobox', { name: 'Where the column Type goes' }, { timeout: 5000 });
-    fireEvent.change(type, { target: { value: 'template' } });
-    go('where');
+    go('structure');
+    const from = await screen.findByRole('combobox', { name: 'The item type comes from' }, { timeout: 5000 });
+    const type = await within(from).findByRole('option', { name: 'Column “Type”' }, { timeout: 5000 });
+    fireEvent.change(from, { target: { value: type.getAttribute('value') } });
     const letter = await screen.findByRole('combobox', { name: 'Item type for letter' }, { timeout: 5000 });
     expect(letter).toHaveValue('');
     fireEvent.change(letter, { target: { value: within(letter).getByRole('option', { name: 'A new item type “letter”' }).getAttribute('value') } });
@@ -208,8 +203,7 @@ describe('Simple and Advanced read one plan', () => {
 
   it('Simple’s answers do not make Advanced report a kept example, and they are still there on a reload', async () => {
     const server = await opened();
-    go('list');
-    fireEvent.click(await useBox());
+    fireEvent.click(within(await listRow()).getByRole('button', { name: 'Stop using it' }));
     await waitFor(() => {
       expect(asRecord(last(server.saved)['simple'], [])['notLists']).toHaveLength(1);
     }, { timeout: 3000 });
@@ -220,13 +214,15 @@ describe('Simple and Advanced read one plan', () => {
     }, { timeout: 3000 });
     expect(last(server.saved)['example']).toBeNull();
 
-    window.location.hash = '#/import/1/advanced/files';
-    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    go('advanced/files');
     expect(await screen.findByText('None. Files are one item only when their names are equal except for the extension.', {}, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.queryByText(NOTICE)).toBeNull();
 
-    go('list');
-    expect(await screen.findByRole('option', { name: 'register.csv' }, { timeout: 5000 })).toHaveTextContent('Turned down');
+    // A reload, on the folder's Lists section.
+    cleanup();
+    window.location.hash = '#/import/1/advanced/lists';
+    render(<Routed />);
+    expect(await listRow()).toHaveTextContent('Turned down');
   }, 30_000);
 });
 

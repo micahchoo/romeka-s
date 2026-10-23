@@ -172,7 +172,7 @@ describe('item sets in Advanced', () => {
     });
     await pick('All of archive');
     const own = await within(inspector()).findByRole('region', { name: 'Your own sets' }, { timeout: 5000 });
-    expect(within(own).getByText('These values are read as v2 read them: an id when a set has it, else a title.')).toBeInTheDocument();
+    expect(within(own).getByText('As in v2, each value is a set’s id, else a title.')).toBeInTheDocument();
     // The install has "Featured photographs" (#1) and "Working drafts" (#2).
     expect(await within(own).findByText('makes 3 new sets, finds 1')).toBeInTheDocument();
     expect(within(own).getByText('2 values name a set in Omeka; 2 name none')).toBeInTheDocument();

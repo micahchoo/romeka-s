@@ -6,12 +6,10 @@
  * mode switch open on the same node. An older address names a series by its
  * level id as `series`; it reads as that series' node.
  */
-import type { ImportId, Series } from '../../api/import-plan';
+import type { ImportId } from '../../api/import-plan';
 import { useHash } from '../../app/router';
-import { useDraft } from './draft-context';
 import { filterFromHash, listHref } from './lists/address';
 import type { Place } from './screens';
-import { allSeries } from './series';
 
 const KEYS = ['node', 'series'] as const;
 
@@ -35,16 +33,4 @@ export const nodeHref = (id: ImportId, place: Place, key: string): string => lis
 export const pickNode = (id: ImportId, place: Place, key: string): void => {
   window.history.replaceState(window.history.state, '', nodeHref(id, place, key));
   window.dispatchEvent(new Event('hashchange'));
-};
-
-/**
- * The series a screen of one series reads and edits (Simple's old steps):
- * the series of the node the address names, else the plan's first. `null`
- * only for a plan with no series, which the server refuses to save.
- */
-export const usePickedSeries = (): Series | null => {
-  const { plan } = useDraft();
-  const picked = usePickedNode();
-  const all = allSeries(plan);
-  return all.find((series) => seriesKey(series.id) === picked) ?? all[0] ?? null;
 };

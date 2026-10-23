@@ -257,6 +257,27 @@ describe('the Structure screen', () => {
     expect(rowFacts('Artifacts')).toBe('318 items · 696 pictures · list 680/690');
   });
 
+  it('a folder whose pattern was cleared by hand gets our pattern back with Back to our suggestion', { timeout: 20_000 }, async () => {
+    // "What we found" offered a cleared pattern back. A suggested folder always has the proposer's pattern, so a cleared one is a folder written by hand.
+    const own = asRecord(asRecord(loadFixture('import/proposal-bhc006-own.json'), [])['structure'], []);
+    const levels: unknown = own['levels'];
+    const cleared = (Array.isArray(levels) ? levels : []).map((level: unknown) =>
+      isRecord(level) && level['id'] === 'Artifacts' ? { ...level, grouping: { pattern: null, caseFold: false } } : level,
+    );
+    const server = structureServer({ stored: { edits: [OWN_ARTIFACTS], structure: { ...own, levels: cleared } } });
+    render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
+    await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 });
+
+    fireEvent.click(await within(select('Artifacts')).findByRole('button', { name: 'Back to our suggestion' }, { timeout: 5000 }));
+    await waitFor(() => {
+      expect(server.saved).toHaveLength(1);
+    });
+    expect(server.saved[0]?.['edits']).toBeUndefined();
+    const suggested = seriesIn(asRecord(loadFixture('import/proposal-bhc006.json'), []), 'Artifacts');
+    expect(seriesIn(server.saved[0] ?? {}, 'Artifacts')['grouping']).toEqual(suggested['grouping']);
+    expect(asRecord(suggested['grouping'], [])['pattern']).toEqual(expect.any(String));
+  });
+
   it('a click on a folder written by hand waits, with the way back beside it', async () => {
     const waiting = asRecord(loadFixture('import/proposal-bhc006-own-waiting.json'), []);
     const server = structureServer({ stored: { edits: [ITEMS_WHOLE, OWN_ARTIFACTS], structure: waiting['structure'] } });
@@ -432,6 +453,24 @@ describe('the Structure screen', () => {
     });
     expect(asRecord(server.saved[0]?.['structure'], [])['freeSets']).toEqual([]);
     expect(await within(sets).findByText('You have no set of your own.')).toBeTruthy();
+  });
+
+  it('the archive’s own sets add one set per deepest folder over every item', { timeout: 20_000 }, async () => {
+    const server = structureServer({});
+    render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
+    await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 });
+
+    fireEvent.click(await within(select('All of archive')).findByRole('button', { name: 'Show and change them' }, { timeout: 5000 }));
+    const add = await within(inspectorOf()).findByRole('form', { name: 'Add a set' }, { timeout: 5000 });
+    fireEvent.change(within(add).getByRole('combobox', { name: 'Add a set' }), { target: { value: 'each' } });
+    const from = within(add).getByRole('combobox', { name: 'Values from' });
+    const path = within(from).getByRole('option', { name: 'Folder path' });
+    fireEvent.change(from, { target: { value: path.getAttribute('value') } });
+    fireEvent.click(within(add).getByRole('button', { name: 'Use' }));
+    await waitFor(() => {
+      expect(server.saved).toHaveLength(1);
+    });
+    expect(asRecord(server.saved[0]?.['structure'], [])['freeSets']).toEqual([{ each: { sources: [{ from: 'folder', level: 'path' }], combine: 'first', names: 'title' } }]);
   });
 
   it('says why there is no suggestion when the plan check refused the proposer’s tree, in both zooms', async () => {

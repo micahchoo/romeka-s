@@ -25,7 +25,6 @@ export const ta: ResourcesMessages = {
   'items.add': 'உருப்படியைச் சேர்க்கவும்',
   'items.empty': 'உருப்படிகள் எதுவும் கண்டறியப்படவில்லை.',
   'items.mediaHeading': 'ஊடகம் ({count})',
-  'items.noMedia': 'ஊடகம் இல்லை.',
   'items.addMedia': 'ஊடகத்தைச் சேர்க்கவும்',
   'items.closeAddMedia': 'மூடவும்',
   'items.noMediaYet':

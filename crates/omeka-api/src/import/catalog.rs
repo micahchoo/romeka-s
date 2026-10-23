@@ -12,6 +12,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use omeka_media::validation::{FileRefusal, FileValidation};
+use unicode_normalization::UnicodeNormalization;
 
 use super::plan::{ImportPlan, MatchKey, StarterId, Term};
 
@@ -26,6 +27,12 @@ pub struct Catalog {
     pub base_template: Option<i64>,
     /// Every property the install knows, term to label.
     pub properties: BTreeMap<Term, String>,
+    /// Each property label as [`label_key`] folds it, to the first property
+    /// the install made with that label: a list column whose header is the
+    /// label goes into that field. Two vocabularies can share a label
+    /// (`dcterms:title`, `foaf:title`); the first one made wins, as the
+    /// install's own order puts it first.
+    pub fields_by_label: BTreeMap<String, Term>,
     /// Every resource class the install knows, term to label.
     pub classes: BTreeMap<Term, String>,
     pub users: Vec<User>,
@@ -107,7 +114,21 @@ pub fn extension(name: &str) -> Option<String> {
     (!stem.is_empty() && !extension.is_empty()).then(|| extension.to_lowercase())
 }
 
+/// A label or a column header as two of them compare: trimmed, NFC, lower
+/// case.
+#[must_use]
+pub fn label_key(text: &str) -> String {
+    text.trim().nfc().collect::<String>().to_lowercase()
+}
+
 impl Catalog {
+    /// The field a list column goes into when its header is that field's
+    /// label.
+    #[must_use]
+    pub fn field_labeled(&self, header: &str) -> Option<&Term> {
+        self.fields_by_label.get(&label_key(header))
+    }
+
     /// The terms whose values the caller loads into each resource's `keys`:
     /// every term the plan matches on, and `dcterms:identifier`, which
     /// resource links name.

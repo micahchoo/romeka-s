@@ -32,7 +32,6 @@ export const ml: TermListMessages = {
   'termLists.columnKind': 'ഹോൾഡ്സ്',
   'termLists.columnEntries': 'എൻട്രികൾ',
   'termLists.columnUsage': 'ഇത് ഉപയോഗിക്കുന്ന ഐനങ്ങൾ',
-  'termLists.editLabel': 'ഈ ടേം ലിസ്റ്റ് എഡിറ്റ് ചെയ്യുക',
   'termLists.deleteLabel': 'ഈ ടേം ലിസ്റ്റ് ഡിലീറ്റ് ചെയ്യുക',
   'termLists.deleteNote':
     'ഒരു ലിസ്റ്റ് ഡിലീറ്റ് ചെയ്യുന്നത് അതിൽ നിന്ന് തിരഞ്ഞെടുത്ത മൂല്യങ്ങൾ നിലനിർത്തുന്നു. അവ അവയുടെ ഐറ്റങ്ങളിൽ പ്ലെയിൻ ടെക്സ്റ്റ് ആയി തുടരുന്നു.',

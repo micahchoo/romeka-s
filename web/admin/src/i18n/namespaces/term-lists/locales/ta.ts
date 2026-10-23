@@ -32,7 +32,6 @@ export const ta: TermListMessages = {
   'termLists.columnKind': 'வைத்திருப்பவை',
   'termLists.columnEntries': 'பதிவுகள்',
   'termLists.columnUsage': 'இதைப் பயன்படுத்துபவர்கள்',
-  'termLists.editLabel': 'இந்தச் சொல் பட்டியலைத் திருத்தவும்',
   'termLists.deleteLabel': 'இந்தச் சொல் பட்டியலை நீக்கவும்',
   'termLists.deleteNote':
     'ஒரு பட்டியலை நீக்குவது அதில் இருந்து தேர்ந்தெடுக்கப்பட்ட மதிப்புகளை நீக்கும். அவை அவற்றின் உருப்படங்களில் சாதாரண உரையாகவே இருக்கும்.',

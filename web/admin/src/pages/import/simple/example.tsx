@@ -8,24 +8,16 @@
  * with the mark, so a wrong mark shows as one huge item before it costs
  * anything.
  *
- * The screen marks the plan's one series. The Structure screen marks one
- * folder of several with the same parts (`MarkFor`): it offers that
- * folder's files only, and counts and uses the mark its own way.
+ * The Structure screen's hand edit places it on one folder (`MarkFor`): it
+ * offers that folder's files only, and counts and uses the mark its own way.
  */
 import { useState } from 'react';
 import type { ComponentType, ReactElement, SyntheticEvent } from 'react';
-import type { Anomaly } from '../../../api/import-model';
-import type { LevelId } from '../../../api/import-plan';
-import type { BucketCount, NameWord, Paged } from '../../../api/import-sections';
+import type { NameWord, Paged } from '../../../api/import-sections';
 import { ErrorNotice } from '../../../app/errors';
-import { useDraft } from '../draft-context';
-import { BUCKET_WORDS } from '../lists/facts-words';
 import { usePreview } from '../lists/use-preview';
-import { placeHref } from '../screens';
 import type { Mark } from '../example';
 import { endingOf, markOf, markedText, nameOf, stemParts } from './name-parts';
-import { marksOf, withMarks } from './example-state';
-import { usePickedSeries } from '../picked-node';
 import { useSimpleText } from './messages';
 import type { SimpleTranslator } from './messages';
 import './simple.css';
@@ -34,10 +26,6 @@ const PICK_READ = 24;
 const PICK_SHOWN = 8;
 const WORDS_SHOWN = 12;
 const ONLY_LETTERS = /^[\p{L}\p{M}]+$/u;
-
-const goFound = (id: Parameters<typeof placeHref>[0]): void => {
-  window.location.hash = placeHref(id, { mode: 'simple', screen: 'found' });
-};
 
 const Search = ({ label, hint, onAsk }: { readonly label: string; readonly hint: string; readonly onAsk: (text: string) => void }): ReactElement => {
   const { t } = useSimpleText();
@@ -102,60 +90,6 @@ const Picker = ({ chosen, folder, onPick }: { readonly chosen: string | null; re
 
 const filesWords = (count: number, t: SimpleTranslator['t'], number: SimpleTranslator['number']): string =>
   count === 1 ? t('guided.example.oneFile') : t('guided.example.manyFiles', { count: number(count) });
-
-/** "The biggest has 200 files": a large group names its count; otherwise the largest bucket that has items. */
-const biggest = (bars: readonly BucketCount[], anomalies: readonly Anomaly[], text: SimpleTranslator): string => {
-  const { t, number } = text;
-  const large = anomalies.flatMap((anomaly) => ('largeGroup' in anomaly ? [anomaly.largeGroup.files] : []));
-  if (large.length > 0) {
-    return filesWords(Math.max(...large), t, number);
-  }
-  const top = [...bars].reverse().find((bar) => bar.count > 0 && bar.files !== '0');
-  if (top === undefined) {
-    return filesWords(0, t, number);
-  }
-  return top.files === '1' || top.files === '2' || top.files === '3' ? filesWords(Number(top.files), t, number) : t(BUCKET_WORDS[top.files]);
-};
-
-/** The series `level` with the mark: what its files make, and "Use this", which writes it. */
-const SeriesTrial = ({ level, mark, path }: Marked & { readonly level: LevelId }): ReactElement => {
-  const text = useSimpleText();
-  const { t, number } = text;
-  const draft = useDraft();
-  const marks = [...marksOf(draft.plan, level), mark];
-  const read = usePreview(['histogram', 'anomalies'], { plan: withMarks(draft.plan, level, marks, path) });
-  if (read.status === 'loading') {
-    return <p role="status" className="import-slow">{t('guided.example.counting')}</p>;
-  }
-  if (read.status === 'error') {
-    return <ErrorNotice error={read.error} />;
-  }
-  const bars = read.data.histogram.filter((bar) => bar.files !== '0' && bar.count > 0);
-  const items = bars.reduce((sum, bar) => sum + bar.count, 0);
-  return (
-    <div className="guided-ask" aria-busy={read.busy}>
-      <p role="status">
-        {items === 1 ? t('guided.example.makeOne') : t('guided.example.make', { count: number(items) })}{' '}
-        {bars.map((bar) => t('guided.example.with', { count: number(bar.count), files: t(BUCKET_WORDS[bar.files]) })).join(', ')}.{' '}
-        {t('guided.example.biggest', { files: biggest(read.data.histogram, read.data.anomalies, text) })}
-      </p>
-      <p className="import-row-actions">
-        <button
-          type="button"
-          className="import-primary"
-          disabled={!draft.editable || read.busy}
-          onClick={() => {
-            draft.change((plan) => withMarks(plan, level, [...marksOf(plan, level), mark], path));
-            goFound(draft.id);
-          }}
-        >
-          {t('guided.example.use')}
-        </button>
-        <a href={placeHref(draft.id, { mode: 'simple', screen: 'found' })}>{t('guided.example.cancel')}</a>
-      </p>
-    </div>
-  );
-};
 
 const Words = ({
   place,
@@ -296,15 +230,7 @@ const Marking = ({ path, Trial }: { readonly path: string; readonly Trial: MarkF
   );
 };
 
-/** The plan's one series: this screen opens only on a plan of one (`screens.ts`, `landing`). */
-const OneSeriesTrial = (marked: Marked): ReactElement | null => {
-  const series = usePickedSeries();
-  return series === null ? null : <SeriesTrial level={series.id} {...marked} />;
-};
-
-const ONE_SERIES: MarkFor = { Trial: OneSeriesTrial };
-
-export const ShowUsOneExample = ({ markFor = ONE_SERIES }: { readonly markFor?: MarkFor }): ReactElement => {
+export const ShowUsOneExample = ({ markFor }: { readonly markFor: MarkFor }): ReactElement => {
   const { t } = useSimpleText();
   const [path, setPath] = useState<string | null>(null);
   if (path === null) {
@@ -325,5 +251,3 @@ export const ShowUsOneExample = ({ markFor = ONE_SERIES }: { readonly markFor?: 
     </>
   );
 };
-
-export default ShowUsOneExample;

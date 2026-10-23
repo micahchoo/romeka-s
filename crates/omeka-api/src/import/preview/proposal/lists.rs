@@ -16,8 +16,8 @@ use std::collections::{HashMap, HashSet};
 use super::Evidence;
 use super::folders::FolderSeries;
 use super::thresholds::SPLIT_WHEN_HELD;
+use crate::import::catalog::Catalog;
 use crate::import::derive::Index;
-use crate::import::join::cell;
 use crate::import::model::{GroupKey, Model};
 use crate::import::plan::{
     ColumnRef, Edit, Join, JoinNormalize, JoinOn, ListFile, SeriesIx, Structure,
@@ -207,18 +207,10 @@ fn candidate(evidence: &Evidence<'_>, file: &ListFile) -> ListCandidate {
 /// separator that more than [`SPLIT_WHEN_HELD`] of its filled cells hold.
 /// The proposer reads the archive, not a plan, so this is the column's
 /// split until the person sets one.
-fn suggested_split(sheet: &Sheet, cells: &[ColumnCells], column: u32) -> Option<String> {
-    let separator = cells
-        .iter()
-        .find(|one| one.index == column)?
-        .separator
-        .as_ref()?;
-    let filled = sheet
-        .rows
-        .iter()
-        .filter(|row| !cell(row, column).trim().is_empty())
-        .count();
-    (separator.cells * SPLIT_WHEN_HELD.of > SPLIT_WHEN_HELD.n * filled)
+pub(super) fn suggested_split(cells: &[ColumnCells], column: u32) -> Option<String> {
+    let cells = cells.iter().find(|one| one.index == column)?;
+    let separator = cells.separator.as_ref()?;
+    (separator.cells * SPLIT_WHEN_HELD.of > SPLIT_WHEN_HELD.n * cells.filled)
         .then(|| separator.text.clone())
 }
 
@@ -229,10 +221,11 @@ fn count<'d>(
     at: SeriesIx,
     sheet: &Sheet,
     mut counts: ListCandidate,
+    catalog: &Catalog,
 ) -> Counted<'d> {
     counts.rows = sheet.rows.len();
     counts.columns = sheet.columns.len();
-    counts.cells = candidates::column_cells(sheet);
+    counts.cells = candidates::column_cells(sheet, catalog);
     cache.targets(at, NO_FOLD);
     cache.targets(at, EVERY_FOLD);
     let best = candidates::best(
@@ -262,7 +255,7 @@ fn count<'d>(
             found = more;
         }
     }
-    let split = |column: u32| suggested_split(sheet, &counts.cells, column);
+    let split = |column: u32| suggested_split(&counts.cells, column);
     let paired = candidates::targets(
         sheet,
         &split,
@@ -317,7 +310,14 @@ pub(super) fn detect<'d>(
                     .iter()
                     .map(|at| {
                         let counts = candidate(evidence, &file);
-                        count(&mut cache, &groups_of_files, *at, sheet, counts)
+                        count(
+                            &mut cache,
+                            &groups_of_files,
+                            *at,
+                            sheet,
+                            counts,
+                            evidence.catalog,
+                        )
                     })
                     .collect()),
                 Err(error) => {

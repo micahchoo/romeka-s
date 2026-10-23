@@ -2,33 +2,43 @@
  * The whole Simple pass, from the start page to "Add", over the prototype's
  * two folders at 9 and at 40,000 items (`import-simple-scenarios.ts`). The
  * drive does what `proto4/drive4.mjs` does in its first pass: it marks one
- * example (two above 9 items), confirms the groups, maps the two columns that
- * matter, takes the item type from the list or the top folder, accepts the
- * suggested answers on Check and starts the run.
+ * example (two above 9 items), maps the two columns that matter, takes the
+ * item type from the list or the top folder, accepts the suggested answers
+ * on Check and starts the run.
  *
- * Simple's steps are now Structure, Check and Add. The pass leaves the
- * structure as found (one series), so the old steps still open, under
- * Structure, by their addresses: the drive follows each address where it
- * followed a Next link (one click each), and the step bar's Check link after
- * "Where they go". The start page now lands on Structure, and the drive goes
- * to "What we found" from there with no click, as the start page took it
- * there before.
+ * Simple's steps are Structure, Check and Add, and the drive does each of
+ * those on the folder's node of Structure. The test server stands in for no
+ * proposer (`import-plan-proposal.ts`), so the folder is written by hand
+ * and the List question that would suggest its list is absent. The draft
+ * therefore starts with the list read in as "Use this list" reads it
+ * (`listEdit`): the list the proposer suggests, and the one "What we found"
+ * added with no click before. Groups of items by their facts are on
+ * Advanced's archive node (P5 design call 5), so the drive that leaves a
+ * group out goes there and back by the mode switch. "They are right" went
+ * with "What we found": nothing read it.
  *
  * It counts what `SCALE.md` counts. A decision is a question the screens put
- * to the person (each `data-decision`, each group of items), counted once
- * however often it shows, plus "where are your files". A click is every
- * click, search and choice from the start page to the start. A group of
- * items and a Check question are each a row of a list, which names its
- * decision whether or not it is selected. Both must be
- * within 3 of the prototype's, and no screen may draw more than about 1,000
- * elements.
+ * to the person (each `data-decision`), counted once however often it
+ * shows, plus "where are your files". A click is every click, search and
+ * choice from the start page to the start. A Check question is a row of a
+ * list, which names its decision whether or not it is selected. The clicks
+ * must be within 3 of the prototype's, with the trip to Advanced's groups
+ * added. The decisions may be at most 3 more than the prototype's: the
+ * questions of the deleted steps (the example rule, each group, which list,
+ * its pairing, what a row is, its header line, the set dial) are asked by
+ * the proposer's questions on a suggested folder, which this server does not
+ * stand in for, so the pass asks fewer. The ones it still asks are named.
+ * No screen may draw more than about 1,000 elements.
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useSyncExternalStore } from 'react';
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { asRecord } from '../src/api/parse';
+import { asRecord, brandId } from '../src/api/parse';
+import { importApi } from '../src/api/import-routes';
 import { ImportPage } from '../src/pages/import/page';
+import { listEdit } from '../src/pages/import/simple/list-read';
+import { flatPlan } from './import-plan-members';
 import { scenario } from './import-simple-scenarios';
 import type { Scenario } from './import-simple-scenarios';
 import { simpleServer } from './import-simple-server';
@@ -50,8 +60,12 @@ const Routed = (): ReactElement => {
 
 const ELEMENTS = 1200;
 
-/** The group the scenario's `leave` words describe, named as the groups list names it: by its chips. */
-const LEAVE_GROUP = '1 file, pictures, no row, Artifacts';
+/**
+ * The clicks a group left out costs beyond the prototype's: its groups are on
+ * Advanced's archive node now (P5 design call 5), so the drive switches to
+ * Advanced, picks the archive, switches back and picks the folder again.
+ */
+const GROUP_ROUND_TRIP = 4;
 
 class Drive {
   clicks = 0;
@@ -68,15 +82,6 @@ class Drive {
       window.location.hash = href;
       window.dispatchEvent(new HashChangeEvent('hashchange'));
     }
-  }
-
-  /** Opens an old step by its address: `counted` when it stands for the Next link that led there. */
-  visit(screen: string, counted: boolean): void {
-    if (counted) {
-      this.clicks += 1;
-    }
-    window.location.hash = `#/import/1/simple/${screen}`;
-    window.dispatchEvent(new HashChangeEvent('hashchange'));
   }
 
   click(element: Element): void {
@@ -105,16 +110,25 @@ const next = async (drive: Drive): Promise<void> => {
   drive.click(await screen.findByRole('link', { name: 'Next' }));
 };
 
-/** The groups as the saved answers make them: the save is done and the groups read again. */
-const groupsShown = async (): Promise<void> => {
+/** The saved answers: the save is done. */
+const saved = async (): Promise<void> => {
   await waitFor(() => {
     expect(screen.getAllByRole('status').some((status) => status.textContent === 'Saved')).toBe(true);
-    expect(screen.getByRole('region', { name: 'Your items in groups' })).toHaveAttribute('aria-busy', 'false');
   }, { timeout: 5000 });
 };
 
-const markExample = async (drive: Drive, mark: Scenario['marks'][number], first: boolean): Promise<void> => {
-  drive.click(screen.getByRole('link', { name: first ? 'Show us one example' : 'Mark another part' }));
+/** The list the proposer suggests for the scenario's folder, read in as "Use this list" reads it: the draft's members with it. */
+const withSuggestedList = async (at: Scenario): Promise<Record<string, unknown>> => {
+  installFetch(simpleServer(at).handler);
+  const id = brandId<'ImportId'>(1);
+  const { plan } = await importApi.get(id);
+  const edit = await listEdit(id, plan, 'all', { source: 's1', file: at.sheet.file });
+  const listed = flatPlan(asRecord(JSON.parse(JSON.stringify(edit(plan))), []));
+  return { sheets: listed['sheets'], slots: listed['slots'] };
+};
+
+const markExample = async (drive: Drive, mark: Scenario['marks'][number]): Promise<void> => {
+  drive.click(await screen.findByRole('button', { name: 'Mark an example' }, { timeout: 5000 }));
   const find = await screen.findByRole('searchbox', { name: 'Find a file name' });
   fireEvent.change(find, { target: { value: mark.find } });
   drive.click(screen.getByRole('button', { name: 'Find' }));
@@ -133,16 +147,59 @@ const markExample = async (drive: Drive, mark: Scenario['marks'][number], first:
   await waitFor(() => {
     expect(use).toBeEnabled();
   });
-  expect(screen.getByText(/^With this, your files make [\d,]+ items?:/)).toBeInTheDocument();
+  expect(within(screen.getByRole('region', { name: 'By hand' })).getByText(/^Written this way: /)).toBeInTheDocument();
   drive.look();
   drive.click(use);
-  expect(await screen.findByText(/^Items: names differ only in the marked part/, {}, { timeout: 5000 })).toBeInTheDocument();
-  await groupsShown();
+  await saved();
+  await waitFor(() => {
+    expect(screen.queryByRole('region', { name: 'By hand' })).toBeNull();
+  });
   drive.look();
 };
 
+/** The tree of the mode's Structure, once that mode has drawn it: the other mode's stays a moment after the switch. */
+const treeOf = (mode: 'simple' | 'advanced'): Promise<HTMLElement> =>
+  waitFor(() => {
+    const shown = document.querySelector(`.import-${mode} [role="listbox"]`);
+    if (!(shown instanceof HTMLElement)) {
+      throw new Error(`${mode} has not drawn its tree`);
+    }
+    return shown;
+  }, { timeout: 5000 });
+
+/** Leaves out the group the scenario's `leave` words describe, on Advanced's archive node, and comes back to Simple. */
+const leaveGroup = async (drive: Drive, words: readonly string[]): Promise<void> => {
+  drive.click(screen.getByRole('link', { name: 'Advanced' }));
+  // The archive's root comes first; the folder written by hand over all of it has the same name.
+  const tree = await treeOf('advanced');
+  const [root] = within(tree).getAllByRole('option', { name: 'All of archive' });
+  if (root === undefined) {
+    throw new Error('no archive node');
+  }
+  drive.click(root);
+  const found = await waitFor(() => {
+    const group = [...document.querySelectorAll('article.import-group')].find((one) => words.every((word) => one.textContent.includes(word)));
+    if (!(group instanceof HTMLElement)) {
+      throw new Error(`no group with ${words.join(', ')}`);
+    }
+    return group;
+  }, { timeout: 5000 });
+  drive.look();
+  drive.click(within(found).getByRole('button', { name: 'Leave them out' }));
+  drive.click(await within(found).findByRole('button', { name: /^Change these/ }, { timeout: 5000 }));
+  await saved();
+  drive.click(screen.getByRole('link', { name: 'Simple' }));
+  // The mode switch keeps the archive's node: the folder is the second "All of archive".
+  const back = await treeOf('simple');
+  const folder = within(back).getAllByRole('option', { name: 'All of archive' })[1];
+  if (folder === undefined) {
+    throw new Error('no folder node');
+  }
+  drive.click(folder);
+};
+
 const pass = async (at: Scenario): Promise<{ readonly drive: Drive; readonly server: ReturnType<typeof simpleServer> }> => {
-  const server = simpleServer(at);
+  const server = simpleServer(at, await withSuggestedList(at));
   installFetch(server.handler);
   window.location.hash = '#/import';
   render(<Routed />);
@@ -150,30 +207,21 @@ const pass = async (at: Scenario): Promise<{ readonly drive: Drive; readonly ser
 
   drive.click(await screen.findByRole('button', { name: 'Use everything in archive' }));
   expect(await screen.findByRole('heading', { name: 'How your archive becomes items and sets' }, { timeout: 5000 })).toBeInTheDocument();
-  drive.visit('found', false);
-  expect(await screen.findByText('Items: names equal but for the ending.', {}, { timeout: 5000 })).toBeInTheDocument();
-  await groupsShown();
+  await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 });
   drive.look();
-  for (const [index, mark] of at.marks.entries()) {
-    await markExample(drive, mark, index === 0);
+  for (const mark of at.marks) {
+    await markExample(drive, mark);
   }
   if (at.leave !== null) {
-    drive.click(within(screen.getByRole('listbox', { name: 'Your items in groups' })).getByRole('option', { name: LEAVE_GROUP }));
-    const group = await screen.findByRole('region', { name: /^[\d,]+ items?$/ });
-    drive.click(within(group).getByRole('button', { name: 'Leave out' }));
-    drive.click(await within(group).findByRole('button', { name: /^Change these/ }, { timeout: 5000 }));
+    await leaveGroup(drive, at.leave);
   }
-  drive.click(screen.getByRole('button', { name: 'They are right' }));
-  expect(await screen.findByText('confirmed')).toBeInTheDocument();
-  drive.visit('list', true);
 
-  expect(await screen.findByRole('option', { name: at.sheet.file }, { timeout: 5000 })).toHaveTextContent('In use');
-  expect(await screen.findByText('Where each column goes', {}, { timeout: 5000 })).toBeInTheDocument();
+  drive.click(await screen.findByRole('button', { name: 'Where each column goes' }, { timeout: 5000 }));
+  expect(await screen.findByRole('region', { name: at.sheet.file }, { timeout: 5000 })).toBeInTheDocument();
   drive.look();
   for (const [column, label] of at.mapping) {
-    await drive.choose(screen.getByRole('combobox', { name: `Where the column ${column} goes` }), label);
+    await drive.choose(await screen.findByRole('combobox', { name: `Where the column ${column} goes` }, { timeout: 5000 }), label);
   }
-  drive.visit('where', true);
 
   const from = await screen.findByRole('combobox', { name: 'The item type comes from' }, { timeout: 5000 });
   if (at.typeFrom === 'top') {
@@ -214,8 +262,11 @@ describe.each([
   it('asks what the prototype asked, with as many clicks, and starts the run on the check it showed', async () => {
     const at = scenario(name, size);
     const { drive, server } = await pass(at);
-    expect(Math.abs(drive.seen.size - at.proto.decisions), `decisions ${String(drive.seen.size)}: ${[...drive.seen].join(' | ')}`).toBeLessThanOrEqual(3);
-    expect(Math.abs(drive.clicks - at.proto.clicks), `clicks ${String(drive.clicks)}`).toBeLessThanOrEqual(3);
+    const decisions = `decisions ${String(drive.seen.size)}: ${[...drive.seen].join(' | ')}`;
+    expect(drive.seen.size, decisions).toBeLessThanOrEqual(at.proto.decisions + 3);
+    expect([...drive.seen], decisions).toEqual(expect.arrayContaining(['where', 'type-from', 'who', ...at.mapping.map(([column]) => `column:${column}`)]));
+    const trip = at.leave === null ? 0 : GROUP_ROUND_TRIP;
+    expect(Math.abs(drive.clicks - trip - at.proto.clicks), `clicks ${String(drive.clicks)}, ${String(trip)} of them the trip to Advanced's groups`).toBeLessThanOrEqual(3);
 
     expect(server.runs).toHaveLength(1);
     expect(String(server.runs[0]?.['digest'])).toMatch(/^digest-\d+$/);

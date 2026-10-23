@@ -54,7 +54,7 @@
  "adv.free.items": "{count} items join it",
  "adv.free.remove": "Remove",
  "adv.free.add": "Add a set",
- "adv.free.text": "These values are read as v2 read them: an id when a set has it, else a title.",
+ "adv.free.text": "As in v2, each value is a set’s id, else a title.",
  "adv.free.asTitles": "Read them as titles",
  "adv.free.asTitlesCount": "makes {made} new sets, finds {found}",
  "adv.free.asIds": "Read them as ids",

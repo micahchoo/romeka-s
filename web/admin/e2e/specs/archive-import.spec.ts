@@ -1,9 +1,10 @@
 /**
  * Import v2 against the real port: the Simple pass on a BHC_006-like folder
- * (the files, what we found, one example, the list round trip, where they go,
- * the check, the start, the progress, the end, then an undo that keeps the one
- * item edited since and undoes it anyway), an Advanced edit read in Simple, a
- * column's field kept across a click on another folder, a column's field
+ * (the files, the Structure of its folders, one example marked on a folder,
+ * the list round trip and the item type from that folder's node, the check,
+ * the start, the progress, the end, then an undo that keeps the one
+ * item edited since and undoes it anyway), an Advanced edit read in Simple, the
+ * fields a chosen list's headers name, a column's field kept across a click on another folder, a column's field
  * saved from Advanced's Lists section, a folder's item type from a column, the pairs list round trip, a zip sent from this computer, and a delete the
  * server refuses until its count is typed.
  *
@@ -17,8 +18,18 @@ import { expect, test } from '../fixtures';
 import { ARTIFACTS, BHC, PAIRS, PAIRS_COUNT, PHOTOGRAPHS, pairsFile, uploadJpeg, zipOf } from '../harness/archive';
 import { isArray, numberField, parseJson, record } from '../harness/json';
 
-/** The items the example makes of BHC_006: five objects and the note, which is no picture. */
-const BHC_ITEMS = 6;
+/**
+ * The items Artifacts makes once its example is marked: three objects, their
+ * front and back one item, and the register's two rows that name no file of
+ * the folder (the photographs'), each an item of its own.
+ */
+const ARTIFACT_ITEMS = 5;
+
+/** Artifacts' objects, the items with files: the rows of its list to fill in. */
+const OBJECTS = 3;
+
+/** The items BHC_006's Structure makes: Artifacts' and the two photographs; the note, which is no picture, is not imported. */
+const BHC_ITEMS = ARTIFACT_ITEMS + 2;
 
 /** A job takes a process start and a database write per record. */
 const JOB_MS = 60_000;
@@ -47,20 +58,13 @@ const next = async (page: Page): Promise<void> => {
   await page.getByRole('link', { name: 'Next', exact: true }).click();
 };
 
-/** An old step of Simple by its address: a plan still of one series opens it, under Structure. */
-const step = async (page: Page, id: number, screen: 'found' | 'list' | 'where'): Promise<void> => {
-  await page.goto(`/#/import/${String(id)}/simple/${screen}`);
-};
-
-/** Start a draft over one folder of the archive root, from the start page, which opens it on Structure; then open "What we found". */
+/** Start a draft over one folder of the archive root, from the start page, which opens it on Structure. */
 const startOn = async (page: Page, folder: string): Promise<number> => {
   await page.goto('/#/import');
   await page.getByRole('button', { name: folder, exact: true }).click();
   await page.getByRole('button', { name: `Use the folder ${folder}` }).click();
   await expect(page).toHaveURL(/#\/import\/\d+\/simple\/structure$/);
-  const id = importId(page);
-  await step(page, id, 'found');
-  return id;
+  return importId(page);
 };
 
 const saved = async (page: Page): Promise<void> => {
@@ -70,14 +74,10 @@ const saved = async (page: Page): Promise<void> => {
 /** A count the screen's one line of facts states, such as "Items 6": its label, then the number. */
 const fact = (page: Page, label: string, count: number): Locator => page.getByText(new RegExp(`^${label}\\s+${String(count)}$`, 'u'));
 
-/** Simple's list screen with the folder's register in use. A register that pairs no file is offered, not used, until it is ticked. */
-const listInUse = async (page: Page): Promise<void> => {
-  const use = page.getByRole('checkbox', { name: 'use this list' });
-  if (!(await use.isChecked())) {
-    // The box shows the plan, which changes once the list is read: `check()` would see no change at the click.
-    await use.click();
-  }
-  await expect(use).toBeChecked();
+/** Structure's suggestion used as it is: the plan then holds each folder with the list the proposer chose for it. */
+const useStructure = async (page: Page): Promise<void> => {
+  await page.getByRole('button', { name: 'Use this structure' }).click();
+  await expect(page.getByText(/^In use\. Your changes: \d+\.$/u)).toBeVisible();
   await saved(page);
 };
 
@@ -99,40 +99,43 @@ const itemByTitle = async (page: Page, title: string): Promise<number> => {
   return numberField(record(json[0], title), 'o:id', title);
 };
 
+/** The headers of the columns Artifacts' item rule for `slot` reads, in the stored plan. */
+const itemRuleHeaders = async (page: Page, id: number, slot: string): Promise<readonly unknown[]> => {
+  const plan = record(record((await api(page, 'GET', `/api/romeka/imports/${String(id)}`)).json, 'import')['plan'], 'plan');
+  const levels = record(plan['structure'], 'structure')['levels'];
+  const artifacts = (isArray(levels) ? levels : []).map((level) => record(level, 'level')).find((level) => level['id'] === ARTIFACTS);
+  const rule = record(record(record(artifacts?.['slots'], 'slots')['item'], 'item')[slot], slot);
+  const sources = isArray(rule['sources']) ? rule['sources'] : [];
+  return sources.map((source) => record(record(source, 'source')['column'], 'column')['header']);
+};
+
 test('the Simple pass adds the folder, and undo keeps the item edited since until asked', async ({ page }) => {
   const id = await startOn(page, BHC);
 
-  // What we found: one item per name until an example is shown, then one example that says front, back and verso are parts.
-  const example = page.getByRole('link', { name: 'Show us one example' });
-  await expect(example).toBeVisible();
-  await example.click();
+  // One example, marked on Artifacts: front and back are parts of one object, and the folder is written by hand.
+  await page.getByRole('option', { name: ARTIFACTS }).click();
+  await page.getByRole('button', { name: 'Mark an example' }).click();
   await page.getByRole('searchbox', { name: 'Find a file name' }).fill('_front');
   await page.getByRole('button', { name: 'Find' }).click();
   await page.getByRole('radio', { name: 'BHC_006_AF_001_front.jpg' }).click();
   const parts = page.getByRole('group', { name: 'Parts of the name BHC_006_AF_001_front.jpg' });
   await parts.getByRole('button', { name: 'front' }).click();
-  for (const word of ['back', 'verso']) {
-    const box = page.getByRole('checkbox', { name: new RegExp(`^${word} `, 'u') });
-    if (!(await box.isChecked())) {
-      await box.check();
-    }
+  const back = page.getByRole('checkbox', { name: /^back / });
+  if (!(await back.isChecked())) {
+    await back.check();
   }
-  await expect(page.getByRole('status').filter({ hasText: new RegExp(`make ${String(BHC_ITEMS)} items`, 'u') })).toBeVisible();
-  await page.getByRole('button', { name: 'Use this' }).click();
-  await expect(page).toHaveURL(new RegExp(`#/import/${String(id)}/simple/found$`));
-  await expect(page.getByRole('button', { name: 'Forget it' })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: `Written this way: ${String(ARTIFACT_ITEMS)} items.` })).toBeVisible();
+  await page.getByRole('button', { name: 'Use this', exact: true }).click();
+  await expect(page.getByRole('option', { name: ARTIFACTS })).toContainText('written by you');
   await saved(page);
-  await page.getByRole('button', { name: 'They are right' }).click();
-  await expect(page.getByText('confirmed', { exact: true })).toBeVisible();
-  await saved(page);
-  await step(page, id, 'list');
 
-  // Your list: the register is offered, read, and joined; then the list round trip.
-  await expect(page.getByRole('checkbox', { name: 'use this list' })).toBeChecked();
-  await expect(page.getByRole('heading', { name: 'Where each column goes' })).toBeVisible();
-  await saved(page);
-  // The round trip waits, folded, under the lists.
-  await page.locator('summary').filter({ hasText: 'Fill in a list yourself' }).click();
+  // The register's titles need no click: the list the proposer chose puts its Title column in Title.
+  await page.getByRole('button', { name: 'Where each column goes' }).click();
+  await expect(page.getByRole('combobox', { name: 'Where the column Title goes' })).toHaveValue('field:dcterms:title');
+  await page.getByRole('button', { name: 'Where each column goes' }).click();
+
+  // The folder's list round trip, from its node.
+  await page.getByRole('button', { name: 'Fill in a list yourself' }).click();
   const trip = page.getByRole('region', { name: 'Fill in a list yourself' });
   const [template] = await Promise.all([
     page.waitForEvent('download'),
@@ -140,22 +143,19 @@ test('the Simple pass adds the folder, and undo keeps the item edited since unti
   ]);
   const rows = (await downloaded(template)).replace(/^\uFEFF/, '').trim().split(/\r?\n/);
   expect(rows[0]).toMatch(/^Identifier,Files/);
-  expect(rows.length).toBe(BHC_ITEMS + 1);
+  expect(rows.length).toBe(OBJECTS + 1);
   const header = `${rows[0] ?? ''},Notes [dcterms:description]`;
   const filled = [header, ...rows.slice(1).map((row) => `${row},Seen on the shelf`)].join('\r\n');
   await trip.getByLabel('Choose the file').setInputFiles({ name: 'filled.csv', mimeType: 'text/csv', buffer: Buffer.from(filled) });
-  await expect(page.getByText(`Read ${String(BHC_ITEMS)} rows from filled.csv.`)).toBeVisible();
-  await expect(page.getByText(`${String(BHC_ITEMS)} belong to items of this import.`)).toBeVisible();
-  await step(page, id, 'where');
+  await expect(page.getByText(`Read ${String(OBJECTS)} rows from filled.csv.`)).toBeVisible();
+  await expect(page.getByText(`${String(OBJECTS)} belong to items of this import.`)).toBeVisible();
 
-  // Where they go, then the check's suggested answers.
+  // Where the folder's item type comes from, on the same node; then the check's suggested answers.
   await expect(page.getByRole('combobox', { name: 'The item type comes from' })).toBeVisible();
   await page.getByRole('list', { name: 'Steps' }).getByRole('link', { name: 'Check' }).click();
   await expect(fact(page, 'Items to add', BHC_ITEMS)).toBeVisible();
-  const accept = page.getByRole('button', { name: /^Use the (?:\d+ suggested answers|1 suggested answer)$/u });
-  if (await accept.isVisible()) {
-    await accept.click();
-  }
+  // The register's two rows that name no file and the photographs with no row: the suggested answers keep both.
+  await page.getByRole('button', { name: /^Use the (?:\d+ suggested answers|1 suggested answer)$/u }).click();
   await expect(fact(page, 'Questions open', 0)).toBeVisible();
   await saved(page);
   await next(page);
@@ -172,16 +172,16 @@ test('the Simple pass adds the folder, and undo keeps the item edited since unti
   const edited = await api(page, 'PATCH', `/api/items/${String(lamp)}`, { 'o:is_public': true });
   expect(edited.status).toBe(200);
 
-  // Undo keeps the edited item and its two files; then they are undone anyway.
+  // Undo keeps the edited item, its two files and the folder's item set that holds it; then they are undone anyway.
   await page.getByRole('button', { name: 'Undo this import...' }).click();
-  await expect(page.getByText(/^3 are kept: since the import/)).toBeVisible();
+  await expect(page.getByText(/^4 are kept: since the import/)).toBeVisible();
   await expect(page.getByRole('link', { name: `Item ${String(lamp)}` })).toBeVisible();
   await page.getByRole('button', { name: 'Undo the import' }).click();
   await expect(page.getByText('Partly undone.')).toBeVisible({ timeout: JOB_MS });
-  await expect(page.getByText(/^3 were kept/)).toBeVisible();
+  await expect(page.getByText(/^4 were kept/)).toBeVisible();
   expect((await api(page, 'GET', `/api/items/${String(lamp)}`)).status).toBe(200);
-  await page.getByRole('checkbox', { name: 'Undo all 3 anyway' }).check();
-  await expect(page.getByText(/^Undoing 3 anyway also undoes/)).toBeVisible();
+  await page.getByRole('checkbox', { name: 'Undo all 4 anyway' }).check();
+  await expect(page.getByText(/^Undoing 4 anyway also undoes/)).toBeVisible();
   await page.getByRole('button', { name: 'Undo the import' }).click();
   await expect(page.getByText('Undone.', { exact: true })).toBeVisible({ timeout: JOB_MS });
   expect((await api(page, 'GET', `/api/items/${String(lamp)}`)).status).toBe(404);
@@ -203,6 +203,13 @@ test('an answer given in Advanced shows in Simple', async ({ page }) => {
   await expect(page.getByRole('option', { name: 'Artifacts' })).toContainText('written by you');
 });
 
+test('a list Structure’s suggestion chooses gives each column whose header is a field’s label that field', async ({ page }) => {
+  const id = await startOn(page, BHC);
+  await useStructure(page);
+  expect(await itemRuleHeaders(page, id, 'dcterms:title')).toEqual(['Title']);
+  expect(await itemRuleHeaders(page, id, 'dcterms:date')).toEqual(['Date']);
+});
+
 test('a column given its field on a folder’s node survives a click on another folder', async ({ page }) => {
   const id = await startOn(page, BHC);
   await page.goto(`/#/import/${String(id)}/simple/structure`);
@@ -218,19 +225,14 @@ test('a column given its field on a folder’s node survives a click on another 
   await page.getByRole('button', { name: /^Leave out/ }).click();
   await expect(page.getByRole('option', { name: PHOTOGRAPHS })).toContainText('you left it out');
   await saved(page);
-  const plan = record(record((await api(page, 'GET', `/api/romeka/imports/${String(id)}`)).json, 'import')['plan'], 'plan');
-  const levels = record(plan['structure'], 'structure')['levels'];
-  const artifacts = (isArray(levels) ? levels : []).map((level) => record(level, 'level')).find((level) => level['id'] === ARTIFACTS);
-  const rule = record(record(record(artifacts?.['slots'], 'slots')['item'], 'item')['dcterms:dateSubmitted'], 'dcterms:dateSubmitted');
-  const sources = isArray(rule['sources']) ? rule['sources'] : [];
-  expect(sources.map((source) => record(record(source, 'source')['column'], 'column')['header'])).toEqual(['Date']);
+  expect(await itemRuleHeaders(page, id, 'dcterms:dateSubmitted')).toEqual(['Date']);
 
   await page.getByRole('option', { name: ARTIFACTS }).click();
   await page.getByRole('button', { name: 'Where each column goes' }).click();
   await expect(page.getByRole('combobox', { name: 'Where the column Date goes' })).toHaveValue('field:dcterms:dateSubmitted');
 });
 
-test('a column given its field in Advanced’s Lists section is saved, on a folder whose list mapped no column', async ({ page }) => {
+test('a column given another field in Advanced’s Lists section is saved', async ({ page }) => {
   const id = await startOn(page, BHC);
   await page.goto(`/#/import/${String(id)}/advanced/structure`);
   await page.getByRole('option', { name: ARTIFACTS }).click();
@@ -239,12 +241,7 @@ test('a column given its field in Advanced’s Lists section is saved, on a fold
   await expect(date.getByRole('option', { name: 'Date Submitted' })).toBeAttached();
   await date.selectOption('dcterms:dateSubmitted');
   await saved(page);
-  const plan = record(record((await api(page, 'GET', `/api/romeka/imports/${String(id)}`)).json, 'import')['plan'], 'plan');
-  const levels = record(plan['structure'], 'structure')['levels'];
-  const artifacts = (isArray(levels) ? levels : []).map((level) => record(level, 'level')).find((level) => level['id'] === ARTIFACTS);
-  const rule = record(record(record(artifacts?.['slots'], 'slots')['item'], 'item')['dcterms:dateSubmitted'], 'dcterms:dateSubmitted');
-  const sources = isArray(rule['sources']) ? rule['sources'] : [];
-  expect(sources.map((source) => record(record(source, 'source')['column'], 'column')['header'])).toEqual(['Date']);
+  expect(await itemRuleHeaders(page, id, 'dcterms:dateSubmitted')).toEqual(['Date']);
 });
 
 test('a folder’s item type from a column of its list is saved, and its values are counted', async ({ page }) => {
@@ -256,19 +253,12 @@ test('a folder’s item type from a column of its list is saved, and its values 
   await from.selectOption({ label: 'Column “Title”' });
   await saved(page);
   await expect(page.getByRole('region', { name: 'Item type for each value' }).getByRole('combobox', { name: /^Item type for / }).first()).toBeVisible();
-  const plan = record(record((await api(page, 'GET', `/api/romeka/imports/${String(id)}`)).json, 'import')['plan'], 'plan');
-  const levels = record(plan['structure'], 'structure')['levels'];
-  const artifacts = (isArray(levels) ? levels : []).map((level) => record(level, 'level')).find((level) => level['id'] === ARTIFACTS);
-  const rule = record(record(record(artifacts?.['slots'], 'slots')['item'], 'item')['template'], 'template');
-  const sources = isArray(rule['sources']) ? rule['sources'] : [];
-  expect(sources.map((source) => record(record(source, 'source')['column'], 'column')['header'])).toEqual(['Title']);
+  expect(await itemRuleHeaders(page, id, 'template')).toEqual(['Title']);
 });
 
 test('the pairs list pairs every row of a register that names no file', async ({ page }) => {
   const id = await startOn(page, PAIRS);
-  await expect(page.getByRole('link', { name: 'Show us one example' })).toBeVisible();
-  await page.goto(`/#/import/${String(id)}/simple/list`);
-  await listInUse(page);
+  await useStructure(page);
   await page.goto(`/#/import/${String(id)}/simple/pair`);
   const card = page.getByRole('region', { name: `${String(PAIRS_COUNT)} rows have no file: pair them in a spreadsheet` });
   await expect(card).toBeVisible();
@@ -308,10 +298,10 @@ test('a zip from this computer is unpacked into the import and counted', async (
   await expect(fact(page, 'Files', 2)).toBeVisible({ timeout: JOB_MS });
 });
 
-/** A draft over BHC_006 with its register read and joined, as Simple's list screen leaves it. */
+/** A draft over BHC_006 with its register read and joined, and its titles in Title, as Structure's suggestion leaves it. */
 const listed = async (page: Page): Promise<number> => {
   const id = await startOn(page, BHC);
-  // "What we found" reads the folder's list in once the files are looked at.
+  await useStructure(page);
   await expect
     .poll(async () => {
       const { json } = await api(page, 'GET', `/api/romeka/imports/${String(id)}`);
@@ -320,8 +310,6 @@ const listed = async (page: Page): Promise<number> => {
       return lists.reduce<number>((sum, one) => sum + (isArray(one) ? one.length : 0), 0);
     }, { timeout: 15_000 })
     .toBe(1);
-  await page.goto(`/#/import/${String(id)}/simple/list`);
-  await listInUse(page);
   return id;
 };
 

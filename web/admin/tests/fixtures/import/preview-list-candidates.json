@@ -16,11 +16,13 @@
           "separator": null
         },
         {
+          "field": "dcterms:title",
           "header": "Title",
           "index": 1,
           "separator": null
         },
         {
+          "field": "dcterms:date",
           "header": "Date",
           "index": 2,
           "separator": null

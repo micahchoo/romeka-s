@@ -7,7 +7,6 @@
  */
 import { describe, expect, it } from 'vitest';
 import { TAG_IDS } from '../src/api/import-plan';
-import { en as importMessages } from '../src/i18n/namespaces/import';
 import { SECTIONS, hasSections, parsePreview } from '../src/api/import-sections';
 import { ParseError, asRecord } from '../src/api/parse';
 import { en as listsMessages } from '../src/i18n/namespaces/import-lists';
@@ -59,13 +58,6 @@ describe('the sections', () => {
     expect(tags).toHaveLength(25);
     expect([...new Set(tags.map((tag) => tag.kind))]).toEqual(['exif', 'iptc', 'xmp', 'file']);
     expect(tags.map((tag) => tag.tag)).toEqual(TAG_IDS);
-  });
-
-  it('every tag and every tag kind has a label in the import namespace', () => {
-    const keys = new Set(Object.keys(importMessages));
-    const missing = [...TAG_IDS.map((id) => `tag.${id}`), ...['exif', 'iptc', 'xmp', 'file'].map((kind) => `tag.kind.${kind}`)]
-      .filter((key) => !keys.has(key));
-    expect(missing).toEqual([]);
   });
 
   it('parse the records of a media listing and a blocked check', () => {

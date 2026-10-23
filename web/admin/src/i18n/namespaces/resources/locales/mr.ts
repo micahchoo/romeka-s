@@ -25,7 +25,6 @@ export const mr: ResourcesMessages = {
   'items.add': 'घटक जोडा',
   'items.empty': 'कोणतेही घटक आढळले नाहीत.',
   'items.mediaHeading': 'मीडिया ({count})',
-  'items.noMedia': 'कोणतेही मीडिया नाहीत.',
   'items.addMedia': 'मीडिया जोडा',
   'items.closeAddMedia': 'बंद करा',
   'items.noMediaYet':

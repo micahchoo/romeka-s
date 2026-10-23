@@ -1,8 +1,8 @@
 /**
  * The items in groups that share facts (`shapes`): each group says what its
  * items have, shows one of them, offers another, opens all of them in the
- * items list, and takes one change for all of them. A body places it, such as
- * Simple's "What we found" and Advanced's "Files".
+ * items list, and takes one change for all of them. Advanced's archive node
+ * places it.
  */
 import { useState } from 'react';
 import type { ReactElement } from 'react';

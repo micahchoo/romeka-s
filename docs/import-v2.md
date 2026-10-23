@@ -536,17 +536,30 @@ A person can describe items in a spreadsheet they fill in themselves:
 - A filled list counts as evidence like any sheet: its values win over file tags by default
   (`combine: first`, list first).
 
-### Simple and Advanced (2026-10-20, user)
+### Simple and Advanced (2026-10-20, user; steps since P5, 2026-10-22)
 
-The admin has two modes over one plan, switchable at any time without losing work:
+The admin has two modes over one plan, switchable at any time without losing work. Both show
+one tree of the archive: the archive, its set levels, each folder that makes items (a series),
+the folders left out, and the lists no folder uses. The mode switch keeps the selected node.
 
-- **Simple**: the guided pass (Your files, What we found, Your list, Where they go, Check, Add) with
-  suggested answers; expert settings hidden.
-- **Advanced**: every rule the plan holds, editable: the file pattern (marked example and regex),
-  each slot's ordered sources and value map, column options (split, type, language, private), flag
-  policies per kind, match key and scope per record kind, the action, the full decision list with
-  remove, and the round-trip list's columns.
-
+- **Simple** has three steps: Structure, Check, Add. Structure shows the proposal
+  (`preview/proposal.rs`) as that tree. The inspector of a node asks its questions (items, list,
+  what a row describes, set, item type), each with the suggestion, the rival and their counts. A
+  click sends an edit, and the proposer answers with a new proposal. "Use this structure" saves the
+  proposal's structure into the plan. Where each column goes, filling in a list, pairing by hand
+  and every file open from a folder's node.
+- **Advanced** is the rule zoom of the same tree. The archive node holds the sources, the files,
+  the groups by facts, the defaults and the free sets. A series node has five sections (which
+  files, items, lists, fields, set), each one fact line until opened. A write that the proposal
+  offers sends Simple's edit; any other write adds an `own` edit, so the series is "written by
+  you" and the proposer keeps it as written (`advanced/writes.ts`). Problems, Existing items,
+  Changes, Items and Run are steps of their own.
+- **A list the proposal chooses** is read as "Use this list" read it: each column whose header is
+  a field's label goes into that field (`Catalog::field_labeled`, the first field the install
+  made with that label), split as its cells suggest. A list the plan already holds keeps the
+  person's columns and rules.
+- The old addresses of Simple's steps (`found`, `example`, `list`, `where`) and Advanced's screens
+  (`files`, `lists`, `fields`) open Structure at the question or section each one held.
 
 ### Run details (settled from P3-run, 2026-10-20)
 

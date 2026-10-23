@@ -24,7 +24,6 @@ export const ml: MediaAddMessages = {
   'add.htmlNote':
     'ഇത് സേവ് ചെയ്യുമ്പോൾ സ്ക്രിപ്റ്റുകളും ഇവന്റ് ആട്രിബ്യൂട്ടുകളും നീക്കം ചെയ്യപ്പെടുന്നു.',
   'add.visible': 'സന്ദർശകർക്ക് കാണാൻ കഴിയും',
-  'add.whatFiles': 'എനിക്ക് ഏത് തരം ഫയലുകൾ ചേർക്കാം?',
   'add.takes': '{kinds} തരം ഫയലുകൾ വരെ ചേർക്കാം. {size} വലിപ്പമുള്ള ഒരു ഫയൽ.',
   'add.checking': 'ഈ ആർക്കൈവ് ഏതൊക്കെ ഫയലുകൾ എടുക്കുന്നു എന്ന് പരിശോധിക്കുന്നു…',
   'add.limitsFailed':
@@ -46,7 +45,6 @@ export const ml: MediaAddMessages = {
   'add.waiting': 'കാത്തിരിക്കുന്നു',
   'add.sending': '{sent} of {size}',
   'add.paused': 'താൽക്കാലികമായി നിർത്തി',
-  'add.pausedConnection': 'താൽക്കാലികമായി നിർത്തി: ബന്ധം ഇല്ല.',
   'add.needsFile': '{sent} of {size} സൂക്ഷിച്ചു. {name} വീണ്ടും തിരഞ്ഞെടുത്ത് പൂർത്തിയാക്കാം.',
   'add.chooseAgain': 'വീണ്ടും തിരഞ്ഞെടുക്കുക',
   'add.discard': 'ഒഴിവാക്കുക',
@@ -82,8 +80,6 @@ export const ml: MediaAddMessages = {
   'add.readingIiif': 'ഒരു IIIF ചിത്രം',
   'add.readingManifest': 'ഒരു IIIF മാനിഫെസ്റ്റ്',
   'add.readingWith': '{reading}: {detail}',
-  'add.detailTitle': '{title}',
-  'add.detailType': '{type}',
   'add.detailImage': '{width} × {height}',
   'add.detailCanvases': '{count} ചിത്രങ്ങൾ',
   'add.detailSize': '{size}',

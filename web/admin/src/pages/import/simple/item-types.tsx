@@ -12,8 +12,7 @@
  * the proposer copies it into its next proposal, so it survives every click.
  *
  * Structure's folder node draws it in the plan as the tree shows it
- * (`structure-list.tsx`, `ItemTypesHome`); "Where they go" draws it on the
- * plan's one series. A chunk of its own.
+ * (`structure-list.tsx`, `ItemTypesHome`). A chunk of its own.
  */
 import { Suspense, lazy } from 'react';
 import type { ReactElement } from 'react';
