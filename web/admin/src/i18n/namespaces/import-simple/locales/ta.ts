@@ -134,6 +134,8 @@ export const ta: ImportSimpleMessages = {
   'guided.list.newField': 'ஒரு புதிய புலம் "{name}"',
   'guided.list.levelOf': '{column} இன் மதிப்புகள் எங்கு செல்கின்றன',
   'guided.list.levelFile': 'ஒவ்வொரு கோப்பு',
+  'guided.list.levelItems': '{count} உருப்படிகள்',
+  'guided.list.levelFiles': '{count} கோப்புகள்',
   'guided.list.splitAt': '“{separator}”-இல் பிரிக்கவும்',
   'guided.list.differs': '{count}/{of}-இல் மாறுபடுகிறது',
   'guided.list.help': 'இவற்றின் பொருள் என்ன?',

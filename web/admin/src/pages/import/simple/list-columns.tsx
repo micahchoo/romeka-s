@@ -3,19 +3,21 @@
  * column, with its first value under its name and the field it goes into. A
  * column goes into the field with the same name; every other column stays
  * out until the person chooses. When each row describes one file, a column's
- * values go on the item or on each file, with the place its field suggests
- * marked and in how many items they differ. A column whose cells hold a
+ * values go on the item or on each file: the proposer's pick is marked, each
+ * answer says how many items or files it gives values, and the row says in
+ * how many items they differ. A column whose cells hold a
  * separator offers to cut them into several values.
  */
 import type { ReactElement } from 'react';
 import type { ColumnRef, SheetPlan } from '../../../api/import-plan';
+import type { RollUpCounts } from '../../../api/import-proposal';
 import type { Grain } from '../../../api/import-sections';
 import type { SheetView } from '../../../api/import-sheet-views';
 import { TableScroll } from '../../../app/table-scroll';
 import { useAsync } from '../../../app/useAsync';
 import { useDraft } from '../draft-context';
 import { loadProperties } from '../lists/catalog';
-import { asTarget, fileLevelAllowed, filledOf, firstRowOf, levelOf, separatorOf, splitOf, suggestedLevel, targetOf, variesOf, withColumnLevel, withCountedTarget, withSplit } from './list-plan';
+import { asTarget, fileLevelAllowed, filledOf, firstRowOf, levelOf, rollUpOf, separatorOf, splitOf, suggestedLevel, targetOf, variesOf, withColumnLevel, withCountedTarget, withSplit } from './list-plan';
 import type { Level, ListCounts } from './list-plan';
 import { Segmented } from './master-detail';
 import { useSimpleText } from './messages';
@@ -23,19 +25,29 @@ import { useSimpleText } from './messages';
 /** Simple offers the Dublin Core fields; Advanced offers every field of Omeka. */
 const SHOWN_VOCABULARY = 'dcterms:';
 
-const LevelChoice = ({ sheet, column }: { readonly sheet: SheetPlan; readonly column: ColumnRef }): ReactElement | null => {
-  const { t } = useSimpleText();
+/** On the item or on each file: the proposer's pick carries the ✓, and each answer shows what it gives. */
+const LevelChoice = ({ sheet, column, counts }: { readonly sheet: SheetPlan; readonly column: ColumnRef; readonly counts: ListCounts }): ReactElement | null => {
+  const { t, number } = useSimpleText();
   const draft = useDraft();
   const level = levelOf(draft.plan, sheet.id, column.index);
   if (level === 'out') {
     return null;
   }
-  const suggested = suggestedLevel(draft.plan, sheet.id, column.index);
+  const suggested = suggestedLevel(draft.plan, sheet.id, column, counts.rollUps);
+  const pick = rollUpOf(counts.rollUps, column)?.pick;
+  const given = (value: Exclude<Level, 'out'>): RollUpCounts | undefined => [pick?.chosen, pick?.rival].find((one) => one?.value === value)?.counts;
+  const note = (value: Exclude<Level, 'out'>): { readonly note?: string } => {
+    const made = given(value);
+    if (made === undefined) {
+      return {};
+    }
+    return { note: value === 'item' ? t('guided.list.levelItems', { count: number(made.items) }) : t('guided.list.levelFiles', { count: number(made.files) }) };
+  };
   const levels: readonly Exclude<Level, 'out'>[] = fileLevelAllowed(draft.plan, sheet.id, column.index) ? ['item', 'file'] : ['item'];
   return (
     <Segmented
       label={t('guided.list.levelOf', { column: column.header })}
-      segments={levels.map((value) => ({ value, label: t(value === 'item' ? 'guided.list.kindItem' : 'guided.list.levelFile'), suggested: value === suggested }))}
+      segments={levels.map((value) => ({ value, label: t(value === 'item' ? 'guided.list.kindItem' : 'guided.list.levelFile'), suggested: value === suggested, ...note(value) }))}
       value={level}
       disabled={!draft.editable}
       suggestedWord={t('guided.check.suggested')}
@@ -141,7 +153,7 @@ export const ListColumns = ({ sheet, view, counts }: { readonly sheet: SheetPlan
                   {perFile ? (
                     <td>
                       <span className="guided-on">
-                        <LevelChoice sheet={sheet} column={column} />
+                        <LevelChoice sheet={sheet} column={column} counts={counts} />
                         {target === '' ? null : <Differs grain={counts.grain} column={column} />}
                       </span>
                     </td>

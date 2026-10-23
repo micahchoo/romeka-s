@@ -2,18 +2,25 @@
  * One field's rule: its sources in order (the first with a value wins under
  * "first", all add up under "all"), each with up, down and remove; a source
  * to add; and, for a field that names things, the value map with the count
- * of items that hold each value.
+ * of items that hold each value. A column of a list whose rows describe
+ * files shows where it goes, with the proposer's pick, as the Structure
+ * node asks it.
  */
-import { useId, useState } from 'react';
+import { useContext, useId, useState } from 'react';
 import type { ReactElement } from 'react';
 import { isMultiValued } from '../../../api/import-plan';
-import type { SlotName, SlotRule } from '../../../api/import-plan';
+import type { LevelId, SlotName, SlotRule, SourceRef } from '../../../api/import-plan';
+import type { NodeEvidence } from '../../../api/import-proposal';
 import type { Property } from '../../../api/types';
 import { ErrorNotice } from '../../../app/errors';
 import { Pager } from '../../../app/list';
 import { TableScroll } from '../../../app/table-scroll';
 import { useDraft } from '../draft-context';
 import { usePreview } from '../lists/use-preview';
+import { fileRowsOf } from '../simple/structure-lines';
+import type { PlacedColumn } from '../simple/structure-lines';
+import { ScreenContext } from '../simple/structure-parts';
+import { RollUpQuestion } from '../simple/structure-questions';
 import { slotWords } from './field-names';
 import { useAdvancedText } from './messages';
 import type { AdvancedMessageKey } from './messages';
@@ -128,10 +135,25 @@ export interface RuleCardProps {
   readonly choices: readonly SourceChoice[];
 }
 
+/**
+ * The placed columns of the suggested folder `level`, as the Structure tree
+ * counts them, so a column source shows the proposer's roll-up pick; none
+ * for a folder written by hand or outside the tree.
+ */
+const usePlacedColumns = (level: LevelId): readonly PlacedColumn[] => {
+  const screen = useContext(ScreenContext);
+  const { plan } = useDraft();
+  const node = screen?.proposal.nodes.find((one): one is Extract<NodeEvidence, { kind: 'series' }> => one.kind === 'series' && one.level === level);
+  return screen === null || node === undefined ? [] : (fileRowsOf(plan, screen.proposal, node)?.placed ?? []);
+};
+
 export const RuleCard = ({ at, rule, properties, choices }: RuleCardProps): ReactElement => {
   const { slot } = at;
   const { t } = useAdvancedText();
   const draft = useDraft();
+  const placed = usePlacedColumns(at.level);
+  const rollUpOf = (source: SourceRef): PlacedColumn | undefined =>
+    source.from === 'column' ? placed.find((one) => one.fileAllowed && one.sheet === source.sheet && one.rollUp.index === source.column.index) : undefined;
   const name = slotWords(slot, properties, t);
   const one = !isMultiValued(slot);
   const edit = (change: Parameters<typeof draft.change>[0]): void => {
@@ -145,6 +167,7 @@ export const RuleCard = ({ at, rule, properties, choices }: RuleCardProps): Reac
         {rule.sources.length === 0 ? <li className="adv-plain">{t('adv.fields.rule.noSource')}</li> : null}
         {rule.sources.map((source, place) => {
           const words = sourceWords(source, draft.plan, t);
+          const column = rollUpOf(source);
           return (
             <li key={`${String(place)}:${JSON.stringify(source)}`}>
               <span>{words}</span>{' '}
@@ -157,6 +180,7 @@ export const RuleCard = ({ at, rule, properties, choices }: RuleCardProps): Reac
               <button type="button" aria-label={t('adv.fields.rule.removeOf', { source: words })} disabled={!draft.editable} onClick={() => { edit((plan) => removeSource(plan, at, place)); }}>
                 {t('adv.fields.rule.remove')}
               </button>
+              {column === undefined ? null : <RollUpQuestion column={column} />}
             </li>
           );
         })}

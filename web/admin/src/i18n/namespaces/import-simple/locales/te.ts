@@ -129,6 +129,8 @@ export const te: ImportSimpleMessages = {
   'guided.list.newField': 'ఒక కొత్త ఫీల్డ్ “{name}”',
   'guided.list.levelOf': '{column} యొక్క విలువలు ఎక్కడకు వెళ్తాయి',
   'guided.list.levelFile': 'ప్రతి ఫైల్',
+  'guided.list.levelItems': '{count} అంశాలు',
+  'guided.list.levelFiles': '{count} ఫైళ్లు',
   'guided.list.splitAt': '“{separator}” వద్ద విభజించండి',
   'guided.list.differs': '{count}/{of}-లో తేడా',
   'guided.list.help': 'వీటి అర్థం ఏమిటి?',

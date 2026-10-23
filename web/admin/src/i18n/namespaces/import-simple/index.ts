@@ -136,6 +136,8 @@ export const en = {
   'guided.list.newField': 'A new field “{name}”',
   'guided.list.levelOf': 'Where the values of {column} go',
   'guided.list.levelFile': 'Each file',
+  'guided.list.levelItems': '{count} items',
+  'guided.list.levelFiles': '{count} files',
   'guided.list.splitAt': 'split at “{separator}”',
   'guided.list.differs': 'differs in {count}/{of}',
   'guided.list.help': 'What do these mean?',

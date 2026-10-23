@@ -127,6 +127,8 @@ export const hi: ImportSimpleMessages = {
   'guided.list.newField': 'एक नया फ़ील्ड “{name}”',
   'guided.list.levelOf': '{column} के मान कहाँ जाते हैं',
   'guided.list.levelFile': 'प्रत्येक फ़ाइल',
+  'guided.list.levelItems': '{count} आइटम',
+  'guided.list.levelFiles': '{count} फ़ाइलें',
   'guided.list.splitAt': '“{separator}” पर विभाजित करें',
   'guided.list.differs': '{count}/{of} में भिन्न',
   'guided.list.help': 'इनका क्या अर्थ है?',
