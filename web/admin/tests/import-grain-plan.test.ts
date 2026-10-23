@@ -184,4 +184,11 @@ describe('a column’s field', () => {
     expect(setsOf(withTarget(sets, 'af', KEYWORDS, 'field:dcterms:description'))).toEqual(setsOf(sets));
     expect(setsOf(withTarget(sets, 'af', KEYWORDS, ''))).toEqual(setsOf(sets));
   });
+
+  it('maps the column in its list, as the server refuses a rule that reads a column the list does not map', () => {
+    const bare = withSeries(plan(), 'all', (series) => ({ ...series, lists: series.lists.map((list) => ({ ...list, columns: [] })) }));
+    const placed = withTarget(bare, 'af', YEAR, 'field:dcterms:date');
+    expect(sheetOf(placed)?.columns).toEqual([{ column: YEAR, options: { split: null, type: 'literal', lang: null, private: false } }]);
+    expect(sheetOf(withTarget(placed, 'af', YEAR, 'field:dcterms:issued'))?.columns).toHaveLength(1);
+  });
 });

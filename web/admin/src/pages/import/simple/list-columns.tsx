@@ -1,7 +1,7 @@
 /**
  * "Where each column goes": one row per column of the list as read but the
- * pairing column, with its first value under its name and the field it goes into. A
- * column goes into the field with the same name; every other column stays
+ * pairing column, with its first value under its name and the field it goes
+ * into. A column goes into the field with the same name; every other column stays
  * out until the person chooses. When each row describes one file, a column's
  * values go on the item or on each file: the proposer's pick is marked, each
  * answer says how many items or files it gives values, and the row says in

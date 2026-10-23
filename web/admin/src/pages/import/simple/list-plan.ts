@@ -261,15 +261,10 @@ export const splitOf = (plan: ImportPlan, sheet: string, index: number): string 
 
 /** The column's cells cut at `split` into several values, or kept whole for `null`. */
 export const withSplit = (plan: ImportPlan, sheet: string, column: ColumnRef, split: string | null): ImportPlan =>
-  withList(plan, sheet, (one) => {
-    const has = one.columns.some((each) => each.column.index === column.index);
-    return {
-      ...one,
-      columns: has
-        ? one.columns.map((each) => (each.column.index === column.index ? { ...each, options: { ...each.options, split } } : each))
-        : [...one.columns, { column, options: { split, type: 'literal' as const, lang: null, private: false } }],
-    };
-  });
+  withList(withMapped(plan, sheet, column), sheet, (one) => ({
+    ...one,
+    columns: one.columns.map((each) => (each.column.index === column.index ? { ...each, options: { ...each.options, split } } : each)),
+  }));
 
 /**
  * `after` is `before` with an edit that may give the column its first field.
@@ -359,8 +354,16 @@ export const withTarget = (plan: ImportPlan, sheet: string, column: ColumnRef, t
   const rule = rules[slot] ?? { sources: [], combine: 'first' as const };
   const source: SourceRef = { from: 'column', sheet, column };
   const placed = { ...rules, [slot]: { ...rule, sources: [source, ...rule.sources] } };
-  return withSlots({ ...plan, newTerms }, holder.id, { ...slots, item: onFiles ? item : placed, media: onFiles ? placed : media });
+  return withSlots(withMapped({ ...plan, newTerms }, sheet, column), holder.id, { ...slots, item: onFiles ? item : placed, media: onFiles ? placed : media });
 };
+
+/** The list maps the column, with plain options when it did not: the server refuses a rule that reads a column its list does not map. */
+const withMapped = (plan: ImportPlan, sheet: string, column: ColumnRef): ImportPlan =>
+  withList(plan, sheet, (one) =>
+    one.columns.some((each) => each.column.index === column.index)
+      ? one
+      : { ...one, columns: [...one.columns, { column, options: { split: null, type: 'literal' as const, lang: null, private: false } }] },
+  );
 
 /**
  * The list read: every column with plain options, the pairing column with the
