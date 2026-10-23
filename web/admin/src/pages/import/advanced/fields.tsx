@@ -2,8 +2,8 @@
  * The field rules of Advanced's Structure (`structure-rules.tsx`). On the
  * archive's node: the defaults every new record gets. In a folder's Fields
  * section: one rule per field for the record kind chosen (items, media or
- * item sets), and a field to give a rule of its own. The item set rule is
- * the plan's, so every folder shows the same one.
+ * item sets), and a field to give a rule of its own. Item sets are not a
+ * field rule: a node's Set section and the archive's free sets hold them.
  */
 import { useState } from 'react';
 import type { ReactElement } from 'react';
@@ -23,7 +23,7 @@ import { addRule, entriesOf, setDefaults } from './plan-edits';
 import { RuleCard } from './rule-card';
 import { Setting } from './setting';
 import { sourceChoices } from './source-words';
-import { seriesOf, slotsOf } from '../series';
+import { seriesOf } from '../series';
 import './advanced.css';
 
 const KIND_WORDS: Readonly<Record<RecordKind, AdvancedMessageKey>> = {
@@ -34,7 +34,7 @@ const KIND_WORDS: Readonly<Record<RecordKind, AdvancedMessageKey>> = {
 
 /** The named slots each record kind can have a rule for (`docs/import-v2.md`, "The derive"). */
 const NAMED_OF: Readonly<Record<RecordKind, readonly NamedSlot[]>> = {
-  item: ['sets', 'template', 'class', 'owner', 'visibility', 'sites', 'itemKey'],
+  item: ['template', 'class', 'owner', 'visibility', 'sites', 'itemKey'],
   media: ['template', 'class', 'owner', 'visibility', 'mediaOrder', 'ingester', 'mediaSource', 'itemKey'],
   itemSet: ['template', 'class', 'owner', 'visibility', 'itemKey'],
 };
@@ -170,7 +170,7 @@ const Rules = ({ level, kind }: { readonly level: LevelId; readonly kind: Record
   const pattern = read.status === 'ready' ? read.data.pattern : 'missing';
   const groups = typeof pattern === 'object' && 'groups' in pattern ? pattern.groups : [];
   const choices = sourceChoices(draft.plan, sheets, groups, t);
-  const rules = entriesOf(slotsOf(draft.plan, level)[kind]);
+  const rules = entriesOf(seriesOf(draft.plan, level).slots[kind]);
   const options = fieldOptions(NAMED_OF[kind], known, t).filter((option) => !rules.some(([slot]) => slot === option.value));
   return (
     <>
@@ -219,7 +219,7 @@ export const FieldRules = ({ level }: { readonly level: LevelId }): ReactElement
       <div className="import-mode" role="group" aria-label={t('adv.fields.kind.label')}>
         {RECORD_KINDS.map((one) => (
           <button key={one} type="button" aria-pressed={one === kind} onClick={() => { setKind(one); }}>
-            {t(KIND_WORDS[one], { count: number(entriesOf(slotsOf(draft.plan, level)[one]).length) })}
+            {t(KIND_WORDS[one], { count: number(entriesOf(seriesOf(draft.plan, level).slots[one]).length) })}
           </button>
         ))}
       </div>

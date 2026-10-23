@@ -7,7 +7,7 @@
  * decides whether it also owns the folder it writes.
  */
 import { NAMED_SLOTS, isMultiValued, isTerm } from '../../../api/import-plan';
-import { allSeries, seriesHolding, setsRuleOf, slotsOf, withEverySeries, withList, withSeries, withSetsRule, withSlots } from '../series';
+import { allSeries, seriesHolding, seriesOf, withEverySeries, withList, withSeries, withSetLevel, withSets } from '../series';
 import { itemOnly, levelOf } from '../simple/list-plan';
 import { written } from './writes';
 import type { Writer } from './writes';
@@ -28,6 +28,7 @@ import type {
   SlotName,
   SlotRule,
   SlotRules,
+  SetSource,
   SourceRef,
 } from '../../../api/import-plan';
 
@@ -58,10 +59,10 @@ const sameColumn = (a: ColumnRef, b: ColumnRef): boolean => a.index === b.index;
 const readsColumn = (source: SourceRef, sheet: string, column: ColumnRef): boolean =>
   source.from === 'column' && source.sheet === sheet && sameColumn(source.column, column);
 
-const rulesOf = (plan: ImportPlan, level: LevelId, kind: RecordKind): SlotRules => slotsOf(plan, level)[kind];
+const rulesOf = (plan: ImportPlan, level: LevelId, kind: RecordKind): SlotRules => seriesOf(plan, level).slots[kind];
 
 const withRules = (plan: ImportPlan, level: LevelId, kind: RecordKind, rules: SlotRules): ImportPlan =>
-  withSlots(plan, level, { ...slotsOf(plan, level), [kind]: rules });
+  withSeries(plan, level, (series) => ({ ...series, slots: { ...series.slots, [kind]: rules } }));
 
 const slotName = (key: string): SlotName | null => NAMED_SLOTS.find((name) => name === key) ?? (isTerm(key) ? key : null);
 
@@ -239,16 +240,15 @@ export const anomaliesOf = (plan: ImportPlan): NonNullable<ImportPlan['anomalies
 export const setAnomalies = (plan: ImportPlan, answers: Partial<NonNullable<ImportPlan['anomalies']>>): ImportPlan =>
   written(plan, 'setAnomalies', undefined, (now) => ({ ...now, anomalies: { ...anomaliesOf(now), ...answers } }));
 
-/** The rules Fields lists, in every series and the item sets rule: the field rules a delete plan cannot hold, and the sets it would not use. */
+/** The rules Fields lists, in every series: the field rules a delete plan cannot hold. */
 export const ruleCount = (plan: ImportPlan): number =>
-  allSeries(plan).reduce((count, { slots }) => count + entriesOf(slots.item).length + entriesOf(slots.media).length + entriesOf(slots.itemSet).length, 0) +
-  (setsRuleOf(plan) === undefined ? 0 : 1);
+  allSeries(plan).reduce((count, { slots }) => count + entriesOf(slots.item).length + entriesOf(slots.media).length + entriesOf(slots.itemSet).length, 0);
 
 /** The plan with `action`; a delete drops every rule Fields lists, in every series: the boundary refuses field rules on a delete. */
 export const setAction = (plan: ImportPlan, action: Action): ImportPlan =>
   written(plan, 'setAction', undefined, (now) => {
     const next = { ...now, action: { ...now.action, action } };
-    return action === 'delete' ? withSetsRule(withEverySeries(next, (series) => ({ ...series, slots: { item: {}, media: {}, itemSet: {} } })), undefined) : next;
+    return action === 'delete' ? withEverySeries(next, (series) => ({ ...series, slots: { item: {}, media: {}, itemSet: {} } })) : next;
   });
 
 export const setMatch = (plan: ImportPlan, kind: RecordKind, match: Partial<MatchRule>): ImportPlan =>
@@ -264,3 +264,15 @@ export const removeDecisions = (plan: ImportPlan): ImportPlan => written(plan, '
 
 export const setPattern = (plan: ImportPlan, level: LevelId, pattern: string | null, caseFold: boolean): ImportPlan =>
   written(plan, 'setPattern', level, (now) => withSeries(now, level, (series) => ({ ...series, grouping: { pattern, caseFold } })));
+
+/** The free sets after `change`: sets every item joins, which the proposer copies as they are. */
+export const setFreeSets = (plan: ImportPlan, change: (sets: readonly SetSource[]) => readonly SetSource[]): ImportPlan =>
+  written(plan, 'setFreeSets', undefined, (now) => withSets(now, change));
+
+/** The set the series `level` makes: `null` for none. The proposer works a suggested folder's set out again, so it is owned. */
+export const setSeriesSet = (plan: ImportPlan, level: LevelId, set: SetSource | null): ImportPlan =>
+  written(plan, 'setSeriesSet', level, (now) => withSeries(now, level, (series) => ({ ...series, set })));
+
+/** The set the set level `id` makes; `null` takes the level away. Only a level kept around a folder written by hand is the plan's to write. */
+export const setSetLevel = (plan: ImportPlan, id: LevelId, set: SetSource | null): ImportPlan =>
+  written(plan, 'setSetLevel', undefined, (now) => withSetLevel(now, id, set));
