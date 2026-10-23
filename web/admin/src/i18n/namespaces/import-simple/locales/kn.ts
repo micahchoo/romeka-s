@@ -131,6 +131,8 @@ export const kn: ImportSimpleMessages = {
   'guided.list.newField': 'ಹೊಸ ಫೀಲ್ಡ್ “{name}”',
   'guided.list.levelOf': '{column} ಮೌಲ್ಯಗಳು ಎಲ್ಲಿಗೆ ಹೋಗುತ್ತವೆ',
   'guided.list.levelFile': 'ಪ್ರತಿ ಫೈಲ್',
+  'guided.list.levelItems': '{count} ಐಟಂಗಳು',
+  'guided.list.levelFiles': '{count} ಫೈಲ್‌ಗಳು',
   'guided.list.splitAt': '“{separator}” ನಲ್ಲಿ ವಿಭಜಿಸಿ',
   'guided.list.differs': '{count}/{of} ನಲ್ಲಿ ಭಿನ್ನವಾಗಿದೆ',
   'guided.list.help': 'ಇವುಗಳ ಅರ್ಥವೇನು?',

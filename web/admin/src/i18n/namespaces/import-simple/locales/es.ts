@@ -123,6 +123,8 @@ export const es: ImportSimpleMessages = {
   'guided.list.newField': 'Un campo nuevo «{name}»',
   'guided.list.levelOf': 'Dónde van los valores de {column}',
   'guided.list.levelFile': 'Cada archivo',
+  'guided.list.levelItems': '{count} elementos',
+  'guided.list.levelFiles': '{count} archivos',
   'guided.list.splitAt': 'dividir en «{separator}»',
   'guided.list.differs': 'cambia en {count}/{of}',
   'guided.list.help': '¿Qué significan?',

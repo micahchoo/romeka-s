@@ -128,6 +128,8 @@ export const ne: ImportSimpleMessages = {
   'guided.list.newField': 'एउटा नयाँ क्षेत्र “{name}”',
   'guided.list.levelOf': '{column} का मानहरू कहाँ जान्छन्',
   'guided.list.levelFile': 'प्रत्येक फाइल',
+  'guided.list.levelItems': '{count} वस्तुहरू',
+  'guided.list.levelFiles': '{count} फाइलहरू',
   'guided.list.splitAt': '“{separator}” मा विभाजन गर्नुहोस्',
   'guided.list.differs': '{count}/{of} मा फरक',
   'guided.list.help': 'यिनको अर्थ के हो?',
