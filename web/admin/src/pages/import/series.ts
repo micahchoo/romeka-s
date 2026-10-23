@@ -130,12 +130,17 @@ export const withSetLevel = (plan: ImportPlan, id: LevelId, set: SetSource | nul
   return { ...plan, structure: { ...plan.structure, levels: visit(plan.structure.levels) } };
 };
 
-/** The plan whose items join only the free set at `at`: no set level, no series' own set, no other free set. A free set's own sets are counted on it. */
-export const withOnlyFreeSet = (plan: ImportPlan, at: number): ImportPlan => {
+/** The series inside the set level `id` of `structure`, depth first. */
+export const seriesUnder = (structure: Structure, id: LevelId): readonly Series[] => seriesIn(setLevelIn(structure, id)?.levels ?? []);
+
+/** The plan whose items join only `set`, as a free set: no set level, no series' own set, no other free set. */
+export const withOnlySet = (plan: ImportPlan, set: SetSource | undefined): ImportPlan => {
   const flat = (levels: readonly Level[]): readonly Level[] => levels.flatMap((level): readonly Level[] => (level.kind === 'series' ? [{ ...level, set: null }] : flat(level.levels)));
-  const set = plan.structure.freeSets[at];
   return { ...plan, structure: { ...plan.structure, levels: flat(plan.structure.levels), freeSets: set === undefined ? [] : [set] } };
 };
+
+/** The plan whose items join only the free set at `at`. A free set's own sets are counted on it. */
+export const withOnlyFreeSet = (plan: ImportPlan, at: number): ImportPlan => withOnlySet(plan, plan.structure.freeSets[at]);
 
 export const withSets = (plan: ImportPlan, change: (sets: readonly SetSource[]) => readonly SetSource[]): ImportPlan => ({
   ...plan,
