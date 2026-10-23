@@ -21,6 +21,7 @@ import { en as simple } from '../src/i18n/namespaces/import-simple';
 import { en as structure } from '../src/i18n/namespaces/import-structure';
 import { ml as mlImport } from '../src/i18n/namespaces/import/locales/ml';
 import { ml as mlAdvanced } from '../src/i18n/namespaces/import-advanced/locales/ml';
+import { ml as mlFixes } from '../src/i18n/namespaces/import-fixes/locales/ml';
 import { ml as mlLists } from '../src/i18n/namespaces/import-lists/locales/ml';
 import { ml as mlRun } from '../src/i18n/namespaces/import-run/locales/ml';
 import { ml as mlSimple } from '../src/i18n/namespaces/import-simple/locales/ml';
@@ -107,7 +108,7 @@ describe('import strings use plain words', () => {
  * survives a rerun, and this keeps a new key from bringing the other back.
  */
 const SPELLINGS: readonly { readonly locale: string; readonly table: Readonly<Record<string, string>>; readonly term: string; readonly not: RegExp }[] = [
-  ...[mlImport, mlAdvanced, mlLists, mlRun, mlSimple, mlStructure].map((table) => ({ locale: 'ml', table, term: 'പാറ്റേൺ', not: /പാറ്തേ/u })),
+  ...[mlImport, mlAdvanced, mlFixes, mlLists, mlRun, mlSimple, mlStructure].map((table) => ({ locale: 'ml', table, term: 'പാറ്റേൺ', not: /പാറ്തേ/u })),
 ];
 
 describe('import strings spell a term one way in each locale', () => {
