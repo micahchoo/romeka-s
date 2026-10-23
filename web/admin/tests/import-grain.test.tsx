@@ -2,9 +2,10 @@
  * What one row of a list describes, over a list shaped like BHC006's
  * Artifacts catalogue: one row per view, 367 rows naming another view of an
  * item a row already names, Keywords that differ between the views of 43 of
- * 274 items and a year of digitization that never does. Simple asks the
- * question with that count; Advanced shows the same answer as settings, and
- * an edit in either shows in the other. Each answer is read back from the
+ * 274 items and a year of digitization that never does. Check asks the
+ * question with that count; the folder's Lists section in Advanced holds the
+ * same answer as a setting, and a column's place edited in either zoom of
+ * the folder's node shows in the other. Each answer is read back from the
  * plan the screen saves.
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -75,11 +76,17 @@ const sourcesOf = (plan: Record<string, unknown>, kind: 'item' | 'media', slot: 
   return rule === undefined ? undefined : asRecord(rule, [])['sources'];
 };
 
+/** Simple's "Where each column goes" is on the folder's Structure node; Advanced's list settings are in its Lists section. */
 const open = (screenName: string, plan: Record<string, unknown>): ReturnType<typeof simpleServer> => {
   const server = simpleServer(bhc006, plan);
   installFetch(server.handler);
   const [mode, name] = screenName.split('/');
-  render(<ImportPage param="1" rest={['1', mode ?? 'simple', name ?? 'list']} />);
+  render(<ImportPage param="1" rest={['1', mode ?? 'simple', name ?? 'structure']} />);
+  if (mode === 'simple' && name === 'structure') {
+    void screen.findByRole('button', { name: 'Where each column goes' }, { timeout: 5000 }).then((button) => {
+      fireEvent.click(button);
+    });
+  }
   return server;
 };
 
@@ -90,26 +97,27 @@ afterEach(() => {
   window.location.hash = '';
 });
 
-/** Simple: answers "one file" and returns the plan it saved. */
+/**
+ * Answers "one file" in the folder's Lists section and returns the plan it saved. The question with
+ * its count and suggestion is Check's "Two rows for one item" (below) and Structure's "Each row describes".
+ */
 const answeredOneFile = async (): Promise<Record<string, unknown>> => {
-  const server = open('simple/list', ONE_ITEM_A_ROW);
+  const server = open('advanced/lists', ONE_ITEM_A_ROW);
   const af = await block();
-  const question = await within(af).findByRole('group', { name: 'Each row describes' }, { timeout: 5000 });
-  expect(af).toHaveTextContent('367 rows name another file of an item');
-  const oneFile = within(question).getByRole('button', { name: 'File suggested' });
-  expect(within(question).getByRole('button', { name: 'Item' })).toHaveAttribute('aria-pressed', 'true');
-  expect(oneFile).toHaveAttribute('aria-pressed', 'false');
-  fireEvent.click(oneFile);
+  const kind = await within(af).findByRole('combobox', { name: 'Each row describes' }, { timeout: 5000 });
+  expect(kind).toHaveValue('item');
+  fireEvent.change(kind, { target: { value: 'media' } });
   await waitFor(() => {
     expect(sheet(last(server.saved))['rowKind']).toBe('media');
   }, { timeout: 3000 });
-  expect(oneFile).toHaveAttribute('aria-pressed', 'true');
-  expect(af).not.toHaveTextContent('rows name another file');
-  return last(server.saved);
+  expect(kind).toHaveValue('media');
+  const plan = last(server.saved);
+  cleanup();
+  return plan;
 };
 
-describe('each row describes one file, in Simple', () => {
-  it('asks with the count, suggests one file, and saves media rows that join by file name', async () => {
+describe('each row describes one file, on the folder’s node', () => {
+  it('saves media rows that join by file name', async () => {
     const plan = await answeredOneFile();
     expect(asRecord(sheet(plan)['join'], [])['on']).toBe('fileName');
   }, 20_000);
@@ -119,6 +127,7 @@ describe('each row describes one file, in Simple', () => {
     expect(sourcesOf(plan, 'item', 'dcterms:subject')).toEqual([fromColumn(1)]);
     expect(sourcesOf(plan, 'media', 'dcterms:subject')).toBeUndefined();
     expect(sourcesOf(plan, 'item', 'dcterms:date')).toEqual([fromColumn(2)]);
+    open('simple/structure', plan);
     const af = await block();
     const keywords = await waitFor(() => levelGroup(af, 'Keywords'), { timeout: 3000 });
     expect(within(keywords).getByRole('button', { name: 'Item suggested' })).toHaveAttribute('aria-pressed', 'true');
@@ -131,8 +140,7 @@ describe('each row describes one file, in Simple', () => {
 
   it('moves Keywords to each file when the person says so', async () => {
     const plan = await answeredOneFile();
-    cleanup();
-    const server = open('simple/list', plan);
+    const server = open('simple/structure', plan);
     const keywords = await waitFor(async () => levelGroup(await block(), 'Keywords'), { timeout: 5000 });
     fireEvent.click(within(keywords).getByRole('button', { name: 'Each file' }));
     await waitFor(() => {
@@ -145,7 +153,6 @@ describe('each row describes one file, in Simple', () => {
 describe('the same plan in Advanced', () => {
   it('shows media rows and each column’s place, and its edit shows in Simple', async () => {
     const plan = await answeredOneFile();
-    cleanup();
     const advanced = open('advanced/lists', plan);
     const af = await block();
     expect(await within(af).findByRole('combobox', { name: 'Each row describes' }, { timeout: 5000 })).toHaveValue('media');
@@ -161,7 +168,7 @@ describe('the same plan in Advanced', () => {
     const edited = last(advanced.saved);
     cleanup();
 
-    open('simple/list', edited);
+    open('simple/structure', edited);
     const yearInSimple = await waitFor(async () => levelGroup(await block(), 'Year Of Digitization'), { timeout: 5000 });
     expect(within(yearInSimple).getByRole('button', { name: 'Each file' })).toHaveAttribute('aria-pressed', 'true');
   }, 30_000);

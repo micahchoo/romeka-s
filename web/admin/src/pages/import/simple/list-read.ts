@@ -1,8 +1,6 @@
 /**
- * Reading a list file of the folder into the plan, as "Use this list" does.
- * The list that pairs the most rows is used from the start, as the suggested
- * answer, so the groups on "What we found" can already say which items have
- * a row; "Not about these items" keeps a list out.
+ * Reading a list file of the folder into the plan, as "Use this list" does;
+ * "Not about these items" keeps a list out.
  */
 import type { ImportId, ImportPlan, LevelId, SheetPlan } from '../../../api/import-plan';
 import { importApi } from '../../../api/import-routes';
@@ -15,7 +13,7 @@ export interface ListFile {
   readonly file: string;
 }
 
-/** The series' lists from a folder, which "Your list" talks about. */
+/** The series' lists from a folder of the plan's sources. */
 export const folderSheets = (plan: ImportPlan, level: LevelId): readonly SheetPlan[] =>
   seriesOf(plan, level).lists.filter((sheet) => plan.sources.some((source) => source.id === sheet.source && source.kind === 'folder'));
 

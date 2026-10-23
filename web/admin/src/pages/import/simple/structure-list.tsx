@@ -1,8 +1,7 @@
 /**
  * What "Your list" did, on a folder's node in the question zoom: where each
  * column of its lists goes, pair by hand, fill in a list yourself, and every
- * file of the folder. "Your list" edited the plan's one series; these edit
- * the folder they are opened from, on a plan of any number of folders.
+ * file of the folder. They edit the folder they are opened from.
  *
  * A column's field and options are carried members of a suggested folder:
  * the proposer copies them from the plan into its next proposal
@@ -14,8 +13,8 @@
  *
  * Pair by hand and Every file are sub-screens: their address names the node,
  * so Back returns to it. Where its item type comes from (`item-types.tsx`)
- * is drawn here too, so that chunk needs no Structure part and "Where they
- * go" loads it alone. A chunk of its own, loaded with the node.
+ * is drawn here too, so that chunk needs no Structure part. A chunk of its
+ * own, loaded with the node.
  */
 import { Suspense, lazy, useState } from 'react';
 import type { ReactElement } from 'react';

@@ -1,5 +1,5 @@
 /**
- * "Show us one example" on a name whose changing part is glued to the
+ * Structure's "Mark an example" on a name whose changing part is glued to the
  * object's number (`BHC006_GMT_AF_010a.jpg`, view a of object 010): the
  * screen shows the number and the letter as two parts, and marking the
  * letter as any letters saves the mark and the pattern it writes.
@@ -23,7 +23,8 @@ describe('a changing part glued to the number', () => {
   it('shows 010 and a as two parts, and marking a as any letters saves that mark', async () => {
     const server = simpleServer({ ...scenario('bhc', 9), examples: [`Artifacts/${NAME}`, 'Artifacts/BHC006_GMT_AF_010b.jpg'] });
     installFetch(server.handler);
-    render(<ImportPage param="1" rest={['1', 'simple', 'example']} />);
+    render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Mark an example' }, { timeout: 5000 }));
     fireEvent.click(await screen.findByRole('radio', { name: NAME }, { timeout: 5000 }));
     const parts = await screen.findByRole('group', { name: `Parts of the name ${NAME}` });
     expect(within(parts).getAllByRole('button').map((button) => button.textContent)).toEqual(['BHC006', 'GMT', 'AF', '010', 'a']);

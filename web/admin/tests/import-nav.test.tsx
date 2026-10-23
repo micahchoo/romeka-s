@@ -3,7 +3,7 @@
  * the import routes (`GET /api/romeka/archive` answers), with or without an
  * archive root, and is hidden from whoever the route refuses. Inside one
  * import, Simple's steps are Structure, Check and Add; the old steps' addresses
- * land on Structure's questions once the plan has several series.
+ * land on Structure's questions, for a plan of one series too.
  */
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -124,19 +124,31 @@ describe('Simple’s steps', () => {
     expect(screen.getByRole('link', { name: 'Next' })).toHaveAttribute('href', '#/import/1/simple/check');
     expect(screen.queryByRole('link', { name: 'Back' })).not.toBeInTheDocument();
     unmount();
-
-    // An old step still opens for a plan of one series, which it edits, under Structure.
-    render(<ImportPage param="1" rest={['1', 'simple', 'where']} />);
-    expect(await screen.findByRole('heading', { name: 'Where should they go in Omeka?' })).toBeInTheDocument();
-    expect(stepLinks()[0]).toEqual(['Structure', 'step']);
-    expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '#/import/1/simple/structure');
   });
 
-  it.each([
+  const OLD_STEPS = [
     ['found', 'Items', 'Same name up to part 5'],
+    ['example', 'Items', 'Same name up to part 5'],
     ['list', 'List', 'BHC006_GMT_AF.xlsx'],
     ['where', 'Set', 'Artifacts'],
-  ])('lands the old address %s of a plan of several series on Structure, at the question %s', async (old, question, answer) => {
+  ] as const;
+
+  it.each(OLD_STEPS)('an old step’s address lands on Structure for a plan of one series too: %s, at the question %s', async (old, question, answer) => {
+    draftOf('asFound');
+    render(<ImportPage param="1" rest={['1', 'simple', old]} />);
+    expect(await screen.findByRole('heading', { name: 'How your archive becomes items and sets' })).toBeInTheDocument();
+    const group = await screen.findByRole('group', { name: question }, { timeout: 5000 });
+    expect(stepLinks()).toEqual([
+      ['Structure', 'step'],
+      ['Check', null],
+      ['Add', null],
+    ]);
+    expect(screen.queryByRole('link', { name: 'Back' })).not.toBeInTheDocument();
+    expect(document.activeElement?.closest('[role="group"]')).toBe(group);
+    expect(document.activeElement?.textContent).toMatch(new RegExp(`^${answer}`));
+  });
+
+  it.each(OLD_STEPS)('lands the old address %s of a plan of several series on Structure, at the question %s', async (old, question, answer) => {
     draftOf('proposed');
     render(<ImportPage param="1" rest={['1', 'simple', old]} />);
     expect(await screen.findByRole('heading', { name: 'How your archive becomes items and sets' })).toBeInTheDocument();

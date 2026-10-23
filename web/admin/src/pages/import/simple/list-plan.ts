@@ -1,5 +1,5 @@
 /**
- * The plan edits "Your list" makes. A list found in a folder becomes a sheet
+ * The plan edits of a folder's list. A list found in a folder becomes a sheet
  * of the plan read with automatic options; its pairing column is the one with
  * the most cells that exactly equal an item's code or a file's name, a count
  * the screen shows; and a column goes into a field only when its header is
@@ -59,25 +59,14 @@ const joinOn = (column: SheetColumnMatches['columns'][number]): SheetPlan['join'
   normalize: { caseFold: false, leadingZeros: false, separators: false },
 });
 
-export const withJoin = (plan: ImportPlan, sheet: string, column: SheetColumnMatches['columns'][number]): ImportPlan =>
-  withList(plan, sheet, (one) => ({ ...one, join: joinOn(column) }));
-
-/** Whether the sheet pairs with every name fold on, which Simple turns on and off as one. */
-export const normalizedOf = (sheet: SheetPlan): boolean =>
-  sheet.join !== null && sheet.join.normalize.caseFold && sheet.join.normalize.leadingZeros && sheet.join.normalize.separators;
-
-/** Every name fold of the sheet's pairing on, or every one off; a sheet that pairs by no column stays as it is. */
-export const withNormalize = (plan: ImportPlan, sheet: string, on: boolean): ImportPlan =>
-  withList(plan, sheet, (one) => (one.join === null ? one : { ...one, join: { ...one.join, normalize: { caseFold: on, leadingZeros: on, separators: on } } }));
-
 const readsColumn = (source: SourceRef, sheet: string, index: number): boolean => source.from === 'column' && source.sheet === sheet && source.column.index === index;
 
-/** The rules without the column; a free set that reads it (`slotsOf`'s `sets`) stays, as no column target writes one. */
+/** The rules without the column. */
 const rulesWithout = (rules: SlotRules, sheet: string, index: number): SlotRules => {
   const next: { [slot: string]: SlotRule } = {};
   for (const [slot, rule] of Object.entries<SlotRule | undefined>(rules)) {
     if (rule !== undefined) {
-      next[slot] = slot === 'sets' ? rule : { ...rule, sources: rule.sources.filter((source) => !readsColumn(source, sheet, index)) };
+      next[slot] = { ...rule, sources: rule.sources.filter((source) => !readsColumn(source, sheet, index)) };
     }
   }
   return next;
@@ -312,9 +301,9 @@ export const localTerm = (label: string): Term => {
   return `local:${camel.join('')}`;
 };
 
-/** The column's place in the rules, on the item or on each file: the first rule but a free set's that reads it. */
+/** The column's place in the rules, on the item or on each file: the first rule that reads it. */
 export const targetOf = (plan: ImportPlan, sheet: string, index: number): Target => {
-  const slot = placesOf(plan, sheet, index).find((place) => place.slot !== 'sets')?.slot;
+  const slot = placesOf(plan, sheet, index)[0]?.slot;
   if (slot === undefined) {
     return '';
   }

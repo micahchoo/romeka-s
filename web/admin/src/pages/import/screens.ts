@@ -8,31 +8,25 @@
  * marks the nearest `parent` with a step as the place the person is.
  *
  * Simple's steps are Structure, Check and Add. "What we found", "Your list"
- * and "Where they go" were steps; each became questions of a Structure node.
- * They stay as sub-screens of Structure for a plan of one series, which they
- * edit; on a plan of several their addresses, and the marked example's, land
- * on Structure, at the question they asked (`landing`). Every file and Pair
- * by hand open from a folder's node: their address names the node, and Back
- * returns to it.
+ * and "Where they go" were steps, and "Show us one example" opened from the
+ * first; each became questions of a Structure node, so their addresses open
+ * Structure at the question they asked, for a plan of one series too. Every
+ * file and Pair by hand open from a folder's node: their address names the
+ * node, and Back returns to it.
  *
  * Advanced's Structure is the same tree, each node with its rules (the rule
  * zoom). Files, Lists and Fields were Advanced screens; their contents are
  * sections of a node now, so their addresses open Structure at that section.
  */
 import type { ImportDetail } from '../../api/import-view';
-import type { ImportId, ImportPlan } from '../../api/import-plan';
+import type { ImportId } from '../../api/import-plan';
 import type { ImportMessageKey } from './messages';
-import { onlySeries } from './series';
 
 export const SIMPLE_SCREENS = [
   'structure',
   'files',
-  'found',
-  'example',
   'all-files',
-  'list',
   'pair',
-  'where',
   'check',
   'all-items',
   'add',
@@ -75,12 +69,8 @@ interface Screen<Own, Other> {
 export const SIMPLE: Readonly<Record<SimpleScreen, Screen<SimpleScreen, AdvancedScreen>>> = {
   structure: { title: 'simple.structure.title', step: 'simple.structure.step', other: 'structure' },
   files: { title: 'simple.files.title', parent: 'structure', other: 'structure' },
-  found: { title: 'simple.found.title', parent: 'structure', other: 'structure' },
-  example: { title: 'simple.example.title', parent: 'found', other: 'structure' },
   'all-files': { title: 'simple.allFiles.title', parent: 'structure', other: 'all-files' },
-  list: { title: 'simple.list.title', parent: 'structure', other: 'structure' },
   pair: { title: 'simple.pair.title', parent: 'structure', other: 'pair' },
-  where: { title: 'simple.where.title', parent: 'structure', other: 'structure' },
   check: { title: 'simple.check.title', step: 'simple.check.step', other: 'problems' },
   'all-items': { title: 'simple.allItems.title', parent: 'check', other: 'items' },
   add: { title: 'simple.add.title', step: 'simple.add.step', other: 'run' },
@@ -145,25 +135,20 @@ export const firstPlace = (detail: ImportDetail): Place => {
   return { mode: 'simple', screen: detail.plan.sources.length === 0 ? 'files' : 'structure' };
 };
 
-/** The old steps and the example they open, and the Structure question each one asked. */
-const MOVED: Readonly<Partial<Record<SimpleScreen, Focus>>> = { found: 'items', example: 'items', list: 'list', where: 'set' };
-
-/**
- * The place a screen opens as, for this plan: an old step of Simple edits the
- * plan's one series, so on a plan of several it lands on Structure at the
- * question it asked. Every other place opens as itself.
- */
-export const landing = (place: Place, plan: ImportPlan): Place => {
-  const focus = place.mode === 'simple' ? MOVED[place.screen] : undefined;
-  return focus === undefined || onlySeries(plan) !== null ? place : { mode: 'simple', screen: 'structure', focus };
-};
-
 export const importHref = (id: ImportId): string => `#/import/${String(id)}`;
 
 export const placeHref = (id: ImportId, place: Place): string => `${importHref(id)}/${place.mode}/${place.screen}`;
 
 const simpleScreen = (slug: string): SimpleScreen | undefined => SIMPLE_SCREENS.find((id) => id === slug);
 const advancedScreen = (slug: string): AdvancedScreen | undefined => ADVANCED_SCREENS.find((id) => id === slug);
+
+/** Simple's old steps and the example they opened, by the Structure question each one asked. */
+const MOVED_SIMPLE = new Map<string, Focus>([
+  ['found', 'items'],
+  ['example', 'items'],
+  ['list', 'list'],
+  ['where', 'set'],
+]);
 
 /** Advanced's old screens, by the section of a node each one's contents moved to. */
 const MOVED_ADVANCED = new Map<string, Section>([
@@ -179,8 +164,9 @@ export const placeFromSegments = (segments: readonly string[]): Place | null | '
     return null;
   }
   if (mode === 'simple') {
+    const focus = MOVED_SIMPLE.get(screen ?? '');
     const id = simpleScreen(screen ?? 'files');
-    return id === undefined ? 'unknown' : { mode, screen: id };
+    return focus !== undefined ? { mode, screen: 'structure', focus } : id === undefined ? 'unknown' : { mode, screen: id };
   }
   if (mode === 'advanced') {
     const section = MOVED_ADVANCED.get(screen ?? '');

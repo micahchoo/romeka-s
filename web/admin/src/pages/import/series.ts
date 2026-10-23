@@ -6,20 +6,16 @@
  * the free sets through `setsOf`, and writes each through the matching
  * `with…` (`import-series.test.ts` holds them to it).
  *
- * Every reader and writer of one series names it by its level id. Simple's
- * old steps open only on a plan of one series (`screens.ts`, `landing`), and
- * Advanced's rule zoom edits the series of the node picked in the tree
+ * Every reader and writer of one series names it by its level id: both zooms
+ * of Structure edit the series of the node picked in the tree
  * (`picked-node.ts`). The readers keyed by a list id (`listOf`, `withList`,
  * `seriesHolding`) and the ones that read every series (`allLists`,
  * `withEverySeries`) need no level.
  *
- * Sets in v3 are free sets and set levels, never a series' `item.sets` rule.
- * Simple and Advanced still edit one "item sets" rule beside the other item
- * rules, so `slotsOf` shows the first `each` free set as that rule and
- * `withSlots` writes it back there. A set named by its title (`{ title }`)
- * or picked from the install (`{ id }`) is a free set of its own.
+ * Sets in v3 are free sets and set levels, never a series' `item.sets` rule:
+ * a folder's Set and the archive's own sets edit them, never a slot rule.
  */
-import type { ImportPlan, Level, LevelId, Series, SetLevel, SetSource, SheetPlan, SlotRule, Slots, Structure } from '../../api/import-plan';
+import type { ImportPlan, Level, LevelId, Series, SetLevel, SetSource, SheetPlan, Slots, Structure } from '../../api/import-plan';
 import type { JsonValue } from '../../api/types';
 
 const seriesIn = (levels: readonly Level[]): readonly Series[] =>
@@ -147,52 +143,11 @@ export const withSets = (plan: ImportPlan, change: (sets: readonly SetSource[]) 
   structure: { ...plan.structure, freeSets: change(plan.structure.freeSets) },
 });
 
-const ruleAt = (sets: readonly SetSource[]): number => sets.findIndex((set) => 'each' in set);
+/** The series' slot rules. */
+export const slotsOf = (plan: ImportPlan, level: LevelId): Slots => seriesOf(plan, level).slots;
 
-/** The "item sets" rule Simple and Advanced edit: the first `each` free set, as a slot rule. */
-export const setsRuleOf = (plan: ImportPlan): SlotRule | undefined => {
-  const set = setsOf(plan)[ruleAt(setsOf(plan))];
-  if (set === undefined || !('each' in set)) {
-    return undefined;
-  }
-  const { sources, combine, map } = set.each;
-  return map === undefined ? { sources, combine } : { sources, combine, map };
-};
-
-const sameRule = (a: SlotRule | undefined, b: SlotRule | undefined): boolean => JSON.stringify(a) === JSON.stringify(b);
-
-/**
- * The plan with this "item sets" rule, in place of the first `each` free set
- * and keeping how it names sets; a new one names them by title. `undefined`
- * removes it.
- */
-export const withSetsRule = (plan: ImportPlan, rule: SlotRule | undefined): ImportPlan => {
-  if (sameRule(rule, setsRuleOf(plan))) {
-    return plan;
-  }
-  return withSets(plan, (sets) => {
-    const at = ruleAt(sets);
-    if (rule === undefined) {
-      return sets.filter((_, index) => index !== at);
-    }
-    const was = sets[at];
-    const each: SetSource = { each: { ...rule, names: was !== undefined && 'each' in was ? was.each.names : 'title' } };
-    return at === -1 ? [...sets, each] : sets.map((set, index) => (index === at ? each : set));
-  });
-};
-
-/** The series' slot rules, with the "item sets" rule among its item rules. */
-export const slotsOf = (plan: ImportPlan, level: LevelId): Slots => {
-  const { slots } = seriesOf(plan, level);
-  const sets = setsRuleOf(plan);
-  return sets === undefined ? slots : { ...slots, item: { ...slots.item, sets } };
-};
-
-/** The plan with these slot rules: the "item sets" rule to the free sets, the rest to the series. */
-export const withSlots = (plan: ImportPlan, level: LevelId, slots: Slots): ImportPlan => {
-  const { sets, ...item } = slots.item;
-  return withSeries(withSetsRule(plan, sets), level, (series) => ({ ...series, slots: { ...slots, item } }));
-};
+/** The plan with these slot rules on the series `level`. */
+export const withSlots = (plan: ImportPlan, level: LevelId, slots: Slots): ImportPlan => withSeries(plan, level, (series) => ({ ...series, slots }));
 
 const isRecord = (value: JsonValue | undefined): value is Readonly<Record<string, JsonValue>> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);

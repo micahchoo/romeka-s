@@ -1,11 +1,11 @@
 /**
- * What Check and "Your list" count when a list's rows describe files, over
- * the fake server: items without a row are counted once each, however many
- * files they have; a row that names no file of the import is that, with its
- * key as the example and nothing to keep; and "Your list" tells rows that
- * name no file apart from rows whose file this Omeka refuses.
+ * What Check and a folder's Lists section count when a list's rows describe
+ * files, over the fake server: items without a row are counted once each,
+ * however many files they have; a row that names no file of the import is
+ * that, with its key as the example and nothing to keep; and rows that name
+ * no file are told apart from rows whose file this Omeka refuses.
  */
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ImportPage } from '../src/pages/import/page';
 import { scenario } from './import-simple-scenarios';
@@ -42,9 +42,9 @@ const bhc006 = (edits: Partial<Scenario>): Scenario => ({
   ...edits,
 });
 
-const open = (screenName: 'check' | 'list', found: Scenario): void => {
+const open = (place: 'simple/check' | 'advanced/lists', found: Scenario): void => {
   installFetch(simpleServer(found, FILE_ROWS).handler);
-  render(<ImportPage param="1" rest={['1', 'simple', screenName]} />);
+  render(<ImportPage param="1" rest={['1', ...place.split('/')]} />);
 };
 
 afterEach(() => {
@@ -53,7 +53,7 @@ afterEach(() => {
 
 describe('Check, when rows describe files', () => {
   it('counts the items that have files but no row, not their files', async () => {
-    open('check', bhc006({ unpairedFiles: 21, unpairedItems: 15 }));
+    open('simple/check', bhc006({ unpairedFiles: 21, unpairedItems: 15 }));
     const questions = await screen.findByRole('listbox', { name: 'Questions' }, { timeout: 5000 });
     expect(within(questions).getByRole('option', { name: 'Items with no row' })).toHaveTextContent('15');
     fireEvent.click(within(questions).getByRole('option', { name: 'Items with no row' }));
@@ -61,7 +61,7 @@ describe('Check, when rows describe files', () => {
   }, 20_000);
 
   it('says a row that names no file of the import is that, with its key, and offers only to leave it out', async () => {
-    open('check', bhc006({ flags: [{ kind: 'no-file', slot: null, count: 10, detail: 'BHC006_GMT_PN_049.png', row: 'BHC006_GMT_PN_049.png#1' }] }));
+    open('simple/check', bhc006({ flags: [{ kind: 'no-file', slot: null, count: 10, detail: 'BHC006_GMT_PN_049.png', row: 'BHC006_GMT_PN_049.png#1' }] }));
     const card = await screen.findByRole('region', { name: '10 rows of your list name no file of this import.' }, { timeout: 5000 });
     expect(card).toHaveTextContent('For example, BHC006_GMT_PN_049.png');
     const options = within(within(card).getByRole('group', { name: 'Answer for all 10' })).getAllByRole('button');
@@ -71,14 +71,22 @@ describe('Check, when rows describe files', () => {
   }, 20_000);
 });
 
-describe('Your list, when some rows name a file this Omeka refuses', () => {
-  it('says how many rows name no file and how many name a refused file, apart, with the way to Check', async () => {
-    open('list', bhc006({ unpairedRows: 10, flags: [{ kind: 'listed-not-media', slot: null, count: 82, detail: 'BHC006_GMT_AF_296a.NEF#1 .nef' }] }));
-    const facts = await screen.findByText(/^Lists in use/, { selector: 'span' }, { timeout: 5000 });
-    const said = facts.parentElement ?? facts;
-    expect(said).toHaveTextContent('Rows paired 598 / 690');
-    expect(said).toHaveTextContent('Rows naming no file 10');
-    expect(said).toHaveTextContent('Rows naming a refused file 82');
-    expect(within(said).getByRole('link', { name: 'Check' })).toHaveAttribute('href', '#/import/1/simple/check');
+describe('a folder’s list, when some rows name a file this Omeka refuses', () => {
+  it('Advanced’s Lists section counts the rows that name no file, and Check counts the rows whose file is refused, apart', async () => {
+    const found = bhc006({ unpairedRows: 10, flags: [{ kind: 'listed-not-media', slot: null, count: 82, detail: 'BHC006_GMT_AF_296a.NEF#1 .nef' }] });
+    open('advanced/lists', found);
+    const unpaired = await screen.findByText(/^10 rows have no file\./, {}, { timeout: 5000 });
+    expect(unpaired).toHaveTextContent('10 rows have no file. Every item with files has a row.');
+    expect(within(unpaired).getByRole('link', { name: 'Pair them by hand' })).toBeInTheDocument();
+    cleanup();
+
+    open('simple/check', found);
+    const questions = await screen.findByRole('listbox', { name: 'Questions' }, { timeout: 5000 });
+    const refused = within(questions).getByRole('option', { name: 'A file your list names that Omeka does not take' });
+    expect(refused).toHaveTextContent('82');
+    fireEvent.click(refused);
+    const fact = await screen.findByRole('region', { name: '82 files in your list are of a type Omeka refuses.' });
+    expect(fact).toHaveTextContent('BHC006_GMT_AF_296a.NEF');
+    expect(within(fact).getByRole('link', { name: /allowed file types/ })).toHaveAttribute('href', '#/settings');
   }, 20_000);
 });

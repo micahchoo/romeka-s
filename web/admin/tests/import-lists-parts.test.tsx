@@ -1,32 +1,25 @@
 /**
- * The list parts a screen places: the groups by facts (with another example,
- * "show all" and one change for the group), the files-per-item chart, the
- * identical files, and the list round trip (columns, the first rows as they
+ * The list parts Structure places: on the archive's node in Advanced, the
+ * groups by facts (with another example, "show all" and one change for the
+ * group), the files-per-item chart and the identical files; on a folder's
+ * Lists section, the list round trip (columns, the first rows as they
  * download, the upload and what it did, at 9 and at 40,000 items).
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { asRecord, isRecord } from '../src/api/parse';
 import { ImportPage } from '../src/pages/import/page';
 import { listsServer, PATH } from './import-lists-server';
 import { installFetch, requestBody, requestsFor } from './stub';
 
-vi.mock('../src/pages/import/simple/bodies', async () => {
-  const { Groups } = await import('../src/pages/import/lists/groups');
-  const { FilesChart } = await import('../src/pages/import/lists/histogram');
-  const { IdenticalFiles } = await import('../src/pages/import/lists/identical');
-  const { RoundTrip } = await import('../src/pages/import/lists/round-trip');
-  const Found = () => (
-    <>
-      <FilesChart />
-      <IdenticalFiles />
-      <Groups />
-    </>
-  );
-  return { SIMPLE_BODIES: { found: Found, list: RoundTrip } };
-});
-
-const at = (screenName: string) => <ImportPage param="1" rest={['1', 'simple', screenName]} />;
+/** Advanced's Structure: the archive's node holds the groups, the chart and the identical files; a folder's Lists section holds the round trip. */
+const ARCHIVE = ['1', 'advanced', 'structure', JSON.stringify({ node: 'archive' })];
+const LISTS = ['1', 'advanced', 'lists'];
+const at = (rest: readonly string[]) => {
+  // The tree reads the node picked from the address.
+  window.location.hash = `#/import/${rest.join('/')}`;
+  return <ImportPage param="1" rest={[...rest]} />;
+};
 const filterSegment = (filter: Record<string, string>): string => encodeURIComponent(JSON.stringify(filter));
 
 afterEach(() => {
@@ -37,7 +30,7 @@ describe('the groups, the chart and the identical files', () => {
   it('describe each group by its facts, draw another example, and link to its items', async () => {
     const server = listsServer(9);
     const fetchMock = installFetch(server.handler);
-    render(at('found'));
+    render(at(ARCHIVE));
     const group = (await screen.findByText(/^2 items have$/)).closest('article');
     if (group === null) {
       throw new Error('no group card');
@@ -53,7 +46,7 @@ describe('the groups, the chart and the identical files', () => {
     });
     const facts = { files: '1', folders: ['Photographs'], media: ['image'], pages: null, parts: [], origin: 'pattern', row: false };
     const all = within(group).getByRole('link', { name: 'Show all 2' }).getAttribute('href') ?? '';
-    expect(all.startsWith('#/import/1/simple/all-items/')).toBe(true);
+    expect(all.startsWith('#/import/1/advanced/items/')).toBe(true);
     const named: unknown = JSON.parse(decodeURIComponent(all.split('/').pop() ?? ''));
     const key = asRecord(named, [])['group'];
     expect(typeof key === 'string' ? JSON.parse(key) : null).toEqual(facts);
@@ -70,7 +63,7 @@ describe('the groups, the chart and the identical files', () => {
 
     expect(screen.getByRole('link', { name: '6 items with 1 file. Show them.' })).toHaveAttribute(
       'href',
-      `#/import/1/simple/all-items/${filterSegment({ files: '1' })}`,
+      `#/import/1/advanced/items/${filterSegment({ files: '1' })}`,
     );
     expect(screen.getByText('2 files are byte for byte the same as another file.')).toBeInTheDocument();
     expect(screen.getByText(/Misc\/café\.jpg, Misc\/loose\.jpg/)).toBeInTheDocument();
@@ -80,7 +73,7 @@ describe('the groups, the chart and the identical files', () => {
 describe('the words of a group that the pattern did not make', () => {
   it('say why each such item exists: a list row with no file, or a file made an item of its own', async () => {
     installFetch(listsServer(9).handler);
-    render(at('found'));
+    render(at(ARCHIVE));
     await screen.findAllByRole('link', { name: /^Show all/ });
     const texts = Array.from(document.querySelectorAll('article.import-group'), (card) => card.textContent);
     const row = texts.filter((text) => text.includes('a row in your list that has no file'));
@@ -96,7 +89,7 @@ describe.each([9, 40_000])('the list round trip at %i items', (size) => {
   it('shows the first rows as they download, uploads a list and says what it did', async () => {
     const server = listsServer(size, { strays: 7 });
     const fetchMock = installFetch(server.handler);
-    render(at('list'));
+    render(at(LISTS));
     const first = await screen.findByRole('region', { name: 'The first rows of the list' });
     expect(within(first).getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Identifier', 'Files', 'Title [dcterms:title]', 'Date [dcterms:date]']);
     expect(within(first).getAllByRole('row')).toHaveLength(4);
@@ -132,7 +125,7 @@ describe('a list sent again', () => {
   it('takes the place of the list, follows a column that moved, and refuses a file that lacks one the answers use', async () => {
     const server = listsServer(9);
     const fetchMock = installFetch(server.handler);
-    render(at('list'));
+    render(at(LISTS));
     const input = await screen.findByLabelText('Choose the file');
     const send = (text: string): void => {
       fireEvent.change(input, { target: { files: [new File([text], 'filled.csv', { type: 'text/csv' })] } });
@@ -143,7 +136,12 @@ describe('a list sent again', () => {
 
     // The title rule reads "Title [dcterms:title]": a file without it is not sent.
     send('Identifier,Files,Date [dcterms:date]\n');
-    expect(await screen.findByRole('alert')).toHaveTextContent('Not sent: filled.csv has no column “Title [dcterms:title]”, which 1 answer uses.');
+    // The Lists section around the round trip has alerts of its own; this one is the round trip's.
+    const trip = input.closest('section');
+    if (trip === null) {
+      throw new Error('no round trip');
+    }
+    expect(await within(trip).findByRole('alert')).toHaveTextContent('Not sent: filled.csv has no column “Title [dcterms:title]”, which 1 answer uses.');
     expect(requestsFor(fetchMock, `${PATH}/sheets`)).toHaveLength(1);
 
     // Title and Date swapped places, and Notes is new: the list goes in place of list-1, and the answers follow each column.

@@ -140,7 +140,7 @@ const Question = ({ cause, facts, shown, onAnother }: { readonly cause: Cause; r
         ) : null}
         {all === null ? null : <a href={all}>{t('guided.check.showAll', { count: number(cause.count) })}</a>}
         {cause.id === 'no-file' || cause.id === 'itemsWithoutRow' ? <a href={placeHref(draft.id, { mode: 'simple', screen: 'pair' })}>{t('guided.check.pair')}</a> : null}
-        {cause.id === 'unknown-type' ? <a href={placeHref(draft.id, { mode: 'simple', screen: 'where' })}>{t('guided.check.chooseTypes')}</a> : null}
+        {cause.id === 'unknown-type' ? <a href={placeHref(draft.id, { mode: 'simple', screen: 'structure' })}>{t('guided.check.chooseTypes')}</a> : null}
       </p>
       {blocking ? (
         <p role="alert">{t('guided.check.mustFix')}</p>

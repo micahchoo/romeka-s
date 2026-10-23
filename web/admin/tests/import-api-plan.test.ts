@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 import { parseImportPlan } from '../src/api/import-plan-tree-read';
 import { ParseError } from '../src/api/parse';
 import { loadFixture } from './loadFixture';
-import { seriesOf, setsRuleOf } from '../src/pages/import/series';
+import { seriesOf, setsOf } from '../src/pages/import/series';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RUST_PLANS = resolve(HERE, '../../../crates/omeka-api/src/import/fixtures');
@@ -122,7 +122,8 @@ describe('what the plan boundary refuses', () => {
 
   it('keeps an absent value map absent and a given one as it was', () => {
     const plan = parseImportPlan(planOf('import-saved.json'));
-    expect(setsRuleOf(plan)?.map).toEqual({ Scans: '' });
+    const [lifted] = setsOf(plan).flatMap((set) => ('each' in set ? [set.each] : []));
+    expect(lifted?.map).toEqual({ Scans: '' });
     expect(seriesOf(plan, 'all').slots.item['template']).not.toHaveProperty('map');
   });
 
