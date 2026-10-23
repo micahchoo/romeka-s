@@ -145,6 +145,7 @@ export const mr: ImportStructureMessages = {
   "structure.change.waiting": "हे लिहिताना तुमच्याकडून प्रतीक्षा करते.",
   "structure.keptSet.each": "प्रत्येक मूल्यासाठी एक संच",
   "structure.keptSet.note": "तुम्ही बनवले तसेच जतन केले, तुम्ही लिहिलेल्या फोल्डरच्या आसपास.",
+  "structure.keptSet.uncounted": "आम्ही येथे या संचांची गणना करू शकत नाही.",
   "structure.change.kept": "जसे तुम्ही बनवले आहे तसे जतन केलेले.",
   "structure.kept.title": "अपलोड केलेल्या याद्या",
   "structure.kept.rows":

@@ -147,6 +147,7 @@ export const kn: ImportStructureMessages = {
     "ನೀವು ಈ ಫೋಲ್ಡರ್ ಅನ್ನು ಕೈಯಿಂದ ಬರೆಯುವಾಗ ಇದು ಕಾಯುತ್ತದೆ.",
   "structure.keptSet.each": "ಪ್ರತಿ ಮೌಲ್ಯಕ್ಕೆ ಒಂದು ಸೆಟ್",
   "structure.keptSet.note": "ನೀವು ಮಾಡಿದಂತೆ, ನೀವು ಬರೆದ ಫೋಲ್ಡರ್ ಸುತ್ತಲೂ ಉಳಿಸಿಕೊಳ್ಳಲಾಗಿದೆ.",
+  "structure.keptSet.uncounted": "ನಾವು ಈ ಸೆಟ್‌ಗಳನ್ನು ಇಲ್ಲಿ ಎಣಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ.",
   "structure.change.kept": "ನೀವು ಮಾಡಿದಂತೆ ಉಳಿಸಿಕೊಳ್ಳಲಾಗಿದೆ.",
   "structure.kept.title": "ಅಪ್‌ಲೋಡ್ ಮಾಡಲಾದ ಪಟ್ಟಿಗಳು",
   "structure.kept.rows":

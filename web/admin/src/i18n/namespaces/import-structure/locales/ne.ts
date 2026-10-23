@@ -145,6 +145,7 @@ export const ne: ImportStructureMessages = {
   "structure.change.waiting": "तपाईँले यो फोल्डर हातले लेख्दा पर्खिन्छ।",
   "structure.keptSet.each": "प्रति मान एउटा सेट",
   "structure.keptSet.note": "तपाईँले बनाउनुभएजस्तै राखिएको, तपाईँले लेख्नुभएको फोल्डरको वरिपरि।",
+  "structure.keptSet.uncounted": "हामी यहाँ यी सेटहरू गणना गर्न सक्दैनौँ।",
   "structure.change.kept": "तपाईँले बनाउनुभएको जस्तै राखिएको।",
   "structure.kept.title": "अपलोड गरिएका सूचीहरू",
   "structure.kept.rows":
