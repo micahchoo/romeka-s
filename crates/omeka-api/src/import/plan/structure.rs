@@ -586,6 +586,12 @@ impl Series {
         self.grouping.case_fold
     }
 
+    /// The set this series' items join, or none.
+    #[must_use]
+    pub fn set(&self) -> Option<&SetSource> {
+        self.set.as_ref()
+    }
+
     /// Which files the series takes.
     #[must_use]
     pub fn scope(&self) -> &SeriesScope {

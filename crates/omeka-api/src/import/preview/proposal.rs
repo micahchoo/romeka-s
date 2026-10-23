@@ -1064,12 +1064,14 @@ fn in_scan(evidence: &Evidence<'_>, edit: &Edit) -> bool {
 }
 
 /// What a series holds beyond its scope and pattern: its lists as the plan
-/// reads them, its set from rows, and its slot rules.
+/// reads them, its set from rows, its slot rules, and the value maps the
+/// person wrote on its sets.
 #[derive(Default)]
 struct Plan {
     lists: Vec<SheetPlan>,
     set: Option<SetSource>,
     rules: Vec<(RecordKind, SlotName, SlotRule)>,
+    maps: WrittenMaps,
 }
 
 impl Plan {
@@ -1154,12 +1156,13 @@ impl Plan {
                 column: column.clone(),
             })
         };
+        let maps = WrittenMaps::of(kept, scope);
         let set = rows.set.as_ref().and_then(|(file, set)| {
             Some(SetSource::Each(EachValue {
                 each: EachSet {
                     sources: vec![column(file, set)?],
                     combine: Combine::First,
-                    map: IndexMap::new(),
+                    map: maps.map(&[Reads::Column(file.clone(), set.clone())]),
                     names: SetNames::Key,
                 },
             }))
@@ -1173,7 +1176,80 @@ impl Plan {
             };
             Some((*kind, SlotName::ItemKey, rule))
         }));
-        Self { lists, set, rules }
+        Self {
+            lists,
+            set,
+            rules,
+            maps,
+        }
+    }
+}
+
+/// What an `each` set reads. A column is named by its list's file, so a
+/// list the proposal gives another sheet id still reads the same column.
+#[derive(PartialEq)]
+enum Reads {
+    Column(ListFile, ColumnRef),
+    Other(SourceRef),
+}
+
+impl Reads {
+    fn of_taken(taken: &sets::Taken) -> Self {
+        match &taken.column {
+            Some((file, column)) => Self::Column(file.clone(), column.clone()),
+            None => Self::Other(taken.source.clone()),
+        }
+    }
+}
+
+/// The value maps the person wrote on the `each` sets of one series of the
+/// plan: its own set and the set levels around it alone. The proposer makes
+/// those sets again on every click; each one it makes that reads the same
+/// sources takes the person's map, as a kept list keeps its columns.
+#[derive(Default)]
+struct WrittenMaps(Vec<(Vec<Reads>, IndexMap<String, String>)>);
+
+impl WrittenMaps {
+    /// The maps of the plan's series of `scope`; none when the plan has no
+    /// such series.
+    fn of(kept: &Structure, scope: &SeriesScope) -> Self {
+        let Some((at, series)) = kept
+            .all_series()
+            .find(|(_, series)| series.scope() == scope)
+        else {
+            return Self::default();
+        };
+        let reads = |source: &SourceRef| match source {
+            SourceRef::Column { sheet, column } => kept.list(sheet).map_or_else(
+                || Reads::Other(source.clone()),
+                |(_, list)| Reads::Column(list_file(list), column.clone()),
+            ),
+            other => Reads::Other(other.clone()),
+        };
+        let sets = kept
+            .sets_alone_around(at)
+            .into_iter()
+            .map(SetLevel::set)
+            .chain(series.set());
+        Self(
+            sets.filter_map(|set| match set {
+                SetSource::Each(EachValue { each }) if !each.map.is_empty() => {
+                    Some((each.sources.iter().map(reads).collect(), each.map.clone()))
+                }
+                _ => None,
+            })
+            .collect(),
+        )
+    }
+
+    /// The person's map of the set that reads `reads`; empty when they wrote
+    /// none.
+    fn map(&self, reads: &[Reads]) -> IndexMap<String, String> {
+        self.0
+            .iter()
+            .find(|(written, _)| written.as_slice() == reads)
+            .map(|(_, map)| map.clone())
+            .unwrap_or_default()
     }
 }
 
@@ -1552,7 +1628,7 @@ fn level(
             each: EachSet {
                 sources: vec![taken.source.clone()],
                 combine: Combine::First,
-                map: IndexMap::new(),
+                map: plan.maps.map(&[Reads::of_taken(taken)]),
                 names: SetNames::Title,
             },
         })
