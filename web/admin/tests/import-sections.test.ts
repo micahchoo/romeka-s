@@ -184,11 +184,24 @@ describe('the proposal section', () => {
     expect(parsed.edits).toHaveLength(EDITS.length);
   });
 
+  it('parses why a tree the plan check refused is not proposed, and writes it back unchanged', () => {
+    const raw = everything();
+    const refused = { tree: 'lists', reason: 'a slot reads column 1 of sheet "AF/af.csv", which the sheet does not map' };
+    const proposal = { ...object(raw['proposal']), nodes: [], topSets: [], unattached: [], matchesPlan: true, refused };
+    const parsed = parseProposal(parsePreview(['proposal'])({ ...raw, proposal }).proposal);
+    expect(parsed.refused).toEqual(refused);
+    expect(roundTrip(parsed)).toEqual(proposal);
+    expect(parseProposal(parsePreview(['proposal'])(raw).proposal).refused).toBeUndefined();
+  });
+
   it('refuses a member the server never writes, at any depth', () => {
     const raw = everything();
     const proposal = object(raw['proposal']);
     const changes: ((value: Record<string, unknown>) => Record<string, unknown>)[] = [
       (value) => ({ ...value, ranked: true }),
+      (value) => ({ ...value, refused: { tree: 'everything', reason: 'refused' } }),
+      (value) => ({ ...value, refused: { tree: 'sets', reason: 'refused', step: 3 } }),
+      (value) => ({ ...value, refused: null }),
       (value) => ({ ...value, edits: [{ edit: { edit: 'rename', scope }, applied: true, reason: null }] }),
       (value) => ({ ...value, edits: [{ edit: { edit: 'keep', scope }, applied: false, reason: 'lost' }] }),
       (value) => ({ ...value, topSets: [{ value: { from: 'everything' }, counts: setCounts }] }),
