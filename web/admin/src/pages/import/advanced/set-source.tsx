@@ -47,12 +47,12 @@ export const installTitle = (sets: readonly ItemSet[], id: number): string => se
 export const groupsOf = (pattern: string | null): readonly string[] =>
   Array.from((pattern ?? '').matchAll(/\(\?<([^>]+)>/gu), (found) => found[1] ?? '').filter((name) => name !== '' && name !== 'identifier' && name !== 'part');
 
-/** The sources one set per value can read: a column of these lists, a folder level, a group of the pattern. */
+/** The sources one set per value can read: a column of these lists, a folder level or the whole folder path (one set per folder), a group of the pattern. */
 export const useEachChoices = (plan: ImportPlan, sheets: readonly string[] | null, groups: readonly string[]): readonly SourceChoice[] => {
   const { t } = useAdvancedText();
   const read = usePreview(['sheets'], {});
   const views = read.status === 'ready' ? read.data.sheets.filter((sheet) => sheets === null || sheets.includes(sheet.id)) : [];
-  return sourceChoices(plan, views, groups, t).filter(({ source }) => source.from === 'column' || source.from === 'group' || (source.from === 'folder' && source.level !== 'path'));
+  return sourceChoices(plan, views, groups, t).filter(({ source }) => source.from === 'column' || source.from === 'group' || source.from === 'folder');
 };
 
 export type SetKind = 'none' | 'title' | 'existing' | 'each';
