@@ -199,7 +199,8 @@ export const ListColumns = ({ sheet, view, counts }: { readonly sheet: SheetPlan
           </tbody>
         </table>
       </TableScroll>
-      {columns.map(({ column }) => {
+      {columns.map(({ index, header }) => {
+        const column = { index, header };
         const home = fieldHomeOf(draft.plan, sheet, column);
         return home === null ? null : <CleanValues key={`${String(column.index)}:${JSON.stringify(home)}`} home={home} column={column} />;
       })}
