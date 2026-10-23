@@ -4,7 +4,7 @@
  * and its siblings). A filter left out does not narrow. Every body these types
  * can build is one the server takes (`fixtures/import/requests.json`).
  */
-import type { FlagKind, ImportPlan, RecordKind, SlotName } from './import-plan';
+import type { FlagKind, ImportPlan, LevelId, RecordKind, SlotName } from './import-plan';
 import type { Bucket, ShapeFacts } from './import-sections';
 
 export interface PageQuery {
@@ -67,8 +67,12 @@ export interface UnpairedQuery {
   readonly files?: PageQuery;
 }
 
+/** With `slot`, that one slot's values before its map, with what each becomes and near spellings; without, the item set, item type and class values the run writes. */
 export interface ValuesQuery {
   readonly kind?: RecordKind;
+  /** With `slot`: only this series' records. */
+  readonly series?: LevelId;
+  readonly slot?: SlotName;
   readonly page?: number;
   readonly perPage?: number;
 }

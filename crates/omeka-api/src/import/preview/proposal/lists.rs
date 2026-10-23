@@ -15,12 +15,14 @@ use std::collections::{HashMap, HashSet};
 
 use super::Evidence;
 use super::folders::FolderSeries;
+use super::thresholds::SPLIT_WHEN_HELD;
 use crate::import::derive::Index;
+use crate::import::join::cell;
 use crate::import::model::{GroupKey, Model};
 use crate::import::plan::{
     ColumnRef, Edit, Join, JoinNormalize, JoinOn, ListFile, SeriesIx, Structure,
 };
-use crate::import::preview::candidates::{self, CandidateRead, ListCandidate};
+use crate::import::preview::candidates::{self, CandidateRead, ColumnCells, ListCandidate};
 use crate::import::preview::columns::{EVERY_FOLD, NO_FOLD, Targets, Within};
 use crate::import::sheet::Sheet;
 
@@ -201,6 +203,25 @@ fn candidate(evidence: &Evidence<'_>, file: &ListFile) -> ListCandidate {
     }
 }
 
+/// The split a column's cells suggest, as Simple suggests it: the
+/// separator that more than [`SPLIT_WHEN_HELD`] of its filled cells hold.
+/// The proposer reads the archive, not a plan, so this is the column's
+/// split until the person sets one.
+fn suggested_split(sheet: &Sheet, cells: &[ColumnCells], column: u32) -> Option<String> {
+    let separator = cells
+        .iter()
+        .find(|one| one.index == column)?
+        .separator
+        .as_ref()?;
+    let filled = sheet
+        .rows
+        .iter()
+        .filter(|row| !cell(row, column).trim().is_empty())
+        .count();
+    (separator.cells * SPLIT_WHEN_HELD.of > SPLIT_WHEN_HELD.n * filled)
+        .then(|| separator.text.clone())
+}
+
 /// One read list counted in the series at `at`.
 fn count<'d>(
     cache: &mut Cache<'d>,
@@ -241,7 +262,14 @@ fn count<'d>(
             found = more;
         }
     }
-    let paired = candidates::targets(sheet, None, &best, cache.targets(at, how), groups_of_files);
+    let split = |column: u32| suggested_split(sheet, &counts.cells, column);
+    let paired = candidates::targets(
+        sheet,
+        &split,
+        &best,
+        cache.targets(at, how),
+        groups_of_files,
+    );
     counts.grain = paired.grain;
     Counted {
         counts,

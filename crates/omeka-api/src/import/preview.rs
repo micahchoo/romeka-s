@@ -43,7 +43,7 @@ use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Type};
 pub use candidates::{BestColumn, CandidateRead, Grain, ListCandidate, Overlap};
 pub use causes::{FlagCount, FlagSample};
 pub use columns::{ColumnMatches, SheetMatches};
-pub use counts::{COUNTED, SlotValues, ValueCount, ValuesQuery};
+pub use counts::{COUNTED, MAX_NEAR_VALUES, NearSpelling, SlotValues, ValueCount, ValuesQuery};
 pub use evidence::{
     ColumnView, SheetGuess, SheetRead, SheetView, TagSample, TagView, WorkbookView,
 };
@@ -366,7 +366,7 @@ pub fn preview(derived: &Derived, request: &PreviewRequest) -> Preview {
         unpaired: wants(Section::Unpaired)
             .then(|| unpaired::unpaired(model, &request.unpaired.clone().unwrap_or_default())),
         values: wants(Section::Values)
-            .then(|| counts::values(model, &request.values.clone().unwrap_or_default())),
+            .then(|| counts::values(derived, &request.values.clone().unwrap_or_default())),
         name_words: wants(Section::NameWords).then(|| {
             names::name_words(
                 &derived.stored,

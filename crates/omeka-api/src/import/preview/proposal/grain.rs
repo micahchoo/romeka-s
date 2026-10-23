@@ -22,11 +22,11 @@ use std::collections::{BTreeSet, HashSet};
 
 use unicode_normalization::UnicodeNormalization;
 
-use super::super::candidates::Grain;
+use super::super::candidates::{ColumnGrain, Grain};
 use super::super::unpaired::unpaired_rows;
 use super::lists::{Found, InSeries};
-use super::thresholds::{MIN_ITEMS_WITH_FILE_ROWS, MIN_KINDS};
-use super::{Choice, Evidence, GrainCounts, Pick};
+use super::thresholds::{FILE_WHEN_DISJOINT, MIN_ITEMS_WITH_FILE_ROWS, MIN_KINDS};
+use super::{Choice, ColumnRollUp, Evidence, GrainCounts, Pick, RollUp, RollUpCounts};
 use crate::import::join::cell;
 use crate::import::model::Model;
 use crate::import::plan::{
@@ -54,6 +54,9 @@ pub(super) struct SeriesRows {
     /// The grain of the series' first list, when it joins by file name,
     /// with the list's evidence; [`answers`] adds what each answer makes.
     pub grain: Option<Choice<RecordKind, Grain>>,
+    /// The roll-up of each column of the first list, when it has a grain
+    /// and an item with rows for two files or more.
+    pub columns: Vec<ColumnRollUp>,
     /// The rows that are the series' items, by their list and key column.
     pub items: Option<(ListFile, ColumnRef)>,
     /// A column of item rows whose values are keys of item-set rows.
@@ -349,6 +352,13 @@ pub(super) fn detect(
         for (n, list) in lists.joined.iter().enumerate() {
             let (plan, choice) = grain(list);
             if n == 0 {
+                // With no item of two rows or more, a column places alike on
+                // the item and on its one file: there is no question.
+                rows.columns = choice
+                    .as_ref()
+                    .filter(|choice| choice.chosen.counts.groups_with_many_rows > 0)
+                    .map(|choice| choice.chosen.counts.columns.iter().map(roll_up).collect())
+                    .unwrap_or_default();
                 rows.grain = choice;
             }
             rows.lists.push(plan);
@@ -388,6 +398,7 @@ pub(super) fn detect(
                 rows.lists[n].item_key = Some(column);
                 if n == 0 {
                     rows.grain = None;
+                    rows.columns.clear();
                 }
             }
         }
@@ -410,6 +421,41 @@ pub(super) fn detect(
     }
     replay(&mut out, edits, applied);
     out
+}
+
+/// Rule C: a column goes on each file when its rows are disjoint in more
+/// than [`FILE_WHEN_DISJOINT`] of the shared items, else on the item.
+fn roll_up(column: &ColumnGrain) -> ColumnRollUp {
+    let varies = column.varies;
+    let on = |value: RollUp| Pick {
+        value,
+        counts: match value {
+            RollUp::Item => RollUpCounts {
+                items: column.filled.groups,
+                files: 0,
+            },
+            RollUp::File => RollUpCounts {
+                items: 0,
+                files: column.filled.files,
+            },
+        },
+    };
+    let (chosen, rival) =
+        if varies.disjoint * FILE_WHEN_DISJOINT.of > FILE_WHEN_DISJOINT.n * varies.of {
+            (RollUp::File, RollUp::Item)
+        } else {
+            (RollUp::Item, RollUp::File)
+        };
+    ColumnRollUp {
+        index: column.index,
+        header: column.header.clone(),
+        varies,
+        pick: Choice {
+            chosen: on(chosen),
+            rival: Some(on(rival)),
+            others: Vec::new(),
+        },
+    }
 }
 
 /// Replay the `grain` edits: each takes the rival grain of a series' first

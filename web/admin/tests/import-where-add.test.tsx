@@ -23,7 +23,7 @@ const sourcesOf = (plan: Record<string, unknown>, slot: string): unknown => {
   return rule === undefined ? undefined : asRecord(rule, [])['sources'];
 };
 
-const SETS = { slot: 'sets', values: { total: 1, page: 1, perPage: 16, items: [{ text: 'Citizen Curators', count: 512, spellings: ['Citizen Curators'] }] } };
+const SETS = { slot: 'sets', values: { total: 1, page: 1, perPage: 16, items: [{ text: 'Citizen Curators', count: 512, spellings: ['Citizen Curators'], to: null }] }, near: [] };
 
 /** The fake server, with the item set values the preview counts for every plan; the body is rewritten as it is read. */
 const withSetValues =

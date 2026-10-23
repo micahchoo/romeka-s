@@ -11,6 +11,7 @@
     "matchesPlan": false,
     "nodes": [
       {
+        "columns": [],
         "grain": null,
         "items": {
           "chosen": {
@@ -330,6 +331,7 @@
         "splits": []
       },
       {
+        "columns": [],
         "grain": null,
         "items": {
           "chosen": {
@@ -497,6 +499,7 @@
         "splits": []
       },
       {
+        "columns": [],
         "grain": null,
         "items": {
           "chosen": {
@@ -593,6 +596,7 @@
         "splits": []
       },
       {
+        "columns": [],
         "grain": null,
         "items": {
           "chosen": {
@@ -739,6 +743,7 @@
         "splits": []
       },
       {
+        "columns": [],
         "grain": null,
         "items": {
           "chosen": {

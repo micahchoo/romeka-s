@@ -86,6 +86,7 @@ fn kind(difference: &Difference) -> &'static str {
         Difference::List { .. } => "list",
         Difference::Row { .. } => "row",
         Difference::LeftOut { .. } => "leftOut",
+        Difference::Column { .. } => "column",
     }
 }
 

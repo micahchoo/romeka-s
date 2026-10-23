@@ -469,6 +469,7 @@
                   "header": "Sl No",
                   "varies": {
                     "groups": 272,
+                    "disjoint": 272,
                     "of": 272
                   }
                 },
@@ -477,6 +478,7 @@
                   "header": "Identifier",
                   "varies": {
                     "groups": 272,
+                    "disjoint": 272,
                     "of": 272
                   }
                 },
@@ -485,6 +487,7 @@
                   "header": "Collection",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 272
                   }
                 },
@@ -493,6 +496,7 @@
                   "header": "Curator",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 272
                   }
                 },
@@ -501,6 +505,7 @@
                   "header": "Item Type",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 272
                   }
                 }
@@ -571,6 +576,7 @@
                   "header": "Sl No",
                   "varies": {
                     "groups": 2,
+                    "disjoint": 2,
                     "of": 2
                   }
                 },
@@ -579,6 +585,7 @@
                   "header": "Identifier",
                   "varies": {
                     "groups": 2,
+                    "disjoint": 2,
                     "of": 2
                   }
                 },
@@ -587,6 +594,7 @@
                   "header": "Collection",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 2
                   }
                 },
@@ -595,6 +603,7 @@
                   "header": "Curator",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 2
                   }
                 },
@@ -603,6 +612,7 @@
                   "header": "Item Type",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 2
                   }
                 }
@@ -658,6 +668,7 @@
                 "header": "Sl No",
                 "varies": {
                   "groups": 272,
+                  "disjoint": 272,
                   "of": 272
                 }
               },
@@ -666,6 +677,7 @@
                 "header": "Identifier",
                 "varies": {
                   "groups": 272,
+                  "disjoint": 272,
                   "of": 272
                 }
               },
@@ -674,6 +686,7 @@
                 "header": "Collection",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 272
                 }
               },
@@ -682,6 +695,7 @@
                 "header": "Curator",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 272
                 }
               },
@@ -690,6 +704,7 @@
                 "header": "Item Type",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 272
                 }
               }
@@ -709,6 +724,7 @@
                 "header": "Sl No",
                 "varies": {
                   "groups": 272,
+                  "disjoint": 272,
                   "of": 272
                 }
               },
@@ -717,6 +733,7 @@
                 "header": "Identifier",
                 "varies": {
                   "groups": 272,
+                  "disjoint": 272,
                   "of": 272
                 }
               },
@@ -725,6 +742,7 @@
                 "header": "Collection",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 272
                 }
               },
@@ -733,6 +751,7 @@
                 "header": "Curator",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 272
                 }
               },
@@ -741,6 +760,7 @@
                 "header": "Item Type",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 272
                 }
               }
@@ -751,6 +771,138 @@
         },
         "others": []
       },
+      "columns": [
+        {
+          "index": 0,
+          "header": "Sl No",
+          "varies": {
+            "groups": 272,
+            "disjoint": 272,
+            "of": 272
+          },
+          "pick": {
+            "chosen": {
+              "value": "file",
+              "counts": {
+                "items": 0,
+                "files": 680
+              }
+            },
+            "rival": {
+              "value": "item",
+              "counts": {
+                "items": 313,
+                "files": 0
+              }
+            },
+            "others": []
+          }
+        },
+        {
+          "index": 1,
+          "header": "Identifier",
+          "varies": {
+            "groups": 272,
+            "disjoint": 272,
+            "of": 272
+          },
+          "pick": {
+            "chosen": {
+              "value": "file",
+              "counts": {
+                "items": 0,
+                "files": 680
+              }
+            },
+            "rival": {
+              "value": "item",
+              "counts": {
+                "items": 313,
+                "files": 0
+              }
+            },
+            "others": []
+          }
+        },
+        {
+          "index": 2,
+          "header": "Collection",
+          "varies": {
+            "groups": 0,
+            "disjoint": 0,
+            "of": 272
+          },
+          "pick": {
+            "chosen": {
+              "value": "item",
+              "counts": {
+                "items": 313,
+                "files": 0
+              }
+            },
+            "rival": {
+              "value": "file",
+              "counts": {
+                "items": 0,
+                "files": 680
+              }
+            },
+            "others": []
+          }
+        },
+        {
+          "index": 3,
+          "header": "Curator",
+          "varies": {
+            "groups": 0,
+            "disjoint": 0,
+            "of": 272
+          },
+          "pick": {
+            "chosen": {
+              "value": "item",
+              "counts": {
+                "items": 313,
+                "files": 0
+              }
+            },
+            "rival": {
+              "value": "file",
+              "counts": {
+                "items": 0,
+                "files": 680
+              }
+            },
+            "others": []
+          }
+        },
+        {
+          "index": 4,
+          "header": "Item Type",
+          "varies": {
+            "groups": 0,
+            "disjoint": 0,
+            "of": 272
+          },
+          "pick": {
+            "chosen": {
+              "value": "item",
+              "counts": {
+                "items": 313,
+                "files": 0
+              }
+            },
+            "rival": {
+              "value": "file",
+              "counts": {
+                "items": 0,
+                "files": 680
+              }
+            },
+            "others": []
+          }
+        }
+      ],
       "set": {
         "chosen": {
           "value": {
@@ -871,6 +1023,7 @@
         "others": []
       },
       "grain": null,
+      "columns": [],
       "set": {
         "chosen": {
           "value": {
@@ -1132,6 +1285,7 @@
         },
         "others": []
       },
+      "columns": [],
       "set": {
         "chosen": {
           "value": {
@@ -1348,6 +1502,7 @@
                   "header": "Sl No",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 0
                   }
                 },
@@ -1356,6 +1511,7 @@
                   "header": "Identifier",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 0
                   }
                 },
@@ -1364,6 +1520,7 @@
                   "header": "Collection",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 0
                   }
                 },
@@ -1372,6 +1529,7 @@
                   "header": "Curator",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 0
                   }
                 },
@@ -1380,6 +1538,7 @@
                   "header": "Item Type",
                   "varies": {
                     "groups": 0,
+                    "disjoint": 0,
                     "of": 0
                   }
                 }
@@ -1430,6 +1589,7 @@
                 "header": "Sl No",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               },
@@ -1438,6 +1598,7 @@
                 "header": "Identifier",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               },
@@ -1446,6 +1607,7 @@
                 "header": "Collection",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               },
@@ -1454,6 +1616,7 @@
                 "header": "Curator",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               },
@@ -1462,6 +1625,7 @@
                 "header": "Item Type",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               }
@@ -1481,6 +1645,7 @@
                 "header": "Sl No",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               },
@@ -1489,6 +1654,7 @@
                 "header": "Identifier",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               },
@@ -1497,6 +1663,7 @@
                 "header": "Collection",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               },
@@ -1505,6 +1672,7 @@
                 "header": "Curator",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               },
@@ -1513,6 +1681,7 @@
                 "header": "Item Type",
                 "varies": {
                   "groups": 0,
+                  "disjoint": 0,
                   "of": 0
                 }
               }
@@ -1523,6 +1692,7 @@
         },
         "others": []
       },
+      "columns": [],
       "set": {
         "chosen": {
           "value": {
@@ -1817,6 +1987,7 @@
         "others": []
       },
       "grain": null,
+      "columns": [],
       "set": {
         "chosen": {
           "value": {

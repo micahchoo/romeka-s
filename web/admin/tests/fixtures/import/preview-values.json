@@ -19,6 +19,7 @@
   ],
   "values": [
     {
+      "near": [],
       "slot": "sets",
       "values": {
         "items": [
@@ -27,21 +28,24 @@
             "spellings": [
               "Artifacts"
             ],
-            "text": "Artifacts"
+            "text": "Artifacts",
+            "to": null
           },
           {
             "count": 4,
             "spellings": [
               "Photographs"
             ],
-            "text": "Photographs"
+            "text": "Photographs",
+            "to": null
           },
           {
             "count": 1,
             "spellings": [
               "Bulk"
             ],
-            "text": "Bulk"
+            "text": "Bulk",
+            "to": null
           }
         ],
         "page": 1,
@@ -50,6 +54,7 @@
       }
     },
     {
+      "near": [],
       "slot": "template",
       "values": {
         "items": [
@@ -58,7 +63,8 @@
             "spellings": [
               "Artifact"
             ],
-            "text": "Artifact"
+            "text": "Artifact",
+            "to": null
           }
         ],
         "page": 1,
@@ -67,6 +73,7 @@
       }
     },
     {
+      "near": [],
       "slot": "class",
       "values": {
         "items": [],

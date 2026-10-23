@@ -178,6 +178,9 @@ pub struct SeriesNode {
     pub list: Choice<Option<ListFile>, Option<ListCounts>>,
     /// What the chosen list's rows describe; `None` with no list.
     pub grain: Option<Choice<RecordKind, GrainCounts>>,
+    /// Where each column of that list puts its values; filled only when its
+    /// rows describe files.
+    pub columns: Vec<ColumnRollUp>,
     /// The name of the series' own set, or no set.
     pub set: Choice<Option<SetFrom>, SetCounts>,
     /// Set levels the series could split into. Offered, never chosen.
@@ -351,6 +354,36 @@ pub struct GrainCounts {
     pub rows_naming_no_file: usize,
     /// The items the series keeps with this answer.
     pub items: usize,
+}
+
+/// Where a column of a list whose rows describe files puts its values. "Left
+/// out" is never chosen by a count; it is the third answer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum RollUp {
+    Item,
+    File,
+}
+
+/// What one answer of a column's roll-up gives.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RollUpCounts {
+    /// Items that get at least one value from this column.
+    pub items: usize,
+    /// Files whose medium gets at least one value from this column.
+    pub files: usize,
+}
+
+/// One column's roll-up: the count it rests on and the pick, with the other
+/// level as its rival.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ColumnRollUp {
+    pub index: u32,
+    pub header: String,
+    pub varies: candidates::Varies,
+    pub pick: Choice<RollUp, RollUpCounts>,
 }
 
 /// A folder the proposal leaves outside, and why.
@@ -793,6 +826,15 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
                 ),
                 rival: here.rival.map(list_pick),
                 others: here.others.into_iter().map(list_pick).collect(),
+            },
+            columns: if rows
+                .grain
+                .as_ref()
+                .is_some_and(|grain| grain.chosen.value == RecordKind::Media)
+            {
+                rows.columns
+            } else {
+                Vec::new()
             },
             grain: rows
                 .grain

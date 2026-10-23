@@ -370,24 +370,45 @@ const parseUnpaired: Parser<Unpaired> = (raw, path = []) => {
 export interface ValueCount {
   /** The value as the first record holding it writes it. */
   readonly text: string;
-  /** Records the run writes that hold the value. */
+  /** Records that hold the value. */
   readonly count: number;
   /** Every spelling that folds to the value, sorted. */
   readonly spellings: readonly string[];
+  /** What the map makes it: null unmapped, '' left out. Always null when the query names no slot. */
+  readonly to: string | null;
+}
+
+/** Two values one letter apart: the rarer, `from`, would become `to`. */
+export interface NearSpelling {
+  readonly from: string;
+  readonly fromRecords: number;
+  readonly to: string;
+  readonly toRecords: number;
 }
 
 export interface SlotValues {
   readonly slot: SlotName;
   readonly values: Paged<ValueCount>;
+  /** Offered joins, the most records first; empty when the query names no slot. */
+  readonly near: readonly NearSpelling[];
 }
 
 const parseSlotValues: Parser<SlotValues> = (raw, path = []) => {
-  const object = strict(raw, path, ['slot', 'values']);
+  const object = strict(raw, path, ['slot', 'values', 'near']);
   const value = (each: unknown, at: Path): ValueCount => {
-    const one = strict(each, at, ['text', 'count', 'spellings']);
-    return { text: text(one, 'text', at), count: count(one, 'count', at), spellings: member(one, 'spellings', at, list(asString)) };
+    const one = strict(each, at, ['text', 'count', 'spellings', 'to']);
+    return {
+      text: text(one, 'text', at),
+      count: count(one, 'count', at),
+      spellings: member(one, 'spellings', at, list(asString)),
+      to: member(one, 'to', at, nullable(asString)),
+    };
   };
-  return { slot: member(object, 'slot', path, asSlotName), values: member(object, 'values', path, parsePaged(value)) };
+  const near = (each: unknown, at: Path): NearSpelling => {
+    const one = strict(each, at, ['from', 'fromRecords', 'to', 'toRecords']);
+    return { from: text(one, 'from', at), fromRecords: count(one, 'fromRecords', at), to: text(one, 'to', at), toRecords: count(one, 'toRecords', at) };
+  };
+  return { slot: member(object, 'slot', path, asSlotName), values: member(object, 'values', path, parsePaged(value)), near: member(object, 'near', path, list(near)) };
 };
 
 export interface NameWord {
@@ -470,9 +491,10 @@ export interface BestColumn {
   readonly empty: number;
 }
 
-/** Of the `of` items that more than one row names, the `groups` whose rows hold different values in a column. */
+/** Of the `of` items that more than one row names, the `groups` whose rows hold different values in a column, and the `disjoint` ones whose rows with a value hold no value in common. */
 export interface Varies {
   readonly groups: number;
+  readonly disjoint: number;
   readonly of: number;
 }
 
@@ -518,15 +540,16 @@ export interface ListCandidate {
   readonly overlaps: readonly ListOverlap[];
 }
 
+export const parseVaries = (inner: unknown, where: Path): Varies => {
+  const all = strict(inner, where, ['groups', 'disjoint', 'of']);
+  return { groups: count(all, 'groups', where), disjoint: count(all, 'disjoint', where), of: count(all, 'of', where) };
+};
+
 export const parseGrain = (value: unknown, at: Path): Grain => {
   const each = strict(value, at, ['groupsWithManyRows', 'rowsNamingOtherFilesOfAGroup', 'columns']);
   const column = (raw: unknown, place: Path): Grain['columns'][number] => {
     const one = strict(raw, place, ['index', 'header', 'varies']);
-    const varies = (inner: unknown, where: Path): Varies => {
-      const both = strict(inner, where, ['groups', 'of']);
-      return { groups: count(both, 'groups', where), of: count(both, 'of', where) };
-    };
-    return { index: count(one, 'index', place), header: text(one, 'header', place), varies: member(one, 'varies', place, varies) };
+    return { index: count(one, 'index', place), header: text(one, 'header', place), varies: member(one, 'varies', place, parseVaries) };
   };
   return {
     groupsWithManyRows: count(each, 'groupsWithManyRows', at),

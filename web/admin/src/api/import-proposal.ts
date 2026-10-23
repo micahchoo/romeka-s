@@ -11,8 +11,8 @@ import { parseColumnRef } from './import-plan-read';
 import { parseEdit, parseFolderScope, parseListFile, parsePairRule, parseSetFrom, parseStructure } from './import-plan-tree-read';
 import type { ColumnRef, Edit, FolderScope, LevelId, ListFile, PairRule, RecordKind, SetFrom, Structure } from './import-plan';
 import { RECORD_KINDS } from './import-plan';
-import { MEDIA_KINDS, parseBucketCount, parseGrain, parseListCandidate } from './import-sections';
-import type { BucketCount, Grain, ListCandidate, MediaKind } from './import-sections';
+import { MEDIA_KINDS, parseBucketCount, parseGrain, parseListCandidate, parseVaries } from './import-sections';
+import type { BucketCount, Grain, ListCandidate, MediaKind, Varies } from './import-sections';
 import { ParseError, asRecord, asString } from './parse';
 import type { Path } from './types';
 
@@ -75,6 +75,25 @@ export interface GrainCounts extends Grain {
   readonly items: number;
 }
 
+/** Where a column of a list whose rows describe files puts its values. "Left out" is never chosen by a count. */
+export type RollUp = 'item' | 'file';
+export const ROLL_UPS: readonly RollUp[] = ['item', 'file'];
+
+export interface RollUpCounts {
+  /** Items that get at least one value from this column. */
+  readonly items: number;
+  /** Files whose medium gets at least one value from this column. */
+  readonly files: number;
+}
+
+/** One column's roll-up: the count it rests on, and the pick with the other level as its rival. */
+export interface ColumnRollUp {
+  readonly index: number;
+  readonly header: string;
+  readonly varies: Varies;
+  readonly pick: Choice<RollUp, RollUpCounts>;
+}
+
 export interface SetCounts {
   /** Each set with the items it would hold, most first. */
   readonly sets: readonly (readonly [string, number])[];
@@ -103,6 +122,8 @@ export interface SeriesNode {
   /** A choice of no list has no list counts. */
   readonly list: Choice<ListFile | null, ListCandidate | null>;
   readonly grain: Choice<RecordKind, GrainCounts> | null;
+  /** Where each column of the chosen list goes; empty unless its rows describe files. */
+  readonly columns: readonly ColumnRollUp[];
   readonly set: Choice<SetFrom | null, SetCounts>;
   readonly splits: readonly Pick<SetFrom, SetCounts>[];
   readonly pairing: readonly Pick<PairRule, PairCounts>[];
@@ -157,6 +178,21 @@ const parseGrainCounts = (raw: unknown, path: Path): GrainCounts => {
   const object = asRecord(raw, path);
   const grain = Object.fromEntries(Object.entries(object).filter(([key]) => key !== 'rowsNamingNoFile' && key !== 'items'));
   return { ...parseGrain(grain, path), rowsNamingNoFile: count(object, 'rowsNamingNoFile', path), items: count(object, 'items', path) };
+};
+
+const parseRollUpCounts = (raw: unknown, path: Path): RollUpCounts => {
+  const object = strict(raw, path, ['items', 'files']);
+  return { items: count(object, 'items', path), files: count(object, 'files', path) };
+};
+
+const parseColumnRollUp = (raw: unknown, path: Path): ColumnRollUp => {
+  const object = strict(raw, path, ['index', 'header', 'varies', 'pick']);
+  return {
+    index: count(object, 'index', path),
+    header: text(object, 'header', path),
+    varies: member(object, 'varies', path, parseVaries),
+    pick: member(object, 'pick', path, parseChoice(oneOf(ROLL_UPS), parseRollUpCounts)),
+  };
 };
 
 const parseShare = (raw: unknown, path: Path): Share => {
@@ -277,7 +313,7 @@ const parseNodeEvidence = (raw: unknown, path: Path): NodeEvidence => {
     };
     return withKept(own, only, path);
   }
-  const only = strict(raw, path, ['kind', 'level', 'scope', 'items', 'list', 'grain', 'set', 'splits', 'pairing'], ['kept']);
+  const only = strict(raw, path, ['kind', 'level', 'scope', 'items', 'list', 'grain', 'columns', 'set', 'splits', 'pairing'], ['kept']);
   const series = {
     kind,
     level: text(only, 'level', path),
@@ -285,6 +321,7 @@ const parseNodeEvidence = (raw: unknown, path: Path): NodeEvidence => {
     items: member(only, 'items', path, parseChoice(parseItemCut, parseCutCounts)),
     list: member(only, 'list', path, parseChoice(nullable(parseListFile), nullable(parseListCandidate))),
     grain: member(only, 'grain', path, nullable(parseChoice(oneOf(RECORD_KINDS), parseGrainCounts))),
+    columns: member(only, 'columns', path, list(parseColumnRollUp)),
     set: member(only, 'set', path, parseChoice(nullable(parseSetFrom), parseSetCounts)),
     splits: member(only, 'splits', path, list(parsePick(parseSetFrom, parseSetCounts))),
     pairing: member(only, 'pairing', path, list(parsePick(parsePairRule, parsePairCounts))),

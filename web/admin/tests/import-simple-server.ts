@@ -311,11 +311,11 @@ export const simpleServer = (scenario: Scenario, planEdits: Record<string, unkno
           .sort((a, b) => (isRecord(b['best']) ? Number(b['best']['paired']) : -1) - (isRecord(a['best']) ? Number(a['best']['paired']) : -1) || String(a['file']).localeCompare(String(b['file'])));
       } else if (section === 'values') {
         const query = pageOf(body['values']);
-        const types = typed ? scenario.typeValues.map(([text, count]) => ({ text, count, spellings: [text] })) : [];
+        const types = typed ? scenario.typeValues.map(([text, count]) => ({ text, count, spellings: [text], to: null })) : [];
         answer['values'] = [
-          { slot: 'sets', values: paged([], query) },
-          { slot: 'template', values: paged(types, query) },
-          { slot: 'class', values: paged([], query) },
+          { slot: 'sets', values: paged([], query), near: [] },
+          { slot: 'template', values: paged(types, query), near: [] },
+          { slot: 'class', values: paged([], query), near: [] },
         ];
       } else if (section === 'records') {
         const query = isRecord(body['records']) ? body['records'] : {};

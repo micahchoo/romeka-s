@@ -200,7 +200,7 @@ pub struct JoinNormalize {
 
 /// A sheet column. The index is the key; the header is checked against the
 /// sheet and shown.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ColumnRef {
     /// 0-based position in the row.

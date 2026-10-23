@@ -24,7 +24,7 @@ export const KEYWORDS = 6;
 const AF_GRAIN: Grain = {
   groupsWithManyRows: 251,
   rowsNamingOtherFilesOfAGroup: 301,
-  columns: COLUMNS.map((header, index) => ({ index, header, varies: { groups: index === 0 ? 251 : index === KEYWORDS ? 42 : index === 5 ? 1 : 0, of: 251 } })),
+  columns: COLUMNS.map((header, index) => ({ index, header, varies: { groups: index === 0 ? 251 : index === KEYWORDS ? 42 : index === 5 ? 1 : 0, disjoint: index === 0 ? 251 : index === 5 ? 1 : 0, of: 251 } })),
 };
 
 const cells = (keywords: number, digitized: number): readonly ColumnCells[] =>

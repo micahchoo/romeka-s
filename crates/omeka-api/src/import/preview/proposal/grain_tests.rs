@@ -1,7 +1,10 @@
 #![allow(clippy::expect_used)]
 
 use super::bhc006_tests::proposal_with_lists;
-use super::{Evidence, FoundList, ItemCut, NodeEvidence, Proposal, SeriesNode, propose};
+use super::{
+    ColumnRollUp, Evidence, FoundList, ItemCut, NodeEvidence, Proposal, RollUp, RollUpCounts,
+    SeriesNode, propose,
+};
 use crate::import::derive::Sheets;
 use crate::import::derive::tests::scenarios::{S1_TO_S8, Scenario};
 use crate::import::derive::tests::support;
@@ -355,4 +358,112 @@ fn a_records_list_keyed_by_row_numbers_takes_its_next_unique_column() {
         &first_series(&proposal).items.chosen.value,
         ItemCut::Rows { key, .. } if key.header == "Id"
     ));
+}
+
+/// AF_013's three real `Keywords` rows, AF_014's two alike, and a `View`
+/// column in which each file has its own value.
+const VIEWS: &str = "File,Keywords,View\n\
+BHC006_GMT_AF_013a.jpg,\"Natural History, Fossil, Moti Shankh, Front View, Whorl\",Front\n\
+BHC006_GMT_AF_013b.jpg,\"Natural History, Fossil, Moti Shankh, Top View\",Top\n\
+BHC006_GMT_AF_013c.jpg,\"Natural History, Fossil, Moti Shankh, Siphonal Canal\",Back\n\
+BHC006_GMT_AF_014a.jpg,\"Brass, Lamp\",Front\n\
+BHC006_GMT_AF_014b.jpg,\"Brass, Lamp\",Back\n";
+
+fn column<'n>(node: &'n SeriesNode, header: &str) -> &'n ColumnRollUp {
+    node.columns
+        .iter()
+        .find(|column| column.header == header)
+        .expect("the column has a roll-up")
+}
+
+#[test]
+fn shared_values_go_on_the_item_and_disjoint_ones_on_each_file() {
+    let files = [
+        ("BHC006_GMT_AF_013a.jpg", support::JPEG),
+        ("BHC006_GMT_AF_013b.jpg", support::JPEG),
+        ("BHC006_GMT_AF_013c.jpg", support::JPEG),
+        ("BHC006_GMT_AF_014a.jpg", support::JPEG),
+        ("BHC006_GMT_AF_014b.jpg", support::JPEG),
+    ];
+    let proposal = proposal_from(&files, &[("af.csv", VIEWS)]);
+    let node = first_series(&proposal);
+    assert_eq!(node.items.chosen.counts.items, 2, "AF_013 and AF_014");
+    assert_eq!(
+        node.grain.as_ref().map(|grain| grain.chosen.value),
+        Some(RecordKind::Media)
+    );
+    let on_item = RollUpCounts { items: 2, files: 0 };
+    let on_files = RollUpCounts { items: 0, files: 5 };
+
+    let keywords = column(node, "Keywords");
+    assert_eq!(
+        (
+            keywords.varies.groups,
+            keywords.varies.disjoint,
+            keywords.varies.of
+        ),
+        (1, 0, 2),
+        "AF_013's rows differ, cut at their commas, and share three values"
+    );
+    assert_eq!(
+        (keywords.pick.chosen.value, keywords.pick.chosen.counts),
+        (RollUp::Item, on_item)
+    );
+    assert_eq!(
+        keywords
+            .pick
+            .rival
+            .as_ref()
+            .map(|rival| (rival.value, rival.counts)),
+        Some((RollUp::File, on_files))
+    );
+
+    let view = column(node, "View");
+    assert_eq!(
+        (view.varies.groups, view.varies.disjoint, view.varies.of),
+        (2, 2, 2),
+        "each file has its own view"
+    );
+    assert_eq!(
+        (view.pick.chosen.value, view.pick.chosen.counts),
+        (RollUp::File, on_files)
+    );
+    assert_eq!(
+        view.pick
+            .rival
+            .as_ref()
+            .map(|rival| (rival.value, rival.counts)),
+        Some((RollUp::Item, on_item))
+    );
+}
+
+#[test]
+fn a_list_whose_rows_describe_items_has_no_roll_up() {
+    let proposal = proposal_with_lists(&[]);
+    assert!(
+        series(&proposal, "Photo Narratives (PN)")
+            .columns
+            .is_empty()
+    );
+    assert!(!series(&proposal, "Artifacts").columns.is_empty());
+}
+
+#[test]
+fn file_rows_of_items_of_one_file_have_no_roll_up() {
+    let proposal = proposal_with_lists(&[Edit::Grain {
+        list: ListFile {
+            source: SourceId("s1".into()),
+            file: RelPath::parse("BHC006_GMT_PN.xlsx").expect("a path"),
+        },
+        describes: RecordKind::Media,
+    }]);
+    let narratives = series(&proposal, "Photo Narratives (PN)");
+    assert_eq!(
+        narratives.grain.as_ref().map(|grain| grain.chosen.value),
+        Some(RecordKind::Media)
+    );
+    assert!(
+        narratives.columns.is_empty(),
+        "each PN item has one file, so a column places alike on either level"
+    );
 }

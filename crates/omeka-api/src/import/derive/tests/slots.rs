@@ -701,3 +701,28 @@ fn a_repeating_tag_gives_one_value_each_and_a_1252_read_raises_encoding_suspect(
     assert_eq!(suspect[0].detail.as_deref(), Some("Andr\u{e9}"));
     assert_eq!(suspect[0].policy, Some(FlagPolicy::Keep));
 }
+
+#[test]
+fn an_item_keeps_one_of_two_spellings_that_fold_together() {
+    let files = [
+        ("AF_020a.jpg", JPEG),
+        ("AF_020b.jpg", JPEG),
+        ("AF_020c.jpg", JPEG),
+        ("AF_020d.jpg", JPEG),
+    ];
+    let plan = plan(|plan| {
+        plan["grouping"]["pattern"] = json!(r"^(?<identifier>AF_\d{3})(?<part>[a-z])\.[^.]+$");
+        plan["sheets"] = json!([sheet_plan("af", &["File", "Digitized by"])]);
+        plan["sheets"][0]["rowKind"] = json!("media");
+        plan["sheets"][0]["join"] = join_on("fileName", 0, "File", false, false, false);
+        plan["slots"]["item"]["dcterms:contributor"] =
+            rule(json!([col("af", 1, "Digitized by")]), "all");
+    });
+    let csv: &[u8] = b"File,Digitized by\nAF_020a.jpg,Supriya Nandgouli\nAF_020b.jpg,supriya Nandgouli\nAF_020c.jpg,Supriya Nandgouli\nAF_020d.jpg,Supriya Nandgouli\n";
+    let model = run(&index(&files), &read_sheets(&plan, &[("af", csv)]), &plan);
+    assert_eq!(
+        texts(item(&model, "AF_020"), "dcterms:contributor"),
+        ["Supriya Nandgouli"],
+        "four rows, one value: the first spelling stays"
+    );
+}

@@ -115,8 +115,8 @@ describe('what the sections say', () => {
             groupsWithManyRows: 4,
             rowsNamingOtherFilesOfAGroup: 4,
             columns: [
-              { index: 0, header: 'File', varies: { groups: 4, of: 4 } },
-              { index: 1, header: 'Year', varies: { groups: 0, of: 4 } },
+              { index: 0, header: 'File', varies: { groups: 4, disjoint: 4, of: 4 } },
+              { index: 1, header: 'Year', varies: { groups: 0, disjoint: 0, of: 4 } },
             ],
           },
           cells: [
@@ -133,13 +133,41 @@ describe('what the sections say', () => {
     };
     const parsed = parsePreview(['listCandidates'])(answer).listCandidates;
     expect(parsed[0]?.grain?.rowsNamingOtherFilesOfAGroup).toBe(4);
-    expect(parsed[0]?.grain?.columns.map((column) => [column.header, column.varies.groups, column.varies.of])).toEqual([
-      ['File', 4, 4],
-      ['Year', 0, 4],
+    expect(parsed[0]?.grain?.columns.map((column) => [column.header, column.varies.groups, column.varies.disjoint, column.varies.of])).toEqual([
+      ['File', 4, 4, 4],
+      ['Year', 0, 0, 4],
     ]);
     expect(parsed[1]?.read).toEqual({ error: 'the workbook cannot be read: no zip' });
     expect(roundTrip(parsed)).toEqual(answer.listCandidates);
     expect(() => parsePreview(['listCandidates'])({ ...answer, listCandidates: [{ ...answer.listCandidates[1], read: 'failed' }] })).toThrow(ParseError);
+  });
+
+  it('values asked for one slot say what the map makes each one and offer near spellings', () => {
+    const answer = {
+      sources: [],
+      pattern: { groups: [] },
+      values: [
+        {
+          slot: 'dcterms:contributor',
+          values: {
+            total: 3,
+            page: 1,
+            perPage: 50,
+            items: [
+              { text: 'Dilip Patil', count: 312, spellings: ['Dilip Patil'], to: null },
+              { text: 'Supriya Nandgouli', count: 499, spellings: ['Supriya Nandgouli', 'supriya Nandgouli'], to: 'Supriya Nandgouli' },
+              { text: 'Dilp Patil', count: 2, spellings: ['Dilp Patil'], to: '' },
+            ],
+          },
+          near: [{ from: 'Dilp Patil', fromRecords: 2, to: 'Dilip Patil', toRecords: 312 }],
+        },
+      ],
+    };
+    const parsed = parsePreview(['values'])(answer).values;
+    expect(parsed[0]?.values.items.map((value) => value.to)).toEqual([null, 'Supriya Nandgouli', '']);
+    expect(parsed[0]?.near).toEqual([{ from: 'Dilp Patil', fromRecords: 2, to: 'Dilip Patil', toRecords: 312 }]);
+    expect(roundTrip(parsed)).toEqual(answer.values);
+    expect(() => parsePreview(['values'])({ ...answer, values: [{ ...answer.values[0], near: undefined }] })).toThrow(ParseError);
   });
 
   it('entries and records say why a file or an item is left out, copies and rowless items included', () => {
