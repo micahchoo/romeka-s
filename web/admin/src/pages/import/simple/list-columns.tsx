@@ -6,10 +6,14 @@
  * values go on the item or on each file: the proposer's pick is marked, each
  * answer says how many items or files it gives values, and the row says in
  * how many items they differ. A column whose cells hold a
- * separator offers to cut them into several values.
+ * separator offers to cut them into several values. A column that goes into
+ * a field offers to clean its values: join two spellings, change a value, or
+ * leave one out (`../value-map.tsx`).
  */
+import { Suspense, lazy, useState } from 'react';
 import type { ReactElement } from 'react';
-import type { ColumnRef, SheetPlan } from '../../../api/import-plan';
+import { isTerm } from '../../../api/import-plan';
+import type { ColumnRef, ImportPlan, SheetPlan } from '../../../api/import-plan';
 import type { RollUpCounts } from '../../../api/import-proposal';
 import type { Grain } from '../../../api/import-sections';
 import type { SheetView } from '../../../api/import-sheet-views';
@@ -17,6 +21,8 @@ import { TableScroll } from '../../../app/table-scroll';
 import { useAsync } from '../../../app/useAsync';
 import { useDraft } from '../draft-context';
 import { loadProperties } from '../lists/catalog';
+import { seriesHolding } from '../series';
+import type { MapHome } from '../value-map-edits';
 import { asTarget, fileLevelAllowed, filledOf, firstRowOf, levelOf, rollUpOf, separatorOf, splitOf, suggestedLevel, targetOf, variesOf, withColumnLevel, withCountedTarget, withSplit } from './list-plan';
 import type { Level, ListCounts } from './list-plan';
 import { Segmented } from './master-detail';
@@ -93,6 +99,32 @@ const Differs = ({ grain, column }: { readonly grain: Grain | null; readonly col
   );
 };
 
+const ValueMap = lazy(() => import('../value-map'));
+
+/** "Clean values" of a column that goes into a field: what each of the field's values becomes, read only once opened. */
+const CleanValues = ({ home, column }: { readonly home: MapHome; readonly column: ColumnRef }): ReactElement => {
+  const { t } = useSimpleText();
+  const [open, setOpen] = useState(false);
+  return (
+    <details className="guided-clean" onToggle={(event) => { setOpen(event.currentTarget.open); }}>
+      <summary>{t('guided.list.clean', { column: column.header })}</summary>
+      {open ? (
+        <Suspense fallback={null}>
+          <ValueMap home={home} label={t('guided.list.cleanOf', { column: column.header })} />
+        </Suspense>
+      ) : null}
+    </details>
+  );
+};
+
+/** Where the field a column goes into keeps its value map: none for a column out, or one that names an item type or sets. */
+const fieldHomeOf = (plan: ImportPlan, sheet: SheetPlan, column: ColumnRef): MapHome | null => {
+  const target = targetOf(plan, sheet.id, column.index);
+  const slot = target.startsWith('field:') ? target.slice('field:'.length) : '';
+  const holder = seriesHolding(plan, sheet.id);
+  return holder === undefined || !isTerm(slot) ? null : { level: holder.id, kind: levelOf(plan, sheet.id, column.index) === 'file' ? 'media' : 'item', slot };
+};
+
 export const ListColumns = ({ sheet, view, counts }: { readonly sheet: SheetPlan; readonly view: SheetView; readonly counts: ListCounts }): ReactElement => {
   const { t } = useSimpleText();
   const firstRow = firstRowOf(view, sheet.read.headerLine);
@@ -165,6 +197,10 @@ export const ListColumns = ({ sheet, view, counts }: { readonly sheet: SheetPlan
           </tbody>
         </table>
       </TableScroll>
+      {columns.map(({ column }) => {
+        const home = fieldHomeOf(draft.plan, sheet, column);
+        return home === null ? null : <CleanValues key={`${String(column.index)}:${JSON.stringify(home)}`} home={home} column={column} />;
+      })}
     </>
   );
 };
