@@ -70,6 +70,11 @@ calamine = "0.37"
 # workbook that unpacks past its bound is refused unread. calamine's own zip.
 zip = { version = "9", default-features = false, features = ["deflate"] }
 
+[features]
+# The click meter (`import/clicks.rs`) for the server's held-out table, which
+# reads it on each held-out shape. Off in every build that ships.
+meter = []
+
 [dev-dependencies]
 # Generates the round-trip, malformed-body and query-parsing cases the fifteen
 # fixed fixtures cannot reach (`tests/property_wire.rs`,
