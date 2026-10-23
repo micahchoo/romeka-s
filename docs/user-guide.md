@@ -146,7 +146,12 @@ The start page asks "Where are your files?". It has two cards.
   folder and choose **Use the folder X**, or **Use everything in** a root. The files stay on the
   server. If no folder is set up, the card says how to set one up.
 - **On this computer.** Choose **Start with files from this computer**. You send the files on the
-  next page.
+  next page. Drag files, a folder or a zip file onto it, or use **Choose files** and **Choose a
+  folder**. A zip file is unpacked after it arrives. Files and folders whose names start with a dot
+  are left out. Each sending shows its progress, and you can pause one file or all of them. If you
+  leave the page, sending stops; add the same files again and they continue. One file can be up
+  to 2.1 GB and one import up to 53.7 GB (2 GiB and 50 GiB), unless the operator changed the
+  limits. **Look at the files again** reads them again after you add or change files.
 
 Under the cards, **Past imports** lists every import with its files, status, start, finish and how
 many it added. Each row has **Make a copy**, and **Try again** when the import stopped before the
@@ -163,46 +168,47 @@ The import saves each change as you make it. The line over the screen says Savin
 saved. If someone saved the import somewhere else after you opened it, the page says so and offers
 to load their answers. An import that has started cannot change: **Make a copy** to change it.
 
-### The six steps of Simple
+### The three steps of Simple
 
-1. **Your files.** The page counts the files and says where they are. **Look at the files again**
-   reads them again after you add or change files. To add files from this computer, drag files, a
-   folder or a zip file onto the page, or use **Choose files** and **Choose a folder**. A zip file
-   is unpacked after it arrives. Files and folders whose names start with a dot are left out. Each
-   sending shows its progress. You can pause one file or all of them. If you leave the page, sending
-   stops. Add the same files again and they continue from where they stopped. One file can be up to
-   2.1 GB and one import up to 53.7 GB (2 GiB and 50 GiB), unless the operator changed the limits.
-2. **What we found.** Omeka counts the items your files make. Right now, files are one item only when
-   their names are the same except for the ending, such as "Scan 3.pdf" and "Scan 3.jpg". To group
-   more, choose **Show us one example**. Pick a file of an item that has more than one file. Click
-   the part of its name that changes between the files of that item, such as "front" and "back" or
-   "page 001" and "page 002". Tick the words that mean another file of one item, or choose
-   any number. Omeka reads every name the same way and shows how many items that makes. Files that
-   are not a picture, a sound, a film or a PDF are left out. Omeka reads the first bytes of each
-   file to know.
-3. **Your list.** A list is a spreadsheet with one row for each item: its title, its date and
-   anything else you know. If the folder holds one, Omeka asks whether it is about these items. Say
-   which column pairs each row with an item: a column of file names, or a column of codes. A code is
-   the part of the file names that is the same for all files of one item. Omeka counts how many
-   cells fit, how many rows name no file and how many items have no row. Then say where each
-   column goes: into the field with the same name, into another field, or nowhere.
-4. **Where they go.** Choose the item sets and the item types. Item sets: one for each folder, one
-   for each top folder, one new set for everything, or one that is already in Omeka. Item types:
-   from your list, from the top folder, or none. A table shows each different value and how many
-   items have it, and you choose an item type for each. Values written differently, such as
-   "Letter" and "Letters", are different values: choose the same type for both. A value can become
-   a new item type.
-5. **Check.** Omeka asks one question for each kind of problem, not one for each item, and suggests
+Simple has three steps: Structure, Check and Add.
+
+1. **Structure.** Omeka reads your folders and suggests how they become items and sets. The
+   left side is a tree of your archive: each folder that makes items, the folders it leaves out,
+   and the lists that describe no folder. Select a line to see its questions on the right. Each
+   question shows our suggestion and the other answers, each with its counts. The counts tell you
+   the result before you click. Nothing is used until you choose **Use this structure**.
+   - **The archive.** Where the files are and how many there are, the top folders and the lists.
+     **Your own sets** adds sets that cross the folders, such as "Exhibition 2018".
+   - **Items.** How the files of a folder make items. If the suggestion is wrong, choose **Mark an
+     example**. Pick a file of an item that has more than one file. Click the part of its name
+     that changes between the files of that item, such as "front" and "back". Omeka reads every
+     name the same way and says how many items that makes. The folder is then "written by you".
+     **Back to our suggestion** undoes that.
+   - **List.** The spreadsheet that describes the folder, with one row for each item or each file.
+     Omeka says how many rows name a file. **Each row describes** says whether a row is an item or
+     a file.
+   - **Where each column goes.** A column whose name is the name of a field goes into that field,
+     such as a column "Title" into Title. Change any column here: into another field, onto each
+     file, or nowhere.
+   - **Set.** The item set of the folder: the folder's name, another name, one set for each value
+     of a column, or no set.
+   - **The item type comes from.** A column of the list, the folder, or nothing. A table shows each
+     value and how many items have it. Choose an item type for each value. "Letter" and "Letters"
+     are different values: choose the same type for both. A value can become a new item type.
+   - **Leave out** keeps a folder out of the import. **Import it** brings it back.
+2. **Check.** Omeka asks one question for each kind of problem, not one for each item, and suggests
    an answer. **Use the N suggested answers** takes them all. A question you skip gets its suggested
    answer. A problem that would write broken data must be fixed before you can add.
-6. **Add.** The page sums up what goes in: the items, the files, the new item sets, item types and
+3. **Add.** The page sums up what goes in: the items, the files, the new item sets, item types and
    fields, and the items left out. Choose who can see the items: only signed-in staff (private, the
    default) or everyone (public). Then add them.
 
+An old address of a step that is gone opens Structure at the question that step asked.
+
 ### Fill in a list yourself
 
-If you have no list, make one. In the **Your list** step, choose the columns you want, download the
-list, fill it in and upload it.
+If you have no list, make one. Select the folder on Structure and choose **Fill in a list
+yourself**. Choose the columns you want, download the list, fill it in and upload it.
 
 - The list has one row for each item. The first two columns are **Identifier** and **Files**. Keep
   them as they are: Omeka uses them to find each item.
@@ -239,8 +245,8 @@ easy to review.
 
 - **Your items in groups** describes each group by exact facts: how many files, which kinds, and
   whether your list has a row. Groups that are rare, or that have 7 or more files, are marked "worth
-  a look".
-- **Files in each item** is a chart. A wrong grouping shows here first.
+  a look". It is on the archive line of Advanced's Structure.
+- **Files in each item** is a chart, on the same line. A wrong grouping shows here first.
 - **Files that are the same** lists files that are byte for byte the same as another file.
 - **Every item** and **Every file** list everything, 50 rows at a time. Choose a filter, then
   change all the rows the filter selects with one action: leave them out, put them in an item set,
@@ -252,20 +258,36 @@ that is no longer there is kept and listed, not dropped.
 
 ### Advanced
 
-The Advanced steps are Files, Lists, Fields, Problems, Existing items, Changes, Items and Run.
+Advanced shows the same tree as Simple's Structure. Simple shows the questions of the line you
+select. Advanced shows its rules. The mode switch keeps the line you selected. The Advanced steps
+are Structure, Problems, Existing items, Changes, Items and Run.
 
-- **Files.** The sources, the pattern that makes items from names (a regex with a group named
-  `identifier`), and the files. Omeka counts how many files a typed pattern fits before you use it.
-- **Lists.** For each list: its text encoding, delimiter, quote and header line, the join column,
-  and for each column its field, a separator, a language and whether its values are private.
-- **Fields.** The defaults for who sees a new record and who owns it, and a rule for each field:
-  an ordered list of sources, with "first" (the first source with a value wins) or "all" (the values
-  of every source add up), and a value map that changes a value before it is used.
+- **Structure.** Select a line of the tree.
+  - **The archive.** The sources and the files, the files that are the same, the chart of files in
+    each item, and the groups of items by facts, each with one change. The defaults for who sees a
+    new record and who owns it. Your own sets, each with its source and its sets.
+  - **A folder.** Five sections, each one line until you open it.
+    **Which files**: the folder and its kinds of files.
+    **Items**: the pattern that makes items from names (a regex with a group named `identifier`).
+    Omeka counts the items and the files that fit before you use a typed pattern.
+    **Lists**: the lists the folder reads. For each list: its text encoding, delimiter, quote and
+    header line, the join column, and for each column its field, a separator, a language and
+    whether its values are private.
+    **Fields**: a rule for each field, an ordered list of sources, with "first" (the first source
+    with a value wins) or "all" (the values of every source add up), and a value map that changes
+    a value before it is used.
+    **Set**: every set choice with its counts, a set already in Omeka, or a description.
+  - A choice that Simple also offers sends Simple's answer. Any other change writes the folder by
+    hand. The folder then says "written by you", and Omeka suggests nothing more for it until
+    **Back to our suggestion**.
 - **Problems.** One policy for each kind of problem: keep writes the value as it is, repair fixes it,
   leave leaves it out. Also the answers to the groups of problems, such as identical files.
 - **Existing items.** The action, and how a record finds the item already in Omeka.
 - **Changes.** Every change you made, in words, each with a remove button.
 - **Items** and **Run.** The same lists and the same run as in Simple.
+
+The old addresses of Files, Lists and Fields open Structure at the first folder, with that section
+open.
 
 The action says what the import does to items already in Omeka.
 
