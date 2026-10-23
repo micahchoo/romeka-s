@@ -395,9 +395,11 @@ system `tar`, including that a second restore without `--force` is refused.
 ## The static origin
 
 The origin does four things. It serves the built admin application at `/`, from
-`web/admin/dist`. It serves the media store under `/files/`, after the access check below. It forwards `/api` (which covers
-`/api-context`), `/health`, `/ready`, `/s/` and `/assets/` to the process. And it falls back to
-`index.html` for an unknown path, because the admin is a hash-routed single page.
+`web/admin/dist`. It serves the media store under `/files/`, after the access check below. It
+forwards `/api` (which covers `/api-context`), `/health`, `/ready`, `/s/`, `/logout`, `/vocab/`,
+`/admin`, `/iiif-viewer`, `/iiif/`, `/annotations`, `/application/asset/` and `/assets/` to the
+process. The comments in [`deploy/Caddyfile`](../deploy/Caddyfile) say what each one is. And it
+falls back to `index.html` for an unknown path, because the admin is a hash-routed single page.
 
 Two things to know before you write one.
 

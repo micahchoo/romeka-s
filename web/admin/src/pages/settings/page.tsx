@@ -59,9 +59,10 @@ const listNames = (draft: ListDraft): readonly string[] | null =>
 
 /**
  * `Admin/SettingController::browseAction`. The port's `/api/settings` stores
- * the locale, the three file validation settings and the private URL switch,
- * so those are saved;
- * every other field keeps its edits in page state and does not persist them.
+ * the locale, the alt text property, the three file validation settings, the
+ * private URL switch and the notes switch (`annotationsPublic`), so those are
+ * saved; every other field keeps its edits in page state and does not persist
+ * them.
  */
 export const SettingsPage = (): ReactElement => {
   const { t } = useTranslator(common, admin);

@@ -27,8 +27,9 @@ romeka serve -d /var/lib/romeka/romeka.db --host 127.0.0.1 --port 8080 --base-ur
 ```
 
 The process serves the API and the public site; the origin serves the admin bundle and the media
-files and forwards `/api`, `/health` and `/s/`. What the origin has to do is in the
-[operator guide](operator-guide.md).
+files and forwards `/api`, `/api-context`, `/assets/`, `/health`, `/ready`, `/logout`, `/s/`,
+`/vocab/`, `/admin`, `/iiif-viewer`, `/iiif/`, `/annotations` and `/application/asset/`. What the
+origin has to do is in the [operator guide](operator-guide.md).
 
 ## Sign in
 
