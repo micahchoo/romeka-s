@@ -9,11 +9,11 @@
  * the design's own sentence.
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { asRecord, isRecord } from '../src/api/parse';
 import { ImportPage } from '../src/pages/import/page';
 import { loadFixture } from './loadFixture';
-import { installFetch, jsonResponse, listResponse, route } from './stub';
+import { installFetch, jsonResponse, listResponse, requestUrl, route } from './stub';
 
 const PATH = '/api/romeka/imports/1';
 /** The replica's walk: 2,189 files, 6 of them lists. */
@@ -602,6 +602,23 @@ describe('the Structure screen', () => {
       expect(changeLines()).toEqual([['Artifacts · List: Paired: 1', '1 no longer applies.']]);
     });
     expect(changedInstances()).toEqual([['Row 40, BHC006_GMT_AF_022.jpg: file Artifacts/BHC006_GMT_AF_022a.jpg · This row changed.', true]]);
+  });
+
+  it('Simple’s archive node looks at the files again and opens files from this computer', async () => {
+    structureServer();
+    render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
+    await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 });
+    const [archive] = screen.getAllByRole('option');
+    if (archive === undefined) {
+      throw new Error('no archive node');
+    }
+    fireEvent.click(archive);
+    const inspector = inspectorOf();
+    expect(await within(inspector).findByRole('link', { name: 'Add files from this computer' })).toHaveAttribute('href', '#/import/1/simple/files');
+    fireEvent.click(within(inspector).getByRole('button', { name: 'Look at the files again' }));
+    await waitFor(() => {
+      expect(vi.mocked(fetch).mock.calls.filter(([input, init]) => requestUrl(input).pathname === `${PATH}/scan` && init?.method === 'POST')).toHaveLength(1);
+    });
   });
 });
 
