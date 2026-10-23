@@ -16,6 +16,7 @@ export const ne: ImportStructureMessages = {
     "तपाईँका फाइलहरू परिवर्तन भएका छन्। हाम्रो नयाँ सुझाव तपाईँको भन्दा फरक छ।",
   "structure.status.useNew": "नयाँ सुझाव प्रयोग गर्नुहोस्",
   "structure.status.keep": "मलाई नै राख्नुहोस्",
+  "structure.status.refused": "हामी केही नयाँ सुझाव दिँदैनौँ। हाम्रो सुझाव प्रयोग गर्न सकिएन: {reason}",
   "structure.count.items": "थप्नुपर्ने वस्तुहरू",
   "structure.count.sets": "सेटहरू",
   "structure.count.out": "आयात नगरिएको",

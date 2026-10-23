@@ -434,6 +434,21 @@ describe('the Structure screen', () => {
     expect(await within(sets).findByText('You have no set of your own.')).toBeTruthy();
   });
 
+  it('says why there is no suggestion when the plan check refused the proposer’s tree, in both zooms', async () => {
+    const draft = asRecord(asRecord(loadFixture('import/import-draft.json'), [])['plan'], []);
+    const proposal = asRecord(loadFixture('import/proposal-bhc006.json'), []);
+    const reason = 'a slot reads column 1 of sheet "AF/af.csv", which the sheet does not map';
+    const refused = { ...proposal, structure: draft['structure'], nodes: [], topSets: [], unattached: [], matchesPlan: true, refused: { tree: 'lists', reason } };
+    const line = `We suggest nothing new. Our suggestion could not be used: ${reason}`;
+    structureServer({ answer: refused });
+    render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
+    expect(await screen.findByText(line, {}, { timeout: 5000 })).toBeTruthy();
+    cleanup();
+    structureServer({ answer: refused });
+    render(<ImportPage param="1" rest={['1', 'advanced', 'structure']} />);
+    expect(await screen.findByText(line, {}, { timeout: 5000 })).toBeTruthy();
+  });
+
   it('a folder opens Pair by hand and Every file with itself in the address, and fills in a list once the structure is used', async () => {
     structureServer();
     render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);

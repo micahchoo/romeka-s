@@ -16,6 +16,7 @@ export const ml: ImportStructureMessages = {
     "നിങ്ങളുടെ ഫയലുകൾ മാറി. ഞങ്ങളുടെ പുതിയ നിർദ്ദേശം yours-ൽ നിന്ന് വ്യത്യസ്തമാണ്.",
   "structure.status.useNew": "പുതിയത് ഉപയോഗിക്കുക",
   "structure.status.keep": "എന്റെത് നിലനിർത്തുക",
+  "structure.status.refused": "ഞങ്ങൾ പുതിയതായി ഒന്നും നിർദ്ദേശിക്കുന്നില്ല. ഞങ്ങളുടെ നിർദ്ദേശം ഉപയോഗിക്കാൻ കഴിഞ്ഞില്ല: {reason}",
   "structure.count.items": "ചേർക്കേണ്ട items",
   "structure.count.sets": "സെറ്റുകൾ",
   "structure.count.out": "ഇംപോർട്ട് ചെയ്തിട്ടില്ല",

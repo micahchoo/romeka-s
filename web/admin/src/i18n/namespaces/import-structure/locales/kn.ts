@@ -16,6 +16,7 @@ export const kn: ImportStructureMessages = {
     "ನಿಮ್ಮ ಫೈಲ್‌ಗಳು ಬದಲಾದವು. ನಮ್ಮ ಹೊಸ ಸಲಹೆ yours ಗಿಂತ ಭಿನ್ನವಾಗಿದೆ.",
   "structure.status.useNew": "ಹೊಸ ಸಲಹೆಯನ್ನು ಬಳಸಿ",
   "structure.status.keep": "ನನ್ನದನ್ನು ಇರಿಸಿ",
+  "structure.status.refused": "ನಾವು ಏನನ್ನೂ ಹೊಸದಾಗಿ ಸೂಚಿಸುವುದಿಲ್ಲ. ನಮ್ಮ ಸಲಹೆಯನ್ನು ಬಳಸಲಾಗುವುದಿಲ್ಲ: {reason}",
   "structure.count.items": "ಸೇರಿಸಬೇಕಾದ ಅಂಶಗಳು",
   "structure.count.sets": "ಸೆಟ್‌ಗಳು",
   "structure.count.out": "ಆಮದು ಮಾಡಿಕೊಳ್ಳಲಾಗಿಲ್ಲ",

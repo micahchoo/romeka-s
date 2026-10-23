@@ -22,6 +22,7 @@ export const en = {
   'structure.status.changed': 'Your files changed. Our new suggestion differs from yours.',
   'structure.status.useNew': 'Use the new suggestion',
   'structure.status.keep': 'Keep mine',
+  'structure.status.refused': 'We suggest nothing new. Our suggestion could not be used: {reason}',
   'structure.count.items': 'Items to add',
   'structure.count.sets': 'Sets',
   'structure.count.out': 'Not imported',

@@ -15,6 +15,8 @@ export const es: ImportStructureMessages = {
     "Tus archivos cambiaron. Nuestra nueva propuesta difiere de la tuya.",
   "structure.status.useNew": "Usar la nueva propuesta",
   "structure.status.keep": "Mantener la mía",
+  "structure.status.refused":
+    "No proponemos nada nuevo. Nuestra propuesta no se pudo usar: {reason}",
   "structure.count.items": "Elementos que añadir",
   "structure.count.sets": "Conjuntos",
   "structure.count.out": "No importado",

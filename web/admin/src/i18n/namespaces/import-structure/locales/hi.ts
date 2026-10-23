@@ -16,6 +16,7 @@ export const hi: ImportStructureMessages = {
     "आपकी फ़ाइलें बदल गई हैं। हमारी नई अनुशंसा आपकी से भिन्न है।",
   "structure.status.useNew": "नई अनुशंसा का उपयोग करें",
   "structure.status.keep": "मेरी को बनाए रखें",
+  "structure.status.refused": "हम कुछ नया नहीं सुझाते। हमारा सुझाव उपयोग नहीं किया जा सका: {reason}",
   "structure.count.items": "जोड़ने योग्य वस्तुएं",
   "structure.count.sets": "सेट",
   "structure.count.out": "आयात नहीं किया गया",
