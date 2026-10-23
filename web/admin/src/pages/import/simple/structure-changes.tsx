@@ -14,6 +14,7 @@ import type { CutEdit, Edit } from '../../../api/import-plan';
 import { useDraft } from '../draft-context';
 import { withColumnLevel } from './list-plan';
 import { QUESTIONS, effectOf, nodeOf, questionOf } from './structure-edits';
+import { FixInstances, fixAnswer, isFixing, staleLine, useFixText } from './structure-fixes';
 import { columnChangesOf, folderName, grainWords, listName, pairWords, rollUpWords, setFromWords } from './structure-lines';
 import type { StructureMessageKey, TreeNode } from './structure-lines';
 import { useScreen } from './structure-parts';
@@ -31,7 +32,8 @@ const cutEditWords = (cut: CutEdit, t: Words['t']): string => {
 };
 
 /** An edit as the question it answers and the answer, in the words of the inspector. */
-const editWords = (edit: Edit, t: Words['t']): { readonly question: string; readonly answer: string } => {
+const editWords = (edit: Edit, words: Words, fix: ReturnType<typeof useFixText>): { readonly question: string; readonly answer: string } => {
+  const { t } = words;
   switch (edit.edit) {
     case 'leaveOut':
       return { question: t('structure.q.import'), answer: t('structure.import.no') };
@@ -55,6 +57,11 @@ const editWords = (edit: Edit, t: Words['t']): { readonly question: string; read
       return { question: t('structure.q.set'), answer: t('structure.set.existing', { id: String(edit.id) }) };
     case 'own':
       return { question: t('structure.hand.title'), answer: t('structure.own.mark') };
+    case 'oneItem':
+      return { question: t('structure.q.items'), answer: fixAnswer(edit, fix) };
+    case 'rowIs':
+    case 'describesNothing':
+      return { question: t('structure.q.list'), answer: fixAnswer(edit, fix) };
   }
 };
 
@@ -76,9 +83,12 @@ const placeOf = (edit: Edit, tree: readonly TreeNode[], where: string, t: Words[
     case 'items':
     case 'list':
     case 'own':
+    case 'oneItem':
       return folderName(edit.scope.folder, where);
     case 'grain':
     case 'pair':
+    case 'rowIs':
+    case 'describesNothing':
       return listName(edit.list);
     case 'addSet':
     case 'dropSet':
@@ -98,6 +108,7 @@ const REASONS: Readonly<Record<NotApplied, StructureMessageKey>> = {
 export const Changes = ({ tree, where, id }: { readonly tree: readonly TreeNode[]; readonly where: string; readonly id: Parameters<typeof effectOf>[0] }): ReactElement | null => {
   const { clicks, editable, proposal, words } = useScreen();
   const { t, number } = words;
+  const fix = useFixText();
   const columns = columnChangesOf(useDraft().plan, proposal);
   if (proposal.edits.length === 0 && columns.length === 0 && clicks.pending?.saved !== true) {
     return null;
@@ -108,19 +119,23 @@ export const Changes = ({ tree, where, id }: { readonly tree: readonly TreeNode[
       {clicks.pending?.saved === true ? <p role="status">{t('structure.change.saved')}</p> : null}
       <ul>
         {proposal.edits.map((result) => {
-          const { question, answer } = editWords(result.edit, t);
+          const { question, answer } = editWords(result.edit, words, fix);
           const effect = effectOf(id, result.edit);
           // A click on a folder written by hand is not offered while the folder stays so: it waits, and comes back with the suggestion.
           const owner = result.reason === 'notOffered' ? nodeOf(result.edit, tree) : undefined;
           const waitsOn = owner?.kind === 'own' ? owner.node.scope.scope : null;
           // A split taken before the folder was written by hand stays as its set level: it is kept, not waiting.
           const kept = owner?.kind === 'kept';
+          // A correction some of whose instances no longer hold still applies the others: it says how many, and each says why below.
+          const stale = staleLine(result, fix);
           const after =
             kept
               ? t('structure.change.kept')
               : waitsOn !== null
               ? t('structure.change.waiting')
-              : result.reason !== null
+              : stale !== null
+                ? stale
+                : result.reason !== null
                 ? t(REASONS[result.reason])
                 : effect === undefined
                   ? null
@@ -149,6 +164,7 @@ export const Changes = ({ tree, where, id }: { readonly tree: readonly TreeNode[
               >
                 {t('structure.change.remove')}
               </button>
+              {isFixing(result.edit) ? <FixInstances result={result} edit={result.edit} /> : null}
             </li>
           );
         })}

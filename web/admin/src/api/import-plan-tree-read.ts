@@ -209,7 +209,7 @@ export const parseEdit: Parser<Edit> = (raw, path = []) => {
     asRecord(raw, path),
     'edit',
     path,
-    oneOf(['leaveOut', 'keep', 'items', 'list', 'grain', 'addSet', 'dropSet', 'pair', 'title', 'existing', 'own'] as const),
+    oneOf(['leaveOut', 'keep', 'items', 'list', 'grain', 'addSet', 'dropSet', 'pair', 'title', 'existing', 'own', 'oneItem', 'rowIs', 'describesNothing'] as const),
   );
   switch (edit) {
     case 'leaveOut':
@@ -244,6 +244,18 @@ export const parseEdit: Parser<Edit> = (raw, path = []) => {
     case 'existing': {
       const only = strict(raw, path, ['edit', 'from', 'id']);
       return { edit, from: member(only, 'from', path, parseSetFrom), id: member(only, 'id', path, asInteger) };
+    }
+    case 'oneItem': {
+      const only = strict(raw, path, ['edit', 'scope', 'joins']);
+      return { edit, scope: member(only, 'scope', path, parseFolderScope), joins: member(only, 'joins', path, list(parseItemJoin)) };
+    }
+    case 'rowIs': {
+      const only = strict(raw, path, ['edit', 'list', 'pairs']);
+      return { edit, list: member(only, 'list', path, parseListFile), pairs: member(only, 'pairs', path, list(parseRowPair)) };
+    }
+    case 'describesNothing': {
+      const only = strict(raw, path, ['edit', 'list', 'rows']);
+      return { edit, list: member(only, 'list', path, parseListFile), rows: member(only, 'rows', path, list(parseRowCell)) };
     }
   }
 };

@@ -6,6 +6,7 @@
  * rival; Advanced's rule zoom passes `every` and shows every other choice
  * the proposer counted too.
  */
+import { Suspense, lazy } from 'react';
 import type { ReactElement } from 'react';
 import type { Choice, EditResult, Pick, RollUp, SeriesNode, SetCounts } from '../../../api/import-proposal';
 import type { Edit, ListFile, SetFrom } from '../../../api/import-plan';
@@ -17,6 +18,17 @@ import { bucketsWords, cutWords, fileRowsOf, filesWords, grainWords, itemsWords,
 import type { PlacedColumn } from './structure-lines';
 import { Notes, Offer, Question, Row, useScreen } from './structure-parts';
 import type { Answer } from './structure-parts';
+
+/** The corrections a folder is offered: a chunk of their own, since most folders have none. */
+const FixOffers = lazy(() => import('./structure-fixes').then((module) => ({ default: module.FixOffers })));
+
+/** The offers of `node` under one question, once their chunk loads. */
+const Fixes = ({ node, on }: { readonly node: SeriesNode; readonly on: 'items' | 'list' }): ReactElement | null =>
+  node.fixes === undefined ? null : (
+    <Suspense fallback={null}>
+      <FixOffers node={node} on={on} />
+    </Suspense>
+  );
 
 /** The endings line shows this many endings. */
 const PARTS_SHOWN = 8;
@@ -91,21 +103,24 @@ export const ItemsQuestion = ({ node, onMark, every = false }: { readonly node: 
     every,
   );
   return (
-    <Row label={t('structure.q.items')}>
-      {rival === null && (!every || node.items.others.length === 0) ? (
-        <span>
-          {cutWords(chosen.value, t)} · {itemsWords(counts.items, t, number)}
-        </span>
-      ) : (
-        <Question label={t('structure.q.items')} asked={asked} answers={answers} kind="items" />
-      )}
-      <Notes lines={lines} />
-      {onMark === undefined ? null : (
-        <button type="button" disabled={!editable} onClick={onMark}>
-          {t('structure.hand.mark')}
-        </button>
-      )}
-    </Row>
+    <>
+      <Row label={t('structure.q.items')}>
+        {rival === null && (!every || node.items.others.length === 0) ? (
+          <span>
+            {cutWords(chosen.value, t)} · {itemsWords(counts.items, t, number)}
+          </span>
+        ) : (
+          <Question label={t('structure.q.items')} asked={asked} answers={answers} kind="items" />
+        )}
+        <Notes lines={lines} />
+        {onMark === undefined ? null : (
+          <button type="button" disabled={!editable} onClick={onMark}>
+            {t('structure.hand.mark')}
+          </button>
+        )}
+      </Row>
+      <Fixes node={node} on="items" />
+    </>
   );
 };
 
@@ -160,6 +175,7 @@ export const ListQuestions = ({ node, every = false }: { readonly node: SeriesNo
               />
             </Row>
           ))}
+      {chosen === null || file === null ? null : <Fixes node={node} on="list" />}
       {grain === null || chosen === null || file === null || named === 0 ? null : (
         <Row label={t('structure.q.grain')}>
           <Question label={t('structure.q.grain')} asked={QUESTIONS.grain(file)} answers={grainAnswers} />
