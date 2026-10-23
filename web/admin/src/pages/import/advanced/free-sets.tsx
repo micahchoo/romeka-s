@@ -2,7 +2,8 @@
  * The person's own sets, on the archive's node (P5 design, section 3,
  * control 2): every free set, not only the first, with the sets it makes
  * and their items, a way to remove it, and a way to add one. A free set
- * crosses the tree ("Exhibition 2018"). The proposer copies free sets as
+ * crosses the tree ("Exhibition 2018"). One set per value shows what each
+ * value's set becomes (`../value-map.tsx`). The proposer copies free sets as
  * they are, so every write here is the plan's (`writes.ts`, `carried`).
  *
  * A free set lifted from v2 reads its values as v2 did (`names: "text"`):
@@ -10,6 +11,7 @@
  * with its counts before the click, from the set's distinct values and the
  * install's sets. The plan keeps `text` until the person clicks.
  */
+import { Suspense, lazy, useState } from 'react';
 import type { ReactElement } from 'react';
 import type { ImportPlan, SetNames, SetSource } from '../../../api/import-plan';
 import { importApi } from '../../../api/import-routes';
@@ -52,6 +54,23 @@ const readings = (values: readonly ValueCount[], sets: readonly ItemSet[]): { re
   return { titles: { made: values.length - byTitle, found: byTitle }, ids: { found: byId, none: values.length - byId } };
 };
 
+const ValueMap = lazy(() => import('../value-map'));
+
+/** What each value's set becomes, read only once opened. */
+const SetValues = ({ at, label }: { readonly at: number; readonly label: string }): ReactElement => {
+  const [open, setOpen] = useState(false);
+  return (
+    <details className="adv-map" onToggle={(event) => { setOpen(event.currentTarget.open); }}>
+      <summary>{label}</summary>
+      {open ? (
+        <Suspense fallback={null}>
+          <ValueMap home={{ freeSet: at }} label={label} />
+        </Suspense>
+      ) : null}
+    </details>
+  );
+};
+
 /** One free set: where its sets come from, the sets it makes, and Remove. */
 const FreeSet = ({ set, at }: { readonly set: SetSource; readonly at: number }): ReactElement => {
   const { t, number } = useAdvancedText();
@@ -84,6 +103,7 @@ const FreeSet = ({ set, at }: { readonly set: SetSource; readonly at: number }):
       ) : (
         <p className="adv-plain">{setsWords({ sets: values.map((value) => [value.text, value.count] as const), rows: null }, words.t, words.number)}</p>
       )}
+      {each === null ? null : <SetValues at={at} label={t('adv.fields.map.label', { field: source })} />}
       {each?.names === 'text' && read.status === 'ready' ? (
         <div className="adv-readings">
           <p className="adv-plain">{t('adv.free.text')}</p>

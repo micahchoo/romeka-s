@@ -279,17 +279,9 @@ export const te: ImportAdvancedMessages = {
   'adv.fields.rule.constant': 'స్థిరమైనది',
   'adv.fields.rule.addConstant': 'జోడించు',
   'adv.fields.rule.removeRule': '{field}కు ఉన్న నియమాన్ని తొలగించు',
-  'adv.fields.map.loading': 'విలువలని చదువుతోంది...',
-  'adv.fields.map.none': 'ఈ ఫీల్డ్‌లో ఇంకా ఎటువంటి రికార్డు విలువ లేదు.',
   'adv.fields.map.plain':
     'ఒక విలువను ఉపయోగించడానికి ముందు దాన్ని మార్చు. కేవలం అక్షరాల పరిమాణం లేదా ఖాళీలలో మాత్రమే తేడా ఉన్న విలువలు ఒకటే. ఖాళీగా వదిలేస్తే విలువను వదిలివేస్తుంది.',
   'adv.fields.map.label': '{field} యొక్క విలువ పటం',
-  'adv.fields.map.value': 'విలువ',
-  'adv.fields.map.items': 'రికార్డులు',
-  'adv.fields.map.becomes': 'అవుతుంది',
-  'adv.fields.map.becomesOf': '{value} అవుతుంది',
-  'adv.fields.map.spellings': 'ఇలా రాస్తారు: {spellings}',
-  'adv.fields.map.resource': 'విలువలు',
   'adv.problems.loading': 'సమస్యల లెక్కింపు...',
   'adv.problems.plain':
     'ప్రతి రకమైన సమస్యకు మొత్తం ఇంపోర్ట్ కోసం ఒక పాలసీ ఉంటుంది. keep విలువను లేదా రికార్డ్‌ను ఉన్నట్లుగా రాస్తుంది, రిపేర్ దాన్ని సరిచేస్తుంది, లీవ్ దాన్ని వదిలివేస్తుంది. ఒక అంశానికి మాత్రమే సమాధానం చెప్పడానికి, సమస్య ఉన్న అంశాలను తెరవండి.',

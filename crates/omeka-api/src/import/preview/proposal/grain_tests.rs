@@ -9,11 +9,14 @@ use crate::import::derive::Sheets;
 use crate::import::derive::tests::scenarios::{S1_TO_S8, Scenario};
 use crate::import::derive::tests::support;
 use crate::import::plan::{
-    Edit, KindColumn, ListFile, RecordKind, RelPath, RowKind, SetNames, SetSource, SlotName,
-    SourceId,
+    ColumnOptions, ColumnPlan, ColumnRef, Combine, Edit, FolderScope, KindColumn, ListFile,
+    RecordKind, RelPath, RowKind, SetFrom, SetNames, SetSource, SlotName, SlotRule, SourceId,
+    SourceRef, Structure, Term,
 };
 use crate::import::preview::candidates::automatic;
 use crate::import::sheet;
+use crate::import::values::ValueType;
+use indexmap::IndexMap;
 
 fn first_series(proposal: &Proposal) -> &SeriesNode {
     proposal
@@ -287,6 +290,16 @@ fn a_kind_column_keys_each_kind_and_links_them() {
 /// The proposal for media `files` in source `s1` and the CSV `lists` at its
 /// top, read as Simple adds a list.
 fn proposal_from(files: &[(&str, &str)], lists: &[(&str, &str)]) -> Proposal {
+    proposal_after(files, lists, &support::plan(|_| {}).structure, &[])
+}
+
+/// [`proposal_from`] on the person's `structure`, with `edits`.
+fn proposal_after(
+    files: &[(&str, &str)],
+    lists: &[(&str, &str)],
+    structure: &Structure,
+    edits: &[Edit],
+) -> Proposal {
     let scenario = Scenario {
         index: support::index(files),
         sheets: Sheets::new(),
@@ -312,10 +325,10 @@ fn proposal_from(files: &[(&str, &str)], lists: &[(&str, &str)]) -> Proposal {
         lists: &lists,
         catalog: &scenario.catalog,
         sources: &scenario.plan.sources,
-        structure: &scenario.plan.structure,
+        structure,
         sheets: &Sheets::new(),
     };
-    propose(&evidence, &[])
+    propose(&evidence, edits)
 }
 
 #[test]
@@ -465,5 +478,100 @@ fn file_rows_of_items_of_one_file_have_no_roll_up() {
     assert!(
         narratives.columns.is_empty(),
         "each PN item has one file, so a column places alike on either level"
+    );
+}
+
+#[test]
+fn a_column_moved_to_each_file_stays_there_on_the_next_proposal() {
+    let files = [
+        ("AF/BHC006_GMT_AF_013a.jpg", support::JPEG),
+        ("AF/BHC006_GMT_AF_013b.jpg", support::JPEG),
+        ("AF/BHC006_GMT_AF_013c.jpg", support::JPEG),
+        ("AF/BHC006_GMT_AF_014a.jpg", support::JPEG),
+        ("AF/BHC006_GMT_AF_014b.jpg", support::JPEG),
+        ("Other/a.jpg", support::JPEG),
+        ("Other/b.jpg", support::JPEG),
+    ];
+    let lists = [("AF/af.csv", VIEWS)];
+    let first = proposal_from(&files, &lists);
+    assert_eq!(
+        column(first_series(&first), "Keywords").pick.chosen.value,
+        RollUp::Item
+    );
+    // The person gives Keywords a field, then clicks "On each file": the
+    // shown structure with the rule on the media level.
+    let mut shown = first.structure.clone();
+    let (at, list) = shown
+        .lists()
+        .find(|(_, list)| list.file.as_str() == "AF/af.csv")
+        .map(|(at, list)| (at, list.id.clone()))
+        .expect("the list describes the series");
+    let subject = SlotName::Term(Term::parse("dcterms:subject").expect("a term"));
+    let keywords = ColumnRef {
+        index: 1,
+        header: "Keywords".into(),
+    };
+    shown
+        .list_mut(&list)
+        .expect("the list")
+        .columns
+        .push(ColumnPlan {
+            column: keywords.clone(),
+            options: ColumnOptions {
+                split: Some(",".into()),
+                value_type: ValueType::Literal,
+                lang: None,
+                private: false,
+            },
+        });
+    shown.rules_mut(at, RecordKind::Media).insert(
+        subject.clone(),
+        SlotRule {
+            sources: vec![SourceRef::Column {
+                sheet: list,
+                column: keywords.clone(),
+            }],
+            combine: Combine::First,
+            map: IndexMap::new(),
+        },
+    );
+    // A click elsewhere: the other folder's set gets a title.
+    let next = proposal_after(
+        &files,
+        &lists,
+        &shown,
+        &[Edit::Title {
+            from: SetFrom::Folder {
+                scope: FolderScope {
+                    source: SourceId("s1".into()),
+                    folder: RelPath::parse("Other").expect("a folder"),
+                },
+            },
+            title: "Loose photos".into(),
+            description: None,
+        }],
+    );
+    assert!(next.edits[0].applied, "the unrelated edit applies");
+    let (at, list) = next
+        .structure
+        .lists()
+        .find(|(_, list)| list.file.as_str() == "AF/af.csv")
+        .map(|(at, list)| (at, list.id.clone()))
+        .expect("the list still describes the series");
+    let series = next.structure.series(at);
+    let rule = series
+        .rules(RecordKind::Media)
+        .get(&subject)
+        .expect("the subject rule is still on each file");
+    assert_eq!(
+        rule.sources,
+        vec![SourceRef::Column {
+            sheet: list,
+            column: keywords,
+        }]
+    );
+    assert!(
+        series.rules(RecordKind::Item).get(&subject).is_none(),
+        "and not on the item"
     );
 }

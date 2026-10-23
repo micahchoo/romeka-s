@@ -258,17 +258,9 @@ export const es: ImportAdvancedMessages = {
   'adv.fields.rule.constant': 'Constante',
   'adv.fields.rule.addConstant': 'Añadir',
   'adv.fields.rule.removeRule': 'Quitar la regla de {field}',
-  'adv.fields.map.loading': 'Leyendo los valores...',
-  'adv.fields.map.none': 'Aún ningún registro tiene un valor en este campo.',
   'adv.fields.map.plain':
     'Cambia un valor antes de usarlo. Los valores que solo difieren en mayúsculas o espacios son un solo valor. Una casilla vacía deja fuera el valor.',
   'adv.fields.map.label': 'Mapa de valores de {field}',
-  'adv.fields.map.value': 'Valor',
-  'adv.fields.map.items': 'Registros',
-  'adv.fields.map.becomes': 'Pasa a ser',
-  'adv.fields.map.becomesOf': '{value} pasa a ser',
-  'adv.fields.map.spellings': 'Escrito como: {spellings}',
-  'adv.fields.map.resource': 'valores',
 
   'adv.problems.loading': 'Contando los problemas...',
   'adv.problems.plain':

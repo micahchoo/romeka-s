@@ -282,17 +282,9 @@ export const ml: ImportAdvancedMessages = {
   'adv.fields.rule.constant': 'സ്ഥിരാങ്കം',
   'adv.fields.rule.addConstant': 'ചേർക്കുക',
   'adv.fields.rule.removeRule': '{field}-നുള്ള നിയമം നീക്കം ചെയ്യുക',
-  'adv.fields.map.loading': 'മൂല്യങ്ങൾ വായിക്കുന്നു...',
-  'adv.fields.map.none': 'ഈ ഫീൽഡിൽ ഇതുവരെ ഒരു റെക്കോർഡിനും മൂല്യമില്ല.',
   'adv.fields.map.plain':
     'ഒരു മൂല്യം ഉപയോഗിക്കുന്നതിന് മുമ്പ് അത് മാറ്റുക. വലിയ അക്ഷരങ്ങളിലോ സ്പേസുകളിലോ മാത്രം വ്യത്യാസമുള്ള മൂല്യങ്ങൾ ഒന്നാണ്. ഒരു ശൂന്യമായ ബോക്സ് മൂല്യത്തെ ഒഴിവാക്കുന്നു.',
   'adv.fields.map.label': '{field}-ന്റെ മൂല്യ മാപ്പ്',
-  'adv.fields.map.value': 'മൂല്യം',
-  'adv.fields.map.items': 'റെക്കോർഡുകൾ',
-  'adv.fields.map.becomes': 'ആകുന്നു',
-  'adv.fields.map.becomesOf': '{value} ആകുന്നു',
-  'adv.fields.map.spellings': 'ഇങ്ങനെ എഴുതുന്നു: {spellings}',
-  'adv.fields.map.resource': 'മൂല്യങ്ങൾ',
   'adv.problems.loading': 'പ്രശ്നങ്ങളുടെ എണ്ണം കണക്കാക്കുന്നു...',
   'adv.problems.plain':
     'ഓരോ പ്രശ്നത്തിനും മുഴുവൻ ഇംപോർട്ടിനും ഓരോ പോളിസി ഉണ്ട്. keep മൂല്യങ്ങൾ മാറ്റാതെ എഴുതുന്നു, repair അവ ശരിയാക്കുന്നു, leave അവ ഒഴിവാക്കുന്നു. ഒരു ഐറ്റം മാത്രം ഉത്തരം നൽകാൻ, പ്രശ്നമുള്ള ഐറ്റങ്ങൾ തുറക്കുക.',

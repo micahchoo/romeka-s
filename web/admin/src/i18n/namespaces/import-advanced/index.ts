@@ -271,17 +271,9 @@ export const en = {
   'adv.fields.rule.constant': 'Constant',
   'adv.fields.rule.addConstant': 'Add',
   'adv.fields.rule.removeRule': 'Remove the rule for {field}',
-  'adv.fields.map.loading': 'Reading the values...',
-  'adv.fields.map.none': 'No record has a value in this field yet.',
   'adv.fields.map.plain':
     'Change a value before it is used. Values that differ only in capital letters or spaces are one value. An empty box leaves the value out.',
   'adv.fields.map.label': 'Value map of {field}',
-  'adv.fields.map.value': 'Value',
-  'adv.fields.map.items': 'Records',
-  'adv.fields.map.becomes': 'Becomes',
-  'adv.fields.map.becomesOf': '{value} becomes',
-  'adv.fields.map.spellings': 'Written as: {spellings}',
-  'adv.fields.map.resource': 'values',
 
   // Problems.
   'adv.problems.loading': 'Counting the problems...',

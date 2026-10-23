@@ -279,17 +279,9 @@ export const mr: ImportAdvancedMessages = {
   'adv.fields.rule.constant': 'स्थिर',
   'adv.fields.rule.addConstant': 'जोडा',
   'adv.fields.rule.removeRule': '{field} साठीचा नियम काढून टाका',
-  'adv.fields.map.loading': 'मूल्यांचे वाचन करत आहे...',
-  'adv.fields.map.none': 'या क्षेत्रात अद्याप कोणत्याही नोंदीचे मूल्य नाही.',
   'adv.fields.map.plain':
     'वापरण्यापूर्वी मूल्यामध्ये बदल करा. केवळ कॅपिटल लेटर किंवा स्पेसमध्ये भिन्न असलेल्या मूल्यांना एकच मूल्य मानले जाते. रिकाम्या बॉक्समुळे मूल्य वगळले जाते.',
   'adv.fields.map.label': '{field} चे मूल्य नकाशा',
-  'adv.fields.map.value': 'मूल्य',
-  'adv.fields.map.items': 'नोंदी',
-  'adv.fields.map.becomes': 'बनते',
-  'adv.fields.map.becomesOf': '{value} बनते',
-  'adv.fields.map.spellings': 'असे लिहिले जाते: {spellings}',
-  'adv.fields.map.resource': 'मूल्ये',
   'adv.problems.loading': 'समस्या मोजत आहे...',
   'adv.problems.plain':
     'प्रत्येक प्रकारच्या समस्येसाठी संपूर्ण आयातीसाठी एक धोरण आहे. keep मूल्य किंवा नोंद जशी आहे तशी लिहिते, repair ती दुरुस्त करते, leave ती वगळते. एका समस्येवर एका घटकाचे उत्तर देण्यासाठी, समस्या असलेल्या घटकांचे घटक उघडा.',

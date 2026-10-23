@@ -197,24 +197,6 @@ export const addSource = (plan: ImportPlan, at: RuleAt, source: SourceRef): Impo
 export const setCombine = (plan: ImportPlan, at: RuleAt, combine: SlotRule['combine']): ImportPlan =>
   combine === 'all' && !isMultiValued(at.slot) ? plan : onRule(plan, 'setCombine', at, (rule) => ({ ...rule, combine }));
 
-/** What the value map makes of `value`: its mapped text, or the value itself. */
-export const mappedText = (rule: SlotRule, value: string): string => {
-  const key = Object.keys(rule.map ?? {}).find((one) => foldTitle(one) === foldTitle(value));
-  return key === undefined ? value : (rule.map?.[key] ?? value);
-};
-
-/**
- * `value` mapped to `to`. Keys compare as titles, and two keys that fold to
- * one are refused on save, so the old key for the value goes first. A value
- * mapped to itself needs no key; an empty map is absent.
- */
-export const setMapped = (plan: ImportPlan, at: RuleAt, value: string, to: string): ImportPlan =>
-  onRule(plan, 'setMapped', at, (rule) => {
-    const rest = Object.entries(rule.map ?? {}).filter(([key]) => foldTitle(key) !== foldTitle(value));
-    const map = Object.fromEntries(to === value ? rest : [...rest, [value, to]]);
-    return Object.keys(map).length === 0 ? { sources: rule.sources, combine: rule.combine } : { sources: rule.sources, combine: rule.combine, map };
-  });
-
 export const setDefaults = (plan: ImportPlan, defaults: Partial<Defaults>): ImportPlan =>
   written(plan, 'setDefaults', undefined, (now) => ({ ...now, defaults: { ...now.defaults, ...defaults } }));
 
