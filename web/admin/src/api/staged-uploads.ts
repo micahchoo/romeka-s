@@ -1,8 +1,7 @@
 /**
  * A person's staged uploads (`/api/romeka/uploads`) and the media create that
- * names one: what the add panel reads and sends. The routes are S4's
- * (`briefs/media-ui-plan.md`); the shapes are `crates/omeka-server/README.md`,
- * "Staged uploads".
+ * names one: what the add panel reads and sends. The routes and their shapes
+ * are `crates/omeka-server/README.md`, "Staged uploads".
  */
 import { api } from './client';
 import type { ItemId, Media } from './types';

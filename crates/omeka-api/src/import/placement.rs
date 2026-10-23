@@ -1,5 +1,5 @@
 //! What an import places where, with every name left out: the oracle that
-//! judges a proposal (`briefs/import-proposer-design.md`, section 4). Two
+//! judges a proposal. Two
 //! plans are equal here when they put the same files in the same items, the
 //! items in the same sets, each list on the same items, the same rows on
 //! the same items, and each column both place on the same level. The comparison never reads a pattern, an id or a title.

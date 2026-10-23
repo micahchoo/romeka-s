@@ -1,5 +1,4 @@
-//! The click meter (`briefs/import-p4-design.md`, section 4): the fewest
-//! offered clicks that make an archive's wanted placement, and the
+//! The click meter: the fewest offered clicks that make an archive's wanted placement, and the
 //! differences no offered click removes. A click is one edit; an offered
 //! click is one whose choice the proposal shows with its counts. The meter
 //! never reads an archive's pinned edits: it finds its clicks greedily, each
@@ -9,7 +8,7 @@
 //! segment moves a slot rule's source, not the tree, so no edit records it.
 //!
 //! A second phase then offers the proposal's corrections
-//! (`briefs/import-gaps-design.md`, section 3). It starts where today's
+//! (`docs/import-v2.md`, "Decisions"). It starts where today's
 //! loop ends and takes a correction only when the differences fall, so on
 //! every archive it leaves at most the differences the first phase left.
 
