@@ -281,17 +281,9 @@ export const kn: ImportAdvancedMessages = {
   'adv.fields.rule.constant': 'ಸ್ಥಿರ',
   'adv.fields.rule.addConstant': 'ಸೇರಿಸಿ',
   'adv.fields.rule.removeRule': '{field} ಗಾಗಿ ನಿಯಮವನ್ನು ತೆಗೆದುಹಾಕಿ',
-  'adv.fields.map.loading': 'ಮೌಲ್ಯಗಳನ್ನು ಓದುತ್ತಿದೆ...',
-  'adv.fields.map.none': 'ಈ ಕ್ಷೇತ್ರದಲ್ಲಿ ಯಾವುದೇ ದಾಖಲೆಯು ಮೌಲ್ಯವನ್ನು ಹೊಂದಿಲ್ಲ.',
   'adv.fields.map.plain':
     'ಬಳಸುವ ಮೊದಲು ಮೌಲ್ಯವನ್ನು ಬದಲಾಯಿಸಿ. ಕೇವಲ ದೊಡ್ಡಕ್ಷರ ಅಥವಾ ಸ್ಪೇಸ್‌ಗಳಲ್ಲಿ ಮಾತ್ರ ವ್ಯತ್ಯಾಸವಿರುವ ಮೌಲ್ಯಗಳು ಒಂದೇ ಆಗಿರುತ್ತವೆ. ಖಾಲಿ ಬಾಕ್ಸ್ ಮೌಲ್ಯವನ್ನು ಹೊರಗಿಡುತ್ತದೆ.',
   'adv.fields.map.label': '{field} ನ ಮೌಲ್ಯ ನಕ್ಷೆ',
-  'adv.fields.map.value': 'ಮೌಲ್ಯ',
-  'adv.fields.map.items': 'ದಾಖಲೆಗಳು',
-  'adv.fields.map.becomes': 'ಆಗುತ್ತದೆ',
-  'adv.fields.map.becomesOf': '{value} ಆಗುತ್ತದೆ',
-  'adv.fields.map.spellings': 'ಹೀಗೆ ಬರೆಯಲಾಗಿದೆ: {spellings}',
-  'adv.fields.map.resource': 'ಮೌಲ್ಯಗಳು',
   'adv.problems.loading': 'ಸಮಸ್ಯೆಗಳ ಎಣಿಕೆ...',
   'adv.problems.plain':
     'ಪ್ರತಿ ರೀತಿಯ ಸಮಸ್ಯೆಯು ಇಡೀ ಆಮದು ಪ್ರಕ್ರಿಯೆಗೆ ಒಂದು ನೀತಿಯನ್ನು ಹೊಂದಿರುತ್ತದೆ. keep ಮೌಲ್ಯವನ್ನು ಅಥವಾ ದಾಖಲೆಯನ್ನು ಹಾಗೆಯೇ ಉಳಿಸುತ್ತದೆ, repair ಅದನ್ನು ಸರಿಪಡಿಸುತ್ತದೆ, leave ಅದನ್ನು ಹೊರಗಿಡುತ್ತದೆ. ಒಂದು ಐಟಂಗೆ ಪ್ರತ್ಯೇಕವಾಗಿ ಉತ್ತರಿಸಲು, ಸಮಸ್ಯೆಯಿರುವ ಐಟಂಗಳನ್ನು ತೆರೆಯಿರಿ.',
