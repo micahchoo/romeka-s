@@ -31,7 +31,7 @@ async-trait = "0.1"
 # verifies is one this command wrote.
 bcrypt = "0.17"
 chrono.workspace = true
-clap = "2"
+clap = { version = "4", features = ["env"] }
 omeka-api = { path = "../omeka-api" }
 omeka-core = { path = "../omeka-core" }
 omeka-db = { path = "../omeka-db" }
