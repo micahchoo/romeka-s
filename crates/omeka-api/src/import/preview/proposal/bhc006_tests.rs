@@ -19,7 +19,9 @@ use crate::import::placement::{Difference, ListFiles, Placement, differences};
 use crate::import::plan::{CutEdit, Edit, FolderScope, ListFile, RecordKind, SetFrom};
 use crate::import::plan::{ImportPlan, RelPath, SourceId, SourcePlan, default_plan};
 use crate::import::preview::candidates::automatic;
-use crate::import::preview::proposal::{Evidence, FoundList, NodeEvidence, Proposal, propose};
+use crate::import::preview::proposal::{
+    Because, Evidence, Fix, FoundList, NodeEvidence, Proposal, Share, propose,
+};
 use crate::import::sheet::{self, SheetError};
 
 const LISTING: &str =
@@ -404,5 +406,90 @@ fn the_admins_recorded_proposals_are_the_replicas() {
                 "{name} is out of date; run with UPDATE_FIXTURES=1"
             );
         }
+    }
+}
+
+/// After its two pinned clicks the replica's AF list has 10 rows that pair
+/// no file (design section 0). Four point at exactly one file with no row,
+/// and that file at only them. `116a` and `116b` share `116.JPG`, and `184`
+/// names an item of two files, so they are not offered.
+#[test]
+fn bhc006_offers_four_row_pairs() {
+    let extras = Edit::LeaveOut {
+        scope: FolderScope {
+            source: SourceId("s1".into()),
+            folder: RelPath::parse("Extras").expect("a folder"),
+        },
+    };
+    let narratives = Edit::Grain {
+        list: ListFile {
+            source: SourceId("s1".into()),
+            file: RelPath::parse("BHC006_GMT_PN.xlsx").expect("a path"),
+        },
+        describes: RecordKind::Media,
+    };
+    let proposal = proposal_with_lists(&[extras, narratives]);
+    let mut pairs = Vec::new();
+    for node in &proposal.nodes {
+        let NodeEvidence::Series(series) = node else {
+            continue;
+        };
+        for fix in &series.fixes {
+            match fix {
+                Fix::RowIs {
+                    list,
+                    pairs: offered,
+                    counts,
+                } => {
+                    assert_eq!(list.file.as_str(), "BHC006_GMT_AF.xlsx");
+                    assert_eq!(
+                        counts.rows,
+                        Some((Share { n: 680, of: 690 }, Share { n: 684, of: 690 }))
+                    );
+                    pairs.extend(offered.iter().map(|offer| {
+                        (
+                            offer.pair.row.cell.clone(),
+                            offer.pair.file.to_string(),
+                            offer.because,
+                        )
+                    }));
+                }
+                Fix::OneItem { .. } | Fix::DescribesNothing { .. } => {
+                    panic!("{}: no join and no row left out: {fix:?}", series.level.0)
+                }
+            }
+        }
+    }
+    let row = |cell: &str, file: &str, because| (cell.to_owned(), file.to_owned(), because);
+    assert_eq!(
+        pairs,
+        [
+            row(
+                "BHC006_GMT_AF_022.jpg",
+                "Artifacts/BHC006_GMT_AF_022a.jpg",
+                Because::Near
+            ),
+            row(
+                "BHC_006_GMT_AF_193a.tif",
+                "Artifacts/BHC_006_GMT_AF_193a (2).tif",
+                Because::NamesPart
+            ),
+            row(
+                "BHC_006_GMT_AF_193b.tif",
+                "Artifacts/BHC_006_GMT_AF_193b (2).tif",
+                Because::NamesPart
+            ),
+            row(
+                "BHC_006_GMT_AF_300.NEF",
+                "Artifacts/BHC_006_GMT_AF_300a.NEF",
+                Because::Near
+            ),
+        ]
+    );
+    for refused in ["116a", "116b", "_184"] {
+        assert!(
+            pairs.iter().all(|(cell, _, _)| !cell.contains(refused)),
+            "{refused} is not offered"
+        );
     }
 }

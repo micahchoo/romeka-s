@@ -123,6 +123,27 @@ describe("the v3 plan", () => {
     ).toThrow("outside");
   });
 
+  it("writes back a series' corrections, and leaves the member out when empty", () => {
+    const raw: unknown = JSON.parse(JSON.stringify(rustPlan("bhc006.json")));
+    const levels = isRecord(raw) && isRecord(raw["structure"]) ? raw["structure"]["levels"] : undefined;
+    const project = isUnknownArray(levels) ? levels[0] : undefined;
+    const series = isRecord(project) && isUnknownArray(project["levels"]) ? project["levels"][0] : undefined;
+    if (!isRecord(series)) {
+      throw new Error("bhc006 has its AF series first");
+    }
+    expect(JSON.stringify(roundTrip(raw))).not.toContain("corrections");
+    const file = (path: string) => ({ source: "s1", path });
+    const row = { sheet: "af", key: "BHC006_GMT_AF_022.jpg#1" };
+    series["corrections"] = [
+      { kind: "join", file: file("Artifacts/BHC006_GMT_AF_010b.jpg"), with: file("Artifacts/BHC006_GMT_AF_010a.jpg") },
+      { kind: "pair", row, file: file("Artifacts/BHC006_GMT_AF_022a.jpg") },
+      { kind: "leave", row },
+    ];
+    expect(roundTrip(raw)).toEqual(raw);
+    series["corrections"] = [{ kind: "set", row }];
+    expect(() => parseImportPlan(raw)).toThrow("corrections[0].kind");
+  });
+
   it("refuses a member serde does not know", () => {
     expect(() =>
       parseImportPlan({

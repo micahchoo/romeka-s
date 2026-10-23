@@ -6,16 +6,17 @@
 
 use serde_json::json;
 
-use super::clicks::{Click, meter};
+use super::clicks::{Click, Metered, meter, meter_first_phase};
 use super::derive::tests::proposal_shapes::{judge, pinned};
 use super::derive::tests::scenarios::S1_TO_S8;
 use super::derive::tests::support;
 use super::derive::{NoTags, Sheets, derive};
 use super::placement::{Difference, ListFiles, Placement, differences};
 use super::plan::{
-    Auto, ColumnRef, Delimiter, Edit, EncodingChoice, FolderScope, ImportPlan, ListFile, Quote,
-    ReadOptions, RecordKind, RelPath, SourceId,
+    Auto, ColumnRef, CutEdit, Delimiter, Edit, EncodingChoice, FolderScope, ImportPlan, ListFile,
+    Quote, ReadOptions, RecordKind, RelPath, SourceId,
 };
+use super::preview::proposal::fixes_tests as open;
 use super::preview::proposal::{Evidence, FoundList, Proposal, RollUp, bhc006_tests, propose};
 use super::sheet;
 
@@ -207,4 +208,192 @@ fn a_column_one_side_does_not_place_is_no_difference() {
     );
     let unplaced: Vec<Difference> = differences(&picked, &bare);
     assert_eq!(unplaced, [], "a column only one side places is hand work");
+}
+
+/// The kinds of the corrections the meter took, and the instances each
+/// holds, in the meter's order.
+fn taken(metered: &Metered) -> Vec<(&'static str, usize)> {
+    metered
+        .corrections
+        .iter()
+        .map(|click| match click {
+            Click::Edit(Edit::OneItem { joins, .. }) => ("oneItem", joins.len()),
+            Click::Edit(Edit::RowIs { pairs, .. }) => ("rowIs", pairs.len()),
+            Click::Edit(Edit::DescribesNothing { rows, .. }) => ("describesNothing", rows.len()),
+            Click::Untick { .. } => ("untick", 1),
+            other => panic!("not a correction: {other:?}"),
+        })
+        .collect()
+}
+
+/// An open scenario through the meter: its differences as found, then the
+/// corrections it takes after today's clicks and the gaps they leave.
+fn metered(scenario: &open::Scenario, as_found: &[(&'static str, usize)]) -> Metered {
+    assert_eq!(scenario.as_found(), as_found.iter().copied().collect());
+    meter(scenario.judge())
+}
+
+#[test]
+fn parts_named_by_the_whole_are_one_item() {
+    let metered = metered(&open::parts_named_by_the_whole(), &[("filesSplit", 2)]);
+    assert_eq!(metered.clicks, []);
+    assert_eq!(taken(&metered), [("oneItem", 3)]);
+    assert_eq!(metered.gaps(), [].into(), "{:#?}", metered.left);
+}
+
+#[test]
+fn a_range_part_joins_its_object() {
+    let metered = metered(&open::a_range_part(), &[("filesSplit", 3)]);
+    // Today's loop first takes the cut at three places: it joins 2019.4.2
+    // and 2019.4.5 with their parts, and leaves the two names of two places
+    // out. That leaves fewer differences than the join offer alone would,
+    // and no correction makes a left-out file an item again.
+    assert_eq!(
+        metered.clicks,
+        [Click::Edit(Edit::Items {
+            scope: open::scope(""),
+            cut: CutEdit::Places { places: 3 },
+        })]
+    );
+    assert_eq!(taken(&metered), []);
+    assert_eq!(
+        metered.gaps(),
+        [("leftOut", 2)].into(),
+        "{:#?}",
+        metered.left
+    );
+}
+
+#[test]
+fn a_row_one_typo_from_a_file_pairs_it() {
+    let metered = metered(
+        &open::a_row_one_typo_from_a_file(),
+        &[("row", 1), ("rowItem", 1)],
+    );
+    assert_eq!(metered.clicks, []);
+    assert_eq!(taken(&metered), [("rowIs", 1)]);
+    assert_eq!(metered.gaps(), [].into(), "{:#?}", metered.left);
+}
+
+#[test]
+fn an_ambiguous_row_is_not_offered() {
+    let metered = metered(&open::an_ambiguous_row(), &[("row", 1), ("rowItem", 1)]);
+    assert_eq!(metered.clicks, []);
+    assert_eq!(taken(&metered), [], "a guess between two files is no click");
+    assert_eq!(
+        metered.gaps(),
+        [("row", 1), ("rowItem", 1)].into(),
+        "the row stays a gap: only the person knows its file"
+    );
+}
+
+#[test]
+fn rows_for_things_never_digitized_leave() {
+    let metered = metered(
+        &open::rows_for_things_never_digitized(),
+        &[("row", 2), ("rowItem", 2)],
+    );
+    assert_eq!(metered.clicks, []);
+    assert_eq!(taken(&metered), [("describesNothing", 2)]);
+    assert_eq!(metered.gaps(), [].into(), "{:#?}", metered.left);
+}
+
+#[test]
+fn a_row_naming_a_part_pairs_that_file() {
+    let metered = metered(&open::a_row_naming_a_part(), &[("row", 2)]);
+    assert_eq!(metered.clicks, []);
+    assert_eq!(taken(&metered), [("rowIs", 2)]);
+    assert_eq!(metered.gaps(), [].into(), "{:#?}", metered.left);
+}
+
+#[test]
+fn one_row_for_two_parts_joins_them() {
+    let metered = metered(
+        &open::one_row_for_two_parts(),
+        &[("filesSplit", 1), ("rowItem", 1)],
+    );
+    // The join keeps the key of the item it joins, so the register row
+    // does not pair by its join: it then points at the joined item, one
+    // character from its file. The join alone changes the count of
+    // differences by nothing, so the meter takes the two together.
+    assert_eq!(metered.clicks, []);
+    assert_eq!(taken(&metered), [("oneItem", 1), ("rowIs", 1)]);
+    assert_eq!(metered.gaps(), [].into(), "{:#?}", metered.left);
+}
+
+#[test]
+fn a_typo_and_a_split_need_two_corrections() {
+    let metered = metered(
+        &open::a_typo_and_a_split(),
+        &[("filesSplit", 2), ("row", 1), ("rowItem", 1)],
+    );
+    assert_eq!(metered.clicks, []);
+    assert_eq!(taken(&metered), [("oneItem", 3), ("rowIs", 1)]);
+    assert_eq!(metered.gaps(), [].into(), "{:#?}", metered.left);
+}
+
+/// A meter's judge, as the tests hand it over.
+type Judge<'j> = &'j dyn Fn(&[Edit]) -> (Proposal, Vec<Difference>);
+
+#[test]
+fn phase_one_is_todays_meter() {
+    let check = |name: &str, judge: Judge<'_>| {
+        let first = meter_first_phase(judge);
+        let both = meter(judge);
+        assert!(first.corrections.is_empty(), "{name}");
+        assert_eq!(
+            both.clicks, first.clicks,
+            "{name}: phase 1 takes today's clicks"
+        );
+        assert_eq!(both.as_found, first.as_found, "{name}");
+        assert!(
+            both.left.len() <= first.left.len(),
+            "{name}: the second phase leaves at most what the first left"
+        );
+        if both.corrections.is_empty() {
+            assert_eq!(
+                both.left, first.left,
+                "{name}: no correction, the same gaps"
+            );
+        }
+    };
+    for (shape, build) in S1_TO_S8 {
+        let scenario = build();
+        check(shape, &|edits| judge(&scenario, edits));
+    }
+    for (name, build) in [
+        (
+            "parts",
+            open::parts_named_by_the_whole as fn() -> open::Scenario,
+        ),
+        ("range", open::a_range_part),
+        ("typo", open::a_row_one_typo_from_a_file),
+        ("ambiguous", open::an_ambiguous_row),
+        ("never", open::rows_for_things_never_digitized),
+        ("part", open::a_row_naming_a_part),
+        ("two rows", open::one_row_for_two_parts),
+        ("both", open::a_typo_and_a_split),
+    ] {
+        let scenario = build();
+        let judge = scenario.judge();
+        check(name, &judge);
+    }
+    check("bhc006", &bhc006_tests::judge());
+}
+
+#[test]
+fn the_held_out_line_counts_corrections_among_the_clicks() {
+    let metered = metered(
+        &open::a_typo_and_a_split(),
+        &[("filesSplit", 2), ("row", 1), ("rowItem", 1)],
+    );
+    assert_eq!(
+        metered.line(),
+        "2 offered clicks (2 of them corrections), 0 gaps"
+    );
+    let ambiguous = meter(open::an_ambiguous_row().judge());
+    assert_eq!(
+        ambiguous.line(),
+        "0 offered clicks (0 of them corrections), 2 gaps: row 1, rowItem 1"
+    );
 }

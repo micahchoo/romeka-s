@@ -194,6 +194,17 @@ describe('the proposal section', () => {
     expect(parseProposal(parsePreview(['proposal'])(raw).proposal).refused).toBeUndefined();
   });
 
+  it('parses the corrections a proposal offers and writes them back unchanged', () => {
+    const raw = loadFixture('import/proposal-bhc006-whole.json');
+    const parsed = parseProposal(raw);
+    expect(roundTrip(parsed)).toEqual(raw);
+    const fixes = parsed.nodes.flatMap((node) => (node.kind === 'series' ? (node.fixes ?? []) : []));
+    expect(new Set(fixes.map((fix) => fix.fix))).toEqual(new Set(['oneItem', 'rowIs', 'describesNothing']));
+    const nodes = object(raw)['nodes'];
+    const first = (isUnknownArray(nodes) ? nodes.map(object) : []).find((node) => node['kind'] === 'series') ?? {};
+    expect(() => parseProposal({ ...object(raw), nodes: [{ ...first, fixes: [{ fix: 'rename' }] }] })).toThrow(ParseError);
+  });
+
   it('refuses a member the server never writes, at any depth', () => {
     const raw = everything();
     const proposal = object(raw['proposal']);

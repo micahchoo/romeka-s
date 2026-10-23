@@ -529,3 +529,64 @@ fn a_lifted_plan_with_edits_is_written_as_v3_and_v2_has_no_member_for_them() {
         Err(PlanError::Shape(_))
     ));
 }
+
+/// A list of `register.csv` with one column, as a series holds it.
+fn register(id: &str) -> Value {
+    json!({
+        "id": id, "source": "s1", "file": format!("{id}.csv"), "hash": null,
+        "read": { "encoding": "auto", "delimiter": "auto", "quote": "\"", "headerLine": 1, "trim": true },
+        "rowKind": "item", "join": null, "itemKey": null,
+        "columns": [{ "column": { "index": 0, "header": "Title" },
+            "options": { "split": null, "type": "literal", "lang": null, "private": false } }]
+    })
+}
+
+#[test]
+fn corrections_round_trip_and_skip_when_empty() {
+    let file = |path: &str| json!({ "source": "s1", "path": path });
+    let row = |key: &str| json!({ "sheet": "register", "key": key });
+    let mut value: Value = serde_json::from_str(ARCHIVE_AS_FOUND).expect("fixture json");
+    let series = &mut value["structure"]["levels"][0];
+    series["lists"] = json!([register("register")]);
+    series["corrections"] = json!([
+        { "kind": "join", "file": file("2019.4.2a.tif"), "with": file("2019.4.2.tif") },
+        { "kind": "pair", "row": row("2019.4.21#1"), "file": file("2019.4.12.tif") },
+        { "kind": "leave", "row": row("2019.4.88#1") },
+    ]);
+    let written = value.to_string();
+    let plan = parse(&written);
+    let (at, _) = plan.structure.all_series().next().expect("the series");
+    assert_eq!(plan.structure.series(at).corrections().len(), 3);
+    assert_eq!(plan.to_json(), written, "written back byte for byte");
+
+    let as_found = parse(ARCHIVE_AS_FOUND);
+    assert!(
+        as_v3(&as_found)["structure"]["levels"][0]
+            .get("corrections")
+            .is_none(),
+        "a series with no correction writes no member"
+    );
+
+    let unknown = refused(|plan| {
+        plan["structure"]["levels"][0]["corrections"] =
+            json!([{ "kind": "set", "row": row("2019.4.88#1") }]);
+    });
+    assert!(matches!(unknown, PlanError::ShapeV3(_)), "{unknown:?}");
+}
+
+#[test]
+fn a_correction_naming_another_series_sheet_is_refused() {
+    let error = refused(|plan| {
+        let mut a = series("a", folder("s1", "A"));
+        a["lists"] = json!([register("register")]);
+        let mut b = series("b", folder("s1", "B"));
+        b["corrections"] = json!([
+            { "kind": "leave", "row": { "sheet": "register", "key": "7#1" } }
+        ]);
+        plan["structure"]["levels"] = json!([a, b]);
+    });
+    assert!(
+        matches!(&error, PlanError::ForeignCorrection { series, sheet } if series == "b" && sheet == "register"),
+        "{error:?}"
+    );
+}

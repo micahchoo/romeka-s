@@ -73,3 +73,10 @@ pub const SPLIT_WHEN_HELD: Share = Share { n: 1, of: 2 };
 /// goes on the item, where a wrong default loses no value. BHC006 AF
 /// `Keywords` is disjoint in 0 of 272 items, `Digitized by` in 1.
 pub const FILE_WHEN_DISJOINT: Share = Share { n: 1, of: 2 };
+
+/// The edits by which a row's name and a file's name may differ before the
+/// row points at that file: one is the least that tells two names apart,
+/// and it covers a typo, a dropped character and a transposed digit. The
+/// targets are only files with no row, and each side must be unique. BHC006
+/// `BHC006_GMT_AF_022.jpg` points at `BHC006_GMT_AF_022a.jpg` this way.
+pub const MAX_EDITS_APART: usize = 1;
