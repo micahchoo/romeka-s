@@ -4,7 +4,6 @@
  */
 import type { ImportId, ImportPlan, LevelId, SheetPlan } from '../../../api/import-plan';
 import { importApi } from '../../../api/import-routes';
-import { loadProperties } from '../lists/catalog';
 import { seriesOf, withSeries } from '../series';
 import { sheetOf, withRead } from './list-plan';
 
@@ -34,7 +33,6 @@ export const listEdit = async (id: ImportId, plan: ImportPlan, level: LevelId, l
     sheet = { ...first, read: { ...first.read, headerLine: line } };
     preview = await readWith(sheet);
   }
-  const fields = await loadProperties();
   const view = preview.sheets.find((one) => one.id === sheet.id);
   const read = view?.read ?? null;
   if (read === null) {
@@ -48,5 +46,5 @@ export const listEdit = async (id: ImportId, plan: ImportPlan, level: LevelId, l
     rollUps: [],
   };
   return (now) =>
-    seriesOf(now, level).lists.some((one) => one.file === sheet.file && one.source === sheet.source) ? now : withRead(withList(now, level, sheet), sheet.id, read, counts, fields);
+    seriesOf(now, level).lists.some((one) => one.file === sheet.file && one.source === sheet.source) ? now : withRead(withList(now, level, sheet), sheet.id, read, counts);
 };

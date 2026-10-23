@@ -356,16 +356,11 @@ export const withColumnMapped = (plan: ImportPlan, sheet: string, column: Column
 
 /**
  * The list read: every column with plain options, the pairing column with the
- * most exact cells, and each column whose header is a field's label in that
- * field, split as its counts suggest.
+ * most exact cells, and each column whose header the server names as a
+ * field's label (`ColumnCells.field`) in that field, split as its counts
+ * suggest. The proposer reads a list it chooses the same way.
  */
-export const withRead = (
-  plan: ImportPlan,
-  sheet: string,
-  read: SheetRead,
-  counts: ListCounts,
-  fields: readonly { readonly term: string; readonly label: string | null }[],
-): ImportPlan => {
+export const withRead = (plan: ImportPlan, sheet: string, read: SheetRead, counts: ListCounts): ImportPlan => {
   const columns = read.columns
     .filter((column) => column.mappable)
     .map((column) => ({ column: { index: column.index, header: column.header }, options: { split: null, type: 'literal' as const, lang: null, private: false } }));
@@ -375,9 +370,9 @@ export const withRead = (
     if (pair !== undefined && column.index === pair.index) {
       continue;
     }
-    const field = fields.find((one) => one.label !== null && fold(one.label) === fold(column.header));
-    if (field !== undefined && isTerm(field.term)) {
-      next = withCountedTarget(next, sheet, column, `field:${field.term}`, counts);
+    const field = counts.cells.find((one) => one.index === column.index && one.header === column.header)?.field;
+    if (field !== undefined) {
+      next = withCountedTarget(next, sheet, column, `field:${field}`, counts);
     }
   }
   return next;

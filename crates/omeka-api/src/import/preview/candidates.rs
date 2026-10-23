@@ -23,12 +23,13 @@ use serde::Serialize;
 use super::Derived;
 use super::columns::{Targets, column_counts, walk};
 use crate::import::archive::SourceDir;
+use crate::import::catalog::Catalog;
 use crate::import::derive::Index;
 use crate::import::join::cell;
 use crate::import::model::{GroupKey, Model, Origin};
 use crate::import::plan::{
     Auto, Delimiter, EncodingChoice, JoinOn, LevelId, Quote, ReadOptions, RecordKind, RelPath,
-    RowKind, SheetId, SheetPlan, SourceId,
+    RowKind, SheetId, SheetPlan, SourceId, Term,
 };
 use crate::import::sheet::Sheet;
 
@@ -129,6 +130,13 @@ pub struct ColumnCells {
     /// Of the separators that cut a cell into several values, the one the
     /// most cells hold; `None` when no cell holds one.
     pub separator: Option<Separator>,
+    /// The field whose label the header is ([`Catalog::field_labeled`]): a
+    /// list read for the first time puts the column there.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub field: Option<Term>,
+    /// The cells that hold more than spaces.
+    #[serde(skip)]
+    pub filled: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -271,7 +279,7 @@ fn candidate<'d>(
         .as_ref()
         .and_then(|id| derived.sheets.get(id))
         .and_then(|read| read.sheet.as_ref().ok());
-    candidate.cells = column_cells(in_plan.unwrap_or(sheet));
+    candidate.cells = column_cells(in_plan.unwrap_or(sheet), &derived.catalog);
     candidate.best = best(sheet, exact, folded);
     let Some(best) = &candidate.best else {
         return (candidate, HashSet::new());
@@ -292,7 +300,7 @@ fn candidate<'d>(
     (candidate, paired.groups)
 }
 
-pub(super) fn column_cells(sheet: &Sheet) -> Vec<ColumnCells> {
+pub(super) fn column_cells(sheet: &Sheet, catalog: &Catalog) -> Vec<ColumnCells> {
     sheet
         .columns
         .iter()
@@ -314,6 +322,12 @@ pub(super) fn column_cells(sheet: &Sheet) -> Vec<ColumnCells> {
                 index: column.index,
                 header: column.header.clone(),
                 separator,
+                field: catalog.field_labeled(&column.header).cloned(),
+                filled: sheet
+                    .rows
+                    .iter()
+                    .filter(|row| !cell(row, column.index).trim().is_empty())
+                    .count(),
             }
         })
         .collect()

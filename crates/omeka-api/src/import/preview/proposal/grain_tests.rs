@@ -5,6 +5,7 @@ use super::{
     ColumnRollUp, Evidence, FoundList, ItemCut, NodeEvidence, Proposal, RollUp, RollUpCounts,
     SeriesNode, propose,
 };
+use crate::import::catalog::{Catalog, label_key};
 use crate::import::derive::Sheets;
 use crate::import::derive::tests::scenarios::{S1_TO_S8, Scenario};
 use crate::import::derive::tests::support;
@@ -300,11 +301,22 @@ fn proposal_after(
     structure: &Structure,
     edits: &[Edit],
 ) -> Proposal {
+    proposal_in(support::catalog(), files, lists, structure, edits)
+}
+
+/// [`proposal_after`] in an install of `catalog`.
+fn proposal_in(
+    catalog: Catalog,
+    files: &[(&str, &str)],
+    lists: &[(&str, &str)],
+    structure: &Structure,
+    edits: &[Edit],
+) -> Proposal {
     let scenario = Scenario {
         index: support::index(files),
         sheets: Sheets::new(),
         plan: support::plan(|_| {}),
-        catalog: support::catalog(),
+        catalog,
     };
     let lists: Vec<FoundList> = lists
         .iter()
@@ -574,4 +586,53 @@ fn a_column_moved_to_each_file_stays_there_on_the_next_proposal() {
         series.rules(RecordKind::Item).get(&subject).is_none(),
         "and not on the item"
     );
+}
+
+#[test]
+fn a_column_named_as_a_field_goes_where_its_roll_up_picks_on_a_list_of_file_rows() {
+    let files = [
+        ("BHC006_GMT_AF_013a.jpg", support::JPEG),
+        ("BHC006_GMT_AF_013b.jpg", support::JPEG),
+        ("BHC006_GMT_AF_013c.jpg", support::JPEG),
+        ("BHC006_GMT_AF_014a.jpg", support::JPEG),
+        ("BHC006_GMT_AF_014b.jpg", support::JPEG),
+    ];
+    let mut catalog = support::catalog();
+    for (label, term) in [
+        ("Keywords", "dcterms:subject"),
+        ("View", "dcterms:description"),
+    ] {
+        catalog
+            .fields_by_label
+            .insert(label_key(label), support::term(term));
+    }
+    let plan = support::plan(|_| {});
+    let proposal = proposal_in(catalog, &files, &[("af.csv", VIEWS)], &plan.structure, &[]);
+    let (_, series) = proposal.structure.all_series().next().expect("a series");
+    let reads = |kind: RecordKind, term: &str| -> Vec<String> {
+        series
+            .rules(kind)
+            .get(&SlotName::Term(support::term(term)))
+            .map(|rule| {
+                rule.sources
+                    .iter()
+                    .filter_map(|source| match source {
+                        SourceRef::Column { column, .. } => Some(column.header.clone()),
+                        _ => None,
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+    assert_eq!(
+        reads(RecordKind::Item, "dcterms:subject"),
+        ["Keywords"],
+        "shared values, on the item"
+    );
+    assert_eq!(
+        reads(RecordKind::Media, "dcterms:description"),
+        ["View"],
+        "each file's own, on each file"
+    );
+    assert!(reads(RecordKind::Item, "dcterms:description").is_empty());
 }

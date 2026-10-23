@@ -512,6 +512,8 @@ export interface ColumnCells {
   readonly header: string;
   /** Of `,`, `;` and `|`, the one the most cells hold, and in how many. */
   readonly separator: { readonly text: string; readonly cells: number } | null;
+  /** The field whose label the header is: a list read for the first time puts the column there. */
+  readonly field?: Term;
 }
 
 /** Another list that pairs some of the same items. */
@@ -572,7 +574,7 @@ export const parseListCandidate = (raw: unknown, path: Path): ListCandidate => {
     };
   };
   const cells = (value: unknown, at: Path): ColumnCells => {
-    const each = strict(value, at, ['index', 'header', 'separator']);
+    const each = strict(value, at, ['index', 'header', 'separator'], ['field']);
     const separator = (inner: unknown, where: Path): NonNullable<ColumnCells['separator']> => {
       const both = strict(inner, where, ['text', 'cells']);
       return { text: text(both, 'text', where), cells: count(both, 'cells', where) };
@@ -581,6 +583,7 @@ export const parseListCandidate = (raw: unknown, path: Path): ListCandidate => {
       index: count(each, 'index', at),
       header: text(each, 'header', at),
       separator: member(each, 'separator', at, nullable(separator)),
+      ...(each['field'] === undefined ? {} : { field: member(each, 'field', at, asTerm) }),
     };
   };
   const overlap = (value: unknown, at: Path): ListOverlap => {

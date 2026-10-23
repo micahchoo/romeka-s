@@ -7,6 +7,8 @@
  * for. The shapes are the P4-api fixtures', so the pages run through the
  * real client and its parsers.
  */
+import type { Term } from '../src/api/import-plan';
+import type { ColumnCells } from '../src/api/import-sections';
 import { asRecord, isRecord } from '../src/api/parse';
 import { loadFixture } from './loadFixture';
 import { flatPlan, withMembers } from './import-plan-members';
@@ -117,6 +119,32 @@ const columnsOf = (list: ScenarioList): readonly string[] => list.columns ?? LIS
 const linesOf = (scenario: Scenario, list: ScenarioList | undefined): readonly string[] =>
   list === undefined ? scenario.sheet.lines : (list.lines ?? [columnsOf(list).join(','), [list.file, ...columnsOf(list).slice(1).map(() => 'A')].join(',')]);
 
+/** The install's fields: term, label, id. */
+const INSTALL_FIELDS: readonly (readonly [Term, string, number])[] = [
+  ['dcterms:title', 'Title', 1],
+  ['dcterms:date', 'Date', 7],
+  ['dcterms:type', 'Type', 8],
+  ['dcterms:description', 'Description', 4],
+  ['dcterms:identifier', 'Identifier', 10],
+  ['dcterms:subject', 'Subject', 3],
+];
+
+const labelKey = (text: string): string => text.trim().normalize('NFC').toLowerCase();
+
+/**
+ * Every column of a list that reads, as `listCandidates` counts it: the
+ * scenario's separators, and the field the server names when the header is
+ * an install field's label.
+ */
+const cellsOf = (scenario: Scenario, list: ScenarioList): readonly ColumnCells[] => {
+  const headers = scenario.lists === undefined ? scenario.sheet.columns.map((column) => column.header) : columnsOf(list);
+  const cells: readonly ColumnCells[] = list.cells ?? headers.map((header, index) => ({ index, header, separator: null }));
+  return cells.map((cell) => {
+    const field = cell.field ?? INSTALL_FIELDS.find(([, label]) => labelKey(label) === labelKey(cell.header))?.[0];
+    return field === undefined ? cell : { ...cell, field };
+  });
+};
+
 /** A list's `listCandidates` entry, its `inPlan` the asked plan's sheet that reads it. */
 const candidateOf = (scenario: Scenario, list: ScenarioList, sheets: readonly Record<string, unknown>[]): Record<string, unknown> => {
   const best = scenario.lists === undefined ? scenario.sheet.columns.findIndex((column) => Math.max(column.groupKeys, column.fileNames) === list.paired) : 0;
@@ -132,7 +160,7 @@ const candidateOf = (scenario: Scenario, list: ScenarioList, sheets: readonly Re
     columns: scenario.lists === undefined ? scenario.sheet.columns.length : columnsOf(list).length,
     best: list.error !== undefined || list.normalized === 0 ? null : { index: best, header, on, paired: list.paired, pairedNormalized: list.normalized, empty: 0 },
     grain: list.grain ?? null,
-    cells: list.error === undefined ? (list.cells ?? []) : [],
+    cells: list.error === undefined ? cellsOf(scenario, list) : [],
     overlaps: (list.overlaps ?? []).map((overlap) => ({ source: 's1', ...overlap })),
   };
 };
@@ -363,14 +391,7 @@ export const simpleServer = (scenario: Scenario, planEdits: Record<string, unkno
     const local = term.slice(term.indexOf(':') + 1);
     return { ...asRecord(first, []), 'o:id': id, 'o:term': term, 'o:label': label, 'o:local_name': local };
   };
-  const fields = [
-    field('dcterms:title', 'Title', 1),
-    field('dcterms:date', 'Date', 7),
-    field('dcterms:type', 'Type', 8),
-    field('dcterms:description', 'Description', 4),
-    field('dcterms:identifier', 'Identifier', 10),
-    field('dcterms:subject', 'Subject', 3),
-  ];
+  const fields = INSTALL_FIELDS.map(([term, label, id]) => field(term, label, id));
 
   const handler = route({
     '/api/romeka/archive': () =>

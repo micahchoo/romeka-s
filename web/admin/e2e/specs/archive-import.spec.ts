@@ -3,8 +3,8 @@
  * (the files, the Structure of its folders, one example marked on a folder,
  * the list round trip and the item type from that folder's node, the check,
  * the start, the progress, the end, then an undo that keeps the one
- * item edited since and undoes it anyway), an Advanced edit read in Simple, a
- * column's field kept across a click on another folder, a column's field
+ * item edited since and undoes it anyway), an Advanced edit read in Simple, the
+ * fields a chosen list's headers name, a column's field kept across a click on another folder, a column's field
  * saved from Advanced's Lists section, a folder's item type from a column, the pairs list round trip, a zip sent from this computer, and a delete the
  * server refuses until its count is typed.
  *
@@ -99,6 +99,16 @@ const itemByTitle = async (page: Page, title: string): Promise<number> => {
   return numberField(record(json[0], title), 'o:id', title);
 };
 
+/** The headers of the columns Artifacts' item rule for `slot` reads, in the stored plan. */
+const itemRuleHeaders = async (page: Page, id: number, slot: string): Promise<readonly unknown[]> => {
+  const plan = record(record((await api(page, 'GET', `/api/romeka/imports/${String(id)}`)).json, 'import')['plan'], 'plan');
+  const levels = record(plan['structure'], 'structure')['levels'];
+  const artifacts = (isArray(levels) ? levels : []).map((level) => record(level, 'level')).find((level) => level['id'] === ARTIFACTS);
+  const rule = record(record(record(artifacts?.['slots'], 'slots')['item'], 'item')[slot], slot);
+  const sources = isArray(rule['sources']) ? rule['sources'] : [];
+  return sources.map((source) => record(record(source, 'source')['column'], 'column')['header']);
+};
+
 test('the Simple pass adds the folder, and undo keeps the item edited since until asked', async ({ page }) => {
   const id = await startOn(page, BHC);
 
@@ -119,10 +129,9 @@ test('the Simple pass adds the folder, and undo keeps the item edited since unti
   await expect(page.getByRole('option', { name: ARTIFACTS })).toContainText('written by you');
   await saved(page);
 
-  // The register's titles, from the folder's node: a list the proposer chose maps no column until the person says where it goes.
+  // The register's titles need no click: the list the proposer chose puts its Title column in Title.
   await page.getByRole('button', { name: 'Where each column goes' }).click();
-  await page.getByRole('combobox', { name: 'Where the column Title goes' }).selectOption('field:dcterms:title');
-  await saved(page);
+  await expect(page.getByRole('combobox', { name: 'Where the column Title goes' })).toHaveValue('field:dcterms:title');
   await page.getByRole('button', { name: 'Where each column goes' }).click();
 
   // The folder's list round trip, from its node.
@@ -194,6 +203,13 @@ test('an answer given in Advanced shows in Simple', async ({ page }) => {
   await expect(page.getByRole('option', { name: 'Artifacts' })).toContainText('written by you');
 });
 
+test('a list Structure’s suggestion chooses gives each column whose header is a field’s label that field', async ({ page }) => {
+  const id = await startOn(page, BHC);
+  await useStructure(page);
+  expect(await itemRuleHeaders(page, id, 'dcterms:title')).toEqual(['Title']);
+  expect(await itemRuleHeaders(page, id, 'dcterms:date')).toEqual(['Date']);
+});
+
 test('a column given its field on a folder’s node survives a click on another folder', async ({ page }) => {
   const id = await startOn(page, BHC);
   await page.goto(`/#/import/${String(id)}/simple/structure`);
@@ -209,19 +225,14 @@ test('a column given its field on a folder’s node survives a click on another 
   await page.getByRole('button', { name: /^Leave out/ }).click();
   await expect(page.getByRole('option', { name: PHOTOGRAPHS })).toContainText('you left it out');
   await saved(page);
-  const plan = record(record((await api(page, 'GET', `/api/romeka/imports/${String(id)}`)).json, 'import')['plan'], 'plan');
-  const levels = record(plan['structure'], 'structure')['levels'];
-  const artifacts = (isArray(levels) ? levels : []).map((level) => record(level, 'level')).find((level) => level['id'] === ARTIFACTS);
-  const rule = record(record(record(artifacts?.['slots'], 'slots')['item'], 'item')['dcterms:dateSubmitted'], 'dcterms:dateSubmitted');
-  const sources = isArray(rule['sources']) ? rule['sources'] : [];
-  expect(sources.map((source) => record(record(source, 'source')['column'], 'column')['header'])).toEqual(['Date']);
+  expect(await itemRuleHeaders(page, id, 'dcterms:dateSubmitted')).toEqual(['Date']);
 
   await page.getByRole('option', { name: ARTIFACTS }).click();
   await page.getByRole('button', { name: 'Where each column goes' }).click();
   await expect(page.getByRole('combobox', { name: 'Where the column Date goes' })).toHaveValue('field:dcterms:dateSubmitted');
 });
 
-test('a column given its field in Advanced’s Lists section is saved, on a folder whose list mapped no column', async ({ page }) => {
+test('a column given another field in Advanced’s Lists section is saved', async ({ page }) => {
   const id = await startOn(page, BHC);
   await page.goto(`/#/import/${String(id)}/advanced/structure`);
   await page.getByRole('option', { name: ARTIFACTS }).click();
@@ -230,12 +241,7 @@ test('a column given its field in Advanced’s Lists section is saved, on a fold
   await expect(date.getByRole('option', { name: 'Date Submitted' })).toBeAttached();
   await date.selectOption('dcterms:dateSubmitted');
   await saved(page);
-  const plan = record(record((await api(page, 'GET', `/api/romeka/imports/${String(id)}`)).json, 'import')['plan'], 'plan');
-  const levels = record(plan['structure'], 'structure')['levels'];
-  const artifacts = (isArray(levels) ? levels : []).map((level) => record(level, 'level')).find((level) => level['id'] === ARTIFACTS);
-  const rule = record(record(record(artifacts?.['slots'], 'slots')['item'], 'item')['dcterms:dateSubmitted'], 'dcterms:dateSubmitted');
-  const sources = isArray(rule['sources']) ? rule['sources'] : [];
-  expect(sources.map((source) => record(record(source, 'source')['column'], 'column')['header'])).toEqual(['Date']);
+  expect(await itemRuleHeaders(page, id, 'dcterms:dateSubmitted')).toEqual(['Date']);
 });
 
 test('a folder’s item type from a column of its list is saved, and its values are counted', async ({ page }) => {
@@ -247,12 +253,7 @@ test('a folder’s item type from a column of its list is saved, and its values 
   await from.selectOption({ label: 'Column “Title”' });
   await saved(page);
   await expect(page.getByRole('region', { name: 'Item type for each value' }).getByRole('combobox', { name: /^Item type for / }).first()).toBeVisible();
-  const plan = record(record((await api(page, 'GET', `/api/romeka/imports/${String(id)}`)).json, 'import')['plan'], 'plan');
-  const levels = record(plan['structure'], 'structure')['levels'];
-  const artifacts = (isArray(levels) ? levels : []).map((level) => record(level, 'level')).find((level) => level['id'] === ARTIFACTS);
-  const rule = record(record(record(artifacts?.['slots'], 'slots')['item'], 'item')['template'], 'template');
-  const sources = isArray(rule['sources']) ? rule['sources'] : [];
-  expect(sources.map((source) => record(record(source, 'source')['column'], 'column')['header'])).toEqual(['Title']);
+  expect(await itemRuleHeaders(page, id, 'template')).toEqual(['Title']);
 });
 
 test('the pairs list pairs every row of a register that names no file', async ({ page }) => {
@@ -297,14 +298,10 @@ test('a zip from this computer is unpacked into the import and counted', async (
   await expect(fact(page, 'Files', 2)).toBeVisible({ timeout: JOB_MS });
 });
 
-/** A draft over BHC_006 with its register read and joined, as Structure's suggestion leaves it, and its titles given their field. */
+/** A draft over BHC_006 with its register read and joined, and its titles in Title, as Structure's suggestion leaves it. */
 const listed = async (page: Page): Promise<number> => {
   const id = await startOn(page, BHC);
   await useStructure(page);
-  await page.getByRole('option', { name: ARTIFACTS }).click();
-  await page.getByRole('button', { name: 'Where each column goes' }).click();
-  await page.getByRole('combobox', { name: 'Where the column Title goes' }).selectOption('field:dcterms:title');
-  await saved(page);
   await expect
     .poll(async () => {
       const { json } = await api(page, 'GET', `/api/romeka/imports/${String(id)}`);
