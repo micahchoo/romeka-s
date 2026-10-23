@@ -2,8 +2,7 @@
 //! markers over the picture, the toggle, the paging link and the chip on a
 //! cropped tile.
 //!
-//! Every expected value comes from the design (`briefs/media-ui/C-public.md`,
-//! interactions 2 and 4), not from the renderer: a note at (x, y) of a W by H
+//! Every expected value comes from the note itself, not from the renderer: a note at (x, y) of a W by H
 //! canvas sits at x/W and y/H, a time note links to `?t=` at its start, and a
 //! note's text is read as text.
 

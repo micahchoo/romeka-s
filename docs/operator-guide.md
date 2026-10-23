@@ -80,10 +80,12 @@ the database API rather than the filesystem.
 The file store is a directory tree, `files` beside the database by default:
 
 ```
-original/<storage_id>.<extension>     the stored file
+original/<storage_id>.<extension>     the stored file, never changed
 large/<storage_id>.jpg                one derivative per thumbnail type
 medium/<storage_id>.jpg
 square/<storage_id>.jpg
+access/<storage_id>.<mp4|m4a|jpg|pdf> the access copy, when the original needs one
+asset/<storage_id>.<extension>        an uploaded asset, such as a site logo
 ```
 
 - `romeka install` is what applies the schema and the migrations. `romeka serve` opens the file and
@@ -136,7 +138,7 @@ romeka serve --host 0.0.0.0 --port 8123 --store /var/lib/romeka/files
 
 With `ROMEKA_STORE_BACKEND=s3` every byte the local tree would hold goes to the bucket instead, under
 the same keys (`original/<storage_id>.<extension>`, `large/...`, `medium/...`, `square/...`,
-`asset/...`). `romeka serve`, the `romeka job run` children it starts and the file commands
+`access/...`, `asset/...`). `romeka serve`, the `romeka job run` children it starts and the file commands
 (`media`, `thumbnails`, `sweep`) read the same variables, so they all reach the same bucket. A wrong
 value stops the process at startup and names the variable. A wrong key or a missing bucket shows on
 the first read or write as an `object store error` that names the S3 action and its status
@@ -149,6 +151,7 @@ The API and the public site name each file with the URL its visibility allows
 | File | URL |
 | --- | --- |
 | an original, of any resource | signed, valid for `ROMEKA_S3_URL_TTL_SECS` |
+| an access copy | signed, as an original is |
 | a thumbnail of a media whose media and item are public | plain: `ROMEKA_S3_PUBLIC_BASE/<key>`, or the object in the bucket |
 | a thumbnail of a private media, or of a media of a private item | signed |
 | an asset (a site logo, a resource thumbnail) | plain |
@@ -156,7 +159,7 @@ The API and the public site name each file with the URL its visibility allows
 A signed URL is produced only in a document or page the caller may see, so only that caller gets it.
 It names the endpoint, so the browser must reach the endpoint. A plain URL answers only if anyone may
 read its key, so give the bucket a policy that allows anonymous `s3:GetObject` on `large/*`,
-`medium/*`, `square/*` and `asset/*`, and nothing on `original/*`; or put a CDN with its own read
+`medium/*`, `square/*` and `asset/*`, and nothing on `original/*` or `access/*`; or put a CDN with its own read
 access in front of those prefixes and name it in `ROMEKA_S3_PUBLIC_BASE`. The thumbnail of a private
 resource lives under the same public prefixes, so its plain key is as private as its storage id, 40
 random hex characters; the API and the site never render it plain. Add a lifecycle rule that aborts
@@ -169,6 +172,37 @@ missing object, and every existence check fails.
 
 Backups (`romeka backup`, `deploy/backup.sh`) copy the local store only. With `s3`, back the bucket
 up with the service's own tools (versioning, replication, `mc mirror`).
+
+## Media derivatives
+
+A media create stores the original and answers at once. The thumbnails and the access copy come
+after, from the derivative worker. An access copy is a file a browser can show when it cannot show
+the original: an H.264/AAC MP4 for video, an AAC M4A for audio, a full-size JPEG for camera RAW,
+16-bit TIFF and other image types, or a PDF for an office document. The original stays as it
+arrived ([`../crates/omeka-media/src/access.rs`](../crates/omeka-media/src/access.rs)).
+
+- **The worker.** A media or item create through the API queues a row in
+  `romeka_media_derivative` and starts the `Romeka\Job\MediaDerivatives` job, a `romeka job run` child like the import jobs
+  below. One worker runs at a time for an install. A transcode stops between progress updates when
+  an import starts ([`../crates/omeka-api/src/derivatives.rs`](../crates/omeka-api/src/derivatives.rs)).
+- **The tools.** The worker runs `ffmpeg`, `ffprobe`, `pdftoppm`, `exiftool`, `vips` and `soffice`
+  when the install has them. When a tool is absent, the media's row says so, as in
+  `needs soffice, not installed`, and the media keeps its card. The tools each image carries are in
+  [`../packaging/README.md`](../packaging/README.md).
+- **The backfill.** `romeka media derivatives -d DB --store DIR` queues what each media is missing
+  and then runs the worker. `--retry` queues again the rows a tool failed on or skipped; a row that
+  failed 3 times stays failed. `--redo [video|audio|image|document]` makes ready copies again.
+  `--media ID` does one media. The Retry on a media's admin page queues that media's access copy again
+  (`POST /api/romeka/media/{id}/derivatives/retry`).
+- **The office worker.** The server image has no LibreOffice. `deploy/compose.office.yaml` adds an
+  `office-worker` service from the `office-tools` image, which has LibreOffice, `vips`, `libraw`
+  and `ghostscript`. It runs `romeka media derivatives --retry` against the same database and store
+  every `ROMEKA_OFFICE_INTERVAL_SECS` (3600 by default). Two workers can share one queue: each claims
+  a row with a conditional `UPDATE`, and only the rows whose tools it has.
+
+```
+cd deploy && docker compose -f compose.yaml -f compose.office.yaml up -d
+```
 
 ## Jobs and the archive import
 

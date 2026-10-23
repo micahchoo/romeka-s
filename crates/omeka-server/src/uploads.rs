@@ -1,5 +1,5 @@
 //! `/api/romeka/uploads[/{upload}]`: tus 1.0 core into a user's staged
-//! uploads (`briefs/media-ui`, G1).
+//! uploads (`crates/omeka-server/README.md`, "Staged uploads").
 //!
 //! The rules and the bytes live in `omeka_api::uploads`; this module reads the
 //! tus headers, authenticates the caller, checks the media-create grant, holds

@@ -1,5 +1,5 @@
 //! A staged upload above 64 MiB becomes a media without the file ever sitting
-//! in memory (`briefs/media-ui`, G1 and S4).
+//! in memory.
 //!
 //! The upload goes in one-megabyte `PATCH` requests and the media create runs
 //! the import's streaming path, so the whole file is on disk and in the store,

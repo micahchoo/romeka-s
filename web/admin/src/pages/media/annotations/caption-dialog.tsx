@@ -5,8 +5,8 @@
  * language, and the effect the server would have, read from a dry run before
  * the editor commits. The commit button names what it will do, and the result
  * line states whether rows change and how many of them were changed here by
- * hand, because a replace is the one action on this page that cannot be undone
- * (`briefs/media-ui/A-admin-media.md`, the tension on Replace captions).
+ * hand, because a replace deletes the language's rows and only the last
+ * replace can be undone.
  */
 import type { ChangeEvent, ReactElement } from 'react';
 import { useEffect, useId, useRef, useState } from 'react';

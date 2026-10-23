@@ -1,5 +1,6 @@
 //! What a client reads before it adds a media: the upload limits and a probe
-//! of a pasted link (`briefs/media-ui`, G2 and G7).
+//! of a pasted link (`crates/omeka-api/README.md`, "Staged uploads and
+//! adding a media").
 //!
 //! [`limits`] answers the file size an upload may declare and the validation
 //! lists a file is checked against, so the add panel can refuse an oversized

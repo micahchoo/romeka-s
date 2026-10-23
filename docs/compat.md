@@ -181,7 +181,6 @@ them.
 
 - Third-party PHP modules and themes, Laminas and Doctrine internals, and the admin's exact markup.
 - Full translation catalogues. Nine locales ship: English, Spanish (hand-written from `es.po`) and seven machine-translated Indic locales (hi mr ml ta kn te ne), with CLDR dates on the public site.
-- Live external services: oEmbed, YouTube and remote IIIF.
 - Mail delivery: the interface and a log transport exist, and SMTP is optional.
 - MySQL fulltext ranking particulars.
 - A JSON-LD `@context` served from upstream's URL: `@context` points at this server's

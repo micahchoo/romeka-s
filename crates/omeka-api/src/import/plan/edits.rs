@@ -1,5 +1,5 @@
-//! The person's acts on a proposal (`briefs/import-proposer-design.md`,
-//! "How a confirmation is kept"). Each edit names what it changes in the
+//! The person's acts on a proposal (`docs/import-v2.md`, "Simple and
+//! Advanced"). Each edit names what it changes in the
 //! archive (a folder, a list, a column), never a level id, so it still
 //! names the same thing when a new proposal makes new level ids. The server
 //! replays the edits on every proposal; derive and run never read them.
