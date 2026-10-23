@@ -46,7 +46,7 @@ export const kn: ImportAdvancedMessages = {
   'adv.free.asIds': 'ಅವುಗಳನ್ನು ಐಡಿಗಳಾಗಿ ಓದಿ',
   'adv.free.asTitlesCount': '{made} ಹೊಸ ಸೆಟ್‌ಗಳನ್ನು ಮಾಡುತ್ತದೆ, {found} ಅನ್ನು ಹುಡುಕುತ್ತದೆ',
   'adv.free.asTitles': 'ಅವುಗಳನ್ನು ಶೀರ್ಷಿಕೆಗಳಾಗಿ ಓದಿ',
-  'adv.free.text': 'ಈ ಮೌಲ್ಯಗಳನ್ನು v2 ಓದಿದಂತೆ ಓದಲಾಗುತ್ತದೆ: ಒಂದು ಸೆಟ್‌ಗೆ ಆ id ಇದ್ದರೆ id, ಇಲ್ಲದಿದ್ದರೆ ಶೀರ್ಷಿಕೆ.',
+  'adv.free.text': 'v2 ನಲ್ಲಿರುವಂತೆ, ಪ್ರತಿ ಮೌಲ್ಯವು ಸೆಟ್‌ನ ಐಡಿ, ಇಲ್ಲದಿದ್ದರೆ ಶೀರ್ಷಿಕೆ.',
   'adv.free.add': 'ಸೆಟ್ ಸೇರಿಸಿ',
   'adv.free.remove': 'ತೆಗೆದುಹಾಕಿ',
   'adv.free.items': '{count} ಐಟಂಗಳು ಇದಕ್ಕೆ ಸೇರುತ್ತವೆ',

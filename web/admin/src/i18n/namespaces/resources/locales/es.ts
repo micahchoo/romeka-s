@@ -23,7 +23,6 @@ export const es: ResourcesMessages = {
   'items.add': 'Añadir elemento',
   'items.empty': 'No se encontraron elementos.',
   'items.mediaHeading': 'Medios ({count})',
-  'items.noMedia': 'No hay medios.',
   'items.addMedia': 'Añadir medios',
   'items.closeAddMedia': 'Cerrar',
   'items.noMediaYet': 'Aún no hay medios. Suelte un archivo aquí, elija uno o pegue un enlace.',

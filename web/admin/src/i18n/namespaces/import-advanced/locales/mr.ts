@@ -46,7 +46,7 @@ export const mr: ImportAdvancedMessages = {
   'adv.free.asIds': 'त्यांना id म्हणून वाचा',
   'adv.free.asTitlesCount': '{made} नवीन संच तयार करते, {found} शोधते',
   'adv.free.asTitles': 'त्यांना शीर्षके म्हणून वाचा',
-  'adv.free.text': 'ही मूल्ये v2 जशी वाचत असे तशी वाचली जातात: संचाकडे तो id असेल तर id, नाहीतर शीर्षक.',
+  'adv.free.text': 'v2 प्रमाणे, प्रत्येक मूल्य संचाचा id आहे, नाहीतर शीर्षक.',
   'adv.free.add': 'संच जोडा',
   'adv.free.remove': 'काढून टाका',
   'adv.free.items': '{count} घटक सामील होतात',

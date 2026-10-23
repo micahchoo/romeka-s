@@ -25,7 +25,6 @@ export const ml: ResourcesMessages = {
   'items.add': 'ഐറ്റം ചേർക്കുക',
   'items.empty': 'ഐറ്റങ്ങൾ ഒന്നും കണ്ടെത്തിയില്ല.',
   'items.mediaHeading': 'മീഡിയ ({count})',
-  'items.noMedia': 'മീഡിയ ഒന്നുമില്ല.',
   'items.addMedia': 'മീഡിയ ചേർക്കുക',
   'items.closeAddMedia': 'അടയ്ക്കുക',
   'items.noMediaYet':

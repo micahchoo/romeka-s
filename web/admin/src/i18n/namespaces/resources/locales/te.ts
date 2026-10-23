@@ -25,7 +25,6 @@ export const te: ResourcesMessages = {
   'items.add': 'ఐటమ్ జోడించండి',
   'items.empty': 'ఎటువంటి అంశాలు కనుగొనబడలేదు.',
   'items.mediaHeading': 'మీడియా ({count})',
-  'items.noMedia': 'ఎటువంటి మీడియా లేదు.',
   'items.addMedia': 'మీడియాను జోడించండి',
   'items.closeAddMedia': 'మూసివేయండి',
   'items.noMediaYet':

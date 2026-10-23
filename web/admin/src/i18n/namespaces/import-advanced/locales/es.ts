@@ -64,7 +64,7 @@ export const es: ImportAdvancedMessages = {
   'adv.free.items': '{count} elementos se unen a ella',
   'adv.free.remove': 'Quitar',
   'adv.free.add': 'Añadir una colección',
-  'adv.free.text': 'Estos valores se leen como los leía la v2: un id cuando una colección lo tiene; si no, un título.',
+  'adv.free.text': 'Como en la v2, cada valor es el id de una colección; si no, un título.',
   'adv.free.asTitles': 'Leerlos como títulos',
   'adv.free.asTitlesCount': 'crea {made} colecciones nuevas, encuentra {found}',
   'adv.free.asIds': 'Leerlos como ids',

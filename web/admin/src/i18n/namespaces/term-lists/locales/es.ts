@@ -28,7 +28,6 @@ export const es: TermListMessages = {
   'termLists.columnKind': 'Contiene',
   'termLists.columnEntries': 'Entradas',
   'termLists.columnUsage': 'Elementos que la usan',
-  'termLists.editLabel': 'Editar esta lista de términos',
   'termLists.deleteLabel': 'Eliminar esta lista de términos',
   'termLists.deleteNote': 'Eliminar una lista conserva los valores elegidos en ella. Quedan en sus elementos como texto sin formato.',
   'termPicker.loading': 'Cargando la lista...',

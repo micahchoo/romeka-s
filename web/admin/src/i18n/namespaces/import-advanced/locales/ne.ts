@@ -46,7 +46,7 @@ export const ne: ImportAdvancedMessages = {
   'adv.free.asIds': 'तिनीहरूलाई id को रूपमा पढ्नुहोस्',
   'adv.free.asTitlesCount': '{made} नयाँ सेटहरू बनाउँछ, {found} फेला पार्छ',
   'adv.free.asTitles': 'तिनीहरूलाई शीर्षकको रूपमा पढ्नुहोस्',
-  'adv.free.text': 'यी मानहरू v2 ले पढेजस्तै पढिन्छन्: कुनै सेटसँग त्यो id भए id, नभए शीर्षक।',
+  'adv.free.text': 'v2 मा जस्तै, प्रत्येक मान एउटा सेटको id, अन्यथा एउटा शीर्षक हो।',
   'adv.free.add': 'सेट थप्नुहोस्',
   'adv.free.remove': 'हटाउनुहोस्',
   'adv.free.items': '{count} वस्तुहरू यसमा सामेल हुन्छन्',
