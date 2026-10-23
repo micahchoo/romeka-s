@@ -202,7 +202,7 @@ export const te: ImportListsMessages = {
   'lists.trip.downloadPlain': 'జాబితా (.csv) డౌన్‌లోడ్ చేయండి',
   'lists.trip.step2': '2. నింపిన జాబితాను అప్‌లోడ్ చేయండి',
   'lists.trip.drop': 'నింపిన జాబితాను ఇక్కడకు లాగండి',
-  'lists.trip.kinds': '.csv లేదా .tsv, గరిష్టంగా 50 MB. Excel నుండి, CSVగా సేవ్ చేయండి.',
+  'lists.trip.kinds': 'గరిష్టంగా 50 MB ఉండే {kinds} ఫైల్.',
   'lists.trip.choose': 'ఫైల్‌ను ఎంచుకోండి',
   'lists.trip.waitSave': 'మీ చివరి మార్పు సేవ్ అయ్యే వరకు వేచి ఉండండి.',
   'lists.trip.sending': '{file} పంపుతోంది...',

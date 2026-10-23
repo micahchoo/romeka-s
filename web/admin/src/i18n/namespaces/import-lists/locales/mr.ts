@@ -198,7 +198,7 @@ export const mr: ImportListsMessages = {
   'lists.trip.downloadPlain': 'यादी डाउनलोड करा (.csv)',
   'lists.trip.step2': '2. भरलेली यादी अपलोड करा',
   'lists.trip.drop': 'भरलेली यादी येथे ओढून टाका',
-  'lists.trip.kinds': '.csv किंवा .tsv, जास्तीत जास्त 50 MB. Excel मधून, CSV म्हणून जतन करा.',
+  'lists.trip.kinds': '{kinds} फाईल, जास्तीत जास्त 50 MB.',
   'lists.trip.choose': 'फाईल निवडा',
   'lists.trip.waitSave': 'जोपर्यंत शेवटचा बदल जतन केला जात नाही तोपर्यंत प्रतीक्षा करा.',
   'lists.trip.sending': '{file} पाठवत आहे...',

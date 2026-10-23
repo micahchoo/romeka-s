@@ -204,7 +204,7 @@ export const ml: ImportListsMessages = {
   'lists.trip.downloadPlain': 'പട്ടിക ഡൗൺലോഡ് ചെയ്യുക (.csv)',
   'lists.trip.step2': '2. പൂരിപ്പിച്ച പട്ടിക അപ്‌ലോഡ് ചെയ്യുക',
   'lists.trip.drop': 'പൂരിപ്പിച്ച പട്ടിക ഇവിടെ വലിച്ചിടുക',
-  'lists.trip.kinds': '.csv അല്ലെങ്കിൽ .tsv, പരമാവധി 50 MB. Excel-ൽ നിന്ന്, CSV ആയി സംരക്ഷിക്കുക.',
+  'lists.trip.kinds': 'പരമാവധി 50 MB വലിപ്പമുള്ള ഒരു {kinds} ഫയൽ.',
   'lists.trip.choose': 'ഫയൽ തിരഞ്ഞെടുക്കുക',
   'lists.trip.waitSave': 'നിങ്ങളുടെ അവസാന മാറ്റം സംരക്ഷിക്കപ്പെടുന്നത് വരെ കാത്തിരിക്കുക.',
   'lists.trip.sending': '{file} അയക്കുന്നു...',

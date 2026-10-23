@@ -121,6 +121,16 @@ describe.each([9, 40_000])('the list round trip at %i items', (size) => {
   }, 20_000);
 });
 
+describe('the list chooser', () => {
+  it('offers every kind of list the server reads, and its hint names them', async () => {
+    installFetch(listsServer(9).handler);
+    render(at(LISTS));
+    const input = await screen.findByLabelText('Choose the file');
+    expect(input.getAttribute('accept')?.split(',')).toEqual(['.csv', '.tsv', '.xlsx', '.xls', '.ods']);
+    expect(screen.getByText('A .csv, .tsv, .xlsx, .xls, or .ods file, at most 50 MB.')).toBeInTheDocument();
+  });
+});
+
 describe('a list sent again', () => {
   it('takes the place of the list, follows a column that moved, and refuses a file that lacks one the answers use', async () => {
     const server = listsServer(9);

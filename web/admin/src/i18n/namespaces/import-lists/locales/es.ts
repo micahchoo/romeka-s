@@ -195,7 +195,7 @@ export const es: ImportListsMessages = {
   'lists.trip.downloadPlain': 'Descargar la lista (.csv)',
   'lists.trip.step2': '2. Sube la lista rellenada',
   'lists.trip.drop': 'Arrastra aquí la lista rellenada',
-  'lists.trip.kinds': '.csv o .tsv, de 50 MB como mucho. Desde Excel, guarda como CSV.',
+  'lists.trip.kinds': 'Un archivo {kinds}, de 50 MB como mucho.',
   'lists.trip.choose': 'Elegir el archivo',
   'lists.trip.waitSave': 'Espera a que se guarde tu último cambio.',
   'lists.trip.sending': 'Enviando {file}...',

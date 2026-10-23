@@ -199,7 +199,7 @@ export const hi: ImportListsMessages = {
   'lists.trip.downloadPlain': 'सूची डाउनलोड करें (.csv)',
   'lists.trip.step2': '2. भरी हुई सूची अपलोड करें',
   'lists.trip.drop': 'भरी हुई सूची यहाँ ड्रैग करें',
-  'lists.trip.kinds': '.csv या .tsv, अधिकतम 50 MB। Excel से, CSV के रूप में सहेजें।',
+  'lists.trip.kinds': 'अधिकतम 50 MB की {kinds} फ़ाइल।',
   'lists.trip.choose': 'फ़ाइल चुनें',
   'lists.trip.waitSave': 'जब तक आपका अंतिम परिवर्तन सहेजा न जाए, प्रतीक्षा करें।',
   'lists.trip.sending': '{file} भेज रहे हैं...',

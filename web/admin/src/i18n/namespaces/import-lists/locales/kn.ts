@@ -205,7 +205,7 @@ export const kn: ImportListsMessages = {
   'lists.trip.downloadPlain': 'ಪಟ್ಟಿಯನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ (.csv)',
   'lists.trip.step2': '2. ಭರ್ತಿ ಮಾಡಿದ ಪಟ್ಟಿಯನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡಿ',
   'lists.trip.drop': 'ಭರ್ತಿ ಮಾಡಿದ ಪಟ್ಟಿಯನ್ನು ಇಲ್ಲಿಗೆ ಎಳೆಯಿರಿ',
-  'lists.trip.kinds': '.csv ಅಥವಾ .tsv, ಗರಿಷ್ಠ 50 MB. ಎಕ್ಸೆಲ್‌ನಿಂದ, CSV ಆಗಿ ಉಳಿಸಿ.',
+  'lists.trip.kinds': 'ಗರಿಷ್ಠ 50 MB ನ ಒಂದು {kinds} ಫೈಲ್.',
   'lists.trip.choose': 'ಫೈಲ್ ಅನ್ನು ಆರಿಸಿ',
   'lists.trip.waitSave': 'ನಿಮ್ಮ ಕೊನೆಯ ಬದಲಾವಣೆಯನ್ನು ಉಳಿಸುವವರೆಗೆ ಕಾಯಿರಿ.',
   'lists.trip.sending': '{file} ಅನ್ನು ಕಳುಹಿಸಲಾಗುತ್ತಿದೆ...',

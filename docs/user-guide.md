@@ -217,10 +217,9 @@ yourself**. Choose the columns you want, download the list, fill it in and uploa
   field, the item sets, the item type and who can see the item.
 - Put two values in one cell with a `|` between them.
 - The file is UTF-8 with a byte order mark, so Excel shows Devanagari and other scripts correctly.
-  From Excel, save it as CSV.
-- Upload a `.csv` or `.tsv` file of at most 50 MB. Omeka says how many rows belong to items of this
-  import and shows the rows that do not. The values in your list come first, before other lists and
-  the file names.
+- Upload a `.csv`, `.tsv`, `.xlsx`, `.xls` or `.ods` file of at most 50 MB. Omeka reads the first
+  visible sheet of a workbook. Omeka says how many rows belong to items of this import and shows
+  the rows that do not. The values in your list come first, before other lists and the file names.
 
 A cell that starts with `=`, `+`, `-`, `@` or a tab gets a leading `'` in the download, so a
 spreadsheet never runs it as a formula. Omeka takes the `'` off when you upload the list.
