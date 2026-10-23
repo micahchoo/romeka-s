@@ -32,10 +32,9 @@ import type { SourceChoice } from './source-words';
 export const VALUES_PER_PAGE = 50;
 
 /** The fields whose values name things, which the server counts (`values`). */
-const NAMING: readonly SlotName[] = ['sets', 'template', 'class'];
+const NAMING: readonly SlotName[] = ['template', 'class'];
 
 const RULE_PLAIN: Partial<Record<SlotName, AdvancedMessageKey>> = {
-  sets: 'adv.fields.rule.plainSets',
   template: 'adv.fields.rule.plainTemplate',
   class: 'adv.fields.rule.plainClass',
   visibility: 'adv.fields.rule.plainVisibility',

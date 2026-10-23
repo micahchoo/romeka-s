@@ -60,7 +60,7 @@ const DeleteLock = ({ onCancel }: { readonly onCancel: () => void }): ReactEleme
       <p>
         <b>{count === 1 ? t('adv.existing.deleteCountOne') : t('adv.existing.deleteCount', { count: number(count) })}</b>
       </p>
-      {rules === 0 ? null : <p>{t('adv.existing.deleteRules', { count: number(rules) })}</p>}
+      {rules === 0 ? null : <p>{rules === 1 ? t('adv.existing.deleteRulesOne') : t('adv.existing.deleteRules', { count: number(rules) })}</p>}
       {count === 0 ? (
         <p>{t('adv.existing.deleteNothing')}</p>
       ) : (

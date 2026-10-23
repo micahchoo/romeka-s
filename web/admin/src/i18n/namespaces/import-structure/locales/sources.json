@@ -136,6 +136,7 @@
  "structure.change.waiting": "Waits while you write this folder by hand.",
  "structure.keptSet.each": "One set per value",
  "structure.keptSet.note": "Kept as you made it, around the folder you wrote.",
+ "structure.keptSet.uncounted": "We cannot count these sets here.",
  "structure.change.kept": "Kept as you made it.",
  "structure.kept.title": "Uploaded lists",
  "structure.kept.rows": "{file}: your uploaded list, kept. {n} of {of} rows pair.",

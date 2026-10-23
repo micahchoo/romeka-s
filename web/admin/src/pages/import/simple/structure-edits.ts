@@ -22,7 +22,7 @@ import type { EditResult, ItemCut, Proposal } from '../../../api/import-proposal
 import type { CutEdit, Edit, FolderScope, ImportId, ImportPlan, ListFile, SetFrom } from '../../../api/import-plan';
 import { useDraft } from '../draft-context';
 import { withStructure } from '../series';
-import { isSplitOf, totalsOf } from './structure-lines';
+import { totalsOf } from './structure-lines';
 import type { TreeNode } from './structure-lines';
 
 /** The proposal's parser, which the screen loads as a chunk of its own. */
@@ -57,8 +57,10 @@ export const QUESTIONS = {
   list: (scope: FolderScope) => question('list', scope),
   grain: (list: ListFile) => question('grain', list),
   pair: (list: ListFile) => question('pair', list),
-  /** A set added, taken away, given a title or put in a set in Omeka: every edit that names the set `from`. */
+  /** Whether there is a set from `from`: an `addSet` or a `dropSet`. */
   set: (from: SetFrom) => question('set', from),
+  /** What the set from `from` is: a `title` (with its description) or a set already in Omeka (`existing`). The server asks it apart from `set`. */
+  title: (from: SetFrom) => question('title', from),
   /** Whether the folder's series is written by hand. */
   own: (scope: FolderScope) => question('own', scope),
   /** Where a column of a list whose rows describe files goes. No edit answers it: its click writes the column's rules. */
@@ -81,19 +83,24 @@ export const questionOf = (edit: Edit): Question => {
       return QUESTIONS.pair(edit.list);
     case 'addSet':
     case 'dropSet':
+      return QUESTIONS.set(edit.from);
     case 'title':
     case 'existing':
-      return QUESTIONS.set(edit.from);
+      return QUESTIONS.title(edit.from);
     case 'own':
       return QUESTIONS.own(edit.scope);
   }
 };
 
-/** The edits with `edit` as the one answer to `asked`, last; `null` deletes the answer. */
-export const withAnswer = (edits: readonly Edit[], asked: Question, edit: Edit | null): readonly Edit[] => [
-  ...edits.filter((one) => questionOf(one) !== asked),
-  ...(edit === null ? [] : [edit]),
-];
+/**
+ * The edits with `edit` as the one answer to `asked`, last; `null` deletes
+ * the answer. A `dropSet` also takes back what the set was named: a set that
+ * is not made has no title.
+ */
+export const withAnswer = (edits: readonly Edit[], asked: Question, edit: Edit | null): readonly Edit[] => {
+  const untitled = edit?.edit === 'dropSet' ? QUESTIONS.title(edit.from) : null;
+  return [...edits.filter((one) => questionOf(one) !== asked && questionOf(one) !== untitled), ...(edit === null ? [] : [edit])];
+};
 
 /** The edit that answers `asked`, with whether the proposal applied it. */
 export const heldBy = (proposal: Proposal, asked: Question): EditResult | undefined =>
@@ -122,11 +129,12 @@ const names = (node: TreeNode, edit: Edit): boolean => {
     return edit.edit === 'addSet' && node.offers.some((offer) => canonical(offer.value) === canonical(edit.from));
   }
   if (node.kind === 'kept') {
-    return (
-      (edit.edit === 'addSet' || edit.edit === 'dropSet' || edit.edit === 'title' || edit.edit === 'existing') &&
-      isSplitOf(node.level.set, edit.from) &&
-      (edit.from.from === 'column' || sameScope(edit.from.scope, node.scope))
-    );
+    // The split that made a kept level was taken before its folder was written by hand.
+    if (edit.edit !== 'addSet') {
+      return false;
+    }
+    const { from } = edit;
+    return from.from === 'column' ? node.lists.some((one) => sameList(from.list, one)) : sameScope(from.scope, node.scope);
   }
   if (node.kind !== 'series' && node.kind !== 'own') {
     return false;

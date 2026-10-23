@@ -32,6 +32,8 @@ export interface Answer {
   readonly pressed: boolean;
   /** The edit a click sends; `null` takes the question's edit back. */
   readonly edit: Edit | null;
+  /** The question the click answers, when it is not the control's own: a set's title is asked apart from whether it is made. */
+  readonly asked?: Asked;
   /** What a click also writes into the plan, for a question no edit answers. */
   readonly write?: Write;
 }
@@ -60,7 +62,8 @@ export const useScreen = (): Screen => {
 /** A question's control: the answer the proposal holds is pressed, and a click on another sends its edit. */
 export const Question = ({ label, asked, answers, kind }: { readonly label: string; readonly asked: Asked; readonly answers: readonly Answer[]; readonly kind?: Focus }): ReactElement => {
   const { clicks, editable, words, takesFocus } = useScreen();
-  const waiting = clicks.pending?.asked === asked ? clicks.pending : null;
+  const asks = new Set([asked, ...answers.flatMap((answer) => (answer.asked === undefined ? [] : [answer.asked]))]);
+  const waiting = clicks.pending !== null && asks.has(clicks.pending.asked) ? clicks.pending : null;
   const pressed = waiting?.value ?? answers.find((answer) => answer.pressed)?.value ?? null;
   const here = useRef<HTMLDivElement>(null);
   // In the commit that draws the question, so the focus is there as soon as it shows; only when it first shows.
@@ -85,7 +88,7 @@ export const Question = ({ label, asked, answers, kind }: { readonly label: stri
         onChange={(value) => {
           const answer = answers.find((one) => one.value === value);
           if (answer !== undefined) {
-            clicks.answer(asked, value, answer.edit, answer.write);
+            clicks.answer(answer.asked ?? asked, value, answer.edit, answer.write);
           }
         }}
       />
@@ -94,7 +97,7 @@ export const Question = ({ label, asked, answers, kind }: { readonly label: stri
           {words.t('structure.counting')}
         </p>
       ) : null}
-      {clicks.failed === asked ? <p role="alert">{words.t('structure.click.failed')}</p> : null}
+      {clicks.failed !== null && asks.has(clicks.failed) ? <p role="alert">{words.t('structure.click.failed')}</p> : null}
     </div>
   );
 };

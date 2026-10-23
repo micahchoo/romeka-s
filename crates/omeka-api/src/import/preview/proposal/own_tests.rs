@@ -82,7 +82,7 @@ fn an_own_series_is_kept_as_written_and_counted() {
         .iter()
         .find_map(|node| match node {
             NodeEvidence::Own(own) => Some(own),
-            NodeEvidence::Set(_) | NodeEvidence::Series(_) => None,
+            NodeEvidence::Set(_) | NodeEvidence::Kept(_) | NodeEvidence::Series(_) => None,
         })
         .expect("the written series' node");
     assert_eq!(own.level, *written.id());
@@ -167,6 +167,78 @@ fn a_series_written_by_hand_keeps_the_set_levels_around_it() {
         proposal.matches_plan,
         "nothing the person wrote is lost: {:?}",
         proposal.edits
+    );
+}
+
+#[test]
+fn a_set_level_kept_around_a_written_series_is_a_node_with_the_sets_it_makes() {
+    // P5 unit C3: the admin draws the kept level as the proposal sends it,
+    // with the sets the split made before Documents was written by hand.
+    let documents = scope("Documents (D)");
+    let split = Edit::AddSet {
+        from: SetFrom::NamePlace {
+            scope: documents.clone(),
+            place: 4,
+        },
+    };
+    let taken = bhc006_tests::proposal(std::slice::from_ref(&split));
+    let offered = taken
+        .nodes
+        .iter()
+        .find_map(|node| match node {
+            NodeEvidence::Set(set) if set.level.0 == "Documents (D)4" => {
+                Some(set.counts.sets.clone())
+            }
+            _ => None,
+        })
+        .expect("the split's set level, counted");
+    assert_eq!(offered.len(), 2, "name place 4 makes two sets");
+    let person = ImportPlan {
+        structure: taken.structure,
+        ..bhc006_tests::draft()
+    };
+    let index = bhc006_tests::index();
+    let catalog = bhc006_tests::install();
+    let evidence = Evidence {
+        index: &index,
+        lists: &Vec::new(),
+        catalog: &catalog,
+        sources: &person.sources,
+        structure: &person.structure,
+        sheets: &Sheets::new(),
+    };
+    let proposal = propose(&evidence, &[split, Edit::Own { scope: documents }]);
+
+    let at = proposal
+        .nodes
+        .iter()
+        .position(
+            |node| matches!(node, NodeEvidence::Kept(kept) if kept.level.0 == "Documents (D)4"),
+        )
+        .expect("a kept node for the level");
+    let NodeEvidence::Kept(kept) = &proposal.nodes[at] else {
+        unreachable!("found above");
+    };
+    let held = serde_json::to_value(&person.structure).expect("json")["levels"]
+        .as_array()
+        .expect("levels")
+        .iter()
+        .find(|level| level["id"] == "Documents (D)4")
+        .map(|level| level["set"].clone())
+        .expect("the plan's level");
+    assert_eq!(
+        serde_json::to_value(&kept.set).expect("json"),
+        held,
+        "the set the plan writes"
+    );
+    assert_eq!(
+        kept.counts.as_ref().map(|counts| &counts.sets),
+        Some(&offered),
+        "the sets the split made, counted on the written series"
+    );
+    assert!(
+        matches!(&proposal.nodes[at + 1], NodeEvidence::Own(own) if own.level.0 == "Documents (D)"),
+        "the kept level comes just before the series it holds"
     );
 }
 

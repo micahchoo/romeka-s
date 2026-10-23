@@ -158,6 +158,7 @@ export const ml: ImportStructureMessages = {
     "നിങ്ങൾ കൈകൊണ്ട് ഈ ഫോൾഡർ എഴുതുമ്പോൾ കാത്തിരിക്കുന്നു.",
   "structure.keptSet.each": "ഒരു മൂല്യത്തിന് ഒരു സെറ്റ്",
   "structure.keptSet.note": "നിങ്ങൾ ഉണ്ടാക്കിയതുപോലെ സൂക്ഷിച്ചു, നിങ്ങൾ എഴുതിയ ഫോൾഡറിന് ചുറ്റും.",
+  "structure.keptSet.uncounted": "ഈ സെറ്റുകൾ ഇവിടെ എണ്ണാൻ ഞങ്ങൾക്ക് കഴിയില്ല.",
   "structure.change.kept": "നിങ്ങൾ ഉണ്ടാക്കിയതുപോലെ സൂക്ഷിച്ചു.",
   "structure.kept.title": "അപ്‌ലോഡ് ചെയ്ത പട്ടികകൾ",
   "structure.kept.rows":

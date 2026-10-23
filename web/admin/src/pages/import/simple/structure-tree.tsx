@@ -72,7 +72,7 @@ const rowOf = (node: TreeNode, where: string, files: number, proposal: Proposal,
         facts: facts(itemsWords(node.node.counts.sets.reduce((sum, [, count]) => sum + count, 0), t, number)),
       };
     case 'kept':
-      return { key: node.key, child: true, name: keptSetName(node.level.set, t), facts: facts(t('structure.own.line')) };
+      return { key: node.key, child: true, name: keptSetName(node.node.set, t), facts: facts(t('structure.own.line')) };
     case 'series': {
       const { scope, list } = node.node;
       const chosen = list.chosen.counts;

@@ -154,7 +154,8 @@ pub struct Proposal {
 }
 
 /// One node's evidence. The kinds mirror [`Level`]; a series the person
-/// wrote by hand is `own`.
+/// wrote by hand is `own`, and a set level the plan keeps around it is
+/// `kept`.
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 #[expect(
@@ -163,6 +164,7 @@ pub struct Proposal {
 )]
 pub enum NodeEvidence {
     Set(SetNode),
+    Kept(KeptSetNode),
     Series(SeriesNode),
     Own(OwnNode),
 }
@@ -226,6 +228,19 @@ pub struct SetNode {
     pub level: LevelId,
     pub from: SetFrom,
     pub counts: SetCounts,
+}
+
+/// A set level around a series written by hand, kept as the plan holds it
+/// (`Structure::sets_alone_around`). No detector chose it, so it has no
+/// `from`: its `set` is what the plan writes.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KeptSetNode {
+    pub level: LevelId,
+    pub set: SetSource,
+    /// The sets it makes on the derive of the proposal; `None` when its
+    /// source is not one the proposer counts.
+    pub counts: Option<SetCounts>,
 }
 
 /// A choice the proposer made, the next best choice, and every other
@@ -741,6 +756,20 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
             .map(|offer| offer.pick)
             .collect();
         if one.own.is_some() {
+            for kept in plan.structure.sets_alone_around(at) {
+                nodes.push(NodeEvidence::Kept(KeptSetNode {
+                    level: kept.id().clone(),
+                    set: kept.set().clone(),
+                    counts: sets::kept(
+                        &model,
+                        &plan.structure,
+                        &sheets,
+                        evidence.catalog,
+                        at,
+                        kept.set(),
+                    ),
+                }));
+            }
             nodes.push(NodeEvidence::Own(OwnNode {
                 level: level.id().clone(),
                 items: cut_counts(&model, at, &scope, None),

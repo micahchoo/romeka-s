@@ -160,6 +160,7 @@ export const en = {
   // A set level the plan keeps around a folder written by hand.
   'structure.keptSet.each': 'One set per value',
   'structure.keptSet.note': 'Kept as you made it, around the folder you wrote.',
+  'structure.keptSet.uncounted': 'We cannot count these sets here.',
   'structure.change.kept': 'Kept as you made it.',
   // A list the person uploaded, which the suggestion keeps.
   'structure.kept.title': 'Uploaded lists',

@@ -5,8 +5,8 @@
  * proposal as the server counted it; nothing here adds a count of its own
  * but the totals, which sum the series' chosen counts.
  */
-import type { FolderScope, ImportPlan, ListFile, PairRule, RecordKind, Series, SetFrom, SetLevel, SetSource, SheetPlan, Structure } from '../../../api/import-plan';
-import type { ColumnRollUp, ItemCut, KeptList, NodeEvidence, OutsideFolder, OwnNode, Pick, Proposal, RollUp, SeriesNode, SetCounts } from '../../../api/import-proposal';
+import type { FolderScope, ImportPlan, ListFile, PairRule, RecordKind, Series, SetFrom, SetSource, SheetPlan, Structure } from '../../../api/import-plan';
+import type { ColumnRollUp, ItemCut, KeptList, KeptSetNode, NodeEvidence, OutsideFolder, OwnNode, Pick, Proposal, RollUp, SeriesNode, SetCounts } from '../../../api/import-proposal';
 import type { BucketCount, ListCandidate, MediaKind, Varies } from '../../../api/import-sections';
 import { useTranslator } from '../../../i18n';
 import type { KeyOf, MessageKey, Translator } from '../../../i18n';
@@ -16,7 +16,7 @@ import { importStructure } from '../../../i18n/namespaces/import-structure';
 import { BUCKET_WORDS } from '../lists/facts-words';
 import type { ListsMessageKey } from '../lists/messages';
 import type { ImportMessageKey } from '../messages';
-import { isAsFound, seriesOfTree, setLevelsAround, withStructure } from '../series';
+import { isAsFound, seriesOfTree, withStructure } from '../series';
 import { fileLevelAllowed, levelOf } from './list-plan';
 
 export type StructureMessageKey = KeyOf<typeof importStructure>;
@@ -33,37 +33,38 @@ export type TreeNode =
   | { readonly kind: 'series'; readonly key: string; readonly node: SeriesNode }
   /** A series written by hand, with the lists it reads as written. Its key is the one it had as a suggestion, so it stays selected. */
   | { readonly kind: 'own'; readonly key: string; readonly node: OwnNode; readonly lists: readonly ListFile[] }
-  /**
-   * A set level the plan keeps around a series written by hand. The proposer
-   * keeps it as written but counts no set node for it, so the tree draws it
-   * from the proposal's structure. `scope` is its series' folder.
-   */
-  | { readonly kind: 'kept'; readonly key: string; readonly level: SetLevel; readonly scope: FolderScope }
+  /** A set level the plan keeps around a series written by hand, as the proposal sends it, with that series' folder and lists. */
+  | { readonly kind: 'kept'; readonly key: string; readonly node: KeptSetNode; readonly scope: FolderScope; readonly lists: readonly ListFile[] }
   | { readonly kind: 'outside'; readonly key: string; readonly folder: OutsideFolder }
   | { readonly kind: 'unused'; readonly key: string; readonly list: ListCandidate };
 
 const seriesNodes = (proposal: Proposal): readonly SeriesNode[] =>
   proposal.nodes.flatMap((node) => (node.kind === 'series' ? [node] : []));
 
+/** The lists a series written by hand reads, as the proposal holds it. */
+const writtenLists = (proposal: Proposal, level: string): readonly ListFile[] =>
+  (writtenIn(proposal.structure, level)?.lists ?? []).map(({ source, file }) => ({ source, file }));
+
+/** The series a kept set level holds: the next written series, as the server sends a kept level just before its series. */
+const keptAround = (nodes: readonly NodeEvidence[], at: number): Extract<NodeEvidence, { kind: 'own' }> | undefined =>
+  nodes.slice(at + 1).find((node): node is Extract<NodeEvidence, { kind: 'own' }> => node.kind === 'own');
+
 /** The archive, the sets over every item when any is offered, the set levels and the series; then the folders not imported and the lists not used. */
 export const treeOf = (proposal: Proposal): readonly TreeNode[] => [
   { kind: 'archive', key: 'archive' },
   ...(proposal.topSets.length === 0 ? [] : [{ kind: 'every', key: 'every', offers: proposal.topSets } as const]),
-  ...proposal.nodes.flatMap((node): readonly TreeNode[] => {
+  ...proposal.nodes.flatMap((node, at): readonly TreeNode[] => {
     switch (node.kind) {
       case 'set':
         return [{ kind: 'set', key: `set:${node.level}`, node }];
+      case 'kept': {
+        const around = keptAround(proposal.nodes, at);
+        return around === undefined ? [] : [{ kind: 'kept', key: `set:${node.level}`, node, scope: around.scope.scope, lists: writtenLists(proposal, around.level) }];
+      }
       case 'series':
         return [{ kind: 'series', key: `series:${node.level}`, node }];
-      case 'own': {
-        const lists = writtenIn(proposal.structure, node.level)?.lists ?? [];
-        const counted = new Set(proposal.nodes.map((one) => one.level));
-        const kept = setLevelsAround(proposal.structure, node.level).filter((level) => !counted.has(level.id));
-        return [
-          ...kept.map((level): TreeNode => ({ kind: 'kept', key: `set:${level.id}`, level, scope: node.scope.scope })),
-          { kind: 'own', key: `series:${node.level}`, node, lists: lists.map(({ source, file }) => ({ source, file })) },
-        ];
-      }
+      case 'own':
+        return [{ kind: 'own', key: `series:${node.level}`, node, lists: writtenLists(proposal, node.level) }];
     }
   }),
   ...proposal.outside.map((folder): TreeNode => ({ kind: 'outside', key: `outside:${folder.scope.source}/${folder.scope.folder}`, folder })),
@@ -89,6 +90,7 @@ const writtenSets = (proposal: Proposal, node: OwnNode): number => {
 const itemsOf = (node: NodeEvidence): number => {
   switch (node.kind) {
     case 'set':
+    case 'kept':
       return 0;
     case 'series':
       return seriesItems(node);
@@ -101,6 +103,8 @@ const setsOf = (proposal: Proposal, node: NodeEvidence): number => {
   switch (node.kind) {
     case 'set':
       return node.counts.sets.length;
+    case 'kept':
+      return node.counts?.sets.length ?? 0;
     case 'series':
       return setsOfChoice(node.set.chosen.value, node.set.chosen.counts);
     case 'own':
@@ -270,31 +274,20 @@ export const setName = (counts: SetCounts, t: T, number: (n: number) => string):
   return only !== undefined && more.length === 0 ? only[0] : t('structure.set.several', { count: number(counts.sets.length) });
 };
 
+/** A choice of set shows this many of its sets, then how many more. */
+export const SETS_SHOWN = 3;
+
+/** "20170616 (11 items) · 20171013 (4 items)": the first sets with their items, then how many more. */
+export const setsWords = (counts: SetCounts, t: T, number: (n: number) => string): string => {
+  const { sets } = counts;
+  const shown = sets.slice(0, SETS_SHOWN).map(([name, items]) => t('structure.split.set', { name, items: itemsWords(items, t, number) }));
+  const more = sets.length > SETS_SHOWN ? [t('structure.split.more', { count: number(sets.length - SETS_SHOWN) })] : [];
+  return [...shown, ...more].join(' · ');
+};
+
 /** A set level by its source: its title, the set in Omeka, or one set per value. */
 export const keptSetName = (set: SetSource, t: T): string =>
   'title' in set ? set.title : 'id' in set ? t('structure.set.existing', { id: String(set.id) }) : t('structure.keptSet.each');
-
-/**
- * Whether the set level `set` is the split `from` makes: the source the
- * proposer writes for it (`proposal/sets.rs`, `candidates`). A series takes
- * at most one name place split, so the name place needs no place number.
- */
-export const isSplitOf = (set: SetSource, from: SetFrom): boolean => {
-  const [source, ...more] = 'each' in set ? set.each.sources : [];
-  if (source === undefined || more.length > 0) {
-    return false;
-  }
-  switch (from.from) {
-    case 'namePlace':
-      return source.from === 'group' && source.name === 'set';
-    case 'folderLevel':
-      return source.from === 'folder' && source.level === from.depth;
-    case 'column':
-      return source.from === 'column' && source.column.index === from.column.index;
-    case 'folder':
-      return false;
-  }
-};
 
 /** "folder name · 318 items", or "column Item Type · 690 of 690 rows · 313 items". */
 export const setNote = (from: SetFrom, counts: SetCounts, t: T, number: (n: number) => string): string => {

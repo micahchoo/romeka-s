@@ -8,8 +8,8 @@
  */
 import { asCount, asFlag, list, member, nullable, oneOf, strict } from './import-read';
 import { parseColumnRef } from './import-plan-read';
-import { parseEdit, parseFolderScope, parseListFile, parsePairRule, parseSetFrom, parseStructure } from './import-plan-tree-read';
-import type { ColumnRef, Edit, FolderScope, LevelId, ListFile, PairRule, RecordKind, SetFrom, Structure } from './import-plan';
+import { parseEdit, parseFolderScope, parseListFile, parsePairRule, parseSetFrom, parseSetSource, parseStructure } from './import-plan-tree-read';
+import type { ColumnRef, Edit, FolderScope, LevelId, ListFile, PairRule, RecordKind, SetFrom, SetSource, Structure } from './import-plan';
 import { RECORD_KINDS } from './import-plan';
 import { MEDIA_KINDS, parseBucketCount, parseGrain, parseListCandidate, parseVaries } from './import-sections';
 import type { BucketCount, Grain, ListCandidate, MediaKind, Varies } from './import-sections';
@@ -140,8 +140,20 @@ export interface OwnNode {
   readonly kept?: readonly KeptList[];
 }
 
+/**
+ * A set level the plan keeps around a series written by hand, as the plan
+ * holds it: no detector chose it, so it has a `set` and no `from`. `counts`
+ * is `null` when the server does not count its source.
+ */
+export interface KeptSetNode {
+  readonly level: LevelId;
+  readonly set: SetSource;
+  readonly counts: SetCounts | null;
+}
+
 export type NodeEvidence =
   | { readonly kind: 'set'; readonly level: LevelId; readonly from: SetFrom; readonly counts: SetCounts }
+  | ({ readonly kind: 'kept' } & KeptSetNode)
   | ({ readonly kind: 'series' } & SeriesNode)
   | ({ readonly kind: 'own' } & OwnNode);
 
@@ -292,7 +304,16 @@ const withKept = <T extends object>(node: T, object: Record<string, unknown>, pa
   object['kept'] === undefined ? node : { ...node, kept: member(object, 'kept', path, list(parseKeptList)) };
 
 const parseNodeEvidence = (raw: unknown, path: Path): NodeEvidence => {
-  const kind = member(asRecord(raw, path), 'kind', path, oneOf(['set', 'series', 'own'] as const));
+  const kind = member(asRecord(raw, path), 'kind', path, oneOf(['set', 'kept', 'series', 'own'] as const));
+  if (kind === 'kept') {
+    const only = strict(raw, path, ['kind', 'level', 'set', 'counts']);
+    return {
+      kind,
+      level: text(only, 'level', path),
+      set: member(only, 'set', path, parseSetSource),
+      counts: member(only, 'counts', path, nullable(parseSetCounts)),
+    };
+  }
   if (kind === 'set') {
     const only = strict(raw, path, ['kind', 'level', 'from', 'counts']);
     return {

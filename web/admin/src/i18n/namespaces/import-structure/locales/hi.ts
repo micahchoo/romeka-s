@@ -156,6 +156,7 @@ export const hi: ImportStructureMessages = {
     "यह फोल्डर हाथ से लिखने में आपका प्रतीक्षा करता है।",
   "structure.keptSet.each": "प्रति मान एक सेट",
   "structure.keptSet.note": "जैसा आपने बनाया था वैसा ही रखा गया, आपके लिखे फोल्डर के आसपास।",
+  "structure.keptSet.uncounted": "हम यहाँ इन सेटों की गणना नहीं कर सकते।",
   "structure.change.kept": "जैसा आपने बनाया था वैसा ही रखा गया।",
   "structure.kept.title": "अपलोड की गई सूचियाँ",
   "structure.kept.rows":

@@ -187,16 +187,17 @@ describe('Advanced, Lists', () => {
 });
 
 describe('Advanced, Fields', () => {
-  it('orders sources, adds one, combines, maps a value; a value mapped in Simple shows here', async () => {
+  it('orders sources, adds one, combines; item sets are no field rule', async () => {
     const server = advancedServer(9);
     installFetch(server.handler);
-    const view = render(at('advanced', 'fields'));
+    render(at('advanced', 'fields'));
     const title = await screen.findByRole('article', { name: 'Title (dcterms:title)' });
     fireEvent.click(within(title).getByRole('button', { name: 'Move List register.csv, column “Title” down' }));
-    const sets = screen.getByRole('article', { name: 'Item set' });
-    fireEvent.change(within(sets).getByRole('combobox', { name: 'Add a source to Item set' }), { target: { value: JSON.stringify({ from: 'folder', level: 2 }) } });
-    fireEvent.change(within(sets).getByRole('combobox', { name: 'Combine for Item set' }), { target: { value: 'all' } });
-    fireEvent.change(await within(sets).findByRole('textbox', { name: 'Artifacts becomes' }), { target: { value: 'Letters' } });
+    fireEvent.change(within(title).getByRole('combobox', { name: 'Add a source to Title (dcterms:title)' }), { target: { value: JSON.stringify({ from: 'folder', level: 2 }) } });
+    fireEvent.change(within(title).getByRole('combobox', { name: 'Combine for Title (dcterms:title)' }), { target: { value: 'all' } });
+    // Item sets are a node's Set and the archive's own sets (P5 unit C3), never a field rule.
+    expect(screen.queryByRole('article', { name: 'Item set' })).toBeNull();
+    expect(within(screen.getByRole('combobox', { name: 'Add a rule' })).queryByRole('option', { name: 'Item set' })).toBeNull();
     // The defaults are the archive's: its node holds them.
     const [archive, letters] = within(screen.getByRole('listbox', { name: 'Your archive' })).getAllByRole('option');
     fireEvent.click(archive ?? document.body);
@@ -206,28 +207,17 @@ describe('Advanced, Fields', () => {
       expect(pathOf(lastSaved(server.saved), 'defaults', 'visibility')).toBe('public');
     }, { timeout: 3000 });
     const plan = lastSaved(server.saved);
-    expect(pathOf(plan, 'slots', 'item', 'dcterms:title', 'sources')).toEqual([
-      { from: 'group', name: 'identifier' },
-      { from: 'column', sheet: 'register', column: { index: 1, header: 'Title' } },
-    ]);
-    expect(pathOf(plan, 'slots', 'item', 'sets')).toEqual({
-      sources: [{ from: 'folder', level: 1 }, { from: 'folder', level: 2 }],
+    expect(pathOf(plan, 'slots', 'item', 'dcterms:title')).toEqual({
+      sources: [{ from: 'group', name: 'identifier' }, { from: 'column', sheet: 'register', column: { index: 1, header: 'Title' } }, { from: 'folder', level: 2 }],
       combine: 'all',
-      map: { Artifacts: 'Letters' },
     });
+    expect(pathOf(plan, 'slots', 'item', 'sets')).toEqual({ sources: [{ from: 'folder', level: 1 }], combine: 'first' });
     // Back on the folder, its Fields section is open again: the address named it.
     fireEvent.click(letters ?? document.body);
     fireEvent.change(await screen.findByRole('combobox', { name: 'Add a rule' }), { target: { value: 'visibility' } });
     const visibility = await screen.findByRole('article', { name: 'Visibility' });
     expect(within(visibility).getByRole('option', { name: 'Combine: all' })).toBeDisabled();
     expect(within(visibility).getByText('This field keeps one value, so only “first” can combine its sources.')).toBeInTheDocument();
-
-    view.rerender(at('simple', 'where'));
-    expect(inSimple()).toEqual({ Artifacts: 'Letters' });
-    fireEvent.click(screen.getByRole('button', { name: 'Answer in Simple' }));
-    view.rerender(at('advanced', 'fields'));
-    expect(await screen.findByRole('textbox', { name: 'Photographs becomes' })).toHaveValue('Photos');
-    expect(screen.getByRole('textbox', { name: 'Artifacts becomes' })).toHaveValue('Artifacts');
   });
 });
 
@@ -280,7 +270,7 @@ describe('Advanced, Existing items', () => {
     const before = server.saved.length;
     fireEvent.click(screen.getByRole('radio', { name: /^Delete\./ }));
     expect(await screen.findByText('A delete removes 9 records and their media from Omeka. It cannot be undone.')).toBeInTheDocument();
-    expect(screen.getByText('A delete takes no field rules, so the 2 rules under Fields are removed.')).toBeInTheDocument();
+    expect(screen.getByText('A delete takes no field rules, so the 1 rule under Fields is removed.')).toBeInTheDocument();
     const asked = requestsFor(fetchMock, `${PATH}/preview`).map(requestBody).filter((body) => JSON.stringify(body['include']) === '["check"]');
     expect(pathOf(asked[asked.length - 1], 'plan', 'action', 'action')).toBe('delete');
     const choose = screen.getByRole('button', { name: 'Choose delete: 9 records' });
@@ -293,7 +283,8 @@ describe('Advanced, Existing items', () => {
       expect(pathOf(lastSaved(server.saved), 'action', 'action')).toBe('delete');
     }, { timeout: 3000 });
     expect(server.saved.length).toBe(before + 1);
-    expect(lastSaved(server.saved)['slots']).toEqual({ item: {}, media: {}, itemSet: {} });
+    // The field rules go; the item sets are a free set, which a delete takes, so they stay.
+    expect(lastSaved(server.saved)['slots']).toEqual({ item: { sets: { sources: [{ from: 'folder', level: 1 }], combine: 'first' } }, media: {}, itemSet: {} });
 
     view.rerender(at('simple', 'add'));
     expect(inSimple()).toBe('delete');

@@ -73,7 +73,7 @@ export const ColumnsTable = ({ sheet, view, counts }: { readonly sheet: SheetPla
   const draft = useDraft();
   const properties = useProperties();
   const known = properties.status === 'ready' ? properties.data : [];
-  const options = fieldOptions(['sets', 'template', 'visibility'], known, t);
+  const options = fieldOptions(['template', 'visibility'], known, t);
   const columns = columnsOf(sheet, view);
   const perFile = sheet.rowKind === 'media';
   return (

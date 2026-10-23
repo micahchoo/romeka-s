@@ -156,6 +156,7 @@ export const te: ImportStructureMessages = {
     "మీరు ఈ ఫోల్డర్‌ను చేతితో రాసేటప్పుడు వేచి ఉంటుంది.",
   "structure.keptSet.each": "ప్రతి విలువకు ఒక సెట్",
   "structure.keptSet.note": "మీరు చేసినట్లుగానే ఉంచబడింది, మీరు రాసిన ఫోల్డర్ చుట్టూ.",
+  "structure.keptSet.uncounted": "మేము ఇక్కడ ఈ సెట్‌లను లెక్కించలేము.",
   "structure.change.kept": "మీరు చేసినట్లుగానే ఉంచాము.",
   "structure.kept.title": "అప్‌లోడ్ చేసిన జాబితాలు",
   "structure.kept.rows":

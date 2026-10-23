@@ -1,9 +1,11 @@
 /**
  * Advanced's Structure: Simple's tree (`simple/structure-tree.tsx`), each
  * node with its rules, the rule zoom (P5 design, section 2). The archive's
- * node holds the sources, the files and the defaults. A folder's node holds
- * five sections, each one fact line until opened: Which files, Items, Lists,
- * Fields and Set. Opening a section loads its editor, a lazy chunk.
+ * node holds the sources, the files, the defaults and the person's own sets
+ * (`free-sets.tsx`). A folder's node holds five sections, each one fact line
+ * until opened: Which files, Items, Lists, Fields and Set. A set level's
+ * node holds its set (`set-source.tsx`). Opening a section or a set level
+ * loads its editor, a lazy chunk.
  *
  * On a suggested folder the questions are Simple's own (every choice the
  * proposer counted, not only the rival), so a choice is the click Simple
@@ -23,11 +25,11 @@ import type { ImportPlan, LevelId, ListFile } from '../../../api/import-plan';
 import { DraftContext, useDraft } from '../draft-context';
 import type { Draft } from '../draft-context';
 import type { Section } from '../screens';
-import { allSeries, seriesOf, slotsOf, withStructure } from '../series';
+import { allSeries, seriesOf, withStructure } from '../series';
 import { QUESTIONS } from '../simple/structure-edits';
 import { cutWords, folderName, itemsWords, keptSetName, kindsWords, listName, seriesItems, setName } from '../simple/structure-lines';
-import { ImportQuestion, Row, useScreen } from '../simple/structure-parts';
-import { ItemsQuestion, ListQuestions, SetQuestion, SplitOffer } from '../simple/structure-questions';
+import { ImportQuestion, useScreen } from '../simple/structure-parts';
+import { ItemsQuestion, ListQuestions } from '../simple/structure-questions';
 import { StructureTree } from '../simple/structure-tree';
 import type { InspectorProps } from '../simple/structure-tree';
 import { useAdvancedText } from './messages';
@@ -39,6 +41,11 @@ const ItemsRules = lazy(() => import('./files').then((module) => ({ default: mod
 const ListsRules = lazy(() => import('./lists').then((module) => ({ default: module.ListsRules })));
 const FieldRules = lazy(() => import('./fields').then((module) => ({ default: module.FieldRules })));
 const Defaults = lazy(() => import('./fields').then((module) => ({ default: module.Defaults })));
+const SuggestedSet = lazy(() => import('./set-source').then((module) => ({ default: module.SuggestedSet })));
+const WrittenSet = lazy(() => import('./set-source').then((module) => ({ default: module.WrittenSet })));
+const CountedLevel = lazy(() => import('./set-source').then((module) => ({ default: module.CountedLevel })));
+const KeptLevel = lazy(() => import('./set-source').then((module) => ({ default: module.KeptLevel })));
+const FreeSets = lazy(() => import('./free-sets').then((module) => ({ default: module.FreeSets })));
 const OtherInspector = lazy(() => import('../simple/structure-nodes').then((module) => ({ default: module.OtherInspector })));
 
 const Loading = (): ReactElement => {
@@ -85,7 +92,7 @@ const InShownTree = ({ level, children }: { readonly level: LevelId; readonly ch
 /** The rule count of the folder `level`, every record kind. */
 const useRulesLine = (level: LevelId): string => {
   const { t, number } = useAdvancedText();
-  const slots = slotsOf(useDraft().plan, level);
+  const { slots } = seriesOf(useDraft().plan, level);
   const count = entriesOf(slots.item).length + entriesOf(slots.media).length + entriesOf(slots.itemSet).length;
   return count === 1 ? t('adv.structure.rulesOne') : t('adv.structure.rules', { count: number(count) });
 };
@@ -119,7 +126,6 @@ const SuggestedRules = ({ node, name }: { readonly node: SeriesNode; readonly na
   const scope = node.scope.scope;
   const { list, set } = node;
   const offered: readonly ListFile[] = [list.chosen, list.rival, ...list.others].flatMap((pick) => (pick === null || pick.value === null ? [] : [pick.value]));
-  const splits = [...node.splits, ...set.others.flatMap((other) => (other.value === null ? [] : [{ value: other.value, counts: other.counts }]))];
   return (
     <>
       {section('files', words.t('structure.import.files', { files: words.number(node.scope.files), kinds: kindsWords(node.scope.kinds, words.t, words.number) }), (
@@ -153,23 +159,13 @@ const SuggestedRules = ({ node, name }: { readonly node: SeriesNode; readonly na
         </>
       ))}
       {section('fields', rules, <FieldRules level={node.level} />)}
-      {section('set', set.chosen.value === null ? words.t('structure.set.none') : setName(set.chosen.counts, words.t, words.number), (
-        <dl className="guided-kv">
-          <SetQuestion node={node} name={name} />
-          {splits.map((split) => (
-            <Row key={JSON.stringify(split.value)} label={words.t('structure.q.split')}>
-              <SplitOffer split={split} />
-            </Row>
-          ))}
-        </dl>
-      ))}
+      {section('set', set.chosen.value === null ? words.t('structure.set.none') : setName(set.chosen.counts, words.t, words.number), <SuggestedSet node={node} name={name} />)}
     </>
   );
 };
 
 /** A folder written by hand: the same sections, every rule edited in the plan. */
 const WrittenRules = ({ node }: { readonly node: OwnNode }): ReactElement => {
-  const { t } = useAdvancedText();
   const { words } = useScreen();
   const { plan } = useDraft();
   const section = useSections();
@@ -185,7 +181,7 @@ const WrittenRules = ({ node }: { readonly node: OwnNode }): ReactElement => {
       {section('items', itemsWords(node.items.items, words.t, words.number), <ItemsRules level={node.level} />)}
       {section('lists', series.lists.length === 0 ? words.t('structure.list.no') : series.lists.map((one) => one.file).join(', '), <ListsRules level={node.level} />)}
       {section('fields', rules, <FieldRules level={node.level} />)}
-      {section('set', series.set === null ? words.t('structure.set.none') : keptSetName(series.set, words.t), <p className="adv-plain">{t('adv.structure.setWritten')}</p>)}
+      {section('set', series.set === null ? words.t('structure.set.none') : keptSetName(series.set, words.t), <WrittenSet node={node} />)}
     </>
   );
 };
@@ -228,6 +224,7 @@ const ArchiveRules = ({ where }: { readonly where: string }): ReactElement => {
           <h4>{t('adv.fields.defaults.title')}</h4>
           <Defaults />
         </div>
+        <FreeSets />
       </Suspense>
     </div>
   );
@@ -240,6 +237,18 @@ const RuleZoom = ({ node, where, files, folders }: InspectorProps): ReactElement
     case 'series':
     case 'own':
       return <FolderRules key={node.key} node={node.node} name={folderName(node.node.scope.scope.folder, where)} />;
+    case 'set':
+      return (
+        <Suspense fallback={<Loading />}>
+          <CountedLevel key={node.key} node={node.node} />
+        </Suspense>
+      );
+    case 'kept':
+      return (
+        <Suspense fallback={<Loading />}>
+          <KeptLevel key={node.key} node={node.node} scope={node.scope} />
+        </Suspense>
+      );
     default:
       return (
         <Suspense fallback={<Loading />}>

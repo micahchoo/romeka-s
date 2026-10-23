@@ -93,21 +93,40 @@ export const setLevelsOf = (plan: ImportPlan): readonly SetLevel[] => {
   return visit(plan.structure.levels);
 };
 
-/** The set levels around the series `level` in `structure`, outermost first; none when no series is `level`. */
-export const setLevelsAround = (structure: Structure, level: LevelId): readonly SetLevel[] => {
-  const path = (levels: readonly Level[]): readonly SetLevel[] | null => {
-    for (const one of levels) {
-      if (one.kind === 'series' && one.id === level) {
-        return [];
-      }
-      const inner = one.kind === 'set' ? path(one.levels) : null;
-      if (one.kind === 'set' && inner !== null) {
-        return [one, ...inner];
+/** The set level `id` of `structure`, at any depth. */
+export const setLevelIn = (structure: Structure, id: LevelId): SetLevel | undefined => {
+  const find = (levels: readonly Level[]): SetLevel | undefined => {
+    for (const level of levels) {
+      const found = level.kind === 'series' ? undefined : level.id === id ? level : find(level.levels);
+      if (found !== undefined) {
+        return found;
       }
     }
-    return null;
+    return undefined;
   };
-  return path(structure.levels) ?? [];
+  return find(structure.levels);
+};
+
+/** The plan with the set level `id` making `set`; `null` takes the level away, and what it held takes its place. */
+export const withSetLevel = (plan: ImportPlan, id: LevelId, set: SetSource | null): ImportPlan => {
+  const visit = (levels: readonly Level[]): readonly Level[] =>
+    levels.flatMap((level): readonly Level[] => {
+      if (level.kind === 'series') {
+        return [level];
+      }
+      if (level.id !== id) {
+        return [{ ...level, levels: visit(level.levels) }];
+      }
+      return set === null ? visit(level.levels) : [{ ...level, set, levels: visit(level.levels) }];
+    });
+  return { ...plan, structure: { ...plan.structure, levels: visit(plan.structure.levels) } };
+};
+
+/** The plan whose items join only the free set at `at`: no set level, no series' own set, no other free set. A free set's own sets are counted on it. */
+export const withOnlyFreeSet = (plan: ImportPlan, at: number): ImportPlan => {
+  const flat = (levels: readonly Level[]): readonly Level[] => levels.flatMap((level): readonly Level[] => (level.kind === 'series' ? [{ ...level, set: null }] : flat(level.levels)));
+  const set = plan.structure.freeSets[at];
+  return { ...plan, structure: { ...plan.structure, levels: flat(plan.structure.levels), freeSets: set === undefined ? [] : [set] } };
 };
 
 export const withSets = (plan: ImportPlan, change: (sets: readonly SetSource[]) => readonly SetSource[]): ImportPlan => ({
