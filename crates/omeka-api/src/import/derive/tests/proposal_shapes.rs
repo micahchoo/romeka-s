@@ -6,7 +6,7 @@
 use serde_json::json;
 
 use super::scenarios::{S1_TO_S8, Scenario};
-use super::support::{JPEG, TEXT, TIFF, catalog, index, plan};
+use super::support::{JPEG, TEXT, TIFF, catalog, index, plan, rule};
 use crate::import::derive::{NoTags, Sheets, derive};
 use crate::import::placement::{Difference, ListFiles, Placement, differences};
 use crate::import::plan::{
@@ -166,4 +166,71 @@ fn an_archive_as_found_gets_no_level() {
         node,
         NodeEvidence::Series(series) if series.set.chosen.value.is_none() && series.list.chosen.value.is_none()
     )));
+}
+
+/// Numbered folders beside a folder of named images: `Folder 1` is in both
+/// boxes, and each is its own item. Both series hold images, so the named
+/// folder is a set (detector 1).
+fn boxes(files: &[(&str, &str)], pattern: &str) -> Scenario {
+    Scenario {
+        index: index(files),
+        sheets: Sheets::new(),
+        plan: plan(|plan| {
+            plan["grouping"]["pattern"] = json!(pattern);
+            plan["slots"]["item"]["sets"] =
+                rule(json!([{ "from": "group", "name": "set" }]), "first");
+        }),
+        catalog: catalog(),
+    }
+}
+
+#[test]
+fn numbered_folders_among_several_series_keep_the_box() {
+    let files = [
+        ("Photographs/harbour.jpg", JPEG),
+        ("Photographs/gate.jpg", JPEG),
+        ("Photographs/lamp.jpg", JPEG),
+        ("Box 1/Folder 1/0001.tif", TIFF),
+        ("Box 1/Folder 1/0002.tif", TIFF),
+        ("Box 1/Folder 2/0001.tif", TIFF),
+        ("Box 2/Folder 1/0001.tif", TIFF),
+        ("Box 2/Folder 1/0002.tif", TIFF),
+    ];
+    let scenario = boxes(
+        &files,
+        r"^(?<identifier>(?<set>Photographs)/[^/]+?|Box \d+/Folder \d+)(?:/(?<part>\d+))?\.(?:jpg|tif)$",
+    );
+    let want = placed(&scenario, &scenario.plan, &scenario.sheets);
+    assert_eq!(want.items.len(), 6, "three photographs and three folders");
+    let (_, found) = judge(&scenario, &[]);
+    assert_eq!(found, [], "Folder 1 of each box is its own item");
+}
+
+#[test]
+fn numbered_folders_beside_a_stray_folder_keep_the_box() {
+    let files = [
+        ("Box 1/Folder 1/0001.tif", TIFF),
+        ("Box 1/Folder 1/0002.tif", TIFF),
+        ("Box 2/Folder 1/0001.tif", TIFF),
+        ("_scratch/notes.txt", TEXT),
+        ("README.txt", TEXT),
+    ];
+    let scenario = boxes(
+        &files,
+        r"^(?<identifier>Box \d+/Folder \d+)/(?<part>\d+)\.tif$",
+    );
+    let want = placed(&scenario, &scenario.plan, &scenario.sheets);
+    assert_eq!(want.items.len(), 2, "one item per box folder");
+    let (proposal, found) = judge(&scenario, &[]);
+    assert_eq!(found, [], "Folder 1 of each box is its own item");
+    let outside: Vec<&str> = proposal
+        .outside
+        .iter()
+        .map(|folder| folder.counts.scope.folder.as_str())
+        .collect();
+    assert_eq!(
+        outside,
+        ["", "_scratch"],
+        "the stray folder and the top's text"
+    );
 }
