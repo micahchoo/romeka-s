@@ -130,7 +130,6 @@ export const ta: ImportSimpleMessages = {
   'guided.list.notAdd': 'சேர்க்க வேண்டாம்',
   'guided.list.fields': 'புலங்கள்',
   'guided.list.toType': 'உருப்படியின் வகை',
-  'guided.list.toSet': 'உருப்படித் தொகுப்பு',
   'guided.list.newField': 'ஒரு புதிய புலம் "{name}"',
   'guided.list.levelOf': '{column} இன் மதிப்புகள் எங்கு செல்கின்றன',
   'guided.list.levelFile': 'ஒவ்வொரு கோப்பு',

@@ -125,7 +125,6 @@ export const mr: ImportSimpleMessages = {
   'guided.list.notAdd': 'जोडू नका',
   'guided.list.fields': 'क्षेत्रे',
   'guided.list.toType': 'वस्तूचा प्रकार',
-  'guided.list.toSet': 'वस्तूंचा संच',
   'guided.list.newField': 'एक नवीन क्षेत्र “{name}”',
   'guided.list.levelOf': '{column} चे मूल्य कोठे जाते',
   'guided.list.levelFile': 'प्रत्येक फाईल',

@@ -149,7 +149,6 @@ export const ListColumns = ({ sheet, view, counts }: { readonly sheet: SheetPlan
                         ))}
                       </optgroup>
                       <option value="template">{t('guided.list.toType')}</option>
-                      <option value="sets">{t('guided.list.toSet')}</option>
                       <option value={`new:${column.header}`}>{t('guided.list.newField', { name: column.header })}</option>
                     </select>
                   </td>

@@ -323,6 +323,8 @@ describe('the Structure screen', () => {
     expect(within(table).getAllByRole('rowheader').map((cell) => cell.querySelector('.guided-col-name')?.textContent)).toEqual(['Sl No', 'Collection', 'Curator', 'Item Type']);
     const curator = within(table).getByRole('combobox', { name: 'Where the column Curator goes' });
     await within(curator).findByRole('option', { name: 'Description' });
+    // Sets are the folder's Set and the archive's own sets; a column is never sent to one.
+    expect(within(curator).queryByRole('option', { name: 'The item set' })).toBeNull();
     fireEvent.change(curator, { target: { value: 'field:dcterms:description' } });
     await waitFor(() => {
       expect(server.saved).toHaveLength(1);

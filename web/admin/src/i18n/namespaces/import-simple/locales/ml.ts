@@ -127,7 +127,6 @@ export const ml: ImportSimpleMessages = {
   'guided.list.notAdd': 'ചേർക്കരുത്',
   'guided.list.fields': 'ഫീൽഡുകൾ',
   'guided.list.toType': 'ഇനത്തിന്റെ തരം',
-  'guided.list.toSet': 'ഇനങ്ങളുടെ കൂട്ടം',
   'guided.list.newField': 'ഒരു പുതിയ ഫീൽഡ് “{name}”',
   'guided.list.levelOf': '{column}-ന്റെ മൂല്യങ്ങൾ എവിടെ പോകുന്നു',
   'guided.list.levelFile': 'ഓരോ ഫയൽ',

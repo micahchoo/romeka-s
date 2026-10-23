@@ -127,7 +127,6 @@ export const kn: ImportSimpleMessages = {
   'guided.list.notAdd': 'ಸೇರಿಸಬೇಡಿ',
   'guided.list.fields': 'ಫೀಲ್ಡ್‌ಗಳು',
   'guided.list.toType': 'ಐಟಂ ಪ್ರಕಾರ',
-  'guided.list.toSet': 'ಐಟಂ ಸೆಟ್',
   'guided.list.newField': 'ಹೊಸ ಫೀಲ್ಡ್ “{name}”',
   'guided.list.levelOf': '{column} ಮೌಲ್ಯಗಳು ಎಲ್ಲಿಗೆ ಹೋಗುತ್ತವೆ',
   'guided.list.levelFile': 'ಪ್ರತಿ ಫೈಲ್',

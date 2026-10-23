@@ -132,7 +132,6 @@ export const en = {
   'guided.list.notAdd': 'Do not add',
   'guided.list.fields': 'Fields',
   'guided.list.toType': 'The item type',
-  'guided.list.toSet': 'The item set',
   'guided.list.newField': 'A new field “{name}”',
   'guided.list.levelOf': 'Where the values of {column} go',
   'guided.list.levelFile': 'Each file',

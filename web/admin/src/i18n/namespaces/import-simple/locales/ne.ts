@@ -124,7 +124,6 @@ export const ne: ImportSimpleMessages = {
   'guided.list.notAdd': 'थप नगर्नुहोस्',
   'guided.list.fields': 'क्षेत्रहरू',
   'guided.list.toType': 'वस्तुको प्रकार',
-  'guided.list.toSet': 'वस्तु समूह',
   'guided.list.newField': 'एउटा नयाँ क्षेत्र “{name}”',
   'guided.list.levelOf': '{column} का मानहरू कहाँ जान्छन्',
   'guided.list.levelFile': 'प्रत्येक फाइल',
