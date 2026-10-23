@@ -45,6 +45,8 @@ export interface Screen {
   /** The proposal on screen: the one a click brought back, or the read. */
   readonly proposal: Proposal;
   readonly words: Words;
+  /** The question an old step's address asks for, until it takes the focus. */
+  readonly focus: Focus | undefined;
   /** Whether the question `kind` takes the focus: true once, for the question an old step's address named. */
   readonly takesFocus: (kind: Focus) => boolean;
 }
@@ -61,17 +63,17 @@ export const useScreen = (): Screen => {
 
 /** A question's control: the answer the proposal holds is pressed, and a click on another sends its edit. */
 export const Question = ({ label, asked, answers, kind }: { readonly label: string; readonly asked: Asked; readonly answers: readonly Answer[]; readonly kind?: Focus }): ReactElement => {
-  const { clicks, editable, words, takesFocus } = useScreen();
+  const { clicks, editable, words, focus, takesFocus } = useScreen();
   const asks = new Set([asked, ...answers.flatMap((answer) => (answer.asked === undefined ? [] : [answer.asked]))]);
   const waiting = clicks.pending !== null && asks.has(clicks.pending.asked) ? clicks.pending : null;
   const pressed = waiting?.value ?? answers.find((answer) => answer.pressed)?.value ?? null;
   const here = useRef<HTMLDivElement>(null);
-  // In the commit that draws the question, so the focus is there as soon as it shows; only when it first shows.
+  // In the commit that draws the question, so the focus is there as soon as it shows; only when it first shows, or when an address asks again.
   useLayoutEffect(() => {
     if (kind !== undefined && takesFocus(kind)) {
       here.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus();
     }
-  }, []);
+  }, [focus]);
   return (
     <div ref={here} className="structure-question">
       <Segmented

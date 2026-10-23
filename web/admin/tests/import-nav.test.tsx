@@ -158,6 +158,21 @@ describe('Simple’s steps', () => {
     expect(document.activeElement?.textContent).toMatch(new RegExp(`^${answer}`));
   });
 
+  it('an old step’s address after another in the same page takes its own question', async () => {
+    draftOf('proposed');
+    const view = render(<ImportPage param="1" rest={['1', 'simple', 'found']} />);
+    const items = await screen.findByRole('group', { name: 'Items' }, { timeout: 5000 });
+    await waitFor(() => {
+      expect(document.activeElement?.closest('[role="group"]')).toBe(items);
+    });
+    view.rerender(<ImportPage param="1" rest={['1', 'simple', 'list']} />);
+    const list = await screen.findByRole('group', { name: 'List' }, { timeout: 5000 });
+    await waitFor(() => {
+      expect(document.activeElement?.closest('[role="group"]')).toBe(list);
+    });
+    expect(document.activeElement?.textContent).toMatch(/^BHC006_GMT_AF\.xlsx/);
+  }, 15_000);
+
   it.each([
     ['structure', 'How your archive becomes items and sets', 'listbox', 'Your archive'],
     ['check', 'Check', 'listbox', 'Questions'],
