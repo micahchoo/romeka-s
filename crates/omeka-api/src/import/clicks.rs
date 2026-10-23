@@ -54,7 +54,7 @@ pub enum Click {
     },
 }
 
-fn kind(difference: &Difference) -> &'static str {
+pub(crate) fn kind(difference: &Difference) -> &'static str {
     match difference {
         Difference::FilesSplit { .. } => "filesSplit",
         Difference::FilesMerged { .. } => "filesMerged",

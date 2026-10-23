@@ -165,11 +165,11 @@ fn a_row_whose_line_holds_another_cell_does_not_apply() {
             line,
             cell: cell.into(),
         },
-        file: path("2019.4.12.tif"),
+        file: path("2019-4-12.tif"),
     };
     let edit = Edit::RowIs {
         list: list_file("register.csv"),
-        pairs: vec![pair(7, "2019.4.21"), pair(8, "2019.4.21")],
+        pairs: vec![pair(7, "2019-4-21"), pair(8, "2019-4-21")],
     };
     let proposal = archive.propose(std::slice::from_ref(&edit));
     let result = &proposal.edits[0];
@@ -183,7 +183,7 @@ fn a_row_whose_line_holds_another_cell_does_not_apply() {
             at: 0,
             why: StaleWhy::RowChanged
         }],
-        "line 7 holds 2019.4.6"
+        "line 7 holds 2019-4-6"
     );
     assert_eq!(
         only_series(&proposal).items.chosen.counts.items,
@@ -225,9 +225,9 @@ fn a_correction_whose_file_is_gone_does_not_apply() {
         pairs: vec![RowPair {
             row: RowCell {
                 line: 8,
-                cell: "2019.4.21".into(),
+                cell: "2019-4-21".into(),
             },
-            file: path("2019.4.13.tif"),
+            file: path("2019-4-13.tif"),
         }],
     };
     let proposal = typo().propose(std::slice::from_ref(&pair));

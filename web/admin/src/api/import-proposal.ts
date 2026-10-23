@@ -8,8 +8,19 @@
  */
 import { asCount, asFlag, list, member, nullable, oneOf, strict } from './import-read';
 import { parseColumnRef } from './import-plan-read';
-import { parseEdit, parseFolderScope, parseListFile, parsePairRule, parseSetFrom, parseSetSource, parseStructure } from './import-plan-tree-read';
-import type { ColumnRef, Edit, FolderScope, LevelId, ListFile, PairRule, RecordKind, SetFrom, SetSource, Structure } from './import-plan';
+import {
+  parseEdit,
+  parseFolderScope,
+  parseItemJoin,
+  parseListFile,
+  parsePairRule,
+  parseRowCell,
+  parseRowPair,
+  parseSetFrom,
+  parseSetSource,
+  parseStructure,
+} from './import-plan-tree-read';
+import type { ColumnRef, Edit, FolderScope, ItemJoin, LevelId, ListFile, PairRule, RecordKind, RowCell, RowPair, SetFrom, SetSource, Structure } from './import-plan';
 import { RECORD_KINDS } from './import-plan';
 import { MEDIA_KINDS, parseBucketCount, parseGrain, parseListCandidate, parseVaries } from './import-sections';
 import type { BucketCount, Grain, ListCandidate, MediaKind, Varies } from './import-sections';
@@ -127,9 +138,33 @@ export interface SeriesNode {
   readonly set: Choice<SetFrom | null, SetCounts>;
   readonly splits: readonly Pick<SetFrom, SetCounts>[];
   readonly pairing: readonly Pick<PairRule, PairCounts>[];
+  /** Corrections of this series and its list, each one click; absent when there are none. Offered, never chosen. */
+  readonly fixes?: readonly Fix[];
   /** Absent when the series keeps no such list, as the server writes it. */
   readonly kept?: readonly KeptList[];
 }
+
+/** Why an instance of a correction is offered: the relation that found it. */
+export const BECAUSE = ['keyExtends', 'rowNamesBoth', 'near', 'namesItem', 'namesPart'] as const;
+export type Because = (typeof BECAUSE)[number];
+
+/** What a correction changes: its instances, and the series' items and the list's paired rows before and after the click. */
+export interface FixCounts {
+  readonly instances: number;
+  readonly items: readonly [number, number];
+  readonly rows: readonly [Share, Share] | null;
+}
+
+/** A correction the proposer offers (`preview/proposal/fixes.rs`). The admin sends its instances back as they came. */
+export type Fix =
+  | { readonly fix: 'oneItem'; readonly joins: readonly { readonly join: ItemJoin; readonly because: Because }[]; readonly counts: FixCounts }
+  | {
+      readonly fix: 'rowIs';
+      readonly list: ListFile;
+      readonly pairs: readonly { readonly pair: RowPair; readonly because: Because }[];
+      readonly counts: FixCounts;
+    }
+  | { readonly fix: 'describesNothing'; readonly list: ListFile; readonly rows: readonly { readonly row: RowCell }[]; readonly counts: FixCounts };
 
 /** A series an `own` edit keeps as the person wrote it: counted, with no choice offered on it. */
 export interface OwnNode {
@@ -327,6 +362,61 @@ const parseKeptList = (raw: unknown, path: Path): KeptList => {
 const withKept = <T extends object>(node: T, object: Record<string, unknown>, path: Path): T & { readonly kept?: readonly KeptList[] } =>
   object['kept'] === undefined ? node : { ...node, kept: member(object, 'kept', path, list(parseKeptList)) };
 
+const parseFixCounts = (raw: unknown, path: Path): FixCounts => {
+  const only = strict(raw, path, ['instances', 'items', 'rows']);
+  const two =
+    <A>(each: (value: unknown, at: Path) => A) =>
+    (value: unknown, at: Path): readonly [A, A] => {
+      if (!Array.isArray(value) || value.length !== 2) {
+        throw new ParseError(at, 'a pair');
+      }
+      return [each(value[0], [...at, 0]), each(value[1], [...at, 1])];
+    };
+  return {
+    instances: count(only, 'instances', path),
+    items: member(only, 'items', path, two(asCount)),
+    rows: member(only, 'rows', path, nullable(two(parseShare))),
+  };
+};
+
+const parseFix = (raw: unknown, path: Path): Fix => {
+  const fix = member(asRecord(raw, path), 'fix', path, oneOf(['oneItem', 'rowIs', 'describesNothing'] as const));
+  const because = (object: Record<string, unknown>, at: Path): Because => member(object, 'because', at, oneOf(BECAUSE));
+  switch (fix) {
+    case 'oneItem': {
+      const only = strict(raw, path, ['fix', 'joins', 'counts']);
+      const offer = (value: unknown, at: Path) => {
+        const each = strict(value, at, ['join', 'because']);
+        return { join: member(each, 'join', at, parseItemJoin), because: because(each, at) };
+      };
+      return { fix, joins: member(only, 'joins', path, list(offer)), counts: member(only, 'counts', path, parseFixCounts) };
+    }
+    case 'rowIs': {
+      const only = strict(raw, path, ['fix', 'list', 'pairs', 'counts']);
+      const offer = (value: unknown, at: Path) => {
+        const each = strict(value, at, ['pair', 'because']);
+        return { pair: member(each, 'pair', at, parseRowPair), because: because(each, at) };
+      };
+      return {
+        fix,
+        list: member(only, 'list', path, parseListFile),
+        pairs: member(only, 'pairs', path, list(offer)),
+        counts: member(only, 'counts', path, parseFixCounts),
+      };
+    }
+    case 'describesNothing': {
+      const only = strict(raw, path, ['fix', 'list', 'rows', 'counts']);
+      const offer = (value: unknown, at: Path) => ({ row: member(strict(value, at, ['row']), 'row', at, parseRowCell) });
+      return {
+        fix,
+        list: member(only, 'list', path, parseListFile),
+        rows: member(only, 'rows', path, list(offer)),
+        counts: member(only, 'counts', path, parseFixCounts),
+      };
+    }
+  }
+};
+
 const parseNodeEvidence = (raw: unknown, path: Path): NodeEvidence => {
   const kind = member(asRecord(raw, path), 'kind', path, oneOf(['set', 'kept', 'series', 'own'] as const));
   if (kind === 'kept') {
@@ -358,7 +448,7 @@ const parseNodeEvidence = (raw: unknown, path: Path): NodeEvidence => {
     };
     return withKept(own, only, path);
   }
-  const only = strict(raw, path, ['kind', 'level', 'scope', 'items', 'list', 'grain', 'columns', 'set', 'splits', 'pairing'], ['kept']);
+  const only = strict(raw, path, ['kind', 'level', 'scope', 'items', 'list', 'grain', 'columns', 'set', 'splits', 'pairing'], ['fixes', 'kept']);
   const series = {
     kind,
     level: text(only, 'level', path),
@@ -371,7 +461,8 @@ const parseNodeEvidence = (raw: unknown, path: Path): NodeEvidence => {
     splits: member(only, 'splits', path, list(parsePick(parseSetFrom, parseSetCounts))),
     pairing: member(only, 'pairing', path, list(parsePick(parsePairRule, parsePairCounts))),
   };
-  return withKept(series, only, path);
+  const fixed = only['fixes'] === undefined ? series : { ...series, fixes: member(only, 'fixes', path, list(parseFix)) };
+  return withKept(fixed, only, path);
 };
 
 /** A proposal, from the preview's `RawProposal` or any JSON; refuses what the server's serde types refuse. */

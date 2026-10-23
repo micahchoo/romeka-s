@@ -82,7 +82,7 @@ use crate::import::plan::{
 };
 use crate::import::sheet::{Sheet, SheetError};
 use crate::import::values::ValueType;
-pub use fixes::{Stale, StaleWhy};
+pub use fixes::{Because, Fix, FixCounts, JoinOffer, PairOffer, RowOffer, Stale, StaleWhy};
 use names::SeriesCut;
 use sets::Sets;
 use shape::Key;
@@ -224,6 +224,10 @@ pub struct SeriesNode {
     pub splits: Vec<Pick<SetFrom, SetCounts>>,
     /// Join rules that would pair more rows. Offered, never chosen.
     pub pairing: Vec<Pick<PairRule, PairCounts>>,
+    /// Corrections of this series and its list, each one click. Offered,
+    /// never chosen; absent when there are none.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub fixes: Vec<Fix>,
     /// The person's lists the scan cannot see, kept as written here.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub kept: Vec<KeptList>,
@@ -805,7 +809,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
     for (((at, level), ((cut, rows), scope)), one) in each.zip(&series) {
         let here = chosen_lists.next().unwrap_or_default();
         let sets = series_sets.next().unwrap_or_default();
-        let pairing = offers
+        let pairing: Vec<Pick<PairRule, PairCounts>> = offers
             .next()
             .unwrap_or_default()
             .into_iter()
@@ -887,6 +891,17 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
                 counts: taken.pick.counts,
             }));
         }
+        let offered_fixes = fixes::detect(
+            &model,
+            &plan.structure,
+            &sheets,
+            &fixes::Here {
+                at,
+                scope: &scope.scope,
+                cut: &item,
+                pairing_offered: !pairing.is_empty(),
+            },
+        );
         let list_pick = |one: lists::InSeries<'_>| Pick {
             value: Some(one.file),
             counts: Some(one.counted.counts),
@@ -950,6 +965,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
             },
             splits: sets.splits,
             pairing,
+            fixes: offered_fixes,
             scope,
             kept: kept_in(at),
         }));

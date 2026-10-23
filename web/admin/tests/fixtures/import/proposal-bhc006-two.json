@@ -950,7 +950,75 @@
         "others": []
       },
       "splits": [],
-      "pairing": []
+      "pairing": [],
+      "fixes": [
+        {
+          "fix": "rowIs",
+          "list": {
+            "source": "s1",
+            "file": "BHC006_GMT_AF.xlsx"
+          },
+          "pairs": [
+            {
+              "pair": {
+                "row": {
+                  "line": 40,
+                  "cell": "BHC006_GMT_AF_022.jpg"
+                },
+                "file": "Artifacts/BHC006_GMT_AF_022a.jpg"
+              },
+              "because": "near"
+            },
+            {
+              "pair": {
+                "row": {
+                  "line": 401,
+                  "cell": "BHC_006_GMT_AF_193a.tif"
+                },
+                "file": "Artifacts/BHC_006_GMT_AF_193a (2).tif"
+              },
+              "because": "namesPart"
+            },
+            {
+              "pair": {
+                "row": {
+                  "line": 402,
+                  "cell": "BHC_006_GMT_AF_193b.tif"
+                },
+                "file": "Artifacts/BHC_006_GMT_AF_193b (2).tif"
+              },
+              "because": "namesPart"
+            },
+            {
+              "pair": {
+                "row": {
+                  "line": 626,
+                  "cell": "BHC_006_GMT_AF_300.NEF"
+                },
+                "file": "Artifacts/BHC_006_GMT_AF_300a.NEF"
+              },
+              "because": "near"
+            }
+          ],
+          "counts": {
+            "instances": 4,
+            "items": [
+              318,
+              318
+            ],
+            "rows": [
+              {
+                "n": 680,
+                "of": 690
+              },
+              {
+                "n": 684,
+                "of": 690
+              }
+            ]
+          }
+        }
+      ]
     },
     {
       "kind": "series",

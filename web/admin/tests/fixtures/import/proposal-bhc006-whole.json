@@ -844,7 +844,168 @@
         "others": []
       },
       "splits": [],
-      "pairing": []
+      "pairing": [],
+      "fixes": [
+        {
+          "fix": "oneItem",
+          "joins": [
+            {
+              "join": {
+                "item": "Artifacts/BHC_006_GMT_AF_085d.JPG",
+                "with": "Artifacts/BHC_006_GMT_AF_085d (1).JPG"
+              },
+              "because": "keyExtends"
+            },
+            {
+              "join": {
+                "item": "Artifacts/BHC_006_GMT_AF_106b.JPG",
+                "with": "Artifacts/BHC_006_GMT_AF_106b (1).JPG"
+              },
+              "because": "keyExtends"
+            },
+            {
+              "join": {
+                "item": "Artifacts/BHC_006_GMT_AF_116.JPG",
+                "with": "Artifacts/BHC_006_GMT_AF_116 (1).JPG"
+              },
+              "because": "keyExtends"
+            },
+            {
+              "join": {
+                "item": "Artifacts/BHC_006_GMT_AF_184a.tif",
+                "with": "Artifacts/BHC_006_GMT_AF_184b.tif"
+              },
+              "because": "rowNamesBoth"
+            },
+            {
+              "join": {
+                "item": "Artifacts/BHC_006_GMT_AF_190a.tif",
+                "with": "Artifacts/BHC_006_GMT_AF_190a(2).tif"
+              },
+              "because": "keyExtends"
+            }
+          ],
+          "counts": {
+            "instances": 5,
+            "items": [
+              706,
+              701
+            ],
+            "rows": [
+              {
+                "n": 680,
+                "of": 690
+              },
+              {
+                "n": 680,
+                "of": 690
+              }
+            ]
+          }
+        },
+        {
+          "fix": "rowIs",
+          "list": {
+            "source": "s1",
+            "file": "BHC006_GMT_AF.xlsx"
+          },
+          "pairs": [
+            {
+              "pair": {
+                "row": {
+                  "line": 40,
+                  "cell": "BHC006_GMT_AF_022.jpg"
+                },
+                "file": "Artifacts/BHC006_GMT_AF_022a.jpg"
+              },
+              "because": "near"
+            },
+            {
+              "pair": {
+                "row": {
+                  "line": 626,
+                  "cell": "BHC_006_GMT_AF_300.NEF"
+                },
+                "file": "Artifacts/BHC_006_GMT_AF_300a.NEF"
+              },
+              "because": "near"
+            }
+          ],
+          "counts": {
+            "instances": 2,
+            "items": [
+              706,
+              704
+            ],
+            "rows": [
+              {
+                "n": 680,
+                "of": 690
+              },
+              {
+                "n": 682,
+                "of": 690
+              }
+            ]
+          }
+        },
+        {
+          "fix": "describesNothing",
+          "list": {
+            "source": "s1",
+            "file": "BHC006_GMT_AF.xlsx"
+          },
+          "rows": [
+            {
+              "row": {
+                "line": 25,
+                "cell": "BHC006_GMT_AF_018c.jpg"
+              }
+            },
+            {
+              "row": {
+                "line": 188,
+                "cell": "BHC_006_GMT_AF_085e.JPG"
+              }
+            },
+            {
+              "row": {
+                "line": 401,
+                "cell": "BHC_006_GMT_AF_193a.tif"
+              }
+            },
+            {
+              "row": {
+                "line": 402,
+                "cell": "BHC_006_GMT_AF_193b.tif"
+              }
+            },
+            {
+              "row": {
+                "line": 631,
+                "cell": "BHC_006_GMT_AF_301e.NEF"
+              }
+            }
+          ],
+          "counts": {
+            "instances": 5,
+            "items": [
+              706,
+              701
+            ],
+            "rows": [
+              {
+                "n": 680,
+                "of": 690
+              },
+              {
+                "n": 680,
+                "of": 690
+              }
+            ]
+          }
+        }
+      ]
     },
     {
       "kind": "series",
@@ -2473,7 +2634,191 @@
         ]
       },
       "splits": [],
-      "pairing": []
+      "pairing": [],
+      "fixes": [
+        {
+          "fix": "describesNothing",
+          "list": {
+            "source": "s1",
+            "file": "BHC006_GMT_PN.xlsx"
+          },
+          "rows": [
+            {
+              "row": {
+                "line": 51,
+                "cell": "BHC006_GMT_PN_049.tif"
+              }
+            },
+            {
+              "row": {
+                "line": 52,
+                "cell": "BHC006_GMT_PN_050.tif"
+              }
+            },
+            {
+              "row": {
+                "line": 53,
+                "cell": "BHC006_GMT_PN_051.tif"
+              }
+            },
+            {
+              "row": {
+                "line": 54,
+                "cell": "BHC006_GMT_PN_052.tif"
+              }
+            },
+            {
+              "row": {
+                "line": 55,
+                "cell": "BHC006_GMT_PN_053.tif"
+              }
+            },
+            {
+              "row": {
+                "line": 196,
+                "cell": "BHC006_GMT_PN_195.png"
+              }
+            },
+            {
+              "row": {
+                "line": 197,
+                "cell": "BHC006_GMT_PN_196.png"
+              }
+            },
+            {
+              "row": {
+                "line": 198,
+                "cell": "BHC006_GMT_PN_197.png"
+              }
+            },
+            {
+              "row": {
+                "line": 199,
+                "cell": "BHC006_GMT_PN_198.png"
+              }
+            },
+            {
+              "row": {
+                "line": 200,
+                "cell": "BHC006_GMT_PN_199.png"
+              }
+            },
+            {
+              "row": {
+                "line": 201,
+                "cell": "BHC006_GMT_PN_200.png"
+              }
+            },
+            {
+              "row": {
+                "line": 202,
+                "cell": "BHC006_GMT_PN_201.png"
+              }
+            },
+            {
+              "row": {
+                "line": 203,
+                "cell": "BHC006_GMT_PN_202.png"
+              }
+            },
+            {
+              "row": {
+                "line": 204,
+                "cell": "BHC006_GMT_PN_203.png"
+              }
+            },
+            {
+              "row": {
+                "line": 205,
+                "cell": "BHC006_GMT_PN_204.png"
+              }
+            },
+            {
+              "row": {
+                "line": 206,
+                "cell": "BHC006_GMT_PN_205.png"
+              }
+            },
+            {
+              "row": {
+                "line": 207,
+                "cell": "BHC006_GMT_PN_206.png"
+              }
+            },
+            {
+              "row": {
+                "line": 208,
+                "cell": "BHC006_GMT_PN_207.png"
+              }
+            },
+            {
+              "row": {
+                "line": 209,
+                "cell": "BHC006_GMT_PN_208.png"
+              }
+            },
+            {
+              "row": {
+                "line": 210,
+                "cell": "BHC006_GMT_PN_209.png"
+              }
+            },
+            {
+              "row": {
+                "line": 211,
+                "cell": "BHC006_GMT_PN_210.png"
+              }
+            },
+            {
+              "row": {
+                "line": 212,
+                "cell": "BHC006_GMT_PN_211.png"
+              }
+            },
+            {
+              "row": {
+                "line": 213,
+                "cell": "BHC006_GMT_PN_212.png"
+              }
+            },
+            {
+              "row": {
+                "line": 214,
+                "cell": "BHC006_GMT_PN_213.png"
+              }
+            },
+            {
+              "row": {
+                "line": 215,
+                "cell": "BHC006_GMT_PN_214.png"
+              }
+            },
+            {
+              "row": {
+                "line": 216,
+                "cell": "BHC006_GMT_PN_215.png"
+              }
+            }
+          ],
+          "counts": {
+            "instances": 26,
+            "items": [
+              215,
+              189
+            ],
+            "rows": [
+              {
+                "n": 189,
+                "of": 215
+              },
+              {
+                "n": 189,
+                "of": 215
+              }
+            ]
+          }
+        }
+      ]
     },
     {
       "kind": "series",
