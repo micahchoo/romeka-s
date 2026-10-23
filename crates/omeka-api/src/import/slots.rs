@@ -409,10 +409,12 @@ fn check(
         {
             continue;
         }
+        // The same value as the `values` section and the map see it: folded.
+        let folded = fold_title(&value.text);
         let duplicate = values.iter().any(|seen| {
             seen.value_type == value.value_type
-                && seen.text == value.text
                 && seen.lang == value.lang
+                && fold_title(&seen.text) == folded
         });
         if !duplicate {
             values.push(value);
