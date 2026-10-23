@@ -294,3 +294,126 @@ fn orphans_from_every_step_are_listed_in_plan_order() {
         "the slot step, the join and the grouping each found one"
     );
 }
+
+/// `plan` with these corrections on its one series, as the proposer writes
+/// them.
+fn corrected(
+    plan: &crate::import::plan::ImportPlan,
+    corrections: Json,
+) -> crate::import::plan::ImportPlan {
+    let mut value: Json = serde_json::from_str(&plan.to_json()).expect("the plan as JSON");
+    value["structure"]["levels"][0]["corrections"] = corrections;
+    crate::import::plan::ImportPlan::from_json(&value.to_string())
+        .unwrap_or_else(|error| panic!("{error}: {value}"))
+}
+
+fn joined(path: &str, with: &str) -> Json {
+    json!({ "kind": "join", "file": { "source": "s1", "path": path },
+            "with": { "source": "s1", "path": with } })
+}
+
+#[test]
+fn a_series_join_moves_the_file_like_a_move_decision() {
+    let index = index(&[("A1.jpg", JPEG), ("A1_b.jpg", JPEG), ("B2.jpg", JPEG)]);
+    let bare = plan(|plan| plan["grouping"]["pattern"] = json!(PATTERN));
+    let moved = plan(|plan| {
+        plan["grouping"]["pattern"] = json!(PATTERN);
+        plan["decisions"] =
+            json!([{ "kind": "move", "file": file("B2.jpg"), "to": { "with": file("A1.jpg") } }]);
+    });
+    let by_hand = run(&index, &Sheets::new(), &moved);
+    let by_correction = run(
+        &index,
+        &Sheets::new(),
+        &corrected(&bare, json!([joined("B2.jpg", "A1.jpg")])),
+    );
+    assert_eq!(
+        media_paths(&by_correction, item(&by_correction, "A1")),
+        ["A1.jpg", "A1_b.jpg", "B2.jpg"]
+    );
+    assert_eq!(
+        media_paths(&by_correction, item(&by_correction, "A1")),
+        media_paths(&by_hand, item(&by_hand, "A1"))
+    );
+    assert_eq!(
+        kept(&by_correction, RecordKind::Item).len(),
+        kept(&by_hand, RecordKind::Item).len()
+    );
+
+    // A correction is numbered past the plan's decisions; theirs keep
+    // their own numbers.
+    let with_one = plan(|plan| {
+        plan["grouping"]["pattern"] = json!(PATTERN);
+        plan["decisions"] = json!([title(file("gone.jpg"), "item", "Lost")]);
+    });
+    let model = run(
+        &index,
+        &Sheets::new(),
+        &corrected(&with_one, json!([joined("lost.jpg", "A1.jpg")])),
+    );
+    let orphans: Vec<(usize, OrphanReason)> = model
+        .orphans
+        .iter()
+        .map(|orphan| (orphan.decision, orphan.reason))
+        .collect();
+    assert_eq!(
+        orphans,
+        [
+            (0, OrphanReason::MissingEntry),
+            (1, OrphanReason::MissingEntry)
+        ],
+        "the plan's decision is 0, the correction 1"
+    );
+}
+
+#[test]
+fn a_person_decision_after_a_correction_wins() {
+    let files = index(&[("A1.jpg", JPEG), ("A1_b.jpg", JPEG), ("B2.jpg", JPEG)]);
+    let own = plan(|plan| {
+        plan["grouping"]["pattern"] = json!(PATTERN);
+        plan["decisions"] = json!([{ "kind": "move", "file": file("B2.jpg"), "to": "own" }]);
+    });
+    let model = run(
+        &files,
+        &Sheets::new(),
+        &corrected(&own, json!([joined("B2.jpg", "A1.jpg")])),
+    );
+    assert_eq!(
+        media_paths(&model, item(&model, "A1")),
+        ["A1.jpg", "A1_b.jpg"],
+        "the person's move is read after the correction"
+    );
+    assert!(
+        model.kept().any(|record| record.kind == RecordKind::Item
+            && record.files.iter().any(|f| f.path.as_str() == "B2.jpg")),
+        "B2 has a group of its own"
+    );
+
+    let csv: &[u8] = b"File,Title\nwedding photo 1952.jpg,Wedding\nharbour.jpg,Harbour\n";
+    let row = json!({ "sheet": "list", "key": "harbour.jpg#1" });
+    let leave_then_title = corrected(
+        &photo_plan(json!([title(json!({ "row": row }), "item", "By hand")])),
+        json!([{ "kind": "leave", "row": row }]),
+    );
+    let model = run(
+        &index(PHOTOS),
+        &read_sheets(&leave_then_title, &[("list", csv)]),
+        &leave_then_title,
+    );
+    let harbour = model
+        .records
+        .iter()
+        .find(|record| {
+            record.kind == RecordKind::Item
+                && record
+                    .files
+                    .iter()
+                    .any(|f| f.path.as_str() == "harbour.jpg")
+        })
+        .expect("harbour");
+    assert_eq!(
+        harbour.fate,
+        Fate::Left(LeftBy::Decision(1)),
+        "a left row's record is left by the correction, numbered past the plan's one decision"
+    );
+}

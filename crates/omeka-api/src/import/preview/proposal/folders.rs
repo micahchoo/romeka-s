@@ -63,8 +63,13 @@ impl FolderSeries {
                 .any(|sheet| sheet.source == list.source && sheet.file == list.file)
         };
         match edit {
-            Edit::Items { scope, .. } | Edit::List { scope, .. } => self.names(scope),
-            Edit::Grain { list, .. } | Edit::Pair { list, .. } => held(list),
+            Edit::Items { scope, .. } | Edit::List { scope, .. } | Edit::OneItem { scope, .. } => {
+                self.names(scope)
+            }
+            Edit::Grain { list, .. }
+            | Edit::Pair { list, .. }
+            | Edit::RowIs { list, .. }
+            | Edit::DescribesNothing { list, .. } => held(list),
             Edit::AddSet { from }
             | Edit::DropSet { from }
             | Edit::Title { from, .. }

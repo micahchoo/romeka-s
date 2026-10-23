@@ -13,20 +13,24 @@ pub(crate) mod records;
 #[cfg(test)]
 pub(crate) mod tests;
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::borrow::Cow;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::PathBuf;
 
 use super::catalog::Catalog;
-use super::decisions::Act;
+use super::decisions::{
+    Act, Decision, EntryRef, FileEntry as FileDecision, MoveTo, MoveWith, RowKey, RowRef,
+};
 use super::evidence::{FileEntry, Walk};
 use super::flags::FlagBook;
 use super::join::{self, SheetIn};
 use super::matching::{self, Matching};
 use super::model::{Fate, Model, Parent, Record, RecordId, SlotValue, Subject};
 use super::plan::{
-    Action, FlagKind, ImportPlan, RecordKind, RelPath, SheetId, SlotName, SourceId, TagId, Term,
+    Action, Correction, FlagKind, ImportPlan, RecordKind, RelPath, SheetId, SlotName, SourceId,
+    TagId, Term,
 };
-use super::sheet::{Sheet, SheetError};
+use super::sheet::{Sheet, SheetError, plan_keys};
 use super::slots::{self, Ctx, named};
 use super::tags::Embedded;
 use super::{grouping, grouping::natural_cmp};
@@ -95,6 +99,8 @@ pub fn derive(
     catalog: &Catalog,
     tags: &dyn FileTags,
 ) -> Model {
+    let decided = with_corrections(plan, sheets);
+    let plan = decided.as_ref();
     let mut book = FlagBook::new(plan);
     let mut anomalies = Vec::new();
     plan_flags(plan, catalog, &mut book);
@@ -297,6 +303,69 @@ pub fn derive(
         flags: book.into_flags(),
         anomalies,
         orphans,
+        corrections: plan.structure.corrections().count(),
+    })
+}
+
+/// The plan as every step reads it: each series' corrections as decisions,
+/// in plan order, ahead of the plan's own, so a person's decision on the
+/// same file or row wins. The one seam where derive reads corrections.
+///
+/// A correction names its row by the key the plan's read gives it. A caller
+/// that read the sheet another way (by line, as the proposer's lists are
+/// read) keeps each row's place, so the row is found by its place.
+fn with_corrections<'p>(plan: &'p ImportPlan, sheets: &Sheets) -> Cow<'p, ImportPlan> {
+    if plan.structure.corrections().next().is_none() {
+        return Cow::Borrowed(plan);
+    }
+    let mut read_keys: BTreeMap<&SheetId, HashMap<RowKey, RowKey>> = BTreeMap::new();
+    for (_, correction) in plan.structure.corrections() {
+        let Some(row) = correction.row() else {
+            continue;
+        };
+        let (Some((_, list)), Some(Ok(read))) =
+            (plan.structure.list(&row.sheet), sheets.get(&row.sheet))
+        else {
+            continue;
+        };
+        read_keys.entry(&list.id).or_insert_with(|| {
+            plan_keys(&read.rows, list)
+                .into_iter()
+                .zip(read.rows.iter().map(|row| row.key.clone()))
+                .collect()
+        });
+    }
+    let as_read = |row: RowRef| {
+        let key = read_keys
+            .get(&row.sheet)
+            .and_then(|keys| keys.get(&row.key))
+            .cloned()
+            .unwrap_or(row.key);
+        RowRef { key, ..row }
+    };
+    let decisions = plan
+        .structure
+        .corrections()
+        .map(|(_, correction)| match correction.clone() {
+            Correction::Join { file, with } => Decision::Move {
+                file: FileDecision::File(file),
+                to: MoveTo::With(MoveWith {
+                    with: FileDecision::File(with),
+                }),
+            },
+            Correction::Pair { row, file } => Decision::Pair {
+                row: as_read(row),
+                file,
+            },
+            Correction::Leave { row } => Decision::Leave {
+                entry: EntryRef::Row(as_read(row)),
+            },
+        })
+        .chain(plan.decisions.iter().cloned())
+        .collect();
+    Cow::Owned(ImportPlan {
+        decisions,
+        ..plan.clone()
     })
 }
 

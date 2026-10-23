@@ -26,6 +26,9 @@
 
 #[cfg(test)]
 pub(crate) mod bhc006_tests;
+mod fixes;
+#[cfg(test)]
+pub(crate) mod fixes_tests;
 mod folders;
 #[cfg(test)]
 mod folders_tests;
@@ -79,6 +82,7 @@ use crate::import::plan::{
 };
 use crate::import::sheet::{Sheet, SheetError};
 use crate::import::values::ValueType;
+pub use fixes::{Because, Fix, FixCounts, JoinOffer, PairOffer, RowOffer, Stale, StaleWhy};
 use names::SeriesCut;
 use sets::Sets;
 use shape::Key;
@@ -220,6 +224,10 @@ pub struct SeriesNode {
     pub splits: Vec<Pick<SetFrom, SetCounts>>,
     /// Join rules that would pair more rows. Offered, never chosen.
     pub pairing: Vec<Pick<PairRule, PairCounts>>,
+    /// Corrections of this series and its list, each one click. Offered,
+    /// never chosen; absent when there are none.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub fixes: Vec<Fix>,
     /// The person's lists the scan cannot see, kept as written here.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub kept: Vec<KeptList>,
@@ -459,6 +467,10 @@ pub struct EditResult {
     pub applied: bool,
     /// Why the edit is not applied; `None` exactly when it is.
     pub reason: Option<NotApplied>,
+    /// The instances of a correction that no longer hold. The others are
+    /// applied all the same.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub stale: Vec<Stale>,
 }
 
 /// Why an edit of the plan is not applied.
@@ -540,7 +552,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         Err(error) => {
             let refused =
                 (!evidence.sources.is_empty()).then(|| Refused::of(RefusedTree::Items, &error));
-            let edits = results(evidence, every, unmute(applied, &muted));
+            let edits = results(evidence, every, unmute(applied, &muted), Vec::new());
             return plan_tree(evidence, found.outside, edits, refused);
         }
     };
@@ -622,7 +634,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
             ..patterns.clone()
         },
         Err(error) => {
-            let edits = results(evidence, every, unmute(applied, &muted));
+            let edits = results(evidence, every, unmute(applied, &muted), Vec::new());
             let refused = Refused::of(RefusedTree::Lists, &error);
             return plan_tree(evidence, found.outside, edits, Some(refused));
         }
@@ -649,6 +661,21 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
             evidence.lists.read(&list_file(list), &mut keep);
         }
     }
+    let replayed = fixes::replay(
+        &fixes::Seen {
+            structure: &plan.structure,
+            series: &series,
+            items: &model,
+            sheets: &sheets,
+            index: evidence.index,
+        },
+        edits,
+        &mut applied,
+    );
+    let plan = ImportPlan {
+        structure: replayed.onto(plan.structure),
+        ..plan
+    };
     let model = derive(evidence.index, &sheets, &plan, evidence.catalog, &NoTags);
     // One derive with every series' rival grain counts what each grain
     // click would make: a series' items read only its own files and lists.
@@ -674,7 +701,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
             .ok()
             .map(|structure| {
                 let rival = ImportPlan {
-                    structure,
+                    structure: replayed.onto(structure),
                     ..patterns.clone()
                 };
                 derive(evidence.index, &sheets, &rival, evidence.catalog, &NoTags)
@@ -718,7 +745,8 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         edits,
         &mut applied,
     );
-    let edits = results(evidence, every, unmute(applied, &muted));
+    let stale = unmute_each(replayed.stale.clone(), &muted);
+    let edits = results(evidence, every, unmute(applied, &muted), stale);
     let plan = if found_sets.top_taken.is_some()
         || found_sets.series.iter().any(|sets| {
             !sets.taken.is_empty() || sets.folder.as_ref().is_some_and(|folder| folder.chosen)
@@ -732,7 +760,10 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
             &kept,
         );
         match Structure::build(levels, found.left.clone(), evidence.sources) {
-            Ok(structure) => ImportPlan { structure, ..plan },
+            Ok(structure) => ImportPlan {
+                structure: replayed.onto(structure),
+                ..plan
+            },
             Err(error) => {
                 let refused = Refused::of(RefusedTree::Sets, &error);
                 return plan_tree(evidence, found.outside, edits, Some(refused));
@@ -778,7 +809,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
     for (((at, level), ((cut, rows), scope)), one) in each.zip(&series) {
         let here = chosen_lists.next().unwrap_or_default();
         let sets = series_sets.next().unwrap_or_default();
-        let pairing = offers
+        let pairing: Vec<Pick<PairRule, PairCounts>> = offers
             .next()
             .unwrap_or_default()
             .into_iter()
@@ -860,6 +891,17 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
                 counts: taken.pick.counts,
             }));
         }
+        let offered_fixes = fixes::detect(
+            &model,
+            &plan.structure,
+            &sheets,
+            &fixes::Here {
+                at,
+                scope: &scope.scope,
+                cut: &item,
+                pairing_offered: !pairing.is_empty(),
+            },
+        );
         let list_pick = |one: lists::InSeries<'_>| Pick {
             value: Some(one.file),
             counts: Some(one.counted.counts),
@@ -923,6 +965,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
             },
             splits: sets.splits,
             pairing,
+            fixes: offered_fixes,
             scope,
             kept: kept_in(at),
         }));
@@ -983,6 +1026,22 @@ fn unmute(live: Vec<bool>, muted: &[bool]) -> Vec<bool> {
         .collect()
 }
 
+/// What each edit got, from what each edit that was not muted got: a muted
+/// edit got nothing.
+fn unmute_each<T>(live: Vec<Vec<T>>, muted: &[bool]) -> Vec<Vec<T>> {
+    let mut live = live.into_iter();
+    muted
+        .iter()
+        .map(|muted| {
+            if *muted {
+                Vec::new()
+            } else {
+                live.next().unwrap_or_default()
+            }
+        })
+        .collect()
+}
+
 /// Every cell of every list of the walk, folded as a join folds with every
 /// fold on.
 fn list_cells(evidence: &Evidence<'_>) -> HashSet<String> {
@@ -1003,12 +1062,19 @@ fn list_cells(evidence: &Evidence<'_>) -> HashSet<String> {
 /// replaced when a later applied edit answers its question otherwise; an
 /// edit no detector applied is gone when the scan no longer has what it
 /// names, and not offered otherwise.
-fn results(evidence: &Evidence<'_>, edits: &[Edit], applied: Vec<bool>) -> Vec<EditResult> {
+fn results(
+    evidence: &Evidence<'_>,
+    edits: &[Edit],
+    applied: Vec<bool>,
+    mut stale: Vec<Vec<Stale>>,
+) -> Vec<EditResult> {
+    stale.resize(edits.len(), Vec::new());
     let reasons: Vec<Option<NotApplied>> = edits
         .iter()
         .zip(&applied)
+        .zip(&stale)
         .enumerate()
-        .map(|(at, (edit, done))| {
+        .map(|(at, ((edit, done), stale))| {
             let answered_later = || {
                 edits
                     .iter()
@@ -1020,7 +1086,7 @@ fn results(evidence: &Evidence<'_>, edits: &[Edit], applied: Vec<bool>) -> Vec<E
             };
             if *done {
                 answered_later().then_some(NotApplied::Replaced)
-            } else if in_scan(evidence, edit) {
+            } else if stale.is_empty() && in_scan(evidence, edit) {
                 Some(NotApplied::NotOffered)
             } else {
                 Some(NotApplied::Gone)
@@ -1030,10 +1096,12 @@ fn results(evidence: &Evidence<'_>, edits: &[Edit], applied: Vec<bool>) -> Vec<E
     edits
         .iter()
         .zip(reasons)
-        .map(|(edit, reason)| EditResult {
+        .zip(stale)
+        .map(|((edit, reason), stale)| EditResult {
             edit: edit.clone(),
             applied: reason.is_none(),
             reason,
+            stale,
         })
         .collect()
 }
@@ -1049,6 +1117,9 @@ enum Question<'e> {
     Pair(&'e ListFile),
     Title(&'e SetFrom),
     Own(&'e FolderScope),
+    /// A correction names its own files and rows, so a later one adds to
+    /// it and never answers it otherwise.
+    Fix(&'e Edit),
 }
 
 impl<'e> Question<'e> {
@@ -1062,6 +1133,9 @@ impl<'e> Question<'e> {
             Edit::Pair { list, .. } => Self::Pair(list),
             Edit::Title { from, .. } | Edit::Existing { from, .. } => Self::Title(from),
             Edit::Own { scope } => Self::Own(scope),
+            Edit::OneItem { .. } | Edit::RowIs { .. } | Edit::DescribesNothing { .. } => {
+                Self::Fix(edit)
+            }
         }
     }
 }
@@ -1112,9 +1186,13 @@ fn in_scan(evidence: &Evidence<'_>, edit: &Edit) -> bool {
         Edit::LeaveOut { scope }
         | Edit::Keep { scope }
         | Edit::Items { scope, .. }
-        | Edit::Own { scope } => folder(scope),
+        | Edit::Own { scope }
+        | Edit::OneItem { scope, .. } => folder(scope),
         Edit::List { scope, list: asked } => folder(scope) && asked.as_ref().is_none_or(list),
-        Edit::Grain { list: file, .. } | Edit::Pair { list: file, .. } => list(file),
+        Edit::Grain { list: file, .. }
+        | Edit::Pair { list: file, .. }
+        | Edit::RowIs { list: file, .. }
+        | Edit::DescribesNothing { list: file, .. } => list(file),
         Edit::AddSet { from }
         | Edit::DropSet { from }
         | Edit::Title { from, .. }

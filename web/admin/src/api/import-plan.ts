@@ -378,7 +378,15 @@ export interface Series {
   readonly lists: readonly SheetPlan[];
   /** Never an `item.sets` rule: memberships are levels and free sets. */
   readonly slots: Slots;
+  /** What the server wrote from the person's corrections; absent when there are none. The admin keeps them as they came. */
+  readonly corrections?: readonly Correction[];
 }
+
+/** A correction on one series (`plan/structure.rs`): read by derive as a `move`, `pair` or `leave` decision ahead of the plan's own. */
+export type Correction =
+  | { readonly kind: 'join'; readonly file: FileRef; readonly with: FileRef }
+  | { readonly kind: 'pair'; readonly row: RowRef; readonly file: FileRef }
+  | { readonly kind: 'leave'; readonly row: RowRef };
 
 export type SeriesScope = 'all' | readonly FolderScope[];
 
@@ -431,6 +439,31 @@ export type Edit =
   | { readonly edit: 'existing'; readonly from: SetFrom; readonly id: number }
   /** Keep the plan's series for this folder as the person wrote it: counted, with nothing offered on it. */
   | { readonly edit: 'own'; readonly scope: FolderScope };
+
+/*
+ * The server's three correction edits (`oneItem`, `rowIs`, `describesNothing`)
+ * join `Edit` with the Structure screen that sends them: every switch on
+ * `Edit` there is exhaustive. Until then the admin sends none, and their
+ * instances below are what a proposal's offers carry.
+ */
+
+/** One join of a `oneItem` edit; both paths are relative to the scope's source. */
+export interface ItemJoin {
+  readonly item: string;
+  readonly with: string;
+}
+
+/** A list row by its line and the text of its join cell there, which checks it is still the row the person saw. */
+export interface RowCell {
+  readonly line: number;
+  readonly cell: string;
+}
+
+/** One pair of a `rowIs` edit: the row and the file of the list's source it is. */
+export interface RowPair {
+  readonly row: RowCell;
+  readonly file: string;
+}
 
 /** The shape says what the text means: an install id, a title, or one set per value. */
 export type SetSource = SetById | SetByTitle | { readonly each: EachSet };

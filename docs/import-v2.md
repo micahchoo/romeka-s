@@ -195,6 +195,22 @@ A decision targets the record of `target` kind that holds the entry: for a file,
 decisions on different entries of one record set the same slot, the later one in the list wins and
 the anomaly `decision-overlap` lists them.
 
+A series may also hold `corrections`, which the proposer writes from the person's clicks on the
+Structure screen (`briefs/import-gaps-design.md`). They are of three kinds only:
+
+```ts
+type Correction =
+  | { kind: 'join'; file: FileRef; with: FileRef }   // read as a `move` of `file` with `with`
+  | { kind: 'pair'; row: RowRef; file: FileRef }     // read as a `pair`
+  | { kind: 'leave'; row: RowRef };                  // read as a `leave` of the row
+```
+
+The derive reads every series' corrections as decisions, in plan order, ahead of `decisions`, so a
+person's own decision on the same file or row wins. A row names a list of its own series; the
+boundary refuses one that does not. A correction whose file or row is gone is an orphan. In the
+model, a decision keeps its index in `decisions`, and a correction is numbered after them, in plan
+order. The member is left out when a series has none.
+
 ## The plan (stored JSON, sent by the admin)
 
 camelCase, parsed at the boundary, unknown members refused. The server reads `version: 2` and

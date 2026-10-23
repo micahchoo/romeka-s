@@ -113,6 +113,9 @@ pub(super) struct Parts<'a, 'i> {
     pub flags: Vec<Flag>,
     pub anomalies: Vec<Anomaly>,
     pub orphans: Vec<Orphan>,
+    /// How many of `plan.decisions` are the structure's corrections, read
+    /// ahead of the plan's own.
+    pub corrections: usize,
 }
 
 pub(super) fn finish(parts: Parts<'_, '_>) -> Model {
@@ -129,6 +132,7 @@ pub(super) fn finish(parts: Parts<'_, '_>) -> Model {
         flags,
         mut anomalies,
         mut orphans,
+        corrections,
     } = parts;
 
     for at in 0..records.len() {
@@ -175,6 +179,15 @@ pub(super) fn finish(parts: Parts<'_, '_>) -> Model {
             });
         }
     }
+    let mut entries = entries;
+    renumber(
+        corrections,
+        plan.decisions.len() - corrections,
+        &mut records,
+        &mut entries,
+        &mut anomalies,
+        &mut orphans,
+    );
     orphans.sort_by_key(|orphan| orphan.decision);
     let new_types = new_type_fields(plan, &records);
     Model {
@@ -194,6 +207,52 @@ pub(super) fn finish(parts: Parts<'_, '_>) -> Model {
         digest: String::new(),
     }
     .seal()
+}
+
+/// Every decision index as the plan numbers it. Derive reads `corrections`
+/// corrections ahead of the plan's `own` decisions, so a decision's place
+/// there is `corrections` past its place in the plan. A correction is
+/// numbered past the plan's decisions, in plan order, so no index names a
+/// decision of the plan that it is not.
+fn renumber(
+    corrections: usize,
+    own: usize,
+    records: &mut [Record],
+    entries: &mut [EntryState],
+    anomalies: &mut [Anomaly],
+    orphans: &mut [Orphan],
+) {
+    if corrections == 0 {
+        return;
+    }
+    let number = |at: &mut usize| {
+        *at = if *at < corrections {
+            own + *at
+        } else {
+            *at - corrections
+        };
+    };
+    let left = |by: &mut Option<LeftBy>| {
+        if let Some(LeftBy::Decision(at)) = by {
+            number(at);
+        }
+    };
+    for record in records {
+        if let Fate::Left(LeftBy::Decision(at)) = &mut record.fate {
+            number(at);
+        }
+    }
+    for entry in entries {
+        left(&mut entry.left);
+    }
+    for anomaly in anomalies {
+        if let Anomaly::DecisionOverlap { decisions, .. } = anomaly {
+            decisions.iter_mut().for_each(number);
+        }
+    }
+    for orphan in orphans {
+        number(&mut orphan.decision);
+    }
 }
 
 /// Each item's kept media, in the order its files were sorted, row media

@@ -153,3 +153,95 @@ fn a_tree_the_plan_check_refuses_is_not_proposed_and_the_proposal_says_why() {
         "absent when the tree is proposed"
     );
 }
+
+#[test]
+fn a_row_whose_line_holds_another_cell_does_not_apply() {
+    use super::fixes_tests::{list_file, only_series, path, typo};
+    use super::{Stale, StaleWhy};
+    use crate::import::plan::{RowCell, RowPair};
+    let archive = typo();
+    let pair = |line: u32, cell: &str| RowPair {
+        row: RowCell {
+            line,
+            cell: cell.into(),
+        },
+        file: path("2019-4-12.tif"),
+    };
+    let edit = Edit::RowIs {
+        list: list_file("register.csv"),
+        pairs: vec![pair(7, "2019-4-21"), pair(8, "2019-4-21")],
+    };
+    let proposal = archive.propose(std::slice::from_ref(&edit));
+    let result = &proposal.edits[0];
+    assert_eq!(
+        (result.applied, result.reason),
+        (false, Some(NotApplied::Gone))
+    );
+    assert_eq!(
+        result.stale,
+        [Stale {
+            at: 0,
+            why: StaleWhy::RowChanged
+        }],
+        "line 7 holds 2019-4-6"
+    );
+    assert_eq!(
+        only_series(&proposal).items.chosen.counts.items,
+        7,
+        "the pair that still holds applies"
+    );
+    let json = serde_json::to_value(&proposal.edits).expect("json");
+    assert_eq!(json[0]["stale"][0]["why"], "rowChanged");
+}
+
+#[test]
+fn a_correction_whose_file_is_gone_does_not_apply() {
+    use super::fixes_tests::{list_file, path, scope, sides, typo};
+    use super::{Stale, StaleWhy};
+    use crate::import::plan::{ItemJoin, RowCell, RowPair};
+    let join = Edit::OneItem {
+        scope: scope("Objects"),
+        joins: vec![ItemJoin {
+            item: path("Objects/2019.4.2_front.tif"),
+            with: path("Objects/2019.4.9_front.tif"),
+        }],
+    };
+    let proposal = sides().propose(std::slice::from_ref(&join));
+    assert_eq!(
+        (proposal.edits[0].applied, proposal.edits[0].reason),
+        (false, Some(NotApplied::Gone))
+    );
+    assert_eq!(
+        proposal.edits[0].stale,
+        [Stale {
+            at: 0,
+            why: StaleWhy::FileGone
+        }]
+    );
+    assert!(proposal.structure.corrections().next().is_none());
+
+    let pair = Edit::RowIs {
+        list: list_file("register.csv"),
+        pairs: vec![RowPair {
+            row: RowCell {
+                line: 8,
+                cell: "2019-4-21".into(),
+            },
+            file: path("2019-4-13.tif"),
+        }],
+    };
+    let proposal = typo().propose(std::slice::from_ref(&pair));
+    assert_eq!(
+        proposal.edits[0].stale,
+        [Stale {
+            at: 0,
+            why: StaleWhy::FileGone
+        }]
+    );
+    let json = serde_json::to_value(&typo().propose(&[]).edits).expect("json");
+    assert_eq!(
+        json,
+        serde_json::json!([]),
+        "no stale member when nothing is stale"
+    );
+}
