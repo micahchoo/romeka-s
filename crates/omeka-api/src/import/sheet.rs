@@ -544,15 +544,39 @@ fn header_notes(columns: &[Column]) -> Vec<HeaderNote> {
 /// row's place among rows with that value. A caller that changes the key
 /// column's cells after the read keys the rows again.
 pub(crate) fn key_rows(rows: &mut [Row], column: &ColumnRef) {
+    let keys = keys_by(rows, column);
+    for (row, key) in rows.iter_mut().zip(keys) {
+        row.key = key;
+    }
+}
+
+/// Each row's key as `column` keys it, in row order: its cell there,
+/// trimmed and NFC, plus `#n` for the n-th row with that value.
+pub(crate) fn keys_by(rows: &[Row], column: &ColumnRef) -> Vec<RowKey> {
     let mut seen: HashMap<String, usize> = HashMap::new();
-    for row in rows {
-        let value: String = cell_at(&row.cells, &row.extra, column.index)
-            .trim()
-            .nfc()
-            .collect();
-        let n = seen.entry(value.clone()).or_default();
-        *n += 1;
-        row.key = RowKey::new(&format!("{value}#{n}"));
+    rows.iter()
+        .map(|row| {
+            let value: String = cell_at(&row.cells, &row.extra, column.index)
+                .trim()
+                .nfc()
+                .collect();
+            let n = seen.entry(value.clone()).or_default();
+            *n += 1;
+            RowKey::new(&format!("{value}#{n}"))
+        })
+        .collect()
+}
+
+/// Each row's key as `plan` reads the sheet: by its key column, else by
+/// line. The same rows read another way keep their place, so this names
+/// a row the way a stored decision does, whatever key the read gave it.
+pub(crate) fn plan_keys(rows: &[Row], plan: &SheetPlan) -> Vec<RowKey> {
+    match key_column(plan) {
+        Some(column) => keys_by(rows, column),
+        None => rows
+            .iter()
+            .map(|row| RowKey::new(&row.line.to_string()))
+            .collect(),
     }
 }
 

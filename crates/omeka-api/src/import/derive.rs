@@ -14,11 +14,13 @@ pub(crate) mod records;
 pub(crate) mod tests;
 
 use std::borrow::Cow;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::PathBuf;
 
 use super::catalog::Catalog;
-use super::decisions::{Act, Decision, EntryRef, FileEntry as FileDecision, MoveTo, MoveWith};
+use super::decisions::{
+    Act, Decision, EntryRef, FileEntry as FileDecision, MoveTo, MoveWith, RowKey, RowRef,
+};
 use super::evidence::{FileEntry, Walk};
 use super::flags::FlagBook;
 use super::join::{self, SheetIn};
@@ -28,7 +30,7 @@ use super::plan::{
     Action, Correction, FlagKind, ImportPlan, RecordKind, RelPath, SheetId, SlotName, SourceId,
     TagId, Term,
 };
-use super::sheet::{Sheet, SheetError};
+use super::sheet::{Sheet, SheetError, plan_keys};
 use super::slots::{self, Ctx, named};
 use super::tags::Embedded;
 use super::{grouping, grouping::natural_cmp};
@@ -97,7 +99,7 @@ pub fn derive(
     catalog: &Catalog,
     tags: &dyn FileTags,
 ) -> Model {
-    let decided = with_corrections(plan);
+    let decided = with_corrections(plan, sheets);
     let plan = decided.as_ref();
     let mut book = FlagBook::new(plan);
     let mut anomalies = Vec::new();
@@ -308,10 +310,39 @@ pub fn derive(
 /// The plan as every step reads it: each series' corrections as decisions,
 /// in plan order, ahead of the plan's own, so a person's decision on the
 /// same file or row wins. The one seam where derive reads corrections.
-fn with_corrections(plan: &ImportPlan) -> Cow<'_, ImportPlan> {
+///
+/// A correction names its row by the key the plan's read gives it. A caller
+/// that read the sheet another way (by line, as the proposer's lists are
+/// read) keeps each row's place, so the row is found by its place.
+fn with_corrections<'p>(plan: &'p ImportPlan, sheets: &Sheets) -> Cow<'p, ImportPlan> {
     if plan.structure.corrections().next().is_none() {
         return Cow::Borrowed(plan);
     }
+    let mut read_keys: BTreeMap<&SheetId, HashMap<RowKey, RowKey>> = BTreeMap::new();
+    for (_, correction) in plan.structure.corrections() {
+        let Some(row) = correction.row() else {
+            continue;
+        };
+        let (Some((_, list)), Some(Ok(read))) =
+            (plan.structure.list(&row.sheet), sheets.get(&row.sheet))
+        else {
+            continue;
+        };
+        read_keys.entry(&list.id).or_insert_with(|| {
+            plan_keys(&read.rows, list)
+                .into_iter()
+                .zip(read.rows.iter().map(|row| row.key.clone()))
+                .collect()
+        });
+    }
+    let as_read = |row: RowRef| {
+        let key = read_keys
+            .get(&row.sheet)
+            .and_then(|keys| keys.get(&row.key))
+            .cloned()
+            .unwrap_or(row.key);
+        RowRef { key, ..row }
+    };
     let decisions = plan
         .structure
         .corrections()
@@ -322,9 +353,12 @@ fn with_corrections(plan: &ImportPlan) -> Cow<'_, ImportPlan> {
                     with: FileDecision::File(with),
                 }),
             },
-            Correction::Pair { row, file } => Decision::Pair { row, file },
+            Correction::Pair { row, file } => Decision::Pair {
+                row: as_read(row),
+                file,
+            },
             Correction::Leave { row } => Decision::Leave {
-                entry: EntryRef::Row(row),
+                entry: EntryRef::Row(as_read(row)),
             },
         })
         .chain(plan.decisions.iter().cloned())

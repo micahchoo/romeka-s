@@ -440,6 +440,31 @@ export type Edit =
   /** Keep the plan's series for this folder as the person wrote it: counted, with nothing offered on it. */
   | { readonly edit: 'own'; readonly scope: FolderScope };
 
+/*
+ * The server's three correction edits (`oneItem`, `rowIs`, `describesNothing`)
+ * join `Edit` with the Structure screen that sends them: every switch on
+ * `Edit` there is exhaustive. Until then the admin sends none, and their
+ * instances below are what a proposal's offers carry.
+ */
+
+/** One join of a `oneItem` edit; both paths are relative to the scope's source. */
+export interface ItemJoin {
+  readonly item: string;
+  readonly with: string;
+}
+
+/** A list row by its line and the text of its join cell there, which checks it is still the row the person saw. */
+export interface RowCell {
+  readonly line: number;
+  readonly cell: string;
+}
+
+/** One pair of a `rowIs` edit: the row and the file of the list's source it is. */
+export interface RowPair {
+  readonly row: RowCell;
+  readonly file: string;
+}
+
 /** The shape says what the text means: an install id, a title, or one set per value. */
 export type SetSource = SetById | SetByTitle | { readonly each: EachSet };
 

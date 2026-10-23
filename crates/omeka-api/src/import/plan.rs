@@ -66,7 +66,7 @@ pub use action::{
     Action, ActionPlan, MatchKey, MatchPlan, MatchRule, NamedScope, Scope, SetsScope, Unmatched,
 };
 pub use anomalies::{AnomalyAnswers, IdenticalAnswer, ItemsWithoutRowAnswer, UnmatchedFilesAnswer};
-pub use edits::{CutEdit, Edit, ListFile, PairRule, SetFrom};
+pub use edits::{CutEdit, Edit, ItemJoin, ListFile, PairRule, RowCell, RowPair, SetFrom};
 pub use flags::{FlagKind, FlagOn, FlagPolicy, PolicyDefault};
 pub use names::{RecordKind, SheetId, SlotName, SourceId, Term, local_term};
 pub use path::{RelPath, RelPathError};

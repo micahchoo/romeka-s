@@ -165,11 +165,23 @@ export interface OutsideFolder extends ScopeCounts {
 export const NOT_APPLIED = ['gone', 'notOffered', 'replaced'] as const;
 export type NotApplied = (typeof NOT_APPLIED)[number];
 
+/** Why an instance of a correction no longer holds: its line holds another row, or a file it names is not in the scan. */
+export const STALE_WHY = ['rowChanged', 'fileGone'] as const;
+export type StaleWhy = (typeof STALE_WHY)[number];
+
+/** An instance of a correction that no longer holds, by its place in the edit. */
+export interface Stale {
+  readonly at: number;
+  readonly why: StaleWhy;
+}
+
 /** An edit of the plan; `reason` is null exactly when it is applied. */
 export interface EditResult {
   readonly edit: Edit;
   readonly applied: boolean;
   readonly reason: NotApplied | null;
+  /** The instances of a correction that no longer hold; absent when none. The others still apply. */
+  readonly stale?: readonly Stale[];
 }
 
 /** Which of the proposer's trees the plan check refused, in the order the proposer makes them. */
@@ -369,13 +381,18 @@ export const parseProposal = (raw: unknown, path: Path = ['proposal']): Proposal
     const each = strict(value, at, [...SCOPE_COUNTS, 'reason']);
     return { ...scopeCounts(each, at), reason: member(each, 'reason', at, oneOf(['noMedia', 'edit'] as const)) };
   };
+  const stale = (value: unknown, at: Path): Stale => {
+    const only = strict(value, at, ['at', 'why']);
+    return { at: count(only, 'at', at), why: member(only, 'why', at, oneOf(STALE_WHY)) };
+  };
   const edit = (value: unknown, at: Path): EditResult => {
-    const each = strict(value, at, ['edit', 'applied', 'reason']);
-    return {
+    const each = strict(value, at, ['edit', 'applied', 'reason'], ['stale']);
+    const result = {
       edit: member(each, 'edit', at, parseEdit),
       applied: member(each, 'applied', at, asFlag),
       reason: member(each, 'reason', at, nullable(oneOf(NOT_APPLIED))),
     };
+    return each['stale'] === undefined ? result : { ...result, stale: member(each, 'stale', at, list(stale)) };
   };
   const refused = (value: unknown, at: Path): Refused => {
     const only = strict(value, at, ['tree', 'reason']);

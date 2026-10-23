@@ -7,7 +7,23 @@
  */
 import { asCount, asInteger, dictionary, list, member, nullable, oneOf, strict, wordOr } from './import-read';
 import { RECORD_KINDS, SET_NAMES } from './import-plan';
-import type { Correction, CutEdit, Edit, FolderScope, ImportPlan, Level, ListFile, PairRule, SeriesScope, SetFrom, SetSource, Structure } from './import-plan';
+import type {
+  Correction,
+  CutEdit,
+  Edit,
+  FolderScope,
+  ImportPlan,
+  ItemJoin,
+  Level,
+  ListFile,
+  PairRule,
+  RowCell,
+  RowPair,
+  SeriesScope,
+  SetFrom,
+  SetSource,
+  Structure,
+} from './import-plan';
 import {
   asJoinOn,
   parseActionPlan,
@@ -170,6 +186,21 @@ const parseCutEdit: Parser<CutEdit> = (raw, path = []) => {
     case 'folder':
       return { cut, depth: member(strict(raw, path, ['cut', 'depth']), 'depth', path, asCount) };
   }
+};
+
+export const parseItemJoin: Parser<ItemJoin> = (raw, path = []) => {
+  const only = strict(raw, path, ['item', 'with']);
+  return { item: text(only, 'item', path), with: text(only, 'with', path) };
+};
+
+export const parseRowCell: Parser<RowCell> = (raw, path = []) => {
+  const only = strict(raw, path, ['line', 'cell']);
+  return { line: member(only, 'line', path, asCount), cell: text(only, 'cell', path) };
+};
+
+export const parseRowPair: Parser<RowPair> = (raw, path = []) => {
+  const only = strict(raw, path, ['row', 'file']);
+  return { row: member(only, 'row', path, parseRowCell), file: text(only, 'file', path) };
 };
 
 /** One edit of a plan's `edits` (`plan/edits.rs`). */

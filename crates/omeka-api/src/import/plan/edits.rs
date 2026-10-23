@@ -62,6 +62,44 @@ pub enum Edit {
     /// Keep the plan's series for this folder as the person wrote it. The
     /// proposer counts it and offers nothing on it while this edit stands.
     Own { scope: FolderScope },
+    /// These files are one item: each join puts the item that holds `with`
+    /// into the item that holds `item`. Its files are named, never a rule.
+    OneItem {
+        scope: FolderScope,
+        joins: Vec<ItemJoin>,
+    },
+    /// These rows are these files: each row joins the record of its file.
+    RowIs { list: ListFile, pairs: Vec<RowPair> },
+    /// These rows describe nothing: each makes no record.
+    DescribesNothing { list: ListFile, rows: Vec<RowCell> },
+}
+
+/// One join of a `oneItem` edit. Both paths are relative to the scope's
+/// source.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ItemJoin {
+    pub item: RelPath,
+    pub with: RelPath,
+}
+
+/// A row of a list by its line and the text of its join cell there. The
+/// line names the row; the cell checks it is still the row the person
+/// saw.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RowCell {
+    pub line: u32,
+    pub cell: String,
+}
+
+/// One pair of a `rowIs` edit: the row, and the file of the list's source
+/// it is. When the rows describe items, the file is one of the item's.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RowPair {
+    pub row: RowCell,
+    pub file: RelPath,
 }
 
 /// The cut an `items` edit asks for. The proposer works the shape out again.
