@@ -9,11 +9,11 @@
  * the design's own sentence.
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { asRecord, isRecord } from '../src/api/parse';
 import { ImportPage } from '../src/pages/import/page';
 import { loadFixture } from './loadFixture';
-import { installFetch, jsonResponse, listResponse, route } from './stub';
+import { installFetch, jsonResponse, listResponse, requestUrl, route } from './stub';
 
 const PATH = '/api/romeka/imports/1';
 /** The replica's walk: 2,189 files, 6 of them lists. */
@@ -505,6 +505,121 @@ describe('the Structure screen', () => {
     fireEvent.click(within(audio).getByRole('button', { name: 'Fill in a list yourself' }));
     expect(within(audio).getByText('Use this structure first, then fill in a list here.')).toBeTruthy();
   });
+
+  it('a fix offer shows its count and its instances', async () => {
+    structureServer();
+    render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
+    await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 });
+    const artifacts = select('Artifacts');
+    const offer = await fixOffer(artifacts, '4 rows name no file. Each points at one file that has no row.');
+    expect(within(offer).getByText('Rows that find a file: 680 → 684 of 690')).toBeTruthy();
+    expect(within(offer).queryAllByRole('checkbox')).toEqual([]);
+    fireEvent.click(within(offer).getByRole('button', { name: 'Show the 4' }));
+    expect(instancesOf(offer)).toEqual([
+      ['Row 40, BHC006_GMT_AF_022.jpg: file Artifacts/BHC006_GMT_AF_022a.jpg · The names differ by one character.', true],
+      ['Row 401, BHC_006_GMT_AF_193a.tif: file Artifacts/BHC_006_GMT_AF_193a (2).tif · The row names this file’s part of its item.', true],
+      ['Row 402, BHC_006_GMT_AF_193b.tif: file Artifacts/BHC_006_GMT_AF_193b (2).tif · The row names this file’s part of its item.', true],
+      ['Row 626, BHC_006_GMT_AF_300.NEF: file Artifacts/BHC_006_GMT_AF_300a.NEF · The names differ by one character.', true],
+    ]);
+    expect(within(offer).getByRole('button', { name: 'Pair these 4' })).toBeEnabled();
+
+    // Photo Narratives' rows describe items, so its 26 rows with no file near are offered to leave out.
+    const narratives = select('Photo Narratives (PN)');
+    const out = await fixOffer(narratives, '26 rows name no file, and no file is near. Each makes an item with no file.');
+    expect(within(out).getByText('Items: 215 → 189')).toBeTruthy();
+    expect(within(out).getByRole('button', { name: 'Leave these 26 out' })).toBeEnabled();
+  });
+
+  it('one click sends the ticked instances as one edit', async () => {
+    const server = structureServer();
+    render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
+    await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 });
+    const offer = await fixOffer(select('Artifacts'), '4 rows name no file. Each points at one file that has no row.');
+    fireEvent.click(within(offer).getByRole('button', { name: 'Show the 4' }));
+    within(offer).getAllByRole('checkbox').slice(1).forEach((box) => {
+      fireEvent.click(box);
+    });
+    expect(instancesOf(offer).map(([, ticked]) => ticked)).toEqual([true, false, false, false]);
+    fireEvent.click(within(offer).getByRole('button', { name: 'Pair this row' }));
+    await waitFor(() => {
+      expect(server.saved).toHaveLength(1);
+    });
+    expect(server.asked).toEqual([[PAIR_ONE]]);
+    expect(server.saved[0]?.['edits']).toEqual([PAIR_ONE]);
+    expect(await screen.findByText('In use. Your changes: 1.')).toBeTruthy();
+    expect(changeLines()).toEqual([['Artifacts · List: Paired: 1', '733 → 733 items']]);
+    expect(changedInstances()).toEqual([['Row 40, BHC006_GMT_AF_022.jpg: file Artifacts/BHC006_GMT_AF_022a.jpg', true]]);
+    // The taken row leaves the offer: three are left.
+    expect(await fixOffer(inspectorOf(), '3 rows name no file. Each points at one file that has no row.')).toBeTruthy();
+  });
+
+  it('a second offer on the same list adds to its edit', async () => {
+    const server = structureServer({ stored: { edits: [PAIR_ONE] } });
+    render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
+    await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 });
+    const offer = await fixOffer(select('Artifacts'), '3 rows name no file. Each points at one file that has no row.');
+    expect(within(offer).getByText('Rows that find a file: 681 → 684 of 690')).toBeTruthy();
+    fireEvent.click(within(offer).getByRole('button', { name: 'Pair these 3' }));
+    await waitFor(() => {
+      expect(server.saved).toHaveLength(1);
+    });
+    // One question holds one edit: the three join the edit that is there, after its own.
+    expect(server.asked).toEqual([[PAIR_FOUR]]);
+    expect(server.saved[0]?.['edits']).toEqual([PAIR_FOUR]);
+    await waitFor(() => {
+      expect(changeLines()).toEqual([['Artifacts · List: Paired: 4', '733 → 733 items']]);
+    });
+    expect(changedInstances().map(([, ticked]) => ticked)).toEqual([true, true, true, true]);
+    expect(within(inspectorOf()).queryByRole('button', { name: /^Pair these/ })).toBeNull();
+  });
+
+  it('unticking the last instance deletes the edit', async () => {
+    const server = structureServer({ stored: { edits: [PAIR_ONE] } });
+    render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
+    await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 });
+    await waitFor(() => {
+      expect(changedInstances()).toHaveLength(1);
+    });
+    fireEvent.click(within(screen.getByRole('region', { name: 'Your changes' })).getByRole('checkbox'));
+    await waitFor(() => {
+      expect(server.saved).toHaveLength(1);
+    });
+    expect(server.asked).toEqual([[]]);
+    expect(server.saved[0]?.['edits']).toBeUndefined();
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: 'Your changes' })).toBeNull();
+    });
+    expect(await fixOffer(select('Artifacts'), '4 rows name no file. Each points at one file that has no row.')).toBeTruthy();
+  });
+
+  it('an instance that no longer holds shows on a line of its own under its change', async () => {
+    const recorded = asRecord(loadFixture('import/proposal-bhc006-pair-one.json'), []);
+    const stale = { ...recorded, edits: [{ edit: PAIR_ONE, applied: false, reason: 'gone', stale: [{ at: 0, why: 'rowChanged' }] }] };
+    structureServer({ stored: { edits: [PAIR_ONE] }, answer: stale });
+    render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
+    await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 });
+    await waitFor(() => {
+      expect(changeLines()).toEqual([['Artifacts · List: Paired: 1', '1 no longer applies.']]);
+    });
+    expect(changedInstances()).toEqual([['Row 40, BHC006_GMT_AF_022.jpg: file Artifacts/BHC006_GMT_AF_022a.jpg · This row changed.', true]]);
+  });
+
+  it('Simple’s archive node looks at the files again and opens files from this computer', async () => {
+    structureServer();
+    render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
+    await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 });
+    const [archive] = screen.getAllByRole('option');
+    if (archive === undefined) {
+      throw new Error('no archive node');
+    }
+    fireEvent.click(archive);
+    const inspector = inspectorOf();
+    expect(await within(inspector).findByRole('link', { name: 'Add files from this computer' })).toHaveAttribute('href', '#/import/1/simple/files');
+    fireEvent.click(within(inspector).getByRole('button', { name: 'Look at the files again' }));
+    await waitFor(() => {
+      expect(vi.mocked(fetch).mock.calls.filter(([input, init]) => requestUrl(input).pathname === `${PATH}/scan` && init?.method === 'POST')).toHaveLength(1);
+    });
+  });
 });
 
 const OWN_ARTIFACTS = { edit: 'own', scope: { source: 's1', folder: 'Artifacts' } };
@@ -590,6 +705,16 @@ const carried = (proposal: Record<string, unknown>, sent: Record<string, unknown
   return { ...proposal, structure: { ...structure, levels } };
 };
 const PN_ROWS_ARE_FILES = { edit: 'grain', list: { source: 's1', file: 'BHC006_GMT_PN.xlsx' }, describes: 'media' };
+const AF_LIST = { source: 's1', file: 'BHC006_GMT_AF.xlsx' };
+/** The four AF rows the replica as found offers to pair, in the proposal's order. */
+const AF_PAIRS = [
+  { row: { line: 40, cell: 'BHC006_GMT_AF_022.jpg' }, file: 'Artifacts/BHC006_GMT_AF_022a.jpg' },
+  { row: { line: 401, cell: 'BHC_006_GMT_AF_193a.tif' }, file: 'Artifacts/BHC_006_GMT_AF_193a (2).tif' },
+  { row: { line: 402, cell: 'BHC_006_GMT_AF_193b.tif' }, file: 'Artifacts/BHC_006_GMT_AF_193b (2).tif' },
+  { row: { line: 626, cell: 'BHC_006_GMT_AF_300.NEF' }, file: 'Artifacts/BHC_006_GMT_AF_300a.NEF' },
+];
+const PAIR_ONE = { edit: 'rowIs', list: AF_LIST, pairs: AF_PAIRS.slice(0, 1) };
+const PAIR_FOUR = { edit: 'rowIs', list: AF_LIST, pairs: AF_PAIRS };
 
 /** JSON with sorted keys, so two plans compare by what they hold. */
 const canonical = (value: unknown): string =>
@@ -606,6 +731,8 @@ const RECORDED: Readonly<Record<string, string>> = {
   [canonical([ITEMS_WHOLE])]: 'import/proposal-bhc006-whole.json',
   [canonical([ITEMS_WHOLE, OWN_ARTIFACTS])]: 'import/proposal-bhc006-own-waiting.json',
   [canonical([DOCUMENTS_PLACE_4, OWN_DOCUMENTS])]: 'import/proposal-bhc006-own-set.json',
+  [canonical([PAIR_ONE])]: 'import/proposal-bhc006-pair-one.json',
+  [canonical([PAIR_FOUR])]: 'import/proposal-bhc006-pair-four.json',
 };
 
 /** Two files of one Artifacts item, as the entries the picker asks for. */
@@ -757,3 +884,25 @@ const strip = (): readonly (readonly (string | null)[])[] =>
 
 const rowFacts = (name: string): string | null | undefined =>
   screen.getByRole('option', { name }).querySelector('.guided-row-facts')?.textContent;
+
+/** The offer whose line is `line`, once its lazy chunk has drawn it. */
+const fixOffer = async (inspector: HTMLElement, line: string): Promise<HTMLElement> => {
+  const text = await within(inspector).findByText(line, {}, { timeout: 5000 });
+  const offer = text.closest('.structure-offer');
+  if (!(offer instanceof HTMLElement)) {
+    throw new Error(`no offer around ${line}`);
+  }
+  return offer;
+};
+
+/** Each instance of an offer or a change: its words, and whether it is ticked. */
+const instancesOf = (root: HTMLElement): readonly (readonly [string, boolean])[] =>
+  Array.from(root.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'), (box) => [box.closest('label')?.textContent.trim() ?? '', box.checked] as const);
+
+/** The changes strip's own lines, without the instances listed under a change. */
+const changeLines = (): readonly (readonly (string | null)[])[] =>
+  Array.from(screen.getByRole('region', { name: 'Your changes' }).querySelectorAll(':scope > ul > li'), (item) =>
+    Array.from(item.querySelectorAll(':scope > span'), (span) => span.textContent),
+  );
+
+const changedInstances = (): readonly (readonly [string, boolean])[] => instancesOf(screen.getByRole('region', { name: 'Your changes' }));

@@ -34,7 +34,7 @@ export const SLOW_MS = 1000;
 export const SAVE_FIRST_MS = 10_000;
 
 /** JSON with sorted keys: the same value whatever order its members were written in. */
-const canonical = (value: unknown): string =>
+export const canonical = (value: unknown): string =>
   JSON.stringify(value, (_key, member: unknown) =>
     typeof member === 'object' && member !== null && !Array.isArray(member)
       ? Object.fromEntries(Object.entries(member).sort(([a], [b]) => a.localeCompare(b)))
@@ -67,6 +67,9 @@ export const QUESTIONS = {
   column: (list: ListFile, index: number) => question('column', { list, index }),
 };
 
+/** A correction: an edit of instances, each a file or a row the proposal offered. */
+export type Fixing = Extract<Edit, { readonly edit: 'oneItem' | 'rowIs' | 'describesNothing' }>;
+
 /** The question an edit answers. */
 export const questionOf = (edit: Edit): Question => {
   switch (edit.edit) {
@@ -89,6 +92,12 @@ export const questionOf = (edit: Edit): Question => {
       return QUESTIONS.title(edit.from);
     case 'own':
       return QUESTIONS.own(edit.scope);
+    // A correction's question is its kind and what it corrects, so a later offer of the same kind adds to its one edit.
+    case 'oneItem':
+      return question(edit.edit, edit.scope);
+    case 'rowIs':
+    case 'describesNothing':
+      return question(edit.edit, edit.list);
   }
 };
 
@@ -147,9 +156,12 @@ const names = (node: TreeNode, edit: Edit): boolean => {
     case 'items':
     case 'list':
     case 'own':
+    case 'oneItem':
       return sameScope(edit.scope, scope);
     case 'grain':
     case 'pair':
+    case 'rowIs':
+    case 'describesNothing':
       return lists.some((one) => sameList(edit.list, one));
     case 'addSet':
     case 'dropSet':

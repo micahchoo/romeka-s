@@ -1,6 +1,6 @@
 /**
  * Simple's words are dials, not prose: no English string of `import-simple`,
- * `import-structure` or `import-lists` is longer than 12 words, and neither
+ * `import-structure`, `import-fixes` or `import-lists` is longer than 12 words, and neither
  * is any string Simple's Structure shows from another namespace: the
  * archive's "Your own sets" is Advanced's control (`advanced/free-sets.tsx`),
  * so the test opens it in Simple and counts every text it draws. A word is a
@@ -13,6 +13,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { asRecord } from '../src/api/parse';
+import { en as fixes } from '../src/i18n/namespaces/import-fixes';
 import { en as lists } from '../src/i18n/namespaces/import-lists';
 import { en as simple } from '../src/i18n/namespaces/import-simple';
 import { en as structure } from '../src/i18n/namespaces/import-structure';
@@ -33,6 +34,7 @@ const TABLES: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   'import-simple': simple,
   'import-structure': structure,
   'import-lists': lists,
+  'import-fixes': fixes,
 };
 
 describe('Simple’s strings are at most 12 words', () => {
@@ -50,7 +52,7 @@ describe('Simple’s strings are at most 12 words', () => {
   });
 
   it('lists only keys that exist and are still long, so the list only shrinks', () => {
-    const all: Readonly<Record<string, string>> = { ...simple, ...structure, ...lists };
+    const all: Readonly<Record<string, string>> = { ...simple, ...structure, ...lists, ...fixes };
     const stale = [...LONG].filter((key) => all[key] === undefined || wordsIn(all[key]) <= MOST_WORDS);
     expect(stale).toEqual([]);
   });

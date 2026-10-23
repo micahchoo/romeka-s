@@ -8,18 +8,20 @@
  * list, and "Advanced may show" lists the precise words Advanced may use. A
  * key under `advanced.`, and every key of `import-advanced`, is shown in
  * Advanced only, so it is held to the banned list less those words. The
- * `import-simple` and `import-structure` namespaces show in Simple only, so
+ * `import-simple`, `import-structure` and `import-fixes` namespaces show in Simple only, so
  * all of them is held to the banned list. To ban a word, add it here.
  */
 import { describe, expect, it } from 'vitest';
 import { en as importEn } from '../src/i18n/namespaces/import';
 import { en as advancedEn } from '../src/i18n/namespaces/import-advanced';
+import { en as fixes } from '../src/i18n/namespaces/import-fixes';
 import { en as listsEn } from '../src/i18n/namespaces/import-lists';
 import { en as runEn } from '../src/i18n/namespaces/import-run';
 import { en as simple } from '../src/i18n/namespaces/import-simple';
 import { en as structure } from '../src/i18n/namespaces/import-structure';
 import { ml as mlImport } from '../src/i18n/namespaces/import/locales/ml';
 import { ml as mlAdvanced } from '../src/i18n/namespaces/import-advanced/locales/ml';
+import { ml as mlFixes } from '../src/i18n/namespaces/import-fixes/locales/ml';
 import { ml as mlLists } from '../src/i18n/namespaces/import-lists/locales/ml';
 import { ml as mlRun } from '../src/i18n/namespaces/import-run/locales/ml';
 import { ml as mlSimple } from '../src/i18n/namespaces/import-simple/locales/ml';
@@ -84,6 +86,7 @@ describe('import strings use plain words', () => {
   it.each([
     ['import-simple', simple],
     ['import-structure', structure],
+    ['import-fixes', fixes],
   ])('every %s string passes Simple’s word list', (_name, table: Readonly<Record<string, string>>) => {
     const found = Object.entries(table).flatMap(([key, text]) => bannedIn(key, text));
     expect(found).toEqual([]);
@@ -105,7 +108,7 @@ describe('import strings use plain words', () => {
  * survives a rerun, and this keeps a new key from bringing the other back.
  */
 const SPELLINGS: readonly { readonly locale: string; readonly table: Readonly<Record<string, string>>; readonly term: string; readonly not: RegExp }[] = [
-  ...[mlImport, mlAdvanced, mlLists, mlRun, mlSimple, mlStructure].map((table) => ({ locale: 'ml', table, term: 'പാറ്റേൺ', not: /പാറ്തേ/u })),
+  ...[mlImport, mlAdvanced, mlFixes, mlLists, mlRun, mlSimple, mlStructure].map((table) => ({ locale: 'ml', table, term: 'പാറ്റേൺ', not: /പാറ്തേ/u })),
 ];
 
 describe('import strings spell a term one way in each locale', () => {

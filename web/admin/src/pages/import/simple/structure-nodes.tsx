@@ -1,9 +1,10 @@
 /**
  * The inspectors of the Structure screen's nodes that are not a folder of
- * items: the archive (with the person's own sets, `../advanced/free-sets.tsx`,
- * a lazy chunk), the sets over every item, a set level (counted, or
- * kept around a folder written by hand), a folder not imported and a list
- * no folder uses. They are a lazy chunk of their own:
+ * items: the archive (its files, with the way to look at them again and to
+ * add files from this computer, and the person's own sets,
+ * `../advanced/free-sets.tsx`, a lazy chunk), the sets over every item, a
+ * set level (counted, or kept around a folder written by hand), a folder
+ * not imported and a list no folder uses. They are a lazy chunk of their own:
  * the screen opens on a folder, and loads these when the person selects one.
  */
 import { Suspense, lazy, useState } from 'react';
@@ -11,6 +12,11 @@ import type { ReactElement } from 'react';
 import type { OutsideFolder, Pick, SeriesNode, SetCounts } from '../../../api/import-proposal';
 import type { SetFrom } from '../../../api/import-plan';
 import type { ListCandidate } from '../../../api/import-sections';
+import { ErrorNotice } from '../../../app/errors';
+import { useDraft } from '../draft-context';
+import { useLookAgain } from '../look-again';
+import { placeHref } from '../screens';
+import { useSimpleText } from './messages';
 import { QUESTIONS } from './structure-edits';
 import { folderName, keptSetName, kindsWords, listsIn, setName, setNote, setsWords } from './structure-lines';
 import type { TreeNode } from './structure-lines';
@@ -22,6 +28,11 @@ const FreeSets = lazy(() => import('../advanced/free-sets').then((module) => ({ 
 const ArchiveInspector = ({ where, files }: { readonly where: string; readonly files: number }): ReactElement => {
   const { proposal, words } = useScreen();
   const { t, number } = words;
+  // The words of Simple's files screen, whose look again and files from this computer this node holds too.
+  const simple = useSimpleText();
+  const draft = useDraft();
+  const { look, lookAgain } = useLookAgain();
+  const looking = look.at === 'looking' || look.at === 'working';
   const [sets, setSets] = useState(false);
   const lists = listsIn(proposal);
   const series = proposal.nodes.filter((node) => node.kind === 'series' || node.kind === 'own').length;
@@ -29,7 +40,14 @@ const ArchiveInspector = ({ where, files }: { readonly where: string; readonly f
     <div className="guided-inspect">
       <h4>{where}</h4>
       <dl className="guided-kv">
-        <Row label={t('structure.root.files')}>{t('structure.root.filesIn', { files: number(files), where })}</Row>
+        <Row label={t('structure.root.files')}>
+          <p>{t('structure.root.filesIn', { files: number(files), where })}</p>
+          <button type="button" disabled={looking} onClick={lookAgain}>
+            {looking ? simple.t('guided.files.looking') : simple.t('guided.files.again')}
+          </button>{' '}
+          <a href={placeHref(draft.id, { mode: 'simple', screen: 'files' })}>{simple.t('upload.heading')}</a>
+          {look.at === 'failed' ? <ErrorNotice error={look.error} /> : null}
+        </Row>
         <Row label={t('structure.root.folders')}>{t('structure.root.foldersLine', { in: number(series), out: number(proposal.outside.length) })}</Row>
         <Row label={t('structure.root.lists')}>{t('structure.root.listsLine', { used: number(lists.used), unused: number(lists.unused) })}</Row>
         <Row label={t('structure.root.sets')}>

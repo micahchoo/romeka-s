@@ -438,14 +438,11 @@ export type Edit =
   /** The set's items go into a set already in Omeka, by its id, in place of a new set. */
   | { readonly edit: 'existing'; readonly from: SetFrom; readonly id: number }
   /** Keep the plan's series for this folder as the person wrote it: counted, with nothing offered on it. */
-  | { readonly edit: 'own'; readonly scope: FolderScope };
-
-/*
- * The server's three correction edits (`oneItem`, `rowIs`, `describesNothing`)
- * join `Edit` with the Structure screen that sends them: every switch on
- * `Edit` there is exhaustive. Until then the admin sends none, and their
- * instances below are what a proposal's offers carry.
- */
+  | { readonly edit: 'own'; readonly scope: FolderScope }
+  /** Corrections: their instances, each named by a file or a row, as the proposal offered them. */
+  | { readonly edit: 'oneItem'; readonly scope: FolderScope; readonly joins: readonly ItemJoin[] }
+  | { readonly edit: 'rowIs'; readonly list: ListFile; readonly pairs: readonly RowPair[] }
+  | { readonly edit: 'describesNothing'; readonly list: ListFile; readonly rows: readonly RowCell[] };
 
 /** One join of a `oneItem` edit; both paths are relative to the scope's source. */
 export interface ItemJoin {

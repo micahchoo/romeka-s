@@ -368,8 +368,11 @@ fn the_admins_recorded_proposals_are_the_replicas() {
         scope: artifacts(),
         cut: CutEdit::Whole,
     };
-    let recorded: [(&str, Proposal); 7] = [
-        ("proposal-bhc006.json", proposal_with_lists(&[])),
+    let found = proposal_with_lists(&[]);
+    let first_pair = af_pairs(&found, 1);
+    let every_pair = af_pairs(&found, 4);
+    let recorded: [(&str, Proposal); 9] = [
+        ("proposal-bhc006.json", found),
         (
             "proposal-bhc006-extras.json",
             proposal_with_lists(std::slice::from_ref(&extras)),
@@ -391,6 +394,14 @@ fn the_admins_recorded_proposals_are_the_replicas() {
             marked_by_hand(&[whole, own]),
         ),
         ("proposal-bhc006-own-set.json", split_then_own()),
+        (
+            "proposal-bhc006-pair-one.json",
+            proposal_with_lists(&[first_pair]),
+        ),
+        (
+            "proposal-bhc006-pair-four.json",
+            proposal_with_lists(&[every_pair]),
+        ),
     ];
     for (name, proposal) in recorded {
         let text = serde_json::to_string_pretty(&proposal).expect("the proposal as JSON") + "\n";
@@ -406,6 +417,33 @@ fn the_admins_recorded_proposals_are_the_replicas() {
                 "{name} is out of date; run with UPDATE_FIXTURES=1"
             );
         }
+    }
+}
+
+/// The `rowIs` edit of the first `take` pairs the replica offers on its AF
+/// list as found, as the Structure screen sends them: the admin's tests take
+/// one, then the other three as a second click on the same list.
+fn af_pairs(found: &Proposal, take: usize) -> Edit {
+    let offered = found
+        .nodes
+        .iter()
+        .find_map(|node| match node {
+            NodeEvidence::Series(series) => series.fixes.iter().find_map(|fix| match fix {
+                Fix::RowIs { list, .. } if list.file.as_str() == "BHC006_GMT_AF.xlsx" => {
+                    Some(fix.edit(&series.scope.scope))
+                }
+                _ => None,
+            }),
+            _ => None,
+        })
+        .expect("the AF list offers its row pairs");
+    let Edit::RowIs { list, pairs } = offered else {
+        unreachable!("a rowIs offer is a rowIs edit")
+    };
+    assert_eq!(pairs.len(), 4, "the replica as found offers 4 AF pairs");
+    Edit::RowIs {
+        list,
+        pairs: pairs.into_iter().take(take).collect(),
     }
 }
 
