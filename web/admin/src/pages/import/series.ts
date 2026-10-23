@@ -93,23 +93,6 @@ export const setLevelsOf = (plan: ImportPlan): readonly SetLevel[] => {
   return visit(plan.structure.levels);
 };
 
-/** The set levels around the series `level` in `structure`, outermost first; none when no series is `level`. */
-export const setLevelsAround = (structure: Structure, level: LevelId): readonly SetLevel[] => {
-  const path = (levels: readonly Level[]): readonly SetLevel[] | null => {
-    for (const one of levels) {
-      if (one.kind === 'series' && one.id === level) {
-        return [];
-      }
-      const inner = one.kind === 'set' ? path(one.levels) : null;
-      if (one.kind === 'set' && inner !== null) {
-        return [one, ...inner];
-      }
-    }
-    return null;
-  };
-  return path(structure.levels) ?? [];
-};
-
 export const withSets = (plan: ImportPlan, change: (sets: readonly SetSource[]) => readonly SetSource[]): ImportPlan => ({
   ...plan,
   structure: { ...plan.structure, freeSets: change(plan.structure.freeSets) },

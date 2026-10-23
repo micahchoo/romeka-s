@@ -11,7 +11,7 @@ import type { OutsideFolder, Pick, SeriesNode, SetCounts } from '../../../api/im
 import type { SetFrom } from '../../../api/import-plan';
 import type { ListCandidate } from '../../../api/import-sections';
 import { QUESTIONS } from './structure-edits';
-import { folderName, keptSetName, kindsWords, listsIn, setName, setNote } from './structure-lines';
+import { folderName, keptSetName, kindsWords, listsIn, setName, setNote, setsWords } from './structure-lines';
 import type { TreeNode } from './structure-lines';
 import { Offer, Row, useScreen } from './structure-parts';
 
@@ -19,7 +19,7 @@ const ArchiveInspector = ({ where, files }: { readonly where: string; readonly f
   const { proposal, words } = useScreen();
   const { t, number } = words;
   const lists = listsIn(proposal);
-  const series = proposal.nodes.filter((node) => node.kind !== 'set').length;
+  const series = proposal.nodes.filter((node) => node.kind === 'series' || node.kind === 'own').length;
   return (
     <div className="guided-inspect">
       <h4>{where}</h4>
@@ -153,8 +153,9 @@ export const OtherInspector = ({
     case 'kept':
       return (
         <div className="guided-inspect">
-          <h4>{keptSetName(node.level.set, words.t)}</h4>
+          <h4>{keptSetName(node.node.set, words.t)}</h4>
           <p>{words.t('structure.keptSet.note')}</p>
+          <p>{node.node.counts === null ? words.t('structure.keptSet.uncounted') : setsWords(node.node.counts, words.t, words.number)}</p>
         </div>
       );
     case 'outside':

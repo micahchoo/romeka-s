@@ -333,12 +333,11 @@ impl Structure {
         sources
     }
 
-    /// `level` inside the set levels of this structure that hold the series
-    /// at `at` and no other, nearest innermost: what a series written by
-    /// hand keeps around it. A set level over several series is the
-    /// proposer's to make again.
+    /// The set levels of this structure that hold the series at `at` and no
+    /// other, outermost first: what a series written by hand keeps around
+    /// it. A set level over several series is the proposer's to make again.
     #[must_use]
-    pub fn inside_its_sets(&self, at: SeriesIx, level: Level) -> Level {
+    pub fn sets_alone_around(&self, at: SeriesIx) -> Vec<&SetLevel> {
         fn path_to<'s>(
             levels: &'s [Level],
             at: usize,
@@ -362,16 +361,23 @@ impl Structure {
         }
         let mut path = Vec::new();
         if !path_to(&self.levels, at.0, &mut 0, &mut path) {
-            return level;
+            return Vec::new();
         }
         let alone = |set: &SetLevel| {
             let mut series = 0;
             walk(&set.levels, &mut |_, _, _| series += 1);
             series == 1
         };
-        path.into_iter()
+        let held = path.iter().rev().take_while(|set| alone(set)).count();
+        path.split_off(path.len() - held)
+    }
+
+    /// `level` inside [`Self::sets_alone_around`] the series at `at`.
+    #[must_use]
+    pub fn inside_its_sets(&self, at: SeriesIx, level: Level) -> Level {
+        self.sets_alone_around(at)
+            .into_iter()
             .rev()
-            .take_while(|set| alone(set))
             .fold(level, |inner, set| {
                 Level::Set(SetLevel::new(set.id.clone(), set.set.clone(), vec![inner]))
             })
@@ -505,6 +511,18 @@ impl SetLevel {
     #[must_use]
     pub fn new(id: LevelId, set: SetSource, levels: Vec<Level>) -> Self {
         Self { id, set, levels }
+    }
+
+    /// Unique among the plan's levels.
+    #[must_use]
+    pub fn id(&self) -> &LevelId {
+        &self.id
+    }
+
+    /// The set its items join.
+    #[must_use]
+    pub fn set(&self) -> &SetSource {
+        &self.set
     }
 }
 

@@ -146,6 +146,7 @@ export const es: ImportStructureMessages = {
   "structure.keptSet.each": "Un conjunto por valor",
   "structure.keptSet.note":
     "Se conserva como lo hiciste, alrededor de la carpeta que escribiste.",
+  "structure.keptSet.uncounted": "No podemos contar estos conjuntos aquí.",
   "structure.change.kept": "Se conserva como lo hiciste.",
   "structure.kept.title": "Listas subidas",
   "structure.kept.rows":

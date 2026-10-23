@@ -292,7 +292,7 @@ fn marked_by_hand(edits: &[Edit]) -> Proposal {
         .iter()
         .find_map(|node| match node {
             NodeEvidence::Own(own) => Some(own),
-            NodeEvidence::Set(_) | NodeEvidence::Series(_) => None,
+            NodeEvidence::Set(_) | NodeEvidence::Kept(_) | NodeEvidence::Series(_) => None,
         })
         .expect("the written series' node");
     assert_eq!(own.level, *written.id());

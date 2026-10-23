@@ -11,12 +11,10 @@ import type { Choice, EditResult, Pick, SeriesNode, SetCounts } from '../../../a
 import type { Edit, ListFile, SetFrom } from '../../../api/import-plan';
 import type { ListCandidate } from '../../../api/import-sections';
 import { QUESTIONS, cutEditOf, heldBy } from './structure-edits';
-import { bucketsWords, cutWords, grainWords, itemsWords, listName, pairWords, rowsNamingAFile, setFromWords, setName, setNote } from './structure-lines';
+import { bucketsWords, cutWords, grainWords, itemsWords, listName, pairWords, rowsNamingAFile, setFromWords, setName, setNote, setsWords } from './structure-lines';
 import { Notes, Offer, Question, Row, useScreen } from './structure-parts';
 import type { Answer } from './structure-parts';
 
-/** A split shows this many of its sets, then how many more. */
-const SETS_SHOWN = 3;
 /** The endings line shows this many endings. */
 const PARTS_SHOWN = 8;
 
@@ -178,7 +176,10 @@ export const ListQuestions = ({ node, every = false }: { readonly node: SeriesNo
 /**
  * The Set question. Its rival is a column with one value in every row, so a
  * click on it gives the folder's set that title (a `title` edit). While the
- * person's title stands, the folder's own name is the suggestion's answer.
+ * person's title, or a set in Omeka, stands, the folder's own name is the
+ * suggestion's answer. Whether the set is made and what it is are two
+ * questions, as the server asks them, so a title never takes back the
+ * `addSet` that made the set.
  */
 export const SetQuestion = ({ node, name }: { readonly node: SeriesNode; readonly name: string }): ReactElement | null => {
   const { proposal, words } = useScreen();
@@ -189,9 +190,11 @@ export const SetQuestion = ({ node, name }: { readonly node: SeriesNode; readonl
     return <Row label={t('structure.q.set')}>{t('structure.set.none')}</Row>;
   }
   const asked = QUESTIONS.set(from);
+  const named = QUESTIONS.title(from);
   const held = heldBy(proposal, asked);
+  const naming = heldBy(proposal, named);
   const shown = { label: (pick: Pick<SetFrom, SetCounts>) => setName(pick.counts, t, number), note: (pick: Pick<SetFrom, SetCounts>) => setNote(pick.value, pick.counts, t, number), none: t('structure.set.none') };
-  const titled = held?.applied === true && held.edit.edit === 'title' ? held.edit : null;
+  const titled = naming?.applied === true && (naming.edit.edit === 'title' || naming.edit.edit === 'existing') ? naming.edit : null;
   const answers: readonly Answer[] =
     titled === null
       ? answersOf(node.set, held, (pick) => {
@@ -201,10 +204,18 @@ export const SetQuestion = ({ node, name }: { readonly node: SeriesNode; readonl
           }
           const title = pick.counts.sets[0]?.[0];
           return own === null ? { edit: 'addSet', from: pick.value } : title === undefined ? undefined : { edit: 'title', from: own, title };
-        }, shown)
+        }, shown).map((answer) => (answer.edit?.edit === 'title' ? { ...answer, asked: named } : answer))
       : [
-          { value: 'chosen', label: titled.title, note: setNote(titled.from, chosen.counts, t, number), draft: false, pressed: true, edit: null },
-          { value: 'rival', label: name, draft: true, pressed: false, edit: null },
+          {
+            value: 'chosen',
+            label: titled.edit === 'title' ? titled.title : t('structure.set.existing', { id: String(titled.id) }),
+            note: setNote(titled.from, chosen.counts, t, number),
+            draft: false,
+            pressed: true,
+            edit: null,
+            asked: named,
+          },
+          { value: 'rival', label: name, draft: true, pressed: false, edit: null, asked: named },
           { value: 'none', label: shown.none, draft: false, pressed: false, edit: { edit: 'dropSet', from: titled.from } },
         ];
   return (
@@ -217,13 +228,10 @@ export const SetQuestion = ({ node, name }: { readonly node: SeriesNode; readonl
 export const SplitOffer = ({ split }: { readonly split: Pick<SetFrom, SetCounts> }): ReactElement => {
   const { words } = useScreen();
   const { t, number } = words;
-  const { sets } = split.counts;
-  const shown = sets.slice(0, SETS_SHOWN).map(([name, items]) => t('structure.split.set', { name, items: itemsWords(items, t, number) }));
-  const more = sets.length > SETS_SHOWN ? [t('structure.split.more', { count: number(sets.length - SETS_SHOWN) })] : [];
   return (
     <Offer
-      text={`${t('structure.split.by', { from: setFromWords(split.value, t) })} ${[...shown, ...more].join(' · ')}`}
-      action={t('structure.split.make', { count: number(sets.length) })}
+      text={`${t('structure.split.by', { from: setFromWords(split.value, t) })} ${setsWords(split.counts, t, number)}`}
+      action={t('structure.split.make', { count: number(split.counts.sets.length) })}
       asked={QUESTIONS.set(split.value)}
       edit={{ edit: 'addSet', from: split.value }}
     />

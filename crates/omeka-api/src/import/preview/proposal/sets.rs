@@ -30,12 +30,15 @@ use super::names::PlaceValues;
 use super::shape::KeyShape;
 use super::thresholds::{MIN_GROUPED_SHARE, MIN_ITEMS_OF_ONE_VALUE, MIN_ITEMS_PER_SET, MIN_SETS};
 use super::{Pick, ScanText, SetCounts, Share};
+use crate::import::catalog::Catalog;
 use crate::import::derive::Sheets;
+use crate::import::grouping::pattern::FilePattern;
 use crate::import::join::cell;
-use crate::import::model::Model;
+use crate::import::model::{Model, Record};
 use crate::import::plan::{
-    ColumnRef, Edit, FolderLevel, FolderScope, ListFile, RecordKind, RelPath, RowKind, SeriesIx,
-    SetById, SetByTitle, SetFrom, SetSource, SheetPlan, SourceId, SourceRef, Structure,
+    ColumnRef, EachValue, Edit, FolderLevel, FolderScope, ListFile, Placement, RecordKind, RelPath,
+    RowKind, SeriesIx, SetById, SetByTitle, SetFrom, SetNames, SetSource, SheetPlan, SourceId,
+    SourceRef, Structure,
 };
 use crate::import::sheet::{Row, Sheet};
 
@@ -784,4 +787,104 @@ fn rename(found: &mut Sets, from: &SetFrom, named: &dyn Fn(&ScanText) -> OneSet)
         found_one = true;
     }
     found_one
+}
+
+/// The sets a set level kept around the written series at `at` makes on
+/// the derive of the proposal: the level holds that series alone, so each
+/// of its items. A title or a set in the install is one set; one set per
+/// value is counted for one name group, one folder level or one column,
+/// read as titles with no value map. Any other source is not counted.
+pub(super) fn kept(
+    model: &Model,
+    structure: &Structure,
+    sheets: &Sheets,
+    catalog: &Catalog,
+    at: SeriesIx,
+    set: &SetSource,
+) -> Option<SetCounts> {
+    let items: Vec<&Record> = model
+        .kept()
+        .filter(|record| record.kind == RecordKind::Item && record.series == at)
+        .collect();
+    let one = |title: &str| SetCounts {
+        sets: vec![(ScanText(title.to_owned()), items.len())],
+        rows: None,
+    };
+    let each = match set {
+        SetSource::Title(set) => return Some(one(&set.title)),
+        SetSource::Id(set) => {
+            return catalog
+                .item_sets
+                .iter()
+                .find(|known| known.id == set.id)
+                .map(|known| one(&known.title));
+        }
+        SetSource::Each(EachValue { each }) => each,
+    };
+    let [source] = each.sources.as_slice() else {
+        return None;
+    };
+    if !each.map.is_empty() || each.names != SetNames::Title {
+        return None;
+    }
+    let mut values: BTreeMap<String, usize> = BTreeMap::new();
+    let mut count = |held: BTreeSet<String>| {
+        for value in held {
+            *values.entry(value).or_default() += 1;
+        }
+    };
+    match source {
+        SourceRef::Group { name } => {
+            let pattern = FilePattern::compile(structure.series(at).pattern()).ok()?;
+            for item in &items {
+                count(
+                    item.files
+                        .iter()
+                        .filter_map(|file| match structure.place(&file.source, &file.path) {
+                            Placement::Series { path, .. } => pattern.groups(path),
+                            Placement::Outside => None,
+                        })
+                        .filter_map(|groups| {
+                            groups
+                                .get(name)
+                                .map(|group| group.text.nfc().collect::<String>())
+                        })
+                        .filter(|value| !value.trim().is_empty())
+                        .collect(),
+                );
+            }
+        }
+        SourceRef::Folder {
+            level: FolderLevel::Level(level),
+        } => {
+            let depth = usize::try_from(level.get() - 1).ok()?;
+            for item in &items {
+                count(
+                    item.files
+                        .iter()
+                        .filter_map(|file| {
+                            let segments: Vec<&str> = file.path.segments().collect();
+                            segments[..segments.len().saturating_sub(1)]
+                                .get(depth)
+                                .map(|folder| (*folder).to_owned())
+                        })
+                        .collect(),
+                );
+            }
+        }
+        SourceRef::Column { sheet, column } => {
+            let lists = lists_of(model, structure, sheets, at);
+            let list = lists.iter().find(|list| list.plan.id == *sheet)?;
+            let (values, rows, _) = list.values(column);
+            return Some(SetCounts {
+                sets: most_first(values),
+                rows: Some(rows),
+            });
+        }
+        _ => return None,
+    }
+    Some(SetCounts {
+        sets: most_first(values),
+        rows: None,
+    })
 }

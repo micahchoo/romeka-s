@@ -1093,6 +1093,35 @@
       "pairing": []
     },
     {
+      "kind": "kept",
+      "level": "Documents (D)4",
+      "set": {
+        "each": {
+          "sources": [
+            {
+              "from": "group",
+              "name": "set"
+            }
+          ],
+          "combine": "first",
+          "names": "title"
+        }
+      },
+      "counts": {
+        "sets": [
+          [
+            "20170616",
+            11
+          ],
+          [
+            "20171013",
+            4
+          ]
+        ],
+        "rows": null
+      }
+    },
+    {
       "kind": "own",
       "level": "Documents (D)",
       "scope": {
