@@ -5,11 +5,10 @@
  * one setting seen from two sides. When each row describes a file, a column
  * mapped to a field goes on the item (`slots.item`), on each file
  * (`slots.media`) or nowhere, read from where its sources are. A column's
- * first field puts it where its count suggests, split as its cells suggest.
+ * first field puts it where the proposer picks, split as its cells suggest.
  */
 import type { ReactElement } from 'react';
 import type { ColumnRef, SheetPlan, ValueType } from '../../../api/import-plan';
-import type { Grain } from '../../../api/import-sections';
 import type { SheetView } from '../../../api/import-sheet-views';
 import { TableScroll } from '../../../app/table-scroll';
 import { useDraft } from '../draft-context';
@@ -164,7 +163,7 @@ export const ColumnsTable = ({ sheet, view, counts }: { readonly sheet: SheetPla
                 <td>
                   <input type="checkbox" aria-label={t('adv.lists.columns.privateOf', { column: name })} checked={own.private} disabled={locked} onChange={(event) => { set({ private: event.target.checked }); }} />
                 </td>
-                {perFile ? <LevelCell sheet={sheet} column={ref} name={name} grain={counts.grain} locked={locked} number={number} /> : null}
+                {perFile ? <LevelCell sheet={sheet} column={ref} name={name} counts={counts} locked={locked} number={number} /> : null}
               </tr>
             );
           })}
@@ -184,14 +183,14 @@ const LevelCell = ({
   sheet,
   column,
   name,
-  grain,
+  counts,
   locked,
   number,
 }: {
   readonly sheet: SheetPlan;
   readonly column: ColumnRef;
   readonly name: string;
-  readonly grain: Grain | null;
+  readonly counts: ListCounts;
   readonly locked: boolean;
   readonly number: (n: number) => string;
 }): ReactElement => {
@@ -199,7 +198,7 @@ const LevelCell = ({
   const draft = useDraft();
   const level = levelOf(draft.plan, sheet.id, column.index);
   const fileAllowed = fileLevelAllowed(draft.plan, sheet.id, column.index);
-  const varies = variesOf(grain, column.index);
+  const varies = variesOf(counts.grain, column.index);
   return (
     <td>
       <select
@@ -222,7 +221,7 @@ const LevelCell = ({
       {varies === null ? null : (
         <p className="adv-plain">
           {t('adv.lists.columns.varies', { count: number(varies.groups), of: number(varies.of) })}{' '}
-          {level === 'out' ? null : t(suggestedLevel(draft.plan, sheet.id, column.index) === 'file' ? 'adv.lists.columns.suggestFile' : 'adv.lists.columns.suggestItem')}
+          {level === 'out' ? null : t(suggestedLevel(draft.plan, sheet.id, column, counts.rollUps) === 'file' ? 'adv.lists.columns.suggestFile' : 'adv.lists.columns.suggestItem')}
         </p>
       )}
     </td>

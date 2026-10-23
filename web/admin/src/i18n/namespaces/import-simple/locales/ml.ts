@@ -131,6 +131,8 @@ export const ml: ImportSimpleMessages = {
   'guided.list.newField': 'ഒരു പുതിയ ഫീൽഡ് “{name}”',
   'guided.list.levelOf': '{column}-ന്റെ മൂല്യങ്ങൾ എവിടെ പോകുന്നു',
   'guided.list.levelFile': 'ഓരോ ഫയൽ',
+  'guided.list.levelItems': '{count} ഇനങ്ങൾ',
+  'guided.list.levelFiles': '{count} ഫയലുകൾ',
   'guided.list.splitAt': '“{separator}”-ൽ വിഭജിക്കുക',
   'guided.list.differs': '{count}/{of}-ൽ വ്യത്യാസം',
   'guided.list.help': 'ഇവയുടെ അർത്ഥമെന്താണ്?',

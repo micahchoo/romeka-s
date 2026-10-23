@@ -46,6 +46,8 @@ export const listEdit = async (id: ImportId, plan: ImportPlan, level: LevelId, l
     grain: null,
     matches: preview.columnMatches.find((one) => one.sheet === sheet.id),
     cells: preview.listCandidates.find((one) => one.inPlan === sheet.id)?.cells ?? [],
+    // A list just added is read as rows that describe items, so no column is placed by a roll-up.
+    rollUps: [],
   };
   return (now) =>
     seriesOf(now, level).lists.some((one) => one.file === sheet.file && one.source === sheet.source) ? now : withRead(withList(now, level, sheet), sheet.id, read, counts, fields);

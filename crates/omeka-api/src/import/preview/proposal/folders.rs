@@ -337,8 +337,13 @@ pub(super) fn detect(evidence: &Evidence<'_>, edits: &[Edit], applied: &mut [boo
             folder: RelPath::root(),
         }];
     }
+    let stated = numbered_at_parent(&tops, &outside, &mut series);
     replay_own(evidence, edits, applied, &mut series);
-    let left_paths = left.iter().map(|path| path.counts.scope.clone()).collect();
+    let left_paths = left
+        .iter()
+        .map(|path| path.counts.scope.clone())
+        .chain(stated)
+        .collect();
     outside.extend(left);
     outside.sort_by(|a, b| {
         (&a.counts.scope.source, &a.counts.scope.folder)
@@ -350,6 +355,58 @@ pub(super) fn detect(evidence: &Evidence<'_>, edits: &[Edit], applied: &mut [boo
         left: left_paths,
         sets_chosen,
     }
+}
+
+/// A numbered series' items are told apart by their numbered folder (`Box 1`
+/// and `Box 2` each hold a `Folder 1`), so it is scoped, as a series alone
+/// is, at the folders' parent: the source. Its folders' keys then keep the
+/// numbered level. Another series of the source keeps its folder, which the
+/// engine prefers as the longer scope, and the source's outside folders and
+/// files are returned, to be stated outside so the parent does not take
+/// them. Only a source with one numbered series and no series of its own
+/// files can give its top to one.
+fn numbered_at_parent(
+    tops: &[TopFolder<'_>],
+    outside: &[OutsideFolder],
+    series: &mut [FolderSeries],
+) -> Vec<FolderScope> {
+    let mut stated = Vec::new();
+    let sources: BTreeSet<SourceId> = series
+        .iter()
+        .filter(|one| one.numbered)
+        .map(|one| one.folders[0].source.clone())
+        .collect();
+    for source in sources {
+        let root = FolderScope {
+            source: source.clone(),
+            folder: RelPath::root(),
+        };
+        let of_source = |one: &&mut FolderSeries| one.folders[0].source == source;
+        let mut here: Vec<&mut FolderSeries> = series.iter_mut().filter(of_source).collect();
+        let numbered = here.iter().filter(|one| one.numbered).count();
+        let top_taken = here
+            .iter()
+            .any(|one| !one.numbered && one.scopes.contains(&root));
+        if numbered > 1 || top_taken {
+            continue;
+        }
+        if let Some(one) = here.iter_mut().find(|one| one.numbered) {
+            one.scopes = vec![root.clone()];
+        }
+        for top in tops.iter().filter(|top| {
+            top.scope.source == source && outside.iter().any(|out| out.counts.scope == top.scope)
+        }) {
+            if top.scope.folder.as_str().is_empty() {
+                stated.extend(top.entries.iter().map(|entry| FolderScope {
+                    source: source.clone(),
+                    folder: entry.path.clone(),
+                }));
+            } else {
+                stated.push(top.scope.clone());
+            }
+        }
+    }
+    stated
 }
 
 /// Replay the `own` edits: the series an edit's folder names keeps the

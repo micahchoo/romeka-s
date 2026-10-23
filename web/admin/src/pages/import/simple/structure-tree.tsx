@@ -22,7 +22,7 @@ import { MasterDetail } from './master-detail';
 import type { MasterRow } from './master-detail';
 import { editsOn, useClicks } from './structure-edits';
 import type { Parse } from './structure-edits';
-import { folderName, itemsWords, keptSetName, kindsWords, listsIn, rowsNamingAFile, seriesItems, setName, statusOf, totalsOf, treeOf, useStructureText } from './structure-lines';
+import { columnChangesOf, folderName, itemsWords, keptSetName, kindsWords, listsIn, rowsNamingAFile, seriesItems, setName, statusOf, totalsOf, treeOf, useStructureText } from './structure-lines';
 import type { TreeNode } from './structure-lines';
 import { ScreenContext, useScreen } from './structure-parts';
 import type { Words } from './structure-parts';
@@ -48,10 +48,10 @@ export interface InspectorProps {
 }
 
 /** The tree row of one node: its name, its one line of facts, and a mark when a click changed it. */
-const rowOf = (node: TreeNode, where: string, files: number, proposal: Proposal, words: Words): MasterRow => {
+const rowOf = (node: TreeNode, where: string, files: number, proposal: Proposal, moved: ReadonlySet<string>, words: Words): MasterRow => {
   const { t, number } = words;
-  const facts = (...parts: readonly string[]): string =>
-    [...parts, ...(editsOn(node, proposal).length === 0 ? [] : [t('structure.changed')])].join(' · ');
+  const changed = editsOn(node, proposal).length > 0 || (node.kind === 'series' && moved.has(node.node.level));
+  const facts = (...parts: readonly string[]): string => [...parts, ...(changed ? [t('structure.changed')] : [])].join(' · ');
   switch (node.kind) {
     case 'archive': {
       const lists = listsIn(proposal);
@@ -121,7 +121,8 @@ const StatusPanel = (): ReactElement => {
   const draft = useDraft();
   const [kept, setKept] = useState(false);
   const status = statusOf(draft.plan, proposal);
-  const totals = totalsOf(proposal);
+  const counted = totalsOf(proposal);
+  const totals = { ...counted, changes: counted.changes + columnChangesOf(draft.plan, proposal).length };
   return (
     <section className="structure-status" aria-live="polite">
       <div className="structure-status-line">
@@ -204,6 +205,7 @@ const Shown = ({ read, under, sources, parse, Inspector }: ShownProps): ReactEle
   const where = whereWords(draft.plan.sources, words.t, sources);
   const files = filesIn(sources);
   const tree = treeOf(proposal);
+  const moved = new Set(columnChangesOf(draft.plan, proposal).map((change) => change.node.level));
   const folders = proposal.nodes.flatMap((node) => (node.kind === 'series' ? [node] : []));
   const picked = usePickedNode();
   const focus = useRef(draft.place.mode === 'simple' ? draft.place.focus : undefined);
@@ -223,7 +225,7 @@ const Shown = ({ read, under, sources, parse, Inspector }: ShownProps): ReactEle
       <StatusPanel />
       <MasterDetail
         label={words.t('structure.tree')}
-        rows={tree.map((node) => rowOf(node, where, files, proposal, words))}
+        rows={tree.map((node) => rowOf(node, where, files, proposal, moved, words))}
         initial={first?.key ?? null}
         onSelect={(key) => {
           pickNode(draft.id, draft.place, key);

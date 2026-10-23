@@ -13,7 +13,7 @@ import type { Edit } from '../../../api/import-plan';
 import type { Focus } from '../screens';
 import { Segmented } from './master-detail';
 import { QUESTIONS, heldBy } from './structure-edits';
-import type { Clicks, Question as Asked } from './structure-edits';
+import type { Clicks, Question as Asked, Write } from './structure-edits';
 import { itemsWords, kindsWords } from './structure-lines';
 import type { StructureTranslator } from './structure-lines';
 
@@ -34,6 +34,8 @@ export interface Answer {
   readonly edit: Edit | null;
   /** The question the click answers, when it is not the control's own: a set's title is asked apart from whether it is made. */
   readonly asked?: Asked;
+  /** What a click also writes into the plan, for a question no edit answers. */
+  readonly write?: Write;
 }
 
 /** What every question reads: the clicks, whether the plan takes edits, the proposal and the words. */
@@ -86,7 +88,7 @@ export const Question = ({ label, asked, answers, kind }: { readonly label: stri
         onChange={(value) => {
           const answer = answers.find((one) => one.value === value);
           if (answer !== undefined) {
-            clicks.answer(answer.asked ?? asked, value, answer.edit);
+            clicks.answer(answer.asked ?? asked, value, answer.edit, answer.write);
           }
         }}
       />

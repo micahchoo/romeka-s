@@ -1,17 +1,20 @@
 /**
  * The questions of a folder of items, which both zooms ask: Items, List
- * (with what each row describes, its columns and the pairing offers), Set
- * and the splits. Each answer is a click (`structure-edits.ts`) that sends
- * the edit Simple sends. Simple's question zoom shows the suggestion and its
+ * (with what each row describes, its columns, where each column goes and
+ * the pairing offers), Set and the splits. Each answer is a click
+ * (`structure-edits.ts`) that sends the edit Simple sends. Simple's question zoom shows the suggestion and its
  * rival; Advanced's rule zoom passes `every` and shows every other choice
  * the proposer counted too.
  */
 import type { ReactElement } from 'react';
-import type { Choice, EditResult, Pick, SeriesNode, SetCounts } from '../../../api/import-proposal';
+import type { Choice, EditResult, Pick, RollUp, SeriesNode, SetCounts } from '../../../api/import-proposal';
 import type { Edit, ListFile, SetFrom } from '../../../api/import-plan';
 import type { ListCandidate } from '../../../api/import-sections';
+import { useDraft } from '../draft-context';
+import { withColumnLevel } from './list-plan';
 import { QUESTIONS, cutEditOf, heldBy } from './structure-edits';
-import { bucketsWords, cutWords, grainWords, itemsWords, listName, pairWords, rowsNamingAFile, setFromWords, setName, setNote, setsWords } from './structure-lines';
+import { bucketsWords, cutWords, fileRowsOf, filesWords, grainWords, itemsWords, listName, pairWords, rollUpWords, rowsNamingAFile, setFromWords, setName, setNote, setsWords, variesWords } from './structure-lines';
+import type { PlacedColumn } from './structure-lines';
 import { Notes, Offer, Question, Row, useScreen } from './structure-parts';
 import type { Answer } from './structure-parts';
 
@@ -168,7 +171,71 @@ export const ListQuestions = ({ node, every = false }: { readonly node: SeriesNo
           />
         </Row>
       )}
-      {chosen === null ? null : <Row label={t('structure.q.columns')}>{t('structure.columns', { count: number(chosen.columns) })}</Row>}
+      {chosen === null ? null : <ColumnQuestions node={node} columns={chosen.columns} />}
+    </>
+  );
+};
+
+/** On the item, then on each file: the order the segments keep whichever the proposer picks. */
+const LEVELS: readonly RollUp[] = ['item', 'file'];
+
+/**
+ * Where one column goes: on the item or on each file, each answer with the
+ * items or files it gives a value, the proposer's pick marked, and how the
+ * column varies inside items. A click writes the column's rules (no edit
+ * records it), through the Structure clicks like every other answer.
+ */
+export const RollUpQuestion = ({ column }: { readonly column: PlacedColumn }): ReactElement => {
+  const { words } = useScreen();
+  const { t, number } = words;
+  const { rollUp, sheet, list, level } = column;
+  const ref = { index: rollUp.index, header: rollUp.header };
+  const picks = [rollUp.pick.chosen, ...(rollUp.pick.rival === null ? [] : [rollUp.pick.rival])];
+  const answers = LEVELS.flatMap((value): readonly Answer[] => {
+    const pick = picks.find((one) => one.value === value);
+    return pick === undefined
+      ? []
+      : [
+          {
+            value,
+            label: rollUpWords(value, t),
+            note: value === 'item' ? itemsWords(pick.counts.items, t, number) : filesWords(pick.counts.files, t, number),
+            draft: value === rollUp.pick.chosen.value,
+            pressed: value === level,
+            edit: null,
+            write: (plan) => withColumnLevel(plan, sheet, ref, value),
+          },
+        ];
+  });
+  return (
+    <>
+      <Question label={t('structure.q.rollUp', { column: rollUp.header })} asked={QUESTIONS.column(list, rollUp.index)} answers={answers} />
+      <Notes lines={[variesWords(rollUp.varies, t, number)]} />
+    </>
+  );
+};
+
+/** The list's columns, and on a list whose rows describe files, where each column a rule reads goes. */
+const ColumnQuestions = ({ node, columns }: { readonly node: SeriesNode; readonly columns: number }): ReactElement => {
+  const { proposal, words } = useScreen();
+  const { t, number } = words;
+  const rows = fileRowsOf(useDraft().plan, proposal, node);
+  const joined = rows?.sheet.join?.column.index;
+  const differ = rows === null ? 0 : node.columns.filter((one) => one.index !== joined && one.varies.groups > 0).length;
+  const line =
+    differ === 0
+      ? t('structure.columns', { count: number(columns) })
+      : t(differ === 1 ? 'structure.columns.differOne' : 'structure.columns.differ', { count: number(columns), differ: number(differ) });
+  return (
+    <>
+      <Row label={t('structure.q.columns')}>{line}</Row>
+      {(rows?.placed ?? [])
+        .filter((one) => one.fileAllowed)
+        .map((one) => (
+          <Row key={one.rollUp.index} label={one.rollUp.header}>
+            <RollUpQuestion column={one} />
+          </Row>
+        ))}
     </>
   );
 };

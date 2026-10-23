@@ -105,6 +105,17 @@ export const en = {
   'structure.pair.use': 'Use this',
   'structure.q.columns': 'Columns',
   'structure.columns': '{count} columns',
+  // Where a column of a list whose rows describe files goes: the proposer's pick and what each answer gives.
+  'structure.columns.differ': '{count} columns · {differ} differ inside items',
+  'structure.columns.differOne': '{count} columns · 1 differs inside items',
+  'structure.q.rollUp': 'Where {column} goes',
+  'structure.rollUp.item': 'On the item',
+  'structure.rollUp.file': 'On each file',
+  'structure.rollUp.files': '{count} files',
+  'structure.rollUp.filesOne': '1 file',
+  'structure.rollUp.same': 'Same in every item.',
+  'structure.rollUp.shares': 'Differs in {count} of {of} items, always shares values.',
+  'structure.rollUp.apart': 'Differs in {count} of {of} items, with no shared value in {disjoint}.',
   // The inspector of the archive, of every item, of a folder not imported and of a list not used.
   'structure.root.files': 'Files',
   'structure.root.filesIn': '{files} files in {where}',

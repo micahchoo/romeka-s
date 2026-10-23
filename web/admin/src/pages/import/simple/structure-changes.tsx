@@ -1,16 +1,20 @@
 /**
  * The changes strip under the Structure screen's tree: each click with what
- * it changed, or why it does not apply now, and a way to take it back. It
- * shows only once the person has a change, so it is a lazy chunk of its own,
- * which the screen starts loading as it opens. A click on a folder written
+ * it changed, or why it does not apply now, and a way to take it back. A
+ * column put off the proposer's pick is a change too, read from the plan's
+ * rules, with the pick as its way back. The strip shows only once the person
+ * has a change, so it is a lazy chunk of its own, which the screen starts
+ * loading as it opens. A click on a folder written
  * by hand waits while the folder stays so, with the way back beside it; a
  * split taken before it was written stays as its set level, and is kept.
  */
 import type { ReactElement } from 'react';
 import type { NotApplied } from '../../../api/import-proposal';
 import type { CutEdit, Edit } from '../../../api/import-plan';
+import { useDraft } from '../draft-context';
+import { withColumnLevel } from './list-plan';
 import { QUESTIONS, effectOf, nodeOf, questionOf } from './structure-edits';
-import { folderName, grainWords, listName, pairWords, setFromWords } from './structure-lines';
+import { columnChangesOf, folderName, grainWords, listName, pairWords, rollUpWords, setFromWords } from './structure-lines';
 import type { StructureMessageKey, TreeNode } from './structure-lines';
 import { useScreen } from './structure-parts';
 import type { Words } from './structure-parts';
@@ -94,12 +98,13 @@ const REASONS: Readonly<Record<NotApplied, StructureMessageKey>> = {
 export const Changes = ({ tree, where, id }: { readonly tree: readonly TreeNode[]; readonly where: string; readonly id: Parameters<typeof effectOf>[0] }): ReactElement | null => {
   const { clicks, editable, proposal, words } = useScreen();
   const { t, number } = words;
-  if (proposal.edits.length === 0 && clicks.pending?.saved !== true) {
+  const columns = columnChangesOf(useDraft().plan, proposal);
+  if (proposal.edits.length === 0 && columns.length === 0 && clicks.pending?.saved !== true) {
     return null;
   }
   return (
     <section className="structure-changes" aria-label={t('structure.count.changes')}>
-      <h3>{t('structure.changes.title', { count: number(proposal.edits.length) })}</h3>
+      <h3>{t('structure.changes.title', { count: number(proposal.edits.length + columns.length) })}</h3>
       {clicks.pending?.saved === true ? <p role="status">{t('structure.change.saved')}</p> : null}
       <ul>
         {proposal.edits.map((result) => {
@@ -140,6 +145,24 @@ export const Changes = ({ tree, where, id }: { readonly tree: readonly TreeNode[
                 disabled={!editable}
                 onClick={() => {
                   clicks.answer(questionOf(result.edit), 'back', null);
+                }}
+              >
+                {t('structure.change.remove')}
+              </button>
+            </li>
+          );
+        })}
+        {columns.map(({ node, column }) => {
+          const back = column.rollUp.pick.chosen.value;
+          const ref = { index: column.rollUp.index, header: column.rollUp.header };
+          return (
+            <li key={`column:${column.sheet}:${String(ref.index)}`}>
+              <span>{t('structure.change.line', { where: folderName(node.scope.scope.folder, where), question: ref.header, answer: rollUpWords(column.level, t) })}</span>
+              <button
+                type="button"
+                disabled={!editable}
+                onClick={() => {
+                  clicks.answer(QUESTIONS.column(column.list, ref.index), back, null, (plan) => withColumnLevel(plan, column.sheet, ref, back));
                 }}
               >
                 {t('structure.change.remove')}

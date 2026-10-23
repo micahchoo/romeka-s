@@ -5,9 +5,9 @@
  * proposal as the server counted it; nothing here adds a count of its own
  * but the totals, which sum the series' chosen counts.
  */
-import type { FolderScope, ImportPlan, ListFile, PairRule, RecordKind, Series, SetFrom, SetSource, Structure } from '../../../api/import-plan';
-import type { ItemCut, KeptList, KeptSetNode, NodeEvidence, OutsideFolder, OwnNode, Pick, Proposal, SeriesNode, SetCounts } from '../../../api/import-proposal';
-import type { BucketCount, ListCandidate, MediaKind } from '../../../api/import-sections';
+import type { FolderScope, ImportPlan, ListFile, PairRule, RecordKind, Series, SetFrom, SetSource, SheetPlan, Structure } from '../../../api/import-plan';
+import type { ColumnRollUp, ItemCut, KeptList, KeptSetNode, NodeEvidence, OutsideFolder, OwnNode, Pick, Proposal, RollUp, SeriesNode, SetCounts } from '../../../api/import-proposal';
+import type { BucketCount, ListCandidate, MediaKind, Varies } from '../../../api/import-sections';
 import { useTranslator } from '../../../i18n';
 import type { KeyOf, MessageKey, Translator } from '../../../i18n';
 import { archiveImport } from '../../../i18n/namespaces/import';
@@ -16,7 +16,8 @@ import { importStructure } from '../../../i18n/namespaces/import-structure';
 import { BUCKET_WORDS } from '../lists/facts-words';
 import type { ListsMessageKey } from '../lists/messages';
 import type { ImportMessageKey } from '../messages';
-import { isAsFound, seriesOfTree } from '../series';
+import { isAsFound, seriesOfTree, withStructure } from '../series';
+import { fileLevelAllowed, levelOf } from './list-plan';
 
 export type StructureMessageKey = KeyOf<typeof importStructure>;
 export type StructureTranslator = Translator<MessageKey | ImportMessageKey | ListsMessageKey | StructureMessageKey>;
@@ -124,6 +125,67 @@ export const totalsOf = (proposal: Proposal): Totals => ({
   notImported: proposal.outside.length,
   changes: proposal.edits.length,
 });
+
+/**
+ * A column of a suggested series' first list, when that list's rows describe
+ * files and a rule reads the column: where the plan puts it (`level`, read
+ * from where its sources are) and what the proposer picks (`rollUp`).
+ */
+export interface PlacedColumn {
+  readonly rollUp: ColumnRollUp;
+  /** The list's id in the proposal's structure, which a click writes. */
+  readonly sheet: string;
+  readonly list: ListFile;
+  readonly level: RollUp;
+  /** Whether it may go on each file: no slot it feeds is an item's alone. */
+  readonly fileAllowed: boolean;
+}
+
+/**
+ * The file-row list of `node` as the tree shows it (the plan with the
+ * proposal's structure) and its placed columns; `null` when its rows describe
+ * items or it has no list.
+ */
+export const fileRowsOf = (plan: ImportPlan, proposal: Proposal, node: SeriesNode): { readonly sheet: SheetPlan; readonly placed: readonly PlacedColumn[] } | null => {
+  const list = node.list.chosen.value;
+  const sheet = list === null ? undefined : writtenIn(proposal.structure, node.level)?.lists.find((one) => one.source === list.source && one.file === list.file);
+  if (list === null || sheet === undefined || sheet.rowKind !== 'media') {
+    return null;
+  }
+  const shown = withStructure(plan, proposal.structure);
+  const placed = node.columns.flatMap((rollUp): readonly PlacedColumn[] => {
+    const level = levelOf(shown, sheet.id, rollUp.index);
+    return level === 'out' ? [] : [{ rollUp, sheet: sheet.id, list, level, fileAllowed: fileLevelAllowed(shown, sheet.id, rollUp.index) }];
+  });
+  return { sheet, placed };
+};
+
+/** A column off the proposer's pick, and the folder whose list holds it. */
+export interface ColumnChange {
+  readonly node: SeriesNode;
+  readonly column: PlacedColumn;
+}
+
+/** Every column the plan puts on the level the proposer did not pick. No edit records one: the plan's rules are the change. */
+export const columnChangesOf = (plan: ImportPlan, proposal: Proposal): readonly ColumnChange[] =>
+  seriesNodes(proposal).flatMap((node) =>
+    (fileRowsOf(plan, proposal, node)?.placed ?? []).filter((column) => column.level !== column.rollUp.pick.chosen.value).map((column) => ({ node, column })),
+  );
+
+/** How a column's values vary inside the items of two files or more. */
+export const variesWords = (varies: Varies, t: T, number: (n: number) => string): string => {
+  if (varies.groups === 0) {
+    return t('structure.rollUp.same');
+  }
+  return varies.disjoint === 0
+    ? t('structure.rollUp.shares', { count: number(varies.groups), of: number(varies.of) })
+    : t('structure.rollUp.apart', { count: number(varies.groups), of: number(varies.of), disjoint: number(varies.disjoint) });
+};
+
+export const rollUpWords = (level: RollUp, t: T): string => t(level === 'item' ? 'structure.rollUp.item' : 'structure.rollUp.file');
+
+export const filesWords = (count: number, t: T, number: (n: number) => string): string =>
+  count === 1 ? t('structure.rollUp.filesOne') : t('structure.rollUp.files', { count: number(count) });
 
 /**
  * `suggested`: the plan still holds the archive as found (one series over

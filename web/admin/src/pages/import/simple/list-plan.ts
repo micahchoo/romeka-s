@@ -8,7 +8,8 @@
  */
 import type { ColumnCells, Grain, SheetColumnMatches, Varies } from '../../../api/import-sections';
 import type { SheetRead, SheetView } from '../../../api/import-sheet-views';
-import type { ColumnRef, ImportPlan, RecordKind, SheetPlan, SlotName, SlotRule, SlotRules, Slots, SourceRef, Term } from '../../../api/import-plan';
+import type { ColumnRef, ImportPlan, ListFile, RecordKind, SheetPlan, SlotName, SlotRule, SlotRules, Slots, SourceRef, Term } from '../../../api/import-plan';
+import type { ColumnRollUp, Proposal } from '../../../api/import-proposal';
 import { isTerm } from '../../../api/import-plan';
 import type { CsvRead } from '../csv-records';
 import { readCsv } from '../csv-records';
@@ -195,31 +196,30 @@ export const withRowKind = (plan: ImportPlan, sheet: string, kind: RecordKind): 
 
 export const variesOf = (grain: Grain | null, index: number): Varies | null => grain?.columns.find((column) => column.index === index)?.varies ?? null;
 
-/** The fields that describe a file as a file: a column mapped to one defaults to each file. Every other field describes the object. */
-const FILE_FIELDS: ReadonlySet<string> = new Set([
-  'dcterms:identifier',
-  'dcterms:format',
-  'dcterms:extent',
-  'dcterms:medium',
-  'dcterms:source',
-  'dcterms:hasFormat',
-  'dcterms:isFormatOf',
-]);
+/** The proposer's roll-up pick for the column, matched by its place and its header. */
+export const rollUpOf = (rollUps: readonly ColumnRollUp[], column: ColumnRef): ColumnRollUp | undefined =>
+  rollUps.find((one) => one.index === column.index && one.header === column.header);
+
+/** The roll-up picks of the list `file`: those of the suggested series whose chosen list it is, else none. */
+export const rollUpsOf = (proposal: Proposal, file: ListFile): readonly ColumnRollUp[] =>
+  proposal.nodes.flatMap((node) => {
+    const chosen = node.kind === 'series' ? node.list.chosen.value : null;
+    return node.kind === 'series' && chosen?.source === file.source && chosen.file === file.file ? [node.columns] : [];
+  })[0] ?? [];
 
 /**
- * The level a column's field suggests: on each file for a field that describes
- * a file as a file, on the item for the rest. The count of items where its
- * values vary is shown beside it, but does not decide.
+ * The level the proposer picks for the column: on each file only when its
+ * rows share no value in most items (rule C, `proposal/grain.rs`), and only
+ * when no slot it feeds is an item's alone. With no pick, as for a series
+ * written by hand, the column goes on the item, where nothing is lost.
  */
-export const suggestedLevel = (plan: ImportPlan, sheet: string, index: number): Exclude<Level, 'out'> => {
-  const slot = placesOf(plan, sheet, index)[0]?.slot;
-  return slot !== undefined && FILE_FIELDS.has(slot) && fileLevelAllowed(plan, sheet, index) ? 'file' : 'item';
-};
+export const suggestedLevel = (plan: ImportPlan, sheet: string, column: ColumnRef, rollUps: readonly ColumnRollUp[]): Exclude<Level, 'out'> =>
+  rollUpOf(rollUps, column)?.pick.chosen.value === 'file' && fileLevelAllowed(plan, sheet, column.index) ? 'file' : 'item';
 
-/** "Each row describes one file": the rows become media rows, and each column in use goes where its field suggests. */
-export const withFileRows = (plan: ImportPlan, sheet: string): ImportPlan =>
+/** "Each row describes one file": the rows become media rows, and each column in use goes where the proposer picks. */
+export const withFileRows = (plan: ImportPlan, sheet: string, rollUps: readonly ColumnRollUp[]): ImportPlan =>
   columnsIn(plan, sheet, ['item', 'media']).reduce(
-    (edited, column) => withColumnLevel(edited, sheet, column, suggestedLevel(edited, sheet, column.index)),
+    (edited, column) => withColumnLevel(edited, sheet, column, suggestedLevel(edited, sheet, column, rollUps)),
     withRowKind(plan, sheet, 'media'),
   );
 
@@ -228,11 +228,12 @@ const rowKindOf = (plan: ImportPlan, sheet: string): SheetPlan['rowKind'] | unde
 const gotItsFirstPlace = (before: ImportPlan, after: ImportPlan, sheet: string, index: number): boolean =>
   levelOf(before, sheet, index) === 'out' && levelOf(after, sheet, index) !== 'out';
 
-/** What the preview counted for one list: where its columns' values vary, how many cells each fills, and the separator they hold. */
+/** What the preview counted for one list: where its columns' values vary, how many cells each fills, the separator they hold, and the proposer's roll-up picks. */
 export interface ListCounts {
   readonly grain: Grain | null;
   readonly matches: SheetColumnMatches | undefined;
   readonly cells: readonly ColumnCells[];
+  readonly rollUps: readonly ColumnRollUp[];
 }
 
 export const separatorOf = (counts: ListCounts, index: number): NonNullable<ColumnCells['separator']> | null =>
@@ -267,8 +268,8 @@ export const withSplit = (plan: ImportPlan, sheet: string, column: ColumnRef, sp
 
 /**
  * `after` is `before` with an edit that may give the column its first field.
- * That first field takes what its field and counts suggest: on a list whose rows
- * describe files, the level; and a split no one has set yet. After that only
+ * That first field takes what its counts suggest: on a list whose rows describe
+ * files, the level the proposer picks; and a split no one has set yet. After that only
  * the person changes them. Simple, Advanced and the list read all map a
  * column through this.
  */
@@ -278,7 +279,7 @@ export const withCounted = (before: ImportPlan, after: ImportPlan, sheet: string
   }
   const placed =
     rowKindOf(after, sheet) === 'media'
-      ? withColumnLevel(after, sheet, column, suggestedLevel(after, sheet, column.index))
+      ? withColumnLevel(after, sheet, column, suggestedLevel(after, sheet, column, counts.rollUps))
       : after;
   const split = suggestedSplit(counts, column.index);
   return split !== null && splitOf(placed, sheet, column.index) === null ? withSplit(placed, sheet, column, split) : placed;

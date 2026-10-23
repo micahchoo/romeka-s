@@ -7,7 +7,9 @@
  * where each column goes. The list to fill in yourself waits, collapsed,
  * below.
  */
+import { use, useMemo } from 'react';
 import type { ReactElement } from 'react';
+import type { Proposal } from '../../../api/import-proposal';
 import type { ListCandidate, SheetColumnMatches } from '../../../api/import-sections';
 import type { SheetView } from '../../../api/import-sheet-views';
 import type { LevelId, RecordKind, SheetPlan } from '../../../api/import-plan';
@@ -19,7 +21,7 @@ import { RoundTrip } from '../lists/round-trip';
 import { usePreview } from '../lists/use-preview';
 import { placeHref } from '../screens';
 import { ListColumns } from './list-columns';
-import { linesOf, normalizedOf, withFileRows, withJoin, withNormalize, withRowKind } from './list-plan';
+import { linesOf, normalizedOf, rollUpsOf, withFileRows, withJoin, withNormalize, withRowKind } from './list-plan';
 import type { ListCounts } from './list-plan';
 import { folderSheets } from './list-read';
 import { MasterDetail, Segmented } from './master-detail';
@@ -160,7 +162,7 @@ const KINDS: readonly (readonly [RecordKind, SimpleMessageKey])[] = [
 ];
 
 /** "A row is": the answer the plan holds, the one the count suggests marked, and the count when they differ. */
-const RowIs = ({ sheet, candidate }: { readonly sheet: SheetPlan; readonly candidate: ListCandidate }): ReactElement => {
+const RowIs = ({ sheet, candidate, counts }: { readonly sheet: SheetPlan; readonly candidate: ListCandidate; readonly counts: ListCounts }): ReactElement => {
   const { t, number } = useSimpleText();
   const draft = useDraft();
   const others = candidate.grain?.rowsNamingOtherFilesOfAGroup ?? 0;
@@ -179,7 +181,7 @@ const RowIs = ({ sheet, candidate }: { readonly sheet: SheetPlan; readonly candi
         disabled={!draft.editable}
         suggestedWord={t('guided.check.suggested')}
         onChange={(kind) => {
-          draft.change((plan) => (kind === 'media' ? withFileRows(plan, sheet.id) : withRowKind(plan, sheet.id, kind)));
+          draft.change((plan) => (kind === 'media' ? withFileRows(plan, sheet.id, counts.rollUps) : withRowKind(plan, sheet.id, kind)));
         }}
       />
       {evidence === null ? null : <span className="muted">{evidence}</span>}
@@ -191,6 +193,8 @@ interface Read {
   readonly sheets: readonly SheetView[];
   readonly columnMatches: readonly SheetColumnMatches[];
   readonly listCandidates: readonly ListCandidate[];
+  /** The proposal of the stored plan, for the roll-up picks; `null` until it is counted. */
+  readonly proposal: Proposal | null;
 }
 
 /** One list: whether it is used, what it pairs and, when in use, how. */
@@ -202,7 +206,14 @@ const Inspector = ({ level, candidate, read }: { readonly level: LevelId; readon
   const sheet = state.kind === 'inUse' ? state.sheet : null;
   const view = sheet === null ? undefined : read.sheets.find((one) => one.id === sheet.id);
   const counts: ListCounts | null =
-    sheet === null ? null : { grain: candidate.grain, matches: read.columnMatches.find((one) => one.sheet === sheet.id), cells: candidate.cells };
+    sheet === null
+      ? null
+      : {
+          grain: candidate.grain,
+          matches: read.columnMatches.find((one) => one.sheet === sheet.id),
+          cells: candidate.cells,
+          rollUps: read.proposal === null ? [] : rollUpsOf(read.proposal, sheet),
+        };
   const overlaps = candidate.overlaps.filter((overlap) => seriesOf(draft.plan, level).lists.some((one) => one.source === overlap.source && one.file === overlap.file));
   const { name, folder } = nameOf(candidate.file);
   const encoding = view === undefined ? null : encodingWords(view, t);
@@ -265,7 +276,7 @@ const Inspector = ({ level, candidate, read }: { readonly level: LevelId; readon
               </dd>
               <dt>{t('guided.list.rowIs')}</dt>
               <dd data-decision="rowKind">
-                <RowIs sheet={sheet} candidate={candidate} />
+                <RowIs sheet={sheet} candidate={candidate} counts={counts} />
               </dd>
             </>
           )}
@@ -339,10 +350,28 @@ const Help = (): ReactElement => {
   );
 };
 
+/** The proposal's parser, a chunk of its own that loads beside this screen's. */
+const parser = import('../../../api/import-proposal');
+
+/** The stored plan's proposal, counted apart so the lists show before it; `null` while it counts or when it cannot be read. */
+const useProposal = (): Proposal | null => {
+  const { parseProposal } = use(parser);
+  const read = usePreview(['proposal'], {});
+  const raw = read.status === 'ready' ? read.data.proposal : null;
+  return useMemo(() => {
+    try {
+      return raw === null ? null : parseProposal(raw);
+    } catch {
+      return null;
+    }
+  }, [raw, parseProposal]);
+};
+
 const Lists = ({ level }: { readonly level: LevelId }): ReactElement => {
   const { t } = useSimpleText();
   const draft = useDraft();
   const read = usePreview(['listCandidates', 'sheets', 'columnMatches', 'unpaired', 'flags'], { unpaired: { rows: { perPage: 1 }, files: { perPage: 1 } } });
+  const proposal = useProposal();
   if (read.status === 'loading') {
     return <p role="status" className="import-slow">{t('shell.loading')}</p>;
   }
@@ -385,7 +414,7 @@ const Lists = ({ level }: { readonly level: LevelId }): ReactElement => {
       >
         {(key) => {
           const candidate = candidates.find((one) => keyOf(one) === key);
-          return candidate === undefined ? null : <Inspector key={key} level={level} candidate={candidate} read={read.data} />;
+          return candidate === undefined ? null : <Inspector key={key} level={level} candidate={candidate} read={{ ...read.data, proposal }} />;
         }}
       </MasterDetail>
     </div>
