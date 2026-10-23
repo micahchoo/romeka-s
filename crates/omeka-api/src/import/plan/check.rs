@@ -20,7 +20,29 @@ pub(super) fn plan(plan: &ImportPlan) -> Result<(), PlanError> {
     new_types(plan)?;
     new_terms(plan)?;
     decisions(plan)?;
+    corrections(plan)?;
     tree(plan)
+}
+
+/// A correction's row is a row of one of its own series' lists. A file or
+/// row that is gone is an orphan, as for decisions.
+fn corrections(plan: &ImportPlan) -> Result<(), PlanError> {
+    let structure = &plan.structure;
+    for (at, correction) in structure.corrections() {
+        let Some(row) = correction.row() else {
+            continue;
+        };
+        if structure
+            .list(&row.sheet)
+            .is_none_or(|(owner, _)| owner != at)
+        {
+            return Err(PlanError::ForeignCorrection {
+                series: structure.series(at).id.0.clone(),
+                sheet: row.sheet.0.clone(),
+            });
+        }
+    }
+    Ok(())
 }
 
 /// Only what no rescan can mend: a missing entry is an orphan, not this.

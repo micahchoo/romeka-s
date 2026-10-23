@@ -80,8 +80,8 @@ pub use source::{
     JoinNormalize, JoinOn, KindColumn, Quote, ReadOptions, RowKind, SheetPlan, SourcePlan,
 };
 pub use structure::{
-    AllFiles, FolderScope, Level, LevelId, Placement, Series, SeriesIx, SeriesScope, SetLevel,
-    Structure,
+    AllFiles, Correction, FolderScope, Level, LevelId, Placement, Series, SeriesIx, SeriesScope,
+    SetLevel, Structure,
 };
 
 use super::decisions::Decision;
@@ -268,6 +268,10 @@ pub enum PlanError {
     OutsideSource(String),
     #[error("a slot of series {series:?} reads list {sheet:?}, which is a list of another series")]
     ForeignList { series: String, sheet: String },
+    #[error(
+        "a correction on series {series:?} names a row of list {sheet:?}, which is not a list of that series"
+    )]
+    ForeignCorrection { series: String, sheet: String },
     #[error("series {0:?} has an item.sets rule; sets are set levels and free sets")]
     SeriesSets(String),
     #[error("a set named by title has an empty title ({0})")]

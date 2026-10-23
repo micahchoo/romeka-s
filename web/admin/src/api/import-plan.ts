@@ -378,7 +378,15 @@ export interface Series {
   readonly lists: readonly SheetPlan[];
   /** Never an `item.sets` rule: memberships are levels and free sets. */
   readonly slots: Slots;
+  /** What the server wrote from the person's corrections; absent when there are none. The admin keeps them as they came. */
+  readonly corrections?: readonly Correction[];
 }
+
+/** A correction on one series (`plan/structure.rs`): read by derive as a `move`, `pair` or `leave` decision ahead of the plan's own. */
+export type Correction =
+  | { readonly kind: 'join'; readonly file: FileRef; readonly with: FileRef }
+  | { readonly kind: 'pair'; readonly row: RowRef; readonly file: FileRef }
+  | { readonly kind: 'leave'; readonly row: RowRef };
 
 export type SeriesScope = 'all' | readonly FolderScope[];
 

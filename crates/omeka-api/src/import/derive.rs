@@ -13,18 +13,20 @@ pub(crate) mod records;
 #[cfg(test)]
 pub(crate) mod tests;
 
+use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
 use super::catalog::Catalog;
-use super::decisions::Act;
+use super::decisions::{Act, Decision, EntryRef, FileEntry as FileDecision, MoveTo, MoveWith};
 use super::evidence::{FileEntry, Walk};
 use super::flags::FlagBook;
 use super::join::{self, SheetIn};
 use super::matching::{self, Matching};
 use super::model::{Fate, Model, Parent, Record, RecordId, SlotValue, Subject};
 use super::plan::{
-    Action, FlagKind, ImportPlan, RecordKind, RelPath, SheetId, SlotName, SourceId, TagId, Term,
+    Action, Correction, FlagKind, ImportPlan, RecordKind, RelPath, SheetId, SlotName, SourceId,
+    TagId, Term,
 };
 use super::sheet::{Sheet, SheetError};
 use super::slots::{self, Ctx, named};
@@ -95,6 +97,8 @@ pub fn derive(
     catalog: &Catalog,
     tags: &dyn FileTags,
 ) -> Model {
+    let decided = with_corrections(plan);
+    let plan = decided.as_ref();
     let mut book = FlagBook::new(plan);
     let mut anomalies = Vec::new();
     plan_flags(plan, catalog, &mut book);
@@ -297,6 +301,37 @@ pub fn derive(
         flags: book.into_flags(),
         anomalies,
         orphans,
+        corrections: plan.structure.corrections().count(),
+    })
+}
+
+/// The plan as every step reads it: each series' corrections as decisions,
+/// in plan order, ahead of the plan's own, so a person's decision on the
+/// same file or row wins. The one seam where derive reads corrections.
+fn with_corrections(plan: &ImportPlan) -> Cow<'_, ImportPlan> {
+    if plan.structure.corrections().next().is_none() {
+        return Cow::Borrowed(plan);
+    }
+    let decisions = plan
+        .structure
+        .corrections()
+        .map(|(_, correction)| match correction.clone() {
+            Correction::Join { file, with } => Decision::Move {
+                file: FileDecision::File(file),
+                to: MoveTo::With(MoveWith {
+                    with: FileDecision::File(with),
+                }),
+            },
+            Correction::Pair { row, file } => Decision::Pair { row, file },
+            Correction::Leave { row } => Decision::Leave {
+                entry: EntryRef::Row(row),
+            },
+        })
+        .chain(plan.decisions.iter().cloned())
+        .collect();
+    Cow::Owned(ImportPlan {
+        decisions,
+        ..plan.clone()
     })
 }
 

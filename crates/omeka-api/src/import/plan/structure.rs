@@ -12,6 +12,7 @@ use super::{
     Grouping, ImportPlan, PlanError, RecordKind, RelPath, SheetId, SheetPlan, SlotName, SlotRule,
     SlotRules, Slots, SourceId, SourcePlan,
 };
+use crate::import::decisions::{FileRef, RowRef};
 
 /// The archive's tree as the person confirmed it. Its members are private
 /// to `plan/`, so the engine reads them only through these calls.
@@ -75,6 +76,35 @@ pub struct Series {
     pub(super) lists: Vec<SheetPlan>,
     /// Without `item.sets`: memberships are levels and free sets.
     pub(super) slots: Slots,
+    /// What the proposer wrote from the person's corrections on this
+    /// series. Absent when empty, so a plan without any keeps its bytes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(super) corrections: Vec<Correction>,
+}
+
+/// A correction the proposer wrote from an edit: the three kinds of
+/// decision a structure may hold, and no other. Derive reads them as
+/// decisions ahead of the plan's own, so a person's later decision wins.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
+pub enum Correction {
+    /// The file joins the group of `with`.
+    Join { file: FileRef, with: FileRef },
+    /// The row of this series' list joins the file's record.
+    Pair { row: RowRef, file: FileRef },
+    /// The row makes no record.
+    Leave { row: RowRef },
+}
+
+impl Correction {
+    /// The row it names, when it names one.
+    #[must_use]
+    pub fn row(&self) -> Option<&RowRef> {
+        match self {
+            Self::Join { .. } => None,
+            Self::Pair { row, .. } | Self::Leave { row } => Some(row),
+        }
+    }
 }
 
 /// A level's id: unique in the plan. `simple` keys on it.
@@ -206,6 +236,7 @@ impl Structure {
                 example,
                 lists,
                 slots,
+                corrections: Vec::new(),
             })],
             free_sets,
             outside: Vec::new(),
@@ -302,6 +333,18 @@ impl Structure {
     pub fn lists(&self) -> impl Iterator<Item = (SeriesIx, &SheetPlan)> {
         self.all_series()
             .flat_map(|(at, series)| series.lists.iter().map(move |list| (at, list)))
+    }
+
+    /// Every series' corrections with the series that holds each, in plan
+    /// order.
+    pub fn corrections(&self) -> impl Iterator<Item = (SeriesIx, &Correction)> {
+        self.all_series()
+            .flat_map(|(at, series)| series.corrections.iter().map(move |one| (at, one)))
+    }
+
+    /// Put these corrections on the series in place of its own.
+    pub fn set_corrections(&mut self, at: SeriesIx, corrections: Vec<Correction>) {
+        self.series_mut(at).corrections = corrections;
     }
 
     /// The list with this id, with the series that holds it.
@@ -538,7 +581,23 @@ impl Series {
             example: None,
             lists: Vec::new(),
             slots: Slots::default(),
+            corrections: Vec::new(),
         }
+    }
+
+    /// The series with these corrections in place of its own.
+    #[must_use]
+    pub fn with_corrections(self, corrections: Vec<Correction>) -> Self {
+        Self {
+            corrections,
+            ..self
+        }
+    }
+
+    /// The corrections the proposer wrote on this series, in edit order.
+    #[must_use]
+    pub fn corrections(&self) -> &[Correction] {
+        &self.corrections
     }
 
     /// The series with this set: its items join it.
