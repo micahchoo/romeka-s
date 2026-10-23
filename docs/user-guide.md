@@ -27,8 +27,9 @@ romeka serve -d /var/lib/romeka/romeka.db --host 127.0.0.1 --port 8080 --base-ur
 ```
 
 The process serves the API and the public site; the origin serves the admin bundle and the media
-files and forwards `/api`, `/health` and `/s/`. What the origin has to do is in the
-[operator guide](operator-guide.md).
+files and forwards `/api`, `/api-context`, `/assets/`, `/health`, `/ready`, `/logout`, `/s/`,
+`/vocab/`, `/admin`, `/iiif-viewer`, `/iiif/`, `/annotations` and `/application/asset/`. What the
+origin has to do is in the [operator guide](operator-guide.md).
 
 ## Sign in
 
@@ -224,11 +225,9 @@ yourself**. Choose the columns you want, download the list, fill it in and uploa
   field, the item sets, the item type and who can see the item.
 - Put two values in one cell with a `|` between them.
 - The file is UTF-8 with a byte order mark, so Excel shows Devanagari and other scripts correctly.
-  From Excel, save it as CSV.
-- Upload a `.csv`, `.tsv`, `.xlsx`, `.xls` or `.ods` file of at most 50 MB. The file chooser shows
-  only `.csv` and `.tsv` files, so drop a workbook on the box instead. Omeka says how many rows
-  belong to items of this import and shows the rows that do not. The values in your list come
-  first, before other lists and the file names.
+- Upload a `.csv`, `.tsv`, `.xlsx`, `.xls` or `.ods` file of at most 50 MB. Omeka reads the first
+  visible sheet of a workbook. Omeka says how many rows belong to items of this import and shows
+  the rows that do not. The values in your list come first, before other lists and the file names.
 
 A cell that starts with `=`, `+`, `-`, `@` or a tab gets a leading `'` in the download, so a
 spreadsheet never runs it as a formula. Omeka takes the `'` off when you upload the list.

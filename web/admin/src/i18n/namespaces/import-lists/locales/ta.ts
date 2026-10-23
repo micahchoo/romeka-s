@@ -210,7 +210,7 @@ export const ta: ImportListsMessages = {
   'lists.trip.downloadPlain': 'பட்டியலைப் பதிவிறக்கவும் (.csv)',
   'lists.trip.step2': '2. நிரப்பப்பட்ட பட்டியலைப் பதிவேற்றவும்',
   'lists.trip.drop': 'நிரப்பப்பட்ட பட்டியலை இங்கே இழுத்து விடவும்',
-  'lists.trip.kinds': '.csv அல்லது .tsv, அதிகபட்சம் 50 MB. எக்செல்-லிருந்து, CSV ஆகச் சேமிக்கவும்.',
+  'lists.trip.kinds': 'அதிகபட்சம் 50 MB அளவுள்ள ஒரு {kinds} கோப்பு.',
   'lists.trip.choose': 'கோப்பைத் தேர்ந்தெடுக்கவும்',
   'lists.trip.waitSave': 'உங்கள் கடைசி மாற்றம் சேமிக்கப்படும் வரை காத்திருக்கவும்.',
   'lists.trip.sending': '{file} அனுப்பப்படுகிறது...',

@@ -328,6 +328,61 @@ async fn a39_a_filled_xlsx_list_is_stored_read_and_joined_on_its_identifier() {
     assert_eq!(value("BHC_006_AF_002", "dcterms:title"), ["Brass bowl"]);
 }
 
+/// A list sent again is checked against its header before it is sent, and
+/// only the server can read a workbook's header.
+#[tokio::test]
+async fn the_header_of_a_list_is_read_as_its_upload_reads_it_and_nothing_is_stored() {
+    let fixture = fixture().await;
+    let id = s1(&fixture).await;
+    let header = |answer: &common::Answer| -> Vec<String> {
+        answer.json()["header"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|cell| cell.as_str().unwrap().to_string())
+            .collect()
+    };
+    let book = fixture
+        .upload_to(&id, "sheets/header", "list.xlsx", &filled_xlsx())
+        .await;
+    assert_eq!(book.status, StatusCode::OK, "{}", book.body);
+    assert_eq!(
+        header(&book),
+        [
+            "Identifier",
+            "Files",
+            "Title [dcterms:title]",
+            "Date [dcterms:date]"
+        ]
+    );
+    let tabs = fixture
+        .upload_to(
+            &id,
+            "sheets/header",
+            "list.tsv",
+            b" Identifier \t# note\tFiles\nA\t\t\n",
+        )
+        .await;
+    assert_eq!(tabs.status, StatusCode::OK, "{}", tabs.body);
+    assert_eq!(header(&tabs), ["Identifier", "# note", "Files"]);
+    let wrong_type = fixture
+        .upload_to(&id, "sheets/header", "list.pdf", b"%PDF-1.4")
+        .await;
+    assert_eq!(
+        wrong_type.status,
+        StatusCode::BAD_REQUEST,
+        "{}",
+        wrong_type.body
+    );
+    assert!(
+        !fixture
+            .files
+            .path()
+            .join(format!("staging/{id}/lists"))
+            .exists()
+    );
+}
+
 #[tokio::test]
 async fn a_list_upload_is_refused_when_it_cannot_be_read_as_a_list() {
     let fixture = fixture().await;

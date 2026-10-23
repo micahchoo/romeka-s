@@ -121,6 +121,16 @@ describe.each([9, 40_000])('the list round trip at %i items', (size) => {
   }, 20_000);
 });
 
+describe('the list chooser', () => {
+  it('offers every kind of list the server reads, and its hint names them', async () => {
+    installFetch(listsServer(9).handler);
+    render(at(LISTS));
+    const input = await screen.findByLabelText('Choose the file');
+    expect(input.getAttribute('accept')?.split(',')).toEqual(['.csv', '.tsv', '.xlsx', '.xls', '.ods']);
+    expect(screen.getByText('A .csv, .tsv, .xlsx, .xls, or .ods file, at most 50 MB.')).toBeInTheDocument();
+  });
+});
+
 describe('a list sent again', () => {
   it('takes the place of the list, follows a column that moved, and refuses a file that lacks one the answers use', async () => {
     const server = listsServer(9);
@@ -143,6 +153,8 @@ describe('a list sent again', () => {
     }
     expect(await within(trip).findByRole('alert')).toHaveTextContent('Not sent: filled.csv has no column “Title [dcterms:title]”, which 1 answer uses.');
     expect(requestsFor(fetchMock, `${PATH}/sheets`)).toHaveLength(1);
+    // The server reads the header, as it reads the list: a browser cannot read a workbook.
+    expect(requestsFor(fetchMock, `${PATH}/sheets/header`)).toHaveLength(1);
 
     // Title and Date swapped places, and Notes is new: the list goes in place of list-1, and the answers follow each column.
     send('Identifier,Files,Date [dcterms:date],Title [dcterms:title],Notes\n');

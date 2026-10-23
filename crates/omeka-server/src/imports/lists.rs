@@ -3,7 +3,8 @@
 //! items to fill in, and `POST …/sheets?series=` stores a filled list (CSV,
 //! TSV, .xlsx, .xls or .ods) in the import's staging area and adds it to
 //! that series of the draft's plan, or with `&replace=<sheet id>` puts it
-//! in that list's place. A plan of one series may leave `series` out. The
+//! in that list's place. A plan of one series may leave `series` out.
+//! `POST …/sheets/header` reads a list's header row and stores nothing. The
 //! rules live in `omeka_api::import::template`; these handlers read the
 //! request, move the bytes through the store, and save the plan.
 
@@ -184,6 +185,34 @@ pub(super) async fn upload(
             }
             let row = load(&state, &id).await?;
             Ok(json(StatusCode::CREATED, &ImportView::of(row, true)))
+        }
+        .await,
+    )
+}
+
+/// `POST /api/romeka/imports/{id}/sheets/header` (multipart, one file): the
+/// header row of a list, read as `sheets` would read it, and nothing stored.
+/// The admin matches a list sent again to the old list's columns before it
+/// sends it, and a browser cannot read a workbook.
+pub(super) async fn header(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    uri: Uri,
+    headers: HeaderMap,
+    payload: crate::limits::Payload,
+) -> Response {
+    answer(
+        async {
+            admin(&state, &uri, &headers).await?;
+            load(&state, &id).await?;
+            let upload = read_upload(&headers, &payload)?;
+            let header: Vec<&str> = upload
+                .list
+                .columns
+                .iter()
+                .map(|column| column.header.as_str())
+                .collect();
+            Ok(json(StatusCode::OK, &json!({ "header": header })))
         }
         .await,
     )

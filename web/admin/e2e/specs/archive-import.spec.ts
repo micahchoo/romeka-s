@@ -15,7 +15,7 @@ import type { Download, Locator, Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 import { expect, test } from '../fixtures';
-import { ARTIFACTS, BHC, PAIRS, PAIRS_COUNT, PHOTOGRAPHS, pairsFile, uploadJpeg, zipOf } from '../harness/archive';
+import { ARTIFACTS, BHC, PAIRS, PAIRS_COUNT, PHOTOGRAPHS, pairsFile, uploadJpeg, xlsxOf, zipOf } from '../harness/archive';
 import { isArray, numberField, parseJson, record } from '../harness/json';
 
 /**
@@ -185,6 +185,47 @@ test('the Simple pass adds the folder, and undo keeps the item edited since unti
   await page.getByRole('button', { name: 'Undo the import' }).click();
   await expect(page.getByText('Undone.', { exact: true })).toBeVisible({ timeout: JOB_MS });
   expect((await api(page, 'GET', `/api/items/${String(lamp)}`)).status).toBe(404);
+});
+
+test('a list sent again as a workbook is checked by its columns and takes the old list’s place', async ({ page }) => {
+  const id = await startOn(page, BHC);
+  await useStructure(page);
+  await page.getByRole('option', { name: ARTIFACTS }).click();
+  await page.getByRole('button', { name: 'Fill in a list yourself' }).click();
+  const trip = page.getByRole('region', { name: 'Fill in a list yourself' });
+  const [template] = await Promise.all([page.waitForEvent('download'), trip.getByRole('link', { name: /^Download the list \(/ }).click()]);
+  const lines = (await downloaded(template)).replace(/^\uFEFF/, '').trim().split(/\r?\n/);
+  const notes = 'Notes [dcterms:description]';
+  const rows = lines.map((line, at) => [...line.split(','), at === 0 ? notes : 'Seen on the shelf']);
+  const width = rows[0]?.length ?? 0;
+  expect(rows.every((cells) => cells.length === width)).toBe(true);
+  await trip.getByLabel('Choose the file').setInputFiles({ name: 'filled.csv', mimeType: 'text/csv', buffer: Buffer.from(rows.map((cells) => cells.join(',')).join('\r\n')) });
+  await expect(page.getByText(`Read ${String(OBJECTS)} rows from filled.csv.`)).toBeVisible();
+  await saved(page);
+  expect(await itemRuleHeaders(page, id, 'dcterms:description')).toEqual([notes]);
+
+  const workbook = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  await trip.getByRole('button', { name: 'Upload this list again' }).click();
+  // The answer for Notes reads a column this workbook lacks: the server reads its header, and the file is not sent.
+  const short = xlsxOf(rows.map((cells) => cells.slice(0, -1)));
+  await trip.getByLabel('Choose the file').setInputFiles({ name: 'short.xlsx', mimeType: workbook, buffer: short });
+  await expect(trip.getByRole('alert')).toContainText(`Not sent: short.xlsx has no column “${notes}”, which 1 answer uses.`);
+
+  // Notes moved to the first column: the workbook takes the list's place, and the answer follows the column.
+  const moved = xlsxOf(rows.map((cells) => [...cells.slice(-1), ...cells.slice(0, -1)]));
+  await trip.getByLabel('Choose the file').setInputFiles({ name: 'filled.xlsx', mimeType: workbook, buffer: moved });
+  await expect(page.getByText(`Read ${String(OBJECTS)} rows from filled.xlsx.`)).toBeVisible();
+  await saved(page);
+  const plan = record(record((await api(page, 'GET', `/api/romeka/imports/${String(id)}`)).json, 'import')['plan'], 'plan');
+  const levels = record(plan['structure'], 'structure')['levels'];
+  const artifacts = (isArray(levels) ? levels : []).map((level) => record(level, 'level')).find((level) => level['id'] === ARTIFACTS);
+  const lists = artifacts?.['lists'];
+  const files = (isArray(lists) ? lists : []).map((list) => record(list, 'list')['file']);
+  expect(files.filter((file) => typeof file === 'string' && file.endsWith('.xlsx'))).toHaveLength(1);
+  expect(files.filter((file) => typeof file === 'string' && file.startsWith('lists/'))).toHaveLength(1);
+  const rule = record(record(record(artifacts?.['slots'], 'slots')['item'], 'item')['dcterms:description'], 'dcterms:description');
+  const sources = isArray(rule['sources']) ? rule['sources'] : [];
+  expect(sources.map((source) => record(source, 'source')['column'])).toEqual([{ index: 0, header: notes }]);
 });
 
 test('an answer given in Advanced shows in Simple', async ({ page }) => {

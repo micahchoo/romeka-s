@@ -202,7 +202,7 @@ export const en = {
   'lists.trip.downloadPlain': 'Download the list (.csv)',
   'lists.trip.step2': '2. Upload the filled list',
   'lists.trip.drop': 'Drag the filled list here',
-  'lists.trip.kinds': '.csv or .tsv, at most 50 MB. From Excel, save as CSV.',
+  'lists.trip.kinds': 'A {kinds} file, at most 50 MB.',
   'lists.trip.choose': 'Choose the file',
   'lists.trip.waitSave': 'Wait until your last change is saved.',
   'lists.trip.sending': 'Sending {file}...',

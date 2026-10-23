@@ -203,7 +203,7 @@ export const ne: ImportListsMessages = {
   'lists.trip.downloadPlain': 'सूची डाउनलोड गर्नुहोस् (.csv)',
   'lists.trip.step2': '2. भरिएको सूची अपलोड गर्नुहोस्',
   'lists.trip.drop': 'भरिएको सूची यहाँ तान्नुहोस्',
-  'lists.trip.kinds': '.csv वा .tsv, बढीमा 50 MB। Excel बाट, CSV को रूपमा सुरक्षित गर्नुहोस्।',
+  'lists.trip.kinds': 'बढीमा 50 MB को एउटा {kinds} फाइल।',
   'lists.trip.choose': 'फाइल छान्नुहोस्',
   'lists.trip.waitSave': 'तपाईँको अन्तिम परिवर्तन सुरक्षित नहुञ्जेल पर्खनुहोस्।',
   'lists.trip.sending': '{file} पठाउँदै...',

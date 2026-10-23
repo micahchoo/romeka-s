@@ -164,5 +164,25 @@ export const zipOf = (files: Readonly<Record<string, Buffer>>): Buffer => {
   return Buffer.concat([...local, directory, end]);
 };
 
+const xml = (text: string): string => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/** An .xlsx workbook of one sheet whose cells are `rows`, as text. */
+export const xlsxOf = (rows: readonly (readonly string[])[]): Buffer => {
+  const column = (at: number): string => (at < 26 ? '' : String.fromCharCode(64 + Math.floor(at / 26))) + String.fromCharCode(65 + (at % 26));
+  const sheetRows = rows
+    .map((cells, row) => `<row r="${String(row + 1)}">${cells.map((cell, at) => `<c r="${column(at)}${String(row + 1)}" t="inlineStr"><is><t>${xml(cell)}</t></is></c>`).join('')}</row>`)
+    .join('');
+  const main = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+  const rels = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const parts: Record<string, string> = {
+    '[Content_Types].xml': `<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`,
+    '_rels/.rels': `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${rels}/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
+    'xl/workbook.xml': `<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="${main}" xmlns:r="${rels}"><sheets><sheet name="List" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+    'xl/_rels/workbook.xml.rels': `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${rels}/worksheet" Target="worksheets/sheet1.xml"/></Relationships>`,
+    'xl/worksheets/sheet1.xml': `<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="${main}"><sheetData>${sheetRows}</sheetData></worksheet>`,
+  };
+  return zipOf(Object.fromEntries(Object.entries(parts).map(([name, text]) => [name, Buffer.from(text, 'utf8')])));
+};
+
 /** A JPEG for an upload. */
 export const uploadJpeg = jpeg;
