@@ -172,6 +172,16 @@ export interface EditResult {
   readonly reason: NotApplied | null;
 }
 
+/** Which of the proposer's trees the plan check refused, in the order the proposer makes them. */
+export const REFUSED_TREES = ['items', 'lists', 'sets', 'freeSets'] as const;
+export type RefusedTree = (typeof REFUSED_TREES)[number];
+
+/** A tree the proposer made and the plan check refused; `reason` is the check's words, as a save of that tree is answered. */
+export interface Refused {
+  readonly tree: RefusedTree;
+  readonly reason: string;
+}
+
 /** The structure the server proposes from the scan, after the plan's edits; never stored by the server. */
 export interface Proposal {
   readonly structure: Structure;
@@ -184,6 +194,8 @@ export interface Proposal {
   readonly edits: readonly EditResult[];
   /** Whether `structure` is the plan's own. */
   readonly matchesPlan: boolean;
+  /** Present when `structure` is the plan's own because the check refused the proposer's tree; `nodes` is then empty. */
+  readonly refused?: Refused;
 }
 
 const parseGrainCounts = (raw: unknown, path: Path): GrainCounts => {
@@ -352,7 +364,7 @@ const parseNodeEvidence = (raw: unknown, path: Path): NodeEvidence => {
 
 /** A proposal, from the preview's `RawProposal` or any JSON; refuses what the server's serde types refuse. */
 export const parseProposal = (raw: unknown, path: Path = ['proposal']): Proposal => {
-  const object = strict(raw, path, ['structure', 'nodes', 'topSets', 'outside', 'unattached', 'edits', 'matchesPlan']);
+  const object = strict(raw, path, ['structure', 'nodes', 'topSets', 'outside', 'unattached', 'edits', 'matchesPlan'], ['refused']);
   const outside = (value: unknown, at: Path): OutsideFolder => {
     const each = strict(value, at, [...SCOPE_COUNTS, 'reason']);
     return { ...scopeCounts(each, at), reason: member(each, 'reason', at, oneOf(['noMedia', 'edit'] as const)) };
@@ -365,7 +377,11 @@ export const parseProposal = (raw: unknown, path: Path = ['proposal']): Proposal
       reason: member(each, 'reason', at, nullable(oneOf(NOT_APPLIED))),
     };
   };
-  return {
+  const refused = (value: unknown, at: Path): Refused => {
+    const only = strict(value, at, ['tree', 'reason']);
+    return { tree: member(only, 'tree', at, oneOf(REFUSED_TREES)), reason: text(only, 'reason', at) };
+  };
+  const proposal: Proposal = {
     structure: member(object, 'structure', path, parseStructure),
     nodes: member(object, 'nodes', path, list(parseNodeEvidence)),
     topSets: member(object, 'topSets', path, list(parsePick(parseSetFrom, parseSetCounts))),
@@ -374,4 +390,5 @@ export const parseProposal = (raw: unknown, path: Path = ['proposal']): Proposal
     edits: member(object, 'edits', path, list(edit)),
     matchesPlan: member(object, 'matchesPlan', path, asFlag),
   };
+  return object['refused'] === undefined ? proposal : { ...proposal, refused: member(object, 'refused', path, refused) };
 };

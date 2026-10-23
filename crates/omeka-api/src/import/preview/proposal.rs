@@ -73,9 +73,9 @@ use crate::import::join::normalize;
 use crate::import::model::{Fate, Model};
 use crate::import::plan::{
     ColumnOptions, ColumnPlan, ColumnRef, Combine, EachSet, EachValue, Edit, FolderScope, Grouping,
-    ImportPlan, Level, LevelId, ListFile, PairRule, Placement as FilePlace, RecordKind, RelPath,
-    Series, SeriesIx, SeriesScope, SetFrom, SetLevel, SetNames, SetSource, SheetId, SheetPlan,
-    SlotName, SlotRule, SourcePlan, SourceRef, Structure, default_plan,
+    ImportPlan, Level, LevelId, ListFile, PairRule, Placement as FilePlace, PlanError, RecordKind,
+    RelPath, Series, SeriesIx, SeriesScope, SetFrom, SetLevel, SetNames, SetSource, SheetId,
+    SheetPlan, SlotName, SlotRule, SourcePlan, SourceRef, Structure, default_plan,
 };
 use crate::import::sheet::{Sheet, SheetError};
 use crate::import::values::ValueType;
@@ -137,7 +137,8 @@ impl Lists for Vec<FoundList> {
 #[serde(rename_all = "camelCase")]
 pub struct Proposal {
     /// The proposed tree, built through [`Structure::build`], so it is
-    /// always a valid plan structure.
+    /// always a valid plan structure; the plan's own tree when the build
+    /// refused it (`refused`).
     pub structure: Structure,
     /// The evidence of each node of `structure`, in tree order.
     pub nodes: Vec<NodeEvidence>,
@@ -151,6 +152,36 @@ pub struct Proposal {
     pub edits: Vec<EditResult>,
     /// True when `structure` equals the plan's own `structure`.
     pub matches_plan: bool,
+    /// Why `structure` is the plan's own tree: the plan check refused the
+    /// tree the detectors made. Absent when it did not.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refused: Option<Refused>,
+}
+
+/// A tree the proposer made and the plan check refused. The proposal is
+/// then the plan's own tree with no evidence, so a save keeps what the
+/// person has, and this says why.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Refused {
+    pub tree: RefusedTree,
+    /// The check's words, as a save of that tree would be answered.
+    pub reason: String,
+}
+
+/// Which of the proposer's trees the plan check refused, in the order it
+/// makes them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum RefusedTree {
+    /// Each series with its item key.
+    Items,
+    /// With each series' lists and slot rules.
+    Lists,
+    /// With the sets the edits took.
+    Sets,
+    /// With the plan's free sets.
+    FreeSets,
 }
 
 /// One node's evidence. The kinds mirror [`Level`]; a series the person
@@ -446,7 +477,8 @@ pub enum NotApplied {
 /// the same edits give the same proposal.
 ///
 /// With no source there is no folder to propose: the proposal is then the
-/// plan's own tree, with no evidence.
+/// plan's own tree, with no evidence. So it is when the plan check refuses
+/// a tree the proposer makes, and the proposal then says why.
 #[must_use]
 pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
     let mut applied = vec![false; edits.len()];
@@ -503,16 +535,14 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
             names,
         ))
     });
-    let Ok((plan, structure, cuts, names)) = first else {
-        return Proposal {
-            structure: evidence.structure.clone(),
-            nodes: Vec::new(),
-            top_sets: Vec::new(),
-            outside: found.outside,
-            unattached: Vec::new(),
-            edits: results(evidence, every, unmute(applied, &muted)),
-            matches_plan: true,
-        };
+    let (plan, structure, cuts, names) = match first {
+        Ok(first) => first,
+        Err(error) => {
+            let refused =
+                (!evidence.sources.is_empty()).then(|| Refused::of(RefusedTree::Items, &error));
+            let edits = results(evidence, every, unmute(applied, &muted));
+            return plan_tree(evidence, found.outside, edits, refused);
+        }
     };
     let patterns = ImportPlan { structure, ..plan };
     let model = derive(
@@ -591,7 +621,11 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
             structure,
             ..patterns.clone()
         },
-        Err(_) => patterns.clone(),
+        Err(error) => {
+            let edits = results(evidence, every, unmute(applied, &muted));
+            let refused = Refused::of(RefusedTree::Lists, &error);
+            return plan_tree(evidence, found.outside, edits, Some(refused));
+        }
     };
     // What the person wrote is read as the plan reads it.
     let written: HashSet<&SheetId> = kept
@@ -699,7 +733,10 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         );
         match Structure::build(levels, found.left.clone(), evidence.sources) {
             Ok(structure) => ImportPlan { structure, ..plan },
-            Err(_) => plan,
+            Err(error) => {
+                let refused = Refused::of(RefusedTree::Sets, &error);
+                return plan_tree(evidence, found.outside, edits, Some(refused));
+            }
         }
     } else {
         plan
@@ -711,17 +748,9 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         .with_free_sets(free_sets, evidence.sources)
     {
         Ok(structure) => ImportPlan { structure, ..plan },
-        // As any refused build: the proposal is the plan's own tree.
-        Err(_) => {
-            return Proposal {
-                structure: evidence.structure.clone(),
-                nodes: Vec::new(),
-                top_sets: Vec::new(),
-                outside: found.outside,
-                unattached: Vec::new(),
-                edits,
-                matches_plan: true,
-            };
+        Err(error) => {
+            let refused = Refused::of(RefusedTree::FreeSets, &error);
+            return plan_tree(evidence, found.outside, edits, Some(refused));
         }
     };
     let kept_in = |at: SeriesIx| -> Vec<KeptList> {
@@ -911,6 +940,36 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
             .map(|list| list.counts)
             .collect(),
         edits,
+        refused: None,
+    }
+}
+
+impl Refused {
+    fn of(tree: RefusedTree, error: &PlanError) -> Self {
+        Self {
+            tree,
+            reason: error.to_string(),
+        }
+    }
+}
+
+/// The plan's own tree with no evidence: with no source there is no folder
+/// to propose, and otherwise the check `refused` the proposer's tree.
+fn plan_tree(
+    evidence: &Evidence<'_>,
+    outside: Vec<OutsideFolder>,
+    edits: Vec<EditResult>,
+    refused: Option<Refused>,
+) -> Proposal {
+    Proposal {
+        structure: evidence.structure.clone(),
+        nodes: Vec::new(),
+        top_sets: Vec::new(),
+        outside,
+        unattached: Vec::new(),
+        edits,
+        matches_plan: true,
+        refused,
     }
 }
 
@@ -1064,12 +1123,14 @@ fn in_scan(evidence: &Evidence<'_>, edit: &Edit) -> bool {
 }
 
 /// What a series holds beyond its scope and pattern: its lists as the plan
-/// reads them, its set from rows, and its slot rules.
+/// reads them, its set from rows, its slot rules, and the value maps the
+/// person wrote on its sets.
 #[derive(Default)]
 struct Plan {
     lists: Vec<SheetPlan>,
     set: Option<SetSource>,
     rules: Vec<(RecordKind, SlotName, SlotRule)>,
+    maps: WrittenMaps,
 }
 
 impl Plan {
@@ -1154,12 +1215,13 @@ impl Plan {
                 column: column.clone(),
             })
         };
+        let maps = WrittenMaps::of(kept, scope);
         let set = rows.set.as_ref().and_then(|(file, set)| {
             Some(SetSource::Each(EachValue {
                 each: EachSet {
                     sources: vec![column(file, set)?],
                     combine: Combine::First,
-                    map: IndexMap::new(),
+                    map: maps.map(&[Reads::Column(file.clone(), set.clone())]),
                     names: SetNames::Key,
                 },
             }))
@@ -1173,7 +1235,80 @@ impl Plan {
             };
             Some((*kind, SlotName::ItemKey, rule))
         }));
-        Self { lists, set, rules }
+        Self {
+            lists,
+            set,
+            rules,
+            maps,
+        }
+    }
+}
+
+/// What an `each` set reads. A column is named by its list's file, so a
+/// list the proposal gives another sheet id still reads the same column.
+#[derive(PartialEq)]
+enum Reads {
+    Column(ListFile, ColumnRef),
+    Other(SourceRef),
+}
+
+impl Reads {
+    fn of_taken(taken: &sets::Taken) -> Self {
+        match &taken.column {
+            Some((file, column)) => Self::Column(file.clone(), column.clone()),
+            None => Self::Other(taken.source.clone()),
+        }
+    }
+}
+
+/// The value maps the person wrote on the `each` sets of one series of the
+/// plan: its own set and the set levels around it alone. The proposer makes
+/// those sets again on every click; each one it makes that reads the same
+/// sources takes the person's map, as a kept list keeps its columns.
+#[derive(Default)]
+struct WrittenMaps(Vec<(Vec<Reads>, IndexMap<String, String>)>);
+
+impl WrittenMaps {
+    /// The maps of the plan's series of `scope`; none when the plan has no
+    /// such series.
+    fn of(kept: &Structure, scope: &SeriesScope) -> Self {
+        let Some((at, series)) = kept
+            .all_series()
+            .find(|(_, series)| series.scope() == scope)
+        else {
+            return Self::default();
+        };
+        let reads = |source: &SourceRef| match source {
+            SourceRef::Column { sheet, column } => kept.list(sheet).map_or_else(
+                || Reads::Other(source.clone()),
+                |(_, list)| Reads::Column(list_file(list), column.clone()),
+            ),
+            other => Reads::Other(other.clone()),
+        };
+        let sets = kept
+            .sets_alone_around(at)
+            .into_iter()
+            .map(SetLevel::set)
+            .chain(series.set());
+        Self(
+            sets.filter_map(|set| match set {
+                SetSource::Each(EachValue { each }) if !each.map.is_empty() => {
+                    Some((each.sources.iter().map(reads).collect(), each.map.clone()))
+                }
+                _ => None,
+            })
+            .collect(),
+        )
+    }
+
+    /// The person's map of the set that reads `reads`; empty when they wrote
+    /// none.
+    fn map(&self, reads: &[Reads]) -> IndexMap<String, String> {
+        self.0
+            .iter()
+            .find(|(written, _)| written.as_slice() == reads)
+            .map(|(_, map)| map.clone())
+            .unwrap_or_default()
     }
 }
 
@@ -1552,7 +1687,7 @@ fn level(
             each: EachSet {
                 sources: vec![taken.source.clone()],
                 combine: Combine::First,
-                map: IndexMap::new(),
+                map: plan.maps.map(&[Reads::of_taken(taken)]),
                 names: SetNames::Title,
             },
         })

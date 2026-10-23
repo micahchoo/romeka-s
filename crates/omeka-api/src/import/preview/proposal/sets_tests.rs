@@ -724,3 +724,78 @@ fn an_existing_edit_names_a_top_set_level_too() {
     assert_eq!(json["levels"][0]["id"], "Citizen Curators");
     assert_eq!(json["levels"][0]["set"], json!({ "id": 7 }));
 }
+
+/// The proposal for the replica, its lists read, on the plan `structure`
+/// (JSON, as the admin saves it) after `edits`.
+fn proposal_on(structure: serde_json::Value, edits: &[Edit]) -> Proposal {
+    let mut plan = serde_json::to_value(super::bhc006_tests::draft()).expect("the draft as JSON");
+    plan["structure"] = structure;
+    let plan = ImportPlan::from_json(&plan.to_string()).expect("the plan the person saved");
+    let index = super::bhc006_tests::index();
+    let catalog = super::bhc006_tests::install();
+    let lists = super::bhc006_tests::lists();
+    let evidence = Evidence {
+        index: &index,
+        lists: &lists,
+        catalog: &catalog,
+        sources: &plan.sources,
+        structure: &plan.structure,
+        sheets: &Sheets::new(),
+    };
+    propose(&evidence, edits)
+}
+
+/// The `set` of the set level that holds the series `series`, as JSON.
+fn level_around(structure: &serde_json::Value, series: &str) -> serde_json::Value {
+    structure["levels"]
+        .as_array()
+        .expect("levels")
+        .iter()
+        .find(|level| level["kind"] == "set" && level["levels"][0]["id"] == series)
+        .map(|level| level["set"].clone())
+        .expect("a set level around the series")
+}
+
+#[test]
+fn a_value_map_on_a_split_set_level_survives_the_next_proposal() {
+    let split = Edit::AddSet {
+        from: SetFrom::NamePlace {
+            scope: scope("Documents (D)"),
+            place: 4,
+        },
+    };
+    let first = proposal_with_lists(std::slice::from_ref(&split));
+    assert!(first.edits[0].applied, "{:?}", first.edits);
+    let mut shown = serde_json::to_value(&first.structure).expect("json");
+    let documents = shown["levels"]
+        .as_array_mut()
+        .expect("levels")
+        .iter_mut()
+        .find(|level| level["kind"] == "set" && level["levels"][0]["id"] == "Documents (D)")
+        .expect("the split is a set level around the series");
+    assert!(documents["set"]["each"].get("map").is_none(), "no map yet");
+    // The person cleans the values of the split: one date becomes a title.
+    documents["set"]["each"]["map"] = json!({ "20170616": "Donation of June 2017" });
+    let mapped = level_around(&shown, "Documents (D)");
+
+    // A click elsewhere: the video folder's set gets a title.
+    let titled = Edit::Title {
+        from: SetFrom::Folder {
+            scope: scope("Video (V)"),
+        },
+        title: "Moving images".into(),
+        description: None,
+    };
+    let next = proposal_on(shown, &[split, titled]);
+    assert!(
+        next.edits.iter().all(|edit| edit.applied),
+        "{:?}",
+        next.edits
+    );
+    let structure = serde_json::to_value(&next.structure).expect("json");
+    assert_eq!(
+        level_around(&structure, "Documents (D)"),
+        mapped,
+        "the person's map is still on the split"
+    );
+}
