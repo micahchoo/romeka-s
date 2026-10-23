@@ -1,5 +1,5 @@
-//! A run a restart killed goes on by itself when the server boots
-//! (`briefs/import-p6-design.md`, section 3, D2): the server resumes each
+//! A run a restart killed goes on by itself when the server boots: the
+//! server resumes each
 //! failed run whose worker went without the person asking, and never one the
 //! person stopped.
 

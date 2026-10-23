@@ -15,11 +15,11 @@ decisions: corrections that survive the next derive. The goal is upstream CSV Im
 
 1. Every unit in the Units table is merged into main with a verdict in the run log:
    `unit-test-verified` or better, `live-ui-verified` for admin units.
-   *Status 2026-10-20: not met.* Every unit but P10 (the MySQL runtime) and I-close has a row in
-   the run log, and `units.tsv` lists each as verified or landed. Only the P0 units, P2-store,
-   P2-files, P2-urlguard and P9-s3 are on main. The rest is on `import2/base`, 114 commits ahead
-   of main. The run log holds `unit-test-verified` rows up to P5-actions. The later rows say
-   `verified` without a test count, because the commit messages carry none.
+   *Status 2026-10-22: not met.* Every unit is on main. `import2/base` merged into main at
+   `10fe7da` on 2026-10-20, with the MySQL runtime (`a717775`) and the close of A01 to A88
+   (`3852548`) in it. P10b and I-close have no row in the run log. The run log holds
+   `unit-test-verified` rows up to P5-actions. The later rows say `verified` without a test
+   count, because the commit messages carry none.
 2. The scenario suite passes as e2e specs on SQLite; the server-side scenarios also pass on MySQL 8
    and MariaDB 11.
    *Status 2026-10-20: not met.* S1, S2 to S8, S15 and S16 pass at model level
@@ -29,9 +29,10 @@ decisions: corrections that survive the next derive. The goal is upstream CSV Im
    `web/admin/e2e/specs/archive-import.spec.ts` drives five flows (Simple pass with an undo that
    keeps an edited item, Simple and Advanced agreeing, the pairs list, a ZIP upload, a delete
    that needs its count). The ZIP flow uses a plain ZIP; the cp437 name, the escaping entry and the bomb of S11 are unit and CLI tests (`unzip/tests.rs`, `import_staging.rs`). S12, S14, S18, S19 and S20 have unit or route tests and no e2e spec.
-   The import tables are tested on MySQL 8 and MariaDB 11 (`crates/omeka-db/tests/import_db/`),
-   but `romeka serve` and the CLI open SQLite only, so no server-side scenario runs on MySQL yet
-   (P10, assumption A86).
+   The import tables are tested on MySQL 8 and MariaDB 11 (`crates/omeka-db/tests/import_db/`).
+   `romeka serve` and the CLI open a MySQL or MariaDB server with `--database-url`, and the server
+   tests that build on `crates/omeka-server/tests/imports_fixture/` run on MySQL when
+   `ROMEKA_MYSQL_URL` names a server (`tests/common/engine.rs`). No MySQL run of the scenarios is recorded here.
 3. Every row A01–A88 has its "Closed by" cell filled: a test name, or a `docs/compat.md` row that
    records an accepted limit and its reason.
    *Status 2026-10-20: not met for two rows.* 83 rows name a test, three (A73, A76, A81) name
@@ -196,7 +197,7 @@ decisions on different entries of one record set the same slot, the later one in
 the anomaly `decision-overlap` lists them.
 
 A series may also hold `corrections`, which the proposer writes from the person's clicks on the
-Structure screen (`briefs/import-gaps-design.md`). They are of three kinds only:
+Structure screen. They are of three kinds only:
 
 ```ts
 type Correction =
@@ -529,8 +530,8 @@ A person can describe items in a spreadsheet they fill in themselves:
   Headers read `Label [prefix:local]` (e.g. `Title [dcterms:title]`) so the upload maps itself.
   UTF-8 with a BOM, so Excel opens Devanagari correctly. Columns the person may choose: any
   property of the install, plus item set, item type, visibility.
-- `POST /api/romeka/imports/{id}/sheets` (multipart, one file, at most 50 MB; `.csv`, `.tsv`, and
-  `.xlsx` once P8 lands) stores the file in the import's staging and adds a `SheetPlan` joined on
+- `POST /api/romeka/imports/{id}/sheets` (multipart, one file, at most 50 MB; `.csv`, `.tsv`, `.xlsx`,
+  `.xls` or `.ods`, by the file name's extension; a workbook must also sniff as one) stores the file in the import's staging and adds a `SheetPlan` joined on
   `Identifier`, columns mapped from the bracketed terms, `|` as each column's split. Columns
   without a bracketed term stay unmapped for the person to map.
 - A filled list counts as evidence like any sheet: its values win over file tags by default

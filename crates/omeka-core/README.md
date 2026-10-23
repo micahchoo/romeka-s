@@ -183,6 +183,6 @@ criterion would report a panic rather than a time if a case stopped working. `ca
 ## Share of the whole
 
 The value parse is not a limiter for a request. `value_object_parse/list_of_25` is 4.83 us for a 25-value list body,
-against the 19.8 ms `/api/items` median recorded in `briefs/perfharness.md`. That is about 0.02 percent of the request,
+against a 19.8 ms `/api/items` median from a perf harness run this repository does not hold. That is about 0.02 percent of the request,
 and the 19.8 ms figure is a debug-build ballpark with one run behind it, not a measurement of mine, so read the ratio as
 an order of magnitude only. The media renderers and the thumbnailer are where the per-request work in this port sits.

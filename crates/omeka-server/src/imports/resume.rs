@@ -1,5 +1,4 @@
-//! A run that a restart killed goes on by itself (`briefs/import-p6-design.md`,
-//! section 3, "Resume at boot").
+//! A run that a restart killed goes on by itself.
 //!
 //! At boot the server waits, for each import that claims to run, until its
 //! old worker is proven gone: by the rule every reader trusts

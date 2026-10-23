@@ -1,5 +1,5 @@
 //! The corrections on small archives written from general archive
-//! practice (`briefs/import-gaps-design.md`, section 4): the replay of each
+//! practice: the replay of each
 //! edit, and what the detectors offer. None comes from a held-out archive.
 
 #![allow(clippy::expect_used)]

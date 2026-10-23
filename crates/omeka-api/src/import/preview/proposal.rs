@@ -1,4 +1,4 @@
-//! The structure proposer (`briefs/import-proposer-design.md`): from the
+//! The structure proposer (`docs/import-v2.md`, "Simple and Advanced"): from the
 //! counts a scan already gathers, the archive's tree as a v3 structure, and
 //! the evidence of each choice as counts. The server never stores a
 //! proposal; only the person's save writes `plan.structure`, and the

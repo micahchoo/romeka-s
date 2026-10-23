@@ -1,7 +1,7 @@
 //! The import plan: the rule and the decisions, stored as JSON on the
 //! draft and sent by the admin (`docs/import-v2.md`, "The plan"). It comes
 //! in as version 2 ([`v2`], lifted to one series) or version 3 ([`v3`], the
-//! tree of `briefs/import-plan-v3.md`), and is always written as version 3.
+//! tree), and is always written as version 3.
 //!
 //! [`ImportPlan::from_json`] is the one parse boundary. Types refuse what
 //! serde can see (unknown members, closed string sets, path and term

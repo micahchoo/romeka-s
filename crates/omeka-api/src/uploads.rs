@@ -1,5 +1,6 @@
 //! A user's staged uploads: the files an editor sends from the item page
-//! before a media row names them (`briefs/media-ui`, G1).
+//! before a media row names them (`crates/omeka-server/README.md`, "Staged
+//! uploads").
 //!
 //! The rows are `romeka_user_upload` (migration 0009). An upload belongs to
 //! the person who started it: every lookup names both the user and the upload

@@ -33,23 +33,25 @@ origin has to do is in the [operator guide](operator-guide.md).
 
 ## Sign in
 
-The header's sign-in panel carries two forms.
+The header's sign-in panel opens on the email and password form.
 
-**The API key pair.** Mint one from the command line:
+**A password.** Sign in with your email and password. `romeka install` gives the first
+administrator a password, and an invited person sets one through the invite link. The session lives
+in an `HttpOnly` cookie. A 403 from a page shows the sign-in panel beside the message.
+
+**The API key pair.** The key form is behind **Use an API key** on the same panel. Use it for
+programmatic access. Mint a pair from the command line:
 
 ```
 romeka key add -d /var/lib/romeka/romeka.db --owner you@example.org
 ```
 
 The command prints the identity and the credential once each. Paste both into the key form. Each half
-is 32 alphanumeric characters, and a malformed half is refused before any request leaves the browser.
-The pair is kept in the browser's `localStorage`, so a reload keeps you signed in; signing out clears
-it. A 403 from a page renders the sign-in form beside the message, and the header shows
-`Signed in as <identity>`. The pair is the same two parameters upstream expects, so a key minted here
-works against an Omeka S server and the reverse ([`../web/admin/README.md`](../web/admin/README.md)).
-
-**A password.** An account with a password signs in by email and password, and the session lives in an
-`HttpOnly` cookie. This is the form an invited person uses after following their invite link.
+is 32 alphanumeric characters, and the form refuses a malformed half before any request leaves the
+browser. The browser keeps the pair in `localStorage`, so a reload keeps you signed in. Signing out
+clears it. The header then shows `Signed in as <identity>`. The pair is the same two parameters
+upstream expects, so a key minted here works against an Omeka S server and the reverse
+([`../web/admin/README.md`](../web/admin/README.md)).
 
 ## Invite people, and reset a forgotten password
 
@@ -61,7 +63,8 @@ that password instead. The link is `<base-url>/#/password/<key>`, and it expires
 minted; only the last link minted for an account works.
 
 In the application, the Users page invites by the same route and shows the link with a copy control
-on the user's page. The forgot-password form on the sign-in panel mints a reset link the same way.
+on the user's page. **Forgot your password?** on the sign-in panel opens a form that mints a reset
+link the same way.
 
 With no SMTP relay configured, the link goes to the request log and is returned to the administrator
 rather than mailed, which is what makes an installation without mail usable. Configure the relay with
@@ -75,22 +78,26 @@ The application is a hash-routed single page pointed at the same `/api` endpoint
 | Page | What it does |
 | --- | --- |
 | Dashboard | resource counts and the site list |
-| Items | list, create, open one item, edit its values, title, visibility, class, template, owner and item-set membership, delete it |
+| Items | list, create, open one item, edit its values, title, visibility, class, template, owner and item-set membership, add media to it, delete it |
 | Item sets | list, create, edit, delete |
 | Import | turn files into items, item sets and media, from a folder on the server or from this computer, and undo an import. See [Import files as items](#import-files-as-items) |
-| Media | list with a preview column; open one media for the image, its parsed fields, its file derivatives and its values; edit alt text, language and visibility; delete |
+| Media | list with a preview column and a filter by kind; open one media for the file itself, its parsed fields, its file derivatives and its values; write notes on it and add captions; edit its values, alt text, language and visibility; delete |
 | Users | list, invite, edit role and active flag, mint a password link, delete |
 | Sites and pages | list sites and create one; each site opens on its hub, with tabs for its navigation, items, users, theme and settings, and a page editor with a live preview. The next section describes them |
 | Vocabularies, properties, resource classes, resource templates | one browse list each, a detail view per row, and the create, edit and delete forms the API supports |
 | Assets, jobs, modules | one browse list each; assets and jobs have a detail view with the update and delete controls |
 | Query | the advanced search form; `Preview` runs a real search and lists the matches |
 | Columns | which columns a browse table shows, in page state only |
-| Settings | the global settings form. The API serves no settings resource, so this page does not persist |
+| Settings | the global settings form. It saves the locale, the alt text field, the three file validation settings, the private address switch and whether visitors see notes, through `PATCH /api/settings`. The other fields keep your edits on the page only |
 | System information | the version from the response header, and the registered API resource names |
 
-Media create is not offered in the application: `POST /api/media` sets a row's fields but stores no
-file. A file arrives through the Import page or `romeka import run`, which both write the three
-thumbnail sizes. Values are not editable in the media form either.
+**Add media** on an item's page opens the add-media panel. Choose or drop files, or paste a link.
+The server reads the link and says what it is: a file to download, a YouTube video, an oEmbed page,
+or an IIIF image or manifest. **Advanced** lets you choose the reader yourself, or paste HTML. More
+than 20 files, a folder or a ZIP file goes to the Import page instead, where you can undo the whole
+batch. You can pause an upload. When an upload breaks, the server keeps what arrived, and you choose
+the file again to finish it. The server makes the thumbnails, and any access copy, after the media
+exists.
 [`../web/admin/README.md`](../web/admin/README.md) has the full route list.
 
 ## Build a site
@@ -418,11 +425,11 @@ FTS5's, which differs from MySQL's ([`compat.md`](compat.md)).
 
 ## What is limited, and why
 
-- The settings page does not persist, because the API serves no settings resource.
-- Media files and their thumbnails come from the Import page, from a folder on the server or from
-  this computer, or from `romeka import run`. The media form does not upload a file
-  ([`../crates/omeka-api/README.md`](../crates/omeka-api/README.md)).
+- The settings page saves only the fields that [The admin pages](#the-admin-pages) names. Its other
+  fields keep your edits on the page and lose them on a reload.
 - Modules and themes from the wider PHP ecosystem are out: extension here is a Rust registry
   ([`compat.md`](compat.md)).
-- Live external services (oEmbed, YouTube, remote IIIF) are not called.
+- A link to a YouTube video, an oEmbed page or a remote IIIF image is fetched through one URL guard.
+  The guard refuses loopback, private and other special addresses, unless an administrator allows
+  private addresses on the settings page ([`compat.md`](compat.md)).
 - Full upstream translation catalogues are not ported. The admin ships English, Spanish (hand-written), and seven machine-translated Indic locales: Hindi, Kannada, Malayalam, Marathi, Nepali, Tamil and Telugu.

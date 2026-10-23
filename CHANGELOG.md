@@ -10,6 +10,55 @@ semantic versioning.
 
 ### Added
 
+- Import plan v3. A plan holds the archive as a tree: set levels, and series that each have their own
+  pattern, lists and slot rules. The server reads a v2 plan and lifts it to one series; it stores and answers
+  only v3 (`docs/import-v2.md`, "The plan").
+- The import proposer. From the counts a scan gathers, the server proposes the tree, with the evidence for each
+  choice as counts: folder levels, name parts, lists, what a list's rows describe, set candidates and pairing
+  rules. The plan's `edits` keep the person's clicks, and the server replays them on each new proposal. A
+  series also holds corrections (join two files, pair a row with a file, leave a row out), which the proposer
+  offers and the derive reads as decisions.
+- Simple has three steps: Structure, Check and Add. Structure shows the proposal as a tree, and each answer is
+  one click. Advanced is the rule view of the same tree. The old Simple and Advanced addresses open Structure
+  at the question they held. A folder's item type can come from a list column, per value. Every Advanced rule
+  card has one value map control, and a list column's values can be cleaned.
+- An import run that a server restart killed goes on by itself at boot, and a run the person stopped does
+  not. A stopping server sends each job a TERM, and an import run then ends after its current record as
+  `interrupted`.
+- The add-media panel on an item's page: files, a link (a file to download, YouTube, oEmbed, an IIIF image or
+  manifest) or pasted HTML. Files go up as resumable per-user uploads (`/api/romeka/uploads`, tus 1.0,
+  migration 0009). The server answers the upload limits and probes a pasted link before a media is created.
+- Every media kind is accepted and named (image, audio, video, PDF, document, model, captions, embed,
+  manifest). The media list filters by kind. Camera RAW shows from its embedded preview. SVG is stored
+  filtered. An asset takes any allowed file.
+- Derivatives leave the request. A media create stores the original and queues its thumbnails and access copy
+  in `romeka_media_derivative` (migration 0010). One worker drains the queue and yields to a running import.
+  `romeka media derivatives` is the backfill, with `--retry`, `--redo` and `--media`.
+- Access copies: an H.264/AAC MP4 for video and an AAC M4A for audio, up to 1080 lines on the short side; a
+  full-size JPEG master for camera RAW and other image types; a PDF for an office document, through
+  LibreOffice. The players, the readers and IIIF use the copy, and the original is never changed. Video gets a
+  poster and a PDF its first page. A media page has a Retry for a failed copy.
+- `deploy/compose.office.yaml` adds the office worker: the `office-tools` image (LibreOffice, `vips`,
+  `libraw`, `ghostscript`) runs `romeka media derivatives --retry` hourly against the same database and
+  store. A copy that failed 3 times stays failed.
+- Notes on media: a W3C Web Annotation Protocol server under `/annotations/` (migration 0008). A note marks
+  the whole file, a region of an image, a time range of audio or video, or a box on a video's frames over a
+  time range (migration 0011). The admin media page draws and lists them; the item page annotates each file.
+  Visitors see notes on the picture and listed under it.
+- Captions are annotations, with a track per language. They import from WebVTT or SubRip with a dry run, serve
+  as `captions.vtt`, and read as a transcript on the site. The last caption replace can be undone.
+- IIIF: audio, video and PDF canvases; notes in manifests; a manifest per media; and IIIF Content Search 2.0
+  over an item's notes (`/iiif/search/2/item/{id}`).
+- The site: an item page shows its first file whole and the rest as a strip; a PDF reads in the page; a 3D
+  model turns on request; `?t=` opens a player at that moment; the original downloads under its own name; a
+  "Use elsewhere" block gives IIIF links, a citation and `og` meta.
+- The admin media page shows the media itself. An oEmbed or HTML media renders in a sandboxed frame from
+  `/api/romeka/media/{id}/render`, and an allow-listed provider's player and a YouTube video play in place.
+- `romeka serve` and the CLI open a MySQL 8.0 or MariaDB 11 server with `--database-url` (or
+  `ROMEKA_DATABASE_URL`). `backup` and `restore` refuse a server.
+- The image builds a headless `ffmpeg` 7.1.5 with dav1d and x264 from pinned source
+  ([`packaging/README.md`](packaging/README.md), The ffmpeg build).
+
 - Describe: the admin's Vocabulary group becomes Describe, ordered around the work. Item types (resource templates)
   are a plain-words editor with a live preview of the item form, starter kinds and a class picker; a Fields page
   searches properties by meaning; Standards holds vocabularies, properties and classes as tabs, with a "?" that
@@ -29,8 +78,8 @@ semantic versioning.
 - Import v2 replaces the archive import below (`docs/import-v2.md`). One plan, saved as a draft, drives a folder
   on the server (`ROMEKA_ARCHIVE_ROOTS`, `name=path` pairs; `ROMEKA_ARCHIVE_ROOT` stays as the root named
   `archive`), files and ZIPs uploaded from the browser (tus, into the import's staging area), and lists (CSV,
-  TSV). The admin has a guided Simple mode (Your files, What we found, Your list, Where they go, Check, Add) and
-  an Advanced mode with eight tabs. Check counts flags by kind with a policy each (keep, repair, leave); only plan
+  TSV, XLSX, XLS, ODS). The admin had a guided Simple mode (Your files, What we found, Your list, Where they go,
+  Check, Add) and an Advanced mode with eight tabs; plan v3 below replaces both. Check counts flags by kind with a policy each (keep, repair, leave); only plan
   problems block a run. An import can create, append, revise, update, replace or delete, and a delete runs only
   with its count typed. Undo puts back what the import changed and keeps what was edited since, until
   `force`. The run, undo, rescan, unzip and staging sweep are jobs (`Romeka\Job\ImportRun`, `ImportUndo`,
