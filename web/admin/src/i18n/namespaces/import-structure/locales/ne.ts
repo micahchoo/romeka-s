@@ -16,6 +16,7 @@ export const ne: ImportStructureMessages = {
     "तपाईँका फाइलहरू परिवर्तन भएका छन्। हाम्रो नयाँ सुझाव तपाईँको भन्दा फरक छ।",
   "structure.status.useNew": "नयाँ सुझाव प्रयोग गर्नुहोस्",
   "structure.status.keep": "मलाई नै राख्नुहोस्",
+  "structure.status.refused": "हामी केही नयाँ सुझाव दिँदैनौँ। हाम्रो सुझाव प्रयोग गर्न सकिएन: {reason}",
   "structure.count.items": "थप्नुपर्ने वस्तुहरू",
   "structure.count.sets": "सेटहरू",
   "structure.count.out": "आयात नगरिएको",
@@ -118,6 +119,8 @@ export const ne: ImportStructureMessages = {
   "structure.root.lists": "सूचीहरू",
   "structure.root.listsLine":
     "{used} ले एउटा फोल्डर वर्णन गर्छ। {unused} ले कुनै पनि वर्णन गर्दैन।",
+  "structure.root.sets": "तपाईँका आफ्नै सेटहरू",
+  "structure.root.setsOpen": "तिनीहरूलाई देखाउनुहोस् र परिवर्तन गर्नुहोस्",
   "structure.every.title": "हरेक वस्तुमाथि एउटा सेट",
   "structure.every.note":
     "प्रत्येक स्तम्भमा प्रत्येक पङ्क्तिमा एउटा मान हुन्छ।",

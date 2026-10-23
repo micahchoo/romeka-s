@@ -16,6 +16,7 @@ export const hi: ImportStructureMessages = {
     "आपकी फ़ाइलें बदल गई हैं। हमारी नई अनुशंसा आपकी से भिन्न है।",
   "structure.status.useNew": "नई अनुशंसा का उपयोग करें",
   "structure.status.keep": "मेरी को बनाए रखें",
+  "structure.status.refused": "हम कुछ नया नहीं सुझाते। हमारा सुझाव उपयोग नहीं किया जा सका: {reason}",
   "structure.count.items": "जोड़ने योग्य वस्तुएं",
   "structure.count.sets": "सेट",
   "structure.count.out": "आयात नहीं किया गया",
@@ -119,6 +120,8 @@ export const hi: ImportStructureMessages = {
   "structure.root.lists": "सूचियाँ",
   "structure.root.listsLine":
     "{used} एक फ़ोल्डर का वर्णन करता है। {unused} किसी का नहीं।",
+  "structure.root.sets": "आपके अपने सेट",
+  "structure.root.setsOpen": "उन्हें दिखाएँ और बदलें",
   "structure.every.title": "प्रत्येक आइटम पर एक सेट",
   "structure.every.note":
     "प्रत्येक कॉलम में प्रत्येक पंक्ति में एक मान होता है।",

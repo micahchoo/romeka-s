@@ -34,13 +34,13 @@ interface Server {
 
 /**
  * BHC006 whose stored plan holds `plan` over the draft's. A proposal is
- * `proposal`'s recording, each edit sent marked applied; the `values` of a
+ * `proposal`'s recording (or `proposal` itself), each edit sent marked applied; the `values` of a
  * plan with one free set are `values(that set)`; every other section is its
  * wire fixture. The install has the two sets of `item-sets-page.json`.
  */
-const bhc006 = ({ proposal = 'proposal-bhc006.json', plan: over = {}, values = () => [] }: { readonly proposal?: string; readonly plan?: Record<string, unknown>; readonly values?: (set: unknown) => readonly unknown[] }): Server => {
+const bhc006 = ({ proposal = 'proposal-bhc006.json', plan: over = {}, values = () => [] }: { readonly proposal?: string | Record<string, unknown>; readonly plan?: Record<string, unknown>; readonly values?: (set: unknown) => readonly unknown[] }): Server => {
   const detail = importFixture('import-draft.json');
-  const recorded = importFixture(proposal);
+  const recorded = typeof proposal === 'string' ? importFixture(proposal) : proposal;
   const base = asRecord(detail['plan'], []);
   let plan: Record<string, unknown> = { ...base, structure: recorded['structure'], ...over };
   if (isRecord(over['structure'])) {
@@ -253,5 +253,43 @@ describe('item sets in Advanced', () => {
       const tried = server.asked.filter(({ include }) => include.includes('proposal')).map(({ plan }) => setLevelIn(plan, 'Documents (D)4')?.['set']);
       expect(tried).toContainEqual({ title: 'Dated', description: null });
     });
+  });
+
+  it('a split set level around one folder maps what each value’s set becomes', { timeout: 20_000 }, async () => {
+    // BHC006 with Documents' name place 4 taken: the split level the proposer counts around the suggested folder.
+    const kept = importFixture('proposal-bhc006-own-set.json');
+    const suggested = array(importFixture('proposal-bhc006.json')['nodes']).find((node) => isRecord(node) && node['level'] === 'Documents (D)');
+    const documents = { source: 's1', folder: 'Documents (D)' };
+    const place4 = { from: 'namePlace', scope: documents, place: 4 };
+    const counts = { sets: [['20170616', 11], ['20171013', 4]], rows: null };
+    const nodes = array(kept['nodes']).map((node) =>
+      !isRecord(node) ? node : node['kind'] === 'kept' ? { kind: 'set', level: 'Documents (D)4', from: place4, counts } : node['kind'] === 'own' ? suggested : node,
+    );
+    const server = bhc006({
+      proposal: { ...kept, nodes },
+      plan: { structure: kept['structure'], edits: [{ edit: 'addSet', from: place4 }] },
+      values: () => [value('20170616', 11), value('20171013', 4)],
+    });
+    await pick('2 sets');
+    const map = (await within(inspector()).findByText('Value map of 2 sets', {}, { timeout: 5000 })).closest('details');
+    if (!(map instanceof HTMLDetailsElement)) {
+      throw new Error('no value map');
+    }
+    map.open = true;
+    fireEvent(map, new Event('toggle'));
+
+    // The values are counted on the level's own each, alone, over the folder's items.
+    const june = await within(map).findByRole('combobox', { name: 'What 20170616 becomes' }, { timeout: 5000 });
+    const level = setLevelIn({ structure: kept['structure'] }, 'Documents (D)4');
+    const counted = server.asked.filter(({ include }) => include.includes('values')).at(-1)?.plan;
+    expect(freeSetsOf(counted)).toEqual([level?.['set']]);
+    expect(array(asRecord(counted?.['structure'], [])['levels']).some((one) => isRecord(one) && one['kind'] === 'set')).toBe(false);
+
+    fireEvent.change(june, { target: { value: 'to:Featured photographs' } });
+    await waitFor(() => {
+      expect(server.saved).toHaveLength(1);
+    });
+    const each = asRecord(asRecord(setLevelIn(server.saved[0] ?? {}, 'Documents (D)4')?.['set'], [])['each'], []);
+    expect(each['map']).toEqual({ '20170616': 'Featured photographs' });
   });
 });

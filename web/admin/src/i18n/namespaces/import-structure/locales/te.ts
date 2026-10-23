@@ -16,6 +16,7 @@ export const te: ImportStructureMessages = {
     "మీ ఫైళ్లు మారాయి. మా కొత్త సూచన yours కంటే భిన్నంగా ఉంది.",
   "structure.status.useNew": "కొత్త సూచనను ఉపయోగించండి",
   "structure.status.keep": "నాది ఉంచండి",
+  "structure.status.refused": "మేము ఏమీ కొత్తగా సూచించము. మా సూచనను ఉపయోగించలేము: {reason}",
   "structure.count.items": "జోడించాల్సిన అంశాలు",
   "structure.count.sets": "సెట్‌లు",
   "structure.count.out": "ఇంపోర్ట్ చేయబడలేదు",
@@ -119,6 +120,8 @@ export const te: ImportStructureMessages = {
   "structure.root.lists": "జాబితాలు",
   "structure.root.listsLine":
     "{used} ఒక ఫోల్డర్‌ను వివరిస్తుంది. {unused} ఏదీ లేదని వివరిస్తుంది.",
+  "structure.root.sets": "మీ స్వంత సెట్‌లు",
+  "structure.root.setsOpen": "వాటిని చూపించి, మార్చండి",
   "structure.every.title": "ప్రతి ఐటమ్ పైన ఒక సెట్",
   "structure.every.note": "ప్రతి కాలమ్‌లో ప్రతి అడ్డు వరుసలో ఒక విలువ ఉంటుంది.",
   "structure.every.add": "సెట్‌ను జోడించండి",

@@ -16,6 +16,7 @@ export const kn: ImportStructureMessages = {
     "ನಿಮ್ಮ ಫೈಲ್‌ಗಳು ಬದಲಾದವು. ನಮ್ಮ ಹೊಸ ಸಲಹೆ yours ಗಿಂತ ಭಿನ್ನವಾಗಿದೆ.",
   "structure.status.useNew": "ಹೊಸ ಸಲಹೆಯನ್ನು ಬಳಸಿ",
   "structure.status.keep": "ನನ್ನದನ್ನು ಇರಿಸಿ",
+  "structure.status.refused": "ನಾವು ಏನನ್ನೂ ಹೊಸದಾಗಿ ಸೂಚಿಸುವುದಿಲ್ಲ. ನಮ್ಮ ಸಲಹೆಯನ್ನು ಬಳಸಲಾಗುವುದಿಲ್ಲ: {reason}",
   "structure.count.items": "ಸೇರಿಸಬೇಕಾದ ಅಂಶಗಳು",
   "structure.count.sets": "ಸೆಟ್‌ಗಳು",
   "structure.count.out": "ಆಮದು ಮಾಡಿಕೊಳ್ಳಲಾಗಿಲ್ಲ",
@@ -120,6 +121,8 @@ export const kn: ImportStructureMessages = {
   "structure.root.lists": "ಪಟ್ಟಿಗಳು",
   "structure.root.listsLine":
     "{used} ಒಂದು ಫೋಲ್ಡರ್ ಅನ್ನು ವಿವರಿಸುತ್ತದೆ. {unused} ಯಾವುದನ್ನೂ ವಿವರಿಸುವುದಿಲ್ಲ.",
+  "structure.root.sets": "ನಿಮ್ಮ ಸ್ವಂತ ಸೆಟ್‌ಗಳು",
+  "structure.root.setsOpen": "ಅವುಗಳನ್ನು ತೋರಿಸಿ ಮತ್ತು ಬದಲಾಯಿಸಿ",
   "structure.every.title": "ಪ್ರತಿ ಐಟಂ ಮೇಲೆ ಒಂದು ಸೆಟ್",
   "structure.every.note":
     "ಪ್ರತಿ ಕಾಲಮ್ ಪ್ರತಿ ಸಾಲಿನಲ್ಲಿ ಒಂದು ಮೌಲ್ಯವನ್ನು ಹೊಂದಿದೆ.",

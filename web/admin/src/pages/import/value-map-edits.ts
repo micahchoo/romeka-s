@@ -1,6 +1,6 @@
 /**
- * The value map of one field's rule or of one free set (`SlotRule.map`,
- * `EachSet.map`): each value the sources give, compared as a title, becomes
+ * The value map of one field's rule, of one free set or of one set level
+ * (`SlotRule.map`, `EachSet.map`): each value the sources give, compared as a title, becomes
  * another text, or nothing (`""`). One control shows it in every place
  * (`value-map.tsx`); these are its edits. A join is an entry whose text is
  * another value of the list, so two spellings, two item types or two sets
@@ -8,18 +8,25 @@
  */
 import type { ImportPlan, LevelId, RecordKind, SetSource, SlotName } from '../../api/import-plan';
 import { written } from './advanced/writes';
-import { seriesOf, setsOf, withSeries, withSets } from './series';
+import { seriesOf, setLevelsOf, setsOf, withSeries, withSetLevel, withSets } from './series';
 import { fold } from './simple/list-plan';
 
 export type ValueMap = Readonly<Record<string, string>>;
 
-/** Where a map lives: one field's rule of a series, or the free set at `freeSet`, which makes one set per value. */
-export type MapHome = { readonly level: LevelId; readonly kind: RecordKind; readonly slot: SlotName } | { readonly freeSet: number };
+/**
+ * Where a map lives: one field's rule of a series, the free set at
+ * `freeSet`, or the set level `setLevel` around the one series `series`.
+ * The last two make one set per value.
+ */
+export type MapHome =
+  | { readonly level: LevelId; readonly kind: RecordKind; readonly slot: SlotName }
+  | { readonly freeSet: number }
+  | { readonly setLevel: LevelId; readonly series: LevelId };
 
 /** How the run reads a mapped text: as the text itself, an item type's label, a set's title, or a class's term. */
 export type Becomes = 'text' | 'type' | 'set' | 'class';
 
-export const slotOf = (home: MapHome): SlotName => ('freeSet' in home ? 'sets' : home.slot);
+export const slotOf = (home: MapHome): SlotName => ('slot' in home ? home.slot : 'sets');
 
 export const becomesOf = (slot: SlotName): Becomes => {
   switch (slot) {
@@ -34,13 +41,16 @@ export const becomesOf = (slot: SlotName): Becomes => {
   }
 };
 
-const eachAt = (plan: ImportPlan, at: number): Extract<SetSource, { each: unknown }> | null => {
-  const set = setsOf(plan)[at];
-  return set !== undefined && 'each' in set ? set : null;
-};
+type EachSet = Extract<SetSource, { each: unknown }>;
+
+const asEach = (set: SetSource | null | undefined): EachSet | null => (set !== null && set !== undefined && 'each' in set ? set : null);
+
+/** The one set per value a set home makes. */
+export const eachOf = (plan: ImportPlan, home: Exclude<MapHome, { readonly slot: SlotName }>): EachSet | null =>
+  asEach('freeSet' in home ? setsOf(plan)[home.freeSet] : setLevelsOf(plan).find((level) => level.id === home.setLevel)?.set);
 
 export const mapOf = (plan: ImportPlan, home: MapHome): ValueMap =>
-  'freeSet' in home ? (eachAt(plan, home.freeSet)?.each.map ?? {}) : (seriesOf(plan, home.level).slots[home.kind][home.slot]?.map ?? {});
+  'slot' in home ? (seriesOf(plan, home.level).slots[home.kind][home.slot]?.map ?? {}) : (eachOf(plan, home)?.each.map ?? {});
 
 /** What the map makes of `value`: `undefined` when no key folds to it. */
 export const mappedOf = (map: ValueMap, value: string): string | undefined => {
@@ -60,20 +70,22 @@ export const withMapped = (map: ValueMap, value: string, to: string | undefined)
 /** The plan with `map` at `home`; an empty map is absent. A rule or a free set the plan does not hold stays absent. */
 export const withMap = (plan: ImportPlan, home: MapHome, map: ValueMap): ImportPlan => {
   const empty = Object.keys(map).length === 0;
+  const mapped = ({ each: { sources, combine, names } }: EachSet): EachSet => ({ each: empty ? { sources, combine, names } : { sources, combine, names, map } });
   if ('freeSet' in home) {
-    return eachAt(plan, home.freeSet) === null
+    return eachOf(plan, home) === null
       ? plan
       : written(plan, 'valueMap', undefined, (now) =>
           withSets(now, (sets) =>
             sets.map((set, at) => {
-              if (at !== home.freeSet || !('each' in set)) {
-                return set;
-              }
-              const { sources, combine, names } = set.each;
-              return { each: empty ? { sources, combine, names } : { sources, combine, names, map } };
+              const each = asEach(set);
+              return at === home.freeSet && each !== null ? mapped(each) : set;
             }),
           ),
         );
+  }
+  if ('setLevel' in home) {
+    const each = eachOf(plan, home);
+    return each === null ? plan : written(plan, 'valueMap', undefined, (now) => withSetLevel(now, home.setLevel, mapped(each)));
   }
   const { level, kind, slot } = home;
   const rule = seriesOf(plan, level).slots[kind][slot];

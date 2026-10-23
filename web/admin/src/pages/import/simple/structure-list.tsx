@@ -13,7 +13,9 @@
  * for the folder by its id, so it waits until the plan holds the folder.
  *
  * Pair by hand and Every file are sub-screens: their address names the node,
- * so Back returns to it. A chunk of its own, loaded with the node.
+ * so Back returns to it. Where its item type comes from (`item-types.tsx`)
+ * is drawn here too, so that chunk needs no Structure part and "Where they
+ * go" loads it alone. A chunk of its own, loaded with the node.
  */
 import { Suspense, lazy, useState } from 'react';
 import type { ReactElement } from 'react';
@@ -23,21 +25,22 @@ import { DraftContext, useDraft } from '../draft-context';
 import { listHref } from '../lists/address';
 import { usePreview } from '../lists/use-preview';
 import { nodeHref } from '../picked-node';
-import { seriesOf } from '../series';
+import { seriesOf, shownPlanFor } from '../series';
 import { rollUpsOf } from './list-plan';
 import { ListColumns } from './list-columns';
-import { useShownDraft } from './shown-draft';
+import { InShownTree, useShownDraft } from './shown-draft';
 import { useScreen } from './structure-parts';
 
 const RoundTrip = lazy(() => import('../lists/round-trip'));
+const ItemTypes = lazy(() => import('./item-types'));
 
 type Opened = 'columns' | 'trip' | null;
 
 /** The table of each list of the folder `level`, read from the plan as the tree shows it. */
 const Columns = ({ level }: { readonly level: LevelId }): ReactElement => {
   const { proposal, words } = useScreen();
-  const { draft, held } = useShownDraft(level);
-  const read = usePreview(['sheets', 'columnMatches', 'listCandidates'], held ? {} : { plan: draft.plan });
+  const { draft } = useShownDraft(level);
+  const read = usePreview(['sheets', 'columnMatches', 'listCandidates'], shownPlanFor(draft, level));
   if (read.status === 'loading') {
     return <p className="import-slow">{words.t('shell.loading')}</p>;
   }
@@ -105,3 +108,12 @@ export const ListHomes = ({ nodeKey, level, folder }: { readonly nodeKey: string
     </>
   );
 };
+
+/** Where the folder `level`'s item type comes from, in the plan as the tree shows it. */
+export const ItemTypesHome = ({ level }: { readonly level: LevelId }): ReactElement => (
+  <InShownTree level={level}>
+    <Suspense fallback={null}>
+      <ItemTypes level={level} />
+    </Suspense>
+  </InShownTree>
+);

@@ -345,6 +345,110 @@ describe('the Structure screen', () => {
     expect(await within(inspectorOf()).findByRole('combobox', { name: 'Where the column Curator goes' }, { timeout: 5000 })).toHaveProperty('value', 'field:dcterms:description');
   });
 
+  it('a series sets its item type from a column, per value', { timeout: 20_000 }, async () => {
+    const server = structureServer({ carry: true, values: ITEM_TYPES });
+    render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
+    await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 });
+
+    // The list the proposer chose maps no column yet: its columns are offered as the file reads them.
+    const from = await within(select('Artifacts')).findByRole('combobox', { name: 'The item type comes from' }, { timeout: 5000 });
+    const column = await within(from).findByRole('option', { name: 'Column “Item Type”' }, { timeout: 5000 });
+    fireEvent.change(from, { target: { value: column.getAttribute('value') } });
+    await waitFor(() => {
+      expect(server.saved).toHaveLength(1);
+    });
+    const first = seriesIn(server.saved[0] ?? {}, 'Artifacts');
+    expect(asRecord(first['slots'], [])['item']).toEqual({ template: TYPE_FROM_ITEM_TYPE });
+    expect(records(records(first['lists'])[0]?.['columns'])).toContainEqual({ column: ITEM_TYPE, options: { split: null, type: 'literal', lang: null, private: false } });
+
+    // Each value with its items and the item type it becomes: one with an item type of the same name is set to it.
+    const photograph = await within(inspectorOf()).findByRole('combobox', { name: 'Item type for Photograph' }, { timeout: 5000 });
+    expect(shownOf(photograph)).toBe('Photograph (the same name)');
+    const artifact = within(inspectorOf()).getByRole('combobox', { name: 'Item type for Artifact' });
+    expect(shownOf(artifact)).toBe('Not chosen: no item type');
+    expect(server.valuesAsked.at(-1)?.values).toEqual({ slot: 'template', kind: 'item', series: 'Artifacts', page: 1, perPage: 50 });
+    fireEvent.change(artifact, { target: { value: 'new:Artifact' } });
+    await waitFor(() => {
+      expect(server.saved).toHaveLength(2);
+    });
+    expect(asRecord(asRecord(seriesIn(server.saved[1] ?? {}, 'Artifacts')['slots'], [])['item'], [])['template']).toEqual({ ...TYPE_FROM_ITEM_TYPE, map: { Artifact: 'Artifact' } });
+    expect(server.saved[1]?.['newTypes']).toEqual([{ label: 'Artifact', from: 'mapping', class: null }]);
+
+    // A click on another folder keeps the rule and its map: the proposer carries both.
+    fireEvent.click(within(select('Extras')).getByRole('button', { name: /^Leave out/ }));
+    await waitFor(() => {
+      expect(server.saved).toHaveLength(3);
+    });
+    expect(asRecord(asRecord(seriesIn(server.saved[2] ?? {}, 'Artifacts')['slots'], [])['item'], [])['template']).toEqual({ ...TYPE_FROM_ITEM_TYPE, map: { Artifact: 'Artifact' } });
+    // The new item type is now one of the plan's, listed by its name.
+    expect(shownOf(await within(select('Artifacts')).findByRole('combobox', { name: 'Item type for Artifact' }, { timeout: 5000 }))).toBe('Artifact');
+  });
+
+  it('a folder the plan does not hold yet cleans the values of a column beside its table', { timeout: 20_000 }, async () => {
+    const proposal = asRecord(loadFixture('import/proposal-bhc006.json'), []);
+    const structure = asRecord(proposal['structure'], []);
+    const levels = records(structure['levels']).map((level) => (level['id'] === 'Artifacts' ? { ...level, slots: { ...asRecord(level['slots'], []), item: { 'dcterms:description': CURATOR_ON_THE_ITEM } } } : level));
+    const server = structureServer({ answer: { ...proposal, structure: { ...structure, levels } }, values: CURATORS });
+    render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
+    await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 });
+
+    fireEvent.click(await within(select('Artifacts')).findByRole('button', { name: 'Where each column goes' }));
+    const clean = await within(inspectorOf()).findByText('Clean the values of Curator', {}, { timeout: 5000 });
+    const details = clean.closest('details');
+    if (!(details instanceof HTMLDetailsElement)) {
+      throw new Error('no Clean values');
+    }
+    details.open = true;
+    fireEvent(details, new Event('toggle'));
+
+    // The stored plan holds no Artifacts yet, so the count reads the plan on screen.
+    const patil = await within(details).findByRole('combobox', { name: 'What Dilp Patil becomes' }, { timeout: 5000 });
+    expect(server.valuesAsked).toEqual([{ values: { slot: 'dcterms:description', kind: 'item', series: 'Artifacts', page: 1, perPage: 50 }, sentPlan: true }]);
+    expect(within(details).getByRole('rowheader', { name: 'Dilip Patil' }).closest('tr')?.textContent).toMatch(/^Dilip Patil312/);
+    fireEvent.change(patil, { target: { value: 'to:Dilip Patil' } });
+    await waitFor(() => {
+      expect(server.saved).toHaveLength(1);
+    });
+    expect(asRecord(asRecord(seriesIn(server.saved[0] ?? {}, 'Artifacts')['slots'], [])['item'], [])['dcterms:description']).toEqual({ ...CURATOR_ON_THE_ITEM, map: { 'Dilp Patil': 'Dilip Patil' } });
+  });
+
+  it('the archive opens your own sets, and a set removed there leaves the plan', { timeout: 20_000 }, async () => {
+    const draft = asRecord(asRecord(loadFixture('import/import-draft.json'), [])['plan'], []);
+    const structure = { ...asRecord(draft['structure'], []), freeSets: [{ title: 'Exhibition 2018', description: null }] };
+    const server = structureServer({ stored: { structure } });
+    render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
+    await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 });
+
+    const archive = select('All of archive');
+    fireEvent.click(await within(archive).findByRole('button', { name: 'Show and change them' }, { timeout: 5000 }));
+    const sets = await within(inspectorOf()).findByRole('region', { name: 'Your own sets' }, { timeout: 5000 });
+    const exhibition = within(sets).getByText('A new set titled “Exhibition 2018”').closest('li');
+    if (!(exhibition instanceof HTMLElement)) {
+      throw new Error('no free set');
+    }
+    fireEvent.click(within(exhibition).getByRole('button', { name: 'Remove' }));
+    await waitFor(() => {
+      expect(server.saved).toHaveLength(1);
+    });
+    expect(asRecord(server.saved[0]?.['structure'], [])['freeSets']).toEqual([]);
+    expect(await within(sets).findByText('You have no set of your own.')).toBeTruthy();
+  });
+
+  it('says why there is no suggestion when the plan check refused the proposer’s tree, in both zooms', async () => {
+    const draft = asRecord(asRecord(loadFixture('import/import-draft.json'), [])['plan'], []);
+    const proposal = asRecord(loadFixture('import/proposal-bhc006.json'), []);
+    const reason = 'a slot reads column 1 of sheet "AF/af.csv", which the sheet does not map';
+    const refused = { ...proposal, structure: draft['structure'], nodes: [], topSets: [], unattached: [], matchesPlan: true, refused: { tree: 'lists', reason } };
+    const line = `We suggest nothing new. Our suggestion could not be used: ${reason}`;
+    structureServer({ answer: refused });
+    render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
+    expect(await screen.findByText(line, {}, { timeout: 5000 })).toBeTruthy();
+    cleanup();
+    structureServer({ answer: refused });
+    render(<ImportPage param="1" rest={['1', 'advanced', 'structure']} />);
+    expect(await screen.findByText(line, {}, { timeout: 5000 })).toBeTruthy();
+  });
+
   it('a folder opens Pair by hand and Every file with itself in the address, and fills in a list once the structure is used', async () => {
     structureServer();
     render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
@@ -371,6 +475,19 @@ const ITEMS_WHOLE = { edit: 'items', scope: { source: 's1', folder: 'Artifacts' 
 /** The pattern a mark of any letters glued after the number writes (`bhc006_tests::MARKED_PATTERN`). */
 const MARKED_PATTERN = String.raw`^(?:[^/]*/)*(?<identifier>[^/]*?\d|[^/]*?[^/.][\p{L}\p{M}]*)(?:(?<part>[\p{L}\p{M}]+))?(?:\.[^./]*)?$`;
 const LEAVE_OUT_EXTRAS = { edit: 'leaveOut', scope: { source: 's1', folder: 'Extras' } };
+/** The replica's Artifacts "Item Type" column, as the file reads it. */
+const ITEM_TYPE = { index: 4, header: 'Item Type' };
+const TYPE_FROM_ITEM_TYPE = { sources: [{ from: 'column', sheet: 'BHC006_GMT_AF.xlsx', column: ITEM_TYPE }], combine: 'first' };
+/** What the Item Type cells say. "Photograph" is also an item type of the install (`resource-templates-page.json`). */
+const ITEM_TYPES: readonly Written[] = [
+  { text: 'Artifact', count: 313, spellings: ['Artifact'] },
+  { text: 'Photograph', count: 5, spellings: ['Photograph', 'photograph'] },
+];
+/** Two spellings of one curator, as W3's case has them. */
+const CURATORS: readonly Written[] = [
+  { text: 'Dilip Patil', count: 312, spellings: ['Dilip Patil'] },
+  { text: 'Dilp Patil', count: 2, spellings: ['Dilp Patil'] },
+];
 const CURATOR_ON_THE_ITEM = { sources: [{ from: 'column', sheet: 'BHC006_GMT_AF.xlsx', column: { index: 3, header: 'Curator' } }], combine: 'first' };
 
 /** The Artifacts list as the replica reads it: its five columns and one row. */
@@ -484,20 +601,26 @@ const structureServer = ({
   stored: plan = {},
   answer,
   carry = false,
+  values,
 }: {
   readonly failPreviewWithEdits?: boolean;
   readonly stored?: Record<string, unknown>;
   readonly answer?: Record<string, unknown>;
   /** The proposal copies the plan's carried members, as the proposer does; the recordings were made from plans that hold none. */
   readonly carry?: boolean;
+  /** The values of one field's rule before its map, as the server counts them (`valuesOf`). */
+  readonly values?: readonly Written[];
 } = {}): {
   readonly saved: Record<string, unknown>[];
   readonly asked: unknown[];
+  /** Each values request: what it asked, and whether it sent the plan on screen. */
+  readonly valuesAsked: { readonly values: unknown; readonly sentPlan: boolean }[];
 } => {
   const detail = asRecord(loadFixture('import/import-draft.json'), []);
   let stored: Record<string, unknown> = { ...detail, plan: { ...asRecord(detail['plan'], ['plan']), ...plan } };
   const saved: Record<string, unknown>[] = [];
   const asked: unknown[] = [];
+  const valuesAsked: { values: unknown; sentPlan: boolean }[] = [];
   installFetch(
     route({
       [PATH]: (_url, init) => {
@@ -516,10 +639,15 @@ const structureServer = ({
           return jsonResponse({ sources: SOURCES, pattern: { groups: ['identifier'] }, entries: ENTRIES });
         }
         if (Array.isArray(include) && include.includes('sheets')) {
-          return jsonResponse({ sources: SOURCES, pattern: { groups: ['identifier'] }, sheets: [AF_SHEET], columnMatches: [], listCandidates: [] });
+          const lists: Record<string, unknown> = { sheets: [AF_SHEET], columnMatches: [], listCandidates: [] };
+          return jsonResponse({ sources: SOURCES, pattern: { groups: ['identifier'] }, ...Object.fromEntries(include.map(String).map((section) => [section, lists[section]])) });
         }
         if (Array.isArray(include) && include.includes('nameWords')) {
           return jsonResponse({ sources: SOURCES, pattern: { groups: ['identifier'] }, nameWords: { names: 0, parts: [], places: [] } });
+        }
+        if (Array.isArray(include) && include.includes('values') && values !== undefined) {
+          valuesAsked.push({ values: body['values'], sentPlan: body['plan'] !== undefined });
+          return jsonResponse({ sources: SOURCES, pattern: { groups: ['identifier'] }, values: [valuesOf(asRecord(body['plan'] ?? stored['plan'], ['plan']), asRecord(body['values'], ['values']), values)] });
         }
         if (answer !== undefined) {
           return jsonResponse({ sources: SOURCES, pattern: { groups: ['identifier'] }, proposal: answer });
@@ -542,10 +670,42 @@ const structureServer = ({
         return jsonResponse({ sources: SOURCES, pattern: { groups: ['identifier'] }, proposal: { ...proposal, matchesPlan } });
       },
       '/api/properties': () => listResponse(loadFixture('properties-page.json'), 2),
+      '/api/item_sets': () => listResponse(loadFixture('item-sets-page.json'), 2),
+      '/api/resource_templates': () => listResponse(loadFixture('resource-templates-page.json'), 2),
     }),
   );
-  return { saved, asked };
+  return { saved, asked, valuesAsked };
 };
+
+/** One value a rule's sources give, before its map. */
+interface Written {
+  readonly text: string;
+  readonly count: number;
+  readonly spellings: readonly string[];
+}
+
+const fold = (text: string): string => text.trim().normalize('NFC').toLowerCase();
+
+/**
+ * The values of the rule the query names, in the plan the request reads, as
+ * the server counts them: each with what the rule's map makes it. A series
+ * that plan does not hold has no records, so no value (`preview/counts.rs`).
+ */
+const valuesOf = (plan: Record<string, unknown>, query: Record<string, unknown>, written: readonly Written[]): Record<string, unknown> => {
+  const slot = String(query['slot']);
+  const series = records(asRecord(plan['structure'], [])['levels']).find((level) => level['id'] === query['series']);
+  const rule = series === undefined ? undefined : asRecord(asRecord(series['slots'], [])[String(query['kind'])], [])[slot];
+  const map = isRecord(rule) && isRecord(rule['map']) ? rule['map'] : {};
+  const to = (text: string): string | null => {
+    const key = Object.keys(map).find((one) => fold(one) === fold(text));
+    return key === undefined ? null : String(map[key]);
+  };
+  const items = series === undefined ? [] : written.map((value) => ({ ...value, to: to(value.text) }));
+  return { slot, values: { total: items.length, page: 1, perPage: 50, items }, near: [] };
+};
+
+/** The selected option's text of a select. */
+const shownOf = (select: HTMLElement): string | undefined => (select instanceof HTMLSelectElement ? (select.selectedOptions[0]?.textContent ?? undefined) : undefined);
 
 const countLine = (): readonly (string | null)[] =>
   Array.from(document.querySelectorAll('.structure-status .guided-facts > span'), (span) => span.textContent);

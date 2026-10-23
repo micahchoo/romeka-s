@@ -29,7 +29,7 @@ import { useScreen } from '../simple/structure-parts';
 import { NO_NORMALIZE, setItemKey, setJoin, setJoinColumn, setRead, setRowKindColumn } from './plan-edits';
 import { Setting } from './setting';
 import { written } from './writes';
-import { seriesHolding, seriesOf } from '../series';
+import { seriesHolding, seriesOf, shownPlanFor } from '../series';
 import './advanced.css';
 
 const RoundTrip = lazy(() => import('../lists/round-trip'));
@@ -343,7 +343,7 @@ const RowKind = ({ sheet, matches }: { readonly sheet: SheetPlan; readonly match
 export const ListsRules = ({ level, offered }: { readonly level: LevelId; readonly offered?: OfferedList }): ReactElement => {
   const { t, number } = useAdvancedText();
   const draft = useDraft();
-  const read = usePreview(['sheets', 'columnMatches', 'unpaired', 'listCandidates'], { unpaired: { rows: { perPage: 1 }, files: { perPage: 1 } } });
+  const read = usePreview(['sheets', 'columnMatches', 'unpaired', 'listCandidates'], { ...shownPlanFor(draft, level), unpaired: { rows: { perPage: 1 }, files: { perPage: 1 } } });
   const data = read.status === 'ready' ? read.data : null;
   const { lists } = seriesOf(draft.plan, level);
   const { proposal } = useScreen();

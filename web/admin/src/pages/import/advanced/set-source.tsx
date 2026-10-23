@@ -9,11 +9,12 @@
  * Omeka (`title`, `existing`) for a set that is one set. A title and a set
  * in Omeka name one set, so they work only on a folder's own set and on a
  * set over every item; a set level made from values (a split) shows each
- * value with its count, read only, and can only go. A folder written by
+ * value with its count, maps each value's set when it is around one folder
+ * (`../value-map.tsx`), and can go. A folder written by
  * hand, and a set level kept around one, are the plan's: their set is
  * written there, and the click keeps the folder written by hand.
  */
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import type { ReactElement } from 'react';
 import type { FolderScope, ImportPlan, LevelId, SetFrom, SetSource, SourceRef } from '../../../api/import-plan';
 import type { KeptSetNode, NodeEvidence, OwnNode, SeriesNode, SetCounts } from '../../../api/import-proposal';
@@ -22,9 +23,10 @@ import { useAsync } from '../../../app/useAsync';
 import { useDraft } from '../draft-context';
 import { loadCatalog } from '../lists/catalog';
 import { usePreview } from '../lists/use-preview';
-import { seriesOf, seriesOfTree, setLevelIn } from '../series';
+import { seriesOf, seriesOfTree, seriesUnder, setLevelIn } from '../series';
 import { QUESTIONS, heldBy } from '../simple/structure-edits';
 import { keptSetName, setName, setNote, setsWords } from '../simple/structure-lines';
+import { InShownTree } from '../simple/shown-draft';
 import { Row, useScreen } from '../simple/structure-parts';
 import { SetQuestion, SplitOffer } from '../simple/structure-questions';
 import { useAdvancedText } from './messages';
@@ -232,20 +234,47 @@ export const SuggestedSet = ({ node, name }: { readonly node: SeriesNode; readon
   );
 };
 
-/** A set level the proposal counted: a set over every item, or a split around a folder. */
+const ValueMap = lazy(() => import('../value-map'));
+
+/** What each value's set of the split `level` around the folder `series` becomes, once opened, in the plan as the tree shows it. */
+const SplitValues = ({ level, series, label }: { readonly level: LevelId; readonly series: LevelId; readonly label: string }): ReactElement => {
+  const [open, setOpen] = useState(false);
+  return (
+    <details className="adv-map" onToggle={(event) => { setOpen(event.currentTarget.open); }}>
+      <summary>{label}</summary>
+      {open ? (
+        <InShownTree level={series}>
+          <Suspense fallback={null}>
+            <ValueMap home={{ setLevel: level, series }} label={label} />
+          </Suspense>
+        </InShownTree>
+      ) : null}
+    </details>
+  );
+};
+
+/**
+ * A set level the proposal counted: a set over every item, or a split
+ * around a folder. A split around one folder maps its values; the proposer
+ * carries that map into its next proposal (`WrittenMaps`).
+ */
 export const CountedLevel = ({ node }: { readonly node: Extract<NodeEvidence, { kind: 'set' }> }): ReactElement => {
   const { t } = useAdvancedText();
   const { clicks, editable, proposal, words } = useScreen();
-  const one = isOneSet(setLevelIn(proposal.structure, node.level)?.set);
+  const level = setLevelIn(proposal.structure, node.level);
+  const one = isOneSet(level?.set);
+  const [series, ...more] = seriesUnder(proposal.structure, node.level);
   const asked = QUESTIONS.set(node.from);
+  const name = setName(node.counts, words.t, words.number);
   return (
     <div className="guided-inspect">
-      <h4>{setName(node.counts, words.t, words.number)}</h4>
+      <h4>{name}</h4>
       <p>{setNote(node.from, node.counts, words.t, words.number)}</p>
       {one ? <NameOffered from={node.from} /> : (
         <>
-          <p className="adv-plain">{t('adv.set.values')}</p>
+          {series !== undefined && more.length === 0 ? null : <p className="adv-plain">{t('adv.set.values')}</p>}
           <Made counts={node.counts} />
+          {series !== undefined && more.length === 0 ? <SplitValues level={node.level} series={series.id} label={t('adv.fields.map.label', { field: name })} /> : null}
         </>
       )}
       <p className="import-row-actions">

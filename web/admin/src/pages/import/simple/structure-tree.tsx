@@ -1,6 +1,7 @@
 /**
- * The Structure tree, which both zooms draw: the status line, the count
- * line, the tree of nodes and the changes strip under it, over one
+ * The Structure tree, which both zooms draw: the status line (with why
+ * there is no suggestion when the plan check refused the proposer's tree),
+ * the count line, the tree of nodes and the changes strip under it, over one
  * proposal read and its clicks (`structure-edits.ts`). What the inspector
  * beside the tree shows is the zoom's: Simple's questions
  * (`structure.tsx`) or Advanced's rules (`advanced/structure-rules.tsx`).
@@ -154,6 +155,7 @@ const StatusPanel = (): ReactElement => {
           </>
         ) : null}
       </div>
+      {proposal.refused === undefined ? null : <p className="import-note">{t('structure.status.refused', { reason: proposal.refused.reason })}</p>}
       <div className="guided-facts">
         <span>
           {t('structure.count.items')} <b>{number(totals.items)}</b>

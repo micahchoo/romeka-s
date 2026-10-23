@@ -10,6 +10,7 @@
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 import type { ResourceTemplate, ItemSet } from '../../api/types';
+import type { PreviewOptions } from '../../api/import-queries';
 import type { NearSpelling, ValueCount } from '../../api/import-sections';
 import { ErrorNotice } from '../../app/errors';
 import { Pager } from '../../app/list';
@@ -19,11 +20,11 @@ import { useDraft } from './draft-context';
 import { loadCatalog } from './lists/catalog';
 import { usePreview } from './lists/use-preview';
 import { PER_PAGE } from './paged-list';
-import { withOnlyFreeSet } from './series';
+import { shownPlanFor, withOnlyFreeSet, withOnlySet } from './series';
 import { fold } from './simple/list-plan';
 import { useSimpleText } from './simple/messages';
 import type { SimpleTranslator } from './simple/messages';
-import { becomesOf, mapOf, mappedOf, slotOf, withEntry, withNewType } from './value-map-edits';
+import { becomesOf, eachOf, mapOf, mappedOf, slotOf, withEntry, withNewType } from './value-map-edits';
 import type { Becomes, MapHome } from './value-map-edits';
 
 /** The most near spellings shown at once: each is one line the person may ignore. */
@@ -140,6 +141,21 @@ const NearLine = ({ home, near, counted }: { readonly home: MapHome; readonly ne
   );
 };
 
+/**
+ * The values request of `home`. A free set is counted alone; a set level is
+ * counted as the one set per value of its series' items, alone; a rule on
+ * the plan on screen when the stored plan does not hold its folder yet.
+ */
+const valuesAsked = (draft: ReturnType<typeof useDraft>, home: MapHome, page: number): PreviewOptions => {
+  if ('slot' in home) {
+    return { ...shownPlanFor(draft, home.level), values: { slot: home.slot, kind: home.kind, series: home.level, page, perPage: PER_PAGE } };
+  }
+  if ('freeSet' in home) {
+    return { plan: withOnlyFreeSet(draft.plan, home.freeSet), values: { slot: 'sets', kind: 'item', page, perPage: PER_PAGE } };
+  }
+  return { plan: withOnlySet(draft.plan, eachOf(draft.plan, home) ?? undefined), values: { slot: 'sets', kind: 'item', series: home.series, page, perPage: PER_PAGE } };
+};
+
 export interface ValueMapProps {
   readonly home: MapHome;
   /** The table's name. */
@@ -154,12 +170,7 @@ export const ValueMap = ({ home, label }: ValueMapProps): ReactElement => {
   const becomes = becomesOf(slot);
   const catalog = useAsync(() => (becomes === 'type' || becomes === 'set' ? loadCatalog() : Promise.resolve({ templates: [], itemSets: [] })), [becomes]);
   const install = catalog.status === 'ready' ? catalog.data : { templates: [], itemSets: [] };
-  const read = usePreview(
-    ['values'],
-    'freeSet' in home
-      ? { plan: withOnlyFreeSet(draft.plan, home.freeSet), values: { slot, kind: 'item', page, perPage: PER_PAGE } }
-      : { values: { slot, kind: home.kind, series: home.level, page, perPage: PER_PAGE } },
-  );
+  const read = usePreview(['values'], valuesAsked(draft, home, page));
   if (read.status === 'loading') {
     return <p role="status" className="import-slow">{t('shell.loading')}</p>;
   }
@@ -171,7 +182,7 @@ export const ValueMap = ({ home, label }: ValueMapProps): ReactElement => {
     return <p className="muted">{t('valueMap.none')}</p>;
   }
   const { values, near } = found;
-  const files = 'freeSet' in home ? false : home.kind === 'media';
+  const files = 'slot' in home && home.kind === 'media';
   const counted = (count: number): string =>
     files ? (count === 1 ? t('valueMap.fileOne') : t('guided.list.levelFiles', { count: number(count) })) : count === 1 ? t('valueMap.itemOne') : t('guided.list.levelItems', { count: number(count) });
   const lastPage = Math.max(1, Math.ceil(values.total / values.perPage));

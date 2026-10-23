@@ -16,6 +16,7 @@ export const mr: ImportStructureMessages = {
     "तुमच्या फाईल्स बदलल्या आहेत. आमचे नवीन सुचवणे तुमच्यापेक्षा वेगळे आहे.",
   "structure.status.useNew": "नवीन सुचवणे वापरा",
   "structure.status.keep": "माझे ठेवा",
+  "structure.status.refused": "आम्ही काहीही नवीन सुचवत नाही. आमची सूचना वापरता आली नाही: {reason}",
   "structure.count.items": "जोडायच्या वस्तू",
   "structure.count.sets": "संच",
   "structure.count.out": "आयात केलेले नाहीत",
@@ -120,6 +121,8 @@ export const mr: ImportStructureMessages = {
   "structure.root.lists": "यादी",
   "structure.root.listsLine":
     "{used} फोल्डरचे वर्णन करते. {unused} कशाचेही वर्णन करत नाही.",
+  "structure.root.sets": "तुमचे स्वतःचे संच",
+  "structure.root.setsOpen": "त्यांना दाखवा आणि बदला",
   "structure.every.title": "प्रत्येक घटकावर एक संच",
   "structure.every.note": "प्रत्येक स्तंभात प्रत्येक ओळीत एक मूल्य असते.",
   "structure.every.add": "संच जोडा",
