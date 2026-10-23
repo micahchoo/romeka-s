@@ -278,17 +278,9 @@ export const hi: ImportAdvancedMessages = {
   'adv.fields.rule.constant': 'स्थिर',
   'adv.fields.rule.addConstant': 'जोड़ें',
   'adv.fields.rule.removeRule': '{field} के नियम को हटाएँ',
-  'adv.fields.map.loading': 'मानों को पढ़ना...',
-  'adv.fields.map.none': 'किसी भी रिकॉर्ड में इस क्षेत्र में कोई मान नहीं है।',
   'adv.fields.map.plain':
     'मान को उपयोग करने से पहले बदलें। जो मान केवल बड़े अक्षरों या रिक्त स्थानों में भिन्न होते हैं, वे एक मान हैं। एक खाली बॉक्स मान को बाहर कर देता है।',
   'adv.fields.map.label': '{field} का मान मानचित्र',
-  'adv.fields.map.value': 'मान',
-  'adv.fields.map.items': 'रिकॉर्ड',
-  'adv.fields.map.becomes': 'बन जाता है',
-  'adv.fields.map.becomesOf': '{value} बन जाता है',
-  'adv.fields.map.spellings': '{spellings} के रूप में लिखा गया',
-  'adv.fields.map.resource': 'मान',
   'adv.problems.loading': 'समस्याओं की गणना की जा रही है...',
   'adv.problems.plain':
     'प्रत्येक प्रकार की समस्या का पूरे आयात के लिए एक नीति है। keep मान या रिकॉर्ड को वैसा ही लिखता है, मरम्मत करता है, छोड़ देता है। एक आइटम का उत्तर देने के लिए, समस्या वाले आइटम खोलें।',

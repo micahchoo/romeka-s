@@ -276,17 +276,9 @@ export const ne: ImportAdvancedMessages = {
   'adv.fields.rule.constant': 'स्थिर',
   'adv.fields.rule.addConstant': 'थप्नुहोस्',
   'adv.fields.rule.removeRule': '{field} का लागि नियम हटाउनुहोस्',
-  'adv.fields.map.loading': 'मानहरू पढ्दै...',
-  'adv.fields.map.none': 'यस क्षेत्रमा अहिलेसम्म कुनै पनि रेकर्डको मान छैन।',
   'adv.fields.map.plain':
     'मान परिवर्तन गर्नुहोस् ताकि यो प्रयोग हुनुभन्दा अघि होस्। ठुला अक्षर वा खाली ठाउँमा मात्र फरक हुने मानहरू एउटै मान हुन्। खाली बक्सले मानलाई हटाउँछ।',
   'adv.fields.map.label': '{field} को मान नक्सा',
-  'adv.fields.map.value': 'मान',
-  'adv.fields.map.items': 'रेकर्डहरू',
-  'adv.fields.map.becomes': 'बन्दछ',
-  'adv.fields.map.becomesOf': '{value} बन्दछ',
-  'adv.fields.map.spellings': 'यसरी लेखिएको: {spellings}',
-  'adv.fields.map.resource': 'मानहरू',
   'adv.problems.loading': 'समस्याहरू गणना गर्दै...',
   'adv.problems.plain':
     'प्रत्येक प्रकारको समस्याको सम्पूर्ण आयातका लागि एउटा नीति हुन्छ। keep ले मान वा रेकर्डलाई जस्ताको तस्तै लेख्छ, repair ले यसलाई सुधार्छ, leave ले यसलाई छोडिदिन्छ। एउटा वस्तुको उत्तर दिन, समस्या भएका वस्तुहरू खोल्नुहोस्।',

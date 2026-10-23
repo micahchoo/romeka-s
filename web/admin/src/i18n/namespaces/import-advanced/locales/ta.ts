@@ -288,17 +288,9 @@ export const ta: ImportAdvancedMessages = {
   'adv.fields.rule.constant': 'மாறிலி',
   'adv.fields.rule.addConstant': 'சேர்க்க',
   'adv.fields.rule.removeRule': '{field} க்கான விதியை நீக்கவும்',
-  'adv.fields.map.loading': 'மதிப்புகளைப் படிக்கிறது...',
-  'adv.fields.map.none': 'இந்த புலத்தில் இன்னும் எந்தப் பதிவும் மதிப்பை கொண்டிருக்கவில்லை.',
   'adv.fields.map.plain':
     'ஒரு மதிப்பு பயன்படுத்தப்படுவதற்கு முன்பு அதை மாற்றவும். பெரிய எழுத்துக்கள் அல்லது இடைவெளிகளில் மட்டுமே வேறுபடும் மதிப்புகள் ஒரே மதிப்பாகக் கருதப்படும். காலியான பெட்டி மதிப்பைத் தவிர்க்கும்.',
   'adv.fields.map.label': '{field} இன் மதிப்பு வரைபடம்',
-  'adv.fields.map.value': 'மதிப்பு',
-  'adv.fields.map.items': 'பதிவுகள்',
-  'adv.fields.map.becomes': 'ஆகிறது',
-  'adv.fields.map.becomesOf': '{value} ஆகிறது',
-  'adv.fields.map.spellings': 'இவ்வாறு எழுதப்படுகிறது: {spellings}',
-  'adv.fields.map.resource': 'மதிப்புகள்',
   'adv.problems.loading': 'சிக்கல்களைக் கணக்கிடுகிறது...',
   'adv.problems.plain':
     'ஒவ்வொரு வகை சிக்கலுக்கும் முழு இறக்குமதிக்கான ஒரு கொள்கை உள்ளது. keep சிக்கலின் மதிப்பை அல்லது பதிவை அப்படியே எழுதுகிறது, repair அதைச் சரிசெய்கிறது, leave அதைத் தவிர்க்கிறது. ஒரு சிக்கலில் உள்ள ஒரு பொருளுக்குப் பதிலளிக்க, சிக்கல் உள்ள பொருட்களைத் திறக்கவும்.',
