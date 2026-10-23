@@ -23,7 +23,9 @@ import { ColumnsTable } from './columns-table';
 import { useAdvancedText } from './messages';
 import type { AdvancedMessageKey, AdvancedTranslator } from './messages';
 import { withRowKind } from '../simple/list-plan';
+import { rollUpsOf } from '../simple/list-plan';
 import type { ListCounts } from '../simple/list-plan';
+import { useScreen } from '../simple/structure-parts';
 import { NO_NORMALIZE, setItemKey, setJoin, setJoinColumn, setRead, setRowKindColumn } from './plan-edits';
 import { Setting } from './setting';
 import { written } from './writes';
@@ -344,6 +346,7 @@ export const ListsRules = ({ level, offered }: { readonly level: LevelId; readon
   const read = usePreview(['sheets', 'columnMatches', 'unpaired', 'listCandidates'], { unpaired: { rows: { perPage: 1 }, files: { perPage: 1 } } });
   const data = read.status === 'ready' ? read.data : null;
   const { lists } = seriesOf(draft.plan, level);
+  const { proposal } = useScreen();
   return (
     <div className="adv-section" aria-busy={read.status === 'loading' || (read.status === 'ready' && read.busy)}>
       {read.status === 'error' ? <ErrorNotice error={read.error} /> : null}
@@ -353,7 +356,7 @@ export const ListsRules = ({ level, offered }: { readonly level: LevelId; readon
         const view = data?.sheets.find((one) => one.id === sheet.id);
         const matches = data?.columnMatches.find((one) => one.sheet === sheet.id);
         const candidate = data?.listCandidates.find((one) => one.inPlan === sheet.id);
-        const counts: ListCounts = { grain: candidate?.grain ?? null, matches, cells: candidate?.cells ?? [] };
+        const counts: ListCounts = { grain: candidate?.grain ?? null, matches, cells: candidate?.cells ?? [], rollUps: rollUpsOf(proposal, sheet) };
         return (
           <section key={sheet.id} className="adv-sheet" aria-label={sheet.file}>
             <h4>

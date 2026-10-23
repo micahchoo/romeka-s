@@ -4,7 +4,7 @@
  * describes one file; Keywords vary inside 42 of 251 items and hold several
  * values at commas in 610 of 690 cells; the year never varies. Each column
  * shows its own first cell, also under a title line; a column's first field
- * goes where its count suggests and is split as its cells suggest, in both
+ * goes where the proposer picks and is split as its cells suggest, in both
  * modes and when the list read maps it by name. Each answer is read back
  * from the plan the screen saves. Lines are what the sheet view sends: a
  * workbook's rows from line 1, written as CSV lines.
@@ -268,7 +268,7 @@ describe('several values in one cell, in Advanced', () => {
   }, 20_000);
 });
 
-describe('a column’s first field, on a list whose rows describe files: the field decides, not the count', () => {
+describe('a column’s first field, on a list whose rows describe files: the proposer’s pick decides, not the field', () => {
   const placed = async (screenName: string, column: string, field: string): Promise<{ plan: Record<string, unknown>; af: HTMLElement }> => {
     const server = open(screenName);
     const af = await block();
@@ -289,10 +289,11 @@ describe('a column’s first field, on a list whose rows describe files: the fie
     expect(rowOf(af, 'Keywords')).toHaveTextContent(screenName.startsWith('advanced') ? 'Varies in 42 of 251 items.' : 'differs in 42/251');
   }, 20_000);
 
-  it.each(['simple/list', 'advanced/lists'])('%s: a column mapped to Identifier goes on each file', async (screenName) => {
+  // The folder is written as the plan holds it, so the proposer picks nothing for its columns (design open call 3).
+  it.each(['simple/list', 'advanced/lists'])('%s: a column mapped to Identifier goes on the item when no pick sends it to each file', async (screenName) => {
     const { plan } = await placed(screenName, 'Digitized by', 'dcterms:identifier');
-    expect(sourcesOf(plan, 'media', 'dcterms:identifier')).toEqual([fromColumn(DIGITIZED)]);
-    expect(sourcesOf(plan, 'item', 'dcterms:identifier')).toBeUndefined();
+    expect(sourcesOf(plan, 'item', 'dcterms:identifier')).toEqual([fromColumn(DIGITIZED)]);
+    expect(sourcesOf(plan, 'media', 'dcterms:identifier')).toBeUndefined();
   }, 20_000);
 });
 

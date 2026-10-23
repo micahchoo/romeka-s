@@ -6,8 +6,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { ColumnRef, ImportPlan } from '../src/api/import-plan';
+import type { ColumnRollUp } from '../src/api/import-proposal';
 import { parseImportPlan } from '../src/api/import-plan-tree-read';
-import { levelOf, withColumnLevel, withFileRows, withRowKind, withTarget } from '../src/pages/import/simple/list-plan';
+import { levelOf, withColumnLevel, withCountedTarget, withFileRows, withRowKind, withTarget } from '../src/pages/import/simple/list-plan';
 import type { Level } from '../src/pages/import/simple/list-plan';
 import { loadFixture } from './loadFixture';
 import { seriesOf, slotsOf, withSeries, withSlots } from '../src/pages/import/series';
@@ -18,6 +19,13 @@ const YEAR: ColumnRef = { index: 2, header: 'Year' };
 const TYPE: ColumnRef = { index: 3, header: 'Item Type' };
 
 const column = (sheet: string, ref: ColumnRef) => ({ from: 'column' as const, sheet, column: ref });
+
+/** The proposer's pick for a column whose rows share no value in every shared item: each file. */
+const onEachFile = (ref: ColumnRef): ColumnRollUp => ({
+  ...ref,
+  varies: { groups: 2, disjoint: 2, of: 2 },
+  pick: { chosen: { value: 'file', counts: { items: 0, files: 4 } }, rival: { value: 'item', counts: { items: 2, files: 0 } }, others: [] },
+});
 
 /** One list, joined on `File` by name, one item a row: Keywords and Year feed fields, Item Type the item type. */
 const plan = (): ImportPlan => {
@@ -118,7 +126,7 @@ describe('withColumnLevel', () => {
 
 describe('withFileRows', () => {
   it('puts descriptive columns on the item, whatever their counts, and the item type on the item', () => {
-    const files = withFileRows(plan(), 'af');
+    const files = withFileRows(plan(), 'af', []);
     expect(sheetOf(files)?.rowKind).toBe('media');
     expect(sheetOf(files)?.join?.on).toBe('fileName');
     expect([KEYWORDS, YEAR, TYPE].map((ref) => levelOf(files, 'af', ref.index))).toEqual(['item', 'item', 'item']);
@@ -128,16 +136,38 @@ describe('withFileRows', () => {
   it('brings Keywords, already on each file, back to the item', () => {
     const onFiles = withColumnLevel(withRowKind(plan(), 'af', 'media'), 'af', KEYWORDS, 'file');
     expect(levelOf(onFiles, 'af', KEYWORDS.index)).toBe('file');
-    const files = withFileRows(onFiles, 'af');
+    const files = withFileRows(onFiles, 'af', []);
     expect(levelOf(files, 'af', KEYWORDS.index)).toBe('item');
     expect(slotsOf(files, 'all').item['dcterms:subject']?.sources).toEqual([column('af', KEYWORDS)]);
     expect(slotsOf(files, 'all').media).toEqual({});
   });
 
-  it('puts a column in a field that describes a file as a file on each file', () => {
+  it('puts a column on each file only when the proposer picks it so, whatever its field', () => {
     const named: ImportPlan = withSlots(plan(), 'all', { ...slotsOf(plan(), 'all'), item: { 'dcterms:format': { sources: [column('af', YEAR)], combine: 'first' } } });
-    const files = withFileRows(named, 'af');
+    expect(levelOf(withFileRows(named, 'af', []), 'af', YEAR.index)).toBe('item');
+    const files = withFileRows(named, 'af', [onEachFile(YEAR)]);
     expect(levelOf(files, 'af', YEAR.index)).toBe('file');
     expect(slotsOf(files, 'all').media['dcterms:format']?.sources).toEqual([column('af', YEAR)]);
+  });
+
+  it('keeps the item type on the item though the proposer picks each file for its column', () => {
+    expect(levelOf(withFileRows(plan(), 'af', [onEachFile(TYPE)]), 'af', TYPE.index)).toBe('item');
+  });
+});
+
+describe('withCountedTarget', () => {
+  const files = (): ImportPlan => withTarget(withRowKind(plan(), 'af', 'media'), 'af', YEAR, '');
+  const counts = (rollUps: readonly ColumnRollUp[]) => ({ grain: null, matches: undefined, cells: [], rollUps });
+
+  it('puts a column’s first field where the proposer picks', () => {
+    expect(levelOf(files(), 'af', YEAR.index)).toBe('out');
+    const placed = withCountedTarget(files(), 'af', YEAR, 'field:dcterms:format', counts([onEachFile(YEAR)]));
+    expect(levelOf(placed, 'af', YEAR.index)).toBe('file');
+    expect(levelOf(withCountedTarget(files(), 'af', YEAR, 'field:dcterms:format', counts([])), 'af', YEAR.index)).toBe('item');
+  });
+
+  it('reads a pick only for the column it names, by place and header', () => {
+    const moved = { ...onEachFile(YEAR), header: 'Year Of Digitization' };
+    expect(levelOf(withCountedTarget(files(), 'af', YEAR, 'field:dcterms:format', counts([moved])), 'af', YEAR.index)).toBe('item');
   });
 });
