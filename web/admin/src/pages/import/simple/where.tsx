@@ -2,36 +2,28 @@
  * "Where should they go in Omeka?" as two dials. Item sets: one segmented
  * choice (per folder, per top folder, one new set named in place, one already
  * in Omeka, a list's column, none) and what it makes, each set with its
- * items. Item types: one select for where they come from, then a compact
- * table of each value and its item type. A value is set to an item type only
- * when an item type in Omeka has the same name; every other value says it is
- * not chosen, and the person maps it (the item type rule's value map).
- *
- * The values are a table, not a list beside an inspector: each value's whole
- * decision is one select, so an inspector would add a click and show nothing
- * more.
+ * items; for a list's column, what each value's set becomes. Item types: one
+ * select for where they come from, then each value and its item type. A
+ * value is set to an item type only when an item type in Omeka has the same
+ * name; every other value says it is not chosen, and the person maps it.
+ * Both tables are the value map control (`../value-map.tsx`).
  */
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import type { ReactElement } from 'react';
 import type { LevelId } from '../../../api/import-plan';
-import type { ResourceTemplate } from '../../../api/types';
 import { ErrorNotice } from '../../../app/errors';
-import { Pager } from '../../../app/list';
-import { TableScroll } from '../../../app/table-scroll';
 import { useAsync } from '../../../app/useAsync';
 import { useDraft } from '../draft-context';
 import { loadCatalog } from '../lists/catalog';
 import type { Catalog } from '../lists/catalog';
 import { usePreview } from '../lists/use-preview';
-import { PER_PAGE } from '../paged-list';
-import { fold } from './list-plan';
 import { Segmented } from './master-detail';
 import type { Segment } from './master-detail';
 import { useSimpleText } from './messages';
-import { folderName, setChoiceOf, setColumnOf, typeAnswerOf, typeFromOf, withSetChoice, withTypeAnswer, withTypeFrom, withoutTypeMap } from './where-plan';
+import { folderName, setChoiceOf, setColumnOf, typeFromOf, withSetChoice, withTypeFrom } from './where-plan';
 import type { SetChoice, TypeFrom } from './where-plan';
 import { usePickedSeries } from '../picked-node';
-import { seriesOf } from '../series';
+import { seriesOf, setsOf } from '../series';
 import './simple.css';
 
 const CHIPS_SHOWN = 16;
@@ -100,6 +92,7 @@ const ItemSets = ({ catalog }: { readonly catalog: Catalog | null }): ReactEleme
   const draft = useDraft();
   const current = setChoiceOf(draft.plan);
   const column = setColumnOf(draft.plan);
+  const eachAt = setsOf(draft.plan).findIndex((set) => 'each' in set);
   const existing = catalog?.itemSets ?? [];
   const segment = (value: SetChoice, label: string): Segment<SetChoice> => ({ value, label, suggested: false });
   const choices: readonly Segment<SetChoice>[] = [
@@ -148,93 +141,20 @@ const ItemSets = ({ catalog }: { readonly catalog: Catalog | null }): ReactEleme
         </dd>
         <SetsMade />
       </dl>
+      {current.choice === 'column' && eachAt >= 0 ? (
+        <Suspense fallback={null}>
+          <ValueMap home={{ freeSet: eachAt }} label={t('guided.where.setsTable')} />
+        </Suspense>
+      ) : null}
     </section>
   );
 };
 
 const fromKey = (from: TypeFrom): string => (from.from === 'column' ? `column:${from.sheet}:${String(from.index)}` : from.from);
 
-const TypeValues = ({ level, templates }: { readonly level: LevelId; readonly templates: readonly ResourceTemplate[] }): ReactElement => {
-  const { t, number } = useSimpleText();
-  const draft = useDraft();
-  const [page, setPage] = useState(1);
-  const read = usePreview(['values'], { plan: withoutTypeMap(draft.plan, level), values: { page, perPage: PER_PAGE } });
-  if (read.status === 'loading') {
-    return <p role="status" className="import-slow">{t('shell.loading')}</p>;
-  }
-  if (read.status === 'error') {
-    return <ErrorNotice error={read.error} />;
-  }
-  const values = read.data.values.find((one) => one.slot === 'template')?.values;
-  if (values === undefined || values.total === 0) {
-    return <p className="muted">{t('guided.where.typesEmpty')}</p>;
-  }
-  const lastPage = Math.max(1, Math.ceil(values.total / values.perPage));
-  const newLabels = draft.plan.newTypes.map((type) => type.label);
-  return (
-    <>
-      <TableScroll label={t('guided.where.typesTable')}>
-        <table className="guided-columns" aria-busy={read.busy}>
-          <thead>
-            <tr>
-              <th scope="col">{values.total === 1 ? t('guided.where.valuesOne') : t('guided.where.values', { count: number(values.total) })}</th>
-              <th scope="col" className="num">{t('guided.where.colItems')}</th>
-              <th scope="col">{t('guided.where.colType')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {values.items.map((value) => {
-              const same = templates.find((template) => fold(template.label) === fold(value.text));
-              const answer = typeAnswerOf(draft.plan, level, value.text);
-              const chosen =
-                answer.to === 'none' ? 'none' : answer.to === 'type' ? (newLabels.some((label) => fold(label) === fold(answer.label)) ? `new:${answer.label}` : `type:${answer.label}`) : same === undefined ? '' : `type:${same.label}`;
-              return (
-                <tr key={value.text} data-decision={`type:${fold(value.text)}`}>
-                  <th scope="row">
-                    {value.spellings.slice(0, 4).join(', ')}
-                    {value.spellings.length > 1 ? <div className="muted">{t('guided.where.spellings', { count: number(value.spellings.length) })}</div> : null}
-                  </th>
-                  <td className="num">{number(value.count)}</td>
-                  <td>
-                    <select
-                      aria-label={t('guided.where.typeFor', { value: value.text })}
-                      value={chosen}
-                      disabled={!draft.editable}
-                      onChange={(event) => {
-                        const next = event.target.value;
-                        draft.change((plan) =>
-                          next === ''
-                            ? withTypeAnswer(plan, level, value.text, { to: 'unset' }, false)
-                            : next === 'none'
-                              ? withTypeAnswer(plan, level, value.text, { to: 'none' }, false)
-                              : next.startsWith('new:')
-                                ? withTypeAnswer(plan, level, value.text, { to: 'type', label: next.slice('new:'.length) }, true)
-                                : withTypeAnswer(plan, level, value.text, { to: 'type', label: next.slice('type:'.length) }, false),
-                        );
-                      }}
-                    >
-                      <option value="">{t('guided.where.notChosen')}</option>
-                      {templates.map((template) => (
-                        <option key={template.id} value={`type:${template.label}`}>
-                          {template === same ? t('guided.where.sameName', { type: template.label }) : template.label}
-                        </option>
-                      ))}
-                      <option value={`new:${value.text}`}>{t('guided.where.newType', { type: value.text })}</option>
-                      <option value="none">{t('guided.where.noType')}</option>
-                    </select>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </TableScroll>
-      {lastPage > 1 ? <Pager page={page} lastPage={lastPage} total={values.total} label={t('guided.where.valuesResource')} onPage={setPage} /> : null}
-    </>
-  );
-};
+const ValueMap = lazy(() => import('../value-map'));
 
-const ItemTypes = ({ level, catalog }: { readonly level: LevelId; readonly catalog: Catalog | null }): ReactElement => {
+const ItemTypes = ({ level }: { readonly level: LevelId }): ReactElement => {
   const { t } = useSimpleText();
   const draft = useDraft();
   const from = typeFromOf(draft.plan, level);
@@ -268,7 +188,11 @@ const ItemTypes = ({ level, catalog }: { readonly level: LevelId; readonly catal
           </select>
         </dd>
       </dl>
-      {from.from === 'none' ? null : <TypeValues level={level} templates={catalog?.templates ?? []} />}
+      {from.from === 'none' ? null : (
+        <Suspense fallback={null}>
+          <ValueMap home={{ level, kind: 'item', slot: 'template' }} label={t('guided.where.typesTable')} />
+        </Suspense>
+      )}
     </section>
   );
 };
@@ -297,7 +221,7 @@ export const WhereTheyGo = (): ReactElement | null => {
     <div className="guided-dials guided-stack">
       {catalog.status === 'error' ? <ErrorNotice error={catalog.error} /> : null}
       <ItemSets catalog={ready} />
-      <ItemTypes level={series.id} catalog={ready} />
+      <ItemTypes level={series.id} />
       <Help />
     </div>
   );

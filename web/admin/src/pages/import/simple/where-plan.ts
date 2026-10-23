@@ -9,7 +9,6 @@
  */
 import type { ImportPlan, LevelId, SetById, SetByTitle, SetSource, SlotRule, SourceRef } from '../../../api/import-plan';
 import { listOf, seriesOf, setsOf, setsRuleOf, withSeries, withSets, withSetsRule } from '../series';
-import { fold } from './list-plan';
 
 export type SetChoice = 'leaf' | 'top' | 'one' | 'old' | 'column' | 'none';
 
@@ -108,43 +107,4 @@ export const withTypeFrom = (plan: ImportPlan, level: LevelId, from: TypeFrom): 
   }
   const column = listOf(plan, from.sheet)?.columns.find((one) => one.column.index === from.index)?.column;
   return column === undefined ? plan : withRule(plan, level, 'template', { ...rule, sources: [{ from: 'column', sheet: from.sheet, column }] });
-};
-
-/** The plan without the template map, so the values counted are the ones written in the files and lists. */
-export const withoutTypeMap = (plan: ImportPlan, level: LevelId): ImportPlan => {
-  const rule = seriesOf(plan, level).slots.item.template;
-  if (rule?.map === undefined) {
-    return plan;
-  }
-  return withSeries(plan, level, (series) => ({ ...series, slots: { ...series.slots, item: { ...series.slots.item, template: { sources: rule.sources, combine: rule.combine } } } }));
-};
-
-/** What a value is mapped to: nothing chosen, no item type, or the text that names an item type. */
-export type TypeAnswer = { readonly to: 'unset' } | { readonly to: 'none' } | { readonly to: 'type'; readonly label: string };
-
-export const typeAnswerOf = (plan: ImportPlan, level: LevelId, value: string): TypeAnswer => {
-  const map = seriesOf(plan, level).slots.item.template?.map ?? {};
-  const key = Object.keys(map).find((one) => fold(one) === fold(value));
-  if (key === undefined) {
-    return { to: 'unset' };
-  }
-  const label = map[key] ?? '';
-  return label === '' ? { to: 'none' } : { to: 'type', label };
-};
-
-/** Maps `value` (and every spelling that folds to it) to `answer`; a new item type is added to the plan's new types. */
-export const withTypeAnswer = (plan: ImportPlan, level: LevelId, value: string, answer: TypeAnswer, isNew: boolean): ImportPlan => {
-  const rule = ruleOf(plan, level, 'template');
-  const map = Object.fromEntries(Object.entries(rule.map ?? {}).filter(([key]) => fold(key) !== fold(value)));
-  if (answer.to === 'none') {
-    map[value] = '';
-  } else if (answer.to === 'type') {
-    map[value] = answer.label;
-  }
-  const newTypes =
-    isNew && answer.to === 'type' && !plan.newTypes.some((type) => fold(type.label) === fold(answer.label))
-      ? [...plan.newTypes, { label: answer.label, from: 'mapping' as const, class: null }]
-      : plan.newTypes;
-  const next: SlotRule = Object.keys(map).length === 0 ? { sources: rule.sources, combine: rule.combine } : { ...rule, map };
-  return withRule({ ...plan, newTypes }, level, 'template', next);
 };
