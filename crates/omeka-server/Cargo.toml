@@ -34,6 +34,8 @@ chrono.workspace = true
 sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "sqlite", "mysql"] }
 # `tests/common/engine.rs` runs a test on MySQL when `ROMEKA_MYSQL_URL` is set.
 omeka-db = { path = "../omeka-db", features = ["mysql"] }
+# The held-out table reads the click meter on each held-out shape.
+omeka-api = { path = "../omeka-api", features = ["meter"] }
 bcrypt = "0.17"
 tempfile = "3"
 # The list upload tests send a real .xlsx, written as Excel writes one.

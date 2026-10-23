@@ -25,8 +25,8 @@ pub mod archive;
 pub mod catalog;
 pub mod catalog_load;
 pub mod check;
-#[cfg(test)]
-mod clicks;
+#[cfg(any(test, feature = "meter"))]
+pub mod clicks;
 #[cfg(test)]
 mod clicks_tests;
 pub mod decisions;
