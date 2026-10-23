@@ -7,9 +7,8 @@
  * where each column goes. The list to fill in yourself waits, collapsed,
  * below.
  */
-import { useMemo } from 'react';
+import { use, useMemo } from 'react';
 import type { ReactElement } from 'react';
-import { parseProposal } from '../../../api/import-proposal';
 import type { Proposal } from '../../../api/import-proposal';
 import type { ListCandidate, SheetColumnMatches } from '../../../api/import-sections';
 import type { SheetView } from '../../../api/import-sheet-views';
@@ -351,8 +350,12 @@ const Help = (): ReactElement => {
   );
 };
 
+/** The proposal's parser, a chunk of its own that loads beside this screen's. */
+const parser = import('../../../api/import-proposal');
+
 /** The stored plan's proposal, counted apart so the lists show before it; `null` while it counts or when it cannot be read. */
 const useProposal = (): Proposal | null => {
+  const { parseProposal } = use(parser);
   const read = usePreview(['proposal'], {});
   const raw = read.status === 'ready' ? read.data.proposal : null;
   return useMemo(() => {
@@ -361,7 +364,7 @@ const useProposal = (): Proposal | null => {
     } catch {
       return null;
     }
-  }, [raw]);
+  }, [raw, parseProposal]);
 };
 
 const Lists = ({ level }: { readonly level: LevelId }): ReactElement => {

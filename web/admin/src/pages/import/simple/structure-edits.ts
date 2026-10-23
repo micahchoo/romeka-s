@@ -61,6 +61,8 @@ export const QUESTIONS = {
   set: (from: SetFrom) => question('set', from),
   /** Whether the folder's series is written by hand. */
   own: (scope: FolderScope) => question('own', scope),
+  /** Where a column of a list whose rows describe files goes. No edit answers it: its click writes the column's rules. */
+  column: (list: ListFile, index: number) => question('column', { list, index }),
 };
 
 /** The question an edit answers. */
