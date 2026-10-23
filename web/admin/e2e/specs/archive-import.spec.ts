@@ -3,7 +3,8 @@
  * (the files, what we found, one example, the list round trip, where they go,
  * the check, the start, the progress, the end, then an undo that keeps the one
  * item edited since and undoes it anyway), an Advanced edit read in Simple, a
- * column's field kept across a click on another folder, the pairs list round trip, a zip sent from this computer, and a delete the
+ * column's field kept across a click on another folder, a column's field
+ * saved from Advanced's Lists section, a folder's item type from a column, the pairs list round trip, a zip sent from this computer, and a delete the
  * server refuses until its count is typed.
  *
  * The folders are `e2e/harness/archive.ts`'s. Every import job is a real
@@ -244,6 +245,23 @@ test('a column given its field in Advanced’s Lists section is saved, on a fold
   const rule = record(record(record(artifacts?.['slots'], 'slots')['item'], 'item')['dcterms:dateSubmitted'], 'dcterms:dateSubmitted');
   const sources = isArray(rule['sources']) ? rule['sources'] : [];
   expect(sources.map((source) => record(record(source, 'source')['column'], 'column')['header'])).toEqual(['Date']);
+});
+
+test('a folder’s item type from a column of its list is saved, and its values are counted', async ({ page }) => {
+  const id = await startOn(page, BHC);
+  await page.goto(`/#/import/${String(id)}/simple/structure`);
+  await page.getByRole('option', { name: ARTIFACTS }).click();
+  const from = page.getByRole('combobox', { name: 'The item type comes from' });
+  await expect(from.getByRole('option', { name: 'Column “Title”' })).toBeAttached();
+  await from.selectOption({ label: 'Column “Title”' });
+  await saved(page);
+  await expect(page.getByRole('region', { name: 'Item type for each value' }).getByRole('combobox', { name: /^Item type for / }).first()).toBeVisible();
+  const plan = record(record((await api(page, 'GET', `/api/romeka/imports/${String(id)}`)).json, 'import')['plan'], 'plan');
+  const levels = record(plan['structure'], 'structure')['levels'];
+  const artifacts = (isArray(levels) ? levels : []).map((level) => record(level, 'level')).find((level) => level['id'] === ARTIFACTS);
+  const rule = record(record(record(artifacts?.['slots'], 'slots')['item'], 'item')['template'], 'template');
+  const sources = isArray(rule['sources']) ? rule['sources'] : [];
+  expect(sources.map((source) => record(record(source, 'source')['column'], 'column')['header'])).toEqual(['Title']);
 });
 
 test('the pairs list pairs every row of a register that names no file', async ({ page }) => {
