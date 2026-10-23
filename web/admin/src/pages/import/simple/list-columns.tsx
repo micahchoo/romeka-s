@@ -1,6 +1,6 @@
 /**
- * "Where each column goes": one row per column of the list but the pairing
- * column, with its first value under its name and the field it goes into. A
+ * "Where each column goes": one row per column of the list as read but the
+ * pairing column, with its first value under its name and the field it goes into. A
  * column goes into the field with the same name; every other column stays
  * out until the person chooses. When each row describes one file, a column's
  * values go on the item or on each file: the proposer's pick is marked, each
@@ -99,7 +99,9 @@ export const ListColumns = ({ sheet, view, counts }: { readonly sheet: SheetPlan
   const draft = useDraft();
   const properties = useAsync(loadProperties, []);
   const fields = properties.status === 'ready' ? properties.data.filter((property) => property.term.startsWith(SHOWN_VOCABULARY)) : [];
-  const columns = sheet.columns.filter((column) => sheet.join === null || column.column.index !== sheet.join.column.index);
+  // The file's own columns: a list the proposer chose holds no column of the plan until one is mapped.
+  const read = view.read?.columns.filter((column) => column.mappable) ?? sheet.columns.map((one) => one.column);
+  const columns = read.filter((column) => sheet.join === null || column.index !== sheet.join.column.index);
   const perFile = sheet.rowKind === 'media';
   return (
     <>
@@ -115,7 +117,8 @@ export const ListColumns = ({ sheet, view, counts }: { readonly sheet: SheetPlan
             </tr>
           </thead>
           <tbody>
-            {columns.map(({ column }) => {
+            {columns.map(({ index, header }) => {
+              const column = { index, header };
               const target = targetOf(draft.plan, sheet.id, column.index);
               const shown = fields.some((field) => `field:${field.term}` === target) || !target.startsWith('field:');
               return (

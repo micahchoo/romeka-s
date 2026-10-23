@@ -104,6 +104,8 @@ export const ml: ImportStructureMessages = {
   "structure.columns.differ": "{count} കോളങ്ങൾ · {differ} ഇനങ്ങൾക്കുള്ളിൽ വ്യത്യാസപ്പെടുന്നു",
   "structure.columns.differOne": "{count} കോളങ്ങൾ · 1 ഇനങ്ങൾക്കുള്ളിൽ വ്യത്യാസപ്പെടുന്നു",
   "structure.q.rollUp": "{column} എവിടെ പോകുന്നു",
+  "structure.columns.open": "ഓരോ കോളം എവിടെ പോകുന്നു",
+  "structure.trip.first": "ഈ ഘടന ആദ്യം ഉപയോഗിക്കുക, പിന്നീട് ഇവിടെ ഒരു പട്ടിക പൂരിപ്പിക്കുക.",
   "structure.rollUp.item": "ഇനത്തിൽ",
   "structure.rollUp.file": "ഓരോ ഫയലിലും",
   "structure.rollUp.files": "{count} ഫയലുകൾ",

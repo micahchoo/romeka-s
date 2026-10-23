@@ -102,6 +102,8 @@ export const ne: ImportStructureMessages = {
   "structure.columns.differ": "{count} स्तम्भहरू · {differ} वस्तुहरू भित्र फरक छन्",
   "structure.columns.differOne": "{count} स्तम्भहरू · 1 वस्तुहरू भित्र फरक छ",
   "structure.q.rollUp": "{column} कहाँ जान्छ",
+  "structure.columns.open": "प्रत्येक स्तम्भ कहाँ जान्छ",
+  "structure.trip.first": "पहिले यो संरचना प्रयोग गर्नुहोस्, त्यसपछि यहाँ एउटा सूची भर्नुहोस्।",
   "structure.rollUp.item": "वस्तुमा",
   "structure.rollUp.file": "प्रत्येक फाइलमा",
   "structure.rollUp.files": "{count} फाइलहरू",

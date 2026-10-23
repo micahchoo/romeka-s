@@ -104,6 +104,8 @@ export const mr: ImportStructureMessages = {
   "structure.columns.differ": "{count} स्तंभ · {differ} वस्तूंमध्ये भिन्न आहेत",
   "structure.columns.differOne": "{count} स्तंभ · 1 वस्तूंमध्ये भिन्न आहे",
   "structure.q.rollUp": "{column} कुठे जाते",
+  "structure.columns.open": "प्रत्येक स्तंभ कुठे जातो",
+  "structure.trip.first": "प्रथम या संरचनेचा वापर करा, नंतर येथे यादी भरा.",
   "structure.rollUp.item": "वस्तूवर",
   "structure.rollUp.file": "प्रत्येक फाईलवर",
   "structure.rollUp.files": "{count} फाईल्स",
