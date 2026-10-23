@@ -7,6 +7,11 @@
 //! column on another level than the wanted one then takes one click when
 //! the proposal offers that level as the column's rival segment; the
 //! segment moves a slot rule's source, not the tree, so no edit records it.
+//!
+//! A second phase then offers the proposal's corrections
+//! (`briefs/import-gaps-design.md`, section 3). It starts where today's
+//! loop ends and takes a correction only when the differences fall, so on
+//! every archive it leaves at most the differences the first phase left.
 
 use std::collections::BTreeMap;
 
@@ -17,6 +22,10 @@ use super::preview::proposal::{ItemCut, NodeEvidence, Proposal, RollUp};
 /// More clicks than any archive of the tests needs: the meter stops there.
 const MOST_CLICKS: usize = 8;
 
+/// More corrections than any archive of the tests needs: the second phase
+/// stops there.
+const MOST_CORRECTIONS: usize = 8;
+
 /// What the meter found on one archive.
 #[derive(Debug)]
 pub struct Metered {
@@ -26,6 +35,9 @@ pub struct Metered {
     pub clicks: Vec<Click>,
     /// The differences that remain after them: the gaps.
     pub left: Vec<Difference>,
+    /// The corrections the second phase took, in order, each followed by
+    /// the instances it unticked.
+    pub corrections: Vec<Click>,
 }
 
 impl Metered {
@@ -38,6 +50,24 @@ impl Metered {
             *kinds.entry(kind(difference)).or_default() += 1;
         }
         kinds
+    }
+
+    /// The archive's line in the held-out table.
+    #[must_use]
+    pub fn line(&self) -> String {
+        let gaps: Vec<String> = self
+            .gaps()
+            .into_iter()
+            .map(|(kind, count)| format!("{kind} {count}"))
+            .collect();
+        format!(
+            "{} offered clicks ({} of them corrections), {} gaps{}{}",
+            self.clicks.len() + self.corrections.len(),
+            self.corrections.len(),
+            self.left.len(),
+            if gaps.is_empty() { "" } else { ": " },
+            gaps.join(", ")
+        )
     }
 }
 
@@ -52,6 +82,9 @@ pub enum Click {
         column: ColumnRef,
         to: RollUp,
     },
+    /// Untick one instance of the correction taken before it, by its place
+    /// in the offer.
+    Untick { at: usize },
 }
 
 pub(crate) fn kind(difference: &Difference) -> &'static str {
@@ -198,6 +231,25 @@ fn offers_segment(proposal: &Proposal, list: &ListFile, column: &ColumnRef, to: 
 /// The meter on one archive. `judge` gives the proposal after some edits
 /// and how its placement differs from the wanted one.
 pub fn meter(judge: impl Fn(&[Edit]) -> (Proposal, Vec<Difference>)) -> Metered {
+    meter_phases(judge, Phases::Both)
+}
+
+/// The meter with its first phase alone, as it read every archive before
+/// corrections were offered: a held-out read compares with the reads
+/// before it.
+pub fn meter_first_phase(judge: impl Fn(&[Edit]) -> (Proposal, Vec<Difference>)) -> Metered {
+    meter_phases(judge, Phases::First)
+}
+
+/// Which phases the meter runs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Phases {
+    /// Today's loop alone.
+    First,
+    Both,
+}
+
+fn meter_phases(judge: impl Fn(&[Edit]) -> (Proposal, Vec<Difference>), phases: Phases) -> Metered {
     let mut edits: Vec<Edit> = Vec::new();
     let (mut proposal, mut left) = judge(&edits);
     let as_found = left.len();
@@ -224,7 +276,30 @@ pub fn meter(judge: impl Fn(&[Edit]) -> (Proposal, Vec<Difference>)) -> Metered 
         proposal = after;
         left = found;
     }
-    let mut clicks: Vec<Click> = edits.into_iter().map(Click::Edit).collect();
+    let mut clicks: Vec<Click> = edits.iter().cloned().map(Click::Edit).collect();
+    let mut corrections = Vec::new();
+    if phases == Phases::Both {
+        let mut now = State {
+            edits,
+            proposal,
+            left,
+        };
+        let mut taken = 0;
+        while tree_left(&now.left) && taken < MOST_CORRECTIONS {
+            let Some((steps, next)) = now.best_step(&judge) else {
+                break;
+            };
+            let first = now.edits.len();
+            taken += steps.len();
+            now = next;
+            for (at, step) in steps.into_iter().enumerate() {
+                corrections.push(Click::Edit(step));
+                corrections.extend(now.untick(&judge, first + at));
+            }
+        }
+        proposal = now.proposal;
+        left = now.left;
+    }
     left.retain(|difference| {
         let Difference::Column { list, column, want } = difference else {
             return true;
@@ -243,5 +318,148 @@ pub fn meter(judge: impl Fn(&[Edit]) -> (Proposal, Vec<Difference>)) -> Metered 
         as_found,
         clicks,
         left,
+        corrections,
     }
+}
+
+/// Where the second phase stands: the edits so far, their proposal and the
+/// differences they leave.
+#[derive(Clone)]
+struct State {
+    edits: Vec<Edit>,
+    proposal: Proposal,
+    left: Vec<Difference>,
+}
+
+impl State {
+    /// The state after one more edit, when the proposal applied it.
+    fn with(
+        &self,
+        judge: &impl Fn(&[Edit]) -> (Proposal, Vec<Difference>),
+        edit: Edit,
+    ) -> Option<Self> {
+        let mut edits = self.edits.clone();
+        edits.push(edit);
+        let (proposal, left) = judge(&edits);
+        proposal.edits.last()?.applied.then_some(Self {
+            edits,
+            proposal,
+            left,
+        })
+    }
+
+    /// The correction that leaves the fewest differences, when it leaves
+    /// fewer than now. When none does alone, the pair of a correction and
+    /// one its proposal then offers: a join can leave a row that only then
+    /// points at one file, and a person takes both.
+    fn best_step(
+        &self,
+        judge: &impl Fn(&[Edit]) -> (Proposal, Vec<Difference>),
+    ) -> Option<(Vec<Edit>, Self)> {
+        let mut best: Option<(Vec<Edit>, Self)> = None;
+        let keep = |best: &mut Option<(Vec<Edit>, Self)>, steps: Vec<Edit>, next: Self| {
+            let fewest = best
+                .as_ref()
+                .map_or(self.left.len(), |(_, best)| best.left.len());
+            if next.left.len() < fewest {
+                *best = Some((steps, next));
+            }
+        };
+        let firsts: Vec<(Edit, Self)> = corrections_offered(&self.proposal)
+            .into_iter()
+            .filter_map(|edit| Some((edit.clone(), self.with(judge, edit)?)))
+            .collect();
+        for (edit, next) in &firsts {
+            keep(&mut best, vec![edit.clone()], next.clone());
+        }
+        if best.is_some() {
+            return best;
+        }
+        for (first, after) in firsts {
+            for second in corrections_offered(&after.proposal) {
+                if let Some(next) = after.with(judge, second.clone()) {
+                    keep(&mut best, vec![first.clone(), second], next);
+                }
+            }
+        }
+        best
+    }
+
+    /// Untick each instance of the correction at `at` that is wrong for the
+    /// archive: a drop is kept only when the differences fall, and each is
+    /// one more click.
+    fn untick(
+        &mut self,
+        judge: &impl Fn(&[Edit]) -> (Proposal, Vec<Difference>),
+        at: usize,
+    ) -> Vec<Click> {
+        let mut clicks = Vec::new();
+        let offered = instances(&self.edits[at]);
+        let mut dropped = 0;
+        for instance in 0..offered {
+            let Some(fewer) = without(&self.edits[at], instance - dropped) else {
+                continue;
+            };
+            let mut tried = self.edits.clone();
+            tried[at] = fewer;
+            let (proposal, left) = judge(&tried);
+            let applied = proposal.edits.get(at).is_some_and(|result| result.applied);
+            if applied && left.len() < self.left.len() {
+                clicks.push(Click::Untick { at: instance });
+                dropped += 1;
+                *self = Self {
+                    edits: tried,
+                    proposal,
+                    left,
+                };
+            }
+        }
+        clicks
+    }
+}
+
+/// The edit of each correction the proposal offers, every instance ticked.
+#[must_use]
+pub fn corrections_offered(proposal: &Proposal) -> Vec<Edit> {
+    proposal
+        .nodes
+        .iter()
+        .filter_map(|node| match node {
+            NodeEvidence::Series(series) => Some(series),
+            _ => None,
+        })
+        .flat_map(|series| series.fixes.iter().map(|fix| fix.edit(&series.scope.scope)))
+        .collect()
+}
+
+/// The instances a correction edit holds.
+fn instances(edit: &Edit) -> usize {
+    match edit {
+        Edit::OneItem { joins, .. } => joins.len(),
+        Edit::RowIs { pairs, .. } => pairs.len(),
+        Edit::DescribesNothing { rows, .. } => rows.len(),
+        _ => 0,
+    }
+}
+
+/// The correction without its instance at `at`; `None` when that would
+/// leave it empty, which is not taking it.
+fn without(edit: &Edit, at: usize) -> Option<Edit> {
+    if instances(edit) <= 1 {
+        return None;
+    }
+    let mut fewer = edit.clone();
+    match &mut fewer {
+        Edit::OneItem { joins, .. } => {
+            joins.remove(at);
+        }
+        Edit::RowIs { pairs, .. } => {
+            pairs.remove(at);
+        }
+        Edit::DescribesNothing { rows, .. } => {
+            rows.remove(at);
+        }
+        _ => return None,
+    }
+    Some(fewer)
 }

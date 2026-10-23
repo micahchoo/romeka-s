@@ -922,7 +922,8 @@ fn one_item(items: &[Item], read: Option<&ListRead<'_>>, here: &Here<'_>) -> Opt
         })
         .collect();
     offers.sort_by(|a, b| (&a.join.item, &a.join.with).cmp(&(&b.join.item, &b.join.with)));
-    offers.dedup_by(|a, b| a.join.with == b.join.with);
+    let mut seen = BTreeSet::new();
+    offers.retain(|offer| seen.insert(offer.join.with.clone()));
     if offers.is_empty() {
         return None;
     }
