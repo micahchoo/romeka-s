@@ -23,7 +23,7 @@ import { DraftContext, useDraft } from '../draft-context';
 import { listHref } from '../lists/address';
 import { usePreview } from '../lists/use-preview';
 import { nodeHref } from '../picked-node';
-import { seriesOf } from '../series';
+import { seriesOf, shownPlanFor } from '../series';
 import { rollUpsOf } from './list-plan';
 import { ListColumns } from './list-columns';
 import { useShownDraft } from './shown-draft';
@@ -36,8 +36,8 @@ type Opened = 'columns' | 'trip' | null;
 /** The table of each list of the folder `level`, read from the plan as the tree shows it. */
 const Columns = ({ level }: { readonly level: LevelId }): ReactElement => {
   const { proposal, words } = useScreen();
-  const { draft, held } = useShownDraft(level);
-  const read = usePreview(['sheets', 'columnMatches', 'listCandidates'], held ? {} : { plan: draft.plan });
+  const { draft } = useShownDraft(level);
+  const read = usePreview(['sheets', 'columnMatches', 'listCandidates'], shownPlanFor(draft, level));
   if (read.status === 'loading') {
     return <p className="import-slow">{words.t('shell.loading')}</p>;
   }

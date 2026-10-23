@@ -229,6 +229,23 @@ test('a column given its field on a folder’s node survives a click on another 
   await expect(page.getByRole('combobox', { name: 'Where the column Date goes' })).toHaveValue('field:dcterms:dateSubmitted');
 });
 
+test('a column given its field in Advanced’s Lists section is saved, on a folder whose list mapped no column', async ({ page }) => {
+  const id = await startOn(page, BHC);
+  await page.goto(`/#/import/${String(id)}/advanced/structure`);
+  await page.getByRole('option', { name: ARTIFACTS }).click();
+  await page.getByRole('button', { name: 'Lists', exact: true }).click();
+  const date = page.getByRole('combobox', { name: 'Field for Date' });
+  await expect(date.getByRole('option', { name: 'Date Submitted' })).toBeAttached();
+  await date.selectOption('dcterms:dateSubmitted');
+  await saved(page);
+  const plan = record(record((await api(page, 'GET', `/api/romeka/imports/${String(id)}`)).json, 'import')['plan'], 'plan');
+  const levels = record(plan['structure'], 'structure')['levels'];
+  const artifacts = (isArray(levels) ? levels : []).map((level) => record(level, 'level')).find((level) => level['id'] === ARTIFACTS);
+  const rule = record(record(record(artifacts?.['slots'], 'slots')['item'], 'item')['dcterms:dateSubmitted'], 'dcterms:dateSubmitted');
+  const sources = isArray(rule['sources']) ? rule['sources'] : [];
+  expect(sources.map((source) => record(record(source, 'source')['column'], 'column')['header'])).toEqual(['Date']);
+});
+
 test('the pairs list pairs every row of a register that names no file', async ({ page }) => {
   const id = await startOn(page, PAIRS);
   await expect(page.getByRole('link', { name: 'Show us one example' })).toBeVisible();

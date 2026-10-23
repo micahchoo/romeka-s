@@ -261,7 +261,7 @@ export const splitOf = (plan: ImportPlan, sheet: string, index: number): string 
 
 /** The column's cells cut at `split` into several values, or kept whole for `null`. */
 export const withSplit = (plan: ImportPlan, sheet: string, column: ColumnRef, split: string | null): ImportPlan =>
-  withList(withMapped(plan, sheet, column), sheet, (one) => ({
+  withList(withColumnMapped(plan, sheet, column), sheet, (one) => ({
     ...one,
     columns: one.columns.map((each) => (each.column.index === column.index ? { ...each, options: { ...each.options, split } } : each)),
   }));
@@ -354,11 +354,11 @@ export const withTarget = (plan: ImportPlan, sheet: string, column: ColumnRef, t
   const rule = rules[slot] ?? { sources: [], combine: 'first' as const };
   const source: SourceRef = { from: 'column', sheet, column };
   const placed = { ...rules, [slot]: { ...rule, sources: [source, ...rule.sources] } };
-  return withSlots(withMapped({ ...plan, newTerms }, sheet, column), holder.id, { ...slots, item: onFiles ? item : placed, media: onFiles ? placed : media });
+  return withSlots(withColumnMapped({ ...plan, newTerms }, sheet, column), holder.id, { ...slots, item: onFiles ? item : placed, media: onFiles ? placed : media });
 };
 
 /** The list maps the column, with plain options when it did not: the server refuses a rule that reads a column its list does not map. */
-const withMapped = (plan: ImportPlan, sheet: string, column: ColumnRef): ImportPlan =>
+export const withColumnMapped = (plan: ImportPlan, sheet: string, column: ColumnRef): ImportPlan =>
   withList(plan, sheet, (one) =>
     one.columns.some((each) => each.column.index === column.index)
       ? one

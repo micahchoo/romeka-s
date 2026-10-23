@@ -8,7 +8,7 @@
  */
 import { NAMED_SLOTS, isMultiValued, isTerm } from '../../../api/import-plan';
 import { allSeries, seriesHolding, seriesOf, withEverySeries, withList, withSeries, withSetLevel, withSets } from '../series';
-import { itemOnly, levelOf } from '../simple/list-plan';
+import { itemOnly, levelOf, withColumnMapped } from '../simple/list-plan';
 import { written } from './writes';
 import type { Writer } from './writes';
 import type {
@@ -120,10 +120,12 @@ const mappedColumn = (plan: ImportPlan, level: LevelId, sheet: string, column: C
     return cleared;
   }
   const kind = onFiles ? 'media' : 'item';
-  const rules = rulesOf(cleared, level, kind);
+  // The server refuses a rule that reads a column its list does not map.
+  const mapped = withColumnMapped(cleared, sheet, column);
+  const rules = rulesOf(mapped, level, kind);
   const source: SourceRef = { from: 'column', sheet, column };
   const rule = rules[slot];
-  return withRules(cleared, level, kind, {
+  return withRules(mapped, level, kind, {
     ...rules,
     [slot]: rule === undefined ? { sources: [source], combine: 'first' } : { ...rule, sources: [source, ...rule.sources] },
   });
