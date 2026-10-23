@@ -123,7 +123,6 @@ export const hi: ImportSimpleMessages = {
   'guided.list.notAdd': 'जोड़ें नहीं',
   'guided.list.fields': 'फ़ील्ड',
   'guided.list.toType': 'आइटम का प्रकार',
-  'guided.list.toSet': 'आइटम सेट',
   'guided.list.newField': 'एक नया फ़ील्ड “{name}”',
   'guided.list.levelOf': '{column} के मान कहाँ जाते हैं',
   'guided.list.levelFile': 'प्रत्येक फ़ाइल',

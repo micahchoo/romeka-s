@@ -125,7 +125,6 @@ export const te: ImportSimpleMessages = {
   'guided.list.notAdd': 'జోడించవద్దు',
   'guided.list.fields': 'ఫీల్డ్‌లు',
   'guided.list.toType': 'అంశం రకం',
-  'guided.list.toSet': 'అంశం సెట్',
   'guided.list.newField': 'ఒక కొత్త ఫీల్డ్ “{name}”',
   'guided.list.levelOf': '{column} యొక్క విలువలు ఎక్కడకు వెళ్తాయి',
   'guided.list.levelFile': 'ప్రతి ఫైల్',

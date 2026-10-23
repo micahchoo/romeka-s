@@ -13,7 +13,7 @@ import { ErrorNotice } from '../../../app/errors';
 import { useDraft } from '../draft-context';
 import { exampleKept, exampleOf, patternIsMarked, removeExample, removeMark } from '../example';
 import type { Mark } from '../example';
-import { listHref } from '../lists/address';
+import { nodeHref } from '../picked-node';
 import { useLookAgain } from '../look-again';
 import { usePreview } from '../lists/use-preview';
 import { ComputerFiles } from '../upload/computer-files';
@@ -146,7 +146,7 @@ export const ArchiveFiles = (): ReactElement => {
         <Groups />
       </Suspense>
       <p>
-        <a href={listHref(draft.id, { mode: 'advanced', screen: 'all-files' }, {})}>{t('adv.files.every')}</a>
+        <a href={nodeHref(draft.id, { mode: 'advanced', screen: 'all-files' }, 'archive')}>{t('adv.files.every')}</a>
       </p>
     </div>
   );

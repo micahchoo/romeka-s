@@ -119,7 +119,6 @@ export const es: ImportSimpleMessages = {
   'guided.list.notAdd': 'No añadir',
   'guided.list.fields': 'Campos',
   'guided.list.toType': 'El tipo de elemento',
-  'guided.list.toSet': 'El conjunto de elementos',
   'guided.list.newField': 'Un campo nuevo «{name}»',
   'guided.list.levelOf': 'Dónde van los valores de {column}',
   'guided.list.levelFile': 'Cada archivo',

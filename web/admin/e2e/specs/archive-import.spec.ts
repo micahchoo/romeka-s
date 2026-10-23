@@ -2,8 +2,8 @@
  * Import v2 against the real port: the Simple pass on a BHC_006-like folder
  * (the files, what we found, one example, the list round trip, where they go,
  * the check, the start, the progress, the end, then an undo that keeps the one
- * item edited since and undoes it anyway), an Advanced edit read in Simple, the
- * pairs list round trip, a zip sent from this computer, and a delete the
+ * item edited since and undoes it anyway), an Advanced edit read in Simple, a
+ * column's field kept across a click on another folder, the pairs list round trip, a zip sent from this computer, and a delete the
  * server refuses until its count is typed.
  *
  * The folders are `e2e/harness/archive.ts`'s. Every import job is a real
@@ -13,7 +13,7 @@ import type { Download, Locator, Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 import { expect, test } from '../fixtures';
-import { BHC, PAIRS, PAIRS_COUNT, pairsFile, uploadJpeg, zipOf } from '../harness/archive';
+import { ARTIFACTS, BHC, PAIRS, PAIRS_COUNT, PHOTOGRAPHS, pairsFile, uploadJpeg, zipOf } from '../harness/archive';
 import { isArray, numberField, parseJson, record } from '../harness/json';
 
 /** The items the example makes of BHC_006: five objects and the note, which is no picture. */
@@ -200,6 +200,33 @@ test('an answer given in Advanced shows in Simple', async ({ page }) => {
   await page.getByRole('link', { name: 'Simple', exact: true }).click();
   await expect(page.getByRole('option', { name: 'Artifacts' })).toContainText('5 items');
   await expect(page.getByRole('option', { name: 'Artifacts' })).toContainText('written by you');
+});
+
+test('a column given its field on a folder’s node survives a click on another folder', async ({ page }) => {
+  const id = await startOn(page, BHC);
+  await page.goto(`/#/import/${String(id)}/simple/structure`);
+  await page.getByRole('option', { name: ARTIFACTS }).click();
+  await page.getByRole('button', { name: 'Where each column goes' }).click();
+  const date = page.getByRole('combobox', { name: 'Where the column Date goes' });
+  await expect(date.getByRole('option', { name: 'Date Submitted' })).toBeAttached();
+  await date.selectOption('field:dcterms:dateSubmitted');
+  await saved(page);
+
+  // A click on another folder saves the structure the proposer sends back: the column's rule is in it.
+  await page.getByRole('option', { name: PHOTOGRAPHS }).click();
+  await page.getByRole('button', { name: /^Leave out/ }).click();
+  await expect(page.getByRole('option', { name: PHOTOGRAPHS })).toContainText('you left it out');
+  await saved(page);
+  const plan = record(record((await api(page, 'GET', `/api/romeka/imports/${String(id)}`)).json, 'import')['plan'], 'plan');
+  const levels = record(plan['structure'], 'structure')['levels'];
+  const artifacts = (isArray(levels) ? levels : []).map((level) => record(level, 'level')).find((level) => level['id'] === ARTIFACTS);
+  const rule = record(record(record(artifacts?.['slots'], 'slots')['item'], 'item')['dcterms:dateSubmitted'], 'dcterms:dateSubmitted');
+  const sources = isArray(rule['sources']) ? rule['sources'] : [];
+  expect(sources.map((source) => record(record(source, 'source')['column'], 'column')['header'])).toEqual(['Date']);
+
+  await page.getByRole('option', { name: ARTIFACTS }).click();
+  await page.getByRole('button', { name: 'Where each column goes' }).click();
+  await expect(page.getByRole('combobox', { name: 'Where the column Date goes' })).toHaveValue('field:dcterms:dateSubmitted');
 });
 
 test('the pairs list pairs every row of a register that names no file', async ({ page }) => {

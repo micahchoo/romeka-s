@@ -16,20 +16,20 @@
  * The tree is the proposal's. A folder the plan does not hold yet (the
  * archive as found, or files that now make another structure) is edited in
  * the proposal's structure: its first write takes that structure, as a
- * click in Simple does.
+ * click in Simple does (`simple/shown-draft.tsx`).
  */
-import { Suspense, lazy, useId, useMemo, useState } from 'react';
+import { Suspense, lazy, useId, useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import type { OwnNode, SeriesNode } from '../../../api/import-proposal';
-import type { ImportPlan, LevelId, ListFile } from '../../../api/import-plan';
-import { DraftContext, useDraft } from '../draft-context';
-import type { Draft } from '../draft-context';
+import type { LevelId, ListFile } from '../../../api/import-plan';
+import { useDraft } from '../draft-context';
 import type { Section } from '../screens';
-import { allSeries, seriesOf, withStructure } from '../series';
+import { seriesOf } from '../series';
 import { QUESTIONS } from '../simple/structure-edits';
 import { cutWords, folderName, itemsWords, keptSetName, kindsWords, listName, seriesItems, setName } from '../simple/structure-lines';
 import { ImportQuestion, useScreen } from '../simple/structure-parts';
 import { ItemsQuestion, ListQuestions } from '../simple/structure-questions';
+import { InShownTree } from '../simple/shown-draft';
 import { StructureTree } from '../simple/structure-tree';
 import type { InspectorProps } from '../simple/structure-tree';
 import { useAdvancedText } from './messages';
@@ -71,22 +71,6 @@ const RuleSection = ({ label, fact, open, toggle, children }: { readonly label: 
       ) : null}
     </section>
   );
-};
-
-/**
- * The plan as the tree shows it, for a folder the plan does not hold yet:
- * its rules read from the proposal's structure, and a write takes that
- * structure first.
- */
-const InShownTree = ({ level, children }: { readonly level: LevelId; readonly children: ReactNode }): ReactElement => {
-  const draft = useDraft();
-  const { proposal } = useScreen();
-  const held = allSeries(draft.plan).some((series) => series.id === level);
-  const shown = useMemo<Draft>(() => {
-    const taken = (plan: ImportPlan): ImportPlan => withStructure(plan, proposal.structure);
-    return held ? draft : { ...draft, plan: taken(draft.plan), change: (edit) => { draft.change((plan) => edit(taken(plan))); } };
-  }, [draft, held, proposal.structure]);
-  return <DraftContext.Provider value={shown}>{children}</DraftContext.Provider>;
 };
 
 /** The rule count of the folder `level`, every record kind. */

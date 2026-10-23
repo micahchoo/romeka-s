@@ -13,7 +13,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { asRecord, isRecord } from '../src/api/parse';
 import { ImportPage } from '../src/pages/import/page';
 import { loadFixture } from './loadFixture';
-import { installFetch, jsonResponse, route } from './stub';
+import { installFetch, jsonResponse, listResponse, route } from './stub';
 
 const PATH = '/api/romeka/imports/1';
 /** The replica's walk: 2,189 files, 6 of them lists. */
@@ -311,6 +311,57 @@ describe('the Structure screen', () => {
     expect(within(documents).getByText('lists/1.csv: your uploaded list, kept. 12 of 15 rows pair.')).toBeTruthy();
     expect(within(documents).getByText('lists/2.csv: your uploaded list, kept. We could not read it.')).toBeTruthy();
   });
+
+  it('Artifacts opens where each column goes, and a choice there survives a click', { timeout: 20_000 }, async () => {
+    const server = structureServer({ carry: true });
+    render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
+    await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 });
+
+    // The archive as found: the plan holds no Artifacts yet, so the table reads the list of the structure on screen.
+    fireEvent.click(await within(select('Artifacts')).findByRole('button', { name: 'Where each column goes' }));
+    const table = await within(inspectorOf()).findByRole('table', {}, { timeout: 5000 });
+    expect(within(table).getAllByRole('rowheader').map((cell) => cell.querySelector('.guided-col-name')?.textContent)).toEqual(['Sl No', 'Collection', 'Curator', 'Item Type']);
+    const curator = within(table).getByRole('combobox', { name: 'Where the column Curator goes' });
+    await within(curator).findByRole('option', { name: 'Description' });
+    // Sets are the folder's Set and the archive's own sets; a column is never sent to one.
+    expect(within(curator).queryByRole('option', { name: 'The item set' })).toBeNull();
+    fireEvent.change(curator, { target: { value: 'field:dcterms:description' } });
+    await waitFor(() => {
+      expect(server.saved).toHaveLength(1);
+    });
+    expect(server.saved[0]?.['edits']).toBeUndefined();
+    expect(asRecord(seriesIn(server.saved[0] ?? {}, 'Artifacts')['slots'], [])['item']).toEqual({ 'dcterms:description': CURATOR_ON_THE_ITEM });
+
+    // A click on another folder saves the structure the proposer sends back, which carries the column's rule.
+    fireEvent.click(within(select('Extras')).getByRole('button', { name: /^Leave out/ }));
+    await waitFor(() => {
+      expect(server.saved).toHaveLength(2);
+    });
+    expect(server.saved[1]?.['edits']).toEqual([LEAVE_OUT_EXTRAS]);
+    expect(asRecord(seriesIn(server.saved[1] ?? {}, 'Artifacts')['slots'], [])['item']).toEqual({ 'dcterms:description': CURATOR_ON_THE_ITEM });
+    expect(await screen.findByText('In use. Your changes: 1.')).toBeTruthy();
+
+    fireEvent.click(within(select('Artifacts')).getByRole('button', { name: 'Where each column goes' }));
+    expect(await within(inspectorOf()).findByRole('combobox', { name: 'Where the column Curator goes' }, { timeout: 5000 })).toHaveProperty('value', 'field:dcterms:description');
+  });
+
+  it('a folder opens Pair by hand and Every file with itself in the address, and fills in a list once the structure is used', async () => {
+    structureServer();
+    render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
+    await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 });
+    const artifacts = select('Artifacts');
+    const segment = (value: Record<string, string>): string => encodeURIComponent(JSON.stringify(value));
+    expect(await within(artifacts).findByRole('link', { name: 'Pair rows and files by hand' })).toHaveAttribute('href', `#/import/1/simple/pair/${segment({ node: 'series:Artifacts' })}`);
+    expect(within(artifacts).getByRole('link', { name: 'Every file' })).toHaveAttribute('href', `#/import/1/simple/all-files/${segment({ node: 'series:Artifacts', folder: 'Artifacts' })}`);
+
+    // A folder with no list has no columns to place and no rows to pair, but a list can be filled in for it.
+    const audio = select('Audio Interviews (AI)');
+    expect(await within(audio).findByRole('link', { name: 'Every file' })).toBeTruthy();
+    expect(within(audio).queryByRole('button', { name: 'Where each column goes' })).toBeNull();
+    expect(within(audio).queryByRole('link', { name: 'Pair rows and files by hand' })).toBeNull();
+    fireEvent.click(within(audio).getByRole('button', { name: 'Fill in a list yourself' }));
+    expect(within(audio).getByText('Use this structure first, then fill in a list here.')).toBeTruthy();
+  });
 });
 
 const OWN_ARTIFACTS = { edit: 'own', scope: { source: 's1', folder: 'Artifacts' } };
@@ -320,6 +371,68 @@ const ITEMS_WHOLE = { edit: 'items', scope: { source: 's1', folder: 'Artifacts' 
 /** The pattern a mark of any letters glued after the number writes (`bhc006_tests::MARKED_PATTERN`). */
 const MARKED_PATTERN = String.raw`^(?:[^/]*/)*(?<identifier>[^/]*?\d|[^/]*?[^/.][\p{L}\p{M}]*)(?:(?<part>[\p{L}\p{M}]+))?(?:\.[^./]*)?$`;
 const LEAVE_OUT_EXTRAS = { edit: 'leaveOut', scope: { source: 's1', folder: 'Extras' } };
+const CURATOR_ON_THE_ITEM = { sources: [{ from: 'column', sheet: 'BHC006_GMT_AF.xlsx', column: { index: 3, header: 'Curator' } }], combine: 'first' };
+
+/** The Artifacts list as the replica reads it: its five columns and one row. */
+const AF_SHEET = {
+  id: 'BHC006_GMT_AF.xlsx',
+  source: 's1',
+  file: 'BHC006_GMT_AF.xlsx',
+  found: true,
+  error: null,
+  guess: null,
+  lines: ['Sl No,Identifier,Collection,Curator,Item Type', '1,BHC006_GMT_AF_001,Citizen Curators,M. Curator,Artifact'],
+  read: {
+    blankLines: 0,
+    cellsCount: 5,
+    cellsSuspect: 0,
+    cellsWithSpaces: 0,
+    columns: ['Sl No', 'Identifier', 'Collection', 'Curator', 'Item Type'].map((header, index) => ({ header, index, mappable: true })),
+    delimiter: ',',
+    delimiterGuessed: true,
+    encoding: { confidence: 1, encoding: 'utf-8' },
+    hash: 'b1ebb0f938343aa006efe0de3baeb6dcd5ea182c430e26c5efb249830737c18d',
+    headerLine: 1,
+    notes: [],
+    rows: 1,
+    workbook: null,
+  },
+};
+
+const records = (value: unknown): Record<string, unknown>[] => (Array.isArray(value) ? value.filter(isRecord) : []);
+
+const sameFile = (a: Record<string, unknown>, b: Record<string, unknown>): boolean => a['source'] === b['source'] && a['file'] === b['file'];
+
+/**
+ * The proposal with what the proposer copies from the plan it is sent into
+ * each series it proposes (`preview/proposal.rs`, `Plan::of`): each list's
+ * read and column options, by its file, and the slot rules but item sets of
+ * the plan's series that holds one of its lists, else of the same id.
+ */
+const carried = (proposal: Record<string, unknown>, sent: Record<string, unknown>): Record<string, unknown> => {
+  const plan = records(asRecord(sent['structure'], [])['levels']);
+  const structure = asRecord(proposal['structure'], []);
+  const levels = records(structure['levels']).map((level) => {
+    const lists = records(level['lists']);
+    const holder = plan.find((one) => records(one['lists']).some((held) => lists.some((list) => sameFile(list, held)))) ?? plan.find((one) => one['id'] === level['id']);
+    if (holder === undefined) {
+      return level;
+    }
+    const rules = (kind: string): Record<string, unknown> => ({
+      ...asRecord(asRecord(level['slots'], [])[kind], []),
+      ...Object.fromEntries(Object.entries(asRecord(asRecord(holder['slots'], [])[kind], [])).filter(([slot]) => slot !== 'sets')),
+    });
+    return {
+      ...level,
+      lists: lists.map((list) => {
+        const held = records(holder['lists']).find((one) => sameFile(one, list));
+        return held === undefined ? list : { ...list, read: held['read'], columns: held['columns'] };
+      }),
+      slots: { item: rules('item'), media: rules('media'), itemSet: rules('itemSet') },
+    };
+  });
+  return { ...proposal, structure: { ...structure, levels } };
+};
 const PN_ROWS_ARE_FILES = { edit: 'grain', list: { source: 's1', file: 'BHC006_GMT_PN.xlsx' }, describes: 'media' };
 
 /** JSON with sorted keys, so two plans compare by what they hold. */
@@ -370,7 +483,14 @@ const structureServer = ({
   failPreviewWithEdits = false,
   stored: plan = {},
   answer,
-}: { readonly failPreviewWithEdits?: boolean; readonly stored?: Record<string, unknown>; readonly answer?: Record<string, unknown> } = {}): {
+  carry = false,
+}: {
+  readonly failPreviewWithEdits?: boolean;
+  readonly stored?: Record<string, unknown>;
+  readonly answer?: Record<string, unknown>;
+  /** The proposal copies the plan's carried members, as the proposer does; the recordings were made from plans that hold none. */
+  readonly carry?: boolean;
+} = {}): {
   readonly saved: Record<string, unknown>[];
   readonly asked: unknown[];
 } => {
@@ -395,6 +515,9 @@ const structureServer = ({
         if (Array.isArray(include) && include.includes('entries')) {
           return jsonResponse({ sources: SOURCES, pattern: { groups: ['identifier'] }, entries: ENTRIES });
         }
+        if (Array.isArray(include) && include.includes('sheets')) {
+          return jsonResponse({ sources: SOURCES, pattern: { groups: ['identifier'] }, sheets: [AF_SHEET], columnMatches: [], listCandidates: [] });
+        }
         if (Array.isArray(include) && include.includes('nameWords')) {
           return jsonResponse({ sources: SOURCES, pattern: { groups: ['identifier'] }, nameWords: { names: 0, parts: [], places: [] } });
         }
@@ -413,10 +536,12 @@ const structureServer = ({
         if (name === undefined) {
           throw new Error(`no recorded proposal for ${canonical(edits)}`);
         }
-        const proposal = asRecord(loadFixture(name), []);
+        const recorded = asRecord(loadFixture(name), []);
+        const proposal = carry ? carried(recorded, plan) : recorded;
         const matchesPlan = canonical(proposal['structure']) === canonical(plan['structure']);
         return jsonResponse({ sources: SOURCES, pattern: { groups: ['identifier'] }, proposal: { ...proposal, matchesPlan } });
       },
+      '/api/properties': () => listResponse(loadFixture('properties-page.json'), 2),
     }),
   );
   return { saved, asked };
