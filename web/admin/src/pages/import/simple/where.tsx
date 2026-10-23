@@ -6,11 +6,11 @@
  * select for where they come from, then each value and its item type. A
  * value is set to an item type only when an item type in Omeka has the same
  * name; every other value says it is not chosen, and the person maps it.
- * Both tables are the value map control (`../value-map.tsx`).
+ * Both tables are the value map control (`../value-map.tsx`); the item
+ * types are Structure's own (`item-types.tsx`).
  */
 import { Suspense, lazy, useState } from 'react';
 import type { ReactElement } from 'react';
-import type { LevelId } from '../../../api/import-plan';
 import { ErrorNotice } from '../../../app/errors';
 import { useAsync } from '../../../app/useAsync';
 import { useDraft } from '../draft-context';
@@ -20,10 +20,10 @@ import { usePreview } from '../lists/use-preview';
 import { Segmented } from './master-detail';
 import type { Segment } from './master-detail';
 import { useSimpleText } from './messages';
-import { folderName, setChoiceOf, setColumnOf, typeFromOf, withSetChoice, withTypeFrom } from './where-plan';
-import type { SetChoice, TypeFrom } from './where-plan';
+import { folderName, setChoiceOf, setColumnOf, withSetChoice } from './where-plan';
+import type { SetChoice } from './where-plan';
 import { usePickedSeries } from '../picked-node';
-import { seriesOf, setsOf } from '../series';
+import { setsOf } from '../series';
 import './simple.css';
 
 const CHIPS_SHOWN = 16;
@@ -150,52 +150,8 @@ const ItemSets = ({ catalog }: { readonly catalog: Catalog | null }): ReactEleme
   );
 };
 
-const fromKey = (from: TypeFrom): string => (from.from === 'column' ? `column:${from.sheet}:${String(from.index)}` : from.from);
-
 const ValueMap = lazy(() => import('../value-map'));
-
-const ItemTypes = ({ level }: { readonly level: LevelId }): ReactElement => {
-  const { t } = useSimpleText();
-  const draft = useDraft();
-  const from = typeFromOf(draft.plan, level);
-  const { lists } = seriesOf(draft.plan, level);
-  const columns = lists.flatMap((sheet) => sheet.columns.map((column) => ({ sheet: sheet.id, file: sheet.file, column: column.column })));
-  const several = lists.length > 1;
-  return (
-    <section className="guided-inspector guided-inspect" aria-label={t('guided.where.typesTitle')}>
-      <h4>{t('guided.where.typesTitle')}</h4>
-      <dl className="guided-kv">
-        <dt>{t('guided.where.from')}</dt>
-        <dd data-decision="type-from">
-          <select
-            aria-label={t('guided.where.typeFrom')}
-            value={fromKey(from)}
-            disabled={!draft.editable}
-            onChange={(event) => {
-              const value = event.target.value;
-              const column = columns.find((one) => `column:${one.sheet}:${String(one.column.index)}` === value);
-              const next: TypeFrom = column !== undefined ? { from: 'column', sheet: column.sheet, index: column.column.index } : value === 'top' ? { from: 'top' } : { from: 'none' };
-              draft.change((plan) => withTypeFrom(plan, level, next));
-            }}
-          >
-            <option value="none">{t('guided.where.fromNone')}</option>
-            {columns.map((one) => (
-              <option key={`${one.sheet}:${String(one.column.index)}`} value={`column:${one.sheet}:${String(one.column.index)}`}>
-                {several ? t('guided.where.fromColumnOf', { column: one.column.header, file: one.file }) : t('guided.where.fromColumn', { column: one.column.header })}
-              </option>
-            ))}
-            <option value="top">{t('guided.where.fromTop')}</option>
-          </select>
-        </dd>
-      </dl>
-      {from.from === 'none' ? null : (
-        <Suspense fallback={null}>
-          <ValueMap home={{ level, kind: 'item', slot: 'template' }} label={t('guided.where.typesTable')} />
-        </Suspense>
-      )}
-    </section>
-  );
-};
+const ItemTypes = lazy(() => import('./item-types'));
 
 const Help = (): ReactElement => {
   const { t } = useSimpleText();
@@ -221,7 +177,9 @@ export const WhereTheyGo = (): ReactElement | null => {
     <div className="guided-dials guided-stack">
       {catalog.status === 'error' ? <ErrorNotice error={catalog.error} /> : null}
       <ItemSets catalog={ready} />
-      <ItemTypes level={series.id} />
+      <Suspense fallback={null}>
+        <ItemTypes level={series.id} />
+      </Suspense>
       <Help />
     </div>
   );

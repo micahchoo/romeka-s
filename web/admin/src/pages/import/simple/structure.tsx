@@ -12,7 +12,8 @@
  *
  * Under the questions, a folder's node opens what "Your list" did for it
  * (`structure-list.tsx`, a lazy chunk): where each column goes, pair by
- * hand, fill in a list yourself and every file.
+ * hand, fill in a list yourself and every file; then where its item type
+ * comes from (`item-types.tsx`, a lazy chunk).
  *
  * A folder can also be written by hand: "Mark an example" opens the hand
  * edit (`structure-hand.tsx`, a lazy chunk of its own). The folder is then
@@ -32,6 +33,7 @@ const OtherInspector = lazy(() => import('./structure-nodes').then((module) => (
 const HandPanel = lazy(() => import('./structure-hand').then((module) => ({ default: module.HandPanel })));
 const OwnInspector = lazy(() => import('./structure-hand').then((module) => ({ default: module.OwnInspector })));
 const ListHomes = lazy(() => import('./structure-list').then((module) => ({ default: module.ListHomes })));
+const ItemTypes = lazy(() => import('./structure-list').then((module) => ({ default: module.ItemTypesHome })));
 
 const SeriesInspector = ({ node, name, nodeKey }: { readonly node: SeriesNode; readonly name: string; readonly nodeKey: string }): ReactElement => {
   const { clicks, editable, words } = useScreen();
@@ -82,6 +84,7 @@ const SeriesInspector = ({ node, name, nodeKey }: { readonly node: SeriesNode; r
       </dl>
       <Suspense fallback={null}>
         <ListHomes nodeKey={nodeKey} level={node.level} folder={node.scope.scope.folder} />
+        <ItemTypes level={node.level} />
       </Suspense>
     </div>
   );

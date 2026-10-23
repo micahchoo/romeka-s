@@ -19,7 +19,7 @@ import { useDraft } from './draft-context';
 import { loadCatalog } from './lists/catalog';
 import { usePreview } from './lists/use-preview';
 import { PER_PAGE } from './paged-list';
-import { withOnlyFreeSet } from './series';
+import { shownPlanFor, withOnlyFreeSet } from './series';
 import { fold } from './simple/list-plan';
 import { useSimpleText } from './simple/messages';
 import type { SimpleTranslator } from './simple/messages';
@@ -158,7 +158,7 @@ export const ValueMap = ({ home, label }: ValueMapProps): ReactElement => {
     ['values'],
     'freeSet' in home
       ? { plan: withOnlyFreeSet(draft.plan, home.freeSet), values: { slot, kind: 'item', page, perPage: PER_PAGE } }
-      : { values: { slot, kind: home.kind, series: home.level, page, perPage: PER_PAGE } },
+      : { ...shownPlanFor(draft, home.level), values: { slot, kind: home.kind, series: home.level, page, perPage: PER_PAGE } },
   );
   if (read.status === 'loading') {
     return <p role="status" className="import-slow">{t('shell.loading')}</p>;

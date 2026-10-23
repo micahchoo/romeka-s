@@ -1,26 +1,18 @@
 /**
- * The plan edits "Where they go" makes: the item sets and the item type
- * rule with its value map. A column a list sends to the item sets stays
+ * The plan edits "Where they go" makes for the item sets (the item type
+ * rule is `item-types.tsx`'s). A column a list sends to the item sets stays
  * first in the item sets rule, so a list's value wins over the folder's
  * (`docs/import-v2.md`: a filled list's values win by default). One set for
  * everything is a set named by its title, found or made; a set picked from
  * the install is named by its id. Each is a free set of its own
  * (`../series.ts`).
  */
-import type { ImportPlan, LevelId, SetById, SetByTitle, SetSource, SlotRule, SourceRef } from '../../../api/import-plan';
-import { listOf, seriesOf, setsOf, setsRuleOf, withSeries, withSets, withSetsRule } from '../series';
+import type { ImportPlan, SetById, SetByTitle, SetSource, SlotRule, SourceRef } from '../../../api/import-plan';
+import { setsOf, setsRuleOf, withSets, withSetsRule } from '../series';
 
 export type SetChoice = 'leaf' | 'top' | 'one' | 'old' | 'column' | 'none';
 
-const ruleOf = (plan: ImportPlan, level: LevelId, slot: 'template'): SlotRule => seriesOf(plan, level).slots.item[slot] ?? { sources: [], combine: 'first' };
-
 const isEmpty = (rule: SlotRule): boolean => rule.sources.length === 0 && (rule.map === undefined || Object.keys(rule.map).length === 0);
-
-const withRule = (plan: ImportPlan, level: LevelId, slot: 'template', rule: SlotRule): ImportPlan =>
-  withSeries(plan, level, (series) => {
-    const item = Object.fromEntries(Object.entries(series.slots.item).filter(([name]) => name !== slot));
-    return { ...series, slots: { ...series.slots, item: isEmpty(rule) ? item : { ...item, [slot]: rule } } };
-  });
 
 const own = (rule: SlotRule): SourceRef | undefined => rule.sources.find((source) => source.from !== 'column');
 
@@ -81,30 +73,4 @@ export const withSetChoice = (plan: ImportPlan, choice: SetChoice, set: string |
         ? { id: Number(set) }
         : null;
   return named === null ? kept : withSets(kept, (sets) => [...sets, named]);
-};
-
-/** Where the item type of a series comes from: nowhere, a list's column (`sheet` and index), or the top folder. */
-export type TypeFrom = { readonly from: 'none' } | { readonly from: 'top' } | { readonly from: 'column'; readonly sheet: string; readonly index: number };
-
-export const typeFromOf = (plan: ImportPlan, level: LevelId): TypeFrom => {
-  const first = ruleOf(plan, level, 'template').sources[0];
-  if (first?.from === 'column') {
-    return { from: 'column', sheet: first.sheet, index: first.column.index };
-  }
-  if (first?.from === 'folder') {
-    return { from: 'top' };
-  }
-  return { from: 'none' };
-};
-
-export const withTypeFrom = (plan: ImportPlan, level: LevelId, from: TypeFrom): ImportPlan => {
-  const rule = ruleOf(plan, level, 'template');
-  if (from.from === 'none') {
-    return withRule(plan, level, 'template', { ...rule, sources: [] });
-  }
-  if (from.from === 'top') {
-    return withRule(plan, level, 'template', { ...rule, sources: [{ from: 'folder', level: 1 }] });
-  }
-  const column = listOf(plan, from.sheet)?.columns.find((one) => one.column.index === from.index)?.column;
-  return column === undefined ? plan : withRule(plan, level, 'template', { ...rule, sources: [{ from: 'column', sheet: from.sheet, column }] });
 };

@@ -29,6 +29,7 @@ import { bucketsWords, itemsWords, keptWords, useStructureText } from './structu
 import { ImportQuestion, useScreen } from './structure-parts';
 
 const ListHomes = lazy(() => import('./structure-list').then((module) => ({ default: module.ListHomes })));
+const ItemTypes = lazy(() => import('./structure-list').then((module) => ({ default: module.ItemTypesHome })));
 
 /** The folder written by hand, and the clicks that write it. */
 export interface Hand {
@@ -180,6 +181,7 @@ export const OwnInspector = ({ node, name, nodeKey }: { readonly node: OwnNode; 
       ) : null}
       <Suspense fallback={null}>
         <ListHomes nodeKey={nodeKey} level={node.level} folder={scope.folder} />
+        <ItemTypes level={node.level} />
       </Suspense>
     </div>
   );
