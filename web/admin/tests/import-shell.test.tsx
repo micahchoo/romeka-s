@@ -38,7 +38,7 @@ vi.mock('../src/pages/import/simple/bodies', async () => {
       </label>
     );
   };
-  return { SIMPLE_BODIES: { found: Found } };
+  return { SIMPLE_BODIES: { structure: Found } };
 });
 
 vi.mock('../src/pages/import/advanced/bodies', async () => {
@@ -81,13 +81,13 @@ afterEach(() => {
 describe('the frame', () => {
   it('marks the step, names the screen and counts what the saved answers make', async () => {
     installFetch(draftRoutes(() => jsonResponse({}, { status: 500 })));
-    render(at(['simple', 'example']));
-    expect(await screen.findByRole('heading', { name: 'Show us one example' })).toBeInTheDocument();
+    render(at(['simple', 'all-files']));
+    expect(await screen.findByRole('heading', { name: 'Every file' })).toBeInTheDocument();
     const steps = screen.getByRole('list', { name: 'Steps' });
     expect(within(steps).getAllByRole('link').map((link) => link.textContent)).toEqual(['Structure', 'Check', 'Add']);
-    // The example is a sub-screen of "What we found", which is one of Structure.
+    // Every file is a sub-screen of Structure.
     expect(within(steps).getByRole('link', { name: 'Structure' })).toHaveAttribute('aria-current', 'step');
-    expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '#/import/1/simple/found');
+    expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '#/import/1/simple/structure');
     expect(screen.queryByRole('link', { name: 'Next' })).not.toBeInTheDocument();
     expect(await screen.findByText('10 items so far.')).toBeInTheDocument();
     const line = screen.getByText('10 items so far.').closest('p');
@@ -156,7 +156,7 @@ describe('the frame', () => {
           ),
       }),
     );
-    render(<ImportPage param="1" rest={['1', 'simple', 'found']} />);
+    render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
     expect(await screen.findByText('Looking at your files for the first time...')).toBeInTheDocument();
     release();
     await waitFor(() => {
@@ -169,7 +169,7 @@ describe('the frame', () => {
     const fetchMock = installFetch(
       route({ [PATH]: () => jsonResponse(fixture('import-draft.json')), [`${PATH}/preview`]: preview }),
     );
-    render(<ImportPage param="1" rest={['1', 'simple', 'found']} />);
+    render(<ImportPage param="1" rest={['1', 'simple', 'structure']} />);
     await screen.findByText(CaseFold.label);
     await act(async () => {});
     expect(requestsFor(fetchMock, `${PATH}/scan`)).toHaveLength(0);
@@ -195,7 +195,7 @@ describe('Simple and Advanced', () => {
         return savedAs(init, revision);
       }),
     );
-    const view = render(at(['simple', 'found']));
+    const view = render(at(['simple', 'structure']));
     const box = await screen.findByRole('checkbox', { name: CaseFold.label });
     const mode = screen.getByRole('group', { name: 'Mode' });
     expect(within(mode).getByRole('link', { name: 'Simple' })).toHaveAttribute('aria-current', 'page');
@@ -218,7 +218,7 @@ describe('Simple and Advanced', () => {
     );
     expect(await screen.findByText('Saved')).toBeInTheDocument();
 
-    view.rerender(at(['simple', 'found']));
+    view.rerender(at(['simple', 'structure']));
     expect(screen.getByRole('checkbox', { name: CaseFold.label })).toBeChecked();
     const reads = requestsFor(fetchMock, PATH).filter((request) => request.init?.method !== 'PUT');
     expect(reads).toHaveLength(1);
@@ -242,7 +242,7 @@ describe('saving', () => {
         [`${PATH}/preview`]: preview,
       }),
     );
-    render(at(['simple', 'found']));
+    render(at(['simple', 'structure']));
     const box = await screen.findByRole('checkbox', { name: CaseFold.label });
     fireEvent.click(box);
     const prompt = await screen.findByRole('alert', {}, { timeout: SAVE_DELAY_MS + 3000 });
@@ -260,7 +260,7 @@ describe('saving', () => {
 
   it('sends a waiting answer when the person leaves the import', async () => {
     const fetchMock = installFetch(draftRoutes((init) => savedAs(init, 1)));
-    const view = render(at(['simple', 'found']));
+    const view = render(at(['simple', 'structure']));
     fireEvent.click(await screen.findByRole('checkbox', { name: CaseFold.label }));
     view.unmount();
     await act(async () => {});

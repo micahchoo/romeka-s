@@ -32,7 +32,6 @@ export const kn: TermListMessages = {
   'termLists.columnKind': 'ಹಿಡಿದಿಟ್ಟುಕೊಳ್ಳುತ್ತದೆ',
   'termLists.columnEntries': 'ನಮೂದುಗಳು',
   'termLists.columnUsage': 'ಇದನ್ನು ಬಳಸುವ ಐಟಂಗಳು',
-  'termLists.editLabel': 'ಈ ಪದ ಪಟ್ಟಿಯನ್ನು ಸಂಪಾದಿಸಿ',
   'termLists.deleteLabel': 'ಈ ಪದ ಪಟ್ಟಿಯನ್ನು ಅಳಿಸಿ',
   'termLists.deleteNote':
     'ಪಟ್ಟಿಯನ್ನು ಅಳಿಸುವುದರಿಂದ ಅದರಲ್ಲಿ ಆರಿಸಲಾದ ಮೌಲ್ಯಗಳು ಹಾಗೆಯೇ ಉಳಿಯುತ್ತವೆ. ಅವು ಅವುಗಳ ಐಟಂಗಳಲ್ಲಿ ಸರಳ ಪಠ್ಯವಾಗಿ ಉಳಿಯುತ್ತವೆ.',

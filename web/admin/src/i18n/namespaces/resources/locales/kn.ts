@@ -25,7 +25,6 @@ export const kn: ResourcesMessages = {
   'items.add': 'ಐಟಂ ಸೇರಿಸಿ',
   'items.empty': 'ಯಾವುದೇ ಐಟಂಗಳು ಕಂಡುಬಂದಿಲ್ಲ.',
   'items.mediaHeading': 'ಮಾಧ್ಯಮ ({count})',
-  'items.noMedia': 'ಯಾವುದೇ ಮಾಧ್ಯಮವಿಲ್ಲ.',
   'items.addMedia': 'ಮಾಧ್ಯಮವನ್ನು ಸೇರಿಸಿ',
   'items.closeAddMedia': 'ಮುಚ್ಚಿ',
   'items.noMediaYet':

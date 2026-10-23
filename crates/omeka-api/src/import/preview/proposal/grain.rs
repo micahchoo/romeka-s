@@ -22,11 +22,12 @@ use std::collections::{BTreeSet, HashSet};
 
 use unicode_normalization::UnicodeNormalization;
 
-use super::super::candidates::{ColumnGrain, Grain};
+use super::super::candidates::{ColumnCells, ColumnGrain, Grain, column_cells};
 use super::super::unpaired::unpaired_rows;
 use super::lists::{Found, InSeries};
 use super::thresholds::{FILE_WHEN_DISJOINT, MIN_ITEMS_WITH_FILE_ROWS, MIN_KINDS};
 use super::{Choice, ColumnRollUp, Evidence, GrainCounts, Pick, RollUp, RollUpCounts};
+use crate::import::catalog::Catalog;
 use crate::import::join::cell;
 use crate::import::model::Model;
 use crate::import::plan::{
@@ -45,6 +46,8 @@ pub(super) struct ListPlan {
     pub item_key: Option<ColumnRef>,
     /// The columns slot rules or a set source read.
     pub mapped: Vec<ColumnRef>,
+    /// Every column of the list, as the walk reads it.
+    pub cells: Vec<ColumnCells>,
 }
 
 /// What detector 4 chose for one series.
@@ -74,6 +77,7 @@ struct Keyed {
 /// A list whose rows pair no file, as records.
 struct Records {
     file: ListFile,
+    cells: Vec<ColumnCells>,
     kind: Option<ColumnRef>,
     items: Option<Keyed>,
     sets: Option<Keyed>,
@@ -179,7 +183,7 @@ fn reference(
     column_ref(sheet, column.index)
 }
 
-fn records(file: ListFile, sheet: &Sheet) -> Records {
+fn records(file: ListFile, sheet: &Sheet, catalog: &Catalog) -> Records {
     let kind = kind_column(sheet);
     let skip = kind.as_ref().map(|column| column.index);
     let rows_of = |wanted: RecordKind| -> Vec<&Row> {
@@ -205,6 +209,7 @@ fn records(file: ListFile, sheet: &Sheet) -> Records {
         .and_then(|sets| reference(sheet, &rows_of(RecordKind::Item), &sets.values, skip));
     Records {
         file,
+        cells: column_cells(sheet, catalog),
         kind,
         items,
         sets,
@@ -225,6 +230,7 @@ impl Records {
             join: None,
             item_key: Some(items.column.clone()),
             mapped: Vec::new(),
+            cells: self.cells,
         };
         if let Some(kind) = self.kind {
             plan.row_kind = RowKind::Column(KindColumn { column: kind });
@@ -313,6 +319,7 @@ fn grain(one: &InSeries<'_>) -> (ListPlan, Option<Choice<RecordKind, Grain>>) {
         join,
         item_key: None,
         mapped: Vec::new(),
+        cells: one.counted.counts.cells.clone(),
     };
     (plan, choice)
 }
@@ -341,7 +348,7 @@ pub(super) fn detect(
     for list in found.unattached.iter().filter(|list| list.pairs_nothing) {
         evidence.lists.read(&list.file, &mut |sheet| {
             if let Ok(sheet) = sheet {
-                candidates.push(records(list.file.clone(), sheet));
+                candidates.push(records(list.file.clone(), sheet, evidence.catalog));
             }
         });
     }

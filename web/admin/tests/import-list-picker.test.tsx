@@ -1,13 +1,14 @@
 /**
  * The list picker over a folder shaped like BHC006 (`import-bhc006-lists.ts`):
  * four catalogues at the top and an old CSV and ODS copy of one in
- * `Artifacts/`. Simple shows every list beside the inspector of the selected
- * one; Advanced shows the same lists as rows. The person chooses which lists
- * to use, turns one down and still sees the rest, is asked once when a list
- * pairs the same items as one in use, and pairs names loosely with one
- * toggle. Each answer is read back from the plan the screen saves.
+ * `Artifacts/`, on the folder's Lists section of Advanced's Structure. The
+ * person chooses which lists to use, turns one down and still sees the
+ * rest, is asked once when a list pairs the same items as one in use, and
+ * pairs names loosely with the folds of the join. Each answer is read back
+ * from the plan the screen saves. Simple's Structure tree takes the keys the
+ * old "Your list" listbox took.
  */
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useSyncExternalStore } from 'react';
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -32,11 +33,6 @@ const Routed = (): ReactElement => {
   return <ImportPage param={rest[0] ?? null} rest={rest} />;
 };
 
-const go = (mode: string, screenName: string): void => {
-  window.location.hash = `#/import/1/${mode}/${screenName}`;
-  window.dispatchEvent(new HashChangeEvent('hashchange'));
-};
-
 const last = (saved: readonly Record<string, unknown>[]): Record<string, unknown> => saved[saved.length - 1] ?? {};
 
 const sheetsOf = (plan: Record<string, unknown>): readonly Record<string, unknown>[] =>
@@ -52,161 +48,129 @@ const start = (mode: string, screenName: string, lists?: readonly ScenarioList[]
   return server;
 };
 
-/** Opens "What we found", which adds the first list, and waits for it to be saved. */
-const opened = async (): Promise<ReturnType<typeof simpleServer>> => {
-  const server = start('simple', 'found');
+const row = async (file: string): Promise<HTMLElement> => screen.findByRole('listitem', { name: file }, { timeout: 5000 });
+
+/** The list `file` as its folder reads it, under the picker: how it is read, joined and what a row is. */
+const sheet = async (file: string): Promise<HTMLElement> => screen.findByRole('region', { name: file }, { timeout: 5000 });
+
+/** Advanced's Lists section of the plan's one folder, with AF used from the picker, as the list that pairs the most. */
+const withAf = async (): Promise<ReturnType<typeof simpleServer>> => {
+  const server = start('advanced', 'lists');
+  fireEvent.click(within(await row(AF)).getByRole('button', { name: 'Use this list' }));
   await waitFor(() => {
-    expect(filesOf(last(server.saved))).toHaveLength(1);
+    expect(filesOf(last(server.saved))).toEqual([AF]);
   }, { timeout: 5000 });
   return server;
 };
 
-const option = async (file: string): Promise<HTMLElement> => screen.findByRole('option', { name: file }, { timeout: 5000 });
+const normalizeOf = (plan: Record<string, unknown>, file: string): unknown =>
+  asRecord(sheetsOf(plan).find((one) => one['file'] === file)?.['join'], [])['normalize'];
 
-/** Selects the list on the left and returns its inspector. */
-const inspect = async (file: string): Promise<HTMLElement> => {
-  fireEvent.click(await option(file));
-  return screen.findByRole('region', { name: file }, { timeout: 5000 });
-};
-
-const useBox = (inspector: HTMLElement): HTMLElement => within(inspector).getByRole('checkbox', { name: 'use this list' });
+const FOLDS = ['Capital letters (A2 and a2)', 'Zeros at the start (007 and 7)', 'The characters _ - . and space (B 4 and B_4)'];
 
 afterEach(() => {
   window.location.hash = '';
 });
 
-describe('Your list in Simple: the lists and the inspector', () => {
-  it('adds the list that pairs the most rows first, not the first by path', async () => {
-    const server = await opened();
-    expect(filesOf(last(server.saved))).toEqual([AF]);
+describe('a folder’s Lists section in Advanced: the lists and how each is read', () => {
+  it('shows the six lists, the two in use marked, and how a list in use pairs its rows', async () => {
+    start('advanced', 'lists', LISTS, IN_USE);
+    const picker = await screen.findByRole('region', { name: 'The lists in your folder' }, { timeout: 5000 });
+    const rows = await within(picker).findAllByRole('listitem');
+    expect(rows.map((one) => one.getAttribute('aria-label'))).toEqual([AF, CSV, ODS, PN, RAO, D]);
+    expect(rows.map((one) => one.textContent.includes('In use'))).toEqual([true, false, false, true, false, false]);
+    expect(await row(PN)).toHaveTextContent('86 of 215 rows name a file, by “File”. +103 ignoring case, zeros and _ - .');
+
+    const pn = await sheet(PN);
+    expect(within(pn).getByRole('combobox', { name: 'Join column' })).toHaveValue('0');
+    expect(within(pn).getByRole('combobox', { name: 'Each row describes' })).toHaveValue('item');
+    for (const fold of FOLDS) {
+      expect(within(pn).getByRole('checkbox', { name: fold })).not.toBeChecked();
+    }
   }, 20_000);
 
-  it('shows the six lists, the two in use marked, and the inspector of the one selected', async () => {
-    start('simple', 'list', LISTS, IN_USE);
-    const listbox = await screen.findByRole('listbox', { name: 'The lists in your folder' }, { timeout: 5000 });
-    const options = await within(listbox).findAllByRole('option');
-    expect(options.map((one) => one.textContent.includes('In use'))).toEqual([true, false, false, true, false, false]);
-    expect(await option(AF)).toHaveAttribute('aria-selected', 'true');
-    expect(await option(PN)).toHaveTextContent('86 / 215');
-
-    const pn = await inspect(PN);
-    expect(await option(PN)).toHaveAttribute('aria-selected', 'true');
-    expect(useBox(pn)).toBeChecked();
-    expect(pn).toHaveTextContent('86 / 215');
-    expect(within(pn).getByRole('button', { name: '+103 ignoring case, zeros and _ - .' })).toHaveAttribute('aria-pressed', 'false');
-    expect(within(pn).getByRole('combobox', { name: 'Pair each row with an item by the column' })).toHaveValue('0');
-    expect(within(pn).getByRole('button', { name: 'Item suggested' })).toHaveAttribute('aria-pressed', 'true');
+  it('counts the rows that name no file and the items with no row, with the way to pair them by hand', async () => {
+    start('advanced', 'lists', LISTS, IN_USE);
+    expect(await screen.findByRole('region', { name: 'Lists' }, { timeout: 5000 })).toHaveTextContent(`${AF}, ${PN}`);
+    const unpaired = await screen.findByText(/^92 rows have no file\./, {}, { timeout: 5000 });
+    expect(unpaired).toHaveTextContent('92 rows have no file. 210 items have files but no row.');
+    expect(within(unpaired).getByRole('link', { name: 'Pair them by hand' }).getAttribute('href')).toMatch(/^#\/import\/1\/advanced\/pair\//);
   }, 20_000);
 
-  it('counts what the lists in use pair, in one line', async () => {
-    start('simple', 'list', LISTS, IN_USE);
-    const facts = await screen.findByText(/^Lists in use/, { selector: 'span' }, { timeout: 5000 });
-    const line = facts.parentElement ?? facts;
-    expect(line).toHaveTextContent('Lists in use 2');
-    expect(line).toHaveTextContent('Rows paired 731 / 905');
-    expect(line).toHaveTextContent('Rows naming no file 92');
-    expect(line).toHaveTextContent('Rows naming a refused file 82');
-    expect(within(line).getByRole('link', { name: 'Check' })).toHaveAttribute('href', '#/import/1/simple/check');
-    expect(line).toHaveTextContent('Items without a row 210');
-    expect(within(line).getByRole('link', { name: 'Pair by hand' })).toHaveAttribute('href', '#/import/1/simple/pair');
-  }, 20_000);
-
-  it('pairs names loosely with one toggle: every fold on, then every fold off', async () => {
-    const server = start('simple', 'list', LISTS, IN_USE);
-    const pn = await inspect(PN);
-    const loose = within(pn).getByRole('button', { name: '+103 ignoring case, zeros and _ - .' });
-    fireEvent.click(loose);
-    const normalizeOf = (plan: Record<string, unknown>, file: string): unknown =>
-      asRecord(sheetsOf(plan).find((sheet) => sheet['file'] === file)?.['join'], [])['normalize'];
+  it('pairs names loosely: every fold on, then every fold off', async () => {
+    const server = start('advanced', 'lists', LISTS, IN_USE);
+    const pn = await sheet(PN);
+    for (const fold of FOLDS) {
+      fireEvent.click(within(pn).getByRole('checkbox', { name: fold }));
+    }
     await waitFor(() => {
       expect(normalizeOf(last(server.saved), PN)).toEqual({ caseFold: true, leadingZeros: true, separators: true });
     }, { timeout: 3000 });
     expect(normalizeOf(last(server.saved), AF)).toEqual({ caseFold: false, leadingZeros: false, separators: false });
-    expect(loose).toHaveAttribute('aria-pressed', 'true');
-    expect(pn).toHaveTextContent('189 / 215');
-    fireEvent.click(loose);
+    for (const fold of FOLDS) {
+      expect(within(pn).getByRole('checkbox', { name: fold })).toBeChecked();
+    }
+    for (const fold of FOLDS) {
+      fireEvent.click(within(pn).getByRole('checkbox', { name: fold }));
+    }
     await waitFor(() => {
       expect(normalizeOf(last(server.saved), PN)).toEqual({ caseFold: false, leadingZeros: false, separators: false });
     }, { timeout: 3000 });
   }, 20_000);
 
-  it('turning “use this list” off takes the list out, and keeps it out', async () => {
-    const server = start('simple', 'list', LISTS, IN_USE);
-    const pn = await inspect(PN);
-    fireEvent.click(useBox(pn));
+  it('Stop using it takes the list out, and keeps it out', async () => {
+    const server = start('advanced', 'lists', LISTS, IN_USE);
+    fireEvent.click(within(await row(PN)).getByRole('button', { name: 'Stop using it' }));
     await waitFor(() => {
       expect(filesOf(last(server.saved))).toEqual([AF]);
     }, { timeout: 3000 });
     expect(asRecord(last(server.saved)['simple'], [])['notLists']).toEqual([{ source: 's1', file: PN }]);
-    expect(await option(PN)).toHaveTextContent('Turned down');
-    expect(useBox(pn)).not.toBeChecked();
-  }, 20_000);
-
-  it('moves the selection with the arrow keys, Home and End, and Enter goes to the inspector', async () => {
-    start('simple', 'list', LISTS, IN_USE);
-    const af = await option(AF);
-    af.focus();
-    fireEvent.keyDown(af, { key: 'ArrowDown' });
-    const csv = await option(CSV);
-    expect(csv).toHaveAttribute('aria-selected', 'true');
-    expect(csv).toHaveFocus();
-    expect(af).toHaveAttribute('aria-selected', 'false');
-    expect(await screen.findByRole('region', { name: CSV })).toBeInTheDocument();
-    fireEvent.keyDown(csv, { key: 'ArrowDown' });
-    expect(await option(ODS)).toHaveAttribute('aria-selected', 'true');
-    fireEvent.keyDown(await option(ODS), { key: 'End' });
-    expect(await option(D)).toHaveAttribute('aria-selected', 'true');
-    fireEvent.keyDown(await option(D), { key: 'ArrowDown' });
-    expect(await option(D)).toHaveAttribute('aria-selected', 'true');
-    fireEvent.keyDown(await option(D), { key: 'ArrowUp' });
-    expect(await option(RAO)).toHaveAttribute('aria-selected', 'true');
-    fireEvent.keyDown(await option(RAO), { key: 'Home' });
-    expect(af).toHaveAttribute('aria-selected', 'true');
-    fireEvent.keyDown(af, { key: 'Enter' });
-    expect(document.activeElement).toContainElement(screen.getByRole('region', { name: AF }));
+    await waitFor(async () => {
+      expect(await row(PN)).toHaveTextContent('Turned down');
+    }, { timeout: 3000 });
+    expect(within(await row(PN)).getByRole('button', { name: 'Use this list' })).toBeEnabled();
   }, 20_000);
 
   it('warns that the old copy pairs the same items as the list in use', async () => {
-    start('simple', 'list', LISTS, IN_USE);
-    const csv = await inspect(CSV);
+    start('advanced', 'lists', LISTS, IN_USE);
+    const csv = await row(CSV);
     expect(csv).toHaveTextContent(`same items as ${AF} · 292 items`);
-    expect(useBox(csv)).not.toBeChecked();
-    const pn = await inspect(PN);
-    expect(pn).not.toHaveTextContent('same items as');
+    expect(csv).toHaveTextContent('Not used');
+    expect(await row(PN)).not.toHaveTextContent('same items as');
   }, 20_000);
 
   it('turns down one list and keeps every other list offered', async () => {
-    const server = await opened();
-    go('simple', 'list');
-    const d = await inspect(D);
-    fireEvent.click(within(d).getByRole('button', { name: 'Not about these items' }));
+    const server = await withAf();
+    fireEvent.click(within(await row(D)).getByRole('button', { name: 'Not about these items' }));
     await waitFor(() => {
       expect(asRecord(last(server.saved)['simple'], [])['notLists']).toEqual([{ source: 's1', file: D }]);
     }, { timeout: 3000 });
-    expect(await option(D)).toHaveTextContent('Turned down');
+    await waitFor(async () => {
+      expect(await row(D)).toHaveTextContent('Turned down');
+    }, { timeout: 3000 });
     for (const file of [PN, RAO, CSV]) {
-      expect(useBox(await inspect(file))).toBeEnabled();
+      expect(within(await row(file)).getByRole('button', { name: 'Use this list' })).toBeEnabled();
     }
     expect(filesOf(last(server.saved))).toEqual([AF]);
   }, 20_000);
 
   it('adds a second list beside the first, and shows each list’s own counts', async () => {
-    const server = await opened();
-    go('simple', 'list');
-    fireEvent.click(useBox(await inspect(PN)));
+    const server = await withAf();
+    fireEvent.click(within(await row(PN)).getByRole('button', { name: 'Use this list' }));
     await waitFor(() => {
       expect(filesOf(last(server.saved))).toEqual([AF, PN]);
     }, { timeout: 5000 });
-    expect(await option(PN)).toHaveTextContent('In use');
-    expect(await inspect(AF)).toHaveTextContent('680 / 690');
-    expect(await inspect(PN)).toHaveTextContent('86 / 215');
+    await waitFor(async () => {
+      expect(await row(PN)).toHaveTextContent('In use');
+    }, { timeout: 3000 });
+    expect(await row(AF)).toHaveTextContent('680 of 690');
+    expect(await row(PN)).toHaveTextContent('86 of 215');
   }, 20_000);
 
   it('asks before it adds a list that pairs the same items as one in use; in its place leaves one list', async () => {
-    const server = await opened();
-    go('simple', 'list');
-    const csv = await inspect(CSV);
-    fireEvent.click(useBox(csv));
+    const server = await withAf();
+    const csv = await row(CSV);
+    fireEvent.click(within(csv).getByRole('button', { name: 'Use this list' }));
     expect(within(csv).getByText(`It pairs 292 of the same items as ${AF}.`)).toBeInTheDocument();
     const saves = server.saved.length;
     fireEvent.click(within(csv).getByRole('button', { name: `Use this one in place of ${AF}` }));
@@ -214,51 +178,39 @@ describe('Your list in Simple: the lists and the inspector', () => {
       expect(filesOf(last(server.saved))).toEqual([CSV]);
     }, { timeout: 5000 });
     expect(server.saved.length).toBeGreaterThan(saves);
-    expect(await option(AF)).not.toHaveTextContent('In use');
+    await waitFor(async () => {
+      expect(await row(AF)).not.toHaveTextContent('In use');
+    }, { timeout: 3000 });
   }, 20_000);
 
   it('keeps both lists when the person says both', async () => {
-    const server = await opened();
-    go('simple', 'list');
-    const csv = await inspect(CSV);
-    fireEvent.click(useBox(csv));
+    const server = await withAf();
+    const csv = await row(CSV);
+    fireEvent.click(within(csv).getByRole('button', { name: 'Use this list' }));
     fireEvent.click(within(csv).getByRole('button', { name: 'Use both' }));
     await waitFor(() => {
       expect(filesOf(last(server.saved))).toEqual([AF, CSV]);
     }, { timeout: 5000 });
   }, 20_000);
 
+  it('Use this list reads the list into the folder, from a plan with none', async () => {
+    const server = start('advanced', 'lists');
+    const pn = await row(PN);
+    expect(pn).toHaveTextContent('86 of 215 rows name a file, by “File”. +103 ignoring case, zeros and _ - .');
+    fireEvent.click(within(pn).getByRole('button', { name: 'Use this list' }));
+    await waitFor(() => {
+      expect(filesOf(last(server.saved))).toEqual([PN]);
+    }, { timeout: 5000 });
+    expect(asRecord(sheetsOf(last(server.saved))[0]?.['join'], [])['column']).toEqual({ index: 0, header: 'File' });
+  }, 20_000);
+
   it('shows the error of a list that did not read, with nothing to choose', async () => {
-    start('simple', 'list', [...LISTS, { file: 'broken.xlsx', rows: 0, paired: 0, normalized: 0, error: 'The workbook has no sheet.' }]);
-    const broken = await inspect('broken.xlsx');
-    expect(await option('broken.xlsx')).toHaveTextContent('Not read');
+    start('advanced', 'lists', [...LISTS, { file: 'broken.xlsx', rows: 0, paired: 0, normalized: 0, error: 'The workbook has no sheet.' }]);
+    const broken = await row('broken.xlsx');
+    expect(broken).toHaveTextContent('Not read');
     expect(broken).toHaveTextContent('This list could not be read: The workbook has no sheet.');
     expect(within(broken).queryAllByRole('checkbox')).toHaveLength(0);
     expect(within(broken).queryAllByRole('button')).toHaveLength(0);
-  }, 20_000);
-});
-
-describe('the list picker in Advanced', () => {
-  const row = async (file: string): Promise<HTMLElement> => screen.findByRole('listitem', { name: file }, { timeout: 5000 });
-
-  it('shows the same lists, and adding one writes the plan Simple writes', async () => {
-    const simple = start('simple', 'list');
-    fireEvent.click(useBox(await inspect(PN)));
-    await waitFor(() => {
-      expect(filesOf(last(simple.saved))).toEqual([PN]);
-    }, { timeout: 5000 });
-    window.location.hash = '';
-    cleanup();
-
-    const advanced = start('advanced', 'lists');
-    const pn = await row(PN);
-    expect(pn).toHaveTextContent('86 of 215 rows name a file, by “File”. +103 ignoring case, zeros and _ - .');
-    expect(await row(CSV)).toHaveTextContent(`same items as ${AF} · 292 items`);
-    fireEvent.click(within(pn).getByRole('button', { name: 'Use this list' }));
-    await waitFor(() => {
-      expect(filesOf(last(advanced.saved))).toEqual([PN]);
-    }, { timeout: 5000 });
-    expect(last(advanced.saved)).toEqual(last(simple.saved));
   }, 20_000);
 });
 
@@ -324,6 +276,37 @@ describe('the list picker of one folder, on a plan of several folders', () => {
     );
     return { saved };
   };
+
+  it('the Structure tree moves the selection with the arrow keys, Home and End, and Enter goes to the inspector', async () => {
+    several();
+    window.location.hash = '#/import/1/simple/structure';
+    render(<Routed />);
+    const tree = await screen.findByRole('listbox', { name: 'Your archive' }, { timeout: 5000 });
+    const options = (): HTMLElement[] => within(tree).getAllByRole('option');
+    const selected = (): string | null => options().find((one) => one.getAttribute('aria-selected') === 'true')?.querySelector('.guided-row-name')?.textContent ?? null;
+    const names = options().map((one) => one.querySelector('.guided-row-name')?.textContent ?? null);
+    const artifacts = options()[names.indexOf('Artifacts')];
+    if (artifacts === undefined) {
+      throw new Error('no Artifacts node');
+    }
+    fireEvent.click(artifacts);
+    artifacts.focus();
+    fireEvent.keyDown(artifacts, { key: 'ArrowDown' });
+    const next = names[names.indexOf('Artifacts') + 1] ?? null;
+    expect(selected()).toBe(next);
+    expect(options().find((one) => one.getAttribute('aria-selected') === 'true')).toHaveFocus();
+    fireEvent.keyDown(document.activeElement ?? tree, { key: 'End' });
+    expect(selected()).toBe(names.at(-1));
+    fireEvent.keyDown(document.activeElement ?? tree, { key: 'ArrowDown' });
+    expect(selected()).toBe(names.at(-1));
+    fireEvent.keyDown(document.activeElement ?? tree, { key: 'ArrowUp' });
+    expect(selected()).toBe(names.at(-2));
+    fireEvent.keyDown(document.activeElement ?? tree, { key: 'Home' });
+    expect(selected()).toBe(names[0]);
+    fireEvent.keyDown(document.activeElement ?? tree, { key: 'Enter' });
+    const inspector = tree.parentElement?.querySelector('.guided-inspector');
+    expect(inspector).toContainElement(document.activeElement instanceof HTMLElement ? document.activeElement : null);
+  }, 20_000);
 
   it('a list another folder uses shows as used there, with Move here and no Stop using', async () => {
     const { saved } = several();

@@ -32,7 +32,6 @@ export const mr: TermListMessages = {
   'termLists.columnKind': 'धारण',
   'termLists.columnEntries': 'नोंदी',
   'termLists.columnUsage': 'याचा वापर करणारे घटक',
-  'termLists.editLabel': 'ही शब्दसूची संपादित करा',
   'termLists.deleteLabel': 'ही शब्दसूची हटवा',
   'termLists.deleteNote':
     'सूची हटवल्याने त्यातून निवडलेली मूल्ये काढून टाकली जातात. ती त्यांच्या घटकांवर साध्या मजकुराच्या स्वरूपात राहतात.',

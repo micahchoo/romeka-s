@@ -2,7 +2,8 @@
 
 use super::bhc006_tests::{self, proposal_with_lists};
 use super::{Evidence, FoundList, ItemCut, NodeEvidence, Proposal, SeriesNode, propose};
-use crate::import::derive::tests::support::{JPEG, TIFF, catalog, index, plan};
+use crate::import::catalog::label_key;
+use crate::import::derive::tests::support::{self, JPEG, TIFF, catalog, index, plan};
 use crate::import::derive::{NoTags, Sheets, derive};
 use crate::import::placement::{ListFiles, Placement};
 use crate::import::plan::{
@@ -431,4 +432,102 @@ fn collect_series<'v>(levels: &'v serde_json::Value, out: &mut Vec<&'v serde_jso
             _ => collect_series(&level["levels"], out),
         }
     }
+}
+
+/// The headers of the columns the item rule of `term` reads, in the
+/// proposal's one series.
+fn item_rule(structure: &crate::import::plan::Structure, term: &str) -> Vec<String> {
+    let (_, series) = structure.all_series().next().expect("a series");
+    series
+        .rules(crate::import::plan::RecordKind::Item)
+        .get(&crate::import::plan::SlotName::Term(support::term(term)))
+        .map(|rule| {
+            rule.sources
+                .iter()
+                .filter_map(|source| match source {
+                    crate::import::plan::SourceRef::Column { column, .. } => {
+                        Some(column.header.clone())
+                    }
+                    _ => None,
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+#[test]
+fn a_list_the_proposal_chooses_puts_each_column_named_as_a_field_there() {
+    let index = index(&[("ana.jpg", JPEG), ("ben.jpg", JPEG)]);
+    let plan = plan(|_| {});
+    let list = file("register.csv");
+    let read = automatic(&list.source, &list.file).read;
+    let text = "File,Title,Subject,Shelf\nana.jpg,Ana,a;b,1\nben.jpg,Ben,c;d,2\n";
+    let lists = vec![FoundList {
+        sheet: sheet::read(text.as_bytes(), &read, None),
+        file: list,
+    }];
+    let mut catalog = catalog();
+    for (label, term) in [("Title", "dcterms:title"), ("Subject", "dcterms:subject")] {
+        catalog
+            .fields_by_label
+            .insert(label_key(label), support::term(term));
+    }
+    let evidence = Evidence {
+        index: &index,
+        lists: &lists,
+        catalog: &catalog,
+        sources: &plan.sources,
+        structure: &plan.structure,
+        sheets: &Sheets::new(),
+    };
+    let proposal = propose(&evidence, &[]);
+    assert_eq!(chosen(series(&proposal, "s1")), Some("register.csv"));
+    assert_eq!(item_rule(&proposal.structure, "dcterms:title"), ["Title"]);
+    assert_eq!(
+        item_rule(&proposal.structure, "dcterms:subject"),
+        ["Subject"]
+    );
+    let (_, sheet) = proposal.structure.lists().next().expect("the list");
+    let split = |header: &str| {
+        sheet
+            .columns
+            .iter()
+            .find(|one| one.column.header == header)
+            .map(|one| one.options.split.clone())
+    };
+    assert_eq!(
+        split("Subject"),
+        Some(Some(";".into())),
+        "split as its cells suggest"
+    );
+    assert_eq!(
+        split("Shelf"),
+        None,
+        "a header no field has waits for the person"
+    );
+    assert_eq!(split("File"), None, "the join column keeps its role alone");
+
+    // The person sends Title nowhere. The plan now holds the list, so the
+    // next proposal keeps their choice.
+    let mut confirmed = ImportPlan {
+        structure: proposal.structure.clone(),
+        ..plan.clone()
+    };
+    let at = confirmed.structure.all_series().next().expect("a series").0;
+    confirmed
+        .structure
+        .rules_mut(at, crate::import::plan::RecordKind::Item)
+        .shift_remove(&crate::import::plan::SlotName::Term(support::term(
+            "dcterms:title",
+        )));
+    let evidence = Evidence {
+        structure: &confirmed.structure,
+        ..evidence
+    };
+    let again = propose(&evidence, &[]);
+    assert!(
+        item_rule(&again.structure, "dcterms:title").is_empty(),
+        "Title stays nowhere"
+    );
+    assert_eq!(item_rule(&again.structure, "dcterms:subject"), ["Subject"]);
 }

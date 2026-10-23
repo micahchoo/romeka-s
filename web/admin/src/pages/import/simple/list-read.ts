@@ -1,12 +1,9 @@
 /**
- * Reading a list file of the folder into the plan, as "Use this list" does.
- * The list that pairs the most rows is used from the start, as the suggested
- * answer, so the groups on "What we found" can already say which items have
- * a row; "Not about these items" keeps a list out.
+ * Reading a list file of the folder into the plan, as "Use this list" does;
+ * "Not about these items" keeps a list out.
  */
 import type { ImportId, ImportPlan, LevelId, SheetPlan } from '../../../api/import-plan';
 import { importApi } from '../../../api/import-routes';
-import { loadProperties } from '../lists/catalog';
 import { seriesOf, withSeries } from '../series';
 import { sheetOf, withRead } from './list-plan';
 
@@ -15,7 +12,7 @@ export interface ListFile {
   readonly file: string;
 }
 
-/** The series' lists from a folder, which "Your list" talks about. */
+/** The series' lists from a folder of the plan's sources. */
 export const folderSheets = (plan: ImportPlan, level: LevelId): readonly SheetPlan[] =>
   seriesOf(plan, level).lists.filter((sheet) => plan.sources.some((source) => source.id === sheet.source && source.kind === 'folder'));
 
@@ -36,7 +33,6 @@ export const listEdit = async (id: ImportId, plan: ImportPlan, level: LevelId, l
     sheet = { ...first, read: { ...first.read, headerLine: line } };
     preview = await readWith(sheet);
   }
-  const fields = await loadProperties();
   const view = preview.sheets.find((one) => one.id === sheet.id);
   const read = view?.read ?? null;
   if (read === null) {
@@ -50,5 +46,5 @@ export const listEdit = async (id: ImportId, plan: ImportPlan, level: LevelId, l
     rollUps: [],
   };
   return (now) =>
-    seriesOf(now, level).lists.some((one) => one.file === sheet.file && one.source === sheet.source) ? now : withRead(withList(now, level, sheet), sheet.id, read, counts, fields);
+    seriesOf(now, level).lists.some((one) => one.file === sheet.file && one.source === sheet.source) ? now : withRead(withList(now, level, sheet), sheet.id, read, counts);
 };

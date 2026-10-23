@@ -25,7 +25,6 @@ export const ne: ResourcesMessages = {
   'items.add': 'वस्तु थप्नुहोस्',
   'items.empty': 'कुनै पनि वस्तु फेला परेन।',
   'items.mediaHeading': 'मिडिया ({count})',
-  'items.noMedia': 'कुनै मिडिया छैन।',
   'items.addMedia': 'मिडिया थप्नुहोस्',
   'items.closeAddMedia': 'बन्द गर्नुहोस्',
   'items.noMediaYet':

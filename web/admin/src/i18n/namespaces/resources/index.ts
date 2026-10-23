@@ -28,7 +28,6 @@ export const en = {
   'items.add': 'Add item',
   'items.empty': 'No items found.',
   'items.mediaHeading': 'Media ({count})',
-  'items.noMedia': 'No media.',
   'items.addMedia': 'Add media',
   'items.closeAddMedia': 'Close',
   'items.noMediaYet': 'No media yet. Drop a file here, choose one, or paste a link.',

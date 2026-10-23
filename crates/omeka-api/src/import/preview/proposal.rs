@@ -77,8 +77,8 @@ use crate::import::model::{Fate, Model};
 use crate::import::plan::{
     ColumnOptions, ColumnPlan, ColumnRef, Combine, EachSet, EachValue, Edit, FolderScope, Grouping,
     ImportPlan, Level, LevelId, ListFile, PairRule, Placement as FilePlace, PlanError, RecordKind,
-    RelPath, Series, SeriesIx, SeriesScope, SetFrom, SetLevel, SetNames, SetSource, SheetId,
-    SheetPlan, SlotName, SlotRule, SourcePlan, SourceRef, Structure, default_plan,
+    RelPath, RowKind, Series, SeriesIx, SeriesScope, SetFrom, SetLevel, SetNames, SetSource,
+    SheetId, SheetPlan, SlotName, SlotRule, SourcePlan, SourceRef, Structure, Term, default_plan,
 };
 use crate::import::sheet::{Sheet, SheetError};
 use crate::import::values::ValueType;
@@ -94,7 +94,8 @@ pub struct Evidence<'e> {
     /// Every list file of the walk, read as Simple adds one.
     pub lists: &'e dyn Lists,
     /// The install: its file settings are the only media table the
-    /// proposer may use; the derives need the rest.
+    /// proposer may use, and its field labels name where a list's column
+    /// goes; the derives need the rest.
     pub catalog: &'e Catalog,
     /// The draft's sources, so that each scope names a real source.
     pub sources: &'e [SourcePlan],
@@ -620,14 +621,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         .zip(&rows)
         .map(|(cut, rows)| rows.items.is_none().then_some(&cut.chosen.key))
         .collect();
-    let levels = tree(
-        evidence.structure,
-        &series,
-        &keys,
-        &rows,
-        &Sets::default(),
-        &kept,
-    );
+    let levels = tree(evidence, &series, &keys, &rows, &Sets::default(), &kept);
     let plan = match Structure::build(levels, found.left.clone(), evidence.sources) {
         Ok(structure) => ImportPlan {
             structure,
@@ -690,7 +684,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
             .map(|(flipped, rows)| flipped.unwrap_or_else(|| rows.clone()))
             .collect();
         let levels = tree(
-            evidence.structure,
+            evidence,
             &series,
             &keys,
             &rival_rows,
@@ -751,14 +745,7 @@ pub fn propose(evidence: &Evidence<'_>, edits: &[Edit]) -> Proposal {
         || found_sets.series.iter().any(|sets| {
             !sets.taken.is_empty() || sets.folder.as_ref().is_some_and(|folder| folder.chosen)
         }) {
-        let levels = tree(
-            evidence.structure,
-            &series,
-            &keys,
-            &rows,
-            &found_sets,
-            &kept,
-        );
+        let levels = tree(evidence, &series, &keys, &rows, &found_sets, &kept);
         match Structure::build(levels, found.left.clone(), evidence.sources) {
             Ok(structure) => ImportPlan {
                 structure: replayed.onto(structure),
@@ -1223,6 +1210,10 @@ impl Plan {
     /// that reads a list this series does not hold is not taken, and the
     /// key rules the rows need win over the person's. Each list of
     /// `kept_lists` follows the proposed ones as written, with its id.
+    ///
+    /// A list the plan does not hold yet is read as "Use this list" read
+    /// it: each column whose header is a field's label goes into that field
+    /// ([`first_read`]).
     fn of(
         rows: &grain::SeriesRows,
         ids: &mut BTreeSet<SheetId>,
@@ -1230,13 +1221,16 @@ impl Plan {
         kept: &Structure,
         scope: &SeriesScope,
         kept_lists: &[&SheetPlan],
+        catalog: &Catalog,
     ) -> Self {
         let mut of_file = BTreeMap::new();
+        let mut first_reads: Vec<usize> = Vec::new();
         let mut of_kept: BTreeMap<SheetId, SheetId> = BTreeMap::new();
         let mut lists: Vec<SheetPlan> =
             rows.lists
                 .iter()
-                .map(|list| {
+                .enumerate()
+                .map(|(n, list)| {
                     let mut id = SheetId(list.file.file.as_str().to_owned());
                     if ids.contains(&id) {
                         id.0.push_str(&list.file.source.0);
@@ -1279,6 +1273,8 @@ impl Plan {
                     if let Some(held) = held {
                         plan.read = held.read.clone();
                         of_kept.insert(held.id.clone(), plan.id.clone());
+                    } else {
+                        first_reads.push(n);
                     }
                     plan
                 })
@@ -1313,6 +1309,51 @@ impl Plan {
             };
             Some((*kind, SlotName::ItemKey, rule))
         }));
+        for n in first_reads {
+            let roll_ups = if n == 0 { rows.columns.as_slice() } else { &[] };
+            for (kind, cells, term) in first_read(&rows.lists[n], roll_ups, catalog) {
+                let column = ColumnRef {
+                    index: cells.index,
+                    header: cells.header.clone(),
+                };
+                let list = &mut lists[n];
+                if list
+                    .columns
+                    .iter()
+                    .all(|one| one.column.index != column.index)
+                {
+                    list.columns.push(ColumnPlan {
+                        column: column.clone(),
+                        options: ColumnOptions {
+                            split: lists::suggested_split(&rows.lists[n].cells, column.index),
+                            value_type: ValueType::Literal,
+                            lang: None,
+                            private: false,
+                        },
+                    });
+                }
+                let source = SourceRef::Column {
+                    sheet: list.id.clone(),
+                    column,
+                };
+                let slot = SlotName::Term(term.clone());
+                match rules
+                    .iter_mut()
+                    .find(|(at, name, _)| *at == kind && *name == slot)
+                {
+                    Some((_, _, rule)) => rule.sources.insert(0, source),
+                    None => rules.push((
+                        kind,
+                        slot,
+                        SlotRule {
+                            sources: vec![source],
+                            combine: Combine::First,
+                            map: IndexMap::new(),
+                        },
+                    )),
+                }
+            }
+        }
         Self {
             lists,
             set,
@@ -1320,6 +1361,41 @@ impl Plan {
             maps,
         }
     }
+}
+
+/// Where "Use this list" put a list's columns on its first read: each
+/// column whose header is a field's label goes into that field, on the
+/// item, or on each file when the rows describe files and the column's
+/// roll-up picks the file. A column the list already reads for a role (its
+/// join, its keys, its kinds, a set) keeps that role alone.
+fn first_read<'l>(
+    list: &'l grain::ListPlan,
+    roll_ups: &[ColumnRollUp],
+    catalog: &'l Catalog,
+) -> impl Iterator<Item = (RecordKind, &'l candidates::ColumnCells, &'l Term)> {
+    let mut roles: Vec<u32> = list.mapped.iter().map(|column| column.index).collect();
+    roles.extend(list.join.as_ref().map(|join| join.column.index));
+    roles.extend(list.item_key.as_ref().map(|key| key.index));
+    if let RowKind::Column(kind) = &list.row_kind {
+        roles.push(kind.column.index);
+    }
+    let on_files = list.row_kind == RowKind::All(RecordKind::Media);
+    let kinds: Vec<(u32, RecordKind)> = roll_ups
+        .iter()
+        .filter(|one| on_files && one.pick.chosen.value == RollUp::File)
+        .map(|one| (one.index, RecordKind::Media))
+        .collect();
+    list.cells
+        .iter()
+        .filter(move |cells| !roles.contains(&cells.index))
+        .filter_map(move |cells| {
+            let term = catalog.field_labeled(&cells.header)?;
+            let kind = kinds
+                .iter()
+                .find(|(index, _)| *index == cells.index)
+                .map_or(RecordKind::Item, |(_, kind)| *kind);
+            Some((kind, cells, term))
+        })
 }
 
 /// What an `each` set reads. A column is named by its list's file, so a
@@ -1660,13 +1736,14 @@ fn as_found(evidence: &Evidence<'_>) -> Vec<folders::FolderSeries> {
 /// set level around the series; a top set taken is a set level around
 /// everything.
 fn tree(
-    kept: &Structure,
+    evidence: &Evidence<'_>,
     series: &[folders::FolderSeries],
     keys: &[Option<&Key>],
     rows: &[grain::SeriesRows],
     sets: &Sets,
     kept_lists: &[Kept<'_>],
 ) -> Vec<Level> {
+    let kept = evidence.structure;
     // A written series and a kept list keep their sheet ids, so no proposed
     // list takes one.
     let mut ids: BTreeSet<SheetId> = series
@@ -1700,7 +1777,15 @@ fn tree(
             }
             let sets = sets.series.get(at).unwrap_or(&none);
             let scope = SeriesScope::Folders(one.scopes.clone());
-            let plan = Plan::of(rows, &mut ids, &sets.taken, kept, &scope, &here);
+            let plan = Plan::of(
+                rows,
+                &mut ids,
+                &sets.taken,
+                kept,
+                &scope,
+                &here,
+                evidence.catalog,
+            );
             level(one, *key, plan, sets)
         })
         .collect();

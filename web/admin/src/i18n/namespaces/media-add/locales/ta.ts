@@ -23,7 +23,6 @@ export const ta: MediaAddMessages = {
   'add.html': 'HTML ஐ ஒட்டவும்',
   'add.htmlNote': 'சேமிக்கும் போது ஸ்கிரிப்ட்கள் மற்றும் நிகழ்வு பண்புகள் நீக்கப்படுகின்றன.',
   'add.visible': 'பார்வையாளர்களுக்குத் தெரியும்',
-  'add.whatFiles': 'எந்தக் கோப்புகளை என்னால் சேர்க்க முடியும்?',
   'add.takes': '{kinds} வரை. ஒரு கோப்பிற்கு அதிகபட்சம் {size}.',
   'add.checking': 'இந்த ஆவணக் காப்பகம் எந்தக் கோப்புகளைக் கொண்டுள்ளது என்பதைச் சரிபார்க்கிறது…',
   'add.limitsFailed':
@@ -46,7 +45,6 @@ export const ta: MediaAddMessages = {
   'add.waiting': 'காத்திருக்கிறது',
   'add.sending': '{sent} {size} இல்',
   'add.paused': 'நிறுத்தப்பட்டது',
-  'add.pausedConnection': 'நிறுத்தப்பட்டது: இணைப்பு இல்லை.',
   'add.needsFile':
     '{sent} இல் {size} மட்டுமே சேமிக்கப்பட்டது. {name} ஐ மீண்டும் தேர்ந்தெடுத்து முடிக்கவும்.',
   'add.chooseAgain': 'மீண்டும் தேர்ந்தெடுக்கவும்',
@@ -84,8 +82,6 @@ export const ta: MediaAddMessages = {
   'add.readingIiif': 'ஒரு IIIF படம்',
   'add.readingManifest': 'ஒரு IIIF மேனிஃபெஸ்ட்',
   'add.readingWith': '{reading}: {detail}',
-  'add.detailTitle': '{title}',
-  'add.detailType': '{type}',
   'add.detailImage': '{width} × {height}',
   'add.detailCanvases': '{count} படங்கள்',
   'add.detailSize': '{size}',

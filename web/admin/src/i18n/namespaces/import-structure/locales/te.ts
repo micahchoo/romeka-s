@@ -13,7 +13,7 @@ export const te: ImportStructureMessages = {
   "structure.status.use": "ఈ నిర్మాణాన్ని ఉపయోగించండి",
   "structure.status.inUse": "అమలులో ఉంది. మీ మార్పులు: {count}.",
   "structure.status.changed":
-    "మీ ఫైళ్లు మారాయి. మా కొత్త సూచన yours కంటే భిన్నంగా ఉంది.",
+    "మీ ఫైళ్లు మారాయి. మా కొత్త సూచన మీదాని కంటే భిన్నంగా ఉంది.",
   "structure.status.useNew": "కొత్త సూచనను ఉపయోగించండి",
   "structure.status.keep": "నాది ఉంచండి",
   "structure.status.refused": "మేము ఏమీ కొత్తగా సూచించము. మా సూచనను ఉపయోగించలేము: {reason}",

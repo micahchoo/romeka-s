@@ -31,7 +31,6 @@ export const en = {
   'termLists.columnKind': 'Holds',
   'termLists.columnEntries': 'Entries',
   'termLists.columnUsage': 'Items using it',
-  'termLists.editLabel': 'Edit this term list',
   'termLists.deleteLabel': 'Delete this term list',
   'termLists.deleteNote': 'Deleting a list keeps the values chosen from it. They stay on their items as plain text.',
   'termPicker.loading': 'Loading the list...',

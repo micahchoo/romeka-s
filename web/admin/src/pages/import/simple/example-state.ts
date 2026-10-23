@@ -7,11 +7,10 @@
  * saved before `simple` holds the same keys in `example`; `simpleRecordOf`
  * hands those over until the first save.
  */
-import type { ImportPlan, LevelId } from '../../../api/import-plan';
+import type { ImportPlan } from '../../../api/import-plan';
 import { isRecord } from '../../../api/parse';
-import { exampleOf, patternOf, simpleRecordOf, withExample, withoutOldAnswers } from '../example';
-import type { Mark } from '../example';
-import { seriesOf, withEverySeries, withSeries, withSimple } from '../series';
+import { simpleRecordOf, withoutOldAnswers } from '../example';
+import { withEverySeries, withSimple } from '../series';
 
 /** A list file the person said is not about these items. `source` is `''` in a draft that predates sources here: any source. */
 export interface NotList {
@@ -20,8 +19,6 @@ export interface NotList {
 }
 
 export interface SimpleState {
-  /** The pattern under which the person said every group is right; a new pattern asks again. */
-  readonly groupsOk: string | null;
   /** The Check questions the person answered or took the suggested answer for. */
   readonly answered: readonly string[];
   /** The list files the person said are not about these items. */
@@ -43,10 +40,8 @@ export const declines = (entry: NotList, source: string, file: string): boolean 
 
 export const readState = (plan: ImportPlan): SimpleState => {
   const kept = simpleRecordOf(plan) ?? {};
-  const groupsOk = kept['groupsOk'];
   const notLists = kept['notLists'];
   return {
-    groupsOk: typeof groupsOk === 'string' ? groupsOk : null,
     answered: strings(kept['answered']),
     notLists: Array.isArray(notLists) ? notLists.flatMap((entry) => notListOf(entry) ?? []) : [],
   };
@@ -54,23 +49,7 @@ export const readState = (plan: ImportPlan): SimpleState => {
 
 export const withState = (plan: ImportPlan, change: Partial<SimpleState>): ImportPlan => {
   const next = { ...readState(plan), ...change };
-  const simple = { groupsOk: next.groupsOk, answered: [...next.answered], notLists: next.notLists.map(({ source, file }) => ({ source, file })) };
+  const simple = { answered: [...next.answered], notLists: next.notLists.map(({ source, file }) => ({ source, file })) };
   // An old draft's keys inside `example` go with the first save of `simple`.
   return withEverySeries(withSimple(plan, simple), (series) => ({ ...series, example: withoutOldAnswers(series.example) }));
-};
-
-/** The marks of the series `level`'s example. */
-export const marksOf = (plan: ImportPlan, level: LevelId): readonly Mark[] => exampleOf(plan, level)?.marks ?? [];
-
-/** The series read by the marks: their pattern, and the example both modes read. */
-export const withMarks = (plan: ImportPlan, level: LevelId, marks: readonly Mark[], path: string | null): ImportPlan =>
-  withSeries(withExample(plan, level, path ?? exampleOf(plan, level)?.path ?? null, marks), level, (series) => ({
-    ...series,
-    grouping: { ...series.grouping, pattern: patternOf(marks) },
-  }));
-
-/** Whether the series' pattern is one typed in Advanced, not the one its marks make. */
-export const typedElsewhere = (plan: ImportPlan, level: LevelId): boolean => {
-  const { pattern } = seriesOf(plan, level).grouping;
-  return pattern !== null && pattern !== patternOf(marksOf(plan, level));
 };

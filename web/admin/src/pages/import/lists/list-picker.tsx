@@ -4,8 +4,7 @@
  * any number of lists, turns one down and still sees the rest, and is asked
  * once when a list pairs the same items as one in use: two catalogues of one
  * item are allowed, and so is a newer one in place of an old copy.
- * `useListChoice` holds those edits for one list, so Advanced's picker below
- * and Simple's "Your list" inspector make the same plan.
+ * `useListChoice` holds those edits for one list.
  *
  * The picker is of one folder. A list that another folder reads shows as
  * used there, and "Move here" takes it from that folder: it never offers
@@ -217,7 +216,6 @@ export const useListChoice = (candidate: ListCandidate, level: LevelId, offered?
       offers.send(null);
     } else if (state.kind === 'inUse') {
       const sheet = state.sheet;
-      // A list taken out stays out: "What we found" adds the first list only while no list was ever turned down.
       draft.change((plan) => written(plan, 'list', level, (now) => withDecline(removeSheet(now, sheet.id), source, file)));
     }
   };

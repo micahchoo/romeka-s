@@ -32,7 +32,6 @@ export const te: TermListMessages = {
   'termLists.columnKind': 'ఉంచుతుంది',
   'termLists.columnEntries': 'ఎంట్రీలు',
   'termLists.columnUsage': 'దీనిని ఉపయోగిస్తున్న అంశాలు',
-  'termLists.editLabel': 'ఈ పదాల జాబితాను సవరించండి',
   'termLists.deleteLabel': 'ఈ పదాల జాబితాను తొలగించండి',
   'termLists.deleteNote':
     'జాబితాను తొలగించడం వల్ల దాని నుండి ఎంచుకున్న విలువలు అలాగే ఉంటాయి. అవి వాటి అంశాలపై సాధారణ వచనంగా ఉంటాయి.',

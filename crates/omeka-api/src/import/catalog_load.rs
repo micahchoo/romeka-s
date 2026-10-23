@@ -23,7 +23,7 @@ use omeka_media::validation::FileValidation;
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Type};
 
 use super::catalog::{
-    Catalog, ExistingItem, ExistingMedia, ExistingSet, Field, Keys, Template, User,
+    Catalog, ExistingItem, ExistingMedia, ExistingSet, Field, Keys, Template, User, label_key,
 };
 use super::plan::{ImportPlan, MatchKey, NewTypeFrom, Term};
 use super::starters::starter;
@@ -128,6 +128,7 @@ where
             .and_then(|prefix| Term::parse(&format!("{prefix}:{local}")).ok())
     };
     let mut properties = BTreeMap::new();
+    let mut fields_by_label = BTreeMap::new();
     let mut property_terms = HashMap::new();
     for row in PropertyRepo::new(pool)
         .list(&PropertyFilter::default(), &all)
@@ -138,6 +139,9 @@ where
         }
         if let Some(term) = term_of(row.vocabulary_id, &row.local_name) {
             property_terms.insert(row.id, term.clone());
+            fields_by_label
+                .entry(label_key(&row.label))
+                .or_insert_with(|| term.clone());
             properties.insert(term, row.label);
         }
     }
@@ -301,6 +305,7 @@ where
         templates,
         base_template,
         properties,
+        fields_by_label,
         classes,
         users,
         starters: starter_fields(plan),

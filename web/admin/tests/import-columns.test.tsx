@@ -92,15 +92,27 @@ const splitOf = (plan: Record<string, unknown>, index: number): unknown => {
   return asRecord(column?.['options'], [])['split'];
 };
 
-const open = (screenName: string): ReturnType<typeof simpleServer> => {
-  const server = simpleServer(bhc006, FILE_ROWS);
+/** Simple's "Where each column goes" is on the folder's Structure node; Advanced's columns are in its Lists section. */
+const SIMPLE_COLUMNS = 'simple/structure';
+const ADVANCED_LISTS = 'advanced/lists';
+
+/** Opens the folder's columns table: Simple's from the Structure node, Advanced's in the node's Lists section. */
+const openColumns = async (mode: string): Promise<void> => {
+  if (mode === 'simple') {
+    fireEvent.click(await screen.findByRole('button', { name: 'Where each column goes' }, { timeout: 5000 }));
+  }
+};
+
+const open = (screenName: string, scene: Scenario = bhc006, plan: Record<string, unknown> = FILE_ROWS): ReturnType<typeof simpleServer> => {
+  const server = simpleServer(scene, plan);
   installFetch(server.handler);
   const [mode, name] = screenName.split('/');
-  render(<ImportPage param="1" rest={['1', mode ?? 'simple', name ?? 'list']} />);
+  render(<ImportPage param="1" rest={['1', mode ?? 'simple', name ?? 'structure']} />);
+  void openColumns(mode ?? 'simple');
   return server;
 };
 
-const block = async (): Promise<HTMLElement> => screen.findByRole('region', { name: AF }, { timeout: 5000 });
+const block = async (file: string = AF): Promise<HTMLElement> => screen.findByRole('region', { name: file }, { timeout: 5000 });
 /** The row headed by `column`; Simple writes the column's first value under its name. */
 const headerOf = (element: HTMLElement, column: string): HTMLElement =>
   within(element).getByRole('rowheader', { name: (name) => name === column || name.startsWith(`${column} `) });
@@ -126,7 +138,7 @@ afterEach(() => {
 
 describe('the first value of each column', () => {
   it('is the cell under that column, when the first column of the row is empty', async () => {
-    open('simple/list');
+    open(SIMPLE_COLUMNS);
     const af = await block();
     await goesInto(af, 'Keywords');
     const first = (column: string): string => headerOf(af, column).textContent.slice(column.length).trim();
@@ -139,7 +151,7 @@ describe('the first value of each column', () => {
 
 describe('several values in one cell, in Simple', () => {
   it('cuts Keywords at commas from its first field, as most of its cells hold one, until the person says no', async () => {
-    const server = open('simple/list');
+    const server = open(SIMPLE_COLUMNS);
     const af = await block();
     await choose(await goesInto(af, 'Keywords'), 'field:dcterms:description');
     const split = await within(rowOf(af, 'Keywords')).findByRole('checkbox', { name: /^split at “,”/ }, { timeout: 3000 });
@@ -156,7 +168,7 @@ describe('several values in one cell, in Simple', () => {
   }, 20_000);
 
   it('offers the split but leaves it off for a column where few cells hold a comma', async () => {
-    const server = open('simple/list');
+    const server = open(SIMPLE_COLUMNS);
     const af = await block();
     expect(within(rowOf(af, 'Digitized by')).queryByRole('checkbox')).toBeNull();
     await choose(await goesInto(af, 'Digitized by'), 'field:dcterms:description');
@@ -187,12 +199,17 @@ describe('a list whose header is on line 2, under a title, with an empty first c
   };
 
   it.each([AF, 'Artifacts/BHC006_GMT_AF.csv'])('%s: the header-line choice shows line 1, and each column its own first cell', async (file) => {
-    installFetch(simpleServer(titled(file), onLine2(file)).handler);
-    render(<ImportPage param="1" rest={['1', 'simple', 'list']} />);
-    const list = await screen.findByRole('region', { name: file }, { timeout: 5000 });
+    // The header line is a read option of the list: Advanced's Lists section of the folder holds it, with the lines above it.
+    open(ADVANCED_LISTS, titled(file), onLine2(file));
+    const read = await block(file);
+    expect(await within(read).findByRole('spinbutton', { name: 'Line' }, { timeout: 5000 })).toHaveValue(2);
+    expect(within(read).getByText(TITLE, { selector: 'code' })).toBeInTheDocument();
+    cleanup();
+
+    // Each column's own first cell, under the title line, in Simple's table on the folder's node.
+    open(SIMPLE_COLUMNS, titled(file), onLine2(file));
+    const list = await block(file);
     await goesInto(list, 'Keywords');
-    expect(within(list).getByText(/^Line 1 has 1 cell: “Register of BHC006”\./)).toBeInTheDocument();
-    expect(within(list).getByRole('spinbutton', { name: 'Column names are on line' })).toHaveValue(2);
     const first = (column: string): string => headerOf(list, column).textContent.slice(column.length).trim();
     expect(first('Sl No')).toBe('');
     expect(first('Keywords')).toBe('Coral, Natural History, Fossil');
@@ -220,17 +237,13 @@ describe('a list read for the first time, its columns mapped by name', () => {
       },
     ],
   });
-  const added = async (file: string, mode: string, screenName: string): Promise<Record<string, unknown>> => {
+  /** A list is chosen in the folder's Lists section, Advanced's list picker; Simple's Structure takes the proposer's list. */
+  const added = async (file: string): Promise<Record<string, unknown>> => {
     const server = simpleServer(named(file));
     installFetch(server.handler);
-    render(<ImportPage param="1" rest={['1', mode, screenName]} />);
-    if (mode === 'simple') {
-      fireEvent.click(await screen.findByRole('option', { name: file }, { timeout: 5000 }));
-      fireEvent.click(within(await screen.findByRole('region', { name: file })).getByRole('checkbox', { name: 'use this list' }));
-    } else {
-      const offer = await screen.findByRole('listitem', { name: file }, { timeout: 5000 });
-      fireEvent.click(within(offer).getByRole('button', { name: 'Use this list' }));
-    }
+    render(<ImportPage param="1" rest={['1', 'advanced', 'lists']} />);
+    const offer = await screen.findByRole('listitem', { name: file }, { timeout: 5000 });
+    fireEvent.click(within(offer).getByRole('button', { name: 'Use this list' }));
     await waitFor(() => {
       expect(Array.isArray(last(server.saved)['sheets']) ? last(server.saved)['sheets'] : []).toHaveLength(1);
     }, { timeout: 5000 });
@@ -238,22 +251,19 @@ describe('a list read for the first time, its columns mapped by name', () => {
   };
   const named1 = (index: number) => ({ from: 'column', sheet: 'folder-list-1', column: { index, header: NAMED[index] ?? '' } });
 
-  it.each([AF, 'Artifacts/BHC006_GMT_AF.csv'])('%s: a column most of whose cells hold a comma is cut at commas, in Simple and Advanced alike', async (file) => {
-    const simple = await added(file, 'simple', 'list');
-    expect(sourcesOf(simple, 'item', 'dcterms:type')).toEqual([named1(TYPE)]);
-    expect(sourcesOf(simple, 'item', 'dcterms:date')).toEqual([named1(DATE)]);
-    expect(splitOf(simple, TYPE)).toBe(',');
-    expect(splitOf(simple, DATE)).toBeNull();
-    expect(asRecord(asRecord(Array.isArray(simple['sheets']) ? simple['sheets'][0] : null, [])['read'], [])['headerLine']).toBe(2);
-    cleanup();
-    const advanced = await added(file, 'advanced', 'lists');
-    expect({ sheets: advanced['sheets'], slots: advanced['slots'] }).toEqual({ sheets: simple['sheets'], slots: simple['slots'] });
+  it.each([AF, 'Artifacts/BHC006_GMT_AF.csv'])('%s: a column most of whose cells hold a comma is cut at commas, on its first read', async (file) => {
+    const plan = await added(file);
+    expect(sourcesOf(plan, 'item', 'dcterms:type')).toEqual([named1(TYPE)]);
+    expect(sourcesOf(plan, 'item', 'dcterms:date')).toEqual([named1(DATE)]);
+    expect(splitOf(plan, TYPE)).toBe(',');
+    expect(splitOf(plan, DATE)).toBeNull();
+    expect(asRecord(asRecord(Array.isArray(plan['sheets']) ? plan['sheets'][0] : null, [])['read'], [])['headerLine']).toBe(2);
   }, 30_000);
 });
 
 describe('several values in one cell, in Advanced', () => {
   it('cuts Keywords at commas from its first field, as Simple does', async () => {
-    const server = open('advanced/lists');
+    const server = open(ADVANCED_LISTS);
     const af = await block();
     await choose(await within(af).findByRole('combobox', { name: 'Field for Keywords' }, { timeout: 5000 }), 'dcterms:description');
     await waitFor(() => {
@@ -282,7 +292,7 @@ describe('a column’s first field, on a list whose rows describe files: the pro
     return { plan: last(server.saved), af };
   };
 
-  it.each(['simple/list', 'advanced/lists'])('%s: Keywords go to the item, with the count still shown', async (screenName) => {
+  it.each([SIMPLE_COLUMNS, ADVANCED_LISTS])('%s: Keywords go to the item, with the count still shown', async (screenName) => {
     const { plan, af } = await placed(screenName, 'Keywords', 'dcterms:subject');
     expect(sourcesOf(plan, 'item', 'dcterms:subject')).toEqual([fromColumn(KEYWORDS)]);
     expect(sourcesOf(plan, 'media', 'dcterms:subject')).toBeUndefined();
@@ -290,32 +300,34 @@ describe('a column’s first field, on a list whose rows describe files: the pro
   }, 20_000);
 
   // The folder is written as the plan holds it, so the proposer picks nothing for its columns (design open call 3).
-  it.each(['simple/list', 'advanced/lists'])('%s: a column mapped to Identifier goes on the item when no pick sends it to each file', async (screenName) => {
+  it.each([SIMPLE_COLUMNS, ADVANCED_LISTS])('%s: a column mapped to Identifier goes on the item when no pick sends it to each file', async (screenName) => {
     const { plan } = await placed(screenName, 'Digitized by', 'dcterms:identifier');
     expect(sourcesOf(plan, 'item', 'dcterms:identifier')).toEqual([fromColumn(DIGITIZED)]);
     expect(sourcesOf(plan, 'media', 'dcterms:identifier')).toBeUndefined();
   }, 20_000);
 });
 
-describe('what the list says about its encoding', () => {
-  it.each([AF, 'Artifacts/BHC006_GMT_AF.ods'])('%s: a workbook has no text encoding, so nothing is said', async (file) => {
+describe('what the list says about its encoding, in Advanced’s Lists section', () => {
+  const openList = (file: string): void => {
     const scene: Scenario = { ...bhc006, lists: [{ ...(bhc006.lists?.[0] ?? { file, rows: 0, paired: 0, normalized: 0 }), file }] };
     const sheets = Array.isArray(FILE_ROWS['sheets']) ? FILE_ROWS['sheets'].map((one) => asRecord(one, [])) : [];
     installFetch(simpleServer(scene, { ...FILE_ROWS, sheets: sheets.map((one) => ({ ...one, file })) }).handler);
-    render(<ImportPage param="1" rest={['1', 'simple', 'list']} />);
-    const list = await screen.findByRole('region', { name: file }, { timeout: 5000 });
-    await goesInto(list, 'Keywords');
-    expect(list).not.toHaveTextContent('UTF-8');
+    render(<ImportPage param="1" rest={['1', 'advanced', 'lists']} />);
+  };
+
+  it.each([AF, 'Artifacts/BHC006_GMT_AF.ods'])('%s: a workbook has no text encoding, so nothing is said and nothing is offered', async (file) => {
+    openList(file);
+    // The setting shows until the list's view is read, which says it is a workbook.
+    expect(await screen.findByRole('combobox', { name: 'Delimiter' }, { timeout: 5000 })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole('combobox', { name: 'Encoding' })).toBeNull();
+    }, { timeout: 5000 });
+    expect(document.body).not.toHaveTextContent('UTF-8');
   }, 20_000);
 
   it('a CSV still says it is UTF-8 text', async () => {
-    const file = 'Artifacts/BHC006_GMT_AF.csv';
-    const scene: Scenario = { ...bhc006, lists: [{ ...(bhc006.lists?.[0] ?? { file, rows: 0, paired: 0, normalized: 0 }), file }] };
-    const sheets = Array.isArray(FILE_ROWS['sheets']) ? FILE_ROWS['sheets'].map((one) => asRecord(one, [])) : [];
-    installFetch(simpleServer(scene, { ...FILE_ROWS, sheets: sheets.map((one) => ({ ...one, file })) }).handler);
-    render(<ImportPage param="1" rest={['1', 'simple', 'list']} />);
-    const list = await screen.findByRole('region', { name: file }, { timeout: 5000 });
-    await goesInto(list, 'Keywords');
-    expect(list).toHaveTextContent('It is UTF-8 text.');
+    openList('Artifacts/BHC006_GMT_AF.csv');
+    expect(await screen.findByRole('combobox', { name: 'Encoding' }, { timeout: 5000 })).toHaveValue('auto');
+    expect(await screen.findByText('How the bytes become letters. Auto reads them as UTF-8.', {}, { timeout: 5000 })).toBeInTheDocument();
   }, 20_000);
 });

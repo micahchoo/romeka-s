@@ -86,22 +86,26 @@ const Reading = ({ sheet, view }: { readonly sheet: SheetPlan; readonly view: Sh
   const read = (options: Partial<ReadOptions>): void => {
     draft.change((plan) => setRead(plan, sheet.id, options));
   };
-  const guessed = view?.guess?.encoding?.encoding;
+  // Auto's guess, else what Auto read the list as: the encoding Simple's "Your list" said.
+  const guessed = view?.guess?.encoding?.encoding ?? (sheet.read.encoding === 'auto' ? view?.read?.encoding.encoding : undefined);
   const lineId = useId();
   return (
     <>
-      <Setting label={t('adv.lists.encoding.label')} plain={guessed === undefined ? t('adv.lists.encoding.plain') : t('adv.lists.encoding.guess', { encoding: ENCODING_NAMES[guessed] })}>
-        {(described) => (
-          <select aria-label={t('adv.lists.encoding.label')} aria-describedby={described} value={sheet.read.encoding} disabled={!draft.editable} onChange={(event) => { read({ encoding: encodingOf(event.target.value) }); }}>
-            <option value="auto">{t('adv.lists.encoding.auto')}</option>
-            {ENCODINGS.map((encoding) => (
-              <option key={encoding} value={encoding}>
-                {ENCODING_NAMES[encoding]}
-              </option>
-            ))}
-          </select>
-        )}
-      </Setting>
+      {/* A workbook holds letters, not bytes, so it has no text encoding to choose. */}
+      {view?.read?.workbook != null ? null : (
+        <Setting label={t('adv.lists.encoding.label')} plain={guessed === undefined ? t('adv.lists.encoding.plain') : t('adv.lists.encoding.guess', { encoding: ENCODING_NAMES[guessed] })}>
+          {(described) => (
+            <select aria-label={t('adv.lists.encoding.label')} aria-describedby={described} value={sheet.read.encoding} disabled={!draft.editable} onChange={(event) => { read({ encoding: encodingOf(event.target.value) }); }}>
+              <option value="auto">{t('adv.lists.encoding.auto')}</option>
+              {ENCODINGS.map((encoding) => (
+                <option key={encoding} value={encoding}>
+                  {ENCODING_NAMES[encoding]}
+                </option>
+              ))}
+            </select>
+          )}
+        </Setting>
+      )}
       <Setting label={t('adv.lists.delimiter.label')} plain={t('adv.lists.delimiter.plain')}>
         {(described) => (
           <select aria-label={t('adv.lists.delimiter.label')} aria-describedby={described} value={sheet.read.delimiter} disabled={!draft.editable} onChange={(event) => { read({ delimiter: delimiterOf(event.target.value) }); }}>

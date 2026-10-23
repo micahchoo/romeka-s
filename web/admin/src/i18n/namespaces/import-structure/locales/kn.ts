@@ -13,7 +13,7 @@ export const kn: ImportStructureMessages = {
   "structure.status.use": "ಈ ರಚನೆಯನ್ನು ಬಳಸಿ",
   "structure.status.inUse": "ಬಳಕೆಯಲ್ಲಿರುವ. ನಿಮ್ಮ ಬದಲಾವಣೆಗಳು: {count}.",
   "structure.status.changed":
-    "ನಿಮ್ಮ ಫೈಲ್‌ಗಳು ಬದಲಾದವು. ನಮ್ಮ ಹೊಸ ಸಲಹೆ yours ಗಿಂತ ಭಿನ್ನವಾಗಿದೆ.",
+    "ನಿಮ್ಮ ಫೈಲ್‌ಗಳು ಬದಲಾದವು. ನಮ್ಮ ಹೊಸ ಸಲಹೆ ನಿಮ್ಮದಕ್ಕಿಂತ ಭಿನ್ನವಾಗಿದೆ.",
   "structure.status.useNew": "ಹೊಸ ಸಲಹೆಯನ್ನು ಬಳಸಿ",
   "structure.status.keep": "ನನ್ನದನ್ನು ಇರಿಸಿ",
   "structure.status.refused": "ನಾವು ಏನನ್ನೂ ಹೊಸದಾಗಿ ಸೂಚಿಸುವುದಿಲ್ಲ. ನಮ್ಮ ಸಲಹೆಯನ್ನು ಬಳಸಲಾಗುವುದಿಲ್ಲ: {reason}",
