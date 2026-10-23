@@ -12,7 +12,7 @@ import { KEY_CREDENTIAL_PARAM, KEY_IDENTITY_PARAM, currentKey } from './auth';
 import { ApiError, defaultBaseUrl } from './client';
 import { ImportConflictError, SeriesRefusalError, parseConflict, parseSeriesRefusal } from './import-conflict';
 import type { ImportId, ImportPlan, LevelId, SourcePlan } from './import-plan';
-import { parseArchiveListing, parseHistory, parseJobStart, parseScanResult } from './import-view';
+import { parseArchiveListing, parseHistory, parseJobStart, parseListHeader, parseScanResult } from './import-view';
 import type { ArchiveListing, History, ImportDetail, JobStart, PairsAdded, ScanResult } from './import-view';
 import { parseUndoPreview } from './import-undo';
 import type { ResourceKind, UndoPreview } from './import-undo';
@@ -207,6 +207,13 @@ export class ImportApi {
       params.set('replace', replace);
     }
     return this.detail('POST', `${one(id)}/sheets`, { form, params });
+  }
+
+  /** The header row of `file`, read as `addList` reads it, with nothing stored. A browser cannot read a workbook. */
+  async listHeader(id: ImportId, file: File): Promise<readonly string[]> {
+    const form = new FormData();
+    form.append('file', file, file.name);
+    return parseListHeader(await this.json('POST', `${one(id)}/sheets/header`, { form }));
   }
 
   /** The address of the pairs list, for a link: one line for each list row that names no file, with an empty Files column to fill. */

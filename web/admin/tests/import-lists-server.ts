@@ -192,6 +192,19 @@ export const listsServer = (items: number, options: { readonly strays?: number; 
       const plan = { ...asRecord(draft()['plan'], []), decisions: [pair] };
       return jsonResponse({ ...added, import: { ...draft(), plan } });
     },
+    // The server reads the header of any list; this one reads the first line of a CSV. A handler answers at once, so the body is read as it streams.
+    [`${PATH}/sheets/header`]: (_url, init) => {
+      const file = init?.body instanceof FormData ? init.body.get('file') : null;
+      const body = new ReadableStream<Uint8Array>({
+        async start(controller) {
+          const text = file instanceof File ? await file.text() : '';
+          const header = (text.split(/\r?\n/)[0] ?? '').split(',').map((cell) => cell.trim());
+          controller.enqueue(new TextEncoder().encode(JSON.stringify({ header })));
+          controller.close();
+        },
+      });
+      return new Response(body, { status: 200, headers: { 'Content-Type': 'application/json' } });
+    },
     [`${PATH}/sheets`]: () => {
       revision += 1;
       return jsonResponse({ ...fixture('import-sheet-added.json'), id: 1, revision });

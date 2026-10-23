@@ -19,7 +19,7 @@ import { loadProperties } from './catalog';
 import { readCsv } from '../csv-records';
 import { ListDrop } from './list-drop';
 import { allLists, listOf, withEverySeries, withSets } from '../series';
-import { headerOf, sendAgain } from './send-again';
+import { sendAgain } from './send-again';
 import type { Lacking } from './send-again';
 
 /** The columns the server takes besides properties (`template.rs`, `ListColumn`). */
@@ -173,8 +173,7 @@ export const RoundTrip = ({ level }: { readonly level: LevelId }): ReactElement 
     const before = draft.plan;
     const replaced = again?.sheet;
     setUpload({ at: 'sending', name: file.name });
-    const list = replaced === undefined ? undefined : listOf(before, replaced);
-    const checked = list === undefined || replaced === undefined ? Promise.resolve(null) : headerOf(file, list.read).then((header) => sendAgain(before, replaced, header));
+    const checked = replaced === undefined ? Promise.resolve(null) : importApi.listHeader(draft.id, file).then((header) => sendAgain(before, replaced, header));
     checked
       .then(async (matched) => {
         if (matched !== null && 'lacking' in matched) {

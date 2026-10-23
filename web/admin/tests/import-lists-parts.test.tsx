@@ -153,6 +153,8 @@ describe('a list sent again', () => {
     }
     expect(await within(trip).findByRole('alert')).toHaveTextContent('Not sent: filled.csv has no column “Title [dcterms:title]”, which 1 answer uses.');
     expect(requestsFor(fetchMock, `${PATH}/sheets`)).toHaveLength(1);
+    // The server reads the header, as it reads the list: a browser cannot read a workbook.
+    expect(requestsFor(fetchMock, `${PATH}/sheets/header`)).toHaveLength(1);
 
     // Title and Date swapped places, and Notes is new: the list goes in place of list-1, and the answers follow each column.
     send('Identifier,Files,Date [dcterms:date],Title [dcterms:title],Notes\n');

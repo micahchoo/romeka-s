@@ -1,22 +1,13 @@
 /**
  * A list sent again in place of one the person uploaded (`?replace=`). The
  * server keeps the list's choices and reads each column by its place, so the
- * admin first matches the new file's header row to the old list's columns by
- * their text. A column that moved is followed; a column added is fine; a
- * column the plan's choices read that the new file lacks refuses the file
- * before it is sent.
+ * admin first matches the new file's header row, as the server reads it
+ * (`importApi.listHeader`), to the old list's columns by their text. A
+ * column that moved is followed; a column added is fine; a column the plan's
+ * choices read that the new file lacks refuses the file before it is sent.
  */
 import type { ColumnRef, ImportPlan, SheetPlan, SlotRule, SlotRules, SourceRef } from '../../../api/import-plan';
-import { readCsv } from '../csv-records';
 import { allSeries, listOf, setsOf, withEverySeries, withList, withSets } from '../series';
-
-/** The header row of a CSV or TSV file, read as the old list read its file. */
-export const headerOf = async (file: File, read: SheetPlan['read']): Promise<readonly string[]> => {
-  const delimiter = read.delimiter === 'auto' ? (/\.tsv$/i.test(file.name) ? '\t' : ',') : read.delimiter;
-  const { records } = readCsv(await file.text(), delimiter, read.headerLine);
-  const cells = records[read.headerLine - 1]?.cells ?? [];
-  return read.trim ? cells.map((cell) => cell.trim()) : cells;
-};
 
 const readsSheet = (source: SourceRef, sheet: string): source is Extract<SourceRef, { from: 'column' }> => source.from === 'column' && source.sheet === sheet;
 

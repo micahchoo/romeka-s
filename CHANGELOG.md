@@ -63,6 +63,8 @@ semantic versioning.
 
 ### Fixed
 
+- A list sent again in place of another may be a workbook. The server now reads the new file's header
+  (`POST …/sheets/header`); the admin read it as CSV text and refused every `.xlsx`, `.xls` and `.ods`.
 - An admin edit no longer removes an item from its sites, a media save no longer erases its values, and
   `resource:item` types and URI languages survive a save.
 - Upstream drops a blank literal or URI value, and reads a URI value's language from `o:lang`; so does the port.

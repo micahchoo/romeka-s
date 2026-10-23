@@ -327,6 +327,7 @@ administrator may call these routes: anonymous is 401, any other role 403.
 | `GET /api/romeka/imports/{id}/left.csv` | none | 200 `text/csv`; 404 before a run ends |
 | `GET /api/romeka/imports/{id}/template.csv?columns=` | none | 200 `text/csv`, the list to fill in |
 | `POST /api/romeka/imports/{id}/sheets` | multipart, one list | 200 the import with its new plan; 400, 413, 409 `notDraft` |
+| `POST /api/romeka/imports/{id}/sheets/header` | multipart, one list | 200 `{ header }`, the header row as `sheets` reads it, nothing stored; 400, 413 |
 | `GET /api/romeka/imports/{id}/pairs.csv` | none | 200 `text/csv`, the unpaired rows to fill in |
 | `POST /api/romeka/imports/{id}/pairs` | multipart, one filled list | 200 `{added, already, unmatched, unmatchedTotal, import}`; 400, 409 `notDraft` |
 | `OPTIONS`, `GET`, `POST /api/romeka/imports/{id}/uploads` | tus creation headers | the tus 1.0 core: `OPTIONS` names the protocol and the largest file, `GET` lists the uploads with their limits, `POST` creates one (201 and `Location`) |

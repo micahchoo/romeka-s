@@ -72,6 +72,10 @@ pub(crate) fn router() -> Router<AppState> {
         )
         .route("/api/romeka/imports/{id}/sheets", post(lists::upload))
         .route(
+            "/api/romeka/imports/{id}/sheets/header",
+            post(lists::header),
+        )
+        .route(
             "/api/romeka/imports/{id}/uploads",
             get(uploads::list)
                 .post(uploads::create)

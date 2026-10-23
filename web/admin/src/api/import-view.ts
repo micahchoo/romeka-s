@@ -242,6 +242,12 @@ export const parseHistory: Parser<History> = (raw, path = []) => {
   };
 };
 
+/** A list's header row as the server reads it (`POST …/sheets/header`), one cell per column. */
+export const parseListHeader: Parser<readonly string[]> = (raw, path = []) => {
+  const object = strict(raw, path, ['header']);
+  return member(object, 'header', path, list(asString));
+};
+
 export interface JobStart {
   readonly jobId: number;
 }

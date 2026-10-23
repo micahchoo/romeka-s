@@ -786,6 +786,7 @@ All need a signed-in global admin or site admin.
 | `/api/romeka/imports/{id}/uploads[/{upload}]` | tus 1.0 core |
 | `GET /api/romeka/imports/{id}/template.csv?columns=` | the list to fill in, one row per item |
 | `POST /api/romeka/imports/{id}/sheets` | multipart, one list at most 50 MB; adds a sheet joined on `Identifier` |
+| `POST /api/romeka/imports/{id}/sheets/header` | multipart, one list; `{ header }`, its header row as `sheets` reads it; stores nothing |
 | `GET /api/romeka/imports/{id}/pairs.csv` | the unpaired rows as a list to fill in |
 | `POST /api/romeka/imports/{id}/pairs` | multipart, one filled list; `{ added, already, unmatched, unmatchedTotal, import }` |
 | `GET /api/romeka/starters` | the server's starter list |
