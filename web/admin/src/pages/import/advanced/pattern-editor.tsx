@@ -21,6 +21,7 @@ import { importApi } from '../../../api/import-routes';
 import { toError } from '../../../app/useAsync';
 import { useDraft } from '../draft-context';
 import { listHref } from '../lists/address';
+import { seriesKey } from '../picked-node';
 import { exampleOf, patternOf } from '../example';
 import { useAdvancedText } from './messages';
 import type { AdvancedTranslator } from './messages';
@@ -223,7 +224,7 @@ export const PatternEditor = ({ level }: { readonly level: LevelId }): ReactElem
                 {fit.unfit === 0 ? null : (
                   <>
                     {fit.unfit === 1 ? t('adv.files.fit.unfitOne') : t('adv.files.fit.unfit', { count: number(fit.unfit) })}{' '}
-                    {changed ? null : <a href={listHref(draft.id, filesPlace, fit.folder === null ? { reason: 'unmatched' } : { reason: 'unmatched', folder: fit.folder })}>{t('adv.files.fit.showUnfit')}</a>}
+                    {changed ? null : <a href={listHref(draft.id, filesPlace, { node: seriesKey(level), reason: 'unmatched', ...(fit.folder === null ? {} : { folder: fit.folder }) })}>{t('adv.files.fit.showUnfit')}</a>}
                   </>
                 )}
               </p>
