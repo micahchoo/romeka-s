@@ -3,8 +3,7 @@
 //!
 //! The admin stage shows an oEmbed or HTML media the way the public site shows
 //! it, so the editor sees what a visitor gets, and the admin never decides for
-//! itself what provider markup is safe (media-ui-plan S3, gap G2 in
-//! `briefs/media-ui/A-admin-media.md`). The render route answers that render as
+//! itself what provider markup is safe. The render route answers that render as
 //! one complete document, which the stage puts in a sandboxed iframe.
 //!
 //! A render that is exactly one provider `<iframe>` is a player the browser can

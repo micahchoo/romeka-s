@@ -1,4 +1,4 @@
-//! The corrections (`briefs/import-gaps-design.md`): the three edits that
+//! The corrections (`docs/import-v2.md`, "Decisions"): the three edits that
 //! name files and rows, never rules. The replay writes each edit into the
 //! series it corrects as [`Correction`]s, which derive reads as decisions.
 //!

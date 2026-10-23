@@ -1,5 +1,4 @@
-//! A stopping server ends its jobs (`briefs/import-p6-design.md`, section 3,
-//! D3): each job process gets a TERM, and only it, and an import run then
+//! A stopping server ends its jobs: each job process gets a TERM, and only it, and an import run then
 //! ends after the record in hand as `interrupted`.
 
 #![cfg(unix)]

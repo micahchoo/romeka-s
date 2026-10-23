@@ -1,5 +1,5 @@
-//! The per-user staged uploads (`briefs/media-ui`, G1), the media create that
-//! names one, the limits route (G7) and the link probe (G2).
+//! The per-user staged uploads, the media create that names one, the limits
+//! route and the link probe (`crates/omeka-server/README.md`, "Staged uploads").
 //!
 //! The tus routes are driven through the router, so a dropped `PATCH` is the
 //! same sequence the admin runs: send, get 409, ask HEAD, send the rest. The

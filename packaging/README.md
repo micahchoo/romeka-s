@@ -89,7 +89,7 @@ worker handles the `exiftool` rows as it always does.
 ## The office document tools
 
 An office document gets a PDF access copy through LibreOffice
-(`crates/omeka-media/src/access.rs`, `D6` of `briefs/media-ui-plan.md`).
+(`crates/omeka-media/src/access.rs`).
 `soffice` is optional at runtime like the other tools: where it is absent the
 row records `needs soffice, not installed` and the media keeps its card.
 

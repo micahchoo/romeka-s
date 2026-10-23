@@ -1,5 +1,6 @@
 //! `/api/romeka/upload-limits` and `/api/romeka/media/probe`: what an add
-//! panel reads before it sends a file or a link (`briefs/media-ui`, G2 and G7).
+//! panel reads before it sends a file or a link (`crates/omeka-api/README.md`,
+//! "Staged uploads and adding a media").
 //!
 //! The answers are computed in `omeka_api::media_add`; these handlers
 //! authenticate the caller, check the grant, and copy the value onto the wire.
