@@ -1,0 +1,196 @@
+/* The Items browse screen: the filter bar, the chips, the grid and the values that filter. */
+.items-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.filter-field {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.filter-field select {
+  max-width: 14rem;
+}
+
+.filter-search input {
+  width: 16rem;
+  max-width: 100%;
+}
+
+.items-sort-view {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2);
+  margin-inline-start: auto;
+}
+
+.view-toggle {
+  display: inline-flex;
+}
+
+.view-toggle button + button {
+  margin-inline-start: -1px;
+}
+
+.view-toggle button[aria-pressed="true"] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.items-more-filters:not([hidden]) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  flex-basis: 100%;
+}
+
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.filter-chips ul {
+  display: contents;
+  list-style: none;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-inline-start: var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--accent-soft);
+}
+
+.filter-chip button {
+  min-height: 1.75rem;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+}
+
+/* A value that is also a filter: quiet at rest, so it never competes with the title link. */
+button.filter-value {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: start;
+  text-decoration: underline dotted var(--text-muted);
+  text-underline-offset: 0.2em;
+}
+
+button.filter-value:hover:not(:disabled),
+button.filter-value:focus-visible {
+  background: none;
+  text-decoration: underline solid;
+}
+
+button.filter-value:active:not(:disabled) {
+  transform: none;
+}
+
+button.private-cue {
+  padding: 0 var(--space-1);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: 0.875em;
+}
+
+button.private-cue:hover:not(:disabled) {
+  background: var(--bg);
+}
+
+.filter-value-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.items-results[aria-busy="true"] {
+  opacity: 0.6;
+  transition: opacity 150ms ease-out 300ms;
+}
+
+.items-count {
+  margin: 0 0 var(--space-2);
+  color: var(--text-muted);
+}
+
+.item-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.item-card {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.item-card-thumb {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: calc(var(--radius) / 2);
+  object-fit: cover;
+  background: var(--bg);
+}
+
+.item-card-empty {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.item-card-pick {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+}
+
+.item-card-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+
+.item-card-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  font-size: 0.875rem;
+}
+
+.item-grid-pick-all {
+  margin: 0 0 var(--space-2);
+}

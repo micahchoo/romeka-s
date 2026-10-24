@@ -2,8 +2,8 @@
  * Items page tests: a stubbed fetch serves the fixtures, so the pages are
  * exercised through the real typed client and its parsers. No network.
  */
-import { fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 import { brandId } from '../src/api/parse';
 import { setSession } from '../src/api/session';
@@ -55,8 +55,20 @@ const linkHeader = (rels: ReadonlyArray<readonly [string, number]>): string =>
     .map(([rel, page]) => `<http://localhost/api/items?page=${String(page)}>; rel="${rel}"`)
     .join(', ');
 
+const OPTION_FIXTURES: Readonly<Record<string, string>> = {
+  '/api/users': 'users-page.json',
+  '/api/resource_classes': 'resource-classes-page.json',
+  '/api/item_sets': 'item-sets-page.json',
+  '/api/resource_templates': 'resource-templates-page.json',
+  '/api/sites': 'sites-page.json',
+};
+
+/** Items answer from the fixtures; a query naming `search=nothing` matches no item. */
 const listHandler = (url: URL): Response => {
   if (url.pathname === '/api/items') {
+    if (url.searchParams.get('search') === 'nothing') {
+      return jsonResponse([], { headers: { 'Omeka-S-Total-Results': '0' } });
+    }
     if (url.searchParams.get('page') === '2') {
       return jsonResponse(loadFixture('items-page-2.json'), {
         headers: {
@@ -79,16 +91,35 @@ const listHandler = (url: URL): Response => {
       },
     });
   }
-  if (url.pathname === '/api/users') {
-    return jsonResponse(loadFixture('users-page.json'));
-  }
-  if (url.pathname === '/api/resource_classes') {
-    return jsonResponse(loadFixture('resource-classes-page.json'));
+  const fixture = OPTION_FIXTURES[url.pathname];
+  if (fixture !== undefined) {
+    return jsonResponse(loadFixture(fixture));
   }
   return jsonResponse(
     { errors: { error: `Unexpected request to ${url.pathname}` } },
     { status: 404 },
   );
+};
+
+const lastItemsUrl = (fetchMock: Mock<typeof fetch>): URL => {
+  const urls = urlsFor(fetchMock, '/api/items');
+  const url = urls[urls.length - 1];
+  if (url === undefined) {
+    throw new Error('expected an items request');
+  }
+  return url;
+};
+
+/** The route query the screen wrote into the URL. */
+const routeQuery = (): URLSearchParams =>
+  new URLSearchParams(window.location.hash.split('?')[1] ?? '');
+
+const openList = async (hash = '#/items'): Promise<Mock<typeof fetch>> => {
+  window.history.replaceState(null, '', `/${hash}`);
+  const fetchMock = installFetch(listHandler);
+  render(<ItemsList />);
+  await screen.findByRole('link', { name: 'Fixture Item One' });
+  return fetchMock;
 };
 
 const detailHandler = (url: URL): Response => {
@@ -121,50 +152,155 @@ const itemNotFoundHandler = (url: URL): Response => {
 };
 
 describe('items list', () => {
-  it('browse rows show title, class, owner and created labels', async () => {
-    const fetchMock = installFetch(listHandler);
-    render(<ItemsList />);
-
-    expect(await screen.findByRole('link', { name: 'Fixture Item One' })).toHaveAttribute(
-      'href',
-      '#/items/12',
-    );
-    expect(screen.getAllByRole('row')).toHaveLength(3);
-    expect(screen.getByRole('link', { name: 'Fixture Item Two' })).toHaveAttribute(
-      'href',
-      '#/items/9',
-    );
-    expect(screen.getByText('Still Image')).toBeInTheDocument();
-    expect(screen.getByText('Book')).toBeInTheDocument();
-    expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
-    expect(screen.getByText('[No owner]')).toBeInTheDocument();
-    expect(screen.getByText('Oct 16, 2026, 9:30 AM')).toBeInTheDocument();
-    expect(screen.getByText('Oct 16, 2026, 11:00 AM')).toBeInTheDocument();
-
-    const itemsUrl = first(urlsFor(fetchMock, '/api/items'));
-    expect(itemsUrl.searchParams.get('page')).toBe('1');
-    expect(itemsUrl.searchParams.get('per_page')).toBe('25');
-    expect(itemsUrl.searchParams.get('sort_by')).toBe('id');
-    expect(itemsUrl.searchParams.get('sort_order')).toBe('desc');
-    expect(first(urlsFor(fetchMock, '/api/users')).searchParams.get('per_page')).toBe('100');
-    expect(first(urlsFor(fetchMock, '/api/resource_classes')).searchParams.get('per_page')).toBe(
-      '100',
-    );
+  beforeEach(() => {
+    window.localStorage.clear();
   });
 
-  it('link header pagination fetches the next page', async () => {
-    const fetchMock = installFetch(listHandler);
-    render(<ItemsList />);
+  it('browse rows show title, class, item sets, owner, created and the Private cue', async () => {
+    const fetchMock = await openList();
 
-    expect(await screen.findByText('Page 1 of 3 (60 items)')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Fixture Item One' })).toHaveAttribute('href', '#/items/12');
+    expect(screen.getAllByRole('row')).toHaveLength(3);
+    expect(screen.getByRole('link', { name: 'Fixture Item Two' })).toHaveAttribute('href', '#/items/9');
+    expect(await screen.findByRole('button', { name: 'Still Image' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Book' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ada Lovelace' })).toBeInTheDocument();
+    expect(screen.getByText('[No owner]')).toBeInTheDocument();
+    expect(screen.getByText('Oct 16, 2026, 9:30 AM')).toBeInTheDocument();
+    // Only the private item carries the cue.
+    expect(screen.getAllByRole('button', { name: 'Private' })).toHaveLength(1);
+
+    const itemsUrl = lastItemsUrl(fetchMock);
+    expect(itemsUrl.searchParams.get('page')).toBe('1');
+    expect(itemsUrl.searchParams.get('per_page')).toBe('24');
+    expect(itemsUrl.searchParams.get('sort_by')).toBe('id');
+    expect(itemsUrl.searchParams.get('sort_order')).toBe('desc');
+    for (const path of ['/api/users', '/api/resource_classes', '/api/item_sets', '/api/resource_templates', '/api/sites']) {
+      expect(first(urlsFor(fetchMock, path)).searchParams.get('per_page')).toBe('200');
+    }
+  });
+
+  it('a page change fetches the next page and not the option lists again', async () => {
+    const fetchMock = await openList();
+    expect(screen.getByText('Page 1 of 3 (60 items)')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
 
     expect(await screen.findByRole('link', { name: 'Fixture Item Three' })).toBeInTheDocument();
     expect(screen.getByText('Page 2 of 3 (60 items)')).toBeInTheDocument();
-    const pages = urlsFor(fetchMock, '/api/items').map((url) => url.searchParams.get('page'));
-    expect(pages).toEqual(['1', '2']);
+    expect(urlsFor(fetchMock, '/api/items').map((url) => url.searchParams.get('page'))).toEqual(['1', '2']);
+    expect(urlsFor(fetchMock, '/api/users')).toHaveLength(1);
+    expect(urlsFor(fetchMock, '/api/resource_classes')).toHaveLength(1);
+    expect(routeQuery().get('page')).toBe('2');
+  });
+
+  it('search settles into one request, the URL and a chip; Escape clears it', async () => {
+    const fetchMock = await openList();
+    const box = screen.getByRole('searchbox', { name: 'Search' });
+
+    fireEvent.change(box, { target: { value: 'harbour' } });
+
+    expect(await screen.findByText('Search: harbour')).toBeInTheDocument();
+    expect(lastItemsUrl(fetchMock).searchParams.get('search')).toBe('harbour');
+    expect(urlsFor(fetchMock, '/api/items').filter((url) => url.searchParams.has('search'))).toHaveLength(1);
+    expect(routeQuery().get('q')).toBe('harbour');
+    expect(await screen.findByText('60 items match')).toBeInTheDocument();
+
+    fireEvent.keyDown(box, { key: 'Escape' });
+
+    expect(box).toHaveValue('');
+    await waitFor(() => {
+      expect(lastItemsUrl(fetchMock).searchParams.has('search')).toBe(false);
+    });
+    expect(screen.queryByText('Search: harbour')).not.toBeInTheDocument();
+  });
+
+  it('a class filter sends its id, names itself in a chip, and the chip removes it', async () => {
+    const fetchMock = await openList();
+    const classSelect = screen.getByRole('combobox', { name: 'Class' });
+    await within(classSelect).findByRole('option', { name: 'Book' });
+
+    fireEvent.change(classSelect, { target: { value: '51' } });
+
+    expect(await screen.findByText('Class: Book')).toBeInTheDocument();
+    expect(lastItemsUrl(fetchMock).searchParams.get('resource_class_id')).toBe('51');
+    expect(routeQuery().get('class')).toBe('51');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove filter: Class: Book' }));
+
+    await waitFor(() => {
+      expect(lastItemsUrl(fetchMock).searchParams.has('resource_class_id')).toBe(false);
+    });
+    expect(screen.queryByText('Class: Book')).not.toBeInTheDocument();
+    expect(classSelect).toHaveValue('');
+  });
+
+  it('clicking an owner filters by them and opens More filters', async () => {
+    const fetchMock = await openList();
+    const more = screen.getByRole('button', { name: 'More filters' });
+    expect(more).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Ada Lovelace' }));
+
+    expect(await screen.findByText('Owner: Ada Lovelace')).toBeInTheDocument();
+    expect(lastItemsUrl(fetchMock).searchParams.get('owner_id')).toBe('3');
+    expect(more).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('combobox', { name: 'Owner' })).toHaveValue('3');
+  });
+
+  it('clicking the Private cue filters to private items', async () => {
+    const fetchMock = await openList();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Private' }));
+
+    expect(await screen.findByRole('button', { name: 'Remove filter: Private' })).toBeInTheDocument();
+    expect(lastItemsUrl(fetchMock).searchParams.get('is_public')).toBe('0');
+  });
+
+  it('the grid shows cards, is remembered, and keeps the selection', async () => {
+    await openList();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Fixture Item One' }));
+    const grid = screen.getByRole('button', { name: 'Grid' });
+
+    fireEvent.click(grid);
+
+    expect(grid).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    const cards = within(screen.getByRole('list', { name: 'items' })).getAllByRole('listitem');
+    expect(cards).toHaveLength(2);
+    expect(within(first(cards)).getByText('No media')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Select Fixture Item One' })).toBeChecked();
+    expect(routeQuery().get('view')).toBe('grid');
+    expect(window.localStorage.getItem('romeka.items.view')).toBe('grid');
+  });
+
+  it('a URL opens the slice it names', async () => {
+    const fetchMock = await openList('#/items?class=13&media=none&view=grid&sort=title');
+
+    const url = first(urlsFor(fetchMock, '/api/items'));
+    expect(url.searchParams.get('resource_class_id')).toBe('13');
+    expect(url.searchParams.get('has_media')).toBe('0');
+    expect(url.searchParams.get('sort_by')).toBe('title');
+    expect(await screen.findByText('Class: Still Image')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Grid' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('combobox', { name: 'Sort' })).toHaveValue('title');
+  });
+
+  it('a filter with no match says so and offers Clear all', async () => {
+    window.history.replaceState(null, '', '/#/items?q=nothing');
+    const fetchMock = installFetch(listHandler);
+    render(<ItemsList />);
+
+    expect(await screen.findByText('No items match these filters.')).toBeInTheDocument();
+    const clearButtons = screen.getAllByRole('button', { name: 'Clear all' });
+    expect(clearButtons).toHaveLength(2);
+    fireEvent.click(clearButtons[1] ?? document.body);
+
+    await waitFor(() => {
+      expect(lastItemsUrl(fetchMock).searchParams.has('search')).toBe(false);
+    });
+    expect(screen.getByRole('searchbox', { name: 'Search' })).toHaveValue('');
   });
 });
 
