@@ -91,6 +91,45 @@ where
         Ok(DB::rows_affected(&done) > 0)
     }
 
+    /// Use the key: delete it and, in the same transaction, set the user's `password_hash` and
+    /// `is_active` where given, leaving every other user column as it is now. False, with nothing
+    /// written, when the key is already gone, so two requests with one key set one password.
+    pub async fn consume(
+        &self,
+        id: &str,
+        user_id: UserId,
+        password_hash: Option<&str>,
+        is_active: Option<bool>,
+    ) -> Result<bool, DbError> {
+        let mut tx = self.pool.begin_with(DB::begin_write()).await?;
+        let taken = sqlx::query("DELETE FROM password_creation WHERE id = ? AND user_id = ?")
+            .bind(id)
+            .bind(bind_id(user_id))
+            .execute(&mut *tx)
+            .await?;
+        if DB::rows_affected(&taken) == 0 {
+            return Ok(false);
+        }
+        let mut columns = String::from("modified = ?");
+        if password_hash.is_some() {
+            columns.push_str(", password_hash = ?");
+        }
+        if is_active.is_some() {
+            columns.push_str(", is_active = ?");
+        }
+        let sql = format!("UPDATE user SET {columns} WHERE id = ?");
+        let mut query = sqlx::query(&sql).bind(time::format(time::now()));
+        if let Some(hash) = password_hash {
+            query = query.bind(hash);
+        }
+        if let Some(active) = is_active {
+            query = query.bind(active);
+        }
+        query.bind(bind_id(user_id)).execute(&mut *tx).await?;
+        tx.commit().await?;
+        Ok(true)
+    }
+
     /// Remove whatever key this user holds, so a new one can be created in its place.
     pub async fn delete_for_user(&self, user_id: UserId) -> Result<bool, DbError> {
         let done = sqlx::query("DELETE FROM password_creation WHERE user_id = ?")
