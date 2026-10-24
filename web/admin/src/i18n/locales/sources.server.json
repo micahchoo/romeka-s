@@ -223,5 +223,12 @@
  "server.mediaLinkUnreadable": "The link \"{url}\" could not be read: {reason}",
  "server.mediaLinkStatus": "The link \"{url}\" answered {status} {reason}.",
  "server.uploadItem": "An upload's item id must name an item that exists.",
- "server.mediaUploadSweepDone": "{count} staged uploads passed their kept time and were removed."
+ "server.mediaUploadSweepDone": "{count} staged uploads passed their kept time and were removed.",
+ "server.bulkCannotRun": "Only a previewed bulk change, or one that stopped or failed before its end, can run.",
+ "server.bulkExpired": "This preview is older than ten minutes. Preview the change again.",
+ "server.bulkCannotUndo": "Only a bulk change that has ended and is not undone yet can be undone.",
+ "server.bulkNotRunning": "This bulk change is not running.",
+ "server.bulkItemGone": "This item is no longer in Omeka.",
+ "server.bulkItemDenied": "The person who started this change may not edit this item.",
+ "server.bulkItemTemplateRequires": "The new item type needs values this item does not have."
 }

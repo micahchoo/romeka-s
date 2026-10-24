@@ -1,0 +1,43 @@
+{
+  "id": 1,
+  "kind": "edit",
+  "status": "done",
+  "owner": 1,
+  "query": {
+    "search": "Letter",
+    "sort_by": "title"
+  },
+  "change": {
+    "kind": "edit",
+    "isPublic": false,
+    "itemSets": {
+      "add": [
+        1
+      ],
+      "remove": []
+    }
+  },
+  "total": 3,
+  "done": 2,
+  "failed": 1,
+  "counts": {
+    "pending": 0,
+    "done": 2,
+    "unchanged": 0,
+    "failed": 1,
+    "restored": 0,
+    "kept": 0
+  },
+  "failures": [
+    {
+      "item": 4,
+      "reason": "gone",
+      "message": "This item is no longer in Omeka."
+    }
+  ],
+  "jobId": 1,
+  "error": null,
+  "created": "2026-10-24T09:00:00+00:00",
+  "started": "2026-10-24T09:00:00+00:00",
+  "ended": "2026-10-24T09:00:00+00:00"
+}

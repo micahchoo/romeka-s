@@ -21,7 +21,9 @@ const V2_TABLES: [&str; 6] = [
 ];
 
 /// The tables migrations after 0006 add, empty on an upgrade.
-const LATER_TABLES: [&str; 5] = [
+const LATER_TABLES: [&str; 7] = [
+    "romeka_bulk",
+    "romeka_bulk_target",
     "romeka_media_annotation",
     "romeka_media_derivative",
     "romeka_media_extent",

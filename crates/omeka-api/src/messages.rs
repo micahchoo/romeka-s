@@ -600,6 +600,17 @@ messages! {
     const UPLOAD_ITEM = "An upload's item id must name an item that exists.";
     /// The sweep removed staged uploads whose 24 hours had passed.
     fn media_upload_sweep_done(count) = "{count} staged uploads passed their kept time and were removed.";
+
+    // Bulk changes to items (`briefs/items-bulk-edit-design.md`). Romeka's own routes: upstream
+    // has no msgid for these.
+
+    const BULK_CANNOT_RUN = "Only a previewed bulk change, or one that stopped or failed before its end, can run.";
+    const BULK_EXPIRED = "This preview is older than ten minutes. Preview the change again.";
+    const BULK_CANNOT_UNDO = "Only a bulk change that has ended and is not undone yet can be undone.";
+    const BULK_NOT_RUNNING = "This bulk change is not running.";
+    const BULK_ITEM_GONE = "This item is no longer in Omeka.";
+    const BULK_ITEM_DENIED = "The person who started this change may not edit this item.";
+    const BULK_ITEM_TEMPLATE_REQUIRES = "The new item type needs values this item does not have.";
 }
 
 /// The registry as `serverMessages.json` holds it: catalogue key to pattern,

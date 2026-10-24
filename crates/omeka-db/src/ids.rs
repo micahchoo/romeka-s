@@ -54,6 +54,7 @@ define_id!(JobId, "job");
 define_id!(CustomVocabId, "custom_vocab");
 define_id!(PublicationId, "romeka_publication");
 define_id!(ImportId, "romeka_import");
+define_id!(BulkId, "romeka_bulk");
 
 impl ItemId {
     /// The `resource` row this item shares its id with (`item.id` references `resource.id`).

@@ -11,6 +11,7 @@
 //! resource tables (`item`, `item_set`, `media`, `value_annotation`) share their primary key with
 //! `resource`, so their row structs nest a [`ResourceRow`] rather than repeat its columns.
 
+mod bulk;
 mod custom_vocabs;
 mod derivatives;
 mod import_evidence;
@@ -28,6 +29,10 @@ mod users;
 mod values;
 mod vocabularies;
 
+pub use bulk::{
+    Applied, BulkEnding, BulkKind, BulkPhase, BulkRow, BulkStatus, BulkTargetRow, Described,
+    FailReason, NewBulk, Reverted, TargetCounts, TargetState, Verdict,
+};
 pub use custom_vocabs::{CustomVocabRow, NewCustomVocab};
 pub use derivatives::{DerivativeKind, DerivativeRow, DerivativeState, NewDerivative};
 pub use import_evidence::{EntryRow, NewEntry, NewScan, NewUpload, ScanRow, UploadRow};

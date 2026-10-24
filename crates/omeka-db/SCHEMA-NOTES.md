@@ -269,3 +269,16 @@ The range keeps the `time` rule (`t_start_ms >= 0`, `t_end_ms > t_start_ms`), bo
 neither; a `polygon` still holds none. SQLite cannot change a `CHECK` in place, so the migration
 rebuilds the table as 0004 does, keeping every id (the external-content text index names rows by
 id), the indexes, the triggers and the sequence; MySQL drops and adds the constraint.
+
+`0012_bulk.sql` adds the bulk change of items (`romeka_bulk`, `romeka_bulk_target`). Neither is an
+upstream table; upstream's batch update keeps no record of what it changed.
+
+- `romeka_bulk`: one row per run. `query` (the browse query) and `change_json` (the change) are
+  JSON that `omeka-api` owns; `change` is reserved on MySQL. `kind` has no `CHECK`, so the delete
+  kind needs no rebuild. `status` is the run's state machine (`BulkStatus`). `done` and `failed`
+  are the job's last count of its targets, written with its `heartbeat`.
+- `romeka_bulk_target`: one row per item the preview selected, primary key `(bulk_id, item_id)`.
+  `item_id` has no foreign key, so a target outlives its item and undo can say it is gone. `image`
+  is the item's before-image in the import's format (`BeforeImage`), `written` the `modified` the
+  run's change left, and `error` the code of a failure. The image, the state and the item's change
+  commit in one transaction.

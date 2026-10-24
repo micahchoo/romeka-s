@@ -413,7 +413,7 @@ async fn sites(
 
 /// `Acl::userIsAllowed($site, 'can-assign-items')`: the site's owner, or a
 /// `site_permission` role of admin or editor.
-async fn can_assign(api: &Api<'_>, site: &SiteRow) -> Result<bool, ApiError> {
+pub(crate) async fn can_assign(api: &Api<'_>, site: &SiteRow) -> Result<bool, ApiError> {
     if access::is_admin_role(api.actor().role()) {
         return Ok(true);
     }
