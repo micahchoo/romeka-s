@@ -42,6 +42,7 @@ use mail::Mailer;
 mod accounts;
 mod annotations;
 mod assets;
+mod bulk;
 mod config;
 mod config_store;
 mod files_allow;
@@ -68,6 +69,7 @@ mod tus;
 mod uploads;
 mod vocab_import;
 
+pub use bulk::settle_bulk_runs;
 pub use config::{Config, ConfigError, MailConfig, MailTls};
 pub use config_store::{StoreConfig, file_store, local_store, store_for};
 pub use imports::{ResumeEnv, resume_imports};
@@ -218,6 +220,7 @@ fn build_app(pool: DbPool, services: Services, config: &Config) -> Router {
         .merge(media_render::router())
         .merge(media_derivatives::router())
         .merge(site_items::router())
+        .merge(bulk::router())
         .merge(page_versions::router())
         .merge(imports::router())
         .merge(uploads::router())
