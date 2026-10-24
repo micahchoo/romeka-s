@@ -2,11 +2,12 @@ import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
 import { listMedia } from '../../api/media';
-import type { Media, ServerMediaKind } from '../../api/types';
+import type { Media } from '../../api/types';
 import { ListPage } from '../../app/list';
 import { MediaImage, MediaKindBadge, MediaPreviewState } from '../../app/media-image';
-import { KIND_LABEL, mediaName, previewImageUrl } from '../../app/media';
-import type { MediaKind } from '../../app/media';
+import { KIND_FILTERS, KIND_LABEL, isFilterKind, mediaName, previewImageUrl, serverKindsOf } from '../../app/media';
+import type { FilterKind } from '../../app/media';
+import { hashQuery, replaceHashQuery } from '../../app/router';
 import { MediaAccessCue } from './access';
 import { useTranslator } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
@@ -15,57 +16,21 @@ import { resources } from '../../i18n/namespaces/resources';
 const PER_PAGE = 25;
 const KIND_PARAM = 'kind';
 
-interface KindFilter {
-  readonly kind: MediaKind;
-  readonly names: readonly ServerMediaKind[];
-}
-
-/**
- * The filter options, one per server kind the list can narrow to. An image is
- * two server names, so the filter sends both. `other-file` is the kind for a
- * file no other name fits, so its filter keeps the word "File".
- */
-const KIND_FILTERS = [
-  { kind: 'image', names: ['local-image', 'iiif-image'] },
-  { kind: 'audio', names: ['audio'] },
-  { kind: 'video', names: ['video'] },
-  { kind: 'pdf', names: ['pdf'] },
-  { kind: 'document', names: ['document'] },
-  { kind: 'model', names: ['model-3d'] },
-  { kind: 'captions', names: ['captions'] },
-  { kind: 'embed', names: ['embed'] },
-  { kind: 'manifest', names: ['iiif-presentation'] },
-  { kind: 'other', names: ['other-file'] },
-] as const satisfies readonly KindFilter[];
-
-type FilterKind = (typeof KIND_FILTERS)[number]['kind'];
-
-const isFilterKind = (value: string): value is FilterKind =>
-  KIND_FILTERS.some((entry) => entry.kind === value);
-
-/** The query after the route's `?`, which the router leaves out of its segments. */
-const queryOf = (hash: string): URLSearchParams => new URLSearchParams(hash.split('?')[1] ?? '');
-
 const readKind = (): FilterKind | null => {
-  const value = queryOf(window.location.hash).get(KIND_PARAM);
+  const value = hashQuery(window.location.hash).get(KIND_PARAM);
   return value !== null && isFilterKind(value) ? value : null;
 };
 
 /** Keep the filter in the URL, so a reload or a shared link opens the same list. */
 const writeKind = (kind: FilterKind | null): void => {
-  const query = queryOf(window.location.hash);
+  const query = hashQuery(window.location.hash);
   if (kind === null) {
     query.delete(KIND_PARAM);
   } else {
     query.set(KIND_PARAM, kind);
   }
-  const search = query.toString();
-  const hash = `#/media${search === '' ? '' : `?${search}`}`;
-  window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${hash}`);
+  replaceHashQuery('media', query);
 };
-
-const namesFor = (kind: FilterKind | null): readonly ServerMediaKind[] =>
-  kind === null ? [] : (KIND_FILTERS.find((entry) => entry.kind === kind)?.names ?? []);
 
 const itemCell = (media: Media): ReactElement | string =>
   media.item === null ? '' : <a href={`#/items/${String(media.item.id)}`}>{`#${String(media.item.id)}`}</a>;
@@ -79,7 +44,7 @@ export const MediaList = (): ReactElement => {
   const { t } = useTranslator(common, resources);
   const resource = t('resource.media');
   const [kind, setKind] = useState<FilterKind | null>(readKind);
-  const names = namesFor(kind);
+  const names = kind === null ? [] : serverKindsOf(kind);
 
   const choose = (value: string): void => {
     const next = isFilterKind(value) ? value : null;

@@ -1,0 +1,101 @@
+/**
+ * The active filters, one removable chip each, in words, plus "Clear all". The
+ * chips are what tells the reader why the list is shorter than the collection.
+ */
+import type { ReactElement } from 'react';
+import type { ClassId } from '../../api/types';
+import { KIND_LABEL } from '../../app/media';
+import { useTranslator } from '../../i18n';
+import type { KeyOf, MessageKey, TermLabels, Translator } from '../../i18n';
+import { common } from '../../i18n/namespaces/common';
+import { resources } from '../../i18n/namespaces/resources';
+import { useTermLabels } from '../../i18n/termText';
+import { activeFilters } from './browse';
+import type { BrowseFilters, FilterKey } from './browse';
+import type { BrowseOptions } from './browse-options';
+
+type Translate = Translator<MessageKey | KeyOf<typeof common> | KeyOf<typeof resources>>['t'];
+
+const nameIn = <K extends number>(map: ReadonlyMap<K, string>, id: K): string =>
+  map.get(id) ?? `#${String(id)}`;
+
+const className = (options: BrowseOptions, id: ClassId, text: TermLabels): string => {
+  const name = options.classNames.get(id);
+  return name === undefined ? `#${String(id)}` : text.label(name.term, name.label);
+};
+
+/** The chip's words for one set filter. */
+const chipText = (
+  key: FilterKey,
+  filters: BrowseFilters,
+  options: BrowseOptions,
+  t: Translate,
+  text: TermLabels,
+): string => {
+  switch (key) {
+    case 'search':
+      return t('browse.chipSearch', { text: filters.search });
+    case 'classId':
+      return t('browse.chipClass', { name: filters.classId === null ? '' : className(options, filters.classId, text) });
+    case 'itemSetId':
+      return t('browse.chipItemSet', { name: filters.itemSetId === null ? '' : nameIn(options.itemSets, filters.itemSetId) });
+    case 'templateId':
+      return t('browse.chipTemplate', { name: filters.templateId === null ? '' : nameIn(options.templates, filters.templateId) });
+    case 'ownerId':
+      return t('browse.chipOwner', { name: filters.ownerId === null ? '' : nameIn(options.users, filters.ownerId) });
+    case 'visibility':
+      return t(filters.visibility === 'private' ? 'common.private' : 'common.public');
+    case 'site':
+      if (filters.site?.kind === 'site') {
+        return t('browse.chipSite', { name: nameIn(options.sites, filters.site.id) });
+      }
+      return t(filters.site?.kind === 'none' ? 'browse.siteNone' : 'browse.siteAny');
+    case 'media':
+      if (filters.media?.kind === 'of') {
+        return t('browse.chipMedia', { kind: t(KIND_LABEL[filters.media.of]) });
+      }
+      return t(filters.media?.kind === 'none' ? 'browse.mediaNone' : 'browse.mediaAny');
+  }
+};
+
+export interface FilterChipsProps {
+  readonly filters: BrowseFilters;
+  readonly options: BrowseOptions;
+  readonly onRemove: (key: FilterKey) => void;
+  readonly onClearAll: () => void;
+}
+
+export const FilterChips = ({ filters, options, onRemove, onClearAll }: FilterChipsProps): ReactElement | null => {
+  const { t } = useTranslator(common, resources);
+  const text = useTermLabels();
+  const keys = activeFilters(filters);
+  if (keys.length === 0) {
+    return null;
+  }
+  return (
+    <div className="filter-chips">
+      <ul aria-label={t('browse.activeFilters')}>
+        {keys.map((key) => {
+          const label = chipText(key, filters, options, t, text);
+          return (
+            <li key={key} className="filter-chip">
+              <span>{label}</span>
+              <button
+                type="button"
+                aria-label={t('browse.removeFilter', { filter: label })}
+                onClick={() => {
+                  onRemove(key);
+                }}
+              >
+                ×
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <button type="button" className="filter-clear-all" onClick={onClearAll}>
+        {t('browse.clearAll')}
+      </button>
+    </div>
+  );
+};

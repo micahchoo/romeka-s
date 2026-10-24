@@ -96,6 +96,19 @@ const splitHash = (hash: string): { segments: readonly string[]; query: URLSearc
   };
 };
 
+/** The query after the route's `?`, which `parseHash` leaves out of its segments. */
+export const hashQuery = (hash: string): URLSearchParams => splitHash(hash).query;
+
+/**
+ * Write a list's query into the URL without a history entry or a `hashchange`,
+ * so a reload or a shared link opens the same list and Back leaves the page.
+ */
+export const replaceHashQuery = (route: string, query: URLSearchParams): void => {
+  const search = query.toString();
+  const hash = `#/${route}${search === '' ? '' : `?${search}`}`;
+  window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${hash}`);
+};
+
 /**
  * Where a sign-in sends the reader back to: the `redirect` the public site's
  * Log in link carries (`/login?redirect=/s/<site>/...`). Only a path on this
