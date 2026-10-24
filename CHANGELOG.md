@@ -8,6 +8,38 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-24
+
+### Changed
+
+- A server runs at most four job processes at once, and later jobs wait their turn in order. Each job opens
+  its own database pool, so this bounds the connections a burst of jobs takes. A job still waiting when the
+  server stops ends `error` with a log line.
+- The server closes its database pool when it stops, so a SQLite file checkpoints its write-ahead log.
+
+### Fixed
+
+- An item, item set or media save replaced its values in separate statements. Two concurrent saves could leave
+  the union of both value sets, and a failure halfway left a half-written resource. The values and their
+  annotations are now replaced in one transaction.
+- A tus upload chunk or delete that hit the request timeout released the upload's lock while its write went
+  on, so a retried chunk could write the same part at once. The lock is now held until the write ends. The
+  lock map kept an entry for every abandoned upload, and a client that stalled mid-chunk held a thread for as
+  long as its connection stayed open. Both are fixed.
+- The IIIF image size cache grew without a bound; it now starts over at 100,000 entries.
+- Publication save and publish, the import run, and undo read a row and wrote from it in a plain transaction.
+  On SQLite a commit in between failed them with `SQLITE_BUSY`; on MySQL the stale row was written back. They
+  now take the write lock first.
+- Undo overwrote an edit made between its check and its restore. It now keeps that resource as edited.
+- Two concurrent tag promotions into one term list dropped each other's words, and a merge could too. A write
+  planned from stale words is refused and planned again.
+- Setting a password by key wrote back the whole user row, undoing a role or activation change made meanwhile,
+  and one key could be used twice. The key and the password now change together, and only those columns.
+- A rescan could replace the file index of an import that had started running. It is now refused while the
+  import runs or is undone.
+- Two concurrent writes of the same slug, email, prefix, namespace, local name or label answered the second
+  with a 500 and the raw database message. It now gets the same 422 field error the write's check gives.
+
 ## [0.2.0] - 2026-10-24
 
 ### Added
