@@ -85,8 +85,19 @@ pub async fn run(
     let resuming = pool.clone();
     tokio::spawn(async move { resume_imports(&resuming, &resume, HEARTBEAT_EVERY).await });
     let services = Services::new(store).with_jobs(jobs);
+    let closing = pool.clone();
     let served = omeka_server::serve_with_services(config, pool, services).await;
-    let _ = tokio::task::spawn_blocking(move || dispatch.shutdown(JOB_GRACE)).await;
+    let waiting = tokio::task::spawn_blocking(move || dispatch.shutdown(JOB_GRACE))
+        .await
+        .unwrap_or_default();
+    // A job that waited for a slot never ran: it ends `error` rather than stay `starting`.
+    for job in waiting {
+        let _ = with_db!(&closing, |db| JobRepo::new(db)
+            .append_log(job, "the server stopped before the job started")
+            .await);
+        let _ = with_db!(&closing, |db| JobRepo::new(db).finish(job, "error").await);
+    }
+    closing.close().await;
     Ok(served?)
 }
 
