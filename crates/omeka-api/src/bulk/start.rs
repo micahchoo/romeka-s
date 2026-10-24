@@ -14,6 +14,7 @@ use super::preview::check;
 use super::scope::Scope;
 use super::{BulkError, RUN_JOB, UNDO_JOB};
 use crate::errors::ApiError;
+use crate::messages;
 use crate::read::Api;
 
 /// How long a preview stays good: past it, the selection and the counts it showed are stale.
@@ -33,7 +34,7 @@ pub async fn run(api: &Api<'_>, raw: &str) -> Result<JobId, BulkError> {
     if row.status == BulkStatus::Previewed && Utc::now().naive_utc() - row.created > PREVIEW_LASTS {
         return Err(BulkError::conflict(
             "expired",
-            "This preview is older than ten minutes. Preview the change again.",
+            messages::BULK_EXPIRED,
             row.status,
         ));
     }
@@ -59,13 +60,7 @@ pub async fn run(api: &Api<'_>, raw: &str) -> Result<JobId, BulkError> {
 /// 403 for another person's run; 409 `cannotUndo` while it runs or once it is undone.
 pub async fn undo(api: &Api<'_>, raw: &str, force: bool) -> Result<JobId, BulkError> {
     let row = load(api, raw, false).await?;
-    let cannot = || {
-        BulkError::conflict(
-            "cannotUndo",
-            "Only a bulk change that has ended and is not undone yet can be undone.",
-            row.status,
-        )
-    };
+    let cannot = || BulkError::conflict("cannotUndo", messages::BULK_CANNOT_UNDO, row.status);
     if !row.status.may_undo() {
         return Err(cannot());
     }
@@ -93,7 +88,7 @@ pub async fn stop(api: &Api<'_>, raw: &str) -> Result<(), BulkError> {
     }
     Err(BulkError::conflict(
         "notRunning",
-        "This bulk change is not running.",
+        messages::BULK_NOT_RUNNING,
         row.status,
     ))
 }
@@ -124,9 +119,5 @@ async fn compose(
 }
 
 fn cannot_run(status: BulkStatus) -> BulkError {
-    BulkError::conflict(
-        "cannotRun",
-        "Only a previewed bulk change, or one that stopped or failed before its end, can run.",
-        status,
-    )
+    BulkError::conflict("cannotRun", messages::BULK_CANNOT_RUN, status)
 }

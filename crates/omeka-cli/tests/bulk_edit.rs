@@ -604,7 +604,11 @@ async fn a_reviewer_edits_all_an_author_only_ticked_items_and_a_researcher_nothi
     assert_eq!(ran["status"], "done", "{ran}");
     assert_eq!(
         ran["failures"],
-        json!([{ "item": theirs, "reason": "denied" }])
+        json!([{
+            "item": theirs,
+            "reason": "denied",
+            "message": "The person who started this change may not edit this item.",
+        }])
     );
     assert!(!shown(&site, own).await.public);
     assert!(shown(&site, theirs).await.public);

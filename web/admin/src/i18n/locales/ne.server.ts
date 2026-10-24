@@ -306,4 +306,14 @@ export const neServer: ServerCatalogue = {
   'server.mediaLinkStatus': 'लिङ्क "{url}" ले {status} {reason} को उत्तर दियो।',
   'server.uploadItem': 'अपलोडको वस्तु id ले अस्तित्वमा रहेको वस्तुलाई नाम दिनुपर्छ।',
   'server.mediaUploadSweepDone': '{count} चरणबद्ध अपलोडहरूले आफ्नो राखिएको समय पार गरे र हटाइयो।',
+  'server.bulkCannotRun':
+    'केवल एउटा पूर्वावलोकन बल्क परिवर्तन, वा एउटा जसले यसको अन्त्य हुनु अघि रोक्यो वा असफल भयो, मात्र चल्न सक्छ।',
+  'server.bulkExpired':
+    'यो पूर्वावलोकन दस मिनेट भन्दा पुरानो छ। परिवर्तनको पुनः पूर्वावलोकन गर्नुहोस्।',
+  'server.bulkCannotUndo':
+    'केवल एउटा बल्क परिवर्तन जुन समाप्त भइसकेको छ र अझै पूर्ववत गरिएको छैन, त्यसलाई पूर्ववत गर्न सकिन्छ।',
+  'server.bulkNotRunning': 'यो बल्क परिवर्तन चल्दैन।',
+  'server.bulkItemGone': 'यो वस्तु अब Omeka मा छैन।',
+  'server.bulkItemDenied': 'यस परिवर्तन सुरु गर्ने व्यक्तिले यो वस्तु सम्पादन गर्न सक्दैन।',
+  'server.bulkItemTemplateRequires': 'नयाँ वस्तु प्रकारलाई यस वस्तुमा नभएका मानहरू आवश्यक पर्दछ।',
 };

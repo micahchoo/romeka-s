@@ -3,8 +3,8 @@
  * `src/generated/serverMessages.json`, with the same `{name}` holes.
  *
  * The text is upstream's `application/language/es.po` wherever the English
- * pattern is an upstream msgid with a translation (48 of 207); the other
- * 159 are the port's own. It is typed `ServerCatalogue`, so a pattern added
+ * pattern is an upstream msgid with a translation (48 of 232); the other
+ * 184 are the port's own. It is typed `ServerCatalogue`, so a pattern added
  * on the Rust side and missing here is a `tsc` error. It is its own chunk,
  * fetched the first time an error arrives in Spanish.
  */
@@ -280,4 +280,12 @@ export const esServer: ServerCatalogue = {
   'server.mediaLinkStatus': 'El enlace "{url}" respondió {status} {reason}.',
   'server.uploadItem': 'El id de elemento de una subida debe nombrar un elemento que exista.',
   'server.mediaUploadSweepDone': 'Se quitaron {count} subidas preparadas que habían pasado su tiempo de conservación.',
+  'server.bulkCannotRun':
+    'Solo se puede aplicar un cambio masivo previsualizado, o uno que se detuvo o falló antes de terminar.',
+  'server.bulkExpired': 'Esta vista previa tiene más de diez minutos. Vuelva a previsualizar el cambio.',
+  'server.bulkCannotUndo': 'Solo se puede deshacer un cambio masivo que ha terminado y que aún no se ha deshecho.',
+  'server.bulkNotRunning': 'Este cambio masivo no está en marcha.',
+  'server.bulkItemGone': 'Este elemento ya no está en Omeka.',
+  'server.bulkItemDenied': 'La persona que inició este cambio no puede editar este elemento.',
+  'server.bulkItemTemplateRequires': 'El nuevo tipo de elemento necesita valores que este elemento no tiene.',
 };

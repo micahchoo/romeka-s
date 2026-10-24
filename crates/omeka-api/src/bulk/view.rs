@@ -1,13 +1,14 @@
 //! The reads: one run with its progress, the recent runs, and what an undo would keep.
 
 use omeka_db::repos::{BulkRepo, Presence};
-use omeka_db::rows::{BulkRow, Described, TargetCounts, TargetState};
+use omeka_db::rows::{BulkRow, Described, FailReason, TargetCounts, TargetState};
 use omeka_db::with_db;
 use serde::Serialize;
 use serde_json::Value;
 
 use super::BulkError;
 use super::access::load;
+use crate::messages;
 use crate::read::{Api, iso8601};
 
 /// How many failed items a run shows.
@@ -72,6 +73,16 @@ pub struct Failure {
     pub item: u64,
     /// `gone`, `denied` or `templateRequires`.
     pub reason: Option<&'static str>,
+    /// The reason in English, from the message registry, which the admin translates.
+    pub message: Option<&'static str>,
+}
+
+fn reason_text(reason: FailReason) -> &'static str {
+    match reason {
+        FailReason::Gone => messages::BULK_ITEM_GONE,
+        FailReason::Denied => messages::BULK_ITEM_DENIED,
+        FailReason::TemplateRequires => messages::BULK_ITEM_TEMPLATE_REQUIRES,
+    }
 }
 
 /// One run as the routes answer it. `counts` and `failures` are read live from the targets;
@@ -140,6 +151,7 @@ pub async fn show(api: &Api<'_>, raw: &str) -> Result<BulkView, BulkError> {
             .map(|target| Failure {
                 item: target.item_id.0,
                 reason: target.error.map(|reason| reason.as_str()),
+                message: target.error.map(reason_text),
             })
             .collect(),
     );
