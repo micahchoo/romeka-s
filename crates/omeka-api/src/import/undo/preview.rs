@@ -69,7 +69,7 @@ impl UndoPreview {
         match verdict {
             Verdict::Gone => self.skipped.push(Named::of(row.target)),
             Verdict::Keep(touches) => self.kept.push(Kept::of(row.target, touches)),
-            Verdict::Act { forced } => {
+            Verdict::Act { forced, .. } => {
                 if forced {
                     self.forced.push(Named::of(row.target));
                 }

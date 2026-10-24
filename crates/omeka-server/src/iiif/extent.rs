@@ -38,6 +38,11 @@ use super::manifest::Size;
 /// metadata segments, which this covers for any file a camera writes.
 const HEAD_BYTES: u64 = 256 * 1024;
 
+/// How many image sizes the process remembers before it starts over. One
+/// entry per stored image asked for, so without a bound the map grows with the
+/// archive for as long as the server runs.
+const REMEMBERED_SIZES: usize = 100_000;
+
 /// How many `ffprobe` runs may be in flight at once.
 const PROBES: usize = 4;
 
@@ -77,6 +82,9 @@ impl Extents {
         if let Some(size) = size
             && let Ok(mut known) = self.sizes.lock()
         {
+            if known.len() >= REMEMBERED_SIZES {
+                known.clear();
+            }
             known.insert(storage_path.to_string(), size);
         }
         size

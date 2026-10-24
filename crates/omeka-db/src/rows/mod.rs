@@ -64,7 +64,7 @@ pub use users::{
     ApiKeyRow, NewApiKey, NewPasswordCreation, NewUser, PasswordCreationRow, UserRow,
     UserSettingRow,
 };
-pub use values::{NewValue, ValueContent, ValueRow};
+pub use values::{AnnotationTree, NewValue, ValueContent, ValueRow, ValueTree};
 pub use vocabularies::{
     ClassRow, NewClass, NewProperty, NewVocabulary, PropertyRow, VocabularyRow,
 };

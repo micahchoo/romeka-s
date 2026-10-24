@@ -297,17 +297,21 @@ where
     /// Deal with one row: keep, restore, delete or skip its resource.
     async fn one(&mut self, row: &ImportResourceRow) -> Result<Outcome, UndoError> {
         let target = row.target;
-        match self.judge.judge(row).await? {
+        let judged = match self.judge.judge(row).await? {
             Verdict::Gone => {
                 self.forget(target).await?;
                 return Ok(Outcome::Skipped);
             }
             Verdict::Keep(touches) => return Ok(Outcome::Kept(touches)),
-            Verdict::Act { forced: true } => self.report.forced.push(Named::of(target)),
-            Verdict::Act { forced: false } => {}
-        }
+            Verdict::Act { forced, modified } => {
+                if forced {
+                    self.report.forced.push(Named::of(target));
+                }
+                (!forced).then_some(modified)
+            }
+        };
         match row.change {
-            ImportChange::Changed => self.restore(target).await,
+            ImportChange::Changed => self.restore(target, judged).await,
             ImportChange::Created => {
                 let removed = self
                     .removal
@@ -325,8 +329,14 @@ where
     }
 
     /// Put a changed resource back, forgetting its row and image in the same
-    /// transaction.
-    async fn restore(&self, target: ImportTarget) -> Result<Outcome, UndoError> {
+    /// transaction. `judged` is the `modified` the judge saw, `None` for a forced
+    /// restore: when the locked row carries another one, a person edited it since,
+    /// and it is kept as a touched resource is.
+    async fn restore(
+        &self,
+        target: ImportTarget,
+        judged: Option<Option<chrono::NaiveDateTime>>,
+    ) -> Result<Outcome, UndoError> {
         let resource = match target {
             ImportTarget::Item(id) => ImportResource::Item(id),
             ImportTarget::Media(id) => ImportResource::Media(id),
@@ -340,10 +350,16 @@ where
         let image = self.judge.images.get(&target).ok_or_else(|| {
             UndoError::State(format!("the changed {target:?} has no before-image"))
         })?;
-        let mut tx = self.pool.begin().await?;
-        let restored = ImportWrites::<DB>::new(&mut tx)
-            .restore(resource, image)
-            .await?;
+        let mut tx = self.pool.begin_with(DB::begin_write()).await?;
+        let mut writes = ImportWrites::<DB>::new(&mut tx);
+        if let Some(judged) = judged
+            && let Some(now) = writes.modified_of(resource).await?
+            && now != judged
+        {
+            tx.rollback().await?;
+            return Ok(Outcome::Kept(vec![Touch::Edited]));
+        }
+        let restored = writes.restore(resource, image).await?;
         ImportResourceRepo::<DB>::delete(&mut *tx, self.import, target).await?;
         BeforeImageRepo::<DB>::delete(&mut *tx, self.import, target).await?;
         tx.commit().await?;

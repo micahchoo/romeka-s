@@ -9,6 +9,7 @@ use crate::backend::Backend;
 
 use crate::error::DbError;
 use crate::ids::{AnnotationId, PropertyId, ResourceId, ValueId};
+use crate::rows::NewResource;
 
 /// One row of `value`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -102,4 +103,20 @@ impl ValueContent {
             is_public: self.is_public,
         }
     }
+}
+
+/// A value to write together with the annotation resource it carries.
+/// `ValueRepo::replace_all` writes the annotation first and sets the value's
+/// `value_annotation_id` to it, so `content.value_annotation_id` is ignored.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ValueTree {
+    pub content: ValueContent,
+    pub annotation: Option<AnnotationTree>,
+}
+
+/// A value annotation to create: its resource row and the values it carries.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AnnotationTree {
+    pub resource: NewResource,
+    pub values: Vec<ValueTree>,
 }

@@ -77,7 +77,7 @@ where
         target: PublicationTarget,
         terms: &Value,
     ) -> Result<PublicationRow, DbError> {
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.pool.begin_with(DB::begin_write()).await?;
         let id = record_id::<DB>(&mut tx, target).await?;
         let terms_text = json_text(terms)?;
         let id = match id {
@@ -103,7 +103,7 @@ where
         new: &NewPublicationVersion<'_>,
         created: NaiveDateTime,
     ) -> Result<PublicationVersionRow, DbError> {
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.pool.begin_with(DB::begin_write()).await?;
         let terms_text = json_text(new.terms)?;
         let id = match record_id::<DB>(&mut tx, target).await? {
             Some(id) => id,
@@ -213,8 +213,9 @@ where
     usize: ColumnIndex<DB::Row>,
 {
     let sql = format!(
-        "SELECT id FROM romeka_publication WHERE {} = ?",
-        target.column()
+        "SELECT id FROM romeka_publication WHERE {} = ?{}",
+        target.column(),
+        DB::for_update()
     );
     let id: Option<i64> = sqlx::query_scalar(&sql)
         .bind(target.raw_id())

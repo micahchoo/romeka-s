@@ -465,25 +465,29 @@ pub(crate) async fn patch(
             if tus::number(&headers, "content-length").is_some_and(|sent| sent > MAX_CHUNK) {
                 return Err(chunk_too_large());
             }
-            let key = format!("user/{}/{upload}", user.0);
-            let lock = tus::lock_of(&key);
-            let held = lock.lock().await;
             let reader = BodyReader::spawn(body, MAX_CHUNK);
             let over = reader.over();
-            let appended = with_db!(&state.pool, |db| uploads::append(
-                db,
-                &state.store,
-                user,
-                &upload,
-                start,
-                Box::new(reader),
-            )
-            .await);
-            drop(held);
+            let work = {
+                let state = state.clone();
+                let upload = upload.clone();
+                async move {
+                    with_db!(&state.pool, |db| uploads::append(
+                        db,
+                        &state.store,
+                        user,
+                        &upload,
+                        start,
+                        Box::new(reader),
+                    )
+                    .await)
+                }
+            };
+            let appended = tus::locked(format!("user/{}/{upload}", user.0), work)
+                .await
+                .ok_or_else(|| Box::new(crate::empty_internal_error()))?;
             let appended = match appended {
                 Ok(appended) => appended,
                 Err(UploadError::Missing) => {
-                    tus::forget_lock(&key);
                     return Err(upload_error(UploadError::Missing, &upload));
                 }
                 Err(_) if over.load(Ordering::Relaxed) => {
@@ -491,9 +495,6 @@ pub(crate) async fn patch(
                 }
                 Err(error) => return Err(upload_error(error, &upload)),
             };
-            if appended.completed.is_some() {
-                tus::forget_lock(&key);
-            }
             Ok(
                 tus::header(Response::builder().status(StatusCode::NO_CONTENT))
                     .header("upload-offset", appended.received)
@@ -534,18 +535,22 @@ pub(crate) async fn delete(
                 )
                 .refused());
             };
-            let key = format!("user/{}/{upload}", user.0);
-            let lock = tus::lock_of(&key);
-            let held = lock.lock().await;
-            let removed = with_db!(&state.pool, |db| uploads::remove(
-                db,
-                &state.store,
-                user,
-                &upload
-            )
-            .await);
-            drop(held);
-            tus::forget_lock(&key);
+            let work = {
+                let state = state.clone();
+                let upload = upload.clone();
+                async move {
+                    with_db!(&state.pool, |db| uploads::remove(
+                        db,
+                        &state.store,
+                        user,
+                        &upload
+                    )
+                    .await)
+                }
+            };
+            let removed = tus::locked(format!("user/{}/{upload}", user.0), work)
+                .await
+                .ok_or_else(|| Box::new(crate::empty_internal_error()))?;
             match removed {
                 Ok(true) => Ok(
                     tus::header(Response::builder().status(StatusCode::NO_CONTENT))
