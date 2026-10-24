@@ -398,3 +398,68 @@ describe('item sites control', () => {
     }
   });
 });
+
+/**
+ * `common/resource-fields.phtml`: the owner select shows only when a stored
+ * resource is edited and the user holds `change-owner`, which only the two
+ * admin roles do. A full update still sends the stored owner, which the server
+ * reads as no change.
+ */
+describe('item owner select', () => {
+  const signIn = (index: number): void => {
+    const users = loadFixture('users-page.json');
+    if (!isUnknownArray(users)) {
+      throw new Error('expected a users page');
+    }
+    setSession(parseUser(users[index]));
+  };
+
+  it('resource_fields_offers_the_owner_to_an_admin_editing_an_item', async () => {
+    signIn(0);
+    try {
+      installFetch(detailHandler);
+      render(<ItemsPage param="1" />);
+      fireEvent.click(await screen.findByText('Edit this item'));
+      expect(await screen.findByRole('combobox', { name: 'Owner' })).toHaveValue('3');
+    } finally {
+      setSession(null);
+    }
+  });
+
+  it('resource_fields_hides_the_owner_from_an_editor_and_keeps_the_stored_one', async () => {
+    signIn(1);
+    try {
+      const fetchMock = installFetch((url, init) => {
+        if (url.pathname === '/api/items/1' && init?.method === 'PUT') {
+          return jsonResponse(itemFixture());
+        }
+        return detailHandler(url);
+      });
+      render(<ItemsPage param="1" />);
+      fireEvent.click(await screen.findByText('Edit this item'));
+      await screen.findByRole('textbox', { name: 'Title' });
+      expect(screen.queryByRole('combobox', { name: 'Owner' })).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect((await sentBody(fetchMock, '/api/items/1', 'PUT'))['o:owner']).toEqual({ 'o:id': 3 });
+    } finally {
+      setSession(null);
+    }
+  });
+
+  it('resource_fields_offers_no_owner_on_a_create', async () => {
+    signIn(0);
+    try {
+      installFetch((url) => {
+        const handler = optionsRoutes[url.pathname];
+        return handler === undefined
+          ? jsonResponse({ errors: { error: 'unexpected' } }, { status: 404 })
+          : handler();
+      });
+      render(<ItemsPage param="new" />);
+      await screen.findByLabelText('Title');
+      expect(screen.queryByRole('combobox', { name: 'Owner' })).toBeNull();
+    } finally {
+      setSession(null);
+    }
+  });
+});

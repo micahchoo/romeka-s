@@ -78,7 +78,14 @@ const ItemSetEditor = ({
   return (
     <div>
       <form onSubmit={submit}>
-        <ResourceFields idPrefix="item-set" kind="item-sets" draft={draft} onChange={setDraft} options={options} />
+        <ResourceFields
+          idPrefix="item-set"
+          kind="item-sets"
+          draft={draft}
+          onChange={setDraft}
+          options={options}
+          editing={stored !== null}
+        />
         <CheckboxField
           id="item-set-open"
           label={t('itemSets.open')}

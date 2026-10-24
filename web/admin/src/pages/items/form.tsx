@@ -86,7 +86,14 @@ const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement =
 
   return (
     <form onSubmit={submit}>
-      <ResourceFields idPrefix="item" kind="items" draft={draft} onChange={setDraft} options={options} />
+      <ResourceFields
+        idPrefix="item"
+        kind="items"
+        draft={draft}
+        onChange={setDraft}
+        options={options}
+        editing={item !== null}
+      />
       <ValuesEditor
         idPrefix="item"
         draft={draft}
