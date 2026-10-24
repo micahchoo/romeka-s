@@ -9,8 +9,10 @@ use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Sqlite, T
 use super::{Paging, Statement, bind_id, bind_opt_id, fetch_rows, insert_id, push_paging};
 use crate::DbError;
 use crate::backend::Backend;
-use crate::ids::{PropertyId, ResourceId, ValueId};
-use crate::rows::{NewValue, ValueContent, ValueRow};
+use crate::ids::{AnnotationId, PropertyId, ResourceId, ValueId};
+use crate::rows::{NewValue, ValueContent, ValueRow, ValueTree, resource_type};
+
+use super::resources::insert_resource;
 
 /// `value` rows.
 pub struct ValueRepo<'a, DB: Backend = Sqlite> {
@@ -72,6 +74,49 @@ where
         }
         for content in insert {
             insert_value(&mut tx, &content.on(resource_id)).await?;
+        }
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Replace every value on a resource with `values`, in one transaction that
+    /// locks the resource first. The annotation resources the old values carry go
+    /// with them, at any depth, and each new annotation is created. Two concurrent
+    /// replaces of one resource then end with one set, never the union of both, and
+    /// a failure keeps the stored set. An empty `values` clears the resource.
+    pub async fn replace_all(
+        &self,
+        resource_id: ResourceId,
+        values: &[ValueTree],
+    ) -> Result<(), DbError> {
+        let mut tx = self.pool.begin_with(DB::begin_write()).await?;
+        let lock = format!("SELECT id FROM resource WHERE id = ?{}", DB::for_update());
+        sqlx::query(&lock)
+            .bind(bind_id(resource_id))
+            .fetch_optional(&mut *tx)
+            .await?;
+        clear_values::<DB>(&mut tx, resource_id).await?;
+        let mut pending: Vec<(ResourceId, &[ValueTree])> = vec![(resource_id, values)];
+        while let Some((owner, trees)) = pending.pop() {
+            for tree in trees {
+                let mut new = tree.content.on(owner);
+                new.value_annotation_id = None;
+                if let Some(annotation) = &tree.annotation {
+                    let made = insert_resource(
+                        &mut tx,
+                        &annotation.resource,
+                        resource_type::VALUE_ANNOTATION,
+                    )
+                    .await?;
+                    sqlx::query("INSERT INTO value_annotation (id) VALUES (?)")
+                        .bind(bind_id(made.id))
+                        .execute(&mut *tx)
+                        .await?;
+                    new.value_annotation_id = Some(AnnotationId::from(u64::from(made.id)));
+                    pending.push((made.id, &annotation.values));
+                }
+                insert_value(&mut tx, &new).await?;
+            }
         }
         tx.commit().await?;
         Ok(())
@@ -214,4 +259,50 @@ where
         .bind(&new.uri)
         .bind(new.is_public);
     Ok(ValueId::from(insert_id(query, conn).await?))
+}
+
+/// Delete every value on `resource_id` and the annotation resources they carry,
+/// at any depth, on this connection.
+async fn clear_values<DB: Backend>(
+    conn: &mut DB::Connection,
+    resource_id: ResourceId,
+) -> Result<(), DbError>
+where
+    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
+    for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
+    for<'x> i64: Encode<'x, DB> + Type<DB>,
+{
+    let mut owners = vec![resource_id];
+    let mut annotations = Vec::new();
+    let mut next = 0;
+    while let Some(owner) = owners.get(next).copied() {
+        next += 1;
+        let rows = sqlx::query(
+            "SELECT value_annotation_id FROM value
+             WHERE resource_id = ? AND value_annotation_id IS NOT NULL ORDER BY id",
+        )
+        .bind(bind_id(owner))
+        .fetch_all(&mut *conn)
+        .await?;
+        for row in &rows {
+            let id: ResourceId = DB::id(row, "value_annotation_id")?;
+            if !owners.contains(&id) {
+                owners.push(id);
+                annotations.push(id);
+            }
+        }
+    }
+    for owner in &owners {
+        sqlx::query("DELETE FROM value WHERE resource_id = ?")
+            .bind(bind_id(*owner))
+            .execute(&mut *conn)
+            .await?;
+    }
+    for annotation in annotations {
+        sqlx::query("DELETE FROM resource WHERE id = ?")
+            .bind(bind_id(annotation))
+            .execute(&mut *conn)
+            .await?;
+    }
+    Ok(())
 }

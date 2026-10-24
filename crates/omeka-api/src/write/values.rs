@@ -25,9 +25,9 @@ use std::collections::HashMap;
 
 use omeka_core::term_list::{self, TermList, php_trim};
 use omeka_core::value::{literal_is_valid, uri_is_valid};
-use omeka_db::ids::{AnnotationId, CustomVocabId, PropertyId, ResourceId, TemplateId};
+use omeka_db::ids::{CustomVocabId, PropertyId, ResourceId, TemplateId};
 use omeka_db::repos::{CustomVocabRepo, ResourceRepo, TemplateRepo, ValueRepo};
-use omeka_db::rows::{NewResource, NewValue, resource_type};
+use omeka_db::rows::{AnnotationTree, NewResource, ValueContent, ValueTree, resource_type};
 use omeka_db::with_db;
 use serde_json::Value;
 
@@ -424,80 +424,53 @@ async fn parse_one(
     }))
 }
 
-/// Replace a resource's values with `inputs`.
+/// Replace a resource's values with `inputs`, in one transaction: the old
+/// values and their annotation resources go and the new ones arrive together,
+/// as upstream's single flush writes them.
 pub async fn store(
     api: &Api<'_>,
     resource: ResourceId,
     inputs: &[ValueInput],
 ) -> Result<(), ApiError> {
-    clear(api, resource).await?;
-    for input in inputs {
-        let annotation_id = match &input.annotation {
-            Some(annotation) => {
-                let row = with_db!(api.pool(), |db| ResourceRepo::new(db)
-                    .create_annotation(&annotation.resource)
-                    .await)
-                .map_err(db_error)?;
-                Box::pin(store(api, row.resource.id, &annotation.values)).await?;
-                Some(row.id())
-            }
-            None => None,
-        };
-        let (value, uri, value_resource_id) = match &input.data {
-            ValueKind::Literal(text) => (Some(text.clone()), None, None),
-            ValueKind::Uri { uri, label } => (label.clone(), Some(uri.clone()), None),
-            ValueKind::Resource(id) => (None, None, Some(*id)),
-        };
-        with_db!(api.pool(), |db| ValueRepo::new(db)
-            .create(&NewValue {
-                resource_id: resource,
-                property_id: input.property,
-                value_resource_id,
-                value_annotation_id: annotation_id,
-                r#type: input.data_type.clone(),
-                lang: input.lang.clone(),
-                value,
-                uri,
-                is_public: input.is_public,
-            })
-            .await)
-        .map_err(db_error)?;
-    }
-    Ok(())
+    let trees = trees(inputs);
+    with_db!(api.pool(), |db| ValueRepo::new(db)
+        .replace_all(resource, &trees)
+        .await)
+    .map_err(db_error)
 }
 
 /// Delete every value on a resource, and each value's annotation resource.
 pub async fn clear(api: &Api<'_>, resource: ResourceId) -> Result<(), ApiError> {
-    let rows = with_db!(api.pool(), |db| ValueRepo::new(db)
-        .list_for_resource(resource)
-        .await)
-    .map_err(db_error)?;
-    for row in rows {
-        delete_annotation(api, row.value_annotation_id).await?;
-        with_db!(api.pool(), |db| ValueRepo::new(db).delete(row.id).await).map_err(db_error)?;
-    }
-    Ok(())
+    store(api, resource, &[]).await
 }
 
-/// Delete a value's annotation resource, and the annotations of the values the
-/// annotation itself carries, before the annotation row goes.
-async fn delete_annotation(api: &Api<'_>, id: Option<AnnotationId>) -> Result<(), ApiError> {
-    let Some(id) = id else {
-        return Ok(());
-    };
-    let resource = id.as_resource();
-    let rows = with_db!(api.pool(), |db| ValueRepo::new(db)
-        .list_for_resource(resource)
-        .await)
-    .map_err(db_error)?;
-    for row in rows {
-        Box::pin(delete_annotation(api, row.value_annotation_id)).await?;
-    }
-    with_db!(api.pool(), |db| ResourceRepo::new(db)
-        .delete(resource)
-        .await)
-    .map_err(db_error)?;
-    Ok(())
+fn trees(inputs: &[ValueInput]) -> Vec<ValueTree> {
+    inputs
+        .iter()
+        .map(|input| {
+            let (value, uri, value_resource_id) = match &input.data {
+                ValueKind::Literal(text) => (Some(text.clone()), None, None),
+                ValueKind::Uri { uri, label } => (label.clone(), Some(uri.clone()), None),
+                ValueKind::Resource(id) => (None, None, Some(*id)),
+            };
+            ValueTree {
+                content: ValueContent {
+                    property_id: input.property,
+                    value_resource_id,
+                    value_annotation_id: None,
+                    r#type: input.data_type.clone(),
+                    lang: input.lang.clone(),
+                    value,
+                    uri,
+                    is_public: input.is_public,
+                },
+                annotation: input.annotation.as_ref().map(|annotation| AnnotationTree {
+                    resource: annotation.resource.clone(),
+                    values: trees(&annotation.values),
+                }),
+            }
+        })
+        .collect()
 }
 
 /// `ResourceTitleHydrator`: the first non-empty value of the template's title
