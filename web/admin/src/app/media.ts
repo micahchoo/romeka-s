@@ -347,6 +347,39 @@ export const KIND_LABEL: Readonly<Record<MediaKind, ResourcesKey>> = {
   other: 'media.kind.other',
 };
 
+interface KindFilter {
+  readonly kind: MediaKind;
+  readonly names: readonly ServerMediaKind[];
+}
+
+/**
+ * The filter options, one per server kind a list can narrow to. An image is
+ * two server names, so the filter sends both. `other-file` is the kind for a
+ * file no other name fits, so its filter keeps the word "File". The media list
+ * sends it as `romeka_kind`, the item list as `has_media_kind`.
+ */
+export const KIND_FILTERS = [
+  { kind: 'image', names: ['local-image', 'iiif-image'] },
+  { kind: 'audio', names: ['audio'] },
+  { kind: 'video', names: ['video'] },
+  { kind: 'pdf', names: ['pdf'] },
+  { kind: 'document', names: ['document'] },
+  { kind: 'model', names: ['model-3d'] },
+  { kind: 'captions', names: ['captions'] },
+  { kind: 'embed', names: ['embed'] },
+  { kind: 'manifest', names: ['iiif-presentation'] },
+  { kind: 'other', names: ['other-file'] },
+] as const satisfies readonly KindFilter[];
+
+export type FilterKind = (typeof KIND_FILTERS)[number]['kind'];
+
+export const isFilterKind = (value: string): value is FilterKind =>
+  KIND_FILTERS.some((entry) => entry.kind === value);
+
+/** The server kind names one filter sends. */
+export const serverKindsOf = (kind: FilterKind): readonly ServerMediaKind[] =>
+  KIND_FILTERS.find((entry) => entry.kind === kind)?.names ?? [];
+
 /**
  * `MediaRepresentation::displayTitle` falls back to the media source. This
  * collection has no media titles, so the source or the filename is what the
