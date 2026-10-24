@@ -192,7 +192,7 @@ fn list_pairs(name: &str, ids: impl Iterator<Item = u64>) -> Vec<(String, String
 
 /// `http_build_query` over a stored query, as decoded pairs: `{"property": [{"type": "eq"}]}`
 /// is `property[0][type]=eq`. A boolean is `1` or `0`, and a null is dropped, as PHP writes them.
-fn query_pairs(query: &Value) -> Vec<(String, String)> {
+pub(crate) fn query_pairs(query: &Value) -> Vec<(String, String)> {
     fn push(key: String, value: &Value, pairs: &mut Vec<(String, String)>) {
         let child = |name: &str| {
             if key.is_empty() {
