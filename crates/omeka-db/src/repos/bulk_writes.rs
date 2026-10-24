@@ -5,6 +5,8 @@
 //! write and its record commit together or not at all. A rerun finds the target settled and
 //! skips it. An undo's turn restores the image unless the item's `modified` is no longer the one
 //! the run left, which means someone edited it since; then the target is `kept` unless forced.
+//! The caller then reads the item as it is and the image, and says what to restore, or refuses;
+//! a refused target keeps its state, with the reason, so a later undo may restore it.
 //!
 //! The before-image and the restore are the import's own (`ImportWrites`), so a bulk edit and an
 //! import read and put back an item the same way.
@@ -87,11 +89,14 @@ where
     }
 
     /// Undo one done or kept target. `force` restores an item edited since the run wrote it.
+    /// `decide` reads the item's image now and the image the run kept, and answers the image to
+    /// restore, or why it may not.
     pub async fn revert_target(
         &self,
         id: BulkId,
         item: ItemId,
         force: bool,
+        decide: impl FnOnce(&BeforeImage, BeforeImage) -> Result<BeforeImage, FailReason>,
     ) -> Result<Reverted, DbError> {
         let mut tx = self.pool.begin_with(DB::begin_write()).await?;
         if !matches!(
@@ -119,15 +124,22 @@ where
         let reverted = match writes.modified_of(target).await? {
             None => Reverted::Gone,
             Some(now) if now != written && !force => Reverted::Kept,
-            Some(_) => {
-                writes.restore(target, &image).await?;
-                Reverted::Restored
-            }
+            Some(_) => match writes.before_image(target).await? {
+                None => Reverted::Gone,
+                Some(now) => match decide(&now, image) {
+                    Ok(restore) => {
+                        writes.restore(target, &restore).await?;
+                        Reverted::Restored
+                    }
+                    Err(reason) => Reverted::Refused(reason),
+                },
+            },
         };
         match reverted {
             Reverted::Gone => fail(&mut tx, id, item, FailReason::Gone).await?,
             Reverted::Kept => set_state(&mut tx, id, item, TargetState::Kept).await?,
             Reverted::Restored => set_state(&mut tx, id, item, TargetState::Restored).await?,
+            Reverted::Refused(reason) => refuse(&mut tx, id, item, reason).await?,
             Reverted::Settled => {}
         }
         tx.commit().await?;
@@ -225,8 +237,32 @@ where
     for<'x> i64: Encode<'x, DB> + Type<DB>,
     for<'x> &'x str: Encode<'x, DB> + Type<DB>,
 {
-    sqlx::query("UPDATE romeka_bulk_target SET state = ? WHERE bulk_id = ? AND item_id = ?")
-        .bind(state.as_str())
+    sqlx::query(
+        "UPDATE romeka_bulk_target SET state = ?, error = NULL WHERE bulk_id = ? AND item_id = ?",
+    )
+    .bind(state.as_str())
+    .bind(bind_id(id))
+    .bind(bind_id(item))
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
+}
+
+/// Record why an undo left the target, in the state it was.
+async fn refuse<DB: Backend>(
+    tx: &mut Transaction<'_, DB>,
+    id: BulkId,
+    item: ItemId,
+    reason: FailReason,
+) -> Result<(), DbError>
+where
+    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
+    for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
+    for<'x> i64: Encode<'x, DB> + Type<DB>,
+    for<'x> &'x str: Encode<'x, DB> + Type<DB>,
+{
+    sqlx::query("UPDATE romeka_bulk_target SET error = ? WHERE bulk_id = ? AND item_id = ?")
+        .bind(reason.as_str())
         .bind(bind_id(id))
         .bind(bind_id(item))
         .execute(&mut **tx)

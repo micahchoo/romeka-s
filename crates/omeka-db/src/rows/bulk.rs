@@ -213,7 +213,8 @@ stored_names!(
 );
 
 stored_names!(
-    /// Why a target failed, as the admin reads it: a code, not a sentence.
+    /// Why a target failed, as the admin reads it: a code, not a sentence. A failed target holds
+    /// it, and so does a target an undo refused, which stays `done` or `kept` for a later undo.
     FailReason, "error", {
         /// The item is gone.
         Gone => "gone",
@@ -221,6 +222,9 @@ stored_names!(
         Denied => "denied",
         /// The item type the change sets requires a value the item lacks.
         TemplateRequires => "templateRequires",
+        /// The person who asked for the undo may not update this item, as it is now or as the
+        /// undo would leave it.
+        UndoDenied => "undoDenied",
     }
 );
 
@@ -392,6 +396,8 @@ pub enum Reverted {
     /// Edited since the run wrote it, and not forced.
     Kept,
     Gone,
+    /// The caller refused to restore it; the target keeps its state and records the reason.
+    Refused(FailReason),
 }
 
 #[cfg(test)]

@@ -1,7 +1,7 @@
 //! The reads: one run with its progress, the recent runs, and what an undo would keep.
 
 use omeka_db::repos::{BulkRepo, Presence, RunsOf};
-use omeka_db::rows::{BulkRow, Described, FailReason, TargetCounts, TargetState};
+use omeka_db::rows::{BulkRow, Described, FailReason, TargetCounts};
 use omeka_db::with_db;
 use serde::Serialize;
 use serde_json::Value;
@@ -11,7 +11,7 @@ use super::access::load;
 use crate::messages;
 use crate::read::{Api, iso8601};
 
-/// How many failed items a run shows.
+/// How many failed items, and items an undo refused, a run shows.
 const FAILURES: i64 = 10;
 
 /// How many runs the recent list shows.
@@ -71,7 +71,7 @@ impl From<TargetCounts> for Counts {
 #[derive(Debug, Serialize)]
 pub struct Failure {
     pub item: u64,
-    /// `gone`, `denied` or `templateRequires`.
+    /// `gone`, `denied`, `templateRequires` or `undoDenied`.
     pub reason: Option<&'static str>,
     /// The reason in English, from the message registry, which the admin translates.
     pub message: Option<&'static str>,
@@ -82,6 +82,7 @@ fn reason_text(reason: FailReason) -> &'static str {
         FailReason::Gone => messages::BULK_ITEM_GONE,
         FailReason::Denied => messages::BULK_ITEM_DENIED,
         FailReason::TemplateRequires => messages::BULK_ITEM_TEMPLATE_REQUIRES,
+        FailReason::UndoDenied => messages::BULK_ITEM_UNDO_DENIED,
     }
 }
 
@@ -136,12 +137,12 @@ impl BulkView {
 /// `GET /api/romeka/bulk/{id}`.
 ///
 /// # Errors
-/// 404 for no such run, 403 for another person's run.
+/// 404 for no such run or one the caller may not read.
 pub async fn show(api: &Api<'_>, raw: &str) -> Result<BulkView, BulkError> {
     let row = load(api, raw, false).await?;
     let counts = with_db!(api.pool(), |db| BulkRepo::new(db).counts(row.id).await)?;
     let failed = with_db!(api.pool(), |db| BulkRepo::new(db)
-        .targets(row.id, TargetState::Failed, FAILURES)
+        .failures(row.id, FAILURES)
         .await)?;
     let mut view = BulkView::of(&row);
     view.counts = Some(counts.into());
@@ -196,7 +197,7 @@ pub struct UndoPreview {
 /// `POST /api/romeka/bulk/{id}/undo/preview`.
 ///
 /// # Errors
-/// 404 for no such run, 403 for another person's run.
+/// 404 for no such run or one the caller may not read.
 pub async fn undo_preview(api: &Api<'_>, raw: &str) -> Result<UndoPreview, BulkError> {
     let row = load(api, raw, false).await?;
     let candidates = with_db!(api.pool(), |db| BulkRepo::new(db)

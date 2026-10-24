@@ -8,7 +8,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use chrono::NaiveDateTime;
+use chrono::{NaiveDateTime, TimeDelta};
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Sqlite, Type};
 
 use super::{DEAD_AFTER, Presence, Statement, bind_id, insert_id, json_text, new_id};
@@ -23,6 +23,10 @@ use crate::time;
 
 /// Rows per insert or `IN (...)` list.
 const CHUNK: usize = 500;
+
+/// How long a preview stays good: past it, the selection and the counts it showed are stale, the
+/// run may not start, and [`BulkRepo::settle_dead`] deletes it with its targets.
+pub const PREVIEW_LASTS: TimeDelta = TimeDelta::minutes(10);
 
 /// A target an undo would deal with, and what its item looks like now.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -272,9 +276,12 @@ where
 
     /// Move every live run whose heartbeat is older than [`DEAD_AFTER`] to the state a dead
     /// worker leaves. Each move is guarded by the heartbeat it judged, so a worker that beats in
-    /// between keeps its run. Answers the runs it moved.
+    /// between keeps its run. Answers the runs it moved. Delete each preview older than
+    /// [`PREVIEW_LASTS`] with its targets too: no run can start from it, and each preview keeps
+    /// a target row per item it selected.
     pub async fn settle_dead(&self) -> Result<Vec<BulkId>, DbError> {
         let now = time::now();
+        self.delete_expired(now - PREVIEW_LASTS).await?;
         let mut statement = Statement::<DB>::new("SELECT * FROM romeka_bulk");
         push_names(
             &mut statement,
@@ -308,6 +315,24 @@ where
             }
         }
         Ok(settled)
+    }
+
+    async fn delete_expired(&self, before: NaiveDateTime) -> Result<(), DbError> {
+        let before = time::format(before);
+        let mut tx = self.pool.begin_with(DB::begin_write()).await?;
+        sqlx::query(
+            "DELETE FROM romeka_bulk_target WHERE bulk_id IN
+             (SELECT id FROM romeka_bulk WHERE status = 'previewed' AND created < ?)",
+        )
+        .bind(&before)
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query("DELETE FROM romeka_bulk WHERE status = 'previewed' AND created < ?")
+            .bind(&before)
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        Ok(())
     }
 
     /// The next `limit` items after `after` that `phase` still has work on, in id order.
@@ -354,19 +379,14 @@ where
         Ok(counts)
     }
 
-    /// The first `limit` targets in `state`, in id order.
-    pub async fn targets(
-        &self,
-        id: BulkId,
-        state: TargetState,
-        limit: i64,
-    ) -> Result<Vec<BulkTargetRow>, DbError> {
+    /// The first `limit` targets that hold a reason: those that failed, and those an undo
+    /// refused. In id order.
+    pub async fn failures(&self, id: BulkId, limit: i64) -> Result<Vec<BulkTargetRow>, DbError> {
         let rows = sqlx::query(
-            "SELECT * FROM romeka_bulk_target WHERE bulk_id = ? AND state = ?
+            "SELECT * FROM romeka_bulk_target WHERE bulk_id = ? AND error IS NOT NULL
              ORDER BY item_id LIMIT ?",
         )
         .bind(bind_id(id))
-        .bind(state.as_str())
         .bind(limit)
         .fetch_all(self.pool)
         .await?;

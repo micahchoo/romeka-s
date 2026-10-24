@@ -87,6 +87,7 @@ export const hi: BulkMessages = {
   'bulk.done.partlyUndone':
     'जैसे थे वैसे वापस: {count}। परिवर्तन के बाद संपादित, इसलिए वैसे ही छोड़ दिया: {kept}।',
   'bulk.done.undoAgain': 'बाकी को पूर्ववत करें',
+  'bulk.done.notPutBack': 'वापस नहीं रखा गया:',
   'bulk.undo.restoreOne': 'अनडू इस परिवर्तन से पहले की स्थिति में 1 वस्तु वापस रखता है।',
   'bulk.undo.restore': 'पूर्ववत करने से {count} आइटम इस बदलाव से पहले जैसी स्थिति में आ जाते हैं।',
   'bulk.undo.editedOne': '1 वस्तु इस परिवर्तन के बाद संपादित की गई। अनडू इसे वैसा ही छोड़ देता है:',

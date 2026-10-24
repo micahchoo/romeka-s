@@ -87,6 +87,7 @@ export const ml: BulkMessages = {
   'bulk.done.partlyUndone':
     'പഴയതുപോലെയായവ: {count}. മാറ്റത്തിന് ശേഷം തിരുത്തിയതിനാൽ അതേപടി വിട്ടവ: {kept}.',
   'bulk.done.undoAgain': 'ബാക്കിയുള്ളവ പഴയപടിയാക്കുക',
+  'bulk.done.notPutBack': 'പഴയപടിയാക്കാത്തവ:',
   'bulk.undo.restoreOne': 'പഴയപടിയാക്കുമ്പോൾ, ഈ മാറ്റത്തിന് മുൻപ്, 1 ഇനം പഴയതുപോലെ.',
   'bulk.undo.restore': 'പഴയപടിയാക്കുമ്പോൾ {count} ഇനങ്ങൾ ഈ മാറ്റത്തിന് മുമ്പുള്ളതുപോലെ തിരികെ വരുന്നു.',
   'bulk.undo.editedOne':
