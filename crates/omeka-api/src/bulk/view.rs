@@ -1,6 +1,6 @@
 //! The reads: one run with its progress, the recent runs, and what an undo would keep.
 
-use omeka_db::repos::{BulkRepo, Presence};
+use omeka_db::repos::{BulkRepo, Presence, RunsOf};
 use omeka_db::rows::{BulkRow, Described, FailReason, TargetCounts, TargetState};
 use omeka_db::with_db;
 use serde::Serialize;
@@ -164,14 +164,16 @@ pub async fn show(api: &Api<'_>, raw: &str) -> Result<BulkView, BulkError> {
 /// # Errors
 /// A storage failure.
 pub async fn list(api: &Api<'_>) -> Result<Vec<BulkView>, BulkError> {
-    let owner = if api.actor().is_admin() {
-        None
+    let whose = if api.actor().is_admin() {
+        RunsOf::Everyone
+    } else if let Some(user) = api.actor().user() {
+        RunsOf::Owner(user)
     } else {
-        api.actor().user()
+        return Ok(Vec::new());
     };
     with_db!(api.pool(), |db| BulkRepo::new(db).settle_dead().await)?;
     let rows = with_db!(api.pool(), |db| BulkRepo::new(db)
-        .recent(owner, RECENT)
+        .recent(whose, RECENT)
         .await)?;
     Ok(rows.iter().map(BulkView::of).collect())
 }

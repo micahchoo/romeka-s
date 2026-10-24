@@ -60,7 +60,7 @@ mod vocabularies;
 
 pub use assets::{AssetFilter, AssetOwner, AssetRepo};
 pub use attachments::SiteBlockAttachmentRepo;
-pub use bulk::{BulkRepo, DescribedItem, UndoCandidate};
+pub use bulk::{BulkRepo, DescribedItem, RunsOf, UndoCandidate};
 pub use collation::{compare_opt_text_ci, compare_text_ci};
 pub use custom_vocabs::CustomVocabRepo;
 pub use database::DatabaseRepo;

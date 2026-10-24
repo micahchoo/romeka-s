@@ -41,6 +41,14 @@ pub struct DescribedItem {
     pub fields: Described,
 }
 
+/// Whose runs [`BulkRepo::recent`] lists. "Everyone" is its own case, so a caller without a user
+/// id cannot fall through to it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RunsOf {
+    Everyone,
+    Owner(UserId),
+}
+
 /// `romeka_bulk` rows and their targets.
 pub struct BulkRepo<'a, DB: Backend = Sqlite> {
     pub(super) pool: &'a Pool<DB>,
@@ -128,17 +136,17 @@ where
         row.as_ref().map(BulkRow::from_db_row::<DB>).transpose()
     }
 
-    /// The newest runs first; those of `owner` only, or everyone's for `None`.
-    pub async fn recent(&self, owner: Option<UserId>, limit: i64) -> Result<Vec<BulkRow>, DbError> {
-        let rows = match owner {
-            Some(owner) => {
+    /// The newest runs first, of the people `whose` names.
+    pub async fn recent(&self, whose: RunsOf, limit: i64) -> Result<Vec<BulkRow>, DbError> {
+        let rows = match whose {
+            RunsOf::Owner(owner) => {
                 sqlx::query("SELECT * FROM romeka_bulk WHERE owner_id = ? ORDER BY id DESC LIMIT ?")
                     .bind(bind_id(owner))
                     .bind(limit)
                     .fetch_all(self.pool)
                     .await?
             }
-            None => {
+            RunsOf::Everyone => {
                 sqlx::query("SELECT * FROM romeka_bulk ORDER BY id DESC LIMIT ?")
                     .bind(limit)
                     .fetch_all(self.pool)

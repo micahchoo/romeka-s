@@ -623,3 +623,36 @@ async fn a_reviewer_edits_all_an_author_only_ticked_items_and_a_researcher_nothi
         .await;
     assert_eq!(status, 403, "a run belongs to the person who previewed it");
 }
+
+#[tokio::test]
+async fn the_recent_list_shows_no_one_else_s_runs_to_a_signed_out_or_ordinary_caller() {
+    let site = site().await;
+    item(&site, "Letter to Anna", &[]).await;
+    preview(
+        &site,
+        json!({ "search": "Letter" }),
+        json!({ "kind": "edit", "isPublic": false }),
+    )
+    .await;
+    let (status, runs) = admin(&site, "GET", "/api/romeka/bulk", None).await;
+    assert_eq!((status, runs.as_array().unwrap().len()), (200, 1), "{runs}");
+
+    let signed_out = Person {
+        addr: site.addr,
+        cookie: String::new(),
+    };
+    let (status, runs) = signed_out.send("GET", "/api/romeka/bulk", None).await;
+    assert_eq!(
+        (status, runs),
+        (200, json!([])),
+        "a signed-out caller has no runs"
+    );
+
+    let researcher = Person::new(&site, "researcher").await;
+    let (status, runs) = researcher.send("GET", "/api/romeka/bulk", None).await;
+    assert_eq!(
+        (status, runs),
+        (200, json!([])),
+        "only the admin made a run"
+    );
+}
