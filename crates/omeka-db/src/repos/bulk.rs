@@ -4,7 +4,8 @@
 //! moves the state with one guarded statement, so two starts cannot both win. The job proves it
 //! is alive with [`BulkRepo::pulse`], which also hands it the state a stop request left; a run
 //! whose heartbeat is older than [`DEAD_AFTER`] is settled by [`BulkRepo::settle_dead`]. The
-//! per-item transactions live in `bulk_writes`.
+//! per-item transactions live in `bulk_writes`, the reads over the selected items in
+//! `bulk_reads`.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -16,8 +17,8 @@ use crate::DbError;
 use crate::backend::Backend;
 use crate::ids::{BulkId, ItemId, JobId, UserId};
 use crate::rows::{
-    BulkEnding, BulkPhase, BulkRow, BulkStatus, BulkTargetRow, Described, NewBulk, TargetCounts,
-    TargetState, resource_type,
+    BeforeImage, BulkEnding, BulkPhase, BulkRow, BulkStatus, BulkTargetRow, Described, ItemMembers,
+    NewBulk, TargetCounts, TargetState,
 };
 use crate::time;
 
@@ -35,6 +36,10 @@ pub struct UndoCandidate {
     pub state: TargetState,
     pub written: Option<NaiveDateTime>,
     pub now: Presence,
+    /// The image the run kept.
+    pub image: BeforeImage,
+    /// The item's sets and sites now; empty when it is gone.
+    pub members: ItemMembers,
 }
 
 /// An item's describing fields, with its title for a preview line.
@@ -392,100 +397,9 @@ where
         .await?;
         rows.iter().map(BulkTargetRow::from_db_row::<DB>).collect()
     }
-
-    /// Every target an undo would deal with, with its item's state now.
-    pub async fn undo_candidates(&self, id: BulkId) -> Result<Vec<UndoCandidate>, DbError> {
-        let rows = sqlx::query(
-            "SELECT t.item_id, t.state, t.written, r.modified, r.resource_type
-             FROM romeka_bulk_target t LEFT JOIN resource r ON r.id = t.item_id
-             WHERE t.bulk_id = ? AND t.state IN ('done', 'kept')
-             ORDER BY t.item_id",
-        )
-        .bind(bind_id(id))
-        .fetch_all(self.pool)
-        .await?;
-        rows.iter()
-            .map(|row| {
-                let here =
-                    DB::opt_text(row, "resource_type")?.as_deref() == Some(resource_type::ITEM);
-                Ok(UndoCandidate {
-                    item: DB::id(row, "item_id")?,
-                    state: TargetState::parse(&DB::text(row, "state")?)?,
-                    written: DB::opt_datetime(row, "written")?,
-                    now: if here {
-                        Presence::Here {
-                            modified: DB::opt_datetime(row, "modified")?,
-                        }
-                    } else {
-                        Presence::Gone
-                    },
-                })
-            })
-            .collect()
-    }
-
-    /// The describing fields of `items` that still exist, in id order.
-    pub async fn described(&self, items: &[ItemId]) -> Result<Vec<DescribedItem>, DbError> {
-        let mut found = Vec::new();
-        for chunk in items.chunks(CHUNK) {
-            let mut statement = Statement::<DB>::new(
-                "SELECT r.id, r.title, r.is_public, r.owner_id, r.resource_class_id,
-                        r.resource_template_id
-                 FROM resource r JOIN item i ON i.id = r.id",
-            );
-            push_ids(&mut statement, " WHERE r.id IN (", chunk)?;
-            statement.push(" ORDER BY r.id");
-            let (sql, arguments) = statement.into_parts();
-            let rows = sqlx::query_with::<DB, _>(&sql, arguments)
-                .fetch_all(self.pool)
-                .await?;
-            let sets = self.members(chunk, "item_item_set", "item_set_id").await?;
-            let sites = self.members(chunk, "item_site", "site_id").await?;
-            for row in &rows {
-                let item: ItemId = DB::id(row, "id")?;
-                found.push(DescribedItem {
-                    item,
-                    title: DB::opt_text(row, "title")?,
-                    fields: Described {
-                        is_public: DB::boolean(row, "is_public")?,
-                        owner: DB::opt_id(row, "owner_id")?,
-                        class: DB::opt_id(row, "resource_class_id")?,
-                        template: DB::opt_id(row, "resource_template_id")?,
-                        item_sets: members_of(&sets, item),
-                        sites: members_of(&sites, item),
-                    },
-                });
-            }
-        }
-        Ok(found)
-    }
-
-    /// `(item_id, member)` of a membership table, for the items of one chunk.
-    async fn members(
-        &self,
-        items: &[ItemId],
-        table: &'static str,
-        member: &'static str,
-    ) -> Result<BTreeMap<ItemId, Vec<u64>>, DbError> {
-        let mut statement =
-            Statement::<DB>::new(&format!("SELECT item_id, {member} AS member FROM {table}"));
-        push_ids(&mut statement, " WHERE item_id IN (", items)?;
-        let (sql, arguments) = statement.into_parts();
-        let rows = sqlx::query_with::<DB, _>(&sql, arguments)
-            .fetch_all(self.pool)
-            .await?;
-        let mut members: BTreeMap<ItemId, Vec<u64>> = BTreeMap::new();
-        for row in &rows {
-            members
-                .entry(DB::id(row, "item_id")?)
-                .or_default()
-                .push(DB::id(row, "member")?);
-        }
-        Ok(members)
-    }
 }
 
-fn members_of<T: From<u64> + Ord>(
+pub(super) fn members_of<T: From<u64> + Ord>(
     members: &BTreeMap<ItemId, Vec<u64>>,
     item: ItemId,
 ) -> BTreeSet<T> {
@@ -518,7 +432,7 @@ where
 }
 
 /// `open` and an id list closed by `)`.
-fn push_ids<DB: Backend>(
+pub(super) fn push_ids<DB: Backend>(
     statement: &mut Statement<'_, DB>,
     open: &str,
     items: &[ItemId],

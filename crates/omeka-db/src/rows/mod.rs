@@ -31,7 +31,8 @@ mod vocabularies;
 
 pub use bulk::{
     Applied, BulkEnding, BulkKind, BulkPhase, BulkRow, BulkStatus, BulkTargetRow, Described,
-    FailReason, NewBulk, Reverted, TargetCounts, TargetState, Verdict,
+    FailReason, ItemMembers, NewBulk, Restore, Reverted, TargetCounts, TargetState, ValueWrites,
+    Verdict, Written,
 };
 pub use custom_vocabs::{CustomVocabRow, NewCustomVocab};
 pub use derivatives::{DerivativeKind, DerivativeRow, DerivativeState, NewDerivative};

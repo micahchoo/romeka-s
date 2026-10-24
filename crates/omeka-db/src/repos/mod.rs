@@ -18,6 +18,7 @@
 mod assets;
 mod attachments;
 mod bulk;
+mod bulk_reads;
 mod bulk_writes;
 mod collation;
 mod custom_vocabs;

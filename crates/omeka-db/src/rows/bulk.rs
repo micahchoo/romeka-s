@@ -4,7 +4,7 @@
 //! `query` and `change` are JSON that `omeka-api` owns; this crate stores them and parses the
 //! states. The life of a run is [`BulkStatus`], the life of one item in it [`TargetState`].
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use chrono::NaiveDateTime;
 use serde_json::Value;
@@ -12,7 +12,7 @@ use serde_json::Value;
 use crate::backend::Backend;
 use crate::error::DbError;
 use crate::ids::{BulkId, ClassId, ItemId, ItemSetId, JobId, SiteId, TemplateId, UserId};
-use crate::rows::{BeforeImage, ImageMemberships};
+use crate::rows::{BeforeImage, ImageMemberships, ValueContent};
 
 /// A closed set of names stored in a text column: `as_str` writes it, `parse` reads it back.
 macro_rules! stored_names {
@@ -222,6 +222,8 @@ stored_names!(
         Denied => "denied",
         /// The item type the change sets requires a value the item lacks.
         TemplateRequires => "templateRequires",
+        /// The change would take the last value from a field the item's type requires.
+        RemovesRequired => "removesRequired",
         /// The person who asked for the undo may not update this item, as it is now or as the
         /// undo would leave it.
         UndoDenied => "undoDenied",
@@ -367,13 +369,83 @@ impl Described {
     }
 }
 
+/// An item's item sets and sites.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ItemMembers {
+    pub item_sets: BTreeSet<ItemSetId>,
+    pub sites: BTreeSet<SiteId>,
+}
+
+impl ItemMembers {
+    /// The memberships an item's image holds; `None` for the image of another kind.
+    pub fn of_image(image: &BeforeImage) -> Option<Self> {
+        let ImageMemberships::Item {
+            item_sets, sites, ..
+        } = &image.memberships
+        else {
+            return None;
+        };
+        Some(Self {
+            item_sets: item_sets.iter().copied().collect(),
+            sites: sites.iter().copied().collect(),
+        })
+    }
+}
+
 /// What the caller decided for one item, from its before-image.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Verdict {
-    /// Write these fields.
-    Write(Described),
+    /// Write these fields and these values.
+    Write(Written),
     /// The item already holds what the change asks for.
     Unchanged,
+    Refuse(FailReason),
+}
+
+/// What a run writes on one item: every describing field, and the value rows that change.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Written {
+    pub fields: Described,
+    pub values: ValueWrites,
+}
+
+/// The value rows a run changes, each named by its place in the before-image's values, which
+/// lists them in id order. A value updated in place keeps its id and its annotation.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ValueWrites {
+    /// Values that go, with their annotations.
+    pub delete: BTreeSet<usize>,
+    /// Values whose columns become these.
+    pub update: BTreeMap<usize, ValueContent>,
+    /// New values, after the item's others.
+    pub insert: Vec<ValueContent>,
+}
+
+impl ValueWrites {
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.delete.is_empty() && self.update.is_empty() && self.insert.is_empty()
+    }
+
+    /// The values an item holds after these writes, from those it holds before.
+    #[must_use]
+    pub fn applied(&self, before: &[ValueContent]) -> Vec<ValueContent> {
+        before
+            .iter()
+            .enumerate()
+            .filter(|(at, _)| !self.delete.contains(at))
+            .map(|(at, value)| self.update.get(&at).unwrap_or(value).clone())
+            .chain(self.insert.iter().cloned())
+            .collect()
+    }
+}
+
+/// What an undo puts back on one item, from the item now and the image the run kept.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Restore {
+    Image(BeforeImage),
+    /// Changed since the run in a way its `modified` does not show; left as it is unless forced.
+    Keep,
     Refuse(FailReason),
 }
 

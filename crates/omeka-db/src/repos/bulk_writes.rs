@@ -5,22 +5,28 @@
 //! write and its record commit together or not at all. A rerun finds the target settled and
 //! skips it. An undo's turn restores the image unless the item's `modified` is no longer the one
 //! the run left, which means someone edited it since; then the target is `kept` unless forced.
-//! The caller then reads the item as it is and the image, and says what to restore, or refuses;
-//! a refused target keeps its state, with the reason, so a later undo may restore it.
+//! The caller then reads the item as it is and the image, and says what to restore, that the
+//! item stays (`kept`, for a change `modified` does not show), or refuses; a refused target keeps
+//! its state, with the reason, so a later undo may restore it.
+//!
+//! A run's value writes touch only the rows they name: a value updated in place keeps its id and
+//! its annotation, as upstream's batch visibility edits the value entity it has.
 //!
 //! The before-image and the restore are the import's own (`ImportWrites`), so a bulk edit and an
-//! import read and put back an item the same way.
+//! import read and put back an item the same way. The restore writes every value again, so value
+//! ids change on undo.
 
 use chrono::NaiveDateTime;
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Transaction, Type};
 
-use super::{BulkRepo, ImportWrites, bind_id, json_text};
+use super::values::insert_value;
+use super::{BulkRepo, ImportWrites, bind_id, bind_opt_id, json_text};
 use crate::DbError;
 use crate::backend::Backend;
 use crate::ids::{BulkId, ItemId};
 use crate::rows::{
     Applied, BeforeImage, Described, FailReason, ImportAction, ImportFields, ImportResource,
-    ItemSlots, Reverted, Slot, TargetState, Verdict,
+    ItemSlots, Restore, Reverted, Slot, TargetState, ValueWrites, Verdict,
 };
 use crate::time;
 
@@ -67,8 +73,9 @@ where
                 settle(&mut tx, id, item, TargetState::Unchanged, None).await?;
                 Applied::Unchanged
             }
-            Verdict::Write(fields) => {
-                let (fields, slots) = import_fields(&fields);
+            Verdict::Write(written) => {
+                write_values(&mut writes, item, &written.values).await?;
+                let (fields, slots) = import_fields(&written.fields);
                 writes
                     .apply_item(item, ImportAction::Update, &fields, &slots)
                     .await?;
@@ -90,13 +97,13 @@ where
 
     /// Undo one done or kept target. `force` restores an item edited since the run wrote it.
     /// `decide` reads the item's image now and the image the run kept, and answers the image to
-    /// restore, or why it may not.
+    /// restore, that the item stays as it is, or why it may not be restored.
     pub async fn revert_target(
         &self,
         id: BulkId,
         item: ItemId,
         force: bool,
-        decide: impl FnOnce(&BeforeImage, BeforeImage) -> Result<BeforeImage, FailReason>,
+        decide: impl FnOnce(&BeforeImage, BeforeImage) -> Restore,
     ) -> Result<Reverted, DbError> {
         let mut tx = self.pool.begin_with(DB::begin_write()).await?;
         if !matches!(
@@ -127,11 +134,12 @@ where
             Some(_) => match writes.before_image(target).await? {
                 None => Reverted::Gone,
                 Some(now) => match decide(&now, image) {
-                    Ok(restore) => {
+                    Restore::Image(restore) => {
                         writes.restore(target, &restore).await?;
                         Reverted::Restored
                     }
-                    Err(reason) => Reverted::Refused(reason),
+                    Restore::Keep => Reverted::Kept,
+                    Restore::Refuse(reason) => Reverted::Refused(reason),
                 },
             },
         };
@@ -145,6 +153,72 @@ where
         tx.commit().await?;
         Ok(reverted)
     }
+}
+
+/// Write a run's value changes on `item`, whose values the transaction read for the before-image
+/// in the same id order, so each place names the row it named there.
+async fn write_values<DB: Backend>(
+    writes: &mut ImportWrites<'_, DB>,
+    item: ItemId,
+    changes: &ValueWrites,
+) -> Result<(), DbError>
+where
+    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
+    for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
+    usize: ColumnIndex<DB::Row>,
+    for<'x> i64: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> Option<i64>: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> bool: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> String: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> Option<String>: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> Vec<u8>: Decode<'x, DB> + Type<DB>,
+    for<'x> Option<Vec<u8>>: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> &'x str: Encode<'x, DB> + Type<DB> + ColumnIndex<DB::Row>,
+    for<'x> f64: Decode<'x, DB> + Type<DB>,
+{
+    if changes.is_empty() {
+        return Ok(());
+    }
+    let resource = item.as_resource();
+    let rows = writes.values_of(resource).await?;
+    let row = |at: usize| {
+        rows.get(at)
+            .ok_or(DbError::Conflict("a value the run planned from is gone"))
+    };
+    for at in &changes.delete {
+        let row = row(*at)?;
+        sqlx::query("DELETE FROM value WHERE id = ?")
+            .bind(bind_id(row.id))
+            .execute(&mut *writes.conn)
+            .await?;
+        if let Some(annotation) = row.value_annotation_id {
+            let annotation = annotation.as_resource();
+            writes.delete_values(annotation, None).await?;
+            sqlx::query("DELETE FROM resource WHERE id = ?")
+                .bind(bind_id(annotation))
+                .execute(&mut *writes.conn)
+                .await?;
+        }
+    }
+    for (at, content) in &changes.update {
+        sqlx::query(
+            "UPDATE value SET value_resource_id = ?, type = ?, lang = ?, value = ?, uri = ?,
+             is_public = ? WHERE id = ?",
+        )
+        .bind(bind_opt_id(content.value_resource_id))
+        .bind(&content.r#type)
+        .bind(&content.lang)
+        .bind(&content.value)
+        .bind(&content.uri)
+        .bind(content.is_public)
+        .bind(bind_id(row(*at)?.id))
+        .execute(&mut *writes.conn)
+        .await?;
+    }
+    for content in &changes.insert {
+        insert_value(writes.conn, &content.on(resource)).await?;
+    }
+    Ok(())
 }
 
 /// The import's `update` over every describing field: each slot is mapped, so each is written,
