@@ -17,6 +17,7 @@ import { useSettled } from '../../app/useSettled';
 import { useTranslator } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
+import { BulkEditBar } from './BulkEditBar';
 import { BulkSiteActions } from './BulkSiteActions';
 import { activeFilters, browseQuery, formatBrowse, parseBrowse, withFilters, withoutFilter, withoutFilters } from './browse';
 import type { BrowseFilters, ItemBrowse, View } from './browse';
@@ -184,7 +185,9 @@ export const ItemsList = (): ReactElement => {
   const optionsState = useAsync(loadBrowseOptions, []);
   const options = optionsState.status === 'ready' ? optionsState.data : NO_OPTIONS;
   const query = browseQuery(state);
-  const itemsState = useAsync(() => api.listItems(query), [JSON.stringify(query)]);
+  /** Bumped when a bulk change ends, so the page shows what it wrote. */
+  const [revision, setRevision] = useState(0);
+  const itemsState = useAsync(() => api.listItems(query), [JSON.stringify(query), revision]);
   const shown: ApiPage<Item> | null = useLastPage(itemsState);
 
   const filtered = activeFilters(state.filters).length > 0;
@@ -245,6 +248,18 @@ export const ItemsList = (): ReactElement => {
         onClearAll={onClearAll}
       />
       <BulkSiteActions picked={picked} />
+      {shown === null ? null : (
+        <BulkEditBar
+          picked={picked}
+          query={query}
+          total={shown.total}
+          filtered={filtered}
+          options={options}
+          onChanged={() => {
+            setRevision((current) => current + 1);
+          }}
+        />
+      )}
       {itemsState.status === 'error' ? (
         <ErrorNotice error={itemsState.error} />
       ) : shown === null ? (
