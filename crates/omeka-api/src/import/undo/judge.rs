@@ -30,8 +30,13 @@ pub(super) enum Verdict {
     Gone,
     /// Something touched it and `force` does not name it.
     Keep(Vec<Touch>),
-    /// Restore or delete it; `forced` when it was touched.
-    Act { forced: bool },
+    /// Restore or delete it; `forced` when it was touched. `modified` is the
+    /// resource's as judged: a restore that finds another one keeps the resource,
+    /// because something edited it after the judge looked.
+    Act {
+        forced: bool,
+        modified: Option<chrono::NaiveDateTime>,
+    },
 }
 
 pub(super) struct Judge<'u, DB: Backend> {
@@ -141,11 +146,17 @@ where
         };
         if touches.is_empty() {
             self.leaves(target);
-            return Ok(Verdict::Act { forced: false });
+            return Ok(Verdict::Act {
+                forced: false,
+                modified,
+            });
         }
         if self.force.covers(target) {
             self.leaves(target);
-            return Ok(Verdict::Act { forced: true });
+            return Ok(Verdict::Act {
+                forced: true,
+                modified,
+            });
         }
         if let ImportTarget::Item(item) = target {
             self.kept_items.insert(item);

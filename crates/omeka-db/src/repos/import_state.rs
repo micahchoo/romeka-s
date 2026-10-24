@@ -6,6 +6,7 @@
 //! the import added) is left for undo to delete. A value, set, site, template, class or owner the
 //! image names that is gone since is skipped, as the database cascade would have removed it.
 
+use chrono::NaiveDateTime;
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Type};
 
 use super::import_writes::ImportWrites;
@@ -68,6 +69,18 @@ where
             modified: row.modified,
             memberships,
         }))
+    }
+
+    /// The resource's `modified`, read under the transaction's lock; `None` when
+    /// the resource is gone.
+    pub async fn modified_of(
+        &mut self,
+        target: ImportResource,
+    ) -> Result<Option<Option<NaiveDateTime>>, DbError> {
+        Ok(self
+            .resource_row(target.id())
+            .await?
+            .map(|row| row.modified))
     }
 
     /// Put the resource back as `image` says. False when the resource is gone. An image of
