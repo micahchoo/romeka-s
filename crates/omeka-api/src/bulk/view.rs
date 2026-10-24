@@ -136,7 +136,7 @@ impl BulkView {
 /// `GET /api/romeka/bulk/{id}`.
 ///
 /// # Errors
-/// 404 for no such run, 403 for another person's run.
+/// 404 for no such run or one the caller may not read.
 pub async fn show(api: &Api<'_>, raw: &str) -> Result<BulkView, BulkError> {
     let row = load(api, raw, false).await?;
     let counts = with_db!(api.pool(), |db| BulkRepo::new(db).counts(row.id).await)?;
@@ -196,7 +196,7 @@ pub struct UndoPreview {
 /// `POST /api/romeka/bulk/{id}/undo/preview`.
 ///
 /// # Errors
-/// 404 for no such run, 403 for another person's run.
+/// 404 for no such run or one the caller may not read.
 pub async fn undo_preview(api: &Api<'_>, raw: &str) -> Result<UndoPreview, BulkError> {
     let row = load(api, raw, false).await?;
     let candidates = with_db!(api.pool(), |db| BulkRepo::new(db)

@@ -34,8 +34,10 @@ pub(super) fn denied(action: Action) -> BulkError {
     })
 }
 
-/// The run `raw` names, after the dead runs are settled, refused unless the caller made it or is
-/// an administrator. Only its maker may start it.
+/// The run `raw` names, refused unless the caller made it or is an administrator; only its maker
+/// may start it. A run the caller may not read answers 404, as a missing one does, so an id tells
+/// nothing about another person's run. The dead runs are settled after that check, so a refused
+/// caller writes nothing.
 pub(super) async fn load(api: &Api<'_>, raw: &str, maker_only: bool) -> Result<BulkRow, BulkError> {
     let not_found = || {
         BulkError::Api(ApiError::not_found(messages::entity_not_found(
@@ -44,13 +46,18 @@ pub(super) async fn load(api: &Api<'_>, raw: &str, maker_only: bool) -> Result<B
         )))
     };
     let id = raw.parse::<u64>().map(BulkId).map_err(|_| not_found())?;
-    with_db!(api.pool(), |db| BulkRepo::new(db).settle_dead().await)?;
     let row = with_db!(api.pool(), |db| BulkRepo::new(db).get(id).await)?.ok_or_else(not_found)?;
     let is_maker = row.owner_id.is_some() && row.owner_id == api.actor().user();
-    if is_maker || (!maker_only && api.actor().is_admin()) {
-        return Ok(row);
+    if !is_maker && !api.actor().is_admin() {
+        return Err(not_found());
     }
-    Err(BulkError::Api(ApiError::PermissionDenied {
-        message: messages::permission_denied("read", "Romeka\\Entity\\Bulk"),
-    }))
+    if maker_only && !is_maker {
+        return Err(BulkError::Api(ApiError::PermissionDenied {
+            message: messages::permission_denied("run", "Romeka\\Entity\\Bulk"),
+        }));
+    }
+    with_db!(api.pool(), |db| BulkRepo::new(db).settle_dead().await)?;
+    // Settling deletes an expired preview; the row read before it still says why it cannot run.
+    let settled = with_db!(api.pool(), |db| BulkRepo::new(db).get(id).await)?;
+    Ok(settled.unwrap_or(row))
 }
