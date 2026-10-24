@@ -29,6 +29,8 @@ services:
       ROMEKA_DOMAIN: ${ROMEKA_DOMAIN:-}
       ROMEKA_BASE_URL: ${ROMEKA_BASE_URL:-}
       ROMEKA_ACME_EMAIL: ${ROMEKA_ACME_EMAIL:-}
+      # Empty trusts no proxy's X-Forwarded-For. Set it only behind another proxy.
+      ROMEKA_TRUSTED_PROXIES: ${ROMEKA_TRUSTED_PROXIES:-}
       # The first administrator, read only when the database is empty.
       ROMEKA_ADMIN_EMAIL: ${ROMEKA_ADMIN_EMAIL:-}
       ROMEKA_ADMIN_NAME: ${ROMEKA_ADMIN_NAME:-}

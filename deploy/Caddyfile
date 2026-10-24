@@ -2,9 +2,13 @@
 # and the media bytes as files, and the server's own routes forwarded.
 #
 # Caddy reads the environment itself, so this file needs no rendering. It uses
-# ROMEKA_DOMAIN, ROMEKA_ACME_EMAIL, ROMEKA_DIST, ROMEKA_STORE,
-# ROMEKA_API_HOST and ROMEKA_API_PORT, all of which deploy/compose.yaml sets
-# from deploy/.env.example.
+# ROMEKA_DOMAIN, ROMEKA_ACME_EMAIL, ROMEKA_TRUSTED_PROXIES, ROMEKA_DIST,
+# ROMEKA_STORE, ROMEKA_API_HOST and ROMEKA_API_PORT, all of which
+# deploy/compose.yaml sets from deploy/.env.example.
+#
+# ROMEKA_DOMAIN=:80 serves plain HTTP on :80 for any host name, which is the
+# shape for a deployment behind a proxy that already terminates TLS
+# (deploy/PORTAINER.md, "Behind a proxy you already run").
 #
 # It listens on :80 and :443 inside the container. compose publishes those two
 # ports on the host; nothing else leaves the container.
@@ -19,6 +23,15 @@
 	skip_install_trust
 	# The ACME account contact. Only a certificate-expiry notice uses it.
 	email {$ROMEKA_ACME_EMAIL}
+	# The proxies whose X-Forwarded-For this origin believes. Empty trusts
+	# none, so {client_ip} is the socket peer: right for a container that
+	# faces the internet itself. Behind another proxy, name its addresses
+	# (`private_ranges` covers a Docker network), and {client_ip} is the
+	# rightmost address in the header that is not one of them.
+	servers {
+		trusted_proxies static {$ROMEKA_TRUSTED_PROXIES}
+		trusted_proxies_strict
+	}
 }
 
 # Automatic HTTPS: Caddy obtains and renews the certificate for this name,
@@ -59,9 +72,14 @@
 	# from the same origin as the app, so a cookie-authenticated write reaches it.
 	# /application/asset/* is upstream's fallback thumbnails, which the API
 	# links for a media with no thumbnail of its own.
+	# The server's login limit reads X-Real-IP before X-Forwarded-For, and
+	# Caddy passes a client's own X-Real-IP through, so it is set here from
+	# {client_ip}: a caller cannot name its own address to the limit.
 	@app path /api /api/* /api-context /assets/* /health /ready /logout /s /s/* /vocab /vocab/* /admin /admin/ /iiif-viewer /iiif/* /annotations /annotations/* /application/asset/*
 	handle @app {
-		reverse_proxy {$ROMEKA_API_HOST}:{$ROMEKA_API_PORT}
+		reverse_proxy {$ROMEKA_API_HOST}:{$ROMEKA_API_PORT} {
+			header_up X-Real-IP {client_ip}
+		}
 	}
 
 	# The store the server wrote: /files/original/<name>.<ext>, the thumbnail
