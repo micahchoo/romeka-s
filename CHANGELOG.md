@@ -8,6 +8,8 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-24
+
 ### Added
 
 - Import plan v3. A plan holds the archive as a tree: set levels, and series that each have their own
@@ -94,6 +96,15 @@ semantic versioning.
   import can be undone until the next one starts. TIFF originals get thumbnails. `romeka serve --store` and
   `romeka job run --store --base-url --archive-root` are new; `deploy/compose.archive.yaml` mounts a folder
   read-only. Migration 0005.
+- Portainer stacks. `deploy/portainer/stack.yaml` faces the internet and gets its own certificate;
+  `deploy/portainer/stack.proxy.yaml` serves plain HTTP behind a proxy that already terminates TLS.
+  Neither builds an image or mounts a file from a checkout. `deploy/PORTAINER.md` is the runbook.
+- Published images. The `image` workflow pushes `ghcr.io/micahchoo/romeka-s` and
+  `ghcr.io/micahchoo/romeka-s-office-tools` on every push to `main` and every `v*` tag, and the
+  `release` workflow publishes the GitHub release for a tag from this file.
+- `ROMEKA_MODE=upgrade` runs the install and the schema migrations, then serves, for a host with no
+  easy one-off container.
+- `ROMEKA_TRUSTED_PROXIES` names the proxies in front of the origin whose `X-Forwarded-For` it believes.
 
 ### Changed
 
@@ -112,6 +123,9 @@ semantic versioning.
 
 ### Fixed
 
+- The login limit could be dodged. Caddy passed a client's own `X-Real-IP` through, and the server
+  reads that header first, so a caller could name a fresh address on every attempt. Caddy now sets it
+  from the client address it saw (`deploy/Caddyfile`).
 - A list sent again in place of another may be a workbook. The server now reads the new file's header
   (`POST …/sheets/header`); the admin read it as CSV text and refused every `.xlsx`, `.xls` and `.ods`.
 - An admin edit no longer removes an item from its sites, a media save no longer erases its values, and

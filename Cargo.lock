@@ -1983,7 +1983,7 @@ dependencies = [
 
 [[package]]
 name = "omeka-api"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bcrypt",
  "calamine",
@@ -2021,7 +2021,7 @@ dependencies = [
 
 [[package]]
 name = "omeka-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -2047,7 +2047,7 @@ dependencies = [
 
 [[package]]
 name = "omeka-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "ammonia",
  "chrono",
@@ -2059,7 +2059,7 @@ dependencies = [
 
 [[package]]
 name = "omeka-db"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "serde_json",
@@ -2071,7 +2071,7 @@ dependencies = [
 
 [[package]]
 name = "omeka-media"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cfb",
  "chrono",
@@ -2102,7 +2102,7 @@ dependencies = [
 
 [[package]]
 name = "omeka-migrate"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "axum",
  "http-body-util",
@@ -2121,7 +2121,7 @@ dependencies = [
 
 [[package]]
 name = "omeka-plugin"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "omeka-core",
  "omeka-media",
@@ -2133,7 +2133,7 @@ dependencies = [
 
 [[package]]
 name = "omeka-server"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "axum",
  "bcrypt",
@@ -2162,7 +2162,7 @@ dependencies = [
 
 [[package]]
 name = "omeka-site"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "cssparser",
