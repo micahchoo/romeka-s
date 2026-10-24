@@ -363,7 +363,10 @@ async fn a_reviewer_edits_all_an_author_only_ticked_items_and_a_researcher_nothi
     let (status, _) = researcher
         .send("POST", &format!("/api/romeka/bulk/{id}/run"), None)
         .await;
-    assert_eq!(status, 403, "a run belongs to the person who previewed it");
+    assert_eq!(
+        status, 404,
+        "a run belongs to the person who previewed it, and is not shown to others"
+    );
 }
 
 #[tokio::test]
