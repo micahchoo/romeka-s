@@ -1,0 +1,86 @@
+# Romeka S as a Portainer stack behind a proxy you already run (Nginx Proxy
+# Manager, Traefik, another Caddy) that holds 80 and 443 and the certificate.
+#
+# The container's Caddy serves plain HTTP on :80 for any host name
+# (ROMEKA_DOMAIN=:80), and still does what only it can: the admin SPA, the
+# media files behind the server's access check, and the routes it forwards.
+# Point the outer proxy at it, never at the server's loopback port.
+#
+# The outer proxy must pass the Host, Origin, Cookie and X-Forwarded-For
+# headers unchanged and must not cap the request body below
+# ROMEKA_MAX_BODY_BYTES. deploy/PORTAINER.md has the details.
+
+services:
+  romeka:
+    image: ${ROMEKA_IMAGE:-ghcr.io/micahchoo/romeka-s:latest}
+    stop_grace_period: 60s
+    environment:
+      # serve, or upgrade for one start after a new image (deploy/PORTAINER.md).
+      ROMEKA_MODE: ${ROMEKA_MODE:-serve}
+      ROMEKA_DOMAIN: ":80"
+      # The address the browser uses, which is the outer proxy's https origin.
+      ROMEKA_BASE_URL: ${ROMEKA_BASE_URL:?set ROMEKA_BASE_URL to the https origin the outer proxy serves}
+      # Caddy's config needs a value here; with no certificate to get, it is
+      # never written to.
+      ROMEKA_ACME_EMAIL: ${ROMEKA_ACME_EMAIL:-unused@localhost}
+      # The outer proxy's addresses. private_ranges covers a Docker network
+      # and a proxy on the same LAN.
+      ROMEKA_TRUSTED_PROXIES: ${ROMEKA_TRUSTED_PROXIES:-private_ranges}
+      ROMEKA_ADMIN_EMAIL: ${ROMEKA_ADMIN_EMAIL:-}
+      ROMEKA_ADMIN_NAME: ${ROMEKA_ADMIN_NAME:-}
+      ROMEKA_ADMIN_PASSWORD: ${ROMEKA_ADMIN_PASSWORD:-}
+      ROMEKA_TITLE: ${ROMEKA_TITLE:-}
+      ROMEKA_TIME_ZONE: ${ROMEKA_TIME_ZONE:-}
+      ROMEKA_LOCALE: ${ROMEKA_LOCALE:-}
+      ROMEKA_LOG: ${ROMEKA_LOG:-}
+      ROMEKA_MAX_BODY_BYTES: ${ROMEKA_MAX_BODY_BYTES:-}
+      ROMEKA_REQUEST_TIMEOUT_SECS: ${ROMEKA_REQUEST_TIMEOUT_SECS:-}
+      ROMEKA_SMTP_HOST: ${ROMEKA_SMTP_HOST:-}
+      ROMEKA_SMTP_PORT: ${ROMEKA_SMTP_PORT:-}
+      ROMEKA_SMTP_USER: ${ROMEKA_SMTP_USER:-}
+      ROMEKA_SMTP_PASSWORD: ${ROMEKA_SMTP_PASSWORD:-}
+      ROMEKA_SMTP_TLS: ${ROMEKA_SMTP_TLS:-}
+      ROMEKA_MAIL_FROM: ${ROMEKA_MAIL_FROM:-}
+      ROMEKA_DB: /db/romeka.db
+      ROMEKA_STORE: /data/files
+      ROMEKA_STORE_BACKEND: ${ROMEKA_STORE_BACKEND:-}
+      ROMEKA_S3_ENDPOINT: ${ROMEKA_S3_ENDPOINT:-}
+      ROMEKA_S3_BUCKET: ${ROMEKA_S3_BUCKET:-}
+      ROMEKA_S3_REGION: ${ROMEKA_S3_REGION:-}
+      ROMEKA_S3_ACCESS_KEY: ${ROMEKA_S3_ACCESS_KEY:-}
+      ROMEKA_S3_SECRET_KEY: ${ROMEKA_S3_SECRET_KEY:-}
+      ROMEKA_S3_PUBLIC_BASE: ${ROMEKA_S3_PUBLIC_BASE:-}
+      ROMEKA_S3_URL_TTL_SECS: ${ROMEKA_S3_URL_TTL_SECS:-}
+      # The archive import: uncomment this and the /archive volume below.
+      # ROMEKA_ARCHIVE_ROOT: /archive
+    # One host port for an outer proxy on the host or the LAN. A proxy in a
+    # container reaches romeka:80 over a shared network instead (below), and
+    # this mapping can go.
+    ports:
+      - "${ROMEKA_HTTP_PORT:-8080}:80"
+    volumes:
+      - romeka-db:/db
+      - romeka-files:/data
+      - romeka-caddy:/srv/caddy
+      # - /srv/archive:/archive:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    restart: unless-stopped
+    # To share the outer proxy's Docker network, uncomment these lines and the
+    # top-level `networks` block, with the network's real name.
+    # networks:
+    #   - default
+    #   - proxy
+
+  # The office worker: uncomment the office-worker service from stack.yaml
+  # here unchanged.
+
+volumes:
+  romeka-db:
+  romeka-files:
+  romeka-caddy:
+
+# networks:
+#   proxy:
+#     external: true

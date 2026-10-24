@@ -28,6 +28,7 @@ except the first one.
 | `ROMEKA_DOMAIN` | Caddy | the name the certificate is issued for |
 | `ROMEKA_BASE_URL` | the server | the public origin; the entrypoint passes it as `--base-url`, and the command line wins over the environment |
 | `ROMEKA_ACME_EMAIL` | Caddy | the ACME account contact; an empty value stops the origin from parsing its config |
+| `ROMEKA_TRUSTED_PROXIES` | Caddy | the proxies in front whose `X-Forwarded-For` is believed, as CIDR ranges or `private_ranges`. Empty trusts none. Caddy sets `X-Real-IP` from the result, which is the address the login limit counts |
 | `ROMEKA_HTTP_PORT`, `ROMEKA_HTTPS_PORT` | compose | the host ports to publish; the container listens on 80 and 443 |
 | `ROMEKA_IMAGE` | compose | the tag to run, which is what a rollback changes |
 | `ROMEKA_ADMIN_EMAIL`, `ROMEKA_ADMIN_NAME`, `ROMEKA_ADMIN_PASSWORD` | the entrypoint | the first administrator, read only by an install |
@@ -44,7 +45,7 @@ except the first one.
 | `ROMEKA_OFFICE_IMAGE`, `ROMEKA_OFFICE_INTERVAL_SECS` | `compose.office.yaml` | the office worker's image tag (build it from the same commit as `ROMEKA_IMAGE`) and the seconds between its passes (default 3600); used only with that file |
 | `ROMEKA_API_HOST`, `ROMEKA_API_PORT` | the server and Caddy | the loopback address the server binds and the origin forwards to. The image sets `127.0.0.1:8123`; they are not in the compose environment block, so setting them in `.env` changes nothing. |
 | `ROMEKA_CONFIG` | the server | names a JSON config file. This deployment does not set it: the variables above cover every key it can hold. |
-| `ROMEKA_MODE` | the entrypoint | `serve` (the default) or `install`; set per command, not in `.env` |
+| `ROMEKA_MODE` | the entrypoint | `serve` (the default), `install`, or `upgrade`, which installs and then serves; set per command, not in `.env`. [`PORTAINER.md`](PORTAINER.md) uses `upgrade` |
 | `ROMEKA_DATABASE_URL` | the server and every job | a MySQL or MariaDB database instead of the SQLite file. This deployment does not use it yet: the entrypoint passes `-d "$ROMEKA_DB"`, which wins over the variable. `compose.yaml` carries a commented MySQL service, and [`docs/operator-guide.md`](../docs/operator-guide.md), MySQL and MariaDB, covers running on one; `romeka backup` below refuses a MySQL database |
 
 An empty value in `.env` means "not configured". The entrypoint drops the empty
@@ -409,4 +410,7 @@ romeka key add -d /db/romeka.db --owner admin@example.org
 | `backup.sh` | procedure 4, as one command |
 | `restore.sh` | procedure 5, as one command |
 | `smoke.sh` | builds the image and proves the whole chain on a local port |
+| `portainer/stack.yaml` | the same service as a Portainer stack: a published image, no build and no bind mount |
+| `portainer/stack.proxy.yaml` | the Portainer stack behind a proxy that already terminates TLS |
+| `PORTAINER.md` | the Portainer runbook |
 | `DEPLOY.md` | this file |

@@ -1,0 +1,105 @@
+# Romeka S as a Portainer stack, facing the internet itself: the container's
+# Caddy takes ports 80 and 443 and gets the certificate.
+#
+# Paste this file into Stacks > Add stack > Web editor, or point a Repository
+# stack at deploy/portainer/stack.yaml. Set the variables under "Environment
+# variables"; deploy/PORTAINER.md lists them. Behind a proxy you already run
+# (Nginx Proxy Manager, Traefik, another Caddy), use stack.proxy.yaml instead.
+#
+# The file differs from deploy/compose.yaml in three ways, all for Portainer:
+# it pulls a published image instead of building one, it mounts no file from
+# the checkout (the image carries deploy/Caddyfile), and it has no top-level
+# `name`, because Portainer names the project after the stack.
+
+services:
+  romeka:
+    image: ${ROMEKA_IMAGE:-ghcr.io/micahchoo/romeka-s:latest}
+    # The server sends each job a TERM and waits 50 s for it.
+    stop_grace_period: 60s
+    environment:
+      # serve, or upgrade for one start after a new image (deploy/PORTAINER.md).
+      ROMEKA_MODE: ${ROMEKA_MODE:-serve}
+      ROMEKA_DOMAIN: ${ROMEKA_DOMAIN:?set ROMEKA_DOMAIN to the public host name}
+      ROMEKA_BASE_URL: ${ROMEKA_BASE_URL:?set ROMEKA_BASE_URL to https:// and the host name}
+      ROMEKA_ACME_EMAIL: ${ROMEKA_ACME_EMAIL:?set ROMEKA_ACME_EMAIL to the certificate contact}
+      ROMEKA_TRUSTED_PROXIES: ${ROMEKA_TRUSTED_PROXIES:-}
+      # The first administrator, read only when the database is empty. The
+      # first start stops with a message if the password is empty.
+      ROMEKA_ADMIN_EMAIL: ${ROMEKA_ADMIN_EMAIL:-}
+      ROMEKA_ADMIN_NAME: ${ROMEKA_ADMIN_NAME:-}
+      ROMEKA_ADMIN_PASSWORD: ${ROMEKA_ADMIN_PASSWORD:-}
+      ROMEKA_TITLE: ${ROMEKA_TITLE:-}
+      ROMEKA_TIME_ZONE: ${ROMEKA_TIME_ZONE:-}
+      ROMEKA_LOCALE: ${ROMEKA_LOCALE:-}
+      ROMEKA_LOG: ${ROMEKA_LOG:-}
+      ROMEKA_MAX_BODY_BYTES: ${ROMEKA_MAX_BODY_BYTES:-}
+      ROMEKA_REQUEST_TIMEOUT_SECS: ${ROMEKA_REQUEST_TIMEOUT_SECS:-}
+      ROMEKA_SMTP_HOST: ${ROMEKA_SMTP_HOST:-}
+      ROMEKA_SMTP_PORT: ${ROMEKA_SMTP_PORT:-}
+      ROMEKA_SMTP_USER: ${ROMEKA_SMTP_USER:-}
+      ROMEKA_SMTP_PASSWORD: ${ROMEKA_SMTP_PASSWORD:-}
+      ROMEKA_SMTP_TLS: ${ROMEKA_SMTP_TLS:-}
+      ROMEKA_MAIL_FROM: ${ROMEKA_MAIL_FROM:-}
+      ROMEKA_DB: /db/romeka.db
+      ROMEKA_STORE: /data/files
+      ROMEKA_STORE_BACKEND: ${ROMEKA_STORE_BACKEND:-}
+      ROMEKA_S3_ENDPOINT: ${ROMEKA_S3_ENDPOINT:-}
+      ROMEKA_S3_BUCKET: ${ROMEKA_S3_BUCKET:-}
+      ROMEKA_S3_REGION: ${ROMEKA_S3_REGION:-}
+      ROMEKA_S3_ACCESS_KEY: ${ROMEKA_S3_ACCESS_KEY:-}
+      ROMEKA_S3_SECRET_KEY: ${ROMEKA_S3_SECRET_KEY:-}
+      ROMEKA_S3_PUBLIC_BASE: ${ROMEKA_S3_PUBLIC_BASE:-}
+      ROMEKA_S3_URL_TTL_SECS: ${ROMEKA_S3_URL_TTL_SECS:-}
+      # The archive import: uncomment this and the /archive volume below.
+      # ROMEKA_ARCHIVE_ROOT: /archive
+    ports:
+      - "${ROMEKA_HTTP_PORT:-80}:80"
+      - "${ROMEKA_HTTPS_PORT:-443}:443"
+    volumes:
+      - romeka-db:/db
+      - romeka-files:/data
+      # Losing this volume re-issues the certificate, and a CA rate-limits that.
+      - romeka-caddy:/srv/caddy
+      # - /srv/archive:/archive:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    restart: unless-stopped
+
+  # The office worker (deploy/compose.office.yaml): PDF copies of office
+  # documents, and the RAW, 16-bit TIFF and PostScript copies the server image
+  # cannot make. Uncomment to run it; use the same tag as ROMEKA_IMAGE.
+  #
+  # office-worker:
+  #   image: ${ROMEKA_OFFICE_IMAGE:-ghcr.io/micahchoo/romeka-s-office-tools:latest}
+  #   entrypoint: ["/bin/sh", "-c"]
+  #   command:
+  #     - |
+  #       while :; do
+  #         romeka media derivatives --retry --database "$$ROMEKA_DB" --store "$$ROMEKA_STORE" || true
+  #         sleep "$${ROMEKA_OFFICE_INTERVAL_SECS:-3600}"
+  #       done
+  #   environment:
+  #     ROMEKA_DB: /db/romeka.db
+  #     ROMEKA_STORE: /data/files
+  #     ROMEKA_OFFICE_INTERVAL_SECS: ${ROMEKA_OFFICE_INTERVAL_SECS:-3600}
+  #     ROMEKA_STORE_BACKEND: ${ROMEKA_STORE_BACKEND:-}
+  #     ROMEKA_S3_ENDPOINT: ${ROMEKA_S3_ENDPOINT:-}
+  #     ROMEKA_S3_BUCKET: ${ROMEKA_S3_BUCKET:-}
+  #     ROMEKA_S3_REGION: ${ROMEKA_S3_REGION:-}
+  #     ROMEKA_S3_ACCESS_KEY: ${ROMEKA_S3_ACCESS_KEY:-}
+  #     ROMEKA_S3_SECRET_KEY: ${ROMEKA_S3_SECRET_KEY:-}
+  #   volumes:
+  #     - romeka-db:/db
+  #     - romeka-files:/data
+  #   read_only: true
+  #   tmpfs:
+  #     - /tmp
+  #   depends_on:
+  #     - romeka
+  #   restart: unless-stopped
+
+volumes:
+  romeka-db:
+  romeka-files:
+  romeka-caddy:
