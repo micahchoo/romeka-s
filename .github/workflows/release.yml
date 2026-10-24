@@ -1,14 +1,25 @@
-# Publishes the GitHub release for a `v1.2.3` tag. The notes are that version's
+# Publishes the GitHub release for a version. The notes are that version's
 # section of CHANGELOG.md, so the changelog stays the one place a release is
-# written. The images for the tag come from the `image` workflow.
+# written.
+#
+# Two ways in: push a `v1.2.3` tag, or run this workflow by hand on main with
+# the version, which creates the tag on that commit. A tag the workflow creates
+# with its own token starts no other workflow, so a run by hand also starts the
+# `image` workflow on the new tag; a pushed tag starts it by itself.
 name: release
 
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'The version to release, as in CHANGELOG.md, without the v (for example 0.2.0)'
+        required: true
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   release:
@@ -17,11 +28,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: the tag
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            tag="$GITHUB_REF_NAME"
+          else
+            tag="v${INPUT_VERSION#v}"
+          fi
+          echo "TAG=$tag" >> "$GITHUB_ENV"
+
       # The lines between `## [1.2.3]` and the next `## [` heading. An empty
       # section fails the job rather than publishing a release with no notes.
       - name: notes from CHANGELOG.md
         run: |
-          version="${GITHUB_REF_NAME#v}"
+          version="${TAG#v}"
           awk -v v="$version" '
             index($0, "## [" v "]") == 1 { on = 1; next }
             on && /^## \[/ { exit }
@@ -36,7 +58,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            --title "Romeka S ${GITHUB_REF_NAME#v}" \
-            --notes-file notes.md \
-            --verify-tag
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            gh release create "$TAG" --title "Romeka S ${TAG#v}" --notes-file notes.md --verify-tag
+          else
+            gh release create "$TAG" --title "Romeka S ${TAG#v}" --notes-file notes.md --target "$GITHUB_SHA"
+            gh workflow run image.yml --ref "$TAG"
+          fi
