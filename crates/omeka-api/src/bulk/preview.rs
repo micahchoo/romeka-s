@@ -63,6 +63,9 @@ pub struct Sample {
 #[derive(Debug, Serialize)]
 pub struct FieldChange {
     pub property: u64,
+    /// The property's `prefix:localName`, by which the admin finds its label in the reader's
+    /// language.
+    pub term: String,
     /// The property's label, which the admin shows as the field's name.
     pub label: String,
     pub before: Vec<ShownValue>,
@@ -102,13 +105,11 @@ async fn field_changes(
         if was == now {
             continue;
         }
+        let info = api.catalog().property(*property);
         changes.push(FieldChange {
             property: property.0,
-            label: api
-                .catalog()
-                .property(*property)
-                .map(|info| info.label.clone())
-                .unwrap_or_default(),
+            term: info.map(|info| info.term.clone()).unwrap_or_default(),
+            label: info.map(|info| info.label.clone()).unwrap_or_default(),
             before: shown(api, &was).await?,
             after: shown(api, &now).await?,
         });

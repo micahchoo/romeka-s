@@ -76,6 +76,7 @@ async fn a_value_added_to_every_matching_item_shows_on_the_item_and_in_search() 
     assert_eq!(previewed["unchanged"], 0);
     let line = &previewed["samples"][0]["values"][0];
     assert_eq!(line["label"], "Subject", "{line}");
+    assert_eq!(line["term"], "dcterms:subject");
     assert_eq!(line["before"], json!([]));
     assert_eq!(
         line["after"],
