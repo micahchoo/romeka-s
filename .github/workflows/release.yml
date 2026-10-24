@@ -1,0 +1,42 @@
+# Publishes the GitHub release for a `v1.2.3` tag. The notes are that version's
+# section of CHANGELOG.md, so the changelog stays the one place a release is
+# written. The images for the tag come from the `image` workflow.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # The lines between `## [1.2.3]` and the next `## [` heading. An empty
+      # section fails the job rather than publishing a release with no notes.
+      - name: notes from CHANGELOG.md
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '
+            index($0, "## [" v "]") == 1 { on = 1; next }
+            on && /^## \[/ { exit }
+            on { print }
+          ' CHANGELOG.md > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "CHANGELOG.md has no section for $version" >&2
+            exit 1
+          fi
+
+      - name: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "Romeka S ${GITHUB_REF_NAME#v}" \
+            --notes-file notes.md \
+            --verify-tag
