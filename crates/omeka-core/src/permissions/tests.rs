@@ -747,3 +747,62 @@ fn permissions_roles_match_upstream_acl_roles() {
     );
     assert_eq!(SitePermissionRole::from_wire_name("nope"), None);
 }
+
+/// AbstractEntityAdapter.php:874 authorizes `change-owner` on the entity, and
+/// AclFactory grants it to no role by name: only the blanket allows of
+/// site_admin (:949) and global_admin (:1000) reach it. Owning the row does
+/// not help, and an editor's update rights do not either.
+#[test]
+fn permissions_change_owner_is_for_the_admin_roles_only() {
+    let kinds = [
+        SubjectKind::Item,
+        SubjectKind::ItemSet,
+        SubjectKind::Media,
+        SubjectKind::ValueAnnotation,
+        SubjectKind::ResourceTemplate,
+        SubjectKind::Asset,
+        SubjectKind::Vocabulary,
+        SubjectKind::ResourceClass,
+        SubjectKind::Property,
+        SubjectKind::Site,
+        SubjectKind::CustomVocab,
+    ];
+    for kind in kinds {
+        for owner in [Some(user()), Some(other()), None] {
+            let row = Context::owned(kind, owner);
+            assert!(allows(&site_admin(), Action::ChangeOwner, &row), "{kind:?}");
+            assert!(
+                allows(&global_admin(), Action::ChangeOwner, &row),
+                "{kind:?}"
+            );
+            for denied in [
+                editor(),
+                reviewer(),
+                author(),
+                researcher(),
+                RoleSet::anonymous(),
+            ] {
+                assert!(
+                    !allows(&denied, Action::ChangeOwner, &row),
+                    "{:?} on {kind:?}",
+                    denied.global
+                );
+            }
+        }
+    }
+}
+
+/// `EntityInterface::getResourceId`, the class the refusal names.
+#[test]
+fn permissions_subject_kind_names_its_upstream_class() {
+    assert_eq!(SubjectKind::Item.class_name(), "Omeka\\Entity\\Item");
+    assert_eq!(SubjectKind::ItemSet.class_name(), "Omeka\\Entity\\ItemSet");
+    assert_eq!(
+        SubjectKind::ResourceTemplate.class_name(),
+        "Omeka\\Entity\\ResourceTemplate"
+    );
+    assert_eq!(
+        SubjectKind::CustomVocab.class_name(),
+        "CustomVocab\\Entity\\CustomVocab"
+    );
+}
