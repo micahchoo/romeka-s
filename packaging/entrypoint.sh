@@ -4,6 +4,8 @@
 #
 # ROMEKA_MODE=install runs the install and the schema migrations against an
 # existing database and stops, which is what DEPLOY.md's upgrade procedure uses.
+# ROMEKA_MODE=upgrade runs the same install and then serves, for a host such as
+# Portainer where a one-off container is awkward to start (deploy/PORTAINER.md).
 #
 # The same script is the container entrypoint, so every setting it reads is an
 # environment variable the deployment sets (see deploy/.env.example).
@@ -111,8 +113,15 @@ case "${ROMEKA_MODE:-serve}" in
         install
         exit 0
         ;;
+    upgrade)
+        # The migrations run before the server starts, so no request meets the
+        # old schema. Every start in this mode rewrites the settings rows the
+        # install owns, so the mode is set back to serve once the upgrade is up.
+        echo "romeka: upgrading $DB_LABEL, then serving" >&2
+        install
+        ;;
     *)
-        echo "romeka: ROMEKA_MODE must be serve or install, not ${ROMEKA_MODE:-}" >&2
+        echo "romeka: ROMEKA_MODE must be serve, install or upgrade, not ${ROMEKA_MODE:-}" >&2
         exit 1
         ;;
 esac
