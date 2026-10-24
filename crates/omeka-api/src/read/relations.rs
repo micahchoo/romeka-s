@@ -89,7 +89,7 @@ impl Relations {
         match page {
             Page::Items => {
                 relations.media = media_for(api.pool(), &ids).await?;
-                relations.item_sets = item_sets_for(api.pool(), &ids).await?;
+                relations.item_sets = item_sets_for(api, &ids).await?;
                 relations.sites = sites_for(api.pool(), &ids).await?;
             }
             Page::ItemSets => {
@@ -136,7 +136,7 @@ impl Relations {
             return Ok(relations);
         }
         relations.media = media_for(api.pool(), &item_ids).await?;
-        relations.item_sets = item_sets_for(api.pool(), &item_ids).await?;
+        relations.item_sets = item_sets_for(api, &item_ids).await?;
         relations.sites = sites_for(api.pool(), &item_ids).await?;
         relations.first_item = first_item_for(api.pool(), &set_ids).await?;
         let first_items: Vec<u64> = relations
@@ -311,22 +311,48 @@ pub(crate) async fn media_for(
     Ok(media)
 }
 
-/// The item-set ids of each item, ordered as `ItemRepo::list_item_sets` orders
-/// them.
+/// The item-set ids of each item the caller can see, ordered as
+/// `ItemRepo::list_item_sets` orders them.
+///
+/// `Item::$itemSets` loads through `ResourceVisibilityFilter`, so a set the
+/// caller cannot see is not one of the item's sets to them.
 pub(crate) async fn item_sets_for(
-    pool: &DbPool,
+    api: &Api<'_>,
     items: &[u64],
 ) -> Result<HashMap<u64, Vec<ItemSetId>>, ApiError> {
     let items: Vec<ItemId> = items.iter().copied().map(ItemId).collect();
-    let pairs = with_db!(pool, |db| RelationRepo::new(db)
+    let pairs = with_db!(api.pool(), |db| RelationRepo::new(db)
         .item_sets_of_items(&items)
         .await)
     .map_err(db_error)?;
+    let hidden = hidden_sets(api, &pairs).await?;
     let mut memberships: HashMap<u64, Vec<ItemSetId>> = HashMap::new();
     for (item, set) in pairs {
-        memberships.entry(item.0).or_default().push(set);
+        if !hidden.contains(&set.0) {
+            memberships.entry(item.0).or_default().push(set);
+        }
     }
     Ok(memberships)
+}
+
+/// The sets among `pairs` the caller cannot see. A role with `view-all` sees
+/// every set, so it reads no rows.
+async fn hidden_sets(
+    api: &Api<'_>,
+    pairs: &[(ItemId, ItemSetId)],
+) -> Result<HashSet<u64>, ApiError> {
+    if api.actor().is_privileged() || pairs.is_empty() {
+        return Ok(HashSet::new());
+    }
+    let sets: BTreeSet<u64> = pairs.iter().map(|(_, set)| set.0).collect();
+    let ids: Vec<ResourceId> = sets.into_iter().map(ResourceId).collect();
+    let rows =
+        with_db!(api.pool(), |db| RelationRepo::new(db).resources(&ids).await).map_err(db_error)?;
+    Ok(rows
+        .into_iter()
+        .filter(|row| !api.sees(row.is_public, row.owner_id))
+        .map(|row| row.id.0)
+        .collect())
 }
 
 /// The site ids of each item, ordered as `ItemRepo::list_sites` orders them.

@@ -25,7 +25,7 @@
 use omeka_core::permissions::SubjectKind;
 use omeka_db::ids::{ItemId, ItemSetId, MediaId, SiteId, UserId};
 use omeka_db::repos::{ItemRepo, ItemSetRepo, MediaRepo, SiteRepo};
-use omeka_db::rows::{ItemRow, MediaRow, NewItem, SiteRow};
+use omeka_db::rows::{ItemRow, ItemSetRow, MediaRow, NewItem, SiteRow};
 use omeka_db::with_db;
 use serde_json::Value;
 
@@ -292,7 +292,9 @@ fn primary_media_on_create(payload: &Payload) -> Result<Option<MediaId>, ApiErro
     }
 }
 
-/// The item-set ids a body names, each checked to exist.
+/// The item-set ids a body names, each found the way `findEntity` finds it:
+/// through `ResourceVisibilityFilter`, so a set the caller cannot see is the
+/// same 404 as a missing one.
 async fn item_sets(api: &Api<'_>, payload: &Payload) -> Result<Vec<ItemSetId>, ApiError> {
     let Some(array) = payload.get("o:item_set").and_then(|value| value.as_array()) else {
         return Ok(Vec::new());
@@ -306,10 +308,7 @@ async fn item_sets(api: &Api<'_>, payload: &Payload) -> Result<Vec<ItemSetId>, A
             return Err(ref_not_found("Omeka\\Entity\\ItemSet", raw));
         };
         let id = ItemSetId(id);
-        if with_db!(api.pool(), |db| ItemSetRepo::new(db).get(id).await)
-            .map_err(db_error)?
-            .is_none()
-        {
+        if visible_item_set(api, id).await?.is_none() {
             return Err(ref_not_found("Omeka\\Entity\\ItemSet", raw));
         }
         ids.push(id);
@@ -317,6 +316,18 @@ async fn item_sets(api: &Api<'_>, payload: &Payload) -> Result<Vec<ItemSetId>, A
     Ok(ids)
 }
 
+/// The item set `id`, when it exists and the caller can see it.
+async fn visible_item_set(api: &Api<'_>, id: ItemSetId) -> Result<Option<ItemSetRow>, ApiError> {
+    let row = with_db!(api.pool(), |db| ItemSetRepo::new(db).get(id).await).map_err(db_error)?;
+    Ok(row.filter(|row| {
+        api.actor()
+            .sees_resource(row.resource.is_public, row.resource.owner_id)
+    }))
+}
+
+/// Make the item's sets the `wanted` ones. A link to a set the caller cannot
+/// see stays: upstream loads `Item::$itemSets` through the visibility filter,
+/// so the hidden link is never in the collection a write prunes.
 async fn apply_item_sets(
     api: &Api<'_>,
     item: ItemId,
@@ -327,7 +338,7 @@ async fn apply_item_sets(
         .await)
     .map_err(db_error)?
     {
-        if !wanted.contains(&existing) {
+        if !wanted.contains(&existing) && visible_item_set(api, existing).await?.is_some() {
             with_db!(api.pool(), |db| ItemRepo::new(db)
                 .remove_from_item_set(item, existing)
                 .await)

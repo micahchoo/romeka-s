@@ -422,7 +422,7 @@ async fn list_cost_split() {
     let mut samples = Vec::with_capacity(RUNS);
     for _ in 0..RUNS {
         let start = Instant::now();
-        let rows = super::relations::item_sets_for(&db, &ids)
+        let rows = super::relations::item_sets_for(&api, &ids)
             .await
             .expect("item_sets_for");
         assert_eq!(rows.len(), PER_PAGE);
