@@ -449,25 +449,30 @@ pub(super) async fn patch(
             if tus::number(&headers, "content-length").is_some_and(|sent| sent > MAX_CHUNK) {
                 return Err(chunk_too_large());
             }
-            let key = format!("import/{}/{upload}", row.id.0);
-            let lock = tus::lock_of(&key);
-            let held = lock.lock().await;
             let reader = BodyReader::spawn(body, MAX_CHUNK);
             let over = reader.over();
-            let appended = with_db!(&state.pool, |db| staging::append(
-                db,
-                &state.store,
-                row.id,
-                &upload,
-                offset,
-                Box::new(reader),
-            )
-            .await);
-            drop(held);
+            let work = {
+                let state = state.clone();
+                let upload = upload.clone();
+                let import = row.id;
+                async move {
+                    with_db!(&state.pool, |db| staging::append(
+                        db,
+                        &state.store,
+                        import,
+                        &upload,
+                        offset,
+                        Box::new(reader),
+                    )
+                    .await)
+                }
+            };
+            let appended = tus::locked(format!("import/{}/{upload}", row.id.0), work)
+                .await
+                .ok_or_else(|| Box::new(crate::empty_internal_error()))?;
             let appended = match appended {
                 Ok(appended) => appended,
                 Err(StagingError::Missing) => {
-                    tus::forget_lock(&key);
                     return Err(Refusal::new(
                         StatusCode::NOT_FOUND,
                         None,
@@ -482,18 +487,17 @@ pub(super) async fn patch(
             };
             let mut answer = tus::header(Response::builder().status(StatusCode::NO_CONTENT))
                 .header("upload-offset", appended.received);
-            if let Some(complete) = appended.completed {
-                tus::forget_lock(&key);
-                if is_zip(&complete.path) {
-                    let job = start_job(
-                        &state,
-                        &actor,
-                        UNZIP_JOB,
-                        json!({ "importId": row.id.0, "upload": complete.id }),
-                    )
-                    .await?;
-                    answer = answer.header(UNZIP_HEADER, job.0);
-                }
+            if let Some(complete) = appended.completed
+                && is_zip(&complete.path)
+            {
+                let job = start_job(
+                    &state,
+                    &actor,
+                    UNZIP_JOB,
+                    json!({ "importId": row.id.0, "upload": complete.id }),
+                )
+                .await?;
+                answer = answer.header(UNZIP_HEADER, job.0);
             }
             Ok(answer
                 .body(Body::empty())
@@ -514,18 +518,23 @@ pub(super) async fn delete(
         async {
             speaks_tus(&headers)?;
             let (_, row) = uploader(&state, &id, &uri, &headers, true).await?;
-            let key = format!("import/{}/{upload}", row.id.0);
-            let lock = tus::lock_of(&key);
-            let held = lock.lock().await;
-            let removed = with_db!(&state.pool, |db| staging::remove(
-                db,
-                &state.store,
-                row.id,
-                &upload
-            )
-            .await);
-            drop(held);
-            tus::forget_lock(&key);
+            let work = {
+                let state = state.clone();
+                let upload = upload.clone();
+                let import = row.id;
+                async move {
+                    with_db!(&state.pool, |db| staging::remove(
+                        db,
+                        &state.store,
+                        import,
+                        &upload
+                    )
+                    .await)
+                }
+            };
+            let removed = tus::locked(format!("import/{}/{upload}", row.id.0), work)
+                .await
+                .ok_or_else(|| Box::new(crate::empty_internal_error()))?;
             match removed {
                 Ok(true) => Ok(
                     tus::header(Response::builder().status(StatusCode::NO_CONTENT))

@@ -12,7 +12,8 @@
 use std::collections::HashMap;
 use std::io::{self, Read};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, LazyLock, Mutex, PoisonError};
+use std::sync::{Arc, LazyLock, Mutex, MutexGuard, PoisonError};
+use std::time::Duration;
 
 use axum::body::{Body, Bytes};
 use axum::http::{HeaderMap, header};
@@ -92,6 +93,11 @@ fn base64_decode(text: &str) -> Option<Vec<u8>> {
     Some(out)
 }
 
+/// How long a body may send nothing before its reader fails. Without it a
+/// client that stalls mid-chunk holds a blocking thread and its upload's lock
+/// for as long as the connection stays open.
+const FRAME_IDLE: Duration = Duration::from_secs(30);
+
 /// A request body read as a blocking [`Read`]: a task forwards its frames and
 /// the reader waits for them on the blocking pool. It fails once the body
 /// passes `cap` bytes and says so in the flag [`BodyReader::over`] returns, so
@@ -110,10 +116,24 @@ impl BodyReader {
     }
 
     pub(crate) fn spawn(body: Body, cap: u64) -> Self {
+        Self::spawn_idle(body, cap, FRAME_IDLE)
+    }
+
+    fn spawn_idle(body: Body, cap: u64, idle: Duration) -> Self {
         let (sender, frames) = tokio::sync::mpsc::channel(4);
         tokio::spawn(async move {
             let mut body = body;
-            while let Some(frame) = body.frame().await {
+            loop {
+                let Ok(frame) = tokio::time::timeout(idle, body.frame()).await else {
+                    let _ = sender
+                        .send(Err(io::Error::new(
+                            io::ErrorKind::TimedOut,
+                            "the client sent nothing",
+                        )))
+                        .await;
+                    return;
+                };
+                let Some(frame) = frame else { return };
                 let sent = match frame {
                     Ok(frame) => match frame.into_data() {
                         Ok(data) => sender.send(Ok(data)).await,
@@ -158,25 +178,71 @@ impl Read for BodyReader {
     }
 }
 
-/// The locks that keep two requests for one upload apart. An entry goes when
-/// its upload completes or is removed.
+/// The locks that keep two requests for one upload apart. An entry goes once no
+/// request holds or waits for it, so an upload that is abandoned, swept or
+/// expired leaves nothing behind.
 static LOCKS: LazyLock<Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
-/// The lock of one upload, shared by every request that names it. `key` names
-/// the route family before the upload, as `import/{importId}/{upload}` or
-/// `user/{userId}/{upload}`, so an import's upload and a user's upload that
-/// happen to share an id never share a lock.
-pub(crate) fn lock_of(key: &str) -> Arc<tokio::sync::Mutex<()>> {
-    let mut locks = LOCKS.lock().unwrap_or_else(PoisonError::into_inner);
-    Arc::clone(locks.entry(key.to_string()).or_default())
+fn locks() -> MutexGuard<'static, HashMap<String, Arc<tokio::sync::Mutex<()>>>> {
+    LOCKS.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-pub(crate) fn forget_lock(key: &str) {
-    LOCKS
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner)
-        .remove(key);
+/// The lock of one upload, held until dropped. `key` names the route family
+/// before the upload, as `import/{importId}/{upload}` or `user/{userId}/{upload}`,
+/// so an import's upload and a user's upload that happen to share an id never
+/// share a lock.
+struct Held {
+    key: String,
+    guard: Option<tokio::sync::OwnedMutexGuard<()>>,
+}
+
+impl Held {
+    async fn take(key: String) -> Self {
+        let lock = {
+            let mut locks = locks();
+            // Every clone is made under this mutex, so a count of one is the map's
+            // own: no request holds the entry or waits for it. This also clears an
+            // entry whose last waiter was cancelled before it got the lock.
+            locks.retain(|_, lock| Arc::strong_count(lock) > 1);
+            Arc::clone(locks.entry(key.clone()).or_default())
+        };
+        let guard = lock.lock_owned().await;
+        Self {
+            key,
+            guard: Some(guard),
+        }
+    }
+}
+
+impl Drop for Held {
+    fn drop(&mut self) {
+        drop(self.guard.take());
+        let mut locks = locks();
+        if locks
+            .get(&self.key)
+            .is_some_and(|lock| Arc::strong_count(lock) == 1)
+        {
+            locks.remove(&self.key);
+        }
+    }
+}
+
+/// Run `work` under the lock of upload `key`, in a task of its own. A request
+/// that ends early (the request timeout, a dropped connection) then neither
+/// stops a write half way nor lets the next request for the upload in before
+/// the write and its offset update end. `None` when the task panicked.
+pub(crate) async fn locked<F>(key: String, work: F) -> Option<F::Output>
+where
+    F: Future + Send + 'static,
+    F::Output: Send + 'static,
+{
+    tokio::spawn(async move {
+        let _held = Held::take(key).await;
+        work.await
+    })
+    .await
+    .ok()
 }
 
 #[cfg(test)]
@@ -209,6 +275,65 @@ mod tests {
         .unwrap();
         assert!(failed);
         assert!(over.load(Ordering::Relaxed));
+    }
+
+    fn entries(key: &str) -> usize {
+        locks().keys().filter(|held| held.as_str() == key).count()
+    }
+
+    #[tokio::test]
+    async fn an_upload_lock_goes_once_no_request_holds_it() {
+        let key = "test/lock-goes".to_string();
+        assert_eq!(locked(key.clone(), async { 7 }).await, Some(7));
+        assert_eq!(entries(&key), 0);
+    }
+
+    #[tokio::test]
+    async fn a_timed_out_request_keeps_the_lock_until_its_work_ends() {
+        let key = "test/lock-outlives".to_string();
+        let (release, released) = tokio::sync::oneshot::channel::<()>();
+        let first = tokio::time::timeout(
+            std::time::Duration::from_millis(20),
+            locked(key.clone(), async move {
+                let _ = released.await;
+                "first"
+            }),
+        )
+        .await;
+        assert!(first.is_err(), "the request gave up before its work ended");
+        assert_eq!(entries(&key), 1, "the abandoned work still holds the lock");
+        let second = tokio::spawn(locked(key.clone(), async { "second" }));
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        assert!(!second.is_finished(), "the next request waits for the work");
+        release.send(()).unwrap();
+        assert_eq!(second.await.unwrap(), Some("second"));
+        assert_eq!(entries(&key), 0);
+    }
+
+    #[tokio::test]
+    async fn a_body_that_stalls_fails_its_reader() {
+        let (sender, body) = mpsc_body();
+        sender.send(Bytes::from_static(b"part")).await.unwrap();
+        let mut reader = BodyReader::spawn_idle(body, 1024, Duration::from_millis(50));
+        let failed = tokio::task::spawn_blocking(move || {
+            let mut out = Vec::new();
+            let read = reader.read_to_end(&mut out).map_err(|error| error.kind());
+            (out, read)
+        });
+        let (out, read) = failed.await.unwrap();
+        assert_eq!(out, b"part");
+        assert_eq!(read, Err(io::ErrorKind::TimedOut));
+        drop(sender);
+    }
+
+    /// A body that yields nothing until its sender sends or drops.
+    fn mpsc_body() -> (tokio::sync::mpsc::Sender<Bytes>, Body) {
+        let (sender, receiver) = tokio::sync::mpsc::channel::<Bytes>(1);
+        let stream = futures_util::stream::unfold(receiver, |mut receiver| async move {
+            let data = receiver.recv().await?;
+            Some((Ok::<_, io::Error>(data), receiver))
+        });
+        (sender, Body::from_stream(stream))
     }
 
     #[test]
