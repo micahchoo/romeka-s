@@ -23,6 +23,7 @@
 
 use std::collections::HashMap;
 
+use omeka_core::permissions::SubjectKind;
 use omeka_core::term_list::{self, TermList, php_trim};
 use omeka_core::value::{literal_is_valid, uri_is_valid};
 use omeka_db::ids::{CustomVocabId, PropertyId, ResourceId, TemplateId};
@@ -402,6 +403,7 @@ async fn parse_one(
                 api,
                 &payload,
                 ANNOTATION_CONTROL,
+                resource::Owned::new(SubjectKind::ValueAnnotation),
                 None,
                 false,
                 depth + 1,

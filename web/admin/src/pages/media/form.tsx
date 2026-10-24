@@ -66,7 +66,14 @@ const MediaEditor = ({ media, options, onSaved }: MediaEditorProps): ReactElemen
 
   return (
     <form onSubmit={submit}>
-      <ResourceFields idPrefix="media" kind="media" draft={draft} onChange={setDraft} options={options} />
+      <ResourceFields
+        idPrefix="media"
+        kind="media"
+        draft={draft}
+        onChange={setDraft}
+        options={options}
+        editing
+      />
       <fieldset>
         <legend>{t('media.legend')}</legend>
         <p>

@@ -233,7 +233,7 @@ columns and validation the two member kinds share; `write::templates` holds
 
 | resource | POST | PUT/PATCH | notes |
 | --- | --- | --- | --- |
-| items | yes | yes | `o:item_set` and `o:site` membership replaced on a full `PUT`; inline `o:media` built on create only |
+| items | yes | yes | `o:item_set` and `o:site` membership replaced on a full `PUT`, except a link to an item set the caller cannot see; inline `o:media` built on create only |
 | item_sets | yes | yes | `o:is_open` resets to false on a full `PUT` |
 | media | yes | yes | the create runs the ingester named by `o:ingester` and stores the file and payload it produced |
 | sites | yes | yes | create adds a welcome page and a site-admin permission, and a create without `o:navigation` links the welcome page before the browse link; every row of one create commits together or not at all; a `PUT` removes every page `o:page` does not name |
@@ -354,7 +354,12 @@ title drops every other value, as upstream does:
   position of its index in the array unless it names `position`. An entry that
   names an `o:id` is `Media must belong to this item.`, and every failure
   answers under `o:media` as one entry per failing media. A write that names the
-  member on an update is not handled yet.
+  member on an update is not handled yet. An `o:item_set` id is found through
+  `ResourceVisibilityFilter`, as `findEntity` finds it: a set the caller cannot
+  see (private, someone else's, and no `view-all`) is the same 404 as a missing
+  one, and a write keeps the item's link to such a set, because upstream's
+  filtered `Item::$itemSets` never holds it. A read lists only the sets the
+  reader can see. `o:is_open` does not limit who may add an item to a set.
 - item_sets: `o:is_open`.
 - media: `o:ingester` (required on create), `o:item` (required), `data`,
   `o:source`, `position`, `o:lang`, `o:alt_text`, and the parameters the
@@ -425,7 +430,13 @@ An unknown value resource answers
 `AbstractEntityAdapter::hydrateOwner` is shared by every owned row
 (`write::resource::owner_member`): an absent `o:owner`, or one that names no
 `o:id`, keeps the stored owner; `{"o:id": null}` clears it; a named id must
-exist; and a create with no usable id belongs to the caller.
+exist; and a create with no usable id belongs to the caller. An id that
+differs from the owner the row holds before the write (none on a create, the
+item's owner for a new media) needs `change-owner`, which only `site_admin` and
+`global_admin` hold. Anyone else gets a 403 before the user lookup, so naming a
+missing user is the 403 too:
+`{"errors":{"error":"Permission denied for the current user to change-owner the Omeka\\Entity\\Item resource."}}`.
+Naming the stored owner again is no change and passes.
 
 ## Permission rules
 

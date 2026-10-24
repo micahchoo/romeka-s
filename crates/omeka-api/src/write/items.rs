@@ -22,9 +22,10 @@
 //! joins the item to each of those sites whose item pool selects it
 //! (`crate::site_items::attach_on_create`). An update joins no site, as upstream.
 
-use omeka_db::ids::{ItemId, ItemSetId, MediaId, SiteId};
+use omeka_core::permissions::SubjectKind;
+use omeka_db::ids::{ItemId, ItemSetId, MediaId, SiteId, UserId};
 use omeka_db::repos::{ItemRepo, ItemSetRepo, MediaRepo, SiteRepo};
-use omeka_db::rows::{ItemRow, MediaRow, NewItem, SiteRow};
+use omeka_db::rows::{ItemRow, ItemSetRow, MediaRow, NewItem, SiteRow};
 use omeka_db::with_db;
 use serde_json::Value;
 
@@ -41,6 +42,7 @@ use crate::write::resource::{self, not_found as ref_not_found};
 use crate::write::values;
 
 const ITEM_CLASS: &str = "Omeka\\Entity\\Item";
+const OWNED: resource::Owned = resource::Owned::new(SubjectKind::Item);
 const SITE_CLASS: &str = "Omeka\\Entity\\Site";
 
 /// Members `hydrate` reads that are not property terms.
@@ -62,7 +64,7 @@ pub async fn create(
     file: Option<&UploadedFile>,
 ) -> Result<crate::read::ApiResponse, ApiError> {
     validate_request(payload)?;
-    let hydrated = resource::hydrate(api, payload, CONTROL, None, false).await?;
+    let hydrated = resource::hydrate(api, payload, CONTROL, OWNED, None, false).await?;
     // `ItemAdapter::hydrate` reads `o:primary_media` before `o:item_set`,
     // `o:site` and `o:media`, against the media that already belong to the
     // item. A create has none, so a numeric id names no media and is the
@@ -73,7 +75,7 @@ pub async fn create(
     let syncs = payload.get("o:site").and_then(Value::as_array).is_none();
     // Every inline entry is resolved before the item row is written, so a body
     // whose media cannot ingest leaves no item behind.
-    let inline = inline_media(api, payload, file).await?;
+    let inline = inline_media(api, payload, file, hydrated.resource.owner_id).await?;
     let row = with_db!(api.pool(), |db| ItemRepo::new(db)
         .create(&NewItem {
             resource: hydrated.resource,
@@ -133,7 +135,8 @@ pub async fn update(
         .await)
     .map_err(db_error)?;
     let sites = sites(api, payload, false, partial, &existing_sites).await?;
-    let hydrated = resource::hydrate(api, payload, CONTROL, Some(&row.resource), partial).await?;
+    let hydrated =
+        resource::hydrate(api, payload, CONTROL, OWNED, Some(&row.resource), partial).await?;
     resource::apply(&mut row.resource, &hydrated.resource);
     // `shouldHydrate($request, 'o:primary_media')`: a partial update that does
     // not name the member keeps the stored primary media.
@@ -233,6 +236,7 @@ async fn inline_media(
     api: &Api<'_>,
     payload: &Payload,
     file: Option<&UploadedFile>,
+    item_owner: Option<UserId>,
 ) -> Result<Vec<media::Prepared>, ApiError> {
     let Some(array) = payload.get("o:media").and_then(Value::as_array) else {
         return Ok(Vec::new());
@@ -261,7 +265,7 @@ async fn inline_media(
                 messages::MEDIA_UPLOAD_INLINE.to_string(),
             ));
         } else {
-            match media::prepare(api, &entry, file, Some(position)).await {
+            match media::prepare(api, &entry, file, Some(position), item_owner).await {
                 Ok(media) => prepared.push(media),
                 Err(ApiError::Validation(sub)) => errors.push(NestedError::Errors(sub)),
                 Err(other) => return Err(other),
@@ -288,7 +292,9 @@ fn primary_media_on_create(payload: &Payload) -> Result<Option<MediaId>, ApiErro
     }
 }
 
-/// The item-set ids a body names, each checked to exist.
+/// The item-set ids a body names, each found the way `findEntity` finds it:
+/// through `ResourceVisibilityFilter`, so a set the caller cannot see is the
+/// same 404 as a missing one.
 async fn item_sets(api: &Api<'_>, payload: &Payload) -> Result<Vec<ItemSetId>, ApiError> {
     let Some(array) = payload.get("o:item_set").and_then(|value| value.as_array()) else {
         return Ok(Vec::new());
@@ -302,10 +308,7 @@ async fn item_sets(api: &Api<'_>, payload: &Payload) -> Result<Vec<ItemSetId>, A
             return Err(ref_not_found("Omeka\\Entity\\ItemSet", raw));
         };
         let id = ItemSetId(id);
-        if with_db!(api.pool(), |db| ItemSetRepo::new(db).get(id).await)
-            .map_err(db_error)?
-            .is_none()
-        {
+        if visible_item_set(api, id).await?.is_none() {
             return Err(ref_not_found("Omeka\\Entity\\ItemSet", raw));
         }
         ids.push(id);
@@ -313,6 +316,18 @@ async fn item_sets(api: &Api<'_>, payload: &Payload) -> Result<Vec<ItemSetId>, A
     Ok(ids)
 }
 
+/// The item set `id`, when it exists and the caller can see it.
+async fn visible_item_set(api: &Api<'_>, id: ItemSetId) -> Result<Option<ItemSetRow>, ApiError> {
+    let row = with_db!(api.pool(), |db| ItemSetRepo::new(db).get(id).await).map_err(db_error)?;
+    Ok(row.filter(|row| {
+        api.actor()
+            .sees_resource(row.resource.is_public, row.resource.owner_id)
+    }))
+}
+
+/// Make the item's sets the `wanted` ones. A link to a set the caller cannot
+/// see stays: upstream loads `Item::$itemSets` through the visibility filter,
+/// so the hidden link is never in the collection a write prunes.
 async fn apply_item_sets(
     api: &Api<'_>,
     item: ItemId,
@@ -323,7 +338,7 @@ async fn apply_item_sets(
         .await)
     .map_err(db_error)?
     {
-        if !wanted.contains(&existing) {
+        if !wanted.contains(&existing) && visible_item_set(api, existing).await?.is_some() {
             with_db!(api.pool(), |db| ItemRepo::new(db)
                 .remove_from_item_set(item, existing)
                 .await)

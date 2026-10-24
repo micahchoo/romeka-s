@@ -115,6 +115,8 @@ impl KeyCredentials {
     }
 }
 
+use omeka_core::ids::UserId as CoreUserId;
+use omeka_core::permissions::{Action, Context, Role, RoleSet, allows};
 use omeka_db::DbPool;
 use omeka_db::ids::UserId;
 use omeka_db::repos::{ApiKeyRepo, UserRepo};
@@ -211,6 +213,18 @@ impl Actor {
             || (page_is_public && site_is_public)
             || self.owns(site_owner)
             || has_permission
+    }
+
+    /// `Acl::userIsAllowed` through the `omeka-core` matrix. The actor carries
+    /// no site permissions, so an assertion that reads one never holds: ask
+    /// only about rules that turn on the global role and the owner.
+    pub fn is_allowed(&self, action: Action, context: &Context) -> bool {
+        let roles = RoleSet {
+            user: self.user.map(|user| CoreUserId::new(user.0)),
+            global: self.role().and_then(Role::from_wire_name),
+            ..RoleSet::default()
+        };
+        allows(&roles, action, context)
     }
 
     /// Whether the actor is the row's owner.

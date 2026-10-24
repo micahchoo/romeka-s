@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
+import type { User } from '../api/types';
 import { useTranslator } from '../i18n';
+import { useSession } from './auth';
 import { useTermLabels } from '../i18n/termText';
 import { useDescribeText } from './describe-messages';
 import type { ResourceDraft } from './draft';
@@ -114,7 +116,19 @@ export interface ResourceFieldsProps {
   readonly draft: ResourceDraft;
   readonly onChange: (draft: ResourceDraft) => void;
   readonly options: FormOptions;
+  /** Whether the form edits a stored resource rather than making one. */
+  readonly editing: boolean;
 }
+
+const OWNER_CHANGING_ROLES: readonly string[] = ['global_admin', 'site_admin'];
+
+/**
+ * `common/resource-fields.phtml` shows the owner select only for a stored
+ * resource the user may `change-owner`, which `AclFactory` grants the two admin
+ * roles alone. The server refuses the change to anyone else.
+ */
+const offersOwner = (editing: boolean, user: User | null): boolean =>
+  editing && user !== null && OWNER_CHANGING_ROLES.includes(user.role);
 
 /**
  * Type, owner and visibility, then the class under "Advanced". Picking a type
@@ -127,8 +141,10 @@ export const ResourceFields = ({
   draft,
   onChange,
   options,
+  editing,
 }: ResourceFieldsProps): ReactElement => {
   const { t } = useTranslator(common);
+  const user = useSession();
   const describe = useDescribeText();
   const text = useTermLabels();
   const [open, setOpen] = useState(false);
@@ -160,16 +176,18 @@ export const ResourceFields = ({
           <code>{shownClass.term}</code>
         </p>
       )}
-      <OptionSelect
-        id={`${idPrefix}-owner`}
-        label={t('field.owner')}
-        options={userOptions(options.users)}
-        value={draft.owner}
-        onChange={(value) => {
-          onChange({ ...draft, owner: value });
-        }}
-        emptyLabel={t('common.noOwner')}
-      />
+      {offersOwner(editing, user) ? (
+        <OptionSelect
+          id={`${idPrefix}-owner`}
+          label={t('field.owner')}
+          options={userOptions(options.users)}
+          value={draft.owner}
+          onChange={(value) => {
+            onChange({ ...draft, owner: value });
+          }}
+          emptyLabel={t('common.noOwner')}
+        />
+      ) : null}
       <CheckboxField
         id={`${idPrefix}-public`}
         label={t('field.public')}

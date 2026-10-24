@@ -31,6 +31,32 @@ pub enum SubjectKind {
     SitePage,
     /// `Omeka\Entity\User`
     User,
+    /// `CustomVocab\Entity\CustomVocab`, the term list module's entity
+    CustomVocab,
+}
+
+impl SubjectKind {
+    /// The PHP class upstream names the entity by (`EntityInterface::getResourceId`),
+    /// which a permission refusal prints.
+    #[must_use]
+    pub const fn class_name(self) -> &'static str {
+        match self {
+            Self::Item => "Omeka\\Entity\\Item",
+            Self::ItemSet => "Omeka\\Entity\\ItemSet",
+            Self::Media => "Omeka\\Entity\\Media",
+            Self::ResourceTemplate => "Omeka\\Entity\\ResourceTemplate",
+            Self::Asset => "Omeka\\Entity\\Asset",
+            Self::ValueAnnotation => "Omeka\\Entity\\ValueAnnotation",
+            Self::Vocabulary => "Omeka\\Entity\\Vocabulary",
+            Self::ResourceClass => "Omeka\\Entity\\ResourceClass",
+            Self::Property => "Omeka\\Entity\\Property",
+            Self::Resource => "Omeka\\Entity\\Resource",
+            Self::Site => "Omeka\\Entity\\Site",
+            Self::SitePage => "Omeka\\Entity\\SitePage",
+            Self::User => "Omeka\\Entity\\User",
+            Self::CustomVocab => "CustomVocab\\Entity\\CustomVocab",
+        }
+    }
 }
 
 /// The `Omeka\Api\Adapter\*` resources, one per registered adapter
@@ -342,6 +368,10 @@ pub enum Action {
     AddPage,
     /// `can-assign-items` on a site
     CanAssignItems,
+    /// `change-owner` on an entity that carries an owner
+    /// (`AbstractEntityAdapter::hydrateOwner`). No rule names it, so only the
+    /// two admin roles' blanket allows grant it.
+    ChangeOwner,
     // User entity privileges (`UserAdapter::hydrate`, `UserController`).
     /// `change-password`
     ChangePassword,

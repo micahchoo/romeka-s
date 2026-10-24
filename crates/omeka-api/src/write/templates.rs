@@ -12,6 +12,7 @@
 //! it runs, an entry whose property is already on the template updates that
 //! row, a new property adds one, and a row the list does not name is removed.
 
+use omeka_core::permissions::SubjectKind;
 use omeka_db::ids::{ClassId, PropertyId, TemplateId, UserId};
 use omeka_db::repos::{ClassRepo, PropertyRepo, TemplateRepo};
 use omeka_db::rows::{NewTemplate, NewTemplateProperty, TemplatePropertyRow, TemplateRow};
@@ -174,9 +175,14 @@ async fn hydrate(
     existing: Option<&TemplateRow>,
     partial: bool,
 ) -> Result<TemplateInput, ApiError> {
-    let create = existing.is_none();
-    let owner_id =
-        resource::owner_member(api, payload, create, existing.and_then(|row| row.owner_id)).await?;
+    let owner_id = resource::owner_member(
+        api,
+        payload,
+        SubjectKind::ResourceTemplate,
+        existing.is_none(),
+        existing.and_then(|row| row.owner_id),
+    )
+    .await?;
     let resource_class_id = match (partial && !payload.has("o:resource_class"), existing) {
         (true, Some(row)) => row.resource_class_id,
         _ => class(api, payload).await?,

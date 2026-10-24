@@ -6,6 +6,7 @@
 //! `validateEntity` then requires a label that is not empty and not taken, and
 //! at least one of the three sources.
 
+use omeka_core::permissions::SubjectKind;
 use omeka_core::term_list::{self, php_trim};
 use omeka_db::ids::{CustomVocabId, ItemSetId};
 use omeka_db::repos::{CustomVocabRepo, ItemSetRepo};
@@ -118,6 +119,7 @@ async fn hydrate(
             owner_member(
                 api,
                 payload,
+                SubjectKind::CustomVocab,
                 stored.is_none(),
                 stored.and_then(|row| row.owner_id),
             )

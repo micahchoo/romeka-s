@@ -14,6 +14,7 @@
 //! reported before the vocabulary's own fields are checked, and both lists file
 //! their duplicate local names under the one key `o:resource_class`.
 
+use omeka_core::permissions::SubjectKind;
 use omeka_db::ids::VocabularyId;
 use omeka_db::repos::{VocabularyFilter, VocabularyRepo};
 use omeka_db::rows::{NewVocabulary, VocabularyRow};
@@ -221,6 +222,7 @@ async fn hydrate_vocabulary(
     let owner_id = resource::owner_member(
         api,
         payload,
+        SubjectKind::Vocabulary,
         existing.is_none(),
         existing.and_then(|row| row.owner_id),
     )
@@ -445,7 +447,7 @@ async fn create_member(
     member: Member,
     payload: &Payload,
 ) -> Result<ApiResponse, ApiError> {
-    let input = vocab_member::hydrate(api, payload, None, false).await?;
+    let input = vocab_member::hydrate(api, member, payload, None, false).await?;
     vocab_member::validate(
         api,
         member,
@@ -477,7 +479,7 @@ async fn update_member(
     let Some(stored) = vocab_member::get(api, member, id).await? else {
         return Err(not_found(member.php_class(), raw_id));
     };
-    let input = vocab_member::hydrate(api, payload, Some(&stored), partial).await?;
+    let input = vocab_member::hydrate(api, member, payload, Some(&stored), partial).await?;
     vocab_member::validate(
         api,
         member,
@@ -588,7 +590,7 @@ async fn plan_members(
             None => {
                 // A nested entry hydrates with no stored row, so a partial flag
                 // would be meaningless; upstream passes a CREATE subrequest.
-                let input = vocab_member::hydrate(api, &entry, None, false).await?;
+                let input = vocab_member::hydrate(api, member, &entry, None, false).await?;
                 vocab_member::validate(api, member, &input, None, input.target(parent)).await?;
                 plan.local_names.push(input.local_name.clone());
                 plan.create.push(input);

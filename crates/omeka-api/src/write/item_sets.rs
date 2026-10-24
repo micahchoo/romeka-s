@@ -4,6 +4,7 @@
 //! `isOpen` defaults to false, and a full `PUT` that omits `o:is_open` resets it
 //! to false.
 
+use omeka_core::permissions::SubjectKind;
 use omeka_db::ids::ItemSetId;
 use omeka_db::repos::ItemSetRepo;
 use omeka_db::rows::NewItemSet;
@@ -18,6 +19,7 @@ use crate::write::resource;
 use crate::write::values;
 
 const ITEM_SET_CLASS: &str = "Omeka\\Entity\\ItemSet";
+const OWNED: resource::Owned = resource::Owned::new(SubjectKind::ItemSet);
 
 const CONTROL: &[&str] = &[
     "o:is_public",
@@ -29,7 +31,7 @@ const CONTROL: &[&str] = &[
 ];
 
 pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, ApiError> {
-    let hydrated = resource::hydrate(api, payload, CONTROL, None, false).await?;
+    let hydrated = resource::hydrate(api, payload, CONTROL, OWNED, None, false).await?;
     let row = with_db!(api.pool(), |db| ItemSetRepo::new(db)
         .create(&NewItemSet {
             resource: hydrated.resource,
@@ -64,7 +66,8 @@ pub async fn update(
         return Err(not_found(ITEM_SET_CLASS, raw_id));
     };
     api.authorize_resource(ITEM_SET_CLASS, row.resource.owner_id)?;
-    let hydrated = resource::hydrate(api, payload, CONTROL, Some(&row.resource), partial).await?;
+    let hydrated =
+        resource::hydrate(api, payload, CONTROL, OWNED, Some(&row.resource), partial).await?;
     resource::apply(&mut row.resource, &hydrated.resource);
     if !partial || payload.has("o:is_open") {
         row.is_open = payload.bool_member("o:is_open", false);

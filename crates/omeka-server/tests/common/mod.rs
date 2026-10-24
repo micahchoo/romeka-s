@@ -1108,3 +1108,47 @@ pub async fn claim_access_copy(pool: &DbPool, commands: &[&str]) -> omeka_db::ro
     }
     claimed
 }
+
+/// A user with `role` and an API key, as the query string that carries it.
+pub struct Caller {
+    pub id: UserId,
+    pub key: String,
+}
+
+impl Caller {
+    pub fn uri(&self, path: &str) -> String {
+        format!("{path}?{}", self.key)
+    }
+}
+
+pub async fn caller(pool: &SqlitePool, role: &str) -> Caller {
+    let user = UserRepo::new(pool)
+        .create(&NewUser {
+            email: format!("{role}@example.com"),
+            name: role.to_string(),
+            password_hash: None,
+            role: role.to_string(),
+            is_active: true,
+            created: None,
+        })
+        .await
+        .unwrap();
+    let identity = format!("{:a<32}", role.replace('_', ""));
+    let credential = format!("{role}-credential");
+    ApiKeyRepo::new(pool)
+        .create(&NewApiKey {
+            id: identity.clone(),
+            owner_id: user.id,
+            label: format!("{role} key"),
+            credential_hash: bcrypt::hash(&credential, 4).unwrap(),
+            last_ip: None,
+            last_accessed: None,
+            created: None,
+        })
+        .await
+        .unwrap();
+    Caller {
+        id: user.id,
+        key: format!("key_identity={identity}&key_credential={credential}"),
+    }
+}
