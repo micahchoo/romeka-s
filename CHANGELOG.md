@@ -164,6 +164,14 @@ semantic versioning.
 - A value object's `@annotation` reads and writes a `value_annotation` resource, dropped when the
   value that carried it leaves the set.
 
+### Security
+
+- `rustls-webpki` 0.103.16 and `webpki-roots` 1.0.11 stop trusting the distrusted emSign
+  intermediates (RUSTSEC-2026-0382, RUSTSEC-2026-0381). They verify every outbound TLS connection:
+  link probes, IIIF and oEmbed fetches, SMTP.
+- `ctutils` 0.4.5, under the S3 request signing, generates its masks without a branch on the secret
+  (RUSTSEC-2026-0385).
+
 ## [0.1.0] - 2026-10-17
 
 The import. Romeka S is the Omeka S port's tree under its own name, with the same data model, the
