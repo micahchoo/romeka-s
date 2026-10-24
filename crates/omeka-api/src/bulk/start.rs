@@ -1,9 +1,9 @@
 //! Run, stop and undo: the requests that move a run between states. A start answers the job it
 //! composed; the server hands that job to its runner.
 
-use chrono::{TimeDelta, Utc};
+use chrono::Utc;
 use omeka_db::ids::JobId;
-use omeka_db::repos::{BulkRepo, JobRepo};
+use omeka_db::repos::{BulkRepo, JobRepo, PREVIEW_LASTS};
 use omeka_db::rows::{BulkPhase, BulkRow, BulkStatus, NewJob};
 use omeka_db::with_db;
 use serde_json::json;
@@ -17,14 +17,12 @@ use crate::errors::ApiError;
 use crate::messages;
 use crate::read::Api;
 
-/// How long a preview stays good: past it, the selection and the counts it showed are stale.
-const PREVIEW_LASTS: TimeDelta = TimeDelta::minutes(10);
-
 /// `POST /api/romeka/bulk/{id}/run`: start the run its maker previewed, or go on with one that
 /// stopped or failed. The rights and the change are checked again, as they may have changed.
 ///
 /// # Errors
-/// 403 for another person's run or a right lost since; 409 `cannotRun` for a run in another
+/// 404 for a run the caller may not read, 403 for an administrator's start of another
+/// person's run or a right lost since; 409 `cannotRun` for a run in another
 /// state, `expired` for a preview older than ten minutes.
 pub async fn run(api: &Api<'_>, raw: &str) -> Result<JobId, BulkError> {
     let row = load(api, raw, true).await?;
@@ -57,12 +55,17 @@ pub async fn run(api: &Api<'_>, raw: &str) -> Result<JobId, BulkError> {
 /// restores an item edited since the run wrote it too.
 ///
 /// # Errors
-/// 403 for another person's run; 409 `cannotUndo` while it runs or once it is undone.
+/// 404 for a run the caller may not read, 403 for a batch right lost since; 409 `cannotUndo`
+/// while it runs or once it is undone.
 pub async fn undo(api: &Api<'_>, raw: &str, force: bool) -> Result<JobId, BulkError> {
     let row = load(api, raw, false).await?;
     let cannot = || BulkError::conflict("cannotUndo", messages::BULK_CANNOT_UNDO, row.status);
     if !row.status.may_undo() {
         return Err(cannot());
+    }
+    let scope = Scope::of(&row.query)?;
+    if !holds(api.actor(), scope.right()) {
+        return Err(denied(scope.right()));
     }
     if !with_db!(api.pool(), |db| BulkRepo::new(db)
         .start(row.id, BulkPhase::Undo)
@@ -77,7 +80,7 @@ pub async fn undo(api: &Api<'_>, raw: &str, force: bool) -> Result<JobId, BulkEr
 /// `POST /api/romeka/bulk/{id}/stop`: ask the job to stop after the chunk in hand.
 ///
 /// # Errors
-/// 403 for another person's run; 409 `notRunning` when no job works on it.
+/// 404 for a run the caller may not read; 409 `notRunning` when no job works on it.
 pub async fn stop(api: &Api<'_>, raw: &str) -> Result<(), BulkError> {
     let row = load(api, raw, false).await?;
     if with_db!(api.pool(), |db| BulkRepo::new(db)
