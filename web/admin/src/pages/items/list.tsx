@@ -25,6 +25,7 @@ import { FilterBar } from './FilterBar';
 import { FilterChips } from './FilterChips';
 import { ItemsGrid } from './ItemsGrid';
 import { ItemsTable } from './ItemsTable';
+import type { ItemsViewProps } from './ItemsTable';
 import './browse.css';
 
 const VIEW_KEY = 'romeka.items.view';
@@ -141,8 +142,40 @@ const EmptyList = ({ filtered, onClearAll }: { readonly filtered: boolean; reado
   );
 };
 
-export const ItemsList = (): ReactElement => {
+interface ResultsProps {
+  readonly page: ApiPage<Item>;
+  /** The next page is loading; this one stays on screen, dimmed. */
+  readonly busy: boolean;
+  readonly view: View;
+  readonly filtered: boolean;
+  readonly viewProps: Omit<ItemsViewProps, 'items'>;
+  readonly onClearAll: () => void;
+  readonly onPage: (page: number) => void;
+}
+
+const Results = ({ page, busy, view, filtered, viewProps, onClearAll, onPage }: ResultsProps): ReactElement => {
   const { t, number } = useTranslator(common, resources);
+  return (
+    <div className="items-results" aria-busy={busy}>
+      {filtered ? (
+        <p className="items-count" aria-live="polite">
+          {page.total === 1 ? t('browse.matchOne') : t('browse.matchMany', { count: number(page.total) })}
+        </p>
+      ) : null}
+      {page.items.length === 0 ? (
+        <EmptyList filtered={filtered} onClearAll={onClearAll} />
+      ) : view === 'grid' ? (
+        <ItemsGrid items={page.items} {...viewProps} />
+      ) : (
+        <ItemsTable items={page.items} {...viewProps} />
+      )}
+      <Pager page={page.page} lastPage={page.lastPage} total={page.total} label={t('resource.items')} onPage={onPage} />
+    </div>
+  );
+};
+
+export const ItemsList = (): ReactElement => {
+  const { t } = useTranslator(common, resources);
   const { state, draft, setDraft, apply } = useBrowseState();
   const [picked, setPicked] = useState<readonly ItemId[]>([]);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -164,7 +197,6 @@ export const ItemsList = (): ReactElement => {
   };
   const pageIds = shown?.items.map((item) => item.id) ?? [];
   const viewProps = {
-    items: shown?.items ?? [],
     options,
     picked,
     onPick: (id: ItemId, on: boolean) => {
@@ -218,29 +250,17 @@ export const ItemsList = (): ReactElement => {
       ) : shown === null ? (
         <p role="status">{t('list.loading', { resource: t('resource.items') })}</p>
       ) : (
-        <div className="items-results" aria-busy={itemsState.status === 'loading'}>
-          {filtered ? (
-            <p className="items-count" aria-live="polite">
-              {shown.total === 1 ? t('browse.matchOne') : t('browse.matchMany', { count: number(shown.total) })}
-            </p>
-          ) : null}
-          {shown.items.length === 0 ? (
-            <EmptyList filtered={filtered} onClearAll={onClearAll} />
-          ) : state.view === 'grid' ? (
-            <ItemsGrid {...viewProps} />
-          ) : (
-            <ItemsTable {...viewProps} />
-          )}
-          <Pager
-            page={shown.page}
-            lastPage={shown.lastPage}
-            total={shown.total}
-            label={t('resource.items')}
-            onPage={(page) => {
-              apply({ ...state, page });
-            }}
-          />
-        </div>
+        <Results
+          page={shown}
+          busy={itemsState.status === 'loading'}
+          view={state.view}
+          filtered={filtered}
+          viewProps={viewProps}
+          onClearAll={onClearAll}
+          onPage={(page) => {
+            apply({ ...state, page });
+          }}
+        />
       )}
     </section>
   );
