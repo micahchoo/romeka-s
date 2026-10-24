@@ -15,6 +15,7 @@
 
 mod batch_delete;
 mod batch_update;
+mod bulk;
 mod dispatcher;
 mod env;
 mod import_run;
@@ -29,6 +30,7 @@ mod update_site_items;
 
 pub use batch_delete::BatchDelete;
 pub use batch_update::BatchUpdate;
+pub use bulk::{BulkRun, BulkUndo};
 pub use dispatcher::{
     DATABASE_URL_ENV, Dispatcher, JobCommand, JobContext, ProcessDispatch, compose_job,
 };
@@ -78,6 +80,8 @@ pub trait Job: Send + Sync {
 
 static BATCH_DELETE: BatchDelete = BatchDelete;
 static BATCH_UPDATE: BatchUpdate = BatchUpdate;
+static BULK_RUN: BulkRun = BulkRun;
+static BULK_UNDO: BulkUndo = BulkUndo;
 static INDEX_FULLTEXT_SEARCH: IndexFulltextSearch = IndexFulltextSearch;
 static IMPORT_RUN: ImportRun = ImportRun;
 static IMPORT_SCAN: ImportScan = ImportScan;
@@ -97,6 +101,8 @@ pub fn job_for(class: &str) -> Option<&'static dyn Job> {
         "Omeka\\Job\\BatchUpdate" => Some(&BATCH_UPDATE),
         "Omeka\\Job\\IndexFulltextSearch" => Some(&INDEX_FULLTEXT_SEARCH),
         "Omeka\\Job\\UpdateSiteItems" => Some(&UPDATE_SITE_ITEMS),
+        omeka_api::bulk::RUN_JOB => Some(&BULK_RUN),
+        omeka_api::bulk::UNDO_JOB => Some(&BULK_UNDO),
         omeka_api::import::run::RUN_JOB => Some(&IMPORT_RUN),
         omeka_api::import::scan::SCAN_JOB => Some(&IMPORT_SCAN),
         omeka_api::import::undo::UNDO_JOB => Some(&IMPORT_UNDO),

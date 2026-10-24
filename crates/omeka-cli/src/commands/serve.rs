@@ -7,7 +7,8 @@
 //! root. It also starts the
 //! import staging sweep when it boots and then every hour, so uploaded files
 //! go even when nobody uploads, and goes on with every import run a restart
-//! killed ([`resume_imports`]). When a signal stops it, it sends each job it
+//! killed ([`resume_imports`]), and settles each bulk run whose worker died
+//! ([`settle_bulk_runs`]). When a signal stops it, it sends each job it
 //! started a TERM and waits for them ([`ProcessDispatch::shutdown`]): an
 //! import run ends after the record in hand, `interrupted`.
 
@@ -24,7 +25,7 @@ use omeka_db::repos::HEARTBEAT_EVERY;
 use omeka_db::repos::JobRepo;
 use omeka_db::rows::NewJob;
 use omeka_db::with_db;
-use omeka_server::{Config, JobDispatch, ResumeEnv, Services, resume_imports};
+use omeka_server::{Config, JobDispatch, ResumeEnv, Services, resume_imports, settle_bulk_runs};
 
 use crate::error::CliError;
 use crate::jobs::{JobCommand, ProcessDispatch};
@@ -82,6 +83,7 @@ pub async fn run(
         store: Arc::clone(&store),
         roots: config.archive_roots.clone(),
     };
+    settle_bulk_runs(&pool).await;
     let resuming = pool.clone();
     tokio::spawn(async move { resume_imports(&resuming, &resume, HEARTBEAT_EVERY).await });
     let services = Services::new(store).with_jobs(jobs);
