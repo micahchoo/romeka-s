@@ -83,6 +83,7 @@ export const es: BulkMessages = {
   'bulk.done.undone': 'Deshecho. {count} elementos vuelven a estar como antes.',
   'bulk.done.partlyUndone': 'Como antes: {count}. Editados después del cambio, así que se quedan como están: {kept}.',
   'bulk.done.undoAgain': 'Deshacer el resto',
+  'bulk.done.notPutBack': 'Sin restaurar:',
   'bulk.undo.restoreOne': 'Deshacer devuelve 1 elemento a como estaba antes de este cambio.',
   'bulk.undo.restore': 'Deshacer devuelve {count} elementos a como estaban antes de este cambio.',
   'bulk.undo.editedOne': '1 elemento se editó después de este cambio. Deshacer lo deja como está:',

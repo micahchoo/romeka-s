@@ -4,7 +4,7 @@
  */
 import type { ReactElement } from 'react';
 import { useId } from 'react';
-import type { BulkCounts, BulkRun, BulkUndoPreview } from '../../../api/bulk';
+import type { BulkCounts, BulkFailure, BulkRun, BulkUndoPreview } from '../../../api/bulk';
 import { isLive, mayRun, mayUndo } from '../../../api/bulk';
 import type { ItemId } from '../../../api/types';
 import { useAsync } from '../../../app/useAsync';
@@ -40,26 +40,48 @@ const ItemLinks = ({ items }: { readonly items: readonly ItemId[] }): ReactEleme
   );
 };
 
-const Failures = ({ run }: { readonly run: BulkRun }): ReactElement | null => {
-  const { t, number } = useTranslator(bulk);
+const FailureList = ({ failures }: { readonly failures: readonly BulkFailure[] }): ReactElement => {
+  const { t } = useTranslator(bulk);
   const locale = useLocale();
   const translated = useAsync(() => serverTranslator(locale), [locale]);
   const translate = translated.status === 'ready' ? translated.data : unchangedText;
-  const failures = run.failures ?? [];
+  return (
+    <ul className="bulk-items">
+      {failures.map((failure) => (
+        <li key={String(failure.item)}>
+          <a href={`#/items/${String(failure.item)}`}>{t('bulk.word.untitled', { id: String(failure.item) })}</a>
+          {failure.message === null ? null : <>: {translate(failure.message)}</>}
+        </li>
+      ))}
+    </ul>
+  );
+};
+
+const Failures = ({ run }: { readonly run: BulkRun }): ReactElement | null => {
+  const { t, number } = useTranslator(bulk);
   if (run.failed === 0) {
+    return null;
+  }
+  const failures = (run.failures ?? []).filter((failure) => failure.reason !== 'undoDenied');
+  return (
+    <>
+      <p>{t('bulk.done.failed', { count: number(run.failed) })}</p>
+      <FailureList failures={failures} />
+    </>
+  );
+};
+
+/** The items an undo left because the person who asked for it may not edit them. */
+const NotPutBack = ({ run }: { readonly run: BulkRun }): ReactElement | null => {
+  const { t } = useTranslator(bulk);
+  const refused = (run.failures ?? []).filter((failure) => failure.reason === 'undoDenied');
+  if (refused.length === 0) {
     return null;
   }
   return (
     <>
-      <p>{t('bulk.done.failed', { count: number(run.failed) })}</p>
-      <ul className="bulk-items">
-        {failures.map((failure) => (
-          <li key={String(failure.item)}>
-            <a href={`#/items/${String(failure.item)}`}>{t('bulk.word.untitled', { id: String(failure.item) })}</a>
-            {failure.message === null ? null : <>: {translate(failure.message)}</>}
-          </li>
-        ))}
-      </ul>
+      <p>{t('bulk.done.notPutBack')}</p>
+      <FailureList failures={refused} />
     </>
   );
 };
@@ -77,9 +99,13 @@ const Ended = ({ run }: { readonly run: BulkRun }): ReactElement => {
       );
     case 'partly_undone':
       return (
-        <p className="bulk-headline">
-          {t('bulk.done.partlyUndone', { count: number(counts.restored), kept: number(counts.kept) })}
-        </p>
+        <>
+          {run.error !== null ? <p role="alert">{t('bulk.done.error', { error: run.error })}</p> : null}
+          <p className="bulk-headline">
+            {t('bulk.done.partlyUndone', { count: number(counts.restored), kept: number(counts.kept) })}
+          </p>
+          <NotPutBack run={run} />
+        </>
       );
     case 'stopped':
       return (

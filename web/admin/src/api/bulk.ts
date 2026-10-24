@@ -115,7 +115,7 @@ export interface BulkCounts {
   readonly kept: number;
 }
 
-export const FAIL_REASONS = ['gone', 'denied', 'templateRequires'] as const;
+export const FAIL_REASONS = ['gone', 'denied', 'templateRequires', 'undoDenied'] as const;
 export type FailReason = (typeof FAIL_REASONS)[number];
 
 export interface BulkFailure {

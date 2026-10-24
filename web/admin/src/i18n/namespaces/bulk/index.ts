@@ -90,6 +90,7 @@ export const en = {
   'bulk.done.undone': 'Undone. {count} items are back as they were.',
   'bulk.done.partlyUndone': 'Back as they were: {count}. Edited after the change, so left as they are: {kept}.',
   'bulk.done.undoAgain': 'Undo the rest',
+  'bulk.done.notPutBack': 'Not put back:',
   // Undo.
   'bulk.undo.restoreOne': 'Undo puts 1 item back as it was before this change.',
   'bulk.undo.restore': 'Undo puts {count} items back as they were before this change.',

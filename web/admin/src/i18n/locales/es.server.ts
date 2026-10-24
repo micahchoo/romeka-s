@@ -288,4 +288,6 @@ export const esServer: ServerCatalogue = {
   'server.bulkItemGone': 'Este elemento ya no está en Omeka.',
   'server.bulkItemDenied': 'La persona que inició este cambio no puede editar este elemento.',
   'server.bulkItemTemplateRequires': 'El nuevo tipo de elemento necesita valores que este elemento no tiene.',
+  'server.bulkItemUndoDenied':
+    'La persona que pidió deshacer el cambio no puede editar este elemento, así que se dejó como está.',
 };

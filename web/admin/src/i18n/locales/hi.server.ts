@@ -318,4 +318,6 @@ export const hiServer: ServerCatalogue = {
   'server.bulkItemDenied': 'इस परिवर्तन को शुरू करने वाले व्यक्ति इस आइटम को संपादित नहीं कर सकते।',
   'server.bulkItemTemplateRequires':
     'नए आइटम प्रकार को उन मानों की आवश्यकता है जो इस आइटम में नहीं हैं।',
+  'server.bulkItemUndoDenied':
+    'जिस व्यक्ति ने पूर्ववत करने के लिए कहा था, वह इस आइटम को संपादित नहीं कर सकता, इसलिए पूर्ववत करने से यह वैसा ही रह गया।',
 };

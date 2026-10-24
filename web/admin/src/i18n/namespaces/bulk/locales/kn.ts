@@ -87,6 +87,7 @@ export const kn: BulkMessages = {
   'bulk.done.partlyUndone':
     'ಮೊದಲಿನಂತೆ: {count}. ಬದಲಾವಣೆಯ ನಂತರ ಸಂಪಾದಿಸಲಾಗಿದೆ, ಹಾಗಾಗಿ ಹಾಗೆಯೇ ಉಳಿಸಲಾಗಿದೆ: {kept}.',
   'bulk.done.undoAgain': 'ಉಳಿದವುಗಳನ್ನು ರದ್ದುಗೊಳಿಸಿ',
+  'bulk.done.notPutBack': 'ಮರಳಿ ಇಡದ:',
   'bulk.undo.restoreOne': 'ರದ್ದುಗೊಳಿಸುವುದು ಈ ಬದಲಾವಣೆಯ ಮೊದಲು ಇದ್ದಂತೆ 1 ವಸ್ತುವನ್ನು ಮರಳಿ ತರುತ್ತದೆ.',
   'bulk.undo.restore': 'ರದ್ದುಗೊಳಿಸುವುದರಿಂದ {count} ಐಟಂಗಳು ಈ ಬದಲಾವಣೆಯ ಮೊದಲು ಇದ್ದ ಸ್ಥಿತಿಗೆ ಮರಳುತ್ತವೆ.',
   'bulk.undo.editedOne':

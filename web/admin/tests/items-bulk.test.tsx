@@ -168,6 +168,23 @@ describe('items bulk change', () => {
     expect(undo?.body).toEqual({ force: false });
   });
 
+  it('names the items an undo left because the person who asked may not edit them', async () => {
+    const partly = asObject(loadFixture('bulk/run-partly-undone.json'));
+    const message = 'The person who asked for the undo may not edit this item, so the undo left it as it is.';
+    installServer([{ ...partly, failures: [{ item: 5, reason: 'undoDenied', message }] }]);
+    await openList();
+    fireEvent.click(screen.getByRole('button', { name: 'Recent bulk changes' }));
+    const panel = await screen.findByRole('region', { name: 'Recent bulk changes' });
+    const row = await within(panel).findByRole('row', { name: /Private/ });
+    fireEvent.click(within(row).getByRole('button', { name: 'Undo' }));
+    fireEvent.click(await within(panel).findByRole('button', { name: 'Undo the change' }));
+
+    expect(await within(panel).findByText(/Back as they were: 1\./)).toBeInTheDocument();
+    expect(within(panel).getByText('Not put back:')).toBeInTheDocument();
+    expect(within(panel).getByRole('link', { name: 'Item 5' })).toHaveAttribute('href', '#/items/5');
+    expect(within(panel).getByText(/may not edit this item, so the undo left it as it is\./)).toBeInTheDocument();
+  });
+
   it('a researcher sees no way to change items in bulk', async () => {
     setSession({ ...editor, role: 'researcher' });
     installServer([]);

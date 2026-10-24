@@ -316,4 +316,6 @@ export const neServer: ServerCatalogue = {
   'server.bulkItemGone': 'यो वस्तु अब Omeka मा छैन।',
   'server.bulkItemDenied': 'यस परिवर्तन सुरु गर्ने व्यक्तिले यो वस्तु सम्पादन गर्न सक्दैन।',
   'server.bulkItemTemplateRequires': 'नयाँ वस्तु प्रकारलाई यस वस्तुमा नभएका मानहरू आवश्यक पर्दछ।',
+  'server.bulkItemUndoDenied':
+    'जसले यो परिवर्तन पूर्ववत गर्न अनुरोध गरे, उसले यो वस्तु सम्पादन गर्न सक्दैन, त्यसैले पूर्ववतले यसलाई यथावत छोडिदियो।',
 };
