@@ -287,6 +287,19 @@ describe('items list', () => {
     expect(screen.getByRole('combobox', { name: 'Sort' })).toHaveValue('title');
   });
 
+  it('a link to another slice while the list is open opens that slice', async () => {
+    const fetchMock = await openList('#/items?q=harbour');
+
+    window.history.replaceState(null, '', '/#/items?class=51');
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+
+    expect(await screen.findByText('Class: Book')).toBeInTheDocument();
+    expect(screen.queryByText('Search: harbour')).not.toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: 'Search' })).toHaveValue('');
+    expect(lastItemsUrl(fetchMock).searchParams.get('resource_class_id')).toBe('51');
+    expect(lastItemsUrl(fetchMock).searchParams.has('search')).toBe(false);
+  });
+
   it('a filter with no match says so and offers Clear all', async () => {
     window.history.replaceState(null, '', '/#/items?q=nothing');
     const fetchMock = installFetch(listHandler);

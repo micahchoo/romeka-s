@@ -10,7 +10,7 @@ import { api } from '../../api/client';
 import type { ApiPage, Item, ItemId } from '../../api/types';
 import { ErrorNotice } from '../../app/errors';
 import { Pager } from '../../app/list';
-import { hashQuery, replaceHashQuery } from '../../app/router';
+import { hashQuery, parseHash, replaceHashQuery } from '../../app/router';
 import { useAsync } from '../../app/useAsync';
 import type { AsyncState } from '../../app/useAsync';
 import { useSettled } from '../../app/useSettled';
@@ -93,10 +93,33 @@ const useBrowseState = () => {
     setState((current) => (current.filters.search === search ? current : withFilters(current, { search })));
   }, [settled]);
 
-  /** Every change but typing: the box shows what the state now holds. */
+  // A link to another slice while the list is open (the nav's Items link, an
+  // address typed by hand) changes only the hash, so the list reads it again.
+  useEffect(() => {
+    const onHash = (): void => {
+      const route = parseHash(window.location.hash);
+      if (route?.page !== 'items' || route.param !== null) {
+        return;
+      }
+      const next = parseBrowse(hashQuery(window.location.hash), rememberedView());
+      setState(next);
+      setDraft(next.filters.search);
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => {
+      window.removeEventListener('hashchange', onHash);
+    };
+  }, []);
+
+  /**
+   * Every change but typing. A change that sets the search puts its text in the
+   * box; any other change leaves text the reader is still typing alone.
+   */
   const apply = (next: ItemBrowse): void => {
+    if (next.filters.search !== state.filters.search) {
+      setDraft(next.filters.search);
+    }
     setState(next);
-    setDraft(next.filters.search);
   };
   return { state, draft, setDraft, apply };
 };
@@ -137,6 +160,7 @@ export const ItemsList = (): ReactElement => {
   };
   const onClearAll = (): void => {
     apply(withoutFilters(state));
+    setDraft('');
   };
   const pageIds = shown?.items.map((item) => item.id) ?? [];
   const viewProps = {
@@ -165,6 +189,7 @@ export const ItemsList = (): ReactElement => {
         onDraft={setDraft}
         onClearSearch={() => {
           apply(withFilters(state, { search: '' }));
+          setDraft('');
         }}
         onFilter={onFilter}
         onSort={(sort) => {

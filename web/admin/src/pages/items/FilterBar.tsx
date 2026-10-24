@@ -291,10 +291,10 @@ export const FilterBar = (props: FilterBarProps): ReactElement => {
       >
         {t('browse.moreFilters')}
       </button>
-      <SortAndView state={state} onSort={props.onSort} onView={props.onView} />
       <div id={moreId} className="items-more-filters" hidden={!moreOpen}>
         <MoreFilters filters={filters} options={options} onFilter={onFilter} />
       </div>
+      <SortAndView state={state} onSort={props.onSort} onView={props.onView} />
     </div>
   );
 };
