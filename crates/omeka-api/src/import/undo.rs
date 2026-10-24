@@ -340,7 +340,7 @@ where
         let image = self.judge.images.get(&target).ok_or_else(|| {
             UndoError::State(format!("the changed {target:?} has no before-image"))
         })?;
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.pool.begin_with(DB::begin_write()).await?;
         let restored = ImportWrites::<DB>::new(&mut tx)
             .restore(resource, image)
             .await?;

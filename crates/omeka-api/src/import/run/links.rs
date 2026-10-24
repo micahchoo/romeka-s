@@ -119,7 +119,7 @@ where
         replace: Vec<ValueContent>,
         append: Vec<ValueContent>,
     ) -> Result<(), DbError> {
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.pool.begin_with(DB::begin_write()).await?;
         let mut writes = ImportWrites::<DB>::new(&mut tx);
         let passes = [
             (ImportAction::Revise, replace),

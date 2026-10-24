@@ -123,7 +123,7 @@ where
             return Ok(());
         }
         self.done();
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.pool.begin_with(DB::begin_write()).await?;
         let wrote = self.write_item_set(&mut tx, record).await;
         self.settle(tx, wrote, Vec::new(), &key).await
     }
@@ -196,7 +196,7 @@ where
         } else {
             self.done();
         }
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.pool.begin_with(DB::begin_write()).await?;
         let wrote = self.write_item(&mut tx, record, &media).await;
         let stored = media
             .iter()
@@ -380,7 +380,7 @@ where
             .unwrap_or_default();
         let one = Media { record, arrived };
         let mut position = self.media_count(item).await?;
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.pool.begin_with(DB::begin_write()).await?;
         let wrote = self
             .write_media(&mut tx, item, &one, &mut position, record)
             .await

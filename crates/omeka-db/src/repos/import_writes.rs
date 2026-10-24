@@ -256,11 +256,15 @@ where
         Ok(true)
     }
 
+    /// The resource row, locked on MySQL until the transaction ends: every caller
+    /// writes back what it reads, so a request's commit in between would be lost.
+    /// SQLite needs no lock inside the `BEGIN IMMEDIATE` the callers open.
     pub(super) async fn resource_row(
         &mut self,
         id: ResourceId,
     ) -> Result<Option<ResourceRow>, DbError> {
-        let row = sqlx::query("SELECT * FROM resource WHERE id = ?")
+        let sql = format!("SELECT * FROM resource WHERE id = ?{}", DB::for_update());
+        let row = sqlx::query(&sql)
             .bind(bind_id(id))
             .fetch_optional(&mut *self.conn)
             .await?;
