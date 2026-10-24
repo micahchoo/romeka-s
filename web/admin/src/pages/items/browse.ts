@@ -1,0 +1,221 @@
+/**
+ * The Items browse query: one record the screen renders from, the URL that
+ * holds it (`#/items?q=&class=&set=&template=&owner=&visibility=&site=&media=&sort=&view=&page=`),
+ * and the API query it sends. Every function is pure; the screen owns only the
+ * effects (reading and writing the URL, the remembered view, the request).
+ */
+import type { ResourceQuery } from '../../api/client';
+import { brandId } from '../../api/parse';
+import type { ClassId, ItemSetId, SiteId, TemplateId, UserId } from '../../api/types';
+import { isFilterKind, serverKindsOf } from '../../app/media';
+import type { FilterKind } from '../../app/media';
+
+export const PER_PAGE = 24;
+
+export type Visibility = 'public' | 'private';
+
+/** Which sites an item is in: any site, none, or one site. */
+export type SiteFilter =
+  | { readonly kind: 'any' }
+  | { readonly kind: 'none' }
+  | { readonly kind: 'site'; readonly id: SiteId };
+
+/** What media an item has: any media, none, or a media of one kind. */
+export type MediaFilter =
+  | { readonly kind: 'any' }
+  | { readonly kind: 'none' }
+  | { readonly kind: 'of'; readonly of: FilterKind };
+
+export type Sort = 'newest' | 'oldest' | 'modified' | 'title';
+export const SORTS: readonly Sort[] = ['newest', 'oldest', 'modified', 'title'];
+
+export type View = 'table' | 'grid';
+
+/** What narrows the list. `null` (or an empty search) is "not set". */
+export interface BrowseFilters {
+  readonly search: string;
+  readonly classId: ClassId | null;
+  readonly itemSetId: ItemSetId | null;
+  readonly templateId: TemplateId | null;
+  readonly ownerId: UserId | null;
+  readonly visibility: Visibility | null;
+  readonly site: SiteFilter | null;
+  readonly media: MediaFilter | null;
+}
+
+export type FilterKey = keyof BrowseFilters;
+
+export interface ItemBrowse {
+  readonly filters: BrowseFilters;
+  readonly sort: Sort;
+  readonly view: View;
+  readonly page: number;
+}
+
+export const NO_FILTERS: BrowseFilters = {
+  search: '',
+  classId: null,
+  itemSetId: null,
+  templateId: null,
+  ownerId: null,
+  visibility: null,
+  site: null,
+  media: null,
+};
+
+/** Chip order: the bar's order, the always-shown filters first. */
+export const FILTER_KEYS: readonly FilterKey[] = [
+  'search',
+  'classId',
+  'itemSetId',
+  'media',
+  'templateId',
+  'ownerId',
+  'visibility',
+  'site',
+];
+
+/** The filters behind "More filters". */
+export const MORE_KEYS: readonly FilterKey[] = ['templateId', 'ownerId', 'visibility', 'site'];
+
+export const isSet = (filters: BrowseFilters, key: FilterKey): boolean =>
+  key === 'search' ? filters.search !== '' : filters[key] !== null;
+
+export const activeFilters = (filters: BrowseFilters): readonly FilterKey[] =>
+  FILTER_KEYS.filter((key) => isSet(filters, key));
+
+/** A filter change starts the list again at page 1. */
+export const withFilters = (state: ItemBrowse, change: Partial<BrowseFilters>): ItemBrowse => ({
+  ...state,
+  filters: { ...state.filters, ...change },
+  page: 1,
+});
+
+export const withoutFilter = (state: ItemBrowse, key: FilterKey): ItemBrowse =>
+  withFilters(state, { [key]: NO_FILTERS[key] });
+
+export const withoutFilters = (state: ItemBrowse): ItemBrowse => withFilters(state, NO_FILTERS);
+
+const positiveInt = (text: string | null): number | null =>
+  text !== null && /^[1-9]\d{0,14}$/.test(text) ? Number(text) : null;
+
+const idOf =
+  <Name extends string>() =>
+  (text: string | null) => {
+    const value = positiveInt(text);
+    return value === null ? null : brandId<Name>(value);
+  };
+
+const classIdOf = idOf<'ClassId'>();
+const itemSetIdOf = idOf<'ItemSetId'>();
+const templateIdOf = idOf<'TemplateId'>();
+const userIdOf = idOf<'UserId'>();
+const siteIdOf = idOf<'SiteId'>();
+
+const oneOf = <T extends string>(choices: readonly T[], text: string | null): T | null =>
+  choices.find((choice) => choice === text) ?? null;
+
+const parseSite = (text: string | null): SiteFilter | null => {
+  if (text === 'any' || text === 'none') {
+    return { kind: text };
+  }
+  const id = siteIdOf(text);
+  return id === null ? null : { kind: 'site', id };
+};
+
+const parseMedia = (text: string | null): MediaFilter | null => {
+  if (text === 'any' || text === 'none') {
+    return { kind: text };
+  }
+  return text !== null && isFilterKind(text) ? { kind: 'of', of: text } : null;
+};
+
+/**
+ * The browse state a URL query names. A value that is unknown or malformed is
+ * dropped, so a hand-edited or stale link still opens a list. `view` falls back
+ * to the reader's last choice when the URL does not say.
+ */
+export const parseBrowse = (query: URLSearchParams, fallbackView: View): ItemBrowse => ({
+  filters: {
+    search: query.get('q')?.trim() ?? '',
+    classId: classIdOf(query.get('class')),
+    itemSetId: itemSetIdOf(query.get('set')),
+    templateId: templateIdOf(query.get('template')),
+    ownerId: userIdOf(query.get('owner')),
+    visibility: oneOf<Visibility>(['public', 'private'], query.get('visibility')),
+    site: parseSite(query.get('site')),
+    media: parseMedia(query.get('media')),
+  },
+  sort: oneOf(SORTS, query.get('sort')) ?? 'newest',
+  view: oneOf<View>(['table', 'grid'], query.get('view')) ?? fallbackView,
+  page: positiveInt(query.get('page')) ?? 1,
+});
+
+const siteText = (site: SiteFilter): string => (site.kind === 'site' ? String(site.id) : site.kind);
+
+const mediaText = (media: MediaFilter): string => (media.kind === 'of' ? media.of : media.kind);
+
+/**
+ * The URL query for a browse state. Defaults are left out (newest first, page
+ * 1, the table), so the plain `#/items` stays plain.
+ */
+export const formatBrowse = (state: ItemBrowse): URLSearchParams => {
+  const { filters } = state;
+  const entries: readonly (readonly [string, string | null])[] = [
+    ['q', filters.search === '' ? null : filters.search],
+    ['class', filters.classId === null ? null : String(filters.classId)],
+    ['set', filters.itemSetId === null ? null : String(filters.itemSetId)],
+    ['template', filters.templateId === null ? null : String(filters.templateId)],
+    ['owner', filters.ownerId === null ? null : String(filters.ownerId)],
+    ['visibility', filters.visibility],
+    ['site', filters.site === null ? null : siteText(filters.site)],
+    ['media', filters.media === null ? null : mediaText(filters.media)],
+    ['sort', state.sort === 'newest' ? null : state.sort],
+    ['view', state.view === 'table' ? null : state.view],
+    ['page', state.page === 1 ? null : String(state.page)],
+  ];
+  return new URLSearchParams(
+    entries.flatMap(([name, value]) => (value === null ? [] : [[name, value]])),
+  );
+};
+
+const SORT_QUERY: Readonly<Record<Sort, Pick<ResourceQuery, 'sortBy' | 'sortOrder'>>> = {
+  newest: { sortBy: 'id', sortOrder: 'desc' },
+  oldest: { sortBy: 'id', sortOrder: 'asc' },
+  modified: { sortBy: 'modified', sortOrder: 'desc' },
+  title: { sortBy: 'title', sortOrder: 'asc' },
+};
+
+const siteQuery = (site: SiteFilter | null): ResourceQuery => {
+  if (site === null) {
+    return {};
+  }
+  return site.kind === 'site' ? { siteId: site.id } : { inSites: site.kind === 'any' ? 1 : 0 };
+};
+
+const mediaQuery = (media: MediaFilter | null): ResourceQuery => {
+  if (media === null) {
+    return {};
+  }
+  return media.kind === 'of'
+    ? { hasMediaKind: serverKindsOf(media.of) }
+    : { hasMedia: media.kind === 'any' ? 1 : 0 };
+};
+
+/** The `/api/items` query for a browse state; `ResourceQuery` snake-cases each name. */
+export const browseQuery = (state: ItemBrowse): ResourceQuery => {
+  const { filters } = state;
+  return {
+    page: state.page,
+    perPage: PER_PAGE,
+    ...SORT_QUERY[state.sort],
+    ...(filters.search === '' ? {} : { search: filters.search }),
+    ...(filters.classId === null ? {} : { resourceClassId: filters.classId }),
+    ...(filters.itemSetId === null ? {} : { itemSetId: filters.itemSetId }),
+    ...(filters.templateId === null ? {} : { resourceTemplateId: filters.templateId }),
+    ...(filters.ownerId === null ? {} : { ownerId: filters.ownerId }),
+    ...(filters.visibility === null ? {} : { isPublic: filters.visibility === 'public' ? 1 : 0 }),
+    ...siteQuery(filters.site),
+    ...mediaQuery(filters.media),
+  };
+};
