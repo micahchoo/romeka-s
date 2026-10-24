@@ -251,6 +251,30 @@ const TABLES: &[(&str, &[&str])] = &[
 /// [`TABLES`] and the upstream tables stay exactly upstream's.
 const ROMEKA_TABLES: &[(&str, &[&str])] = &[
     (
+        "romeka_bulk",
+        &[
+            "id",
+            "owner_id",
+            "kind",
+            "query",
+            "change_json",
+            "status",
+            "total",
+            "done",
+            "failed",
+            "job_id",
+            "error",
+            "created",
+            "started",
+            "ended",
+            "heartbeat",
+        ],
+    ),
+    (
+        "romeka_bulk_target",
+        &["bulk_id", "item_id", "state", "image", "error", "written"],
+    ),
+    (
         "romeka_publication",
         &[
             "id",
