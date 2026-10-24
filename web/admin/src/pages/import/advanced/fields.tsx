@@ -12,6 +12,7 @@ import type { LevelId, NamedSlot, RecordKind } from '../../../api/import-plan';
 import { api } from '../../../api/client';
 import type { ResourceTemplate, Site, User } from '../../../api/types';
 import { ALL_PAGES_PER_PAGE as PER_PAGE, allPages } from '../../../app/all-pages';
+import { useSession } from '../../../app/auth';
 import { ErrorNotice } from '../../../app/errors';
 import { useAsync } from '../../../app/useAsync';
 import { useDraft } from '../draft-context';
@@ -46,6 +47,13 @@ interface Install {
   readonly users: readonly User[];
 }
 
+/**
+ * "Owner" in `docs/import-v2.md`, as `catalog_load::Owners` keeps it: a
+ * global admin may name any user, anyone else only themself.
+ */
+const mayNameOwner = (session: User | null, user: User): boolean =>
+  session === null || session.role === 'global_admin' || session.id === user.id;
+
 const loadInstall = async (): Promise<Install> => {
   const [templates, sites, users] = await Promise.all([
     allPages((page) => api.listResourceTemplates({ page, perPage: PER_PAGE, sortBy: 'label' })),
@@ -59,8 +67,10 @@ export const Defaults = (): ReactElement => {
   const { t } = useAdvancedText();
   const draft = useDraft();
   const install = useAsync(loadInstall, []);
+  const session = useSession();
   const { defaults } = draft.plan;
   const known = install.status === 'ready' ? install.data : { templates: [], sites: [], users: [] };
+  const owners = known.users.filter((user) => mayNameOwner(session, user));
   return (
     <>
       {install.status === 'error' ? <ErrorNotice error={install.error} /> : null}
@@ -94,12 +104,12 @@ export const Defaults = (): ReactElement => {
             }}
           >
             <option value="runner">{t('adv.fields.owner.runner')}</option>
-            {known.users.map((user) => (
+            {owners.map((user) => (
               <option key={user.id} value={String(user.id)}>
                 {user.name} ({user.email})
               </option>
             ))}
-            {typeof defaults.owner === 'number' && !known.users.some((user) => user.id === defaults.owner) ? (
+            {typeof defaults.owner === 'number' && !owners.some((user) => user.id === defaults.owner) ? (
               <option value={String(defaults.owner)}>{t('adv.fields.owner.id', { id: defaults.owner })}</option>
             ) : null}
           </select>

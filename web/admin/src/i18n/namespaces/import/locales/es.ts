@@ -220,6 +220,7 @@ export const es: ImportMessages = {
     "Un tipo de elemento nuevo con el nombre de uno que Omeka tiene",
   "problem.encoding-unsupported":
     "Una lista en un tipo de texto que Omeka no puede leer",
+  "problem.owner-not-allowed": "Un propietario que no puedes elegir",
   "trip.again": "Subir esta lista otra vez",
   "trip.againNext": "El próximo archivo que envíes ocupa el lugar de {file}.",
   "trip.lacking":

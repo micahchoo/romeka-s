@@ -216,6 +216,7 @@ export const te: ImportMessages = {
   "problem.type-exists": "Omekaలో ఇప్పటికే ఉన్న ఐటమ్ రకం పేరుతో కొత్త ఐటమ్ రకం",
   "problem.encoding-unsupported":
     "Omeka చదవలేని టెక్స్ట్ రకానికి చెందిన జాబితా",
+  "problem.owner-not-allowed": "మీరు ఎంచుకోలేని యజమాని",
   "trip.again": "ఈ జాబితాను మళ్ళీ అప్‌లోడ్ చేయండి",
   "trip.againNext": "మీరు పంపే తదుపరి ఫైల్ {file} స్థానంలో ఉంటుంది.",
   "trip.lacking":

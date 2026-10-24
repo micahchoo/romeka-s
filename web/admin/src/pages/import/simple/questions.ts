@@ -43,6 +43,7 @@ export const DEFAULT_POLICY: Readonly<Record<FlagKind, FlagPolicy>> = {
   'template-missing': 'leave',
   'type-exists': 'leave',
   'encoding-unsupported': 'leave',
+  'owner-not-allowed': 'leave',
 };
 
 /** Kinds the run handles without a question: the screen lists them under "We took care of". */

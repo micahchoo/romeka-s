@@ -74,6 +74,7 @@ export const FLAG_KINDS = [
   'template-missing',
   'type-exists',
   'encoding-unsupported',
+  'owner-not-allowed',
 ] as const;
 export type FlagKind = (typeof FLAG_KINDS)[number];
 
@@ -83,6 +84,7 @@ export const BLOCKING_FLAG_KINDS: readonly FlagKind[] = [
   'template-missing',
   'type-exists',
   'encoding-unsupported',
+  'owner-not-allowed',
 ];
 
 export type FlagPolicy = 'keep' | 'repair' | 'leave';

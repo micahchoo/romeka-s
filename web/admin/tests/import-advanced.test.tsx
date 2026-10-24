@@ -11,10 +11,12 @@
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { asRecord } from '../src/api/parse';
+import { asRecord, isRecord, isUnknownArray, parseUser } from '../src/api/parse';
+import { setSession } from '../src/api/session';
 import { patternOf } from '../src/pages/import/example';
 import { ImportPage } from '../src/pages/import/page';
 import { advancedServer, PATH } from './import-advanced-server';
+import { loadFixture } from './loadFixture';
 import { installFetch, requestBody, requestsFor } from './stub';
 
 vi.mock('../src/pages/import/simple/bodies', async () => {
@@ -218,6 +220,54 @@ describe('Advanced, Fields', () => {
     const visibility = await screen.findByRole('article', { name: 'Visibility' });
     expect(within(visibility).getByRole('option', { name: 'Combine: all' })).toBeDisabled();
     expect(within(visibility).getByText('This field keeps one value, so only “first” can combine its sources.')).toBeInTheDocument();
+  });
+});
+
+/**
+ * "Owner" in `docs/import-v2.md`: a global admin may name any user, a site
+ * admin only themself. The default owner offers what the run would accept.
+ */
+describe('Advanced, default owner', () => {
+  const signIn = (role: string): void => {
+    const users = loadFixture('users-page.json');
+    if (!isUnknownArray(users) || !isRecord(users[1])) {
+      throw new Error('expected a users page');
+    }
+    setSession(parseUser({ ...users[1], 'o:role': role }));
+  };
+  const ownerChoices = async (): Promise<readonly string[]> => {
+    const server = advancedServer(9);
+    installFetch(server.handler);
+    render(at('advanced', 'fields'));
+    const [archive] = within(await screen.findByRole('listbox', { name: 'Your archive' })).getAllByRole('option');
+    fireEvent.click(archive ?? document.body);
+    const owner = await screen.findByRole('combobox', { name: 'Owner' });
+    await waitFor(() => {
+      expect(within(owner).getAllByRole('option').length).toBeGreaterThan(1);
+    });
+    return within(owner).getAllByRole('option').map((option) => option.textContent);
+  };
+
+  it('offers a global admin every user', async () => {
+    signIn('global_admin');
+    try {
+      expect(await ownerChoices()).toEqual([
+        'The person who runs the import',
+        'Ada Lovelace (ada@example.org)',
+        'Grace Hopper (grace@example.org)',
+      ]);
+    } finally {
+      setSession(null);
+    }
+  });
+
+  it('offers a site admin only themself', async () => {
+    signIn('site_admin');
+    try {
+      expect(await ownerChoices()).toEqual(['The person who runs the import', 'Grace Hopper (grace@example.org)']);
+    } finally {
+      setSession(null);
+    }
   });
 });
 
