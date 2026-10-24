@@ -110,18 +110,29 @@ pub async fn preview(api: &Api<'_>, body: &[u8]) -> Result<Preview, BulkError> {
     Ok(preview)
 }
 
-/// Every row the change names exists, and the caller may assign items to each site it names
-/// (`can-assign-items`, which the item write checks too).
+/// Every row the change names exists and the caller sees it, the caller may change owners when
+/// the change sets one, and may assign items to each site it names (`can-assign-items`, which
+/// the item write checks too).
+///
+/// Upstream changes an owner only for a caller with `change-owner` on the entity
+/// (`AbstractEntityAdapter`), which only the administrator roles hold. The permissions table has
+/// no such action yet, so the administrator test stands for it.
 ///
 /// # Errors
-/// 404 for a missing row, 403 for a site the caller may not assign items to.
+/// 404 for a missing row or an item set the caller cannot see, 403 for an owner change by a
+/// caller who is not an administrator or a site the caller may not assign items to.
 pub(super) async fn check(api: &Api<'_>, change: &BulkChange) -> Result<(), BulkError> {
     let BulkChange::Edit(edit) = change;
     let pool = api.pool();
-    if let Some(owner) = edit.owner
-        && with_db!(pool, |db| UserRepo::new(db).get(owner).await)?.is_none()
-    {
-        return Err(missing("Omeka\\Entity\\User", owner.0));
+    if let Some(owner) = edit.owner {
+        if !api.actor().is_admin() {
+            return Err(BulkError::Api(ApiError::PermissionDenied {
+                message: crate::messages::permission_denied("change-owner", ITEM_CLASS),
+            }));
+        }
+        if with_db!(pool, |db| UserRepo::new(db).get(owner).await)?.is_none() {
+            return Err(missing("Omeka\\Entity\\User", owner.0));
+        }
     }
     if let Some(Assign::Set(class)) = edit.class
         && with_db!(pool, |db| ClassRepo::new(db).get(class).await)?.is_none()
@@ -134,7 +145,8 @@ pub(super) async fn check(api: &Api<'_>, change: &BulkChange) -> Result<(), Bulk
         return Err(missing("Omeka\\Entity\\ResourceTemplate", template.0));
     }
     for set in edit.item_sets.add().iter().chain(edit.item_sets.remove()) {
-        if with_db!(pool, |db| ItemSetRepo::new(db).get(*set).await)?.is_none() {
+        let row = with_db!(pool, |db| ItemSetRepo::new(db).get(*set).await)?;
+        if !row.is_some_and(|row| api.sees(row.resource.is_public, row.resource.owner_id)) {
             return Err(missing("Omeka\\Entity\\ItemSet", set.0));
         }
     }
