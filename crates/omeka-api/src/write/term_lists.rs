@@ -14,7 +14,10 @@ use omeka_db::with_db;
 use serde_json::Value;
 
 use crate::errors::{ApiError, ValidationErrors};
-use crate::read::{Api, ApiResponse, db_error, entity_denied, not_found, parse_id};
+use crate::messages;
+use crate::read::{
+    Api, ApiResponse, db_error, entity_denied, not_found, parse_id, taken_or_db_error,
+};
 use crate::routes::Operation;
 use crate::write::body::{Payload, ref_row};
 use crate::write::resource::{not_found as ref_not_found, owner_member};
@@ -29,7 +32,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
     let row = with_db!(api.pool(), |db| CustomVocabRepo::new(db)
         .create(&input)
         .await)
-    .map_err(db_error)?;
+    .map_err(taken_or_db_error("o:label", messages::LABEL_TAKEN))?;
     api.read_member(RESOURCE, &row.id.0.to_string()).await
 }
 
@@ -53,7 +56,8 @@ pub async fn update(
         uris: input.uris,
     };
     crate::publish::guard::term_list(api, stored.id, Some(&row)).await?;
-    with_db!(api.pool(), |db| CustomVocabRepo::new(db).update(&row).await).map_err(db_error)?;
+    with_db!(api.pool(), |db| CustomVocabRepo::new(db).update(&row).await)
+        .map_err(taken_or_db_error("o:label", messages::LABEL_TAKEN))?;
     api.read_member(RESOURCE, raw_id).await
 }
 

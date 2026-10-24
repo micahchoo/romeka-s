@@ -323,7 +323,14 @@ async fn publish(
             now()
         )
         .await)
-    .map_err(db_error)?;
+    .map_err(|error| {
+        // Another publication took the slug after `chosen_address` checked it.
+        if error.is_unique_violation() {
+            refused("slug", messages::publication_slug_taken(&address.slug))
+        } else {
+            db_error(error)
+        }
+    })?;
     Ok(())
 }
 

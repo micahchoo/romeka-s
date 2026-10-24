@@ -18,7 +18,7 @@ use omeka_db::with_db;
 
 use crate::errors::{ApiError, ValidationErrors};
 use crate::messages;
-use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
+use crate::read::{Api, ApiResponse, db_error, not_found, parse_id, taken_or_db_error};
 use crate::settings;
 use crate::write::access;
 use crate::write::body::Payload;
@@ -34,6 +34,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
     let role = payload.str_member("o:role").unwrap_or_default().to_string();
     let settings = user_settings(payload)?;
     validate(None, api, &name, &email, &role).await?;
+    let taken = taken_or_db_error("o:email", messages::email_taken(&email));
     let row = with_db!(api.pool(), |db| UserRepo::new(db)
         .create(&NewUser {
             email,
@@ -44,7 +45,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
             created: None,
         })
         .await)
-    .map_err(db_error)?;
+    .map_err(taken)?;
     settings::store_user(api.pool(), row.id, &settings).await?;
     api.read_member("users", &row.id.0.to_string()).await
 }
@@ -77,7 +78,10 @@ pub async fn update(
     if payload.has("o:is_active") {
         row.is_active = payload.bool_member("o:is_active", row.is_active);
     }
-    with_db!(api.pool(), |db| UserRepo::new(db).update(&row).await).map_err(db_error)?;
+    with_db!(api.pool(), |db| UserRepo::new(db).update(&row).await).map_err(taken_or_db_error(
+        "o:email",
+        messages::email_taken(&row.email),
+    ))?;
     settings::store_user(api.pool(), row.id, &settings).await?;
     api.read_member("users", raw_id).await
 }

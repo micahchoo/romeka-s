@@ -1,6 +1,6 @@
 //! The job context, and the dispatcher that starts a job in a new process.
 
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
@@ -230,27 +230,58 @@ impl<'a> Dispatcher<'a> {
     }
 }
 
+/// How many job processes one server runs at once. Each job opens its own database pool, so
+/// without a bound a burst of jobs could open more connections than MySQL allows. A job past the
+/// bound waits, its row in `starting`, until a running one exits.
+pub const MAX_RUNNING_JOBS: usize = 4;
+
 /// Starts each job in a new `romeka job run` process and reaps it when it
-/// exits, so a long-lived server leaves no zombie processes.
+/// exits, so a long-lived server leaves no zombie processes. At most
+/// [`MAX_RUNNING_JOBS`] run at once; later starts wait their turn in order.
 ///
 /// Each job leads its own process group, so the server's shutdown reaches
 /// the jobs it started and nothing else ([`Self::shutdown`]).
 pub struct ProcessDispatch {
+    shared: Arc<Shared>,
+}
+
+struct Shared {
     command: JobCommand,
+    limit: usize,
+    state: Mutex<Running>,
+}
+
+#[derive(Default)]
+struct Running {
     /// The pid of each job this dispatcher started that has not exited.
-    live: Arc<Mutex<HashSet<u32>>>,
+    live: HashSet<u32>,
+    /// Jobs waiting for a free slot, first come first started.
+    waiting: VecDeque<JobId>,
+    /// Set by [`ProcessDispatch::shutdown`]: nothing starts after it.
+    stopping: bool,
 }
 
 impl ProcessDispatch {
     #[must_use]
     pub fn new(command: JobCommand) -> Self {
+        Self::with_limit(command, MAX_RUNNING_JOBS)
+    }
+
+    /// A dispatcher that runs at most `limit` jobs at once (at least one).
+    #[must_use]
+    pub fn with_limit(command: JobCommand, limit: usize) -> Self {
         Self {
-            command,
-            live: Arc::default(),
+            shared: Arc::new(Shared {
+                command,
+                limit: limit.max(1),
+                state: Mutex::default(),
+            }),
         }
     }
 
-    /// End the jobs this dispatcher started, for a server that is stopping.
+    /// End the jobs this dispatcher started, for a server that is stopping, and
+    /// return the jobs still waiting for a slot: they never started, and the
+    /// caller settles their rows.
     ///
     /// Each job process gets a TERM, and only it: a job that runs tools of
     /// its own (the derivative worker's ffmpeg and soffice) decides what they
@@ -258,29 +289,37 @@ impl ProcessDispatch {
     /// attempts. An import run ends after the record in hand. After `grace`,
     /// or once every job has exited, each job's process group gets a KILL, so
     /// no tool outlives the server. Blocks until then.
-    pub fn shutdown(&self, grace: Duration) {
-        let started: Vec<u32> = self.live().iter().copied().collect();
+    pub fn shutdown(&self, grace: Duration) -> Vec<JobId> {
+        let (started, waiting) = {
+            let mut running = self.shared.lock();
+            running.stopping = true;
+            let waiting: Vec<JobId> = running.waiting.drain(..).collect();
+            (running.live.iter().copied().collect::<Vec<u32>>(), waiting)
+        };
         for pid in &started {
             signal(*pid, Ending::Term);
         }
         let deadline = Instant::now() + grace;
-        while !self.live().is_empty() && Instant::now() < deadline {
+        while !self.shared.lock().live.is_empty() && Instant::now() < deadline {
             std::thread::sleep(Duration::from_millis(50));
         }
         for pid in &started {
             signal(*pid, Ending::KillGroup);
         }
-    }
-
-    fn live(&self) -> std::sync::MutexGuard<'_, HashSet<u32>> {
-        self.live
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
+        waiting
     }
 }
 
-impl JobDispatch for ProcessDispatch {
-    fn start(&self, job: JobId) -> Result<(), DispatchError> {
+impl Shared {
+    fn lock(&self) -> std::sync::MutexGuard<'_, Running> {
+        self.state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    /// Start `job` now, under the state lock the caller holds, so two starts
+    /// never both take the last slot.
+    fn launch(self: &Arc<Self>, running: &mut Running, job: JobId) -> Result<(), DispatchError> {
         let mut command = self
             .command
             .command(job)
@@ -294,15 +333,40 @@ impl JobDispatch for ProcessDispatch {
             .spawn()
             .map_err(|error| DispatchError(format!("cannot start job {}: {error}", job.0)))?;
         let pid = child.id();
-        self.live().insert(pid);
-        let live = Arc::clone(&self.live);
+        running.live.insert(pid);
+        let shared = Arc::clone(self);
         std::thread::spawn(move || {
             let _ = child.wait();
-            live.lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .remove(&pid);
+            shared.exited(pid);
         });
         Ok(())
+    }
+
+    /// Reap `pid` and start the jobs that waited for its slot. A waiting job
+    /// that cannot start keeps its `starting` row; nothing here can write it.
+    fn exited(self: &Arc<Self>, pid: u32) {
+        let mut running = self.lock();
+        running.live.remove(&pid);
+        while !running.stopping && running.live.len() < self.limit {
+            let Some(next) = running.waiting.pop_front() else {
+                break;
+            };
+            let _ = self.launch(&mut running, next);
+        }
+    }
+}
+
+impl JobDispatch for ProcessDispatch {
+    fn start(&self, job: JobId) -> Result<(), DispatchError> {
+        let mut running = self.shared.lock();
+        if running.stopping {
+            return Err(DispatchError("the server is stopping".to_string()));
+        }
+        if running.live.len() >= self.shared.limit {
+            running.waiting.push_back(job);
+            return Ok(());
+        }
+        self.shared.launch(&mut running, job)
     }
 }
 
@@ -330,5 +394,58 @@ fn signal(pid: u32, ending: Ending) {
     #[cfg(not(unix))]
     {
         let _ = (pid, ending);
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used)]
+
+    use std::os::unix::fs::PermissionsExt;
+
+    use super::*;
+
+    /// A job program that ignores its arguments and runs for a moment.
+    fn sleeper(dir: &std::path::Path) -> JobCommand {
+        let program = dir.join("job.sh");
+        std::fs::write(&program, "#!/bin/sh\nsleep 0.3\n").unwrap();
+        std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o755)).unwrap();
+        JobCommand {
+            program: Some(program),
+            ..JobCommand::new(dir.join("unused.db"))
+        }
+    }
+
+    fn counts(dispatch: &ProcessDispatch) -> (usize, usize) {
+        let running = dispatch.shared.lock();
+        (running.live.len(), running.waiting.len())
+    }
+
+    #[test]
+    fn jobs_past_the_limit_wait_and_start_as_slots_free() {
+        let dir = tempfile::tempdir().unwrap();
+        let dispatch = ProcessDispatch::with_limit(sleeper(dir.path()), 1);
+        for id in 1..=3 {
+            dispatch.start(JobId(id)).unwrap();
+        }
+        assert_eq!(counts(&dispatch), (1, 2));
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while counts(&dispatch) != (0, 0) && Instant::now() < deadline {
+            assert!(counts(&dispatch).0 <= 1, "never more than the limit");
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        assert_eq!(counts(&dispatch), (0, 0), "every waiting job ran");
+    }
+
+    #[test]
+    fn a_shutdown_returns_the_jobs_that_never_started() {
+        let dir = tempfile::tempdir().unwrap();
+        let dispatch = ProcessDispatch::with_limit(sleeper(dir.path()), 1);
+        for id in 1..=3 {
+            dispatch.start(JobId(id)).unwrap();
+        }
+        let waiting = dispatch.shutdown(Duration::from_secs(5));
+        assert_eq!(waiting, [JobId(2), JobId(3)]);
+        assert!(dispatch.start(JobId(4)).is_err(), "nothing starts after");
     }
 }

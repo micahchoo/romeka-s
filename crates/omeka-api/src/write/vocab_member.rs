@@ -17,7 +17,7 @@ use omeka_db::with_db;
 
 use crate::errors::{ApiError, ValidationErrors};
 use crate::messages;
-use crate::read::{Api, db_error, not_found};
+use crate::read::{Api, db_error, not_found, taken_or_db_error};
 use crate::write::body::{Payload, ref_row};
 use crate::write::resource;
 use crate::write::resource::not_found as ref_not_found;
@@ -307,7 +307,10 @@ pub(crate) async fn create(
                     comment: input.comment.clone(),
                 })
                 .await)
-            .map_err(db_error)?,
+            .map_err(taken_or_db_error(
+                "o:local_name",
+                messages::local_name_taken(&input.local_name),
+            ))?,
         ),
         Member::Property => property_row(
             with_db!(api.pool(), |db| PropertyRepo::new(db)
@@ -319,7 +322,10 @@ pub(crate) async fn create(
                     comment: input.comment.clone(),
                 })
                 .await)
-            .map_err(db_error)?,
+            .map_err(taken_or_db_error(
+                "o:local_name",
+                messages::local_name_taken(&input.local_name),
+            ))?,
         ),
     })
 }
@@ -337,7 +343,10 @@ pub(crate) async fn update(api: &Api<'_>, member: Member, row: &MemberRow) -> Re
                 comment: row.comment.clone(),
             })
             .await)
-        .map_err(db_error)?,
+        .map_err(taken_or_db_error(
+            "o:local_name",
+            messages::local_name_taken(&row.local_name),
+        ))?,
         Member::Property => with_db!(api.pool(), |db| PropertyRepo::new(db)
             .update(&PropertyRow {
                 id: omeka_db::ids::PropertyId(row.id),
@@ -348,7 +357,10 @@ pub(crate) async fn update(api: &Api<'_>, member: Member, row: &MemberRow) -> Re
                 comment: row.comment.clone(),
             })
             .await)
-        .map_err(db_error)?,
+        .map_err(taken_or_db_error(
+            "o:local_name",
+            messages::local_name_taken(&row.local_name),
+        ))?,
     };
     if done {
         Ok(())

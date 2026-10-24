@@ -22,6 +22,19 @@ pub enum DbPool {
     MySql(sqlx::MySqlPool),
 }
 
+impl DbPool {
+    /// Close every connection, waiting for those in use to come back. A SQLite file then
+    /// checkpoints its write-ahead log as the last connection closes, so a stopped server
+    /// leaves one file, not a log to replay.
+    pub async fn close(&self) {
+        match self {
+            Self::Sqlite(pool) => pool.close().await,
+            #[cfg(feature = "mysql")]
+            Self::MySql(pool) => pool.close().await,
+        }
+    }
+}
+
 impl From<SqlitePool> for DbPool {
     fn from(pool: SqlitePool) -> Self {
         Self::Sqlite(pool)

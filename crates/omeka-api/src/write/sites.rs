@@ -23,7 +23,7 @@ use serde_json::{Value, json};
 
 use crate::errors::{ApiError, ValidationErrors};
 use crate::messages;
-use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
+use crate::read::{Api, ApiResponse, db_error, not_found, parse_id, taken_or_db_error};
 use crate::write::access;
 use crate::write::body::{self, Payload, ref_row};
 use crate::write::resource::not_found as ref_not_found;
@@ -126,6 +126,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
         settings.push((crate::theme_settings::key(&theme), map));
     }
     let first_page = site_defaults::welcome_page(api).await?;
+    let taken = taken_or_db_error("o:slug", messages::slug_taken(&slug));
     let site = with_db!(api.pool(), |db| SiteRepo::new(db)
         .create_whole(&NewWholeSite {
             site: NewSite {
@@ -151,7 +152,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
             settings,
         })
         .await)
-    .map_err(db_error)?;
+    .map_err(taken)?;
     // Each set joins the new site: a change to the set, as in `apply_item_sets`.
     let joined: Vec<ResourceId> = item_sets.iter().map(|set| set.as_resource()).collect();
     with_db!(api.pool(), |db| ResourceRepo::new(db).touch(&joined).await).map_err(db_error)?;
@@ -240,7 +241,8 @@ pub async fn update(
         payload.get("o:theme_settings"),
     )
     .await?;
-    with_db!(api.pool(), |db| SiteRepo::new(db).update(&row).await).map_err(db_error)?;
+    with_db!(api.pool(), |db| SiteRepo::new(db).update(&row).await)
+        .map_err(taken_or_db_error("o:slug", messages::slug_taken(&row.slug)))?;
     apply_permissions(api, row.id, permissions.as_deref()).await?;
     apply_item_sets(api, row.id, item_sets.as_deref()).await?;
     if let Some(pages) = pages {

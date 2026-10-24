@@ -24,6 +24,8 @@ mod php;
 mod probe;
 mod relations;
 mod resources;
+#[cfg(test)]
+mod taken_tests;
 pub(crate) use resources::query_rows;
 mod resources_generic;
 mod system;
@@ -516,6 +518,26 @@ pub(crate) fn entity_denied(class: &str, operation: Operation) -> ApiError {
 /// Map a storage failure to a 500.
 pub(crate) fn db_error(error: DbError) -> ApiError {
     ApiError::internal(error)
+}
+
+/// [`db_error`], except that a unique-constraint violation is the validation error the write's
+/// own check gives, under `key`: a concurrent write took the value between that check and this
+/// write, and the caller sees the same 422 it would have seen a moment later.
+pub(crate) fn taken_or_db_error(
+    key: &'static str,
+    message: impl Into<String>,
+) -> impl FnOnce(DbError) -> ApiError {
+    let message = message.into();
+    move |error| {
+        if error.is_unique_violation() {
+            ApiError::Validation(crate::errors::ValidationErrors::from([(
+                key.to_string(),
+                vec![message],
+            )]))
+        } else {
+            db_error(error)
+        }
+    }
 }
 
 /// `ResourceReference::jsonSerialize` for one id.
