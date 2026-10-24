@@ -215,13 +215,29 @@ where
 
     /// Replace an import's whole index with `entries`, and its scan records with `scans`, in one
     /// transaction. A failure, such as one path listed twice in a source, leaves the old index.
+    /// The import's row is locked first, and an import that is running or being undone refuses
+    /// with [`DbError::Conflict`]: its run reads the index it started from.
     pub async fn replace(
         &self,
         import: ImportId,
         scans: &[NewScan],
         entries: &[NewEntry],
     ) -> Result<(), DbError> {
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.pool.begin_with(DB::begin_write()).await?;
+        let status = format!(
+            "SELECT status FROM romeka_import WHERE id = ?{}",
+            DB::for_update()
+        );
+        let busy = sqlx::query(&status)
+            .bind(bind_id(import))
+            .fetch_optional(&mut *tx)
+            .await?
+            .map(|row| DB::text(&row, "status"))
+            .transpose()?
+            .is_some_and(|status| status == "running" || status == "undoing");
+        if busy {
+            return Err(DbError::Conflict("the import is running or being undone"));
+        }
         sqlx::query("DELETE FROM romeka_import_entry WHERE import_id = ?")
             .bind(bind_id(import))
             .execute(&mut *tx)
