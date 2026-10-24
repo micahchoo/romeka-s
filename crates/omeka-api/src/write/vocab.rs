@@ -77,7 +77,8 @@ pub async fn create_vocabulary(api: &Api<'_>, payload: &Payload) -> Result<ApiRe
     )
     .await?;
     validate_vocabulary(api, &input, None, classes.as_ref(), properties.as_ref()).await?;
-    let row = with_db!(api.pool(), |db| VocabularyRepo::new(db)
+    let (namespace_uri, prefix) = (input.namespace_uri.clone(), input.prefix.clone());
+    let created = with_db!(api.pool(), |db| VocabularyRepo::new(db)
         .create(&NewVocabulary {
             owner_id: input.owner_id,
             namespace_uri: input.namespace_uri,
@@ -85,8 +86,11 @@ pub async fn create_vocabulary(api: &Api<'_>, payload: &Payload) -> Result<ApiRe
             label: input.label,
             comment: input.comment,
         })
-        .await)
-    .map_err(db_error)?;
+        .await);
+    let row = match created {
+        Ok(row) => row,
+        Err(error) => return Err(taken(api, error, &namespace_uri, &prefix, None).await),
+    };
     apply_members(api, Member::Class, row.id, classes.as_ref()).await?;
     apply_members(api, Member::Property, row.id, properties.as_ref()).await?;
     api.read_member("vocabularies", &row.id.0.to_string()).await
@@ -142,7 +146,8 @@ pub async fn update_vocabulary(
         },
     )
     .await?;
-    with_db!(api.pool(), |db| VocabularyRepo::new(db)
+    let (namespace_uri, prefix) = (input.namespace_uri.clone(), input.prefix.clone());
+    let updated = with_db!(api.pool(), |db| VocabularyRepo::new(db)
         .update(&VocabularyRow {
             id: row.id,
             owner_id: input.owner_id,
@@ -151,8 +156,10 @@ pub async fn update_vocabulary(
             label: input.label,
             comment: input.comment,
         })
-        .await)
-    .map_err(db_error)?;
+        .await);
+    if let Err(error) = updated {
+        return Err(taken(api, error, &namespace_uri, &prefix, Some(row.id.0)).await);
+    }
     apply_members(api, Member::Class, row.id, classes.as_ref()).await?;
     apply_members(api, Member::Property, row.id, properties.as_ref()).await?;
     api.read_member("vocabularies", raw_id).await
@@ -314,6 +321,38 @@ fn push_duplicate_local_names(errors: &mut ValidationErrors, local_names: &[Stri
             seen.push(name);
         }
     }
+}
+
+/// A failed vocabulary write. A unique violation means a concurrent write took the namespace or
+/// the prefix after [`validate_vocabulary`] looked: it answers the 422 that check gives now.
+async fn taken(
+    api: &Api<'_>,
+    error: omeka_db::DbError,
+    namespace_uri: &str,
+    prefix: &str,
+    self_id: Option<u64>,
+) -> ApiError {
+    if !error.is_unique_violation() {
+        return db_error(error);
+    }
+    let mut errors = ValidationErrors::new();
+    if namespace_taken(api, namespace_uri, self_id)
+        .await
+        .unwrap_or(false)
+    {
+        vocab_member::push(
+            &mut errors,
+            "o:namespace_uri",
+            messages::namespace_uri_taken(namespace_uri),
+        );
+    }
+    if prefix_taken(api, prefix, self_id).await.unwrap_or(false) {
+        vocab_member::push(&mut errors, "o:prefix", messages::prefix_taken(prefix));
+    }
+    if errors.is_empty() {
+        return db_error(error);
+    }
+    ApiError::Validation(errors)
 }
 
 /// `AbstractEntityAdapter::isUnique` for `vocabulary.namespaceUri`.

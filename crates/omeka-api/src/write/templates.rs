@@ -19,7 +19,7 @@ use omeka_db::with_db;
 
 use crate::errors::{ApiError, ValidationErrors};
 use crate::messages;
-use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
+use crate::read::{Api, ApiResponse, db_error, not_found, parse_id, taken_or_db_error};
 use crate::write::access;
 use crate::write::body::{Payload, ref_row};
 use crate::write::resource;
@@ -57,6 +57,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
     let input = hydrate(api, payload, None, false).await?;
     let properties = property_inputs(api, payload).await?;
     validate(api, &input, None, request_errors).await?;
+    let taken = taken_or_db_error("o:label", messages::LABEL_TAKEN);
     let row = with_db!(api.pool(), |db| TemplateRepo::new(db)
         .create(&NewTemplate {
             owner_id: input.owner_id,
@@ -66,7 +67,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
             label: input.label,
         })
         .await)
-    .map_err(db_error)?;
+    .map_err(taken)?;
     sync_properties(api, row.id, &properties).await?;
     api.read_member("resource_templates", &row.id.0.to_string())
         .await
@@ -107,7 +108,7 @@ pub async fn update(
             label: input.label,
         })
         .await)
-    .map_err(db_error)?;
+    .map_err(taken_or_db_error("o:label", messages::LABEL_TAKEN))?;
     if let Some(properties) = &properties {
         sync_properties(api, stored.id, properties).await?;
     }

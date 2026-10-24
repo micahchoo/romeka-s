@@ -18,7 +18,7 @@ use serde_json::Value;
 
 use crate::errors::{ApiError, ValidationErrors};
 use crate::messages;
-use crate::read::{Api, ApiResponse, db_error, not_found, parse_id};
+use crate::read::{Api, ApiResponse, db_error, not_found, parse_id, taken_or_db_error};
 use crate::routes::Operation;
 use crate::write::body::{self, Payload, php_json, ref_row};
 use crate::write::fulltext;
@@ -106,6 +106,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
         .to_string();
     let slug = slug_or_auto(payload, &title);
     validate(api, None, site.id, &title, &slug).await?;
+    let taken = taken_or_db_error("o:slug", messages::slug_taken(&slug));
     let page = with_db!(api.pool(), |db| SiteRepo::new(db)
         .add_page(&NewSitePage {
             site_id: site.id,
@@ -117,7 +118,7 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
             ..NewSitePage::default()
         })
         .await)
-    .map_err(db_error)?;
+    .map_err(taken)?;
     store_blocks(api, page.id, &blocks).await?;
     fulltext::reindex(api, "site_pages", ResourceId(page.id.0)).await?;
     api.read_member("site_pages", &page.id.0.to_string()).await
@@ -192,7 +193,10 @@ pub async fn update(
             &snapshot
         )
         .await)
-    .map_err(db_error)?;
+    .map_err(taken_or_db_error(
+        "o:slug",
+        messages::slug_taken(&page.slug),
+    ))?;
     match outcome {
         PageSaveOutcome::Saved { .. } => {}
         PageSaveOutcome::Missing => return Err(not_found(PAGE_CLASS, raw_id)),
