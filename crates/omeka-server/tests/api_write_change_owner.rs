@@ -12,56 +12,8 @@ mod common;
 
 use axum::Router;
 use axum::http::StatusCode;
-use common::{append_key, json_request, seeded_pool, send};
-use omeka_db::ids::UserId;
-use omeka_db::repos::{ApiKeyRepo, UserRepo};
-use omeka_db::rows::{NewApiKey, NewUser};
+use common::{append_key, caller, json_request, seeded_pool, send};
 use serde_json::{Value, json};
-use sqlx::SqlitePool;
-
-/// A user with `role` and an API key, as the query string that carries it.
-struct Caller {
-    id: UserId,
-    key: String,
-}
-
-impl Caller {
-    fn uri(&self, path: &str) -> String {
-        format!("{path}?{}", self.key)
-    }
-}
-
-async fn caller(pool: &SqlitePool, role: &str) -> Caller {
-    let user = UserRepo::new(pool)
-        .create(&NewUser {
-            email: format!("{role}@example.com"),
-            name: role.to_string(),
-            password_hash: None,
-            role: role.to_string(),
-            is_active: true,
-            created: None,
-        })
-        .await
-        .unwrap();
-    let identity = format!("{:a<32}", role.replace('_', ""));
-    let credential = format!("{role}-credential");
-    ApiKeyRepo::new(pool)
-        .create(&NewApiKey {
-            id: identity.clone(),
-            owner_id: user.id,
-            label: format!("{role} key"),
-            credential_hash: bcrypt::hash(&credential, 4).unwrap(),
-            last_ip: None,
-            last_accessed: None,
-            created: None,
-        })
-        .await
-        .unwrap();
-    Caller {
-        id: user.id,
-        key: format!("key_identity={identity}&key_credential={credential}"),
-    }
-}
 
 async fn write(app: &Router, method: &str, uri: &str, body: Value) -> (StatusCode, Value) {
     let answer = send(app.clone(), json_request(method, uri, &body.to_string())).await;
