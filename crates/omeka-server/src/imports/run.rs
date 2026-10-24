@@ -98,7 +98,14 @@ pub(super) async fn scan(
                 row.id,
                 &plan.sources,
             )
-            .await)?;
+            .await)
+            .map_err(|error| match error {
+                // The run started after the check above: the index it reads stays.
+                scan::ScanError::Db(db) if db.is_conflict() => {
+                    ImportError::conflict("busy", messages::IMPORT_SCAN_BUSY)
+                }
+                other => other.into(),
+            })?;
             Ok(json(StatusCode::OK, &scanned))
         }
         .await,

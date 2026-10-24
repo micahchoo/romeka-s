@@ -430,3 +430,26 @@ on_both!(measure_the_page_read_with_and_without_an_index, |pool| {
         }
     }
 });
+
+on_both!(
+    a_rescan_of_a_running_import_is_refused_and_keeps_the_index,
+    |pool| {
+        let id = draft!(pool, "a");
+        let entries = EntryRepo::<Db>::new(pool);
+        entries
+            .replace(id, &[], &[file("box", "old.jpg", 1)])
+            .await
+            .unwrap();
+        for status in ["running", "undoing"] {
+            sqlx::query::<Db>("UPDATE romeka_import SET status = ? WHERE id = ?")
+                .bind(status)
+                .bind(id.0 as i64)
+                .execute(pool)
+                .await
+                .unwrap();
+            let refused = entries.replace(id, &[], &[file("box", "new.jpg", 1)]).await;
+            assert!(refused.is_err_and(|error| error.is_conflict()), "{status}");
+            assert!(entries.get(id, "box", "old.jpg").await.unwrap().is_some());
+        }
+    }
+);

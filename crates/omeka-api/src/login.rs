@@ -334,28 +334,38 @@ pub async fn set_password_at(
     else {
         return Err(SetPasswordError::UnknownKey);
     };
-    let Some(mut user) =
-        with_db!(pool, |db| UserRepo::new(db).get(creation.user_id).await).map_err(db_error)?
-    else {
+    let user = creation.user_id;
+    if with_db!(pool, |db| UserRepo::new(db).get(user).await)
+        .map_err(db_error)?
+        .is_none()
+    {
         with_db!(pool, |db| PasswordCreationRepo::new(db).delete(key).await).map_err(db_error)?;
         return Err(SetPasswordError::UnknownKey);
-    };
+    }
+    // Each write below takes the key and changes only the columns it names, in one transaction:
+    // a role or an activation an admin changes meanwhile stays, and a key sets one password.
     if now > expires_at(creation.created) {
-        user.is_active = false;
-        with_db!(pool, |db| UserRepo::new(db).update(&user).await).map_err(db_error)?;
-        with_db!(pool, |db| PasswordCreationRepo::new(db).delete(key).await).map_err(db_error)?;
+        with_db!(pool, |db| PasswordCreationRepo::new(db)
+            .consume(key, user, None, Some(false))
+            .await)
+        .map_err(db_error)?;
         return Err(SetPasswordError::UnknownKey);
     }
     if !rules.accepts(password) {
         return Err(SetPasswordError::InvalidPassword);
     }
-    user.password_hash = Some(password::hash(password)?);
-    if creation.activate {
-        user.is_active = true;
+    let hash = password::hash(password)?;
+    let activate = creation.activate.then_some(true);
+    let taken = with_db!(pool, |db| PasswordCreationRepo::new(db)
+        .consume(key, user, Some(&hash), activate)
+        .await)
+    .map_err(db_error)?;
+    if !taken {
+        return Err(SetPasswordError::UnknownKey);
     }
-    with_db!(pool, |db| UserRepo::new(db).update(&user).await).map_err(db_error)?;
-    with_db!(pool, |db| PasswordCreationRepo::new(db).delete(key).await).map_err(db_error)?;
-    Ok(user)
+    with_db!(pool, |db| UserRepo::new(db).get(user).await)
+        .map_err(db_error)?
+        .ok_or(SetPasswordError::UnknownKey)
 }
 
 /// `LoginController::forgotPasswordAction`: mint a reset key for an active

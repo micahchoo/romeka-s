@@ -16,7 +16,7 @@ use omeka_core::term_list::{self, php_trim};
 use omeka_db::ids::{ResourceId, TemplateId, ValueId};
 use omeka_db::repos::{CustomVocabRepo, ValueRewriteRepo};
 use omeka_db::rows::{CustomVocabRow, NewCustomVocab, PromoteList, PromoteWrite};
-use omeka_db::with_db;
+use omeka_db::{DbError, with_db};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -70,10 +70,32 @@ pub struct Promotion {
     pub templates_skipped: Vec<Named>,
 }
 
+/// How many times a promotion is planned when another write changes its list first.
+pub(super) const ATTEMPTS: usize = 3;
+
+/// One planned promotion: its answer, or the conflict that found its list changed.
+enum Planned {
+    Done(ApiResponse),
+    Stale(DbError),
+}
+
 pub async fn promote(api: &Api<'_>, bytes: &[u8]) -> Result<ApiResponse, ApiError> {
     let body: Body = parse(bytes)?;
+    let mut attempt = 1;
+    loop {
+        match promote_once(api, &body).await? {
+            Planned::Done(answer) => return Ok(answer),
+            Planned::Stale(_) if attempt < ATTEMPTS => attempt += 1,
+            Planned::Stale(error) => return Err(db_error(error)),
+        }
+    }
+}
+
+/// Plan the promotion from what is stored now and write it. The write refuses when the list's
+/// words changed since they were read, so a word another promotion added is never dropped.
+async fn promote_once(api: &Api<'_>, body: &Body) -> Result<Planned, ApiError> {
     let label = php_trim(&body.list.0).to_string();
-    let target = target(api, &label, &body.tags).await?;
+    let (target, terms_read) = target(api, &label, &body.tags).await?;
     let property = tag_property(api).await?;
     let rows = rows(api, Scope::Tags).await?;
     let mut values: Vec<ValueId> = Vec::new();
@@ -109,9 +131,9 @@ pub async fn promote(api: &Api<'_>, bytes: &[u8]) -> Result<ApiResponse, ApiErro
         templates_skipped,
     };
     if body.dry_run {
-        return Ok(ApiResponse::document(serialize(&answer)?));
+        return Ok(Planned::Done(ApiResponse::document(serialize(&answer)?)));
     }
-    let id = with_db!(api.pool(), |db| ValueRewriteRepo::new(db)
+    let written = with_db!(api.pool(), |db| ValueRewriteRepo::new(db)
         .promote(&PromoteWrite {
             list: target,
             values,
@@ -123,17 +145,26 @@ pub async fn promote(api: &Api<'_>, bytes: &[u8]) -> Result<ApiResponse, ApiErro
                 .map(|name| (*name).to_string())
                 .collect(),
             resources: changed.into_iter().collect(),
+            terms_read,
         })
-        .await)
-    .map_err(db_error)?;
+        .await);
+    let id = match written {
+        Ok(id) => id,
+        Err(error) if error.is_conflict() => return Ok(Planned::Stale(error)),
+        Err(error) => return Err(db_error(error)),
+    };
     answer.list = Some(Named { id: id.0, label });
-    Ok(ApiResponse::document(serialize(&answer)?))
+    Ok(Planned::Done(ApiResponse::document(serialize(&answer)?)))
 }
 
 /// The list the tags join: the stored list with this label, with the tags added to its words, or
 /// a new list of the tags. A stored list of links or items cannot take words, so its label counts
-/// as taken.
-async fn target(api: &Api<'_>, label: &str, tags: &[String]) -> Result<PromoteList, ApiError> {
+/// as taken. The second half is the stored list's `terms` as read, for the write to check.
+async fn target(
+    api: &Api<'_>,
+    label: &str,
+    tags: &[String],
+) -> Result<(PromoteList, Option<Option<Value>>), ApiError> {
     let stored = with_db!(api.pool(), |db| CustomVocabRepo::new(db)
         .find_by_label(label)
         .await)
@@ -141,14 +172,17 @@ async fn target(api: &Api<'_>, label: &str, tags: &[String]) -> Result<PromoteLi
     let Some(row) = stored else {
         api.allow_write("custom_vocabs", Operation::Create)?;
         let terms = term_list::sanitize_terms(&Value::from(tags.to_vec())).map(Value::from);
-        return Ok(PromoteList::Create(NewCustomVocab {
-            item_set_id: None,
-            owner_id: api.actor().user(),
-            label: label.to_string(),
-            lang: None,
-            terms,
-            uris: None,
-        }));
+        return Ok((
+            PromoteList::Create(NewCustomVocab {
+                item_set_id: None,
+                owner_id: api.actor().user(),
+                label: label.to_string(),
+                lang: None,
+                terms,
+                uris: None,
+            }),
+            None,
+        ));
     };
     authorize_list(api, &row, Operation::Update)?;
     let Some(mut words) = words_of(&row) else {
@@ -166,7 +200,10 @@ async fn target(api: &Api<'_>, label: &str, tags: &[String]) -> Result<PromoteLi
         ..row.clone()
     };
     crate::publish::guard::term_list(api, row.id, Some(&proposed)).await?;
-    Ok(PromoteList::Terms(row.id, terms.unwrap_or(Value::Null)))
+    Ok((
+        PromoteList::Terms(row.id, terms.unwrap_or(Value::Null)),
+        Some(row.terms.clone()),
+    ))
 }
 
 /// The item types the list joins, and those the caller may not edit

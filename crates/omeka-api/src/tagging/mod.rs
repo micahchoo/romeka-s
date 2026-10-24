@@ -246,6 +246,33 @@ struct MergeBody {
 /// list a spelling a version carries stays, deprecated and replaced by `to`, so its URI keeps
 /// resolving (`publish::guard::retire_merged`).
 pub async fn merge(api: &Api<'_>, scope: Scope, bytes: &[u8]) -> Result<ApiResponse, ApiError> {
+    let mut attempt = 1;
+    loop {
+        match merge_once(api, scope, bytes).await {
+            Ok(answer) => return Ok(answer),
+            Err(Merged::Stale(_)) if attempt < promote::ATTEMPTS => attempt += 1,
+            Err(Merged::Stale(error)) => return Err(db_error(error)),
+            Err(Merged::Refused(error)) => return Err(error),
+        }
+    }
+}
+
+/// Why one planned merge did not answer.
+enum Merged {
+    /// The list's words changed between the read and the write; plan again.
+    Stale(omeka_db::DbError),
+    Refused(ApiError),
+}
+
+impl From<ApiError> for Merged {
+    fn from(error: ApiError) -> Self {
+        Self::Refused(error)
+    }
+}
+
+/// Plan the merge from what is stored now and write it. The write refuses when the list's words
+/// changed since they were read.
+async fn merge_once(api: &Api<'_>, scope: Scope, bytes: &[u8]) -> Result<ApiResponse, Merged> {
     let list = match scope {
         Scope::List(id) => {
             let row = list_row(api, id).await?;
@@ -279,6 +306,10 @@ pub async fn merge(api: &Api<'_>, scope: Scope, bytes: &[u8]) -> Result<ApiRespo
         Some(row) => list_words(api, row, &body.from, &retired.keys, &to).await?,
         None => None,
     };
+    let terms_read = list
+        .as_ref()
+        .filter(|_| list_terms.is_some())
+        .map(|row| row.terms.clone());
     let list_states = list
         .as_ref()
         .zip(retired.states)
@@ -302,9 +333,16 @@ pub async fn merge(api: &Api<'_>, scope: Scope, bytes: &[u8]) -> Result<ApiRespo
             list_states,
             resources: resources.clone(),
             default_title_property: api.catalog().property_id("dcterms:title"),
+            terms_read,
         })
         .await)
-    .map_err(db_error)?;
+    .map_err(|error| {
+        if error.is_conflict() {
+            Merged::Stale(error)
+        } else {
+            Merged::Refused(db_error(error))
+        }
+    })?;
     reindex(api, &rows, &resources).await?;
     Ok(ApiResponse::document(serialize(&answer)?))
 }

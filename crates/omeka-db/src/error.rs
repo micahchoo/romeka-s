@@ -28,6 +28,10 @@ pub enum DbError {
         operation: &'static str,
         reason: &'static str,
     },
+    /// The rows a write was planned from changed before it ran, or the row is in a state that
+    /// refuses the write. Nothing was written; the caller reads again and decides.
+    #[error("conflict: {0}")]
+    Conflict(&'static str),
 }
 
 impl DbError {
@@ -35,6 +39,11 @@ impl DbError {
     /// caller that sees this raced another writer or skipped validation).
     pub fn is_unique_violation(&self) -> bool {
         matches!(self, Self::Sqlx(sqlx::Error::Database(e)) if e.is_unique_violation())
+    }
+
+    /// True for [`DbError::Conflict`].
+    pub fn is_conflict(&self) -> bool {
+        matches!(self, Self::Conflict(_))
     }
 
     /// True for a foreign-key violation, such as deleting a row another table still references.
