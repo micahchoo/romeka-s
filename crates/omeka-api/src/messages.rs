@@ -611,6 +611,7 @@ messages! {
     const BULK_ITEM_GONE = "This item is no longer in Omeka.";
     const BULK_ITEM_DENIED = "The person who started this change may not edit this item.";
     const BULK_ITEM_TEMPLATE_REQUIRES = "The new item type needs values this item does not have.";
+    const BULK_ITEM_UNDO_DENIED = "The person who asked for the undo may not edit this item, so the undo left it as it is.";
 }
 
 /// The registry as `serverMessages.json` holds it: catalogue key to pattern,

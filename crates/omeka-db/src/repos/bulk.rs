@@ -379,19 +379,14 @@ where
         Ok(counts)
     }
 
-    /// The first `limit` targets in `state`, in id order.
-    pub async fn targets(
-        &self,
-        id: BulkId,
-        state: TargetState,
-        limit: i64,
-    ) -> Result<Vec<BulkTargetRow>, DbError> {
+    /// The first `limit` targets that hold a reason: those that failed, and those an undo
+    /// refused. In id order.
+    pub async fn failures(&self, id: BulkId, limit: i64) -> Result<Vec<BulkTargetRow>, DbError> {
         let rows = sqlx::query(
-            "SELECT * FROM romeka_bulk_target WHERE bulk_id = ? AND state = ?
+            "SELECT * FROM romeka_bulk_target WHERE bulk_id = ? AND error IS NOT NULL
              ORDER BY item_id LIMIT ?",
         )
         .bind(bind_id(id))
-        .bind(state.as_str())
         .bind(limit)
         .fetch_all(self.pool)
         .await?;

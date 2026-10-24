@@ -231,6 +231,7 @@
     "server.bulkNotRunning": "This bulk change is not running.",
     "server.bulkItemGone": "This item is no longer in Omeka.",
     "server.bulkItemDenied": "The person who started this change may not edit this item.",
-    "server.bulkItemTemplateRequires": "The new item type needs values this item does not have."
+    "server.bulkItemTemplateRequires": "The new item type needs values this item does not have.",
+    "server.bulkItemUndoDenied": "The person who asked for the undo may not edit this item, so the undo left it as it is."
   }
 }

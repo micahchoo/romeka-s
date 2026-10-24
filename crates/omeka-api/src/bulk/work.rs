@@ -5,20 +5,27 @@
 //! alive, and reads the state a stop request may have left. The chunks follow the item ids
 //! upwards, so a target an undo keeps is passed once, not read again forever.
 //!
-//! A run acts as its owner: the owner's role decides, item by item, whether the item may be
-//! updated, as the item `PATCH` decides it.
+//! A run acts as its owner and an undo as the person who asked for it, with the account as it
+//! stands before each chunk: the batch right, and for a run the change's own checks, are read
+//! again then, and the role decides, item by item, whether the item may be updated, as the item
+//! `PATCH` decides it.
 
 use std::collections::BTreeSet;
 use std::time::{Duration, Instant};
 
 use omeka_db::DbPool;
-use omeka_db::ids::{BulkId, ItemId, JobId, PropertyId};
-use omeka_db::repos::{BulkRepo, TemplateRepo, UserRepo};
-use omeka_db::rows::{BeforeImage, BulkEnding, BulkPhase, BulkRow, Described, FailReason, Verdict};
+use omeka_db::ids::{BulkId, ItemId, JobId, PropertyId, SiteId, UserId};
+use omeka_db::repos::{BulkRepo, JobRepo, Paging, SiteFilter, SiteRepo, TemplateRepo, UserRepo};
+use omeka_db::rows::{
+    BeforeImage, BulkEnding, BulkPhase, BulkRow, Described, FailReason, ImageMemberships, Verdict,
+};
 use omeka_db::with_db;
 
 use super::BulkError;
+use super::access::{denied, holds};
 use super::change::{BulkChange, BulkEdit};
+use super::preview::check;
+use super::scope::Scope;
 use crate::auth::Actor;
 use crate::errors::ApiError;
 use crate::jsonld::BaseUrl;
@@ -60,7 +67,7 @@ pub async fn work(
         })?;
     let outcome = match phase {
         BulkPhase::Run => run(pool, base, &row, job).await,
-        BulkPhase::Undo => undo(pool, &row, job, force).await,
+        BulkPhase::Undo => undo(pool, base, &row, job, force).await,
     };
     let (ending, error) = match outcome {
         Ok(Step::Lost) => return Ok(WorkEnd::Lost),
@@ -115,32 +122,58 @@ async fn finished(pool: &DbPool, bulk: BulkId, phase: BulkPhase) -> Result<BulkE
 async fn run(pool: &DbPool, base: &BaseUrl, row: &BulkRow, job: JobId) -> Result<Step, BulkError> {
     let change = BulkChange::parse(&row.change).map_err(ApiError::internal)?;
     let BulkChange::Edit(edit) = &change;
-    let api = Api::load(pool, base.clone(), owner(pool, row).await?).await?;
-    let rules = &Rules {
-        api: &api,
-        edit,
-        required: required(pool, edit).await?,
-    };
-    chunks(pool, row, job, BulkPhase::Run, |item| async move {
-        with_db!(pool, |db| BulkRepo::new(db)
-            .apply_target(row.id, item, |image| rules.verdict(image))
-            .await)
-        .map(|_| ())
+    let scope = Scope::of(&row.query)?;
+    let required = &required(pool, edit).await?;
+    let (change, scope) = (&change, &scope);
+    chunks(pool, row, job, BulkPhase::Run, |items| async move {
+        let api = permitted(pool, base, row.owner_id, scope).await?;
+        check(&api, change).await?;
+        let rules = Rules {
+            api: &api,
+            edit,
+            required,
+        };
+        for item in items {
+            with_db!(pool, |db| BulkRepo::new(db)
+                .apply_target(row.id, item, |image| rules.verdict(image))
+                .await)?;
+        }
+        Ok(())
     })
     .await
 }
 
-async fn undo(pool: &DbPool, row: &BulkRow, job: JobId, force: bool) -> Result<Step, BulkError> {
-    chunks(pool, row, job, BulkPhase::Undo, |item| async move {
-        with_db!(pool, |db| BulkRepo::new(db)
-            .revert_target(row.id, item, force)
-            .await)
-        .map(|_| ())
+/// An undo acts as the person who asked for it, the owner of its job, and restores an item only
+/// as far as they may write it now.
+async fn undo(
+    pool: &DbPool,
+    base: &BaseUrl,
+    row: &BulkRow,
+    job: JobId,
+    force: bool,
+) -> Result<Step, BulkError> {
+    let scope = &Scope::of(&row.query)?;
+    let asker = with_db!(pool, |db| JobRepo::new(db).get(job).await)?.and_then(|job| job.owner_id);
+    chunks(pool, row, job, BulkPhase::Undo, |items| async move {
+        let api = permitted(pool, base, asker, scope).await?;
+        let restorer = Restorer {
+            api: &api,
+            assignable: assignable(&api).await?,
+        };
+        for item in items {
+            with_db!(pool, |db| BulkRepo::new(db)
+                .revert_target(row.id, item, force, |now, kept| {
+                    restorer.restore(now, kept)
+                })
+                .await)?;
+        }
+        Ok(())
     })
     .await
 }
 
-/// Visit the open targets of `phase` in id order, a chunk at a time, pulsing after each.
+/// Visit the open targets of `phase` in id order, a chunk at a time, pulsing after each. `each`
+/// checks the rights the chunk needs before it deals with the chunk's targets.
 async fn chunks<F, Fut>(
     pool: &DbPool,
     row: &BulkRow,
@@ -149,8 +182,8 @@ async fn chunks<F, Fut>(
     mut each: F,
 ) -> Result<Step, BulkError>
 where
-    F: FnMut(ItemId) -> Fut,
-    Fut: Future<Output = Result<(), omeka_db::DbError>>,
+    F: FnMut(Vec<ItemId>) -> Fut,
+    Fut: Future<Output = Result<(), BulkError>>,
 {
     let mut after = None;
     loop {
@@ -161,9 +194,7 @@ where
             return Ok(Step::Finished);
         };
         let began = Instant::now();
-        for item in items {
-            each(item).await?;
-        }
+        each(items).await?;
         after = Some(last);
         let counts = with_db!(pool, |db| BulkRepo::new(db).counts(row.id).await)?;
         match with_db!(pool, |db| BulkRepo::new(db)
@@ -181,14 +212,79 @@ where
     }
 }
 
-/// The run's owner, with the role they hold now.
-async fn owner(pool: &DbPool, row: &BulkRow) -> Result<Actor, BulkError> {
-    let user = match row.owner_id {
-        Some(owner) => with_db!(pool, |db| UserRepo::new(db).get(owner).await)?,
+/// The read surface of `user` as their account stands now, once they hold the batch right the
+/// run's scope needs. Called before each chunk, so a person deactivated or demoted while a job
+/// works stops it at the next chunk; the error ends the run with its reason.
+async fn permitted<'a>(
+    pool: &'a DbPool,
+    base: &BaseUrl,
+    user: Option<UserId>,
+    scope: &Scope,
+) -> Result<Api<'a>, BulkError> {
+    let account = match user {
+        Some(user) => with_db!(pool, |db| UserRepo::new(db).get(user).await)?,
         None => None,
     };
-    user.map(|user| Actor::new(user.id, user.role))
-        .ok_or_else(|| ApiError::internal("the person who previewed this change is gone").into())
+    let Some(account) = account else {
+        return Err(ApiError::internal("the person who asked for this change is gone").into());
+    };
+    if !account.is_active {
+        return Err(
+            ApiError::internal("the person who asked for this change is no longer active").into(),
+        );
+    }
+    let actor = Actor::new(account.id, account.role);
+    if !holds(&actor, scope.right()) {
+        return Err(denied(scope.right()));
+    }
+    Ok(Api::load(pool, base.clone(), actor).await?)
+}
+
+/// The sites the caller may assign items to (`can-assign-items`).
+async fn assignable(api: &Api<'_>) -> Result<BTreeSet<SiteId>, BulkError> {
+    let sites = with_db!(api.pool(), |db| SiteRepo::new(db)
+        .list(&SiteFilter::default(), &Paging::default())
+        .await)?;
+    let mut assignable = BTreeSet::new();
+    for site in &sites {
+        if crate::write::items::can_assign(api, site).await? {
+            assignable.insert(site.id);
+        }
+    }
+    Ok(assignable)
+}
+
+/// What an undo puts back on one item, from the item as it is and the image the run kept.
+struct Restorer<'r, 'a> {
+    api: &'r Api<'a>,
+    assignable: BTreeSet<SiteId>,
+}
+
+impl Restorer<'_, '_> {
+    /// The image to restore: refused unless the caller may update the item under its owner now
+    /// and under the owner the image gives back, as the item `PATCH` checks the owner. A site the
+    /// caller may not assign items to keeps the item's membership as it is now, as an item write
+    /// leaves such a site alone.
+    fn restore(&self, now: &BeforeImage, mut kept: BeforeImage) -> Result<BeforeImage, FailReason> {
+        for owner in [now.owner, kept.owner] {
+            if self.api.authorize_resource(ITEM_CLASS, owner).is_err() {
+                return Err(FailReason::UndoDenied);
+            }
+        }
+        if let (
+            ImageMemberships::Item { sites: current, .. },
+            ImageMemberships::Item { sites, .. },
+        ) = (&now.memberships, &mut kept.memberships)
+        {
+            sites.retain(|site| self.assignable.contains(site));
+            for site in current {
+                if !self.assignable.contains(site) && !sites.contains(site) {
+                    sites.push(*site);
+                }
+            }
+        }
+        Ok(kept)
+    }
 }
 
 /// The properties the item type an edit sets requires; none when it sets none.
@@ -210,7 +306,7 @@ async fn required(pool: &DbPool, edit: &BulkEdit) -> Result<BTreeSet<PropertyId>
 struct Rules<'r, 'a> {
     api: &'r Api<'a>,
     edit: &'r BulkEdit,
-    required: BTreeSet<PropertyId>,
+    required: &'r BTreeSet<PropertyId>,
 }
 
 impl Rules<'_, '_> {
