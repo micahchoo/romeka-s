@@ -8,6 +8,7 @@
 //! `o:property` lists it carries, so the code lives here once and [`Member`]
 //! names which of the two a call is about.
 
+use omeka_core::permissions::SubjectKind;
 use omeka_db::ids::{UserId, VocabularyId};
 use omeka_db::repos::{
     ClassFilter, ClassRepo, Paging, PropertyFilter, PropertyRepo, VocabularyRepo,
@@ -33,9 +34,14 @@ impl Member {
     /// `getAdapter('resource_classes'|'properties')`'s entity class, the name a
     /// missing row's 404 carries (`AbstractEntityAdapter::findEntity`).
     pub fn php_class(self) -> &'static str {
+        self.kind().class_name()
+    }
+
+    /// The entity kind the ACL checks.
+    pub fn kind(self) -> SubjectKind {
         match self {
-            Self::Class => "Omeka\\Entity\\ResourceClass",
-            Self::Property => "Omeka\\Entity\\Property",
+            Self::Class => SubjectKind::ResourceClass,
+            Self::Property => SubjectKind::Property,
         }
     }
 
@@ -121,13 +127,19 @@ impl MemberInput {
 /// update the vocabulary is left alone.
 pub(crate) async fn hydrate(
     api: &Api<'_>,
+    member: Member,
     payload: &Payload,
     existing: Option<&MemberRow>,
     partial: bool,
 ) -> Result<MemberInput, ApiError> {
-    let create = existing.is_none();
-    let owner_id =
-        resource::owner_member(api, payload, create, existing.and_then(|row| row.owner_id)).await?;
+    let owner_id = resource::owner_member(
+        api,
+        payload,
+        member.kind(),
+        existing.is_none(),
+        existing.and_then(|row| row.owner_id),
+    )
+    .await?;
     let local_name = member_or(
         payload,
         "o:local_name",
@@ -139,7 +151,7 @@ pub(crate) async fn hydrate(
         (true, Some(row)) => row.comment.clone(),
         _ => payload.str_member("o:comment").map(str::to_string),
     };
-    let vocabulary_id = if create {
+    let vocabulary_id = if existing.is_none() {
         vocabulary(api, payload).await?
     } else {
         existing.map(|row| row.vocabulary_id)

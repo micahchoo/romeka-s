@@ -11,6 +11,8 @@
 //! A referenced id that does not exist is a 404, because upstream `findEntity`
 //! throws `NotFoundException` before the row is written.
 
+use omeka_core::ids::UserId as CoreUserId;
+use omeka_core::permissions::{Action, Context, SubjectKind};
 use omeka_db::ids::{AssetId, ClassId, PropertyId, ResourceId, TemplateId, UserId};
 use omeka_db::repos::{AssetRepo, ClassRepo, PropertyRepo, TemplateRepo, UserRepo, ValueRepo};
 use omeka_db::rows::{NewResource, ResourceRow};
@@ -47,6 +49,22 @@ pub async fn store_values(
     values::store(api, resource, values).await
 }
 
+/// The entity one hydration writes: its ACL kind, and the owner it holds
+/// before the body is read when no stored row says otherwise. That is none,
+/// except for a new media, which holds its item's owner.
+#[derive(Debug, Clone, Copy)]
+pub struct Owned {
+    pub kind: SubjectKind,
+    pub before: Option<UserId>,
+}
+
+impl Owned {
+    /// An entity that holds no owner before its body is read.
+    pub const fn new(kind: SubjectKind) -> Self {
+        Self { kind, before: None }
+    }
+}
+
 /// Hydrate the shared resource columns.
 ///
 /// `partial` mirrors `Request::getOption('isPartial')`: a `PATCH` keeps a
@@ -55,10 +73,11 @@ pub async fn hydrate(
     api: &Api<'_>,
     payload: &Payload,
     control: &[&str],
+    owned: Owned,
     existing: Option<&ResourceRow>,
     partial: bool,
 ) -> Result<Hydrated, ApiError> {
-    hydrate_at(api, payload, control, existing, partial, 0).await
+    hydrate_at(api, payload, control, owned, existing, partial, 0).await
 }
 
 /// `hydrate` with the annotation nesting depth the caller is at.
@@ -66,6 +85,7 @@ pub(crate) async fn hydrate_at(
     api: &Api<'_>,
     payload: &Payload,
     control: &[&str],
+    owned: Owned,
     existing: Option<&ResourceRow>,
     partial: bool,
     depth: u8,
@@ -79,7 +99,16 @@ pub(crate) async fn hydrate_at(
     };
     let owner_id = match (partial && !payload.has("o:owner"), existing) {
         (true, Some(row)) => row.owner_id,
-        _ => owner(api, payload, existing).await?,
+        _ => {
+            owner_member(
+                api,
+                payload,
+                owned.kind,
+                existing.is_none(),
+                existing.map_or(owned.before, |row| row.owner_id),
+            )
+            .await?
+        }
     };
     let resource_class_id = match (partial && !payload.has("o:resource_class"), existing) {
         (true, Some(row)) => row.resource_class_id,
@@ -187,35 +216,40 @@ pub fn apply(row: &mut ResourceRow, new: &NewResource) {
     row.is_public = new.is_public;
 }
 
-/// The stored `o:owner`, or the caller on create.
-async fn owner(
-    api: &Api<'_>,
-    payload: &Payload,
-    existing: Option<&ResourceRow>,
-) -> Result<Option<UserId>, ApiError> {
-    owner_member(
-        api,
-        payload,
-        existing.is_none(),
-        existing.and_then(|row| row.owner_id),
-    )
-    .await
-}
-
-/// `AbstractEntityAdapter::hydrateOwner` for any entity that carries an owner.
+/// `AbstractEntityAdapter::hydrateOwner` for an entity that carries an owner.
+///
+/// `before` is the owner the entity holds when hydration starts: the stored one
+/// on an update, none on a create, except that a new media already holds its
+/// item's owner (`MediaAdapter::hydrateOwner`).
 ///
 /// A member that names no `o:id` at all, `{"o:owner":{}}` among them, says
 /// nothing about the owner. An `o:id` that is present but not numeric, an
-/// explicit null included, reads as a null id, which clears the owner on an
-/// update. A numeric id is cast with `(int)`, and upstream acts on it only when
-/// it differs from the stored one: `0` clears the owner, anything else must
-/// exist (`findEntity` throws). A create with no usable id belongs to the
-/// caller.
+/// explicit null included, reads as a null id. A numeric id is cast with
+/// `(int)`. Upstream acts only when that id differs from `before`, and then
+/// first authorizes `change-owner`, which only the admin roles hold, so a
+/// refused caller who names a missing user is told 403, not 404. A zero id then
+/// clears the owner, and anything else must exist (`findEntity` throws). A
+/// create left with no owner belongs to the caller.
 pub(crate) async fn owner_member(
     api: &Api<'_>,
     payload: &Payload,
+    kind: SubjectKind,
     create: bool,
-    stored: Option<UserId>,
+    before: Option<UserId>,
+) -> Result<Option<UserId>, ApiError> {
+    let owner = named_owner(api, payload, kind, before).await?;
+    Ok(if create {
+        owner.or(api.actor().user())
+    } else {
+        owner
+    })
+}
+
+async fn named_owner(
+    api: &Api<'_>,
+    payload: &Payload,
+    kind: SubjectKind,
+    before: Option<UserId>,
 ) -> Result<Option<UserId>, ApiError> {
     // `array_key_exists('o:id', $data['o:owner'])`, not `isset`: an explicit
     // null enters the branch upstream.
@@ -224,23 +258,30 @@ pub(crate) async fn owner_member(
         .and_then(Value::as_object)
         .is_some_and(|owner| owner.contains_key("o:id"));
     if !names_id {
-        return Ok(if create { api.actor().user() } else { stored });
+        return Ok(before);
     }
-    let Some(raw) = payload.numeric_ref("o:owner") else {
-        return Ok(None);
+    let named = payload
+        .numeric_ref("o:owner")
+        .map(|raw| crate::write::body::cast_int(raw).unwrap_or(0));
+    if named == before.and_then(|owner| i64::try_from(owner.0).ok()) {
+        return Ok(before);
+    }
+    let entity = Context::owned(kind, before.map(|owner| CoreUserId::new(owner.0)));
+    if !api.actor().is_allowed(Action::ChangeOwner, &entity) {
+        return Err(ApiError::PermissionDenied {
+            message: crate::messages::permission_denied("change-owner", kind.class_name()),
+        });
+    }
+    let integer = match named {
+        None | Some(0) => return Ok(None),
+        Some(integer) => integer,
     };
-    let integer = crate::write::body::cast_int(raw).unwrap_or(0);
-    if integer == 0 {
-        // `$newOwnerId ? ... : null`: a zero id clears the owner, and a create
-        // then falls back to the caller.
-        return Ok(if create { api.actor().user() } else { None });
-    }
-    if integer < 0 {
+    let Ok(id) = u64::try_from(integer) else {
         // `findEntity((int) $id)`: the criteria is the cast integer, not the
         // string the body carried.
         return Err(not_found(USER_CLASS, &Value::from(integer)));
-    }
-    let id = UserId(integer as u64);
+    };
+    let id = UserId(id);
     if with_db!(api.pool(), |db| UserRepo::new(db).get(id).await)
         .map_err(db_error)?
         .is_none()

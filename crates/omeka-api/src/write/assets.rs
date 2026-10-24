@@ -23,6 +23,7 @@
 //! stored and only the safe bytes are written, as the media ingest does
 //! (`docs/compat.md`, "Assets accept any allowed file").
 
+use omeka_core::permissions::SubjectKind;
 use omeka_db::ids::AssetId;
 use omeka_db::repos::AssetRepo;
 use omeka_db::rows::{AssetRow, NewAsset};
@@ -85,7 +86,7 @@ pub async fn create(
     };
 
     // `hydrateOwner`, then the name: `$request->getValue('o:name', $fileData['file']['name'])`.
-    let owner_id = resource::owner_member(api, payload, true, None).await?;
+    let owner_id = resource::owner_member(api, payload, SubjectKind::Asset, true, None).await?;
     let name = match payload.get("o:name") {
         Some(Value::String(name)) => name.clone(),
         // A non-string name is not a string to `validateEntity` either.

@@ -27,10 +27,11 @@ use std::sync::Arc;
 
 use chrono::NaiveDateTime;
 use omeka_core::ids::{ItemId as CoreItemId, MediaId as CoreMediaId};
+use omeka_core::permissions::SubjectKind;
 use omeka_core::resource::{Media as CoreMedia, Timestamp};
-use omeka_db::ids::{ItemId, MediaId, ResourceId};
+use omeka_db::ids::{ItemId, MediaId, ResourceId, UserId};
 use omeka_db::repos::{ItemRepo, MediaRepo, UserUploadRepo};
-use omeka_db::rows::{ItemRow, MediaRow, NewMedia, NewResource};
+use omeka_db::rows::{ItemRow, MediaRow, NewMedia};
 use omeka_db::with_db;
 use omeka_media::data::MediaData;
 use omeka_media::http_client::HttpClient;
@@ -55,6 +56,7 @@ use crate::write::resource::{self, not_found as ref_not_found};
 use crate::write::values;
 
 const MEDIA_CLASS: &str = "Omeka\\Entity\\Media";
+const OWNED: resource::Owned = resource::Owned::new(SubjectKind::Media);
 const ITEM_CLASS: &str = "Omeka\\Entity\\Item";
 
 const CONTROL: &[&str] = &[
@@ -104,7 +106,6 @@ pub(crate) struct Prepared {
     position: Option<i64>,
     lang: Option<String>,
     alt_text: Option<String>,
-    names_owner_id: bool,
     /// The stored paths a staged upload's ingest made, so a create whose row
     /// does not commit removes them. Empty on the ingester path, which cleans
     /// up inside `omeka_media`.
@@ -126,7 +127,7 @@ pub async fn create(
         (Some(upload), Some(user)) => Some(claim_upload(api, user, upload).await?),
         _ => None,
     };
-    let mut prepared = match prepare(api, payload, file, None).await {
+    let mut prepared = match prepare(api, payload, file, None, item.resource.owner_id).await {
         Ok(prepared) => prepared,
         Err(error) => {
             release_upload(api, claim.as_ref()).await;
@@ -175,11 +176,15 @@ pub async fn create(
 /// `position` member: an inline `o:media` entry takes its index in the array.
 /// A standalone create passes none and takes the item's next free position
 /// after this returns.
+///
+/// `item_owner` is the owner of the item the media joins, which a new media
+/// holds before its own `o:owner` is read (`MediaAdapter::hydrateOwner`).
 pub(crate) async fn prepare(
     api: &Api<'_>,
     payload: &Payload,
     file: Option<&UploadedFile>,
     position: Option<i64>,
+    item_owner: Option<UserId>,
 ) -> Result<Prepared, ApiError> {
     // `hydrateEntity` validates the request before it hydrates, so a body with
     // no usable `o:ingester` is refused before a value is read.
@@ -188,7 +193,11 @@ pub(crate) async fn prepare(
     // hydration; the ingester is the only step with a side effect, so the
     // shared hydrate runs first and nothing is stored for a body whose values
     // are already refused.
-    let hydrated = resource::hydrate(api, payload, CONTROL, None, false).await?;
+    let owned = resource::Owned {
+        before: item_owner,
+        ..OWNED
+    };
+    let hydrated = resource::hydrate(api, payload, CONTROL, owned, None, false).await?;
     let Some(store) = api.store().cloned() else {
         return Err(ApiError::internal("the media write reached no file store"));
     };
@@ -243,10 +252,6 @@ pub(crate) async fn prepare(
         position: payload.int_member("position").or(position),
         lang: payload.str_member("o:lang").map(str::to_string),
         alt_text: payload.str_member("o:alt_text").map(str::to_string),
-        names_owner_id: payload
-            .get("o:owner")
-            .and_then(Value::as_object)
-            .is_some_and(|owner| owner.contains_key("o:id")),
         stored: Vec::new(),
     })
 }
@@ -294,7 +299,7 @@ async fn staged(
 /// Take the upload for this create, mapping the refusal.
 async fn claim_upload(
     api: &Api<'_>,
-    user: omeka_db::ids::UserId,
+    user: UserId,
     upload: &str,
 ) -> Result<crate::uploads::Claim, ApiError> {
     use crate::uploads::ClaimError;
@@ -354,10 +359,6 @@ fn prepared_from(
         position: payload.int_member("position").or(position),
         lang: payload.str_member("o:lang").map(str::to_string),
         alt_text: payload.str_member("o:alt_text").map(str::to_string),
-        names_owner_id: payload
-            .get("o:owner")
-            .and_then(Value::as_object)
-            .is_some_and(|owner| owner.contains_key("o:id")),
         stored: arrived.stored,
     })
 }
@@ -424,19 +425,9 @@ pub(crate) async fn insert(
     item: &ItemRow,
     prepared: Prepared,
 ) -> Result<MediaRow, ApiError> {
-    // `MediaAdapter::hydrateOwner`: an `o:owner` that names an `o:id` wins,
-    // otherwise the media is owned by the item's owner.
-    let owner_id = if prepared.names_owner_id {
-        prepared.hydrated.resource.owner_id
-    } else {
-        item.resource.owner_id
-    };
     let row = with_db!(api.pool(), |db| MediaRepo::new(db)
         .create(&NewMedia {
-            resource: NewResource {
-                owner_id,
-                ..prepared.hydrated.resource
-            },
+            resource: prepared.hydrated.resource,
             item_id: item.id(),
             ingester: prepared.ingester,
             renderer: prepared.renderer,
@@ -606,7 +597,8 @@ pub async fn update(
         return Err(not_found(MEDIA_CLASS, raw_id));
     };
     api.authorize_resource(MEDIA_CLASS, row.resource.owner_id)?;
-    let hydrated = resource::hydrate(api, payload, CONTROL, Some(&row.resource), partial).await?;
+    let hydrated =
+        resource::hydrate(api, payload, CONTROL, OWNED, Some(&row.resource), partial).await?;
     resource::apply(&mut row.resource, &hydrated.resource);
     let placed = row.position;
     if let Some(position) = payload.int_member("position") {

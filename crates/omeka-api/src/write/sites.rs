@@ -15,6 +15,7 @@
 //! server-rendered form, so no API member carries them. See
 //! [`crate::theme_settings`] and [`crate::site_settings`].
 
+use omeka_core::permissions::SubjectKind;
 use omeka_db::ids::{ItemSetId, PageId, ResourceId, SiteId, UserId};
 use omeka_db::repos::{ItemSetRepo, ResourceRepo, SiteRepo, UserRepo};
 use omeka_db::rows::{NewSite, NewWholeSite, SiteRow};
@@ -98,7 +99,8 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
         payload.get("o:theme_settings"),
     )
     .await?;
-    let owner = owner(api, payload).await?;
+    let owner =
+        crate::write::resource::owner_member(api, payload, SubjectKind::Site, true, None).await?;
     // Resolve every reference and build every row before the one write, which
     // commits them together (`SiteAdapter::hydrate` runs before the flush).
     let permissions = match permissions(api, payload).await? {
@@ -280,34 +282,6 @@ pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError
     let answer = crate::read::site_document(api, &row, permission).await?;
     with_db!(api.pool(), |db| SiteRepo::new(db).delete(row.id).await).map_err(db_error)?;
     Ok(answer)
-}
-
-/// The site owner: the body's `o:owner`, or the caller on create.
-///
-/// `AbstractEntityAdapter::hydrateOwner` with a null stored owner: a numeric id
-/// that is not zero names a user and must exist, anything else on a create
-/// leaves the caller as the owner.
-async fn owner(api: &Api<'_>, payload: &Payload) -> Result<Option<UserId>, ApiError> {
-    let Some(raw) = payload.numeric_ref("o:owner") else {
-        return Ok(api.actor().user());
-    };
-    let integer = crate::write::body::cast_int(raw).unwrap_or(0);
-    if integer == 0 {
-        return Ok(api.actor().user());
-    }
-    if integer < 0 {
-        return Err(ref_not_found(USER_CLASS, &Value::from(integer)));
-    }
-    let id = UserId(integer as u64);
-    if with_db!(api.pool(), |db| omeka_db::repos::UserRepo::new(db)
-        .get(id)
-        .await)
-    .map_err(db_error)?
-    .is_none()
-    {
-        return Err(ref_not_found(USER_CLASS, &Value::from(integer)));
-    }
-    Ok(Some(id))
 }
 
 /// `SiteAdapter::hydrate` for `o:site_permission`, the resolve half.
