@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 use import_site::{Site, site};
 use omeka_db::ids::ItemSetId;
-use omeka_db::repos::{ItemRepo, UserRepo};
+use omeka_db::repos::{FulltextRepo, ItemRepo, UserRepo};
 use omeka_db::rows::{NewItem, NewResource, NewUser, NewWholeItem};
 use serde_json::{Value, json};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -261,6 +261,42 @@ async fn a_search_query_touches_only_the_items_it_matches() {
     assert!(
         shown(&site, photo).await.public,
         "the photograph is not a letter"
+    );
+}
+
+/// The `fulltext_search` row of an item: its visibility, which a search by an anonymous reader
+/// filters on.
+async fn indexed_public(site: &Site, id: u64) -> bool {
+    FulltextRepo::new(&site.pool)
+        .list()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|row| row.resource == "items" && row.id.0 == id)
+        .expect("an index row")
+        .is_public
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_search_index_follows_a_visibility_change_and_its_undo() {
+    let site = site().await;
+    let anna = item(&site, "Letter to Anna", &[]).await;
+    assert!(indexed_public(&site, anna).await);
+    let previewed = preview(
+        &site,
+        json!({ "id": [anna] }),
+        json!({ "kind": "edit", "isPublic": false }),
+    )
+    .await;
+    let id = previewed["id"].as_u64().unwrap();
+
+    assert_eq!(run(&site, id).await["status"], "done");
+    assert!(!indexed_public(&site, anna).await, "the run hid the item");
+
+    assert_eq!(undo(&site, id, false).await["status"], "undone");
+    assert!(
+        indexed_public(&site, anna).await,
+        "the undo showed it again"
     );
 }
 
