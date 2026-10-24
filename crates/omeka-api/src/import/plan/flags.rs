@@ -67,11 +67,13 @@ pub enum FlagKind {
     TemplateMissing,
     TypeExists,
     EncodingUnsupported,
+    /// A default owner that is not one of the users the caller may name.
+    OwnerNotAllowed,
 }
 
 impl FlagKind {
     /// Every kind, in the table's order.
-    pub const ALL: [Self; 23] = [
+    pub const ALL: [Self; 24] = [
         Self::EmptyRequired,
         Self::DateForm,
         Self::SpaceAtEnds,
@@ -95,6 +97,7 @@ impl FlagKind {
         Self::TemplateMissing,
         Self::TypeExists,
         Self::EncodingUnsupported,
+        Self::OwnerNotAllowed,
     ];
 
     /// Whether the kind stops a run. `encoding-unsupported` stops it for
@@ -123,7 +126,10 @@ impl FlagKind {
             | Self::ManyMatches
             | Self::UnknownType
             | Self::UnknownSet => FlagOn::Record,
-            Self::UnknownTerm | Self::TemplateMissing | Self::TypeExists => FlagOn::Plan,
+            Self::UnknownTerm
+            | Self::TemplateMissing
+            | Self::TypeExists
+            | Self::OwnerNotAllowed => FlagOn::Plan,
             Self::EncodingUnsupported => FlagOn::Sheet,
         }
     }
@@ -157,7 +163,8 @@ impl FlagKind {
             Self::UnknownTerm
             | Self::TemplateMissing
             | Self::TypeExists
-            | Self::EncodingUnsupported => return None,
+            | Self::EncodingUnsupported
+            | Self::OwnerNotAllowed => return None,
         };
         Some(PolicyDefault::Is(policy))
     }
@@ -169,7 +176,7 @@ mod tests {
     use FlagPolicy::{Keep, Leave, Repair};
 
     /// The contract's table, row by row: kind, default, blocking.
-    const TABLE: [(&str, Option<PolicyDefault>); 23] = [
+    const TABLE: [(&str, Option<PolicyDefault>); 24] = [
         ("empty-required", Some(PolicyDefault::Is(Keep))),
         ("date-form", Some(PolicyDefault::Is(Keep))),
         ("space-at-ends", Some(PolicyDefault::Is(Repair))),
@@ -193,6 +200,7 @@ mod tests {
         ("template-missing", None),
         ("type-exists", None),
         ("encoding-unsupported", None),
+        ("owner-not-allowed", None),
     ];
 
     /// The table's "On" column, row by row.
@@ -201,7 +209,7 @@ mod tests {
         use FlagOn::{Entry, File, ItemRecord, Plan, Record, Row, Sheet, Value};
         let on = [
             Value, Value, Value, Value, Entry, Row, ItemRecord, File, File, File, Record, Record,
-            Record, Value, Value, Record, Record, Row, Row, Plan, Plan, Plan, Sheet,
+            Record, Value, Value, Record, Record, Row, Row, Plan, Plan, Plan, Sheet, Plan,
         ];
         for (kind, on) in FlagKind::ALL.into_iter().zip(on) {
             assert_eq!(kind.on(), on, "{kind:?}");
@@ -227,6 +235,6 @@ mod tests {
             .iter()
             .filter(|kind| kind.is_blocking())
             .count();
-        assert_eq!(blocking, 4, "four blocking plan kinds");
+        assert_eq!(blocking, 5, "five blocking kinds");
     }
 }

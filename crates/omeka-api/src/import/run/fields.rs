@@ -23,7 +23,7 @@ use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Type};
 use crate::import::model::{
     Fate, Link, Model, OwnerRef, Record, RecordId, SetRef, SlotValue, TemplateRef,
 };
-use crate::import::plan::{Action, ImportPlan, Owner, RecordKind, SlotName, SlotRules, Term};
+use crate::import::plan::{Action, ImportPlan, RecordKind, SlotName, SlotRules, Term};
 use crate::import::values::{ValueType, Visibility};
 
 /// The install's ids for what the model names by term, and what the run
@@ -220,7 +220,7 @@ pub(super) fn values(lookup: &Lookup, record: &Record) -> Vec<ValueContent> {
 pub(super) struct Named<'a> {
     pub lookup: &'a Lookup,
     pub plan: &'a ImportPlan,
-    pub runner: Option<UserId>,
+    pub runner: crate::import::run::Runner,
     /// What this run or an earlier attempt wrote for each item-set record.
     pub set_records: &'a HashMap<RecordId, ItemSetId>,
 }
@@ -231,10 +231,7 @@ impl Named<'_> {
             OwnerRef::Is(owner) => *owner,
             OwnerRef::Unknown(_) => self.plan.defaults.owner,
         };
-        match owner {
-            Owner::Runner => self.runner,
-            Owner::User(raw) => id(raw),
-        }
+        self.runner.owner(owner)
     }
 
     pub fn template(&self, record: &Record) -> Option<TemplateId> {

@@ -9,8 +9,12 @@ mod imports_fixture;
 use axum::http::StatusCode;
 use imports_fixture::{Fixture, JPEG, fixture};
 use omeka_db::ids::ImportId;
-use omeka_db::repos::{EntryRepo, ImportRepo, ItemRepo, PropertyRepo, ValueRepo, VocabularyRepo};
-use omeka_db::rows::{ImportEnding, ImportStatus, NewEntry, NewItem, NewProperty, NewValue};
+use omeka_db::repos::{
+    ApiKeyRepo, EntryRepo, ImportRepo, ItemRepo, PropertyRepo, UserRepo, ValueRepo, VocabularyRepo,
+};
+use omeka_db::rows::{
+    ImportEnding, ImportStatus, NewApiKey, NewEntry, NewItem, NewProperty, NewUser, NewValue,
+};
 use omeka_db::with_db;
 use omeka_media::store::Store;
 use serde_json::{Value, json};
@@ -263,6 +267,116 @@ async fn a_run_with_nothing_to_write_is_refused() {
     let refused = run(&fixture, &draft["id"], json!({ "digest": check["digest"] })).await;
     assert_eq!(refused.status, StatusCode::CONFLICT);
     assert_eq!(refused.json()["code"], "nothing");
+}
+
+const SITE_ADMIN: (&str, &str) = ("siteadminkey0000000000000000000a", "site-admin-credential");
+
+/// "Owner" in `docs/import-v2.md`: a site admin may name only themself, the
+/// rule the owner column already keeps. The plan's default owner keeps it
+/// too: a site admin's plan that gives the import to someone else cannot run,
+/// and Check says so before the run is pressed.
+#[tokio::test]
+async fn a_default_owner_the_runner_may_not_name_blocks_the_run() {
+    let fixture = fixture().await;
+    let site_admin = with_db!(&fixture.pool, |db| UserRepo::new(db)
+        .create(&NewUser {
+            email: "site-admin@example.com".to_string(),
+            name: "Site admin".to_string(),
+            password_hash: None,
+            role: "site_admin".to_string(),
+            is_active: true,
+            created: None,
+        })
+        .await)
+    .unwrap();
+    with_db!(&fixture.pool, |db| ApiKeyRepo::new(db)
+        .create(&NewApiKey {
+            id: SITE_ADMIN.0.to_string(),
+            owner_id: site_admin.id,
+            label: "site admin".to_string(),
+            credential_hash: bcrypt::hash(SITE_ADMIN.1, 4).unwrap(),
+            last_ip: None,
+            last_accessed: None,
+            created: None,
+        })
+        .await)
+    .unwrap();
+    let other = with_db!(&fixture.pool, |db| UserRepo::new(db)
+        .get_by_email("second@example.com")
+        .await)
+    .unwrap()
+    .unwrap();
+
+    fixture.write_objects(&[("A1.jpg", JPEG), ("B2.jpg", JPEG)]);
+    let made = fixture
+        .call_as(
+            SITE_ADMIN,
+            "POST",
+            "/api/romeka/imports",
+            Some(&json!({ "sources": [{ "kind": "folder", "id": "s1", "root": "archive", "path": "" }] })),
+        )
+        .await;
+    assert_eq!(made.status, 201, "{}", made.body);
+    let mut draft = made.json();
+    let id = draft["id"].clone();
+    let save_owner = |draft: &Value, owner: Value| {
+        let mut plan = draft["plan"].clone();
+        plan["structure"]["levels"][0]["grouping"]["pattern"] = json!(PATTERN);
+        plan["defaults"]["owner"] = owner;
+        json!({ "plan": plan, "revision": draft["revision"] })
+    };
+    let check_as = async |body: Value| {
+        let saved = fixture
+            .call_as(
+                SITE_ADMIN,
+                "PUT",
+                &format!("/api/romeka/imports/{id}"),
+                Some(&body),
+            )
+            .await;
+        assert_eq!(saved.status, StatusCode::OK, "{}", saved.body);
+        let checked = fixture
+            .call_as(
+                SITE_ADMIN,
+                "POST",
+                &format!("/api/romeka/imports/{id}/preview"),
+                Some(&json!({ "include": ["check"] })),
+            )
+            .await;
+        assert_eq!(checked.status, StatusCode::OK, "{}", checked.body);
+        (saved.json(), checked.json()["check"].clone())
+    };
+    let scanned = fixture
+        .call_as(
+            SITE_ADMIN,
+            "POST",
+            &format!("/api/romeka/imports/{id}/scan"),
+            None,
+        )
+        .await;
+    assert_eq!(scanned.status, StatusCode::OK, "{}", scanned.body);
+
+    let (saved, check) = check_as(save_owner(&draft, json!(other.id.0))).await;
+    draft = saved;
+    assert_eq!(check["canRun"], false, "{check}");
+    assert_eq!(check["blocking"][0]["kind"], "owner-not-allowed", "{check}");
+    assert_eq!(check["blocking"][0]["detail"], other.id.0.to_string());
+    let refused = fixture
+        .call_as(
+            SITE_ADMIN,
+            "POST",
+            &format!("/api/romeka/imports/{id}/run"),
+            Some(&json!({ "digest": check["digest"] })),
+        )
+        .await;
+    assert_eq!(refused.status, StatusCode::CONFLICT, "{}", refused.body);
+    assert_eq!(refused.json()["blocking"][0]["kind"], "owner-not-allowed");
+
+    for owner in [json!(site_admin.id.0), json!("runner")] {
+        let (saved, check) = check_as(save_owner(&draft, owner.clone())).await;
+        draft = saved;
+        assert_eq!(check["canRun"], true, "owner {owner}: {check}");
+    }
 }
 
 #[tokio::test]

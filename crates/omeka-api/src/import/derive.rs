@@ -27,8 +27,8 @@ use super::join::{self, SheetIn};
 use super::matching::{self, Matching};
 use super::model::{Fate, Model, Parent, Record, RecordId, SlotValue, Subject};
 use super::plan::{
-    Action, Correction, FlagKind, ImportPlan, RecordKind, RelPath, SheetId, SlotName, SourceId,
-    TagId, Term,
+    Action, Correction, FlagKind, ImportPlan, Owner, RecordKind, RelPath, SheetId, SlotName,
+    SourceId, TagId, Term,
 };
 use super::sheet::{Sheet, SheetError, plan_keys};
 use super::slots::{self, Ctx, named};
@@ -422,6 +422,19 @@ fn plan_flags(plan: &ImportPlan, catalog: &Catalog, book: &mut FlagBook<'_>) {
             Subject::Plan,
             Some(SlotName::Template),
             Some(template.to_string()),
+            &[],
+        );
+    }
+    // The catalog holds only the users this caller may name, so the default
+    // owner meets the rule the owner column meets.
+    if let Owner::User(owner) = plan.defaults.owner
+        && !catalog.users.iter().any(|user| user.id == owner)
+    {
+        book.raise(
+            FlagKind::OwnerNotAllowed,
+            Subject::Plan,
+            Some(SlotName::Owner),
+            Some(owner.to_string()),
             &[],
         );
     }

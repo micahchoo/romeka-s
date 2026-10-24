@@ -53,6 +53,11 @@ SQL. Its parts:
 - Uploads. `staging` keeps the files a person sent, `unzip` unpacks a ZIP among them, and `sweep`
   removes them when no import needs them.
 
+Owners follow one rule (`catalog_load::Owners`): a global admin may name any user, and anyone else
+only themself. An owner column resolves only against those users. A plan default owner outside them
+raises the blocking plan flag `owner-not-allowed`, so Check shows it and Run refuses it. The write
+gives such an owner's records to the runner, for a role that changed after the check.
+
 The server's routes in `omeka-server/src/imports.rs` call it, and the CLI's jobs run it. The server is
 the one validator: the admin only renders what it answers. The routes are in
 [`../omeka-server/README.md`](../omeka-server/README.md), and the commands in

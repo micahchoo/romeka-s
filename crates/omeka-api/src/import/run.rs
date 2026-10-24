@@ -58,7 +58,7 @@ use super::archive::{ArchiveRoots, SourceDir};
 use super::catalog_load::Owners;
 use super::ledger::{Failure, Summary, Written};
 use super::model::{Fate, Model, Parent, RecordId};
-use super::plan::{Action, ImportPlan, PlanError, RecordKind, SourceId};
+use super::plan::{Action, ImportPlan, Owner, PlanError, RecordKind, SourceId};
 use super::preview::{Caches, Derived, PreviewError, derive_import};
 use super::undo::Removal;
 use super::{left, scan};
@@ -101,6 +101,18 @@ pub struct RunEnv<'a> {
 pub struct Runner {
     pub user: Option<UserId>,
     pub owners: Owners,
+}
+
+impl Runner {
+    /// The user an owner of the plan names in this run. A user outside
+    /// `owners` is the runner: the derive blocks a plan whose default owner
+    /// names one, so only a role changed since the check reaches this.
+    pub(crate) fn owner(self, owner: Owner) -> Option<UserId> {
+        match owner {
+            Owner::User(raw) if self.owners.allows(raw) => u64::try_from(raw).ok().map(UserId),
+            Owner::User(_) | Owner::Runner => self.user,
+        }
+    }
 }
 
 /// How a run ended.
@@ -201,7 +213,7 @@ where
         env,
         import,
         job,
-        runner: runner.user,
+        runner,
         action,
         derived: &derived,
         dirs,
@@ -233,7 +245,7 @@ struct Run<'r, DB: Backend> {
     env: &'r RunEnv<'r>,
     import: ImportId,
     job: JobId,
-    runner: Option<UserId>,
+    runner: Runner,
     /// What a matched record does; a created record ignores it.
     action: ImportAction,
     derived: &'r Derived,
@@ -463,5 +475,28 @@ impl<DB: Backend> Run<'_, DB> {
             .find(|entry| entry.path.as_str() == path)?
             .size;
         Some((stored, size))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The write keeps the owner rule the derive checks: a runner whose role
+    /// no longer lets them name another user writes their own items.
+    #[test]
+    fn a_runner_writes_only_an_owner_they_may_name() {
+        let site_admin = Runner {
+            user: Some(UserId(5)),
+            owners: Owners::Only(UserId(5)),
+        };
+        assert_eq!(site_admin.owner(Owner::User(9)), Some(UserId(5)));
+        assert_eq!(site_admin.owner(Owner::User(5)), Some(UserId(5)));
+        assert_eq!(site_admin.owner(Owner::Runner), Some(UserId(5)));
+        let admin = Runner {
+            user: Some(UserId(1)),
+            owners: Owners::Anyone,
+        };
+        assert_eq!(admin.owner(Owner::User(9)), Some(UserId(9)));
     }
 }

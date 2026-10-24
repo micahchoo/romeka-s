@@ -9,7 +9,7 @@ use crate::import::catalog::{ExistingItem, Keys};
 use crate::import::derive::{NoTags, Sheets, derive};
 use crate::import::evidence::Anomalies;
 use crate::import::model::{Anomaly, Model, OrphanReason};
-use crate::import::plan::{FlagKind, FlagPolicy, PolicyDefault, RecordKind};
+use crate::import::plan::{FlagKind, FlagPolicy, Owner, PolicyDefault, RecordKind};
 use crate::import::sheet::SheetError;
 use omeka_media::validation::FileValidation;
 
@@ -317,6 +317,7 @@ fn every_kind() -> Vec<Model> {
     );
     let mut many_plan = plan.clone();
     many_plan.defaults.template = Some(99);
+    many_plan.defaults.owner = Owner::User(99);
     models.push(derive(&index, &sheets, &many_plan, &many, &NoTags));
     let listed = super::support::plan(|plan| {
         plan["grouping"]["pattern"] = json!(PATTERN);
