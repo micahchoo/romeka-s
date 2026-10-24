@@ -1,0 +1,75 @@
+{
+  "id": 1,
+  "status": "previewed",
+  "total": 3,
+  "unchanged": 0,
+  "denied": 0,
+  "samples": [
+    {
+      "id": 2,
+      "title": "Letter to Anna",
+      "before": {
+        "isPublic": true,
+        "owner": 1,
+        "class": null,
+        "template": null,
+        "itemSets": [],
+        "sites": []
+      },
+      "after": {
+        "isPublic": false,
+        "owner": 1,
+        "class": null,
+        "template": null,
+        "itemSets": [
+          1
+        ],
+        "sites": []
+      }
+    },
+    {
+      "id": 3,
+      "title": "Letter to Bob",
+      "before": {
+        "isPublic": true,
+        "owner": 1,
+        "class": null,
+        "template": null,
+        "itemSets": [],
+        "sites": []
+      },
+      "after": {
+        "isPublic": false,
+        "owner": 1,
+        "class": null,
+        "template": null,
+        "itemSets": [
+          1
+        ],
+        "sites": []
+      }
+    },
+    {
+      "id": 4,
+      "title": "Letter to Cleo",
+      "before": {
+        "isPublic": true,
+        "owner": 1,
+        "class": null,
+        "template": null,
+        "itemSets": [],
+        "sites": []
+      },
+      "after": {
+        "isPublic": false,
+        "owner": 1,
+        "class": null,
+        "template": null,
+        "itemSets": [
+          1
+        ],
+        "sites": []
+      }
+    }
+  ]
+}
