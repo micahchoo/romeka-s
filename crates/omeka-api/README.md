@@ -436,7 +436,12 @@ item's owner for a new media) needs `change-owner`, which only `site_admin` and
 `global_admin` hold. Anyone else gets a 403 before the user lookup, so naming a
 missing user is the 403 too:
 `{"errors":{"error":"Permission denied for the current user to change-owner the Omeka\\Entity\\Item resource."}}`.
-Naming the stored owner again is no change and passes.
+Naming the stored owner again is no change and passes. A site update runs the
+same check (`SiteAdapter.php:59`). A value annotation on an update compares
+with the annotation of the stored value at the same position, because
+`ValueHydrator` reuses the stored values in order and updates their
+annotations; an annotation body without `o:owner` keeps that owner. A new
+annotation compares with none.
 
 ## Permission rules
 

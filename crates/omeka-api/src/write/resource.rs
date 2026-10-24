@@ -90,7 +90,8 @@ pub(crate) async fn hydrate_at(
     partial: bool,
     depth: u8,
 ) -> Result<Hydrated, ApiError> {
-    let values = values::collect_at(api, payload, control, depth).await?;
+    let values =
+        values::collect_at(api, payload, control, existing.map(|row| row.id), depth).await?;
     let keep_stored_values = partial && values.is_empty();
 
     let is_public = match (partial, payload.get("o:is_public")) {

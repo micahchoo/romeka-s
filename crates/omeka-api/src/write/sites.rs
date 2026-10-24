@@ -175,6 +175,10 @@ pub async fn update(
         return Err(not_found(SITE_CLASS, raw_id));
     };
     api.authorize_site_update(row.id, row.owner_id).await?;
+    // `SiteAdapter::hydrate` starts with `hydrateOwner` on an update as well.
+    row.owner_id =
+        crate::write::resource::owner_member(api, payload, SubjectKind::Site, false, row.owner_id)
+            .await?;
     // Resolve every reference the body names before the first write, so a
     // failure leaves the stored row unchanged (`SiteAdapter::hydrate` runs
     // before the flush).
