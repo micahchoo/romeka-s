@@ -9,8 +9,9 @@
 //! ```
 //!
 //! A member that is absent leaves the field alone. `class` and `template` take an id to set or
-//! `null` to clear. An edit that names nothing, or adds and removes the same set or site, is
-//! refused. Value edits (phase 3) and delete (phase 4) join as variants of [`BulkChange`].
+//! `null` to clear. `values` lists value edits ([`super::values`]). An edit that names nothing,
+//! or adds and removes the same set or site, is refused. Delete (phase 4) joins as a variant of
+//! [`BulkChange`].
 
 use std::collections::BTreeSet;
 
@@ -18,6 +19,8 @@ use omeka_db::ids::{ClassId, ItemSetId, SiteId, TemplateId, UserId};
 use omeka_db::rows::{BulkKind, Described};
 use serde::{Deserialize, Deserializer};
 use serde_json::{Value, json};
+
+use super::values::{OpWire, ValueEdits};
 
 /// What a run does to each item it selected.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -77,6 +80,7 @@ pub struct BulkEdit {
     pub template: Option<Assign<TemplateId>>,
     pub item_sets: Membership<ItemSetId>,
     pub sites: Membership<SiteId>,
+    pub values: Option<ValueEdits>,
 }
 
 impl BulkEdit {
@@ -144,6 +148,9 @@ impl BulkChange {
         if !edit.sites.is_empty() {
             out["sites"] = membership_json(&edit.sites);
         }
+        if let Some(values) = &edit.values {
+            out["values"] = values.to_json();
+        }
         out
     }
 }
@@ -181,6 +188,8 @@ struct EditWire {
     item_sets: MembershipWire,
     #[serde(default)]
     sites: MembershipWire,
+    #[serde(default)]
+    values: Vec<OpWire>,
 }
 
 #[derive(Deserialize, Default)]
@@ -194,7 +203,7 @@ struct MembershipWire {
 
 /// A positive id; `0` names no row.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct Id(u64);
+pub(super) struct Id(pub(super) u64);
 
 impl<'de> Deserialize<'de> for Id {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
@@ -225,13 +234,15 @@ impl EditWire {
             template: self.template.map(|id| assign(id, TemplateId)),
             item_sets: retype(members(self.item_sets, "itemSets")?, ItemSetId),
             sites: retype(members(self.sites, "sites")?, SiteId),
+            values: ValueEdits::from_wire(self.values)?,
         };
         let names_nothing = edit.is_public.is_none()
             && edit.owner.is_none()
             && edit.class.is_none()
             && edit.template.is_none()
             && edit.item_sets.is_empty()
-            && edit.sites.is_empty();
+            && edit.sites.is_empty()
+            && edit.values.is_none();
         if names_nothing {
             return Err("the edit changes no field".to_string());
         }
@@ -315,6 +326,7 @@ mod tests {
         for body in [
             json!({ "kind": "edit" }),
             json!({ "kind": "edit", "itemSets": { "add": [], "remove": [] } }),
+            json!({ "kind": "edit", "values": [] }),
             json!({ "kind": "edit", "sites": { "add": [2], "remove": [2] } }),
             json!({ "kind": "edit", "owner": null }),
             json!({ "kind": "edit", "class": 0 }),

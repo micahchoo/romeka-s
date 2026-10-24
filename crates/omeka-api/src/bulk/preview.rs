@@ -4,8 +4,11 @@
 //! how many the caller may not update, and five items that change, before and after.
 
 use omeka_db::DbPool;
-use omeka_db::repos::{BulkRepo, ClassRepo, ItemSetRepo, SiteRepo, TemplateRepo, UserRepo};
-use omeka_db::rows::{BulkStatus, NewBulk};
+use omeka_db::ids::PropertyId;
+use omeka_db::repos::{
+    BulkRepo, ClassRepo, ItemSetRepo, ResourceRepo, SiteRepo, TemplateRepo, UserRepo,
+};
+use omeka_db::rows::{BulkStatus, NewBulk, ValueContent};
 use omeka_db::with_db;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -14,6 +17,7 @@ use super::BulkError;
 use super::access::{denied, holds};
 use super::change::{Assign, BulkChange, BulkEdit};
 use super::scope::{Scope, select};
+use super::values::ValueEdits;
 use super::view::Fields;
 use crate::errors::ApiError;
 use crate::read::Api;
@@ -52,6 +56,84 @@ pub struct Sample {
     pub title: Option<String>,
     pub before: Fields,
     pub after: Fields,
+    /// Each field whose values change, with its values before and after.
+    pub values: Vec<FieldChange>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct FieldChange {
+    pub property: u64,
+    /// The property's label, which the admin shows as the field's name.
+    pub label: String,
+    pub before: Vec<ShownValue>,
+    pub after: Vec<ShownValue>,
+}
+
+/// One value as a preview line shows it.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShownValue {
+    /// The text, a URI's label, or the title of a linked resource.
+    pub text: Option<String>,
+    pub lang: Option<String>,
+    pub uri: Option<String>,
+    /// The linked resource.
+    pub resource: Option<u64>,
+    pub is_public: bool,
+}
+
+/// The fields among `properties` whose values differ before and after, in words.
+async fn field_changes(
+    api: &Api<'_>,
+    properties: &[PropertyId],
+    before: &[ValueContent],
+    after: &[ValueContent],
+) -> Result<Vec<FieldChange>, BulkError> {
+    let mut changes = Vec::new();
+    for property in properties {
+        let of = |values: &[ValueContent]| -> Vec<ValueContent> {
+            values
+                .iter()
+                .filter(|value| value.property_id == *property)
+                .cloned()
+                .collect()
+        };
+        let (was, now) = (of(before), of(after));
+        if was == now {
+            continue;
+        }
+        changes.push(FieldChange {
+            property: property.0,
+            label: api
+                .catalog()
+                .property(*property)
+                .map(|info| info.label.clone())
+                .unwrap_or_default(),
+            before: shown(api, &was).await?,
+            after: shown(api, &now).await?,
+        });
+    }
+    Ok(changes)
+}
+
+async fn shown(api: &Api<'_>, values: &[ValueContent]) -> Result<Vec<ShownValue>, BulkError> {
+    let mut shown = Vec::with_capacity(values.len());
+    for value in values {
+        let text = match value.value_resource_id {
+            Some(linked) => with_db!(api.pool(), |db| ResourceRepo::new(db).get(linked).await)?
+                .filter(|row| api.sees(row.is_public, row.owner_id))
+                .and_then(|row| row.title),
+            None => value.value.clone(),
+        };
+        shown.push(ShownValue {
+            text,
+            lang: value.lang.clone(),
+            uri: value.uri.clone(),
+            resource: value.value_resource_id.map(|id| id.0),
+            is_public: value.is_public,
+        });
+    }
+    Ok(shown)
 }
 
 /// Preview a change and write the run, `previewed`.
@@ -67,10 +149,17 @@ pub async fn preview(api: &Api<'_>, body: &[u8]) -> Result<Preview, BulkError> {
         return Err(denied(scope.right()));
     }
     let change = BulkChange::parse(&body.change).map_err(|reason| unreadable(&reason))?;
-    check(api, &change).await?;
+    let values = check(api, &change).await?;
     let BulkChange::Edit(edit) = &change;
     let items = select(api, &body.query).await?;
     let described = with_db!(api.pool(), |db| BulkRepo::new(db).described(&items).await)?;
+    let properties = values
+        .as_ref()
+        .map(ValueEdits::properties)
+        .unwrap_or_default();
+    let mut held = with_db!(api.pool(), |db| BulkRepo::new(db)
+        .values(&items, &properties)
+        .await)?;
     let mut preview = Preview {
         id: 0,
         status: BulkStatus::Previewed.as_str(),
@@ -81,12 +170,17 @@ pub async fn preview(api: &Api<'_>, body: &[u8]) -> Result<Preview, BulkError> {
     };
     for item in described {
         let after = edit.apply(&item.fields);
+        let before_values = held.remove(&item.item).unwrap_or_default();
+        let after_values = match &values {
+            Some(values) => values.plan(&before_values).applied(&before_values),
+            None => before_values.clone(),
+        };
         if api
             .authorize_resource(ITEM_CLASS, item.fields.owner)
             .is_err()
         {
             preview.denied += 1;
-        } else if after == item.fields {
+        } else if after == item.fields && after_values == before_values {
             preview.unchanged += 1;
         } else if preview.samples.len() < SAMPLES {
             preview.samples.push(Sample {
@@ -94,6 +188,7 @@ pub async fn preview(api: &Api<'_>, body: &[u8]) -> Result<Preview, BulkError> {
                 title: item.title,
                 before: Fields::of(&item.fields),
                 after: Fields::of(&after),
+                values: field_changes(api, &properties, &before_values, &after_values).await?,
             });
         }
     }
@@ -112,7 +207,8 @@ pub async fn preview(api: &Api<'_>, body: &[u8]) -> Result<Preview, BulkError> {
 
 /// Every row the change names exists and the caller sees it, the caller may change owners when
 /// the change sets one, and may assign items to each site it names (`can-assign-items`, which
-/// the item write checks too).
+/// the item write checks too). Answers the change's value edits with each value to add as the
+/// item `PATCH` stores it.
 ///
 /// Upstream changes an owner only for a caller with `change-owner` on the entity
 /// (`AbstractEntityAdapter`), which only the administrator roles hold. The permissions table has
@@ -121,7 +217,10 @@ pub async fn preview(api: &Api<'_>, body: &[u8]) -> Result<Preview, BulkError> {
 /// # Errors
 /// 404 for a missing row or an item set the caller cannot see, 403 for an owner change by a
 /// caller who is not an administrator or a site the caller may not assign items to.
-pub(super) async fn check(api: &Api<'_>, change: &BulkChange) -> Result<(), BulkError> {
+pub(super) async fn check(
+    api: &Api<'_>,
+    change: &BulkChange,
+) -> Result<Option<ValueEdits<ValueContent>>, BulkError> {
     let BulkChange::Edit(edit) = change;
     let pool = api.pool();
     if let Some(owner) = edit.owner {
@@ -150,7 +249,11 @@ pub(super) async fn check(api: &Api<'_>, change: &BulkChange) -> Result<(), Bulk
             return Err(missing("Omeka\\Entity\\ItemSet", set.0));
         }
     }
-    check_sites(api, pool, edit).await
+    check_sites(api, pool, edit).await?;
+    match &edit.values {
+        Some(values) => Ok(Some(super::values::resolve(api, values).await?)),
+        None => Ok(None),
+    }
 }
 
 async fn check_sites(api: &Api<'_>, pool: &DbPool, edit: &BulkEdit) -> Result<(), BulkError> {
