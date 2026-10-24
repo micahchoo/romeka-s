@@ -75,7 +75,7 @@ where
 
     /// Write one promotion and return the list's id.
     pub async fn promote(&self, write: &PromoteWrite) -> Result<CustomVocabId, DbError> {
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.pool.begin_with(DB::begin_write()).await?;
         let list = match &write.list {
             PromoteList::Create(new) => {
                 let query = sqlx::query(
@@ -91,6 +91,9 @@ where
                 CustomVocabId::from(insert_id(query, &mut *tx).await?)
             }
             PromoteList::Terms(id, terms) => {
+                if let Some(read) = &write.terms_read {
+                    check_terms::<DB>(&mut tx, *id, read.as_ref()).await?;
+                }
                 set_terms(&mut tx, *id, terms).await?;
                 *id
             }
@@ -126,7 +129,10 @@ where
     /// Write one merge.
     pub async fn merge(&self, write: &MergeWrite) -> Result<(), DbError> {
         let table = DB::quote_identifier("value");
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.pool.begin_with(DB::begin_write()).await?;
+        if let (Some((list, _)), Some(read)) = (&write.list_terms, &write.terms_read) {
+            check_terms::<DB>(&mut tx, *list, read.as_ref()).await?;
+        }
         let rewrite = format!("UPDATE {table} SET value = ? WHERE id = ? AND type = ?");
         for value in &write.rewrite {
             sqlx::query(&rewrite)
@@ -180,6 +186,33 @@ where
         tx.commit().await?;
         Ok(())
     }
+}
+
+/// Lock the list's row and refuse with [`DbError::Conflict`] when its `terms` are not `read`.
+async fn check_terms<DB: Backend>(
+    conn: &mut DB::Connection,
+    list: CustomVocabId,
+    read: Option<&Value>,
+) -> Result<(), DbError>
+where
+    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
+    for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
+    usize: ColumnIndex<DB::Row>,
+    for<'x> i64: Encode<'x, DB> + Type<DB>,
+{
+    let sql = format!(
+        "SELECT terms FROM custom_vocab WHERE id = ?{}",
+        DB::for_update()
+    );
+    let row = sqlx::query(&sql)
+        .bind(bind_id(list))
+        .fetch_optional(&mut *conn)
+        .await?
+        .ok_or(DbError::Conflict("the term list is gone"))?;
+    if DB::opt_json(&row, "terms")?.as_ref() != read {
+        return Err(DbError::Conflict("the term list changed"));
+    }
+    Ok(())
 }
 
 async fn set_terms<DB: Backend>(

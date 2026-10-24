@@ -90,6 +90,7 @@ async fn a_failing_promotion_leaves_no_list_and_no_retyped_value() {
             templates: vec![TemplateId(999)],
             unrestricted: vec!["literal".to_string()],
             resources: vec![item],
+            terms_read: None,
         })
         .await;
 
@@ -118,6 +119,7 @@ async fn a_merge_rewrites_only_values_of_the_type_it_names() {
         list_states: None,
         resources: vec![item],
         default_title_property: None,
+        terms_read: None,
     })
     .await
     .unwrap();
@@ -125,4 +127,51 @@ async fn a_merge_rewrites_only_values_of_the_type_it_names() {
     let stored = ValueRepo::new(&pool).list_for_resource(item).await.unwrap();
     assert_eq!(stored.len(), 1);
     assert_eq!(stored[0].value.as_deref(), Some("Co. Cork"));
+}
+
+/// A promotion planned from a list's words refuses, writing nothing, when another write changed
+/// those words first; planned from the words as stored, it goes through.
+#[tokio::test]
+async fn a_promotion_planned_from_stale_words_is_refused_whole() {
+    let pool = common::memory().await;
+    let property = subject(&pool).await;
+    let item = tagged(&pool, property, "emigration").await;
+    let lists = CustomVocabRepo::new(&pool);
+    let list = lists
+        .create(&NewCustomVocab {
+            item_set_id: None,
+            owner_id: None,
+            label: "Topics".to_string(),
+            lang: None,
+            terms: Some(json!(["famine"])),
+            uris: None,
+        })
+        .await
+        .unwrap();
+    let repo = ValueRewriteRepo::new(&pool);
+    let value = repo.text_values("literal", Some(property)).await.unwrap()[0].id;
+    let write = |read: serde_json::Value| PromoteWrite {
+        list: PromoteList::Terms(list.id, json!(["emigration", "famine"])),
+        values: vec![value],
+        from_type: "literal".to_string(),
+        property,
+        templates: Vec::new(),
+        unrestricted: Vec::new(),
+        resources: vec![item],
+        terms_read: Some(Some(read)),
+    };
+
+    let stale = repo.promote(&write(json!([]))).await;
+    assert!(
+        stale.as_ref().is_err_and(|error| error.is_conflict()),
+        "{stale:?}"
+    );
+    let kept = lists.get(list.id).await.unwrap().unwrap();
+    assert_eq!(kept.terms, Some(json!(["famine"])));
+    let stored = ValueRepo::new(&pool).list_for_resource(item).await.unwrap();
+    assert_eq!(stored[0].r#type, "literal");
+
+    repo.promote(&write(json!(["famine"]))).await.unwrap();
+    let promoted = lists.get(list.id).await.unwrap().unwrap();
+    assert_eq!(promoted.terms, Some(json!(["emigration", "famine"])));
 }

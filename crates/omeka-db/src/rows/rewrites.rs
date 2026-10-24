@@ -76,6 +76,10 @@ pub struct PromoteWrite {
     pub unrestricted: Vec<String>,
     /// The resources whose `modified` moves.
     pub resources: Vec<ResourceId>,
+    /// For [`PromoteList::Terms`]: the list's `terms` as the write was planned from. The write
+    /// fails with [`crate::DbError::Conflict`] when the stored column holds something else, so
+    /// a term another promotion added in between is never dropped.
+    pub terms_read: Option<Option<Value>>,
 }
 
 /// Everything one merge writes, in one transaction.
@@ -89,6 +93,9 @@ pub struct MergeWrite {
     pub delete: Vec<ValueId>,
     /// A list whose `terms` column becomes this JSON list.
     pub list_terms: Option<(CustomVocabId, Value)>,
+    /// For `list_terms`: the list's `terms` as the write was planned from, checked as
+    /// [`PromoteWrite::terms_read`] is.
+    pub terms_read: Option<Option<Value>>,
     /// A published list whose `romeka_publication.terms` becomes this JSON, so the words the merge
     /// keeps as deprecated are marked in the same transaction.
     pub list_states: Option<(CustomVocabId, Value)>,
