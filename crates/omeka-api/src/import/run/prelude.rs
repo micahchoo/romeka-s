@@ -15,10 +15,9 @@ use omeka_db::rows::{
 };
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Type};
 
-use super::fields::id;
 use super::{Run, RunError};
 use crate::import::ledger::{set_key, term_key, type_key};
-use crate::import::plan::{NewTypeFrom, Owner, Term};
+use crate::import::plan::{NewTypeFrom, Term};
 use crate::import::starters::starter;
 use crate::import::values::Visibility;
 
@@ -57,10 +56,7 @@ where
 
     /// The owner of what the run makes for the whole import.
     fn default_owner(&self) -> Option<UserId> {
-        match self.derived.plan.defaults.owner {
-            Owner::Runner => self.runner,
-            Owner::User(raw) => id(raw),
-        }
+        self.runner.owner(self.derived.plan.defaults.owner)
     }
 
     /// Record what `tx` made under `key` and commit both.

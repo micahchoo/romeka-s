@@ -1,12 +1,15 @@
 /**
- * The site's own members (`SiteForm`: title, slug, theme, summary, owner,
- * visibility), as the Settings tab and the Add site form edit them.
- * `encodeSiteInfo` (`api/write.ts`) is the body they save with. Upstream's
- * "assign new items" lives on the site's Items page as "Keep this site in sync".
+ * The site's own members (`SiteForm`: title, slug, theme, summary,
+ * visibility), as the Settings tab and the Add site form edit them, plus the
+ * owner. Upstream's site form has no owner select; the port offers one only to
+ * a user who may `change-owner`. `encodeSiteInfo` (`api/write.ts`) is the body
+ * they save with. Upstream's "assign new items" lives on the site's Items page
+ * as "Keep this site in sync".
  */
 import type { ReactElement } from 'react';
 import type { Site, User, UserId } from '../../api/types';
-import { CheckboxField, OptionSelect, TextField } from '../../app/fields';
+import { useSession } from '../../app/auth';
+import { CheckboxField, mayChangeOwner, OptionSelect, TextField } from '../../app/fields';
 import { userOptions } from '../../app/options';
 import { useTranslator } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
@@ -87,6 +90,7 @@ export const SiteInfoFields = ({
   readonly onChange: (info: SiteInfo) => void;
 }): ReactElement => {
   const { t } = useTranslator(common, sites);
+  const user = useSession();
   const set = (patch: Partial<SiteInfo>): void => {
     onChange({ ...info, ...patch });
   };
@@ -123,16 +127,18 @@ export const SiteInfoFields = ({
           set({ summary });
         }}
       />
-      <OptionSelect
-        id="site-owner"
-        label={t('field.owner')}
-        options={userOptions(users)}
-        value={info.owner}
-        onChange={(owner) => {
-          set({ owner });
-        }}
-        emptyLabel={t('common.noOwner')}
-      />
+      {mayChangeOwner(user) ? (
+        <OptionSelect
+          id="site-owner"
+          label={t('field.owner')}
+          options={userOptions(users)}
+          value={info.owner}
+          onChange={(owner) => {
+            set({ owner });
+          }}
+          emptyLabel={t('common.noOwner')}
+        />
+      ) : null}
       <CheckboxField
         id="site-public"
         label={t('common.public')}

@@ -26,9 +26,11 @@ use std::collections::HashMap;
 use omeka_core::permissions::SubjectKind;
 use omeka_core::term_list::{self, TermList, php_trim};
 use omeka_core::value::{literal_is_valid, uri_is_valid};
-use omeka_db::ids::{CustomVocabId, PropertyId, ResourceId, TemplateId};
+use omeka_db::ids::{AnnotationId, CustomVocabId, PropertyId, ResourceId, TemplateId};
 use omeka_db::repos::{CustomVocabRepo, ResourceRepo, TemplateRepo, ValueRepo};
-use omeka_db::rows::{AnnotationTree, NewResource, ValueContent, ValueTree, resource_type};
+use omeka_db::rows::{
+    AnnotationTree, NewResource, ResourceRow, ValueContent, ValueTree, resource_type,
+};
 use omeka_db::with_db;
 use serde_json::Value;
 
@@ -107,19 +109,25 @@ pub async fn collect(
     payload: &Payload,
     control: &[&str],
 ) -> Result<Vec<ValueInput>, ApiError> {
-    collect_at(api, payload, control, 0).await
+    collect_at(api, payload, control, None, 0).await
 }
 
-/// `collect` with the annotation nesting depth the caller is at.
+/// `collect` with the annotation nesting depth the caller is at, for the
+/// stored resource an update rehydrates (`None` on a create).
 pub(crate) async fn collect_at(
     api: &Api<'_>,
     payload: &Payload,
     control: &[&str],
+    stored: Option<ResourceId>,
     depth: u8,
 ) -> Result<Vec<ValueInput>, ApiError> {
     let mut inputs = Vec::new();
     let mut errors = ValidationErrors::new();
     let mut lists = TermLists::default();
+    let mut stored = StoredAnnotations {
+        resource: stored,
+        ids: None,
+    };
     for (key, value) in payload.members() {
         if is_control(api, key, control) {
             continue;
@@ -135,7 +143,10 @@ pub(crate) async fn collect_at(
             continue;
         };
         for item in array {
-            if let Some(input) = parse_one(api, &mut lists, key, item, depth).await? {
+            let position = inputs.len();
+            if let Some(input) =
+                parse_one(api, &mut lists, &mut stored, position, key, item, depth).await?
+            {
                 if let ValueKind::Resource(id) = &input.data {
                     ensure_resource(api, *id, &input.data_type).await?;
                 }
@@ -379,10 +390,56 @@ fn parse_scalar(
     Ok(Some((property, stored.to_string(), data, lang, is_public)))
 }
 
+/// The value annotations of the resource an update rehydrates, by value
+/// position. `ValueHydrator` reuses the stored values in id order, so the Nth
+/// valid value object updates the Nth stored value's annotation
+/// (`ValueHydrator.php:134-148`): `hydrateOwner` then compares with that
+/// annotation's owner, and a body without `o:owner` keeps it.
+struct StoredAnnotations {
+    resource: Option<ResourceId>,
+    ids: Option<Vec<Option<AnnotationId>>>,
+}
+
+impl StoredAnnotations {
+    async fn at(
+        &mut self,
+        api: &Api<'_>,
+        position: usize,
+    ) -> Result<Option<ResourceRow>, ApiError> {
+        let Some(resource) = self.resource else {
+            return Ok(None);
+        };
+        if self.ids.is_none() {
+            let rows = with_db!(api.pool(), |db| ValueRepo::new(db)
+                .list_for_resource(resource)
+                .await)
+            .map_err(db_error)?;
+            self.ids = Some(
+                rows.into_iter()
+                    .map(|row| row.value_annotation_id)
+                    .collect(),
+            );
+        }
+        let Some(id) = self
+            .ids
+            .as_ref()
+            .and_then(|ids| ids.get(position).copied().flatten())
+        else {
+            return Ok(None);
+        };
+        with_db!(api.pool(), |db| ResourceRepo::new(db)
+            .get(id.as_resource())
+            .await)
+        .map_err(db_error)
+    }
+}
+
 /// A value as PHP interpolates it into a message string.
 async fn parse_one(
     api: &Api<'_>,
     lists: &mut TermLists,
+    stored: &mut StoredAnnotations,
+    position: usize,
     term: &str,
     value: &Value,
     depth: u8,
@@ -399,12 +456,13 @@ async fn parse_one(
     let annotation = match object.get("@annotation") {
         Some(Value::Object(map)) if !map.is_empty() && depth < MAX_ANNOTATION_DEPTH => {
             let payload = Payload::from_object(map.clone());
+            let existing = stored.at(api, position).await?;
             let hydrated = Box::pin(resource::hydrate_at(
                 api,
                 &payload,
                 ANNOTATION_CONTROL,
                 resource::Owned::new(SubjectKind::ValueAnnotation),
-                None,
+                existing.as_ref(),
                 false,
                 depth + 1,
             ))

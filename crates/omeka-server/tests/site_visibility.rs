@@ -14,7 +14,8 @@ mod common;
 use axum::http::StatusCode;
 use common::{
     OWNER_KEY_CREDENTIAL, OWNER_KEY_IDENTITY, VIEWER_KEY_CREDENTIAL, VIEWER_KEY_IDENTITY,
-    VISIBILITY_PASSWORD, get, get_cookie, get_keyed, login_cookie, router, send, visibility_pool,
+    VISIBILITY_PASSWORD, get, get_cookie, get_keyed, json_request, login_cookie, router, send,
+    visibility_pool,
 };
 
 /// Problem 1: an anonymous `GET /api/site_pages/{id}` must not answer with a
@@ -306,6 +307,65 @@ async fn private_item_is_404_for_anonymous_and_200_for_its_owner() {
     let owner = login_cookie(app.clone(), vis.owner_email, VISIBILITY_PASSWORD).await;
     let answer = send(app, get_cookie(&path, &owner)).await;
     assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
+}
+
+/// `item-with-metadata.phtml` lists `$item->itemSets()`, which loads through
+/// `ResourceVisibilityFilter`: measured on the oracle, an anonymous reader of
+/// a public item in a private and a public set sees only the public set. The
+/// set's owner sees both.
+#[tokio::test]
+async fn item_page_lists_only_the_item_sets_the_reader_can_see() {
+    let (pool, vis) = visibility_pool().await;
+    let app = router(pool);
+    let keyed = |path: &str| {
+        format!("{path}?key_identity={OWNER_KEY_IDENTITY}&key_credential={OWNER_KEY_CREDENTIAL}")
+    };
+    let mut sets = Vec::new();
+    for (title, is_public) in [("Vis set private", false), ("Vis set public", true)] {
+        let body = serde_json::json!({
+            "o:is_public": is_public,
+            "dcterms:title": [{"property_id": "auto", "type": "literal", "@value": title}],
+        });
+        let answer = send(
+            app.clone(),
+            json_request("POST", &keyed("/api/item_sets"), &body.to_string()),
+        )
+        .await;
+        assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
+        sets.push(serde_json::json!({"o:id": answer.json()["o:id"]}));
+    }
+    let linked = send(
+        app.clone(),
+        json_request(
+            "PATCH",
+            &keyed(&format!("/api/items/{}", vis.item.0)),
+            &serde_json::json!({"o:item_set": sets}).to_string(),
+        ),
+    )
+    .await;
+    assert_eq!(linked.status, StatusCode::OK, "{}", linked.body);
+    let path = format!("/s/vis-pub/item/{}", vis.item.0);
+
+    let anonymous = send(app.clone(), get(&path, false)).await;
+    assert_eq!(anonymous.status, StatusCode::OK, "{}", anonymous.body);
+    assert!(
+        anonymous.body.contains("Vis set public"),
+        "{}",
+        anonymous.body
+    );
+    assert!(
+        !anonymous.body.contains("Vis set private"),
+        "anonymous saw the private item set: {}",
+        anonymous.body
+    );
+
+    let owner = login_cookie(app.clone(), vis.owner_email, VISIBILITY_PASSWORD).await;
+    let answer = send(app, get_cookie(&path, &owner)).await;
+    assert!(
+        answer.body.contains("Vis set private"),
+        "the owner did not see the private item set: {}",
+        answer.body
+    );
 }
 
 /// The `o:page` ids of a `Site` document.

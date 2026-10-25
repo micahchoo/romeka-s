@@ -1,12 +1,14 @@
 /**
  * The type-level settings: the standard class line under the name, and the
  * "Used for" hint and the upstream title, description and owner members below
- * the fields.
+ * the fields. Upstream's template form has no owner select; the port offers
+ * one only to a user who may `change-owner`.
  */
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 import type { Property, ResourceClass } from '../../api/types';
-import { OptionSelect } from '../../app/fields';
+import { useSession } from '../../app/auth';
+import { mayChangeOwner, OptionSelect } from '../../app/fields';
 import { useLesson } from '../../app/lessons/lesson';
 import { userOptions } from '../../app/options';
 import { plainName } from '../../app/plain-terms';
@@ -119,6 +121,7 @@ export const TypeSettings = ({
   const t = useItemTypesText();
   const shared = useTranslator(common);
   const text = useTermLabels();
+  const user = useSession();
   const choices = propertyChoices(properties, text);
   return (
     <>
@@ -162,16 +165,18 @@ export const TypeSettings = ({
             onChange({ ...draft, descriptionProperty: value });
           }}
         />
-        <OptionSelect
-          id="type-owner"
-          label={shared.t('field.owner')}
-          options={userOptions(options.users)}
-          value={draft.owner}
-          emptyLabel={shared.t('common.noOwner')}
-          onChange={(value) => {
-            onChange({ ...draft, owner: value });
-          }}
-        />
+        {mayChangeOwner(user) ? (
+          <OptionSelect
+            id="type-owner"
+            label={shared.t('field.owner')}
+            options={userOptions(options.users)}
+            value={draft.owner}
+            emptyLabel={shared.t('common.noOwner')}
+            onChange={(value) => {
+              onChange({ ...draft, owner: value });
+            }}
+          />
+        ) : null}
       </details>
     </>
   );

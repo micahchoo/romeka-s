@@ -52,6 +52,15 @@ impl Owners {
             (_, Some(user)) => Self::Only(user),
         }
     }
+
+    /// Whether `user` is an owner this caller may name.
+    #[must_use]
+    pub fn allows(self, user: i64) -> bool {
+        match self {
+            Self::Anyone => true,
+            Self::Only(own) => i64::try_from(own.0) == Ok(user),
+        }
+    }
 }
 
 fn raw(id: u64) -> i64 {

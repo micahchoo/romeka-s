@@ -220,6 +220,7 @@ export const kn: ImportMessages = {
   "problem.type-exists":
     "Omeka ನಲ್ಲಿ ಈಗಾಗಲೇ ಇರುವ ಐಟಂ ಪ್ರಕಾರದ ಹೆಸರಿನ ಹೊಸ ಐಟಂ ಪ್ರಕಾರ",
   "problem.encoding-unsupported": "Omeka ಓದಲಾಗದ ಪಠ್ಯ ವಿಧದ ಪಟ್ಟಿ",
+  "problem.owner-not-allowed": "ನೀವು ಐಟಂಗಳನ್ನು ನೀಡಲು ಸಾಧ್ಯವಾಗದ ವ್ಯಕ್ತಿ",
   "trip.again": "ಈ ಪಟ್ಟಿಯನ್ನು ಮತ್ತೆ ಅಪ್‌ಲೋಡ್ ಮಾಡಿ",
   "trip.againNext":
     "ನೀವು ಕಳುಹಿಸುವ ಮುಂದಿನ ಫೈಲ್ {file} ನ ಸ್ಥಾನವನ್ನು ತೆಗೆದುಕೊಳ್ಳುತ್ತದೆ.",

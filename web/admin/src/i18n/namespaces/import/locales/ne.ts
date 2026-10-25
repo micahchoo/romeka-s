@@ -217,6 +217,7 @@ export const ne: ImportMessages = {
     "Omeka मा पहिले नै भएको वस्तुको प्रकारको नाम भएको नयाँ वस्तुको प्रकार",
   "problem.encoding-unsupported":
     "Omeka ले पढ्न नसक्ने किसिमको पाठमा रहेको सूची",
+  "problem.owner-not-allowed": "तपाईँले वस्तुहरू दिन नसक्ने व्यक्ति",
   "trip.again": "यो सूची पुनः अपलोड गर्नुहोस्",
   "trip.againNext": "तपाईँले पठाउने अर्को फाइलले {file} को स्थान लिन्छ।",
   "trip.lacking":

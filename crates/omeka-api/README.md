@@ -53,6 +53,11 @@ SQL. Its parts:
 - Uploads. `staging` keeps the files a person sent, `unzip` unpacks a ZIP among them, and `sweep`
   removes them when no import needs them.
 
+Owners follow one rule (`catalog_load::Owners`): a global admin may name any user, and anyone else
+only themself. An owner column resolves only against those users. A plan default owner outside them
+raises the blocking plan flag `owner-not-allowed`, so Check shows it and Run refuses it. The write
+gives such an owner's records to the runner, for a role that changed after the check.
+
 The server's routes in `omeka-server/src/imports.rs` call it, and the CLI's jobs run it. The server is
 the one validator: the admin only renders what it answers. The routes are in
 [`../omeka-server/README.md`](../omeka-server/README.md), and the commands in
@@ -436,7 +441,12 @@ item's owner for a new media) needs `change-owner`, which only `site_admin` and
 `global_admin` hold. Anyone else gets a 403 before the user lookup, so naming a
 missing user is the 403 too:
 `{"errors":{"error":"Permission denied for the current user to change-owner the Omeka\\Entity\\Item resource."}}`.
-Naming the stored owner again is no change and passes.
+Naming the stored owner again is no change and passes. A site update runs the
+same check (`SiteAdapter.php:59`). A value annotation on an update compares
+with the annotation of the stored value at the same position, because
+`ValueHydrator` reuses the stored values in order and updates their
+annotations; an annotation body without `o:owner` keeps that owner. A new
+annotation compares with none.
 
 ## Permission rules
 
