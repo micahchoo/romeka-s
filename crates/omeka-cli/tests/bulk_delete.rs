@@ -241,6 +241,7 @@ async fn deleting_all_that_match_moves_them_to_the_trash_and_undo_puts_everythin
     assert_eq!(previewed["total"], 2, "{previewed}");
     assert_eq!(previewed["media"], 2, "{previewed}");
     assert_eq!(previewed["bytes"], png.len(), "{previewed}");
+    assert_eq!(previewed["trashDays"], 30, "{previewed}");
     assert_eq!(previewed["denied"], 0, "{previewed}");
     let samples: Vec<&str> = previewed["samples"]
         .as_array()

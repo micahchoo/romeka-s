@@ -56,6 +56,7 @@ pub fn trash_path(path: &str) -> String {
 
 /// A delete preview's answer.
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DeletePreview {
     pub id: u64,
     pub status: &'static str,
@@ -68,6 +69,8 @@ pub struct DeletePreview {
     pub media: u64,
     /// Their originals' bytes, as each media row records its size.
     pub bytes: u64,
+    /// How many days the trash keeps them before a purge empties it.
+    pub trash_days: u64,
     pub samples: Vec<DeleteSample>,
 }
 
@@ -95,6 +98,7 @@ pub(super) async fn preview(api: &Api<'_>, query: &Value) -> Result<DeletePrevie
         denied: 0,
         media: 0,
         bytes: 0,
+        trash_days: crate::settings::trash_days(api.pool()).await?,
         samples: Vec::new(),
     };
     for item in described {

@@ -6,6 +6,7 @@
   "denied": 0,
   "media": 0,
   "bytes": 0,
+  "trashDays": 30,
   "samples": [
     {
       "id": 1,
