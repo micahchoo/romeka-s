@@ -1,0 +1,62 @@
+{
+  "id": 1,
+  "kind": "edit",
+  "status": "done",
+  "owner": 1,
+  "query": {
+    "id": [
+      2
+    ]
+  },
+  "change": {
+    "kind": "edit",
+    "values": [
+      {
+        "op": "add",
+        "property": 3,
+        "value": {
+          "type": "literal",
+          "text": "Maps",
+          "lang": "en"
+        },
+        "isPublic": false
+      },
+      {
+        "op": "add",
+        "property": 3,
+        "value": {
+          "type": "uri",
+          "uri": "https://example.org/harbour",
+          "label": "Harbour"
+        },
+        "isPublic": true
+      },
+      {
+        "op": "add",
+        "property": 3,
+        "value": {
+          "type": "item",
+          "item": 1
+        },
+        "isPublic": true
+      }
+    ]
+  },
+  "total": 1,
+  "done": 1,
+  "failed": 0,
+  "counts": {
+    "pending": 0,
+    "done": 1,
+    "unchanged": 0,
+    "failed": 0,
+    "restored": 0,
+    "kept": 0
+  },
+  "failures": [],
+  "jobId": 1,
+  "error": null,
+  "created": "2026-10-24T09:00:00+00:00",
+  "started": "2026-10-24T09:00:00+00:00",
+  "ended": "2026-10-24T09:00:00+00:00"
+}

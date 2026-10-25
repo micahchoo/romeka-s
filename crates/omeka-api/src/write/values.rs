@@ -446,31 +446,34 @@ pub async fn clear(api: &Api<'_>, resource: ResourceId) -> Result<(), ApiError> 
     store(api, resource, &[]).await
 }
 
+/// The columns a parsed value stores, without its annotation.
+pub(crate) fn content(input: &ValueInput) -> ValueContent {
+    let (value, uri, value_resource_id) = match &input.data {
+        ValueKind::Literal(text) => (Some(text.clone()), None, None),
+        ValueKind::Uri { uri, label } => (label.clone(), Some(uri.clone()), None),
+        ValueKind::Resource(id) => (None, None, Some(*id)),
+    };
+    ValueContent {
+        property_id: input.property,
+        value_resource_id,
+        value_annotation_id: None,
+        r#type: input.data_type.clone(),
+        lang: input.lang.clone(),
+        value,
+        uri,
+        is_public: input.is_public,
+    }
+}
+
 fn trees(inputs: &[ValueInput]) -> Vec<ValueTree> {
     inputs
         .iter()
-        .map(|input| {
-            let (value, uri, value_resource_id) = match &input.data {
-                ValueKind::Literal(text) => (Some(text.clone()), None, None),
-                ValueKind::Uri { uri, label } => (label.clone(), Some(uri.clone()), None),
-                ValueKind::Resource(id) => (None, None, Some(*id)),
-            };
-            ValueTree {
-                content: ValueContent {
-                    property_id: input.property,
-                    value_resource_id,
-                    value_annotation_id: None,
-                    r#type: input.data_type.clone(),
-                    lang: input.lang.clone(),
-                    value,
-                    uri,
-                    is_public: input.is_public,
-                },
-                annotation: input.annotation.as_ref().map(|annotation| AnnotationTree {
-                    resource: annotation.resource.clone(),
-                    values: trees(&annotation.values),
-                }),
-            }
+        .map(|input| ValueTree {
+            content: content(input),
+            annotation: input.annotation.as_ref().map(|annotation| AnnotationTree {
+                resource: annotation.resource.clone(),
+                values: trees(&annotation.values),
+            }),
         })
         .collect()
 }

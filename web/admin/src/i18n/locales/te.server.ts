@@ -320,6 +320,8 @@ export const teServer: ServerCatalogue = {
   'server.bulkItemGone': 'ఈ ఐటమ్ Omeka లో లేదు.',
   'server.bulkItemDenied': 'ఈ మార్పును ప్రారంభించిన వ్యక్తి ఈ ఐటమ్‌ను ఎడిట్ చేయలేకపోవచ్చు.',
   'server.bulkItemTemplateRequires': 'కొత్త ఐటమ్ రకానికి ఈ ఐటమ్ లో లేని విలువల అవసరం ఉంది.',
+  'server.bulkItemRemovesRequired':
+    'ఈ ఐటమ్ రకానికి ఒక ఫీల్డ్‌లో ఈ మార్పు ఖాళీ చేసే విలువల అవసరం ఉంది, కాబట్టి ఈ మార్పు ఐటమ్‌ను అలాగే ఉంచింది.',
   'server.bulkItemUndoDenied':
     'ఈ ఐటమ్‌ను ఎడిట్ చేయలేని వ్యక్తి అడిగినందున, వెనక్కి తీసుకున్న తర్వాత కూడా అది అలాగే ఉంది.',
 };

@@ -10,6 +10,8 @@ import { ApiError, api } from './client';
 import type { ResourceQuery } from './client';
 import { asCount, asFlag, list, member, nullable, oneOf, strict } from './import-read';
 import { asIdNumber, asJsonValue, asString, brandId, isRecord } from './parse';
+import type { FieldChange, ValueOp } from './bulk-values';
+import { parseFieldChange, parseValueOps } from './bulk-values';
 import type { ClassId, Id, ItemId, ItemSetId, Parser, Path, SiteId, TemplateId, UserId } from './types';
 
 export type BulkId = Id<'BulkId'>;
@@ -58,6 +60,8 @@ export interface BulkEdit {
   readonly template: Assign<TemplateId> | null;
   readonly itemSets: Membership<ItemSetId>;
   readonly sites: Membership<SiteId>;
+  /** Value edits (`bulk-values.ts`); empty leaves every value alone. */
+  readonly values: readonly ValueOp[];
 }
 
 export const NO_EDIT: BulkEdit = {
@@ -67,6 +71,7 @@ export const NO_EDIT: BulkEdit = {
   template: null,
   itemSets: { add: [], remove: [] },
   sites: { add: [], remove: [] },
+  values: [],
 };
 
 /** Whether the edit changes anything: the server refuses one that names nothing. */
@@ -75,6 +80,7 @@ export const namesSomething = (edit: BulkEdit): boolean =>
   edit.owner !== null ||
   edit.class !== null ||
   edit.template !== null ||
+  edit.values.length > 0 ||
   [edit.itemSets.add, edit.itemSets.remove, edit.sites.add, edit.sites.remove].some((ids) => ids.length > 0);
 
 /** An item's describing fields, before or after the edit. */
@@ -92,6 +98,8 @@ export interface BulkSample {
   readonly title: string | null;
   readonly before: BulkFields;
   readonly after: BulkFields;
+  /** Each field whose values change, before and after. */
+  readonly values: readonly FieldChange[];
 }
 
 export interface BulkPreview {
@@ -115,7 +123,7 @@ export interface BulkCounts {
   readonly kept: number;
 }
 
-export const FAIL_REASONS = ['gone', 'denied', 'templateRequires', 'undoDenied'] as const;
+export const FAIL_REASONS = ['gone', 'denied', 'templateRequires', 'removesRequired', 'undoDenied'] as const;
 export type FailReason = (typeof FAIL_REASONS)[number];
 
 export interface BulkFailure {
@@ -176,7 +184,15 @@ const EMPTY = { add: [], remove: [] };
 
 /** The stored change, as `BulkChange::to_json` writes it: an absent member leaves the field alone. */
 export const parseEdit: Parser<BulkEdit> = (raw, path = []) => {
-  const object = strict(raw, path, ['kind'], ['isPublic', 'owner', 'class', 'template', 'itemSets', 'sites']);
+  const object = strict(raw, path, ['kind'], [
+    'isPublic',
+    'owner',
+    'class',
+    'template',
+    'itemSets',
+    'sites',
+    'values',
+  ]);
   member(object, 'kind', path, oneOf(['edit']));
   const optional = <T>(key: string, parse: (value: unknown, at: Path) => T): T | null =>
     key in object ? member(object, key, path, parse) : null;
@@ -187,6 +203,7 @@ export const parseEdit: Parser<BulkEdit> = (raw, path = []) => {
     template: assignOf<'TemplateId'>()(object, 'template', path),
     itemSets: optional('itemSets', parseMembership<'ItemSetId'>) ?? EMPTY,
     sites: optional('sites', parseMembership<'SiteId'>) ?? EMPTY,
+    values: optional('values', parseValueOps) ?? [],
   };
 };
 
@@ -202,6 +219,7 @@ export const encodeEdit = (edit: BulkEdit): Readonly<Record<string, unknown>> =>
     ...(edit.template === null ? {} : { template: assign(edit.template) }),
     ...(edit.itemSets.add.length + edit.itemSets.remove.length === 0 ? {} : { itemSets: members(edit.itemSets) }),
     ...(edit.sites.add.length + edit.sites.remove.length === 0 ? {} : { sites: members(edit.sites) }),
+    ...(edit.values.length === 0 ? {} : { values: edit.values }),
   };
 };
 
@@ -218,12 +236,13 @@ const parseFields: Parser<BulkFields> = (raw, path = []) => {
 };
 
 const parseSample: Parser<BulkSample> = (raw, path = []) => {
-  const object = strict(raw, path, ['id', 'title', 'before', 'after']);
+  const object = strict(raw, path, ['id', 'title', 'before', 'after', 'values']);
   return {
     id: member(object, 'id', path, asId<'ItemId'>()),
     title: member(object, 'title', path, nullable(asString)),
     before: member(object, 'before', path, parseFields),
     after: member(object, 'after', path, parseFields),
+    values: member(object, 'values', path, list(parseFieldChange)),
   };
 };
 

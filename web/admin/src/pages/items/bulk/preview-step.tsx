@@ -1,6 +1,6 @@
 /**
  * The preview: how many items change, how many already match or may not be changed, and five
- * items before and after in words. Apply starts the change on exactly these items.
+ * items before and after in words, their changed fields' values included. Apply starts the change on exactly these items.
  */
 import type { ReactElement } from 'react';
 import type { BulkPreview } from '../../../api/bulk';
@@ -8,7 +8,7 @@ import { useTranslator } from '../../../i18n';
 import { bulk } from '../../../i18n/namespaces/bulk';
 import { useTermLabels } from '../../../i18n/termText';
 import type { BrowseOptions } from '../browse-options';
-import { fieldWords } from './words';
+import { fieldValueWords, fieldWords } from './words';
 
 const Lines = ({ lines }: { readonly lines: readonly string[] }): ReactElement => (
   <ul className="bulk-lines">
@@ -64,6 +64,12 @@ export const PreviewStep = ({
           <tbody>
             {preview.samples.map((sample) => {
               const words = fieldWords({ t, options, text }, sample.before, sample.after);
+              const fields = sample.values.map((change) => ({
+                name: text.label(change.term, change.label),
+                change,
+              }));
+              const before = [...words.before, ...fields.map(({ name, change }) => fieldValueWords(t, name, change.before))];
+              const after = [...words.after, ...fields.map(({ name, change }) => fieldValueWords(t, name, change.after))];
               return (
                 <tr key={String(sample.id)}>
                   <th scope="row">
@@ -72,10 +78,10 @@ export const PreviewStep = ({
                     </a>
                   </th>
                   <td>
-                    <Lines lines={words.before} />
+                    <Lines lines={before} />
                   </td>
                   <td>
-                    <Lines lines={words.after} />
+                    <Lines lines={after} />
                   </td>
                 </tr>
               );

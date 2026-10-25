@@ -8,6 +8,9 @@ use serde_json::Value;
 
 use super::BulkError;
 use super::access::load;
+use super::change::BulkChange;
+use super::work::members_moved;
+use crate::errors::ApiError;
 use crate::messages;
 use crate::read::{Api, iso8601};
 
@@ -71,7 +74,7 @@ impl From<TargetCounts> for Counts {
 #[derive(Debug, Serialize)]
 pub struct Failure {
     pub item: u64,
-    /// `gone`, `denied`, `templateRequires` or `undoDenied`.
+    /// `gone`, `denied`, `templateRequires`, `removesRequired` or `undoDenied`.
     pub reason: Option<&'static str>,
     /// The reason in English, from the message registry, which the admin translates.
     pub message: Option<&'static str>,
@@ -82,6 +85,7 @@ fn reason_text(reason: FailReason) -> &'static str {
         FailReason::Gone => messages::BULK_ITEM_GONE,
         FailReason::Denied => messages::BULK_ITEM_DENIED,
         FailReason::TemplateRequires => messages::BULK_ITEM_TEMPLATE_REQUIRES,
+        FailReason::RemovesRequired => messages::BULK_ITEM_REMOVES_REQUIRED,
         FailReason::UndoDenied => messages::BULK_ITEM_UNDO_DENIED,
     }
 }
@@ -200,6 +204,7 @@ pub struct UndoPreview {
 /// 404 for no such run or one the caller may not read.
 pub async fn undo_preview(api: &Api<'_>, raw: &str) -> Result<UndoPreview, BulkError> {
     let row = load(api, raw, false).await?;
+    let BulkChange::Edit(edit) = BulkChange::parse(&row.change).map_err(ApiError::internal)?;
     let candidates = with_db!(api.pool(), |db| BulkRepo::new(db)
         .undo_candidates(row.id)
         .await)?;
@@ -218,7 +223,10 @@ pub async fn undo_preview(api: &Api<'_>, raw: &str) -> Result<UndoPreview, BulkE
                     preview.gone_items.push(candidate.item.0);
                 }
             }
-            Presence::Here { modified } if modified != candidate.written => {
+            Presence::Here { modified }
+                if modified != candidate.written
+                    || members_moved(&edit, &candidate.image, &candidate.members) =>
+            {
                 preview.edited += 1;
                 if preview.edited_items.len() < NAMED {
                     preview.edited_items.push(candidate.item.0);

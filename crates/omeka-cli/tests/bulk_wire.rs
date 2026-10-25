@@ -144,3 +144,41 @@ async fn the_admin_fixtures_are_what_the_routes_answer() {
     let anna = send(&site, "GET", &format!("/api/items/{anna}"), None, 200).await;
     assert_eq!(anna["o:is_public"], true, "Anna is back as she was");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_value_edit_fixtures_are_what_the_routes_answer() {
+    let site = site().await;
+    let found = send(
+        &site,
+        "GET",
+        "/api/properties?term=dcterms:subject",
+        None,
+        200,
+    )
+    .await;
+    let subject = found[0]["o:id"].as_u64().unwrap();
+    let photo = item(&site, "Harbour photograph").await;
+    let anna = item(&site, "Letter to Anna").await;
+    let change = json!({ "kind": "edit", "values": [
+        { "op": "add", "property": subject, "isPublic": false,
+          "value": { "type": "literal", "text": "Maps", "lang": "en" } },
+        { "op": "add", "property": subject,
+          "value": { "type": "uri", "uri": "https://example.org/harbour", "label": "Harbour" } },
+        { "op": "add", "property": subject, "value": { "type": "item", "item": photo } },
+    ] });
+    let body = json!({ "query": { "id": [anna] }, "change": change });
+    let preview = send(&site, "POST", "/api/romeka/bulk", Some(body), 201).await;
+    let id = preview["id"].as_u64().unwrap();
+    record("preview-values", preview);
+    send(
+        &site,
+        "POST",
+        &format!("/api/romeka/bulk/{id}/run"),
+        None,
+        200,
+    )
+    .await;
+    let run = settled(&site, id).await;
+    assert_eq!(run["counts"]["done"], 1, "{run}");
+    record("run-values", run);
+}

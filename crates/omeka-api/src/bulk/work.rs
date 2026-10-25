@@ -10,14 +10,15 @@
 //! again then, and the role decides, item by item, whether the item may be updated, as the item
 //! `PATCH` decides it.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::time::{Duration, Instant};
 
 use omeka_db::DbPool;
-use omeka_db::ids::{BulkId, ItemId, JobId, PropertyId, SiteId, UserId};
+use omeka_db::ids::{BulkId, ItemId, JobId, PropertyId, SiteId, TemplateId, UserId};
 use omeka_db::repos::{BulkRepo, JobRepo, Paging, SiteFilter, SiteRepo, TemplateRepo, UserRepo};
 use omeka_db::rows::{
-    BeforeImage, BulkEnding, BulkPhase, BulkRow, Described, FailReason, ImageMemberships, Verdict,
+    BeforeImage, BulkEnding, BulkPhase, BulkRow, Described, FailReason, ImageMemberships,
+    ItemMembers, Restore, ValueContent, Verdict, Written,
 };
 use omeka_db::with_db;
 
@@ -26,6 +27,7 @@ use super::access::{denied, holds};
 use super::change::{BulkChange, BulkEdit};
 use super::preview::check;
 use super::scope::Scope;
+use super::values::ValueEdits;
 use crate::auth::Actor;
 use crate::errors::ApiError;
 use crate::jsonld::BaseUrl;
@@ -123,14 +125,15 @@ async fn run(pool: &DbPool, base: &BaseUrl, row: &BulkRow, job: JobId) -> Result
     let change = BulkChange::parse(&row.change).map_err(ApiError::internal)?;
     let BulkChange::Edit(edit) = &change;
     let scope = Scope::of(&row.query)?;
-    let required = &required(pool, edit).await?;
+    let required = &required(pool).await?;
     let (change, scope) = (&change, &scope);
     chunks(pool, row, job, BulkPhase::Run, |items| async move {
         let api = permitted(pool, base, row.owner_id, scope).await?;
-        check(&api, change).await?;
+        let values = check(&api, change).await?;
         let rules = Rules {
             api: &api,
             edit,
+            values: values.as_ref(),
             required,
         };
         for item in items {
@@ -153,11 +156,14 @@ async fn undo(
     force: bool,
 ) -> Result<Step, BulkError> {
     let scope = &Scope::of(&row.query)?;
+    let BulkChange::Edit(edit) = &BulkChange::parse(&row.change).map_err(ApiError::internal)?;
     let asker = with_db!(pool, |db| JobRepo::new(db).get(job).await)?.and_then(|job| job.owner_id);
     chunks(pool, row, job, BulkPhase::Undo, |items| async move {
         let api = permitted(pool, base, asker, scope).await?;
         let restorer = Restorer {
             api: &api,
+            edit,
+            force,
             assignable: assignable(&api).await?,
         };
         for item in items {
@@ -257,18 +263,36 @@ async fn assignable(api: &Api<'_>) -> Result<BTreeSet<SiteId>, BulkError> {
 /// What an undo puts back on one item, from the item as it is and the image the run kept.
 struct Restorer<'r, 'a> {
     api: &'r Api<'a>,
+    edit: &'r BulkEdit,
+    force: bool,
     assignable: BTreeSet<SiteId>,
 }
 
+/// Whether an item's sets or sites are no longer those the run left: a site's item pool and an
+/// item set's removal change them without a new `modified`, which the undo's own test reads.
+pub(super) fn members_moved(edit: &BulkEdit, kept: &BeforeImage, now: &ItemMembers) -> bool {
+    let Some(before) = Described::of_image(kept) else {
+        return false;
+    };
+    let left = edit.apply(&before);
+    left.item_sets != now.item_sets || left.sites != now.sites
+}
+
 impl Restorer<'_, '_> {
-    /// The image to restore: refused unless the caller may update the item under its owner now
-    /// and under the owner the image gives back, as the item `PATCH` checks the owner. A site the
-    /// caller may not assign items to keeps the item's membership as it is now, as an item write
-    /// leaves such a site alone.
-    fn restore(&self, now: &BeforeImage, mut kept: BeforeImage) -> Result<BeforeImage, FailReason> {
+    /// The image to restore: kept unless forced when the item's memberships moved since the
+    /// run; refused unless the caller may update the item under its owner now and under the
+    /// owner the image gives back, as the item `PATCH` checks the owner. A site the caller may
+    /// not assign items to keeps the item's membership as it is now, as an item write leaves
+    /// such a site alone.
+    fn restore(&self, now: &BeforeImage, mut kept: BeforeImage) -> Restore {
+        let moved = ItemMembers::of_image(now)
+            .is_some_and(|members| members_moved(self.edit, &kept, &members));
+        if moved && !self.force {
+            return Restore::Keep;
+        }
         for owner in [now.owner, kept.owner] {
             if self.api.authorize_resource(ITEM_CLASS, owner).is_err() {
-                return Err(FailReason::UndoDenied);
+                return Restore::Refuse(FailReason::UndoDenied);
             }
         }
         if let (
@@ -283,30 +307,36 @@ impl Restorer<'_, '_> {
                 }
             }
         }
-        Ok(kept)
+        Restore::Image(kept)
     }
 }
 
-/// The properties the item type an edit sets requires; none when it sets none.
-async fn required(pool: &DbPool, edit: &BulkEdit) -> Result<BTreeSet<PropertyId>, BulkError> {
-    let Some(super::Assign::Set(template)) = edit.template else {
-        return Ok(BTreeSet::new());
-    };
-    let properties = with_db!(pool, |db| TemplateRepo::new(db)
-        .list_properties(template)
-        .await)?;
-    Ok(properties
-        .into_iter()
-        .filter(|property| property.is_required)
-        .map(|property| property.property_id)
-        .collect())
+/// The properties each item type requires.
+async fn required(pool: &DbPool) -> Result<HashMap<TemplateId, BTreeSet<PropertyId>>, BulkError> {
+    let templates = with_db!(pool, |db| TemplateRepo::new(db).list().await)?;
+    let mut required = HashMap::new();
+    for template in templates {
+        let properties = with_db!(pool, |db| TemplateRepo::new(db)
+            .list_properties(template.id)
+            .await)?;
+        required.insert(
+            template.id,
+            properties
+                .into_iter()
+                .filter(|property| property.is_required)
+                .map(|property| property.property_id)
+                .collect(),
+        );
+    }
+    Ok(required)
 }
 
 /// What a run decides for one item, from its before-image alone.
 struct Rules<'r, 'a> {
     api: &'r Api<'a>,
     edit: &'r BulkEdit,
-    required: &'r BTreeSet<PropertyId>,
+    values: Option<&'r ValueEdits<ValueContent>>,
+    required: &'r HashMap<TemplateId, BTreeSet<PropertyId>>,
 }
 
 impl Rules<'_, '_> {
@@ -322,17 +352,39 @@ impl Rules<'_, '_> {
             return Verdict::Refuse(FailReason::Denied);
         }
         let after = self.edit.apply(&before);
-        if after == before {
-            return Verdict::Unchanged;
-        }
-        let present: BTreeSet<PropertyId> = image
+        let held: Vec<ValueContent> = image
             .values
             .iter()
-            .map(|value| value.content.property_id)
+            .map(|value| value.content.clone())
             .collect();
-        if after.template != before.template && !self.required.is_subset(&present) {
+        let values = self
+            .values
+            .map(|values| values.plan(&held))
+            .unwrap_or_default();
+        if after == before && values.is_empty() {
+            return Verdict::Unchanged;
+        }
+        let fields = |values: &[ValueContent]| -> BTreeSet<PropertyId> {
+            values.iter().map(|value| value.property_id).collect()
+        };
+        let (had, has) = (fields(&held), fields(&values.applied(&held)));
+        let required = after
+            .template
+            .and_then(|template| self.required.get(&template))
+            .cloned()
+            .unwrap_or_default();
+        if after.template != before.template && !required.is_subset(&has) {
             return Verdict::Refuse(FailReason::TemplateRequires);
         }
-        Verdict::Write(after)
+        if required
+            .iter()
+            .any(|property| had.contains(property) && !has.contains(property))
+        {
+            return Verdict::Refuse(FailReason::RemovesRequired);
+        }
+        Verdict::Write(Written {
+            fields: after,
+            values,
+        })
     }
 }

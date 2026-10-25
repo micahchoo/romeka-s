@@ -5,8 +5,11 @@
 //! items list's own read ([`crate::read::matching_item_ids`]) with the caller's visibility, and
 //! the run touches those ids and no others. [`start`] moves a run into its job; the job's body is
 //! [`work::work`], one transaction per item (`BulkRepo::apply_target`), so a rerun after a crash
-//! finds what is done and goes on. Undo restores each item from the before-image its run kept,
-//! and keeps an item someone edited since unless forced, as import undo does.
+//! finds what is done and goes on. A change sets describing fields and memberships, and edits
+//! values ([`values`]). Undo restores each item from the before-image its run kept, and keeps an
+//! item someone edited since unless forced, as import undo does; an item whose sets or sites are
+//! no longer those the run left counts as edited, because a site's item pool changes them without
+//! a new `modified`.
 //!
 //! Rights are upstream's batch privileges (`AclFactory`): a query over everything that matches
 //! needs `batch_update_all` (reviewer and up), a ticked list `batch_update` (author and up). Each
@@ -18,6 +21,7 @@ mod change;
 pub mod preview;
 mod scope;
 mod start;
+mod values;
 mod view;
 pub mod work;
 

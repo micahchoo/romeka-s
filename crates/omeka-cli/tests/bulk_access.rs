@@ -240,11 +240,13 @@ async fn an_undo_keeps_a_site_membership_the_undoer_may_not_assign() {
     let id = privatised(&site, &author, own).await;
     site_items(&site, harbour, "remove", own).await;
 
+    // The site change after the run makes the item "edited after", so only a forced undo
+    // restores it (`bulk_values.rs` covers the unforced one).
     let (status, started) = author
         .send(
             "POST",
             &format!("/api/romeka/bulk/{id}/undo"),
-            Some(json!({ "force": false })),
+            Some(json!({ "force": true })),
         )
         .await;
     assert_eq!(status, 200, "{started}");

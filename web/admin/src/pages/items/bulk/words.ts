@@ -3,6 +3,7 @@
  * recent changes list. Names come from the browse option lists; a row the lists lack reads `#id`.
  */
 import type { BulkEdit, BulkFields } from '../../../api/bulk';
+import type { FieldChange, NewValue, ShownValue, ValueOp } from '../../../api/bulk-values';
 import type { ClassId } from '../../../api/types';
 import type { KeyOf, TermLabels, Translator } from '../../../i18n';
 import type { bulk } from '../../../i18n/namespaces/bulk';
@@ -103,5 +104,59 @@ export const editWords = (namer: Namer, edit: BulkEdit): string => {
       parts.push(t(key, { names: namesIn<number>(map, ids) }));
     }
   }
+  if (edit.values.length === 1) {
+    parts.push(t('bulk.word.valueChangesOne'));
+  } else if (edit.values.length > 1) {
+    parts.push(t('bulk.word.valueChanges', { count: String(edit.values.length) }));
+  }
   return parts.join('; ');
 };
+
+/** A value in words: its text and language, and "private" when only signed-in people see it. */
+const valueWords = (t: BulkTranslate, text: string, lang: string | null, isPublic: boolean): string => {
+  const said = lang === null ? `“${text}”` : t('bulk.word.valueIn', { text: `“${text}”`, lang });
+  return isPublic ? said : t('bulk.word.valuePrivate', { text: said });
+};
+
+const newValueText = (t: BulkTranslate, value: NewValue): string => {
+  switch (value.type) {
+    case 'literal':
+      return value.text;
+    case 'uri':
+      return value.label ?? value.uri;
+    case 'item':
+      return t('bulk.word.linkedItem', { id: String(value.item) });
+  }
+};
+
+/** One value change in words, after the field's name: "Subject: add “Maps” (en)". */
+export const opWords = (t: BulkTranslate, field: string, op: ValueOp): string => {
+  switch (op.op) {
+    case 'add': {
+      const lang = op.value.type === 'literal' ? op.value.lang : null;
+      return t('bulk.op.add', { field, value: valueWords(t, newValueText(t, op.value), lang, op.isPublic) });
+    }
+    case 'replace':
+      return t('bulk.op.replace', { field, from: `“${op.from}”`, to: `“${op.to}”` });
+    case 'clear':
+      return t('bulk.op.clear', { field });
+    case 'visibility':
+      return t(op.isPublic ? 'bulk.op.public' : 'bulk.op.private', { field });
+  }
+};
+
+const shownText = (t: BulkTranslate, value: ShownValue): string =>
+  value.text ?? value.uri ?? t('bulk.word.linkedItem', { id: String(value.resource ?? '') });
+
+/** A field's values on one side of a preview line: "Subject: “Maps” (en), “Rivers”". */
+export const fieldValueWords = (
+  t: BulkTranslate,
+  field: string,
+  values: FieldChange['before'],
+): string =>
+  values.length === 0
+    ? t('bulk.word.fieldEmpty', { field })
+    : t('bulk.word.fieldValues', {
+        field,
+        values: values.map((value) => valueWords(t, shownText(t, value), value.lang, value.isPublic)).join(', '),
+      });
