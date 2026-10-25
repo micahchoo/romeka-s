@@ -263,6 +263,22 @@ where
         Ok(())
     }
 
+    /// Record why an undo left a target where it is, in the state it was.
+    pub async fn note_refusal(
+        &self,
+        id: BulkId,
+        item: ItemId,
+        reason: FailReason,
+    ) -> Result<(), DbError> {
+        sqlx::query("UPDATE romeka_bulk_target SET error = ? WHERE bulk_id = ? AND item_id = ?")
+            .bind(reason.as_str())
+            .bind(bind_id(id))
+            .bind(bind_id(item))
+            .execute(self.pool)
+            .await?;
+        Ok(())
+    }
+
     /// Whether a media row holds `storage_id`, so its files at their own paths are in use.
     pub async fn storage_in_use(&self, storage_id: &str) -> Result<bool, DbError> {
         let row = sqlx::query("SELECT id FROM media WHERE storage_id = ?")
@@ -327,6 +343,65 @@ where
     for<'x> Option<String>: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
     for<'x> &'x str: Encode<'x, DB> + Type<DB> + ColumnIndex<DB::Row>,
 {
+    let primary = image
+        .rows("item")
+        .first()
+        .and_then(|row| int(row, "primary_media_id"));
+    let ready = fitted(rows, image, sites).await?;
+    for table in TABLES {
+        let Some((_, rows_of)) = ready.iter().find(|(name, _)| *name == table.name) else {
+            continue;
+        };
+        for row in rows_of {
+            rows.insert(table, row).await?;
+        }
+    }
+    let item_id = image
+        .rows("item")
+        .first()
+        .and_then(|row| int(row, "id"))
+        .unwrap_or_default();
+    if let Some(primary) = primary {
+        sqlx::query("UPDATE item SET primary_media_id = ? WHERE id = ?")
+            .bind(primary as i64)
+            .bind(item_id as i64)
+            .execute(&mut *rows.conn)
+            .await?;
+    }
+    for link in &image.attachments {
+        for (column, id) in [("item_id", link.item), ("media_id", link.media)] {
+            let Some(id) = id else { continue };
+            sqlx::query(&format!(
+                "UPDATE site_block_attachment SET {column} = ? WHERE id = ? AND {column} IS NULL"
+            ))
+            .bind(id as i64)
+            .bind(link.attachment as i64)
+            .execute(&mut *rows.conn)
+            .await?;
+        }
+    }
+    Ok(())
+}
+
+/// The snapshot's rows as an undo inserts them: each reference to a row since deleted emptied,
+/// each row that cannot stand without one left out, and the item's primary media emptied until
+/// its media are in.
+async fn fitted<DB: Backend>(
+    rows: &mut TrashRows<'_, DB>,
+    image: &TrashImage,
+    sites: &BTreeSet<SiteId>,
+) -> Result<Vec<(&'static str, Vec<TrashRow>)>, DbError>
+where
+    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
+    for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
+    usize: ColumnIndex<DB::Row>,
+    for<'x> i64: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> Option<i64>: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> bool: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> String: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> Option<String>: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> &'x str: Encode<'x, DB> + Type<DB> + ColumnIndex<DB::Row>,
+{
     let mut tables = by_table(image);
     let own = image.resources();
     let mut table = |name: &'static str| tables.remove(name).unwrap_or_default();
@@ -374,7 +449,6 @@ where
     site_rows.retain(|row| {
         int(row, "site_id").is_some_and(|id| site_ids.contains(&id) && sites.contains(&SiteId(id)))
     });
-    let primary = item.first().and_then(|row| int(row, "primary_media_id"));
     for row in &mut item {
         row.insert("primary_media_id".to_string(), Value::Null);
     }
@@ -387,39 +461,7 @@ where
         ("romeka_media_annotation", notes),
     ];
     ready.extend(tables);
-    for table in TABLES {
-        let Some((_, rows_of)) = ready.iter().find(|(name, _)| *name == table.name) else {
-            continue;
-        };
-        for row in rows_of {
-            rows.insert(table, row).await?;
-        }
-    }
-    let item_id = image
-        .rows("item")
-        .first()
-        .and_then(|row| int(row, "id"))
-        .unwrap_or_default();
-    if let Some(primary) = primary {
-        sqlx::query("UPDATE item SET primary_media_id = ? WHERE id = ?")
-            .bind(primary as i64)
-            .bind(item_id as i64)
-            .execute(&mut *rows.conn)
-            .await?;
-    }
-    for link in &image.attachments {
-        for (column, id) in [("item_id", link.item), ("media_id", link.media)] {
-            let Some(id) = id else { continue };
-            sqlx::query(&format!(
-                "UPDATE site_block_attachment SET {column} = ? WHERE id = ? AND {column} IS NULL"
-            ))
-            .bind(id as i64)
-            .bind(link.attachment as i64)
-            .execute(&mut *rows.conn)
-            .await?;
-        }
-    }
-    Ok(())
+    Ok(ready)
 }
 
 /// Insert the values of other resources that linked to the item, where the resource is there

@@ -11,7 +11,11 @@
 //! `PATCH` decides it.
 
 use std::collections::{BTreeSet, HashMap};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
+
+use omeka_core::permissions::Action;
+use omeka_media::store::Store;
 
 use omeka_db::DbPool;
 use omeka_db::ids::{BulkId, ItemId, JobId, PropertyId, SiteId, TemplateId, UserId};
@@ -50,6 +54,7 @@ pub enum WorkEnd {
 }
 
 /// Do `phase` on run `bulk` as job `job`. `force` restores items edited since (undo only).
+/// `store` holds the files a delete moves to the trash and an undo moves back.
 ///
 /// # Errors
 /// [`BulkError`] when the run is not working under this job. A failure while it deals with the
@@ -57,6 +62,7 @@ pub enum WorkEnd {
 pub async fn work(
     pool: &DbPool,
     base: &BaseUrl,
+    store: &Arc<dyn Store>,
     bulk: BulkId,
     job: JobId,
     phase: BulkPhase,
@@ -67,9 +73,10 @@ pub async fn work(
         .ok_or_else(|| {
             ApiError::internal(format!("bulk change {bulk} is not worked on by job {job}"))
         })?;
+    let ground = Ground { pool, base, store };
     let outcome = match phase {
-        BulkPhase::Run => run(pool, base, &row, job).await,
-        BulkPhase::Undo => undo(pool, base, &row, job, force).await,
+        BulkPhase::Run => run(&ground, &row, job).await,
+        BulkPhase::Undo => undo(&ground, &row, job, force).await,
     };
     let (ending, error) = match outcome {
         Ok(Step::Lost) => return Ok(WorkEnd::Lost),
@@ -87,8 +94,15 @@ pub async fn work(
     })
 }
 
+/// What every chunk of a job reads its world through.
+pub(super) struct Ground<'g> {
+    pub(super) pool: &'g DbPool,
+    pub(super) base: &'g BaseUrl,
+    pub(super) store: &'g Arc<dyn Store>,
+}
+
 /// Where the chunk loop left the run.
-enum Step {
+pub(super) enum Step {
     Finished,
     Stopped,
     Lost,
@@ -121,14 +135,17 @@ async fn finished(pool: &DbPool, bulk: BulkId, phase: BulkPhase) -> Result<BulkE
     })
 }
 
-async fn run(pool: &DbPool, base: &BaseUrl, row: &BulkRow, job: JobId) -> Result<Step, BulkError> {
+async fn run(ground: &Ground<'_>, row: &BulkRow, job: JobId) -> Result<Step, BulkError> {
     let change = BulkChange::parse(&row.change).map_err(ApiError::internal)?;
-    let BulkChange::Edit(edit) = &change;
-    let scope = Scope::of(&row.query)?;
+    let right = Scope::of(&row.query)?.right(row.kind);
+    let BulkChange::Edit(edit) = &change else {
+        return super::trash::run(ground, row, job, right).await;
+    };
+    let pool = ground.pool;
     let required = &required(pool).await?;
-    let (change, scope) = (&change, &scope);
+    let change = &change;
     chunks(pool, row, job, BulkPhase::Run, |items| async move {
-        let api = permitted(pool, base, row.owner_id, scope).await?;
+        let api = permitted(ground, row.owner_id, right).await?;
         let values = check(&api, change).await?;
         let rules = Rules {
             api: &api,
@@ -149,17 +166,20 @@ async fn run(pool: &DbPool, base: &BaseUrl, row: &BulkRow, job: JobId) -> Result
 /// An undo acts as the person who asked for it, the owner of its job, and restores an item only
 /// as far as they may write it now.
 async fn undo(
-    pool: &DbPool,
-    base: &BaseUrl,
+    ground: &Ground<'_>,
     row: &BulkRow,
     job: JobId,
     force: bool,
 ) -> Result<Step, BulkError> {
-    let scope = &Scope::of(&row.query)?;
-    let BulkChange::Edit(edit) = &BulkChange::parse(&row.change).map_err(ApiError::internal)?;
+    let pool = ground.pool;
+    let right = Scope::of(&row.query)?.right(row.kind);
     let asker = with_db!(pool, |db| JobRepo::new(db).get(job).await)?.and_then(|job| job.owner_id);
+    let change = BulkChange::parse(&row.change).map_err(ApiError::internal)?;
+    let BulkChange::Edit(edit) = &change else {
+        return super::trash::undo(ground, row, job, asker, right).await;
+    };
     chunks(pool, row, job, BulkPhase::Undo, |items| async move {
-        let api = permitted(pool, base, asker, scope).await?;
+        let api = permitted(ground, asker, right).await?;
         let restorer = Restorer {
             api: &api,
             edit,
@@ -180,7 +200,7 @@ async fn undo(
 
 /// Visit the open targets of `phase` in id order, a chunk at a time, pulsing after each. `each`
 /// checks the rights the chunk needs before it deals with the chunk's targets.
-async fn chunks<F, Fut>(
+pub(super) async fn chunks<F, Fut>(
     pool: &DbPool,
     row: &BulkRow,
     job: JobId,
@@ -221,12 +241,12 @@ where
 /// The read surface of `user` as their account stands now, once they hold the batch right the
 /// run's scope needs. Called before each chunk, so a person deactivated or demoted while a job
 /// works stops it at the next chunk; the error ends the run with its reason.
-async fn permitted<'a>(
-    pool: &'a DbPool,
-    base: &BaseUrl,
+pub(super) async fn permitted<'a>(
+    ground: &Ground<'a>,
     user: Option<UserId>,
-    scope: &Scope,
+    right: Action,
 ) -> Result<Api<'a>, BulkError> {
+    let pool = ground.pool;
     let account = match user {
         Some(user) => with_db!(pool, |db| UserRepo::new(db).get(user).await)?,
         None => None,
@@ -240,14 +260,15 @@ async fn permitted<'a>(
         );
     }
     let actor = Actor::new(account.id, account.role);
-    if !holds(&actor, scope.right()) {
-        return Err(denied(scope.right()));
+    if !holds(&actor, right) {
+        return Err(denied(right));
     }
-    Ok(Api::load(pool, base.clone(), actor).await?)
+    let store = Some(Arc::clone(ground.store));
+    Ok(Api::load_with_store(pool, ground.base.clone(), actor, store).await?)
 }
 
 /// The sites the caller may assign items to (`can-assign-items`).
-async fn assignable(api: &Api<'_>) -> Result<BTreeSet<SiteId>, BulkError> {
+pub(super) async fn assignable(api: &Api<'_>) -> Result<BTreeSet<SiteId>, BulkError> {
     let sites = with_db!(api.pool(), |db| SiteRepo::new(db)
         .list(&SiteFilter::default(), &Paging::default())
         .await)?;

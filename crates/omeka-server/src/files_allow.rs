@@ -365,6 +365,15 @@ mod tests {
     }
 
     #[test]
+    fn a_file_in_the_bulk_trash_is_never_served() {
+        assert_eq!(
+            storage_path("/files/original/abc.png"),
+            Some(("original".to_string(), "abc.png".to_string()))
+        );
+        assert_eq!(storage_path("/files/trash/original/abc.png"), None);
+    }
+
+    #[test]
     fn a_name_splits_at_its_last_dot() {
         assert_eq!(
             StoredFile::parse("original", "a.b.png"),

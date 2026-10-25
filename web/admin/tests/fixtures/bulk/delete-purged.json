@@ -1,0 +1,32 @@
+{
+  "id": 2,
+  "kind": "delete",
+  "status": "done",
+  "owner": 1,
+  "query": {
+    "id": [
+      1
+    ]
+  },
+  "change": {
+    "kind": "delete"
+  },
+  "total": 1,
+  "done": 1,
+  "failed": 0,
+  "counts": {
+    "pending": 0,
+    "done": 1,
+    "unchanged": 0,
+    "failed": 0,
+    "restored": 0,
+    "kept": 0
+  },
+  "failures": [],
+  "jobId": 3,
+  "error": null,
+  "created": "2026-10-24T09:00:00+00:00",
+  "started": "2026-10-24T09:00:00+00:00",
+  "ended": "2026-10-24T09:00:00+00:00",
+  "purged": "2026-10-24T09:00:00+00:00"
+}

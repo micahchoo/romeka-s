@@ -87,6 +87,9 @@ fn reason_text(reason: FailReason) -> &'static str {
         FailReason::TemplateRequires => messages::BULK_ITEM_TEMPLATE_REQUIRES,
         FailReason::RemovesRequired => messages::BULK_ITEM_REMOVES_REQUIRED,
         FailReason::UndoDenied => messages::BULK_ITEM_UNDO_DENIED,
+        FailReason::DeleteDenied => messages::BULK_ITEM_DELETE_DENIED,
+        FailReason::IdTaken => messages::BULK_ITEM_ID_TAKEN,
+        FailReason::LinksLeft => messages::BULK_ITEM_LINKS_LEFT,
     }
 }
 
@@ -113,6 +116,8 @@ pub struct BulkView {
     pub created: String,
     pub started: Option<String>,
     pub ended: Option<String>,
+    /// When a delete's trash was emptied; the run cannot be undone from then on.
+    pub purged: Option<String>,
 }
 
 impl BulkView {
@@ -134,6 +139,7 @@ impl BulkView {
             created: iso8601(row.created),
             started: row.started.map(iso8601),
             ended: row.ended.map(iso8601),
+            purged: row.purged.map(iso8601),
         }
     }
 }
@@ -204,7 +210,19 @@ pub struct UndoPreview {
 /// 404 for no such run or one the caller may not read.
 pub async fn undo_preview(api: &Api<'_>, raw: &str) -> Result<UndoPreview, BulkError> {
     let row = load(api, raw, false).await?;
-    let BulkChange::Edit(edit) = BulkChange::parse(&row.change).map_err(ApiError::internal)?;
+    if row.purged.is_some() {
+        return Err(super::start::purged(row.status));
+    }
+    let BulkChange::Edit(edit) = BulkChange::parse(&row.change).map_err(ApiError::internal)? else {
+        let counts = with_db!(api.pool(), |db| BulkRepo::new(db).counts(row.id).await)?;
+        return Ok(UndoPreview {
+            restore: usize::try_from(counts.done + counts.kept).unwrap_or(usize::MAX),
+            edited: 0,
+            gone: 0,
+            edited_items: Vec::new(),
+            gone_items: Vec::new(),
+        });
+    };
     let candidates = with_db!(api.pool(), |db| BulkRepo::new(db)
         .undo_candidates(row.id)
         .await)?;

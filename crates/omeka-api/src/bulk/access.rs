@@ -27,6 +27,8 @@ pub(super) fn holds(actor: &Actor, action: Action) -> bool {
 pub(super) fn denied(action: Action) -> BulkError {
     let privilege = match action {
         Action::BatchUpdateAll => "batch_update_all",
+        Action::BatchDelete => "batch_delete",
+        Action::BatchDeleteAll => "batch_delete_all",
         _ => "batch_update",
     };
     BulkError::Api(ApiError::PermissionDenied {

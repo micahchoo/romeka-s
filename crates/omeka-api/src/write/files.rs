@@ -24,43 +24,55 @@ pub fn delete_media_files(store: Option<&dyn Store>, row: &MediaRow) -> Result<(
     let Some(store) = store else {
         return Ok(());
     };
-    if row.has_original
-        && let Some(name) = filename(row.storage_id.as_deref(), row.extension.as_deref())
-    {
-        store
-            .delete(&storage_path(StorePrefix::Original, &name, None))
-            .map_err(ApiError::internal)?;
+    let paths = media_paths(
+        row.storage_id.as_deref(),
+        row.extension.as_deref(),
+        row.has_original,
+        row.has_thumbnails,
+    );
+    for path in paths {
+        store.delete(&path).map_err(ApiError::internal)?;
     }
-    if row.has_thumbnails
-        && let Some(storage_id) = row.storage_id.as_deref()
-    {
+    Ok(())
+}
+
+/// Every storage path a media row may own: its original, its thumbnails, and
+/// every access copy target, because the row does not name the one it
+/// planned: a delete removes whatever the worker made.
+#[must_use]
+pub fn media_paths(
+    storage_id: Option<&str>,
+    extension: Option<&str>,
+    has_original: bool,
+    has_thumbnails: bool,
+) -> Vec<String> {
+    let mut paths = Vec::new();
+    if has_original && let Some(name) = filename(storage_id, extension) {
+        paths.push(storage_path(StorePrefix::Original, &name, None));
+    }
+    let Some(storage_id) = storage_id else {
+        return paths;
+    };
+    if has_thumbnails {
         for kind in ThumbnailType::ALL {
-            store
-                .delete(&storage_path(
-                    StorePrefix::Thumbnail(kind),
-                    storage_id,
-                    Some("jpg"),
-                ))
-                .map_err(ApiError::internal)?;
+            paths.push(storage_path(
+                StorePrefix::Thumbnail(kind),
+                storage_id,
+                Some("jpg"),
+            ));
         }
     }
-    // Every copy target, because the row does not name the one it planned: a
-    // delete removes whatever the worker made.
-    if row.has_original
-        && let Some(storage_id) = row.storage_id.as_deref()
-    {
+    if has_original {
         for target in [
             AccessTarget::Mp4,
             AccessTarget::M4a,
             AccessTarget::Jpeg,
             AccessTarget::Pdf,
         ] {
-            store
-                .delete(&copy_path(storage_id, target))
-                .map_err(ApiError::internal)?;
+            paths.push(copy_path(storage_id, target));
         }
     }
-    Ok(())
+    paths
 }
 
 /// `Entity\Media::getFilename`: the storage id plus the extension when there is

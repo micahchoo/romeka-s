@@ -21,7 +21,9 @@ fn steady(value: &mut Value) {
     match value {
         Value::Object(members) => {
             for (key, member) in members.iter_mut() {
-                if ["created", "started", "ended"].contains(&key.as_str()) && member.is_string() {
+                if ["created", "started", "ended", "purged"].contains(&key.as_str())
+                    && member.is_string()
+                {
                     *member = json!(STEADY_TIME);
                 } else {
                     steady(member);
@@ -181,4 +183,66 @@ async fn the_value_edit_fixtures_are_what_the_routes_answer() {
     let run = settled(&site, id).await;
     assert_eq!(run["counts"]["done"], 1, "{run}");
     record("run-values", run);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_delete_fixtures_are_what_the_routes_answer() {
+    let site = site().await;
+    let [anna, bob] = [
+        item(&site, "Letter to Anna").await,
+        item(&site, "Letter to Bob").await,
+    ];
+    let body = json!({ "query": { "id": [anna, bob] }, "change": { "kind": "delete" } });
+    let preview = send(&site, "POST", "/api/romeka/bulk", Some(body), 201).await;
+    let id = preview["id"].as_u64().unwrap();
+    record("delete-preview", preview);
+    send(
+        &site,
+        "POST",
+        &format!("/api/romeka/bulk/{id}/run"),
+        None,
+        200,
+    )
+    .await;
+    record("delete-done", settled(&site, id).await);
+    let path = format!("/api/romeka/bulk/{id}/undo/preview");
+    record(
+        "delete-undo-preview",
+        send(&site, "POST", &path, None, 200).await,
+    );
+    let undo = format!("/api/romeka/bulk/{id}/undo");
+    send(&site, "POST", &undo, Some(json!({})), 200).await;
+    record("delete-undone", settled(&site, id).await);
+
+    let body = json!({ "query": { "id": [anna] }, "change": { "kind": "delete" } });
+    let again = send(&site, "POST", "/api/romeka/bulk", Some(body), 201).await["id"]
+        .as_u64()
+        .unwrap();
+    send(
+        &site,
+        "POST",
+        &format!("/api/romeka/bulk/{again}/run"),
+        None,
+        200,
+    )
+    .await;
+    settled(&site, again).await;
+    let purged = send(&site, "POST", "/api/romeka/bulk/trash/purge", None, 200).await;
+    record("trash-purged", purged);
+    record(
+        "delete-purged",
+        send(
+            &site,
+            "GET",
+            &format!("/api/romeka/bulk/{again}"),
+            None,
+            200,
+        )
+        .await,
+    );
+    let undo = format!("/api/romeka/bulk/{again}/undo");
+    record(
+        "delete-purged-undo",
+        send(&site, "POST", &undo, Some(json!({})), 409).await,
+    );
 }

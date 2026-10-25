@@ -137,22 +137,46 @@ async fn shown(api: &Api<'_>, values: &[ValueContent]) -> Result<Vec<ShownValue>
     Ok(shown)
 }
 
+/// A preview's answer: an edit's, or a delete's, which names `kind`.
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum Previewed {
+    Edit(Preview),
+    Delete(super::trash::DeletePreview),
+}
+
 /// Preview a change and write the run, `previewed`.
 ///
 /// # Errors
 /// 400 for a body that does not parse, 403 without the batch privilege the query needs or the
 /// right to assign items to a named site, 404 for a named row that does not exist.
-pub async fn preview(api: &Api<'_>, body: &[u8]) -> Result<Preview, BulkError> {
+pub async fn preview(api: &Api<'_>, body: &[u8]) -> Result<Previewed, BulkError> {
     let body: Body =
         serde_json::from_slice(body).map_err(|error| unreadable(&error.to_string()))?;
     let scope = Scope::of(&body.query)?;
-    if !holds(api.actor(), scope.right()) {
-        return Err(denied(scope.right()));
-    }
     let change = BulkChange::parse(&body.change).map_err(|reason| unreadable(&reason))?;
-    let values = check(api, &change).await?;
-    let BulkChange::Edit(edit) = &change;
-    let items = select(api, &body.query).await?;
+    let right = scope.right(change.kind());
+    if !holds(api.actor(), right) {
+        return Err(denied(right));
+    }
+    match &change {
+        BulkChange::Edit(edit) => edit_preview(api, &body.query, &change, edit)
+            .await
+            .map(Previewed::Edit),
+        BulkChange::Delete => super::trash::preview(api, &body.query)
+            .await
+            .map(Previewed::Delete),
+    }
+}
+
+async fn edit_preview(
+    api: &Api<'_>,
+    query: &Value,
+    change: &BulkChange,
+    edit: &BulkEdit,
+) -> Result<Preview, BulkError> {
+    let values = check(api, change).await?;
+    let items = select(api, query).await?;
     let described = with_db!(api.pool(), |db| BulkRepo::new(db).described(&items).await)?;
     let properties = values
         .as_ref()
@@ -197,7 +221,7 @@ pub async fn preview(api: &Api<'_>, body: &[u8]) -> Result<Preview, BulkError> {
         .create(&NewBulk {
             owner_id: api.actor().user(),
             kind: change.kind(),
-            query: body.query.clone(),
+            query: query.clone(),
             change: change.to_json(),
             items: items.clone(),
         })
@@ -222,7 +246,9 @@ pub(super) async fn check(
     api: &Api<'_>,
     change: &BulkChange,
 ) -> Result<Option<ValueEdits<ValueContent>>, BulkError> {
-    let BulkChange::Edit(edit) = change;
+    let BulkChange::Edit(edit) = change else {
+        return Ok(None);
+    };
     let pool = api.pool();
     if let Some(owner) = edit.owner {
         if !api.actor().is_admin() {

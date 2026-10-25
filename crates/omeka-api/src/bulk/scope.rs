@@ -8,6 +8,7 @@
 
 use omeka_core::permissions::Action;
 use omeka_db::ids::ItemId;
+use omeka_db::rows::BulkKind;
 use serde_json::{Map, Value};
 
 use crate::errors::ApiError;
@@ -55,12 +56,14 @@ impl Scope {
         }
     }
 
-    /// The batch privilege the scope needs.
+    /// The batch privilege the scope needs for a run of `kind`.
     #[must_use]
-    pub fn right(&self) -> Action {
-        match self {
-            Self::Ticked(_) => Action::BatchUpdate,
-            Self::Matching => Action::BatchUpdateAll,
+    pub fn right(&self, kind: BulkKind) -> Action {
+        match (self, kind) {
+            (Self::Ticked(_), BulkKind::Edit) => Action::BatchUpdate,
+            (Self::Matching, BulkKind::Edit) => Action::BatchUpdateAll,
+            (Self::Ticked(_), BulkKind::Delete) => Action::BatchDelete,
+            (Self::Matching, BulkKind::Delete) => Action::BatchDeleteAll,
         }
     }
 }

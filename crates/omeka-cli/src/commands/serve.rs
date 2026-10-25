@@ -25,7 +25,10 @@ use omeka_db::repos::HEARTBEAT_EVERY;
 use omeka_db::repos::JobRepo;
 use omeka_db::rows::NewJob;
 use omeka_db::with_db;
-use omeka_server::{Config, JobDispatch, ResumeEnv, Services, resume_imports, settle_bulk_runs};
+use omeka_media::store::Store;
+use omeka_server::{
+    Config, JobDispatch, ResumeEnv, Services, purge_due_trash, resume_imports, settle_bulk_runs,
+};
 
 use crate::error::CliError;
 use crate::jobs::{JobCommand, ProcessDispatch};
@@ -84,6 +87,11 @@ pub async fn run(
         roots: config.archive_roots.clone(),
     };
     settle_bulk_runs(&pool).await;
+    tokio::spawn(empty_trash_every(
+        pool.clone(),
+        Arc::clone(&store),
+        SWEEP_EVERY,
+    ));
     let resuming = pool.clone();
     tokio::spawn(async move { resume_imports(&resuming, &resume, HEARTBEAT_EVERY).await });
     let services = Services::new(store).with_jobs(jobs);
@@ -101,6 +109,16 @@ pub async fn run(
     }
     closing.close().await;
     Ok(served?)
+}
+
+/// Empty the bulk trash older than its days now and then every `period`, so a server nobody
+/// opens the bulk list on still keeps the trash to its days.
+async fn empty_trash_every(pool: DbPool, store: Arc<dyn Store>, period: Duration) {
+    let mut ticks = tokio::time::interval(period);
+    loop {
+        ticks.tick().await;
+        purge_due_trash(&pool, store.as_ref()).await;
+    }
 }
 
 /// Start the staging sweep job now and then every `period`. The period is a

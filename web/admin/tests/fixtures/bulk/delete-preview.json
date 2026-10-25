@@ -1,0 +1,19 @@
+{
+  "id": 1,
+  "status": "previewed",
+  "kind": "delete",
+  "total": 2,
+  "denied": 0,
+  "media": 0,
+  "bytes": 0,
+  "samples": [
+    {
+      "id": 1,
+      "title": "Letter to Anna"
+    },
+    {
+      "id": 2,
+      "title": "Letter to Bob"
+    }
+  ]
+}

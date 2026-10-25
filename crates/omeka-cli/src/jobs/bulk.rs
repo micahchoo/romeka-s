@@ -54,6 +54,7 @@ async fn perform(context: &JobContext<'_>, phase: BulkPhase, force: bool) -> Res
     let end = work(
         context.pool,
         &context.env.base_url,
+        &context.env.store,
         bulk,
         context.job_id,
         phase,

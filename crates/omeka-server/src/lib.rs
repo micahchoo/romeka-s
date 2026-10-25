@@ -69,7 +69,7 @@ mod tus;
 mod uploads;
 mod vocab_import;
 
-pub use bulk::settle_bulk_runs;
+pub use bulk::{purge_due_trash, settle_bulk_runs};
 pub use config::{Config, ConfigError, MailConfig, MailTls};
 pub use config_store::{StoreConfig, file_store, local_store, store_for};
 pub use imports::{ResumeEnv, resume_imports};

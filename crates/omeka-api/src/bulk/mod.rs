@@ -14,13 +14,15 @@
 //! Rights are upstream's batch privileges (`AclFactory`): a query over everything that matches
 //! needs `batch_update_all` (reviewer and up), a ticked list `batch_update` (author and up). Each
 //! item then needs the update right the item `PATCH` checks; an item that fails it is recorded as
-//! failed, not written.
+//! failed, not written. A delete ([`trash`]) needs `batch_delete_all` (editor and up) or
+//! `batch_delete`, and each item its delete right; its items go to a trash its undo empties back.
 
 mod access;
 mod change;
 pub mod preview;
 mod scope;
 mod start;
+pub mod trash;
 mod values;
 mod view;
 pub mod work;
@@ -31,6 +33,7 @@ use omeka_db::rows::BulkStatus;
 pub use change::{Assign, BulkChange, BulkEdit, Membership};
 pub use scope::Scope;
 pub use start::{run, stop, undo};
+pub use trash::{PurgeScope, Purged, empty_trash, purge};
 pub use view::{BulkView, UndoPreview, list, show, undo_preview};
 
 use crate::errors::ApiError;

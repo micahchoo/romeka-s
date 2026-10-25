@@ -30,7 +30,9 @@
 //! four counts bound an import's uploads and how long its files stay
 //! ([`upload_settings`]). Each count answers its default when no row holds
 //! it, and a `null` write restores the default. A sixth, [`ANNOTATIONS_PUBLIC`],
-//! is the annotation off switch: absent or `true` means on.
+//! is the annotation off switch: absent or `true` means on. A seventh,
+//! [`TRASH_DAYS`], is how many days a bulk delete's trash keeps its items
+//! ([`trash_days`]), a count like the upload ones.
 //!
 //! The admin locale is `MvcListeners::bootstrapLocale` (lines 132-146): the
 //! signed-in user's `locale`, else the global `locale`, else none, which the
@@ -101,6 +103,13 @@ pub const IMPORT_DRAFT_STAGING_KEEP_DAYS: &str = "import_draft_staging_keep_days
 /// container, the manifest, the public page and search).
 pub const ANNOTATIONS_PUBLIC: &str = "romeka_annotations_public";
 
+/// Days a bulk delete keeps its items in the trash before a purge empties it
+/// (`crate::bulk::trash`). Port-only; upstream deletes at once.
+pub const TRASH_DAYS: &str = "romeka_trash_days";
+
+/// How long the trash keeps a bulk delete's items when no row says otherwise.
+pub const TRASH_DAYS_DEFAULT: u64 = 30;
+
 /// The defaults of the four upload counts: 2 GiB, 50 GiB, 30 days, 7 days.
 pub const UPLOAD_DEFAULTS: UploadSettings = UploadSettings {
     max_file: 2 * 1024 * 1024 * 1024,
@@ -153,6 +162,7 @@ pub const GLOBAL_SETTINGS: &[&str] = &[
     IMPORT_STAGING_KEEP_DAYS,
     IMPORT_DRAFT_STAGING_KEEP_DAYS,
     ANNOTATIONS_PUBLIC,
+    TRASH_DAYS,
 ];
 
 fn shape(key: &str) -> Shape {
@@ -164,7 +174,8 @@ fn shape(key: &str) -> Shape {
         IMPORT_UPLOAD_MAX_FILE
         | IMPORT_UPLOAD_MAX_TOTAL
         | IMPORT_STAGING_KEEP_DAYS
-        | IMPORT_DRAFT_STAGING_KEEP_DAYS => Shape::Count,
+        | IMPORT_DRAFT_STAGING_KEEP_DAYS
+        | TRASH_DAYS => Shape::Count,
         _ => Shape::Text,
     }
 }
@@ -386,6 +397,19 @@ pub async fn upload_settings(pool: &DbPool) -> Result<UploadSettings, DbError> {
     })
 }
 
+/// Days the trash keeps a bulk delete's items ([`TRASH_DAYS`]), its default
+/// when no row holds a whole number above zero.
+///
+/// # Errors
+/// [`DbError`] when the setting row cannot be read.
+pub async fn trash_days(pool: &DbPool) -> Result<u64, DbError> {
+    Ok(setting(pool, TRASH_DAYS)
+        .await?
+        .as_ref()
+        .and_then(count_of)
+        .unwrap_or(TRASH_DAYS_DEFAULT))
+}
+
 /// A whole number above zero, as a JSON number or a string of digits.
 fn count_of(value: &Value) -> Option<u64> {
     match value {
@@ -461,6 +485,10 @@ pub async fn read_global(api: &Api<'_>) -> Result<ApiResponse, ApiError> {
     ] {
         map.insert(key.to_string(), value.into());
     }
+    map.insert(
+        TRASH_DAYS.to_string(),
+        trash_days(pool).await.map_err(db_error)?.into(),
+    );
     Ok(ApiResponse::document(serialize(&Value::Object(map))?))
 }
 

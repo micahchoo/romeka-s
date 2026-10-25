@@ -3,8 +3,12 @@
 //!
 //! The rules live in `omeka_api::bulk`; these handlers authenticate, call one entry point, hand a
 //! composed job to the process's [`crate::JobDispatch`], and copy the answer onto the wire. A 409
-//! carries `code` (`cannotRun`, `expired`, `cannotUndo`, `notRunning`) and the run's `status`, so
-//! the admin branches on the code.
+//! carries `code` (`cannotRun`, `expired`, `cannotUndo`, `notRunning`, `purged`) and the run's
+//! `status`, so the admin branches on the code.
+//!
+//! The trash of a bulk delete empties itself: each read of the recent list starts a purge of the
+//! trash older than `romeka_trash_days` in the background, as the server's start does, and an
+//! administrator can empty all of it now (`POST /api/romeka/bulk/trash/purge`).
 
 use axum::Router;
 use axum::body::Body;
@@ -12,12 +16,13 @@ use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode, Uri, header};
 use axum::response::Response;
 use axum::routing::{get, post};
-use omeka_api::bulk::{self, BulkError};
+use omeka_api::bulk::{self, BulkError, PurgeScope};
 use omeka_api::errors::ApiError;
 use omeka_db::DbPool;
 use omeka_db::ids::JobId;
 use omeka_db::repos::{BulkRepo, JobRepo};
 use omeka_db::with_db;
+use omeka_media::store::Store;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -31,6 +36,23 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/api/romeka/bulk/{id}/stop", post(stop))
         .route("/api/romeka/bulk/{id}/undo/preview", post(undo_preview))
         .route("/api/romeka/bulk/{id}/undo", post(undo))
+        .route("/api/romeka/bulk/trash/purge", post(empty_trash))
+}
+
+/// Empty the trash of every bulk delete older than the trash days, logging what it did. The
+/// server runs it at start and after each read of the recent list.
+pub async fn purge_due_trash(pool: &DbPool, store: &dyn Store) {
+    match bulk::purge(pool, store, PurgeScope::Due).await {
+        Ok(purged) if purged.items > 0 || purged.runs > 0 => {
+            tracing::info!(
+                runs = purged.runs,
+                items = purged.items,
+                "emptied due bulk trash"
+            );
+        }
+        Ok(_) => {}
+        Err(error) => tracing::warn!("cannot empty the bulk trash: {error}"),
+    }
 }
 
 /// Settle every bulk run whose worker died while the server was down: a run stops, an undo is
@@ -104,10 +126,30 @@ async fn preview(
 }
 
 async fn list(State(state): State<AppState>, uri: Uri, headers: HeaderMap) -> Response {
-    answer(
+    let answered = answer(
         async {
             let api = crate::open(&state, &uri, &headers).await?;
             Ok(json_response(StatusCode::OK, &bulk::list(&api).await?))
+        }
+        .await,
+    );
+    let (pool, store) = (state.pool.clone(), state.store.clone());
+    tokio::spawn(async move {
+        purge_due_trash(&pool, store.as_ref()).await;
+    });
+    answered
+}
+
+/// `POST /api/romeka/bulk/trash/purge`: an administrator empties every trash at rest now and
+/// reads `{runs, items}`.
+async fn empty_trash(State(state): State<AppState>, uri: Uri, headers: HeaderMap) -> Response {
+    answer(
+        async {
+            let api = crate::open(&state, &uri, &headers).await?;
+            Ok(json_response(
+                StatusCode::OK,
+                &bulk::empty_trash(&api).await?,
+            ))
         }
         .await,
     )

@@ -10,8 +10,8 @@
 //!
 //! A member that is absent leaves the field alone. `class` and `template` take an id to set or
 //! `null` to clear. `values` lists value edits ([`super::values`]). An edit that names nothing,
-//! or adds and removes the same set or site, is refused. Delete (phase 4) joins as a variant of
-//! [`BulkChange`].
+//! or adds and removes the same set or site, is refused. A delete is `{"kind": "delete"}` and
+//! names nothing else: it moves each item to the trash (`super::trash`).
 
 use std::collections::BTreeSet;
 
@@ -26,6 +26,7 @@ use super::values::{OpWire, ValueEdits};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BulkChange {
     Edit(BulkEdit),
+    Delete,
 }
 
 /// A field set to a value, or emptied.
@@ -110,6 +111,7 @@ impl BulkChange {
     pub fn kind(&self) -> BulkKind {
         match self {
             Self::Edit(_) => BulkKind::Edit,
+            Self::Delete => BulkKind::Delete,
         }
     }
 
@@ -122,13 +124,17 @@ impl BulkChange {
             serde_json::from_value(value.clone()).map_err(|error| error.to_string())?;
         match wire {
             Wire::Edit(edit) => edit.into_edit().map(Self::Edit),
+            Wire::Delete(DeleteWire {}) => Ok(Self::Delete),
         }
     }
 
     /// The stored form, which [`Self::parse`] reads back.
     #[must_use]
     pub fn to_json(&self) -> Value {
-        let Self::Edit(edit) = self;
+        let edit = match self {
+            Self::Edit(edit) => edit,
+            Self::Delete => return json!({ "kind": "delete" }),
+        };
         let mut out = json!({ "kind": "edit" });
         if let Some(is_public) = edit.is_public {
             out["isPublic"] = json!(is_public);
@@ -171,7 +177,13 @@ fn membership_json<T: Ord + Copy + Into<u64>>(members: &Membership<T>) -> Value 
 #[serde(tag = "kind", rename_all = "snake_case")]
 enum Wire {
     Edit(EditWire),
+    Delete(DeleteWire),
 }
+
+/// A delete names nothing but its kind.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DeleteWire {}
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -295,7 +307,9 @@ mod tests {
             "itemSets": { "add": [6], "remove": [4] },
         }))
         .unwrap();
-        let BulkChange::Edit(edit) = &change;
+        let BulkChange::Edit(edit) = &change else {
+            panic!("an edit")
+        };
         let after = edit.apply(&before());
         assert_eq!(
             after,
@@ -317,8 +331,18 @@ mod tests {
             "kind": "edit", "isPublic": true, "itemSets": { "add": [4] }, "sites": { "remove": [2] },
         }))
         .unwrap();
-        let BulkChange::Edit(edit) = change;
+        let BulkChange::Edit(edit) = change else {
+            panic!("an edit")
+        };
         assert_eq!(edit.apply(&before()), before());
+    }
+
+    #[test]
+    fn a_delete_names_nothing_else_and_reads_back() {
+        let change = BulkChange::parse(&json!({ "kind": "delete" })).unwrap();
+        assert_eq!(change, BulkChange::Delete);
+        assert_eq!(change.kind(), BulkKind::Delete);
+        assert_eq!(BulkChange::parse(&change.to_json()).unwrap(), change);
     }
 
     #[test]
@@ -331,7 +355,7 @@ mod tests {
             json!({ "kind": "edit", "owner": null }),
             json!({ "kind": "edit", "class": 0 }),
             json!({ "kind": "edit", "title": "x" }),
-            json!({ "kind": "delete" }),
+            json!({ "kind": "delete", "isPublic": false }),
             json!({ "isPublic": true }),
         ] {
             assert!(BulkChange::parse(&body).is_err(), "{body}");

@@ -36,9 +36,9 @@ pub async fn run(api: &Api<'_>, raw: &str) -> Result<JobId, BulkError> {
             row.status,
         ));
     }
-    let scope = Scope::of(&row.query)?;
-    if !holds(api.actor(), scope.right()) {
-        return Err(denied(scope.right()));
+    let right = Scope::of(&row.query)?.right(row.kind);
+    if !holds(api.actor(), right) {
+        return Err(denied(right));
     }
     let change = BulkChange::parse(&row.change).map_err(ApiError::internal)?;
     check(api, &change).await?;
@@ -60,12 +60,15 @@ pub async fn run(api: &Api<'_>, raw: &str) -> Result<JobId, BulkError> {
 pub async fn undo(api: &Api<'_>, raw: &str, force: bool) -> Result<JobId, BulkError> {
     let row = load(api, raw, false).await?;
     let cannot = || BulkError::conflict("cannotUndo", messages::BULK_CANNOT_UNDO, row.status);
+    if row.purged.is_some() {
+        return Err(purged(row.status));
+    }
     if !row.status.may_undo() {
         return Err(cannot());
     }
-    let scope = Scope::of(&row.query)?;
-    if !holds(api.actor(), scope.right()) {
-        return Err(denied(scope.right()));
+    let right = Scope::of(&row.query)?.right(row.kind);
+    if !holds(api.actor(), right) {
+        return Err(denied(right));
     }
     if !with_db!(api.pool(), |db| BulkRepo::new(db)
         .start(row.id, BulkPhase::Undo)
@@ -119,6 +122,11 @@ async fn compose(
         .set_job(row.id, job.id)
         .await)?;
     Ok(job.id)
+}
+
+/// The 409 for a delete whose trash was emptied: nothing is left to put back.
+pub(super) fn purged(status: BulkStatus) -> BulkError {
+    BulkError::conflict("purged", messages::BULK_PURGED, status)
 }
 
 fn cannot_run(status: BulkStatus) -> BulkError {
