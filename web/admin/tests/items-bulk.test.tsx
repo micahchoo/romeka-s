@@ -16,6 +16,7 @@ const OPTION_FIXTURES: Readonly<Record<string, string>> = {
   '/api/item_sets': 'item-sets-page.json',
   '/api/resource_templates': 'resource-templates-page.json',
   '/api/sites': 'sites-page.json',
+  '/api/properties': 'properties-page.json',
 };
 
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}): Response =>
@@ -41,7 +42,7 @@ interface Sent {
  * The list and option routes from the fixtures, and the bulk routes from `bulk`, which answers
  * each run read with the next of `reads` (the last one again once they run out).
  */
-const installServer = (reads: readonly unknown[]): Sent[] => {
+const installServer = (reads: readonly unknown[], previewFixture = 'bulk/preview.json'): Sent[] => {
   const sent: Sent[] = [];
   let read = 0;
   const handle = (method: string, path: string): Response => {
@@ -53,7 +54,7 @@ const installServer = (reads: readonly unknown[]): Sent[] => {
       return json(loadFixture(fixture));
     }
     if (path === '/api/romeka/bulk') {
-      return method === 'POST' ? json(loadFixture('bulk/preview.json'), 201) : json(loadFixture('bulk/runs.json'));
+      return method === 'POST' ? json(loadFixture(previewFixture), 201) : json(loadFixture('bulk/runs.json'));
     }
     if (path === '/api/romeka/bulk/1/run' || path === '/api/romeka/bulk/1/undo') {
       return json({ jobId: 1 });
@@ -144,6 +145,43 @@ describe('items bulk change', () => {
     await waitFor(() => {
       expect(itemReads(sent)).toBe(before + 1);
     });
+  });
+
+  it('adds a value to a field in words, and previews each changed field before and after', async () => {
+    const sent = installServer([], 'bulk/preview-values.json');
+    await openList();
+    fireEvent.click(screen.getByRole('button', { name: 'Change items…' }));
+    const panel = await screen.findByRole('region', { name: 'Change items' });
+    const values = await within(panel).findByRole('group', { name: 'Values' });
+
+    fireEvent.change(await within(values).findByRole('searchbox', { name: 'Change the values of a field' }), {
+      target: { value: 'description' },
+    });
+    fireEvent.click(within(values).getByRole('button', { name: /dcterms:description/ }));
+    expect(within(values).getByRole('combobox', { name: 'What to do' })).toHaveValue('add');
+    const add = within(values).getByRole('button', { name: 'Add this change' });
+    expect(add).toBeDisabled();
+    fireEvent.change(within(values).getByRole('textbox', { name: 'Text' }), { target: { value: 'Maps' } });
+    fireEvent.change(within(values).getByRole('textbox', { name: 'Language (optional), like en or es' }), {
+      target: { value: 'en' },
+    });
+    fireEvent.click(add);
+    expect(within(values).getByRole('listitem')).toHaveTextContent('Description: add “Maps” (en)');
+
+    fireEvent.click(within(panel).getByRole('button', { name: 'Preview' }));
+    expect(await within(panel).findByText('1 item will change.')).toBeInTheDocument();
+    const preview = sent.find((entry) => entry.method === 'POST' && entry.path === '/api/romeka/bulk');
+    expect(preview?.body).toEqual({
+      query: {},
+      change: {
+        kind: 'edit',
+        values: [{ op: 'add', property: 4, isPublic: true, value: { type: 'literal', text: 'Maps', lang: 'en' } }],
+      },
+    });
+    const anna = within(panel).getByRole('row', { name: /Letter to Anna/ });
+    const [was, will] = within(anna).getAllByRole('cell');
+    expect(was).toHaveTextContent('Subject: no value');
+    expect(will).toHaveTextContent('Subject: “Maps” (en), private, “Harbour”, “Harbour photograph”');
   });
 
   it('undoes a recent change, keeping an item edited since unless the person ticks it', async () => {

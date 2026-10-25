@@ -1,9 +1,10 @@
 /**
- * The panel's first step: which items, and one row per field the change can set. Every row
- * starts at "No change", so the change names only what the person chose.
+ * The panel's first step: which items, one row per field the change can set, and the value
+ * changes (`values-section.tsx`). Every row starts at "No change", so the change names only what
+ * the person chose.
  */
 import type { ReactElement } from 'react';
-import { useId } from 'react';
+import { Suspense, lazy, useId } from 'react';
 import type { Assign, BulkEdit, Membership } from '../../../api/bulk';
 import { namesSomething } from '../../../api/bulk';
 import { useTranslator } from '../../../i18n';
@@ -12,6 +13,9 @@ import { useTermLabels } from '../../../i18n/termText';
 import type { BrowseOptions } from '../browse-options';
 import type { Draft, Scope } from './model';
 import { classNameOf } from './words';
+
+/** The Values section is its own chunk, so the panel stays inside its budget (`perf/budget.json`). */
+const ValuesSection = lazy(() => import('./values-section').then((module) => ({ default: module.ValuesSection })));
 
 /** The two selections the panel can name, with their sizes. */
 export interface Reach {
@@ -254,6 +258,14 @@ export const EditStep = ({
           }}
         />
       </div>
+      <Suspense fallback={<p className="bulk-note">{t('bulk.values.loading')}</p>}>
+        <ValuesSection
+          ops={edit.values}
+          onOps={(values) => {
+            set({ values });
+          }}
+        />
+      </Suspense>
       {ready ? null : <p className="bulk-note">{t('bulk.edit.nothing')}</p>}
       <p className="bulk-actions">
         <button type="submit" disabled={!ready || busy} aria-busy={busy}>
