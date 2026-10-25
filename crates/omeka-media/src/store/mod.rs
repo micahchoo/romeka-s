@@ -118,6 +118,28 @@ pub trait Store: Send + Sync + std::fmt::Debug {
     /// [`StoreError`] when the path is illegal or the delete fails.
     fn delete(&self, storage_path: &str) -> Result<bool, StoreError>;
 
+    /// Move the file at `from` to `to`, replacing any file there, with its
+    /// type. Answers `false` when nothing is at `from`, which a retried move
+    /// meets once the first one landed, so a caller converges by retrying.
+    ///
+    /// The default reads the whole file, writes it without a type and deletes
+    /// the source: right for a test double, wrong for large files, so a real
+    /// store moves in place ([`FileStore`] renames, [`S3Store`] copies on the
+    /// server).
+    ///
+    /// # Errors
+    /// [`StoreError`] when either path is illegal or a step fails. The file is
+    /// then at `from`, or at both paths, never at neither.
+    fn rename(&self, from: &str, to: &str) -> Result<bool, StoreError> {
+        if !self.exists(from)? {
+            return Ok(false);
+        }
+        let bytes = self.read(from)?;
+        self.put(&bytes, to, None)?;
+        self.delete(from)?;
+        Ok(true)
+    }
+
     /// Whether a file is stored at `storage_path`.
     ///
     /// # Errors

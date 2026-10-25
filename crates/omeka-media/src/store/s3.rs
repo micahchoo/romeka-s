@@ -42,6 +42,9 @@ const MAX_PARTS: u64 = 10_000;
 /// once, so this only has to cover one slow part.
 const REQUEST_TTL: Duration = Duration::from_secs(60 * 60);
 
+/// The header that turns a `PutObject` into a `CopyObject`; it is signed.
+const COPY_SOURCE: &str = "x-amz-copy-source";
+
 /// The settings of an [`S3Store`], from `ROMEKA_S3_*`.
 #[derive(Clone, PartialEq, Eq)]
 pub struct S3Config {
@@ -337,6 +340,36 @@ impl Store for S3Store {
         self.http
             .delete(key, "DeleteObject", &url)?
             .expect(key, "DeleteObject", &[200, 204])?;
+        Ok(true)
+    }
+
+    /// `CopyObject` on the server, which keeps the object's type, then
+    /// `DeleteObject` of the source. One `CopyObject` copies at most 5 GiB, so
+    /// a larger object fails here and stays where it was.
+    fn rename(&self, from: &str, to: &str) -> Result<bool, StoreError> {
+        let source = checked_path(from)?;
+        let key = checked_path(to)?;
+        if !self.exists(source)? {
+            return Ok(false);
+        }
+        // Storage paths hold only letters, digits, `.`, `-`, `_` and `/`, so
+        // the source needs no escaping.
+        let copy_source = format!("/{}/{source}", self.bucket.name());
+        let mut action = self.bucket.put_object(Some(&self.credentials), key);
+        action
+            .headers_mut()
+            .insert(COPY_SOURCE, copy_source.as_str());
+        let url = action.sign(REQUEST_TTL);
+        let sent = self.http.copy(key, &url, COPY_SOURCE, &copy_source)?;
+        sent.expect(key, "CopyObject", &[200])?;
+        // S3 can answer 200 and report the failure in the body.
+        if sent.body_text().contains("<Error>") {
+            return Err(StoreError::remote(
+                key,
+                format!("CopyObject failed: {}", sent.error_code()),
+            ));
+        }
+        self.delete(source)?;
         Ok(true)
     }
 

@@ -120,6 +120,25 @@ impl Store for FileStore {
         }
     }
 
+    /// A rename within the root, so the file is at one path or the other.
+    fn rename(&self, from: &str, to: &str) -> Result<bool, StoreError> {
+        let source = self.local_path(from)?;
+        let target = self.local_path(to)?;
+        if let Some(parent) = target.parent() {
+            std::fs::create_dir_all(parent).map_err(io(parent))?;
+        }
+        match std::fs::rename(&source, &target) {
+            Ok(()) => Ok(true),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound && !source.exists() => {
+                Ok(false)
+            }
+            Err(source_error) => Err(StoreError::Io {
+                path: source,
+                source: source_error,
+            }),
+        }
+    }
+
     fn exists(&self, storage_path: &str) -> Result<bool, StoreError> {
         let path = self.local_path(storage_path)?;
         path.try_exists()

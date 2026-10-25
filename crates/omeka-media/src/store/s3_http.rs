@@ -97,6 +97,18 @@ impl Http {
         read(key, "HeadObject", self.agent.head(url.as_str()).call())
     }
 
+    /// A `PUT` with no body and one header, the source of a `CopyObject`.
+    pub(super) fn copy(
+        &self,
+        key: &str,
+        url: &Url,
+        header: &str,
+        source: &str,
+    ) -> Result<Sent, StoreError> {
+        let request = self.agent.put(url.as_str()).header(header, source);
+        read(key, "CopyObject", request.send(&[] as &[u8]))
+    }
+
     pub(super) fn delete(&self, key: &str, action: &str, url: &Url) -> Result<Sent, StoreError> {
         read(key, action, self.agent.delete(url.as_str()).call())
     }

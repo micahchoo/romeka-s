@@ -219,3 +219,69 @@ fn a_signed_attachment_asks_the_bucket_to_save_the_file() {
     );
     assert!(url.contains("X-Amz-Signature="), "{url}");
 }
+
+const COPIED: &str = "<CopyObjectResult><ETag>\"copied\"</ETag></CopyObjectResult>";
+
+#[test]
+fn a_rename_copies_on_the_server_then_deletes_the_source() {
+    let wire = Wire::start(vec![
+        (200, "", ""),
+        (200, "", COPIED),
+        (200, "", ""),
+        (204, "", ""),
+    ]);
+    assert!(
+        wire.store()
+            .rename("original/a.jpg", "trash/original/a.jpg")
+            .unwrap()
+    );
+    let requests = wire.requests();
+    let lines: Vec<&str> = requests
+        .iter()
+        .map(|request| request.head.split('?').next().unwrap())
+        .collect();
+    assert_eq!(
+        lines,
+        [
+            "head /romeka/original/a.jpg",
+            "put /romeka/trash/original/a.jpg",
+            "head /romeka/original/a.jpg",
+            "delete /romeka/original/a.jpg",
+        ]
+    );
+    assert_eq!(
+        requests[1].header("x-amz-copy-source"),
+        Some("/romeka/original/a.jpg")
+    );
+    let request_line = requests[1].head.lines().next().unwrap();
+    assert!(
+        request_line.contains("x-amz-copy-source"),
+        "the copy source is a signed header: {request_line}"
+    );
+}
+
+#[test]
+fn a_rename_of_a_missing_object_sends_no_copy() {
+    let wire = Wire::start(vec![(404, "", "")]);
+    assert!(
+        !wire
+            .store()
+            .rename("original/a.jpg", "trash/original/a.jpg")
+            .unwrap()
+    );
+    assert_eq!(wire.requests().len(), 1);
+}
+
+#[test]
+fn a_copy_that_answers_an_error_document_keeps_the_source() {
+    let wire = Wire::start(vec![
+        (200, "", ""),
+        (200, "", "<Error><Code>InternalError</Code></Error>"),
+    ]);
+    let error = wire
+        .store()
+        .rename("original/a.jpg", "trash/original/a.jpg")
+        .unwrap_err();
+    assert!(error.to_string().contains("InternalError"), "{error}");
+    assert_eq!(wire.requests().len(), 2, "no delete after a failed copy");
+}

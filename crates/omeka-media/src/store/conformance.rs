@@ -20,6 +20,7 @@ pub fn check_store(store: &dyn Store) {
     put_then_read_round_trips(store);
     typed_put_keeps_the_bytes(store);
     exists_and_delete_report_presence(store);
+    rename_moves_the_file_once(store);
     read_range_clips_to_the_file(store);
     list_names_the_files_directly_in_a_folder(store);
     put_stream_stores_every_byte(store);
@@ -71,6 +72,24 @@ pub fn exists_and_delete_report_presence(store: &dyn Store) {
     assert!(!ok(store.exists(path), "exists after delete"));
     assert_eq!(ok(store.size(path), "size after delete"), None);
     assert!(!ok(store.delete(path), "second delete"));
+}
+
+/// `rename` moves the bytes to a path in another folder, replacing a file
+/// there; a second move of the same path finds nothing and says so.
+pub fn rename_moves_the_file_once(store: &dyn Store) {
+    let (from, to) = (
+        "conformance-rename/a.jpg",
+        "conformance-rename/trash/original/a.jpg",
+    );
+    ok(store.put(b"photo", from, Some("image/jpeg")), "put");
+    ok(store.put(b"older", to, None), "put the file it replaces");
+    assert!(ok(store.rename(from, to), "rename"));
+    assert!(!ok(store.exists(from), "exists after rename"));
+    assert_eq!(ok(store.read(to), "read the moved file"), b"photo");
+    assert!(!ok(store.rename(from, to), "second rename"));
+    assert_eq!(ok(store.read(to), "read after the second rename"), b"photo");
+    assert!(store.rename("../a.jpg", to).is_err(), "an illegal source");
+    assert!(store.rename(to, "../a.jpg").is_err(), "an illegal target");
 }
 
 /// `read_range` answers the bytes in the range, clipped at the end of the
