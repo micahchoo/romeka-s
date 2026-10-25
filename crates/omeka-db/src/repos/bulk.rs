@@ -134,6 +134,7 @@ where
             started: None,
             ended: None,
             heartbeat: None,
+            purged: None,
         })
     }
 
@@ -179,7 +180,8 @@ where
         statement.bind(now.clone())?;
         statement.push(", started = COALESCE(started, ");
         statement.bind(now)?;
-        statement.push("), ended = NULL, error = NULL, job_id = NULL WHERE id = ");
+        statement
+            .push("), ended = NULL, error = NULL, job_id = NULL WHERE purged IS NULL AND id = ");
         statement.bind(bind_id(id))?;
         push_names(
             &mut statement,

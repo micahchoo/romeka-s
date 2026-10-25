@@ -24,6 +24,7 @@ mod rewrites;
 mod sites;
 mod system;
 mod templates;
+pub(crate) mod trash;
 mod user_uploads;
 mod users;
 mod values;
@@ -65,6 +66,7 @@ pub use system::{
     NewAsset, NewJob, SessionRow, SettingRow,
 };
 pub use templates::{NewTemplate, NewTemplateProperty, TemplatePropertyRow, TemplateRow};
+pub use trash::{AttachmentLink, IncomingLink, TrashImage, TrashRow, TrashedMedia};
 pub use user_uploads::{NewUserUpload, UserUploadRow};
 pub use users::{
     ApiKeyRow, NewApiKey, NewPasswordCreation, NewUser, PasswordCreationRow, UserRow,

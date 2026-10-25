@@ -241,7 +241,7 @@ fn import_fields(fields: &Described) -> (ImportFields, ItemSlots) {
 }
 
 /// The target's state, locked until the transaction ends; `None` when the run has no such target.
-async fn lock_target<DB: Backend>(
+pub(super) async fn lock_target<DB: Backend>(
     tx: &mut Transaction<'_, DB>,
     id: BulkId,
     item: ItemId,
@@ -299,7 +299,7 @@ where
     Ok(())
 }
 
-async fn set_state<DB: Backend>(
+pub(super) async fn set_state<DB: Backend>(
     tx: &mut Transaction<'_, DB>,
     id: BulkId,
     item: ItemId,
@@ -344,7 +344,7 @@ where
     Ok(())
 }
 
-async fn fail<DB: Backend>(
+pub(super) async fn fail<DB: Backend>(
     tx: &mut Transaction<'_, DB>,
     id: BulkId,
     item: ItemId,

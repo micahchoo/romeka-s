@@ -46,9 +46,11 @@ macro_rules! stored_names {
 }
 
 stored_names!(
-    /// What a run does to its items. Delete joins in a later phase, with no new column.
+    /// What a run does to its items.
     BulkKind, "kind", {
         Edit => "edit",
+        /// Moves each item to the trash, which an undo empties back into place.
+        Delete => "delete",
     }
 );
 
@@ -227,6 +229,13 @@ stored_names!(
         /// The person who asked for the undo may not update this item, as it is now or as the
         /// undo would leave it.
         UndoDenied => "undoDenied",
+        /// The run's owner may not delete this item.
+        DeleteDenied => "deleteDenied",
+        /// Another row holds an id the trashed item needs back, so it stays in the trash.
+        IdTaken => "idTaken",
+        /// Put back, but values on other resources edited since the delete did not link to it
+        /// again. The target is `restored` and holds this as a note.
+        LinksLeft => "linksLeft",
     }
 );
 
@@ -251,6 +260,8 @@ pub struct BulkRow {
     pub started: Option<NaiveDateTime>,
     pub ended: Option<NaiveDateTime>,
     pub heartbeat: Option<NaiveDateTime>,
+    /// When the trash of a delete was emptied; such a run neither runs nor undoes again.
+    pub purged: Option<NaiveDateTime>,
 }
 
 impl BulkRow {
@@ -271,6 +282,7 @@ impl BulkRow {
             started: DB::opt_datetime(row, "started")?,
             ended: DB::opt_datetime(row, "ended")?,
             heartbeat: DB::opt_datetime(row, "heartbeat")?,
+            purged: DB::opt_datetime(row, "purged")?,
         })
     }
 }

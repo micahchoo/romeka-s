@@ -161,6 +161,24 @@ where
         Ok(found)
     }
 
+    /// How many media `items` hold, and the bytes of their originals as each row records them.
+    pub async fn media_totals(&self, items: &[ItemId]) -> Result<(u64, u64), DbError> {
+        let (mut count, mut bytes) = (0, 0);
+        for chunk in items.chunks(CHUNK) {
+            let mut statement = Statement::<DB>::new(
+                "SELECT COUNT(*) AS n, COALESCE(SUM(size), 0) AS bytes FROM media",
+            );
+            push_ids(&mut statement, " WHERE item_id IN (", chunk)?;
+            let (sql, arguments) = statement.into_parts();
+            let row = sqlx::query_with::<DB, _>(&sql, arguments)
+                .fetch_one(self.pool)
+                .await?;
+            count += DB::int(&row, "n")?.max(0) as u64;
+            bytes += DB::int(&row, "bytes")?.max(0) as u64;
+        }
+        Ok((count, bytes))
+    }
+
     /// `(item_id, member)` of a membership table, for the items of one chunk.
     async fn members(
         &self,

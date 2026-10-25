@@ -282,3 +282,12 @@ upstream table; upstream's batch update keeps no record of what it changed.
   is the item's before-image in the import's format (`BeforeImage`), `written` the `modified` the
   run's change left, and `error` the code of a failure. The image, the state and the item's change
   commit in one transaction.
+
+`0013_bulk_trash.sql` adds `romeka_bulk.purged`, when the trash of a bulk delete was emptied. A
+delete keeps each removed item's rows in its target's `image` as a trash snapshot (`TrashImage`:
+the item's and its media's rows, values, annotations, memberships, the page block attachments
+that named them, and the values of other resources that linked to them), and its files under
+`trash/` in the store. A purge sets `purged` first, which stops the run from running or undoing
+again, then deletes the files and clears each `image`, so a purge cut short goes on where it
+stopped. Ids are not reused: `resource.id` and `value.id` are `AUTOINCREMENT`, so an undo inserts
+the rows with their old ids.

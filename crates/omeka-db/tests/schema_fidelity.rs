@@ -268,6 +268,7 @@ const ROMEKA_TABLES: &[(&str, &[&str])] = &[
             "started",
             "ended",
             "heartbeat",
+            "purged",
         ],
     ),
     (
