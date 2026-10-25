@@ -2,13 +2,16 @@
  * A bulk change through the real server and its job runner: filter the Items list, make every
  * item that matches Private, watch the change finish, see the list follow, undo it, and see the
  * list back as it was; then add a value to every item that matches, see it on an item, and undo
- * it. `BULK_SCREENSHOTS` names a folder for the panel's pictures.
+ * it; then move every item that matches to the trash with its media, see the list empty, undo it,
+ * and see the items back with their thumbnails. `BULK_SCREENSHOTS` names a folder for the panel's
+ * pictures.
  */
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Locator, Page } from '@playwright/test';
 import { expect, expectClean, test } from '../fixtures';
 import { expectAxeBudget } from '../harness/axe';
-import { readHarness } from '../harness/state';
+import { REPO_ROOT, readHarness } from '../harness/state';
 
 const TITLE = 'Bulk e2e letter';
 const COUNT = 3;
@@ -140,4 +143,82 @@ test('a value added to every item that matches shows on the item, and undo takes
   await expect(page.getByText(`${title} 1`).first()).toBeVisible();
   await expect(page.getByText(subject)).toHaveCount(0);
   await expectClean(diagnostics, 'bulk value undo');
+});
+
+/** Items titled `title 1`, `title 2`…, each with one uploaded image. */
+const makeImageItems = async (page: Page, title: string): Promise<void> => {
+  const image = readFileSync(join(REPO_ROOT, 'fixtures', 'media-kinds', 'image.jpg'));
+  for (let n = 1; n <= COUNT; n += 1) {
+    const created = await page.request.post('/api/items', {
+      multipart: {
+        data: JSON.stringify({
+          'o:is_public': true,
+          'dcterms:title': [{ type: 'literal', property_id: 1, '@value': `${title} ${String(n)}` }],
+          'o:media': [{ 'o:ingester': 'upload', file_index: 0, 'o:is_public': true }],
+        }),
+        file: { name: 'image.jpg', mimeType: 'image/jpeg', buffer: image },
+      },
+    });
+    expect(created.status(), await created.text()).toBe(200);
+  }
+};
+
+/** Every card's thumbnail in the Grid has loaded its bytes. */
+const expectThumbnails = async (page: Page, count: number): Promise<void> => {
+  const images = page.locator('.items-results img');
+  await expect(images).toHaveCount(count);
+  for (let at = 0; at < count; at += 1) {
+    await expect
+      .poll(() => images.nth(at).evaluate((element: HTMLImageElement) => (element.complete ? element.naturalWidth : 0)), {
+        timeout: 15_000,
+      })
+      .toBeGreaterThan(0);
+  }
+};
+
+test('every item that matches goes to the trash with its media, and undo brings them back with their thumbnails', async ({
+  page,
+  diagnostics,
+  baseURL,
+}) => {
+  const title = 'Bulk e2e trash';
+  await makeImageItems(page, title);
+  await signIn(page, baseURL);
+
+  await page.goto(`/#/items?q=${encodeURIComponent(title)}`);
+  await page.getByRole('button', { name: 'Grid' }).click();
+  await expectThumbnails(page, COUNT);
+
+  await page.getByRole('button', { name: 'Delete items…' }).click();
+  const panel = page.getByRole('region', { name: 'Delete items' });
+  await expect(panel.getByRole('radio', { name: `All ${String(COUNT)} items that match` })).toBeChecked();
+  await panel.getByRole('button', { name: 'Preview' }).click();
+  await expect(panel.getByText(`${String(COUNT)} items go to the trash.`)).toBeVisible();
+  await expect(panel.getByText(new RegExp(`^${String(COUNT)} media files go too: .+ in all\\.$`))).toBeVisible();
+  const move = panel.getByRole('button', { name: `Move ${String(COUNT)} items to the trash` });
+  await expect(move).toBeDisabled();
+  await panel.getByRole('textbox', { name: `To confirm, type the number of items, ${String(COUNT)}` }).fill(String(COUNT));
+  await diagnostics.idle();
+  await expectAxeBudget(page, 'items bulk delete confirm');
+  await shoot(page, 'confirm', 'bulk4');
+
+  await move.click();
+  await expect(panel.getByText(`${String(COUNT)} items moved to the trash.`)).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.items-results img')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: `${title} 1` })).toHaveCount(0);
+  await expectAxeBudget(page, 'items bulk delete done');
+  await shoot(page, 'done', 'bulk4');
+  await expectClean(diagnostics, 'bulk delete');
+
+  await panel.getByRole('button', { name: 'Undo' }).click();
+  await expect(panel.getByText(`Undo puts ${String(COUNT)} items back as they were before this change.`)).toBeVisible();
+  await panel.getByRole('button', { name: 'Undo the change' }).click();
+  await expect(panel.getByText(`Undone. ${String(COUNT)} items are back as they were.`)).toBeVisible({ timeout: 15_000 });
+  await expectThumbnails(page, COUNT);
+  await expect(page.getByRole('link', { name: `${title} 1` })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Recent bulk changes' }).click();
+  const recent = page.getByRole('region', { name: 'Recent bulk changes' });
+  await expect(recent.getByRole('row', { name: /Move to the trash/ }).first()).toContainText('Undone');
+  await expectClean(diagnostics, 'bulk delete undo');
 });
