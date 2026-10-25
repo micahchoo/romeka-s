@@ -636,6 +636,7 @@ ones that would write broken data or have no defined result.
 | `template-missing` | plan | — | yes |
 | `type-exists` | plan | — | yes |
 | `encoding-unsupported` | sheet | — | yes, for that sheet |
+| `owner-not-allowed` (the plan's default owner is not a user the runner may name: any user for a global admin, only themself for anyone else) | plan | — | yes |
 | `sheet-unread` (missing, over 64 MB, or no header line) | sheet | — | yes, for that sheet |
 | `unknown-owner` (owner value names no user) | record | keep (default owner) | no |
 | `unknown-class` (class value names no class) | record | keep (no class) | no |
