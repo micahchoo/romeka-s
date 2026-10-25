@@ -1,0 +1,60 @@
+{
+  "id": 1,
+  "status": "previewed",
+  "total": 1,
+  "unchanged": 0,
+  "denied": 0,
+  "samples": [
+    {
+      "id": 2,
+      "title": "Letter to Anna",
+      "before": {
+        "isPublic": true,
+        "owner": 1,
+        "class": null,
+        "template": null,
+        "itemSets": [],
+        "sites": []
+      },
+      "after": {
+        "isPublic": true,
+        "owner": 1,
+        "class": null,
+        "template": null,
+        "itemSets": [],
+        "sites": []
+      },
+      "values": [
+        {
+          "property": 3,
+          "term": "dcterms:subject",
+          "label": "Subject",
+          "before": [],
+          "after": [
+            {
+              "text": "Maps",
+              "lang": "en",
+              "uri": null,
+              "resource": null,
+              "isPublic": false
+            },
+            {
+              "text": "Harbour",
+              "lang": null,
+              "uri": "https://example.org/harbour",
+              "resource": null,
+              "isPublic": true
+            },
+            {
+              "text": "Harbour photograph",
+              "lang": null,
+              "uri": null,
+              "resource": 1,
+              "isPublic": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
