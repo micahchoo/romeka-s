@@ -123,12 +123,19 @@ export interface ResourceFieldsProps {
 const OWNER_CHANGING_ROLES: readonly string[] = ['global_admin', 'site_admin'];
 
 /**
+ * Whether `user` may `change-owner`, which `AclFactory` grants the two admin
+ * roles alone. `hydrateOwner` refuses the change to anyone else, so a form
+ * offers an owner select only when this holds.
+ */
+export const mayChangeOwner = (user: User | null): boolean =>
+  user !== null && OWNER_CHANGING_ROLES.includes(user.role);
+
+/**
  * `common/resource-fields.phtml` shows the owner select only for a stored
- * resource the user may `change-owner`, which `AclFactory` grants the two admin
- * roles alone. The server refuses the change to anyone else.
+ * resource the user may `change-owner`.
  */
 const offersOwner = (editing: boolean, user: User | null): boolean =>
-  editing && user !== null && OWNER_CHANGING_ROLES.includes(user.role);
+  editing && mayChangeOwner(user);
 
 /**
  * Type, owner and visibility, then the class under "Advanced". Picking a type

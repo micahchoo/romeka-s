@@ -6,7 +6,8 @@
  */
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { isRecord } from '../src/api/parse';
+import { isRecord, isUnknownArray, parseUser } from '../src/api/parse';
+import { setSession } from '../src/api/session';
 import { parseHash } from '../src/app/router';
 import { Shell } from '../src/app/shell';
 import { SitesPage } from '../src/pages/sites/page';
@@ -641,5 +642,46 @@ describe('site settings', () => {
     expect(siteSettingsWire(SITE_SETTINGS_REGISTRY, drafts)['subnav_display']).toBeNull();
     const stored = siteSettingDrafts(SITE_SETTINGS_REGISTRY, { installation_title: 'Library' });
     expect(stored['installation_title']).toBe('Library');
+  });
+});
+
+/**
+ * Upstream's site form has no owner select; `SiteAdapter::hydrate` runs
+ * `hydrateOwner`, which lets only the two admin roles change an owner. The
+ * port offers the select to them alone, and a save by anyone else sends the
+ * stored owner, which is no change.
+ */
+describe('site owner select', () => {
+  /** User 3, who owns the fixture site, signed in with `role`. */
+  const signIn = (role: string): void => {
+    const users = loadFixture('users-page.json');
+    if (!isUnknownArray(users) || !isRecord(users[0])) {
+      throw new Error('expected a users page');
+    }
+    setSession(parseUser({ ...users[0], 'o:role': role }));
+  };
+
+  it('site_info_offers_the_owner_to_an_admin', async () => {
+    signIn('global_admin');
+    try {
+      renderSettings();
+      expect(await screen.findByRole('combobox', { name: 'Owner' })).toHaveValue('3');
+    } finally {
+      setSession(null);
+    }
+  });
+
+  it('site_info_hides_the_owner_from_an_editor_and_keeps_the_stored_one', async () => {
+    signIn('editor');
+    try {
+      const fetchMock = renderSettings();
+      await screen.findByLabelText('Name in the browser tab');
+      expect(screen.queryByRole('combobox', { name: 'Owner' })).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect(await screen.findByText('Saved.')).toBeInTheDocument();
+      expect(first(pagePatch(fetchMock))['o:owner']).toEqual({ 'o:id': 3 });
+    } finally {
+      setSession(null);
+    }
   });
 });

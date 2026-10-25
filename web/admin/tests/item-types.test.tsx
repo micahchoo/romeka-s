@@ -6,6 +6,8 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Mock } from 'vitest';
+import { isUnknownArray, parseUser } from '../src/api/parse';
+import { setSession } from '../src/api/session';
 import { setLocale } from '../src/i18n';
 import { hi } from '../src/i18n/namespaces/item-types/locales/hi';
 import { ItemTypesPage } from '../src/pages/item-types/page';
@@ -310,6 +312,42 @@ describe('a stored item type', () => {
     await waitFor(() => {
       expect(window.localStorage.getItem('romeka.itemTypeUse')).toBe('{"2":["items","item-sets"]}');
     });
+  });
+});
+
+/**
+ * Upstream's template form has no owner select; `hydrateOwner` lets only the
+ * two admin roles change an owner. The port offers the select to them alone,
+ * and a save by anyone else sends the stored owner, which is no change.
+ */
+describe('the item type owner select', () => {
+  const signIn = (index: number): void => {
+    const users = loadFixture('users-page.json');
+    if (!isUnknownArray(users)) {
+      throw new Error('expected a users page');
+    }
+    setSession(parseUser(users[index]));
+  };
+
+  it('type_settings_offers_the_owner_to_an_admin', async () => {
+    signIn(0);
+    try {
+      await openPhotograph();
+      expect(screen.getByRole('combobox', { name: 'Owner' })).toHaveValue('3');
+    } finally {
+      setSession(null);
+    }
+  });
+
+  it('type_settings_hides_the_owner_from_an_editor_and_keeps_the_stored_one', async () => {
+    signIn(1);
+    try {
+      const fetchMock = await openPhotograph();
+      expect(screen.queryByRole('combobox', { name: 'Owner' })).toBeNull();
+      expect((await save(fetchMock))['o:owner']).toEqual({ 'o:id': 3 });
+    } finally {
+      setSession(null);
+    }
   });
 });
 
