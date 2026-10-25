@@ -40,4 +40,5 @@ export const NAMESPACES: readonly NamespaceRecord[] = [
   { id: 'annotations', what: 'media notes panel messages', type: 'AnnotationsMessages' },
   { id: 'media-add', what: 'add-media panel messages', type: 'MediaAddMessages' },
   { id: 'bulk', what: 'bulk change panel messages', type: 'BulkMessages' },
+  { id: 'bulk-delete', what: 'bulk delete messages', type: 'BulkDeleteMessages' },
 ];

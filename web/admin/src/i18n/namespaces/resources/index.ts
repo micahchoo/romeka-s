@@ -148,6 +148,7 @@ export const en = {
   'items.bulkDone': '{site} now has {total} items.',
   'items.bulkConfirmRemove': 'Remove {count} from {site}',
   'items.bulkEdit': 'Change items…',
+  'items.bulkDelete': 'Delete items…',
   'items.bulkRecent': 'Recent bulk changes',
   'items.bulkOpening': 'Opening…',
   // The Items browse bar: search, filters, chips, sort and view.

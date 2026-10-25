@@ -615,7 +615,7 @@ messages! {
     const BULK_ITEM_UNDO_DENIED = "The person who asked for the undo may not edit this item, so the undo left it as it is.";
     const BULK_ITEM_DELETE_DENIED = "The person who started this change may not delete this item.";
     const BULK_ITEM_ID_TAKEN = "Another record now has this item's id, so the undo left the item in the trash.";
-    const BULK_ITEM_LINKS_LEFT = "Put back, but links to it from items edited since the delete were left out.";
+    const BULK_ITEM_LINKS_LEFT = "The item is back, but links to it from items edited since the delete were left out.";
     const BULK_PURGED = "The trash of this change was emptied, so its items cannot come back.";
 }
 

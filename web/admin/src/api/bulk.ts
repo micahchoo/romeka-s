@@ -39,6 +39,9 @@ export const isLive = (status: BulkStatus): boolean =>
 export const mayUndo = (status: BulkStatus): boolean =>
   status === 'done' || status === 'stopped' || status === 'failed' || status === 'partly_undone';
 
+/** Whether Undo can start: the state allows it and a delete's trash was not emptied. */
+export const undoable = (run: BulkRun): boolean => mayUndo(run.status) && run.purged === null;
+
 /** `BulkStatus::may_run`: a stopped or failed run goes on with a new click. */
 export const mayRun = (status: BulkStatus): boolean =>
   status === 'previewed' || status === 'stopped' || status === 'failed';
@@ -123,7 +126,16 @@ export interface BulkCounts {
   readonly kept: number;
 }
 
-export const FAIL_REASONS = ['gone', 'denied', 'templateRequires', 'removesRequired', 'undoDenied'] as const;
+export const FAIL_REASONS = [
+  'gone',
+  'denied',
+  'templateRequires',
+  'removesRequired',
+  'undoDenied',
+  'deleteDenied',
+  'idTaken',
+  'linksLeft',
+] as const;
 export type FailReason = (typeof FAIL_REASONS)[number];
 
 export interface BulkFailure {
@@ -133,11 +145,15 @@ export interface BulkFailure {
   readonly message: string | null;
 }
 
-export interface BulkRun {
+/** What a run does: an edit names its change; a delete moves its items to the trash. */
+export type BulkWork = { readonly kind: 'edit'; readonly change: BulkEdit } | { readonly kind: 'delete' };
+
+export type BulkRun = RunFacts & BulkWork;
+
+interface RunFacts {
   readonly id: BulkId;
   readonly status: BulkStatus;
   readonly owner: UserId | null;
-  readonly change: BulkEdit;
   readonly total: number;
   readonly done: number;
   readonly failed: number;
@@ -147,6 +163,8 @@ export interface BulkRun {
   readonly error: string | null;
   readonly created: string;
   readonly ended: string | null;
+  /** When a delete's trash was emptied: from then on nothing can be put back. */
+  readonly purged: string | null;
 }
 
 export interface BulkUndoPreview {
@@ -297,19 +315,32 @@ const RUN_REQUIRED = [
   'created',
   'started',
   'ended',
+  'purged',
 ];
+
+/** A delete's stored change, which names its kind alone. */
+const parseDelete = (raw: unknown, path: Path): void => {
+  member(strict(raw, path, ['kind']), 'kind', path, oneOf(['delete']));
+};
+
+const parseWork = (object: Record<string, unknown>, path: Path): BulkWork => {
+  if (member(object, 'kind', path, oneOf(['edit', 'delete'])) === 'delete') {
+    member(object, 'change', path, parseDelete);
+    return { kind: 'delete' };
+  }
+  return { kind: 'edit', change: member(object, 'change', path, parseEdit) };
+};
 
 export const parseBulkRun: Parser<BulkRun> = (raw, path = []) => {
   const object = strict(raw, path, RUN_REQUIRED, ['counts', 'failures']);
-  member(object, 'kind', path, oneOf(['edit']));
   member(object, 'query', path, asJsonValue);
   member(object, 'jobId', path, nullable(asCount));
   member(object, 'started', path, nullable(asString));
   return {
+    ...parseWork(object, path),
     id: member(object, 'id', path, asId<'BulkId'>()),
     status: member(object, 'status', path, oneOf(BULK_STATUSES)),
     owner: member(object, 'owner', path, nullable(asId<'UserId'>())),
-    change: member(object, 'change', path, parseEdit),
     total: member(object, 'total', path, asCount),
     done: member(object, 'done', path, asCount),
     failed: member(object, 'failed', path, asCount),
@@ -318,6 +349,7 @@ export const parseBulkRun: Parser<BulkRun> = (raw, path = []) => {
     error: member(object, 'error', path, nullable(asString)),
     created: member(object, 'created', path, asString),
     ended: member(object, 'ended', path, nullable(asString)),
+    purged: member(object, 'purged', path, nullable(asString)),
   };
 };
 
@@ -334,7 +366,7 @@ export const parseBulkUndoPreview: Parser<BulkUndoPreview> = (raw, path = []) =>
   };
 };
 
-const parseStarted = (raw: unknown): void => {
+export const parseStarted = (raw: unknown): void => {
   member(strict(raw, [], ['jobId']), 'jobId', [], asCount);
 };
 
@@ -373,7 +405,7 @@ export const bulkRefusal = (error: Error): BulkRefusal => {
   return { kind: 'error', error };
 };
 
-const BULK = '/api/romeka/bulk';
+export const BULK = '/api/romeka/bulk';
 const one = (id: BulkId): string => `${BULK}/${String(id)}`;
 
 export const bulkApi = {

@@ -1,10 +1,11 @@
 /**
- * "Change items…" and "Recent bulk changes" under the Items list's bulk bar. The panel they open
- * (`bulk/panel.tsx`) is its own chunk, fetched on the first click.
+ * "Change items…", "Delete items…" and "Recent bulk changes" under the Items list's bulk bar. The
+ * panel they open (`bulk/panel.tsx`) is its own chunk, fetched on the first click.
  *
- * The buttons follow upstream's batch privileges (`AclFactory`): an author may change the items
- * she ticks (`batch_update`), a reviewer and up every item that matches (`batch_update_all`), and
- * a researcher neither. The server checks the same rights again.
+ * The buttons follow upstream's batch privileges (`AclFactory`): an author may change and delete
+ * the items she ticks (`batch_update`, `batch_delete`), a reviewer and up may change every item
+ * that matches (`batch_update_all`), an editor and up delete them (`batch_delete_all`), and a
+ * researcher none of it. The server checks the same rights again.
  */
 import type { ReactElement } from 'react';
 import { Suspense, lazy, useState } from 'react';
@@ -20,8 +21,9 @@ const BulkPanel = lazy(() => import('./bulk/panel'));
 
 const MAY_CHANGE_ALL: ReadonlySet<string> = new Set(['global_admin', 'site_admin', 'editor', 'reviewer']);
 const MAY_CHANGE_TICKED: ReadonlySet<string> = new Set([...MAY_CHANGE_ALL, 'author']);
+const MAY_DELETE_ALL: ReadonlySet<string> = new Set(['global_admin', 'site_admin', 'editor']);
 
-type Opened = 'edit' | 'recent';
+type Opened = 'edit' | 'delete' | 'recent';
 
 export const BulkEditBar = ({
   picked,
@@ -62,6 +64,15 @@ export const BulkEditBar = ({
         </button>
         <button
           type="button"
+          aria-expanded={opened === 'delete'}
+          onClick={() => {
+            toggle('delete');
+          }}
+        >
+          {t('items.bulkDelete')}
+        </button>
+        <button
+          type="button"
           className="link-button"
           aria-expanded={opened === 'recent'}
           onClick={() => {
@@ -78,7 +89,12 @@ export const BulkEditBar = ({
             start={opened}
             picked={picked}
             query={query}
-            reach={{ ticked: picked.length, matching: total, filtered, canMatchAll: MAY_CHANGE_ALL.has(role) }}
+            reach={{
+              ticked: picked.length,
+              matching: total,
+              filtered,
+              canMatchAll: (opened === 'delete' ? MAY_DELETE_ALL : MAY_CHANGE_ALL).has(role),
+            }}
             options={options}
             onClose={() => {
               setOpened(null);

@@ -5,7 +5,7 @@
 import type { ReactElement } from 'react';
 import { useId } from 'react';
 import type { BulkCounts, BulkFailure, BulkRun, BulkUndoPreview } from '../../../api/bulk';
-import { isLive, mayRun, mayUndo } from '../../../api/bulk';
+import { isLive, mayRun, undoable } from '../../../api/bulk';
 import type { ItemId } from '../../../api/types';
 import { useAsync } from '../../../app/useAsync';
 import { useLocale, useTranslator } from '../../../i18n';
@@ -110,7 +110,10 @@ const Ended = ({ run }: { readonly run: BulkRun }): ReactElement => {
     case 'stopped':
       return (
         <p className="bulk-headline">
-          {t('bulk.done.stopped', { done: number(counts.done), total: number(run.total) })}
+          {t(run.kind === 'delete' ? 'bulk.done.trashStopped' : 'bulk.done.stopped', {
+            done: number(counts.done),
+            total: number(run.total),
+          })}
         </p>
       );
     default:
@@ -120,7 +123,13 @@ const Ended = ({ run }: { readonly run: BulkRun }): ReactElement => {
             <p role="alert">{t('bulk.done.error', { error: run.error })}</p>
           ) : null}
           <p className="bulk-headline">
-            {counts.done === 1 ? t('bulk.done.changedOne') : t('bulk.done.changedMany', { count: number(counts.done) })}
+            {run.kind === 'delete'
+              ? counts.done === 1
+                ? t('bulk.done.trashedOne')
+                : t('bulk.done.trashedMany', { count: number(counts.done) })
+              : counts.done === 1
+                ? t('bulk.done.changedOne')
+                : t('bulk.done.changedMany', { count: number(counts.done) })}
           </p>
           {counts.unchanged === 1 ? <p>{t('bulk.done.unchangedOne')}</p> : null}
           {counts.unchanged > 1 ? <p>{t('bulk.done.unchanged', { count: number(counts.unchanged) })}</p> : null}
@@ -154,7 +163,10 @@ export const WatchStep = ({
     return (
       <div className="bulk-watch">
         <Progress
-          label={t(undoing ? 'bulk.run.undoProgress' : 'bulk.run.progress', { done: number(value), total: number(max) })}
+          label={t(undoing ? 'bulk.run.undoProgress' : run.kind === 'delete' ? 'bulk.run.deleteProgress' : 'bulk.run.progress', {
+            done: number(value),
+            total: number(max),
+          })}
           value={value}
           max={max}
         />
@@ -182,7 +194,7 @@ export const WatchStep = ({
             {t('bulk.done.goOn')}
           </button>
         ) : null}
-        {mayUndo(run.status) ? (
+        {undoable(run) ? (
           <button type="button" disabled={busy} onClick={onUndo}>
             {run.status === 'partly_undone' ? t('bulk.done.undoAgain') : t('bulk.done.undo')}
           </button>

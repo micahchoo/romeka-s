@@ -292,4 +292,10 @@ export const esServer: ServerCatalogue = {
     'El tipo del elemento necesita un valor en un campo que este cambio dejaría vacío, así que el cambio dejó el elemento como está.',
   'server.bulkItemUndoDenied':
     'La persona que pidió deshacer el cambio no puede editar este elemento, así que se dejó como está.',
+  'server.bulkItemDeleteDenied': 'La persona que inició este cambio no puede eliminar este elemento.',
+  'server.bulkItemIdTaken':
+    'Otro registro tiene ahora el identificador de este elemento, así que deshacer lo dejó en la papelera.',
+  'server.bulkItemLinksLeft':
+    'El elemento ha vuelto, pero no volvieron los enlaces a él desde elementos editados después de eliminarlo.',
+  'server.bulkPurged': 'La papelera de este cambio se vació, así que sus elementos no pueden volver.',
 };

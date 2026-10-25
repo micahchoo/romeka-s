@@ -9,6 +9,7 @@ import type { BulkMessages } from '../index';
 export const es: BulkMessages = {
   'bulk.panel.label': 'Cambiar elementos',
   'bulk.panel.close': 'Cerrar',
+  'bulk.panel.delete': 'Eliminar elementos',
   'bulk.scope.legend': 'Qué elementos',
   'bulk.scope.tickedOne': 'El elemento marcado',
   'bulk.scope.tickedMany': 'Los {count} elementos marcados',
@@ -108,6 +109,7 @@ export const es: BulkMessages = {
   'bulk.word.valueChangesOne': '1 cambio de valores',
   'bulk.word.valueChanges': '{count} cambios de valores',
   'bulk.run.progress': 'Cambiando elementos: {done} de {total}',
+  'bulk.run.deleteProgress': 'Moviendo elementos a la papelera: {done} de {total}',
   'bulk.run.undoProgress': 'Deshaciendo: {done} de {total}',
   'bulk.run.stop': 'Detener',
   'bulk.run.stopping': 'Deteniendo…',
@@ -118,6 +120,9 @@ export const es: BulkMessages = {
   'bulk.done.unchanged': '{count} ya coincidían, sin cambio.',
   'bulk.done.failed': '{count} no se pudieron cambiar:',
   'bulk.done.stopped': 'Detenido. Cambiaron {done} de {total} elementos.',
+  'bulk.done.trashedOne': '1 elemento movido a la papelera.',
+  'bulk.done.trashedMany': '{count} elementos movidos a la papelera.',
+  'bulk.done.trashStopped': 'Detenido. {done} de {total} elementos movidos a la papelera.',
   'bulk.done.error': 'El cambio se detuvo por un error: {error}',
   'bulk.done.goOn': 'Continuar',
   'bulk.done.undo': 'Deshacer',
@@ -155,4 +160,6 @@ export const es: BulkMessages = {
   'bulk.status.undo_stopping': 'Deteniendo el deshacer',
   'bulk.status.undone': 'Deshecho',
   'bulk.status.partly_undone': 'Deshecho en parte',
+  'bulk.status.purged': 'Papelera vaciada',
+  'bulk.word.delete': 'Mover a la papelera',
 };

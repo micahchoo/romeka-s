@@ -142,6 +142,7 @@ export const es: ResourcesMessages = {
   'items.bulkDone': '{site} tiene ahora {total} elementos.',
   'items.bulkConfirmRemove': 'Quitar {count} de {site}',
   'items.bulkEdit': 'Cambiar elementos…',
+  'items.bulkDelete': 'Eliminar elementos…',
   'items.bulkRecent': 'Cambios masivos recientes',
   'items.bulkOpening': 'Abriendo…',
   'browse.search': 'Buscar',

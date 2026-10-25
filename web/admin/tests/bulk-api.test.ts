@@ -44,7 +44,7 @@ describe('bulk wire', () => {
     const run = parseBulkRun(loadFixture('bulk/run-done.json'));
     expect(run.status).toBe('done');
     expect(run.counts).toEqual({ pending: 0, done: 2, unchanged: 0, failed: 1, restored: 0, kept: 0 });
-    expect(run.change).toEqual({ ...NO_EDIT, isPublic: false, itemSets: { add: [1], remove: [] } });
+    expect(run).toMatchObject({ kind: 'edit', change: { ...NO_EDIT, isPublic: false, itemSets: { add: [1], remove: [] } } });
     expect(run.failures).toEqual([{ item: 4, reason: 'gone', message: 'This item is no longer in Omeka.' }]);
   });
 

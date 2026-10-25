@@ -236,7 +236,7 @@
     "server.bulkItemUndoDenied": "The person who asked for the undo may not edit this item, so the undo left it as it is.",
     "server.bulkItemDeleteDenied": "The person who started this change may not delete this item.",
     "server.bulkItemIdTaken": "Another record now has this item's id, so the undo left the item in the trash.",
-    "server.bulkItemLinksLeft": "Put back, but links to it from items edited since the delete were left out.",
+    "server.bulkItemLinksLeft": "The item is back, but links to it from items edited since the delete were left out.",
     "server.bulkPurged": "The trash of this change was emptied, so its items cannot come back."
   }
 }

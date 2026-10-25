@@ -6,6 +6,7 @@
  * ```text
  * closed -> edit -> previewing -> preview -> starting -> watch
  *                       preview -(expired)-> preview (Preview again)
+ * closed -> delete -> watch                     (the delete step's own steps: `delete-step.tsx`)
  * closed -> recent -> undoCheck -> undoAsk -> undoStarting -> watch
  *            recent -> watch                     (Show a run's progress)
  *                      undoAsk -> watch          (Back)
@@ -28,6 +29,7 @@ export interface Draft {
 
 export type Panel =
   | { readonly step: 'closed' }
+  | { readonly step: 'delete' }
   | { readonly step: 'recent'; readonly runs: readonly BulkRun[] | null; readonly failure: BulkRefusal | null }
   | { readonly step: 'edit'; readonly draft: Draft; readonly failure: BulkRefusal | null }
   | { readonly step: 'previewing'; readonly draft: Draft }
@@ -55,6 +57,7 @@ export type Step = Panel['step'];
 export type Action =
   | { readonly type: 'openEdit'; readonly scope: Scope }
   | { readonly type: 'openRecent' }
+  | { readonly type: 'openDelete' }
   | { readonly type: 'close' }
   | { readonly type: 'recentLoaded'; readonly runs: readonly BulkRun[] }
   | { readonly type: 'draft'; readonly draft: Draft }
@@ -107,6 +110,7 @@ const refused = (panel: Panel, refusal: BulkRefusal): Panel => {
     case 'undoStarting':
       return { step: 'undoAsk', run: panel.run, check: panel.check, force: panel.force, failure: refusal };
     case 'closed':
+    case 'delete':
       return panel;
   }
 };
@@ -117,6 +121,8 @@ export const reduce = (panel: Panel, action: Action): Panel => {
       return { step: 'edit', draft: { scope: action.scope, edit: NO_EDIT }, failure: null };
     case 'openRecent':
       return { step: 'recent', runs: null, failure: null };
+    case 'openDelete':
+      return { step: 'delete' };
     case 'close':
       return CLOSED;
     case 'recentLoaded':
@@ -170,6 +176,7 @@ const back = (panel: Panel): Panel => {
 /** A run read after a start, a stop or a poll: it is what the panel watches from then on. */
 const runArrived = (panel: Panel, run: BulkRun): Panel => {
   switch (panel.step) {
+    case 'delete':
     case 'starting':
     case 'resuming':
     case 'undoStarting':

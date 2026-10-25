@@ -83,6 +83,9 @@ describe('the value wire', () => {
 
   it('reads the stored change back as the edit that sent it', () => {
     const run = parseBulkRun(loadFixture('bulk/run-values.json'));
+    if (run.kind !== 'edit') {
+      throw new Error('an edit run');
+    }
     expect(run.change.values.map((op) => op.op)).toEqual(['add', 'add', 'add']);
     expect(parseEdit(encodeEdit(run.change))).toEqual(run.change);
     expect(encodeEdit({ ...NO_EDIT, values: [{ op: 'clear', property: subject }] })).toEqual({

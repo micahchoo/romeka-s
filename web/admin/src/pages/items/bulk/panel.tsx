@@ -6,7 +6,7 @@
  * It is its own chunk, loaded when the person opens it, with its own message namespace.
  */
 import type { ReactElement } from 'react';
-import { useEffect, useReducer, useRef } from 'react';
+import { Suspense, lazy, useEffect, useReducer, useRef } from 'react';
 import type { BulkQuery, BulkRefusal, BulkRun } from '../../../api/bulk';
 import { bulkApi, bulkRefusal, isLive, matchingQuery, tickedQuery } from '../../../api/bulk';
 import type { ResourceQuery } from '../../../api/client';
@@ -17,18 +17,21 @@ import { useTranslator } from '../../../i18n';
 import { bulk } from '../../../i18n/namespaces/bulk';
 import type { BrowseOptions } from '../browse-options';
 import { EditStep } from './edit-step';
-import type { Reach } from './edit-step';
 import { CLOSED, isBusy, isPolling, reduce } from './model';
 import type { Action, Draft, Panel } from './model';
 import { PreviewStep } from './preview-step';
-import { RecentStep } from './recent-step';
 import { UndoStep, WatchStep } from './run-step';
+import type { Reach } from './scope-choice';
 import './bulk-panel.css';
+
+/** The delete's steps and the recent list are their own chunks, so the panel stays in budget. */
+const DeleteStep = lazy(() => import('./delete-step').then((module) => ({ default: module.DeleteStep })));
+const RecentStep = lazy(() => import('./recent-step').then((module) => ({ default: module.RecentStep })));
 
 export const POLL_MS = 2000;
 
 export interface BulkPanelProps {
-  readonly start: 'edit' | 'recent';
+  readonly start: 'edit' | 'recent' | 'delete';
   readonly picked: readonly ItemId[];
   /** The list's query; its filters are what "all that match" sends. */
   readonly query: ResourceQuery;
@@ -42,9 +45,9 @@ export interface BulkPanelProps {
 const firstStep = (props: BulkPanelProps): Panel =>
   reduce(
     CLOSED,
-    props.start === 'recent'
-      ? { type: 'openRecent' }
-      : { type: 'openEdit', scope: props.picked.length > 0 ? 'ticked' : 'matching' },
+    props.start === 'edit'
+      ? { type: 'openEdit', scope: props.picked.length > 0 ? 'ticked' : 'matching' }
+      : { type: props.start === 'recent' ? 'openRecent' : 'openDelete' },
   );
 
 /** The panel's state and the requests that move it. */
@@ -109,6 +112,13 @@ const useBulkPanel = (props: BulkPanelProps) => {
 
   const commands = {
     dispatch,
+    started: (run: BulkRun): void => {
+      started.current = true;
+      dispatch({ type: 'run', run });
+    },
+    refreshRecent: (): void => {
+      dispatch({ type: 'openRecent' });
+    },
     preview: (draft: Draft): void => {
       attempt({ type: 'previewSent' }, async () => ({
         type: 'previewed',
@@ -166,20 +176,36 @@ const Step = ({
 }): ReactElement | null => {
   const busy = isBusy(panel);
   const { dispatch } = commands;
+  const { t } = useTranslator(bulk);
   switch (panel.step) {
     case 'closed':
       return null;
+    case 'delete':
+      return (
+        <Suspense fallback={<p role="status">{t('bulk.recent.loading')}</p>}>
+          <DeleteStep
+            picked={props.picked}
+            query={props.query}
+            reach={props.reach}
+            onStarted={commands.started}
+            onCancel={props.onClose}
+          />
+        </Suspense>
+      );
     case 'recent':
       return (
-        <RecentStep
-          runs={panel.runs}
-          options={props.options}
-          busy={busy}
-          onShow={(run) => {
-            dispatch({ type: 'show', run });
-          }}
-          onUndo={commands.undoCheck}
-        />
+        <Suspense fallback={<p role="status">{t('bulk.recent.loading')}</p>}>
+          <RecentStep
+            runs={panel.runs}
+            options={props.options}
+            busy={busy}
+            onShow={(run) => {
+              dispatch({ type: 'show', run });
+            }}
+            onUndo={commands.undoCheck}
+            onEmptied={commands.refreshRecent}
+          />
+        </Suspense>
       );
     case 'edit':
     case 'previewing':
@@ -259,7 +285,12 @@ const Step = ({
 const BulkPanel = (props: BulkPanelProps): ReactElement => {
   const { t } = useTranslator(bulk);
   const { panel, commands } = useBulkPanel(props);
-  const heading = panel.step === 'recent' ? t('bulk.recent.heading') : t('bulk.panel.label');
+  const heading =
+    panel.step === 'recent'
+      ? t('bulk.recent.heading')
+      : props.start === 'delete'
+        ? t('bulk.panel.delete')
+        : t('bulk.panel.label');
   return (
     <section className="bulk-panel" aria-label={heading}>
       <p className="bulk-panel-head">

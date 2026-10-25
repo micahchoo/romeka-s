@@ -11,6 +11,7 @@ import type { Table } from '../../namespace';
 export const en = {
   'bulk.panel.label': 'Change items',
   'bulk.panel.close': 'Close',
+  'bulk.panel.delete': 'Delete items',
   // Which items.
   'bulk.scope.legend': 'Which items',
   'bulk.scope.tickedOne': 'The ticked item',
@@ -115,6 +116,7 @@ export const en = {
   'bulk.word.valueChanges': '{count} value changes',
   // Running.
   'bulk.run.progress': 'Changing items: {done} of {total}',
+  'bulk.run.deleteProgress': 'Moving items to the trash: {done} of {total}',
   'bulk.run.undoProgress': 'Undoing: {done} of {total}',
   'bulk.run.stop': 'Stop',
   'bulk.run.stopping': 'Stopping…',
@@ -126,6 +128,9 @@ export const en = {
   'bulk.done.unchanged': '{count} already matched, no change.',
   'bulk.done.failed': '{count} could not be changed:',
   'bulk.done.stopped': 'Stopped. {done} of {total} items changed.',
+  'bulk.done.trashedOne': '1 item moved to the trash.',
+  'bulk.done.trashedMany': '{count} items moved to the trash.',
+  'bulk.done.trashStopped': 'Stopped. {done} of {total} items moved to the trash.',
   'bulk.done.error': 'The change stopped on an error: {error}',
   'bulk.done.goOn': 'Go on',
   'bulk.done.undo': 'Undo',
@@ -166,6 +171,8 @@ export const en = {
   'bulk.status.undo_stopping': 'Stopping the undo',
   'bulk.status.undone': 'Undone',
   'bulk.status.partly_undone': 'Partly undone',
+  'bulk.status.purged': 'Trash emptied',
+  'bulk.word.delete': 'Move to the trash',
 } as const;
 
 /** A complete table of this namespace, in one locale. */
