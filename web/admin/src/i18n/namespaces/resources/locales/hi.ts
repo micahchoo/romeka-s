@@ -143,6 +143,7 @@ export const hi: ResourcesMessages = {
   'items.bulkDone': '{site} में अब {total} आइटम हैं।',
   'items.bulkConfirmRemove': '{site} से {count} हटाएँ',
   'items.bulkEdit': 'आइटम बदलें…',
+  'items.bulkDelete': 'आइटम हटाएँ…',
   'items.bulkRecent': 'हाल के बल्क परिवर्तन',
   'items.bulkOpening': 'खुल रहा है…',
   'browse.search': 'खोजें',

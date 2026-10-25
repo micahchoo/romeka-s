@@ -143,6 +143,7 @@ export const ml: ResourcesMessages = {
   'items.bulkDone': '{site}-ൽ ഇപ്പോൾ {total} ഇനങ്ങൾ ഉണ്ട്.',
   'items.bulkConfirmRemove': '{site}-ൽ നിന്ന് {count} നീക്കം ചെയ്യുക',
   'items.bulkEdit': 'ഇനങ്ങൾ മാറ്റുക…',
+  'items.bulkDelete': 'ഇനങ്ങൾ നീക്കം ചെയ്യുക…',
   'items.bulkRecent': 'അടുത്ത കാലത്തെ ബൾക്ക് മാറ്റങ്ങൾ',
   'items.bulkOpening': 'തുറക്കുന്നു…',
   'browse.search': 'തിരയുക',

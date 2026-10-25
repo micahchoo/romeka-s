@@ -11,6 +11,7 @@ import type { BulkMessages } from '../index';
 export const kn: BulkMessages = {
   'bulk.panel.label': 'ಐಟಂಗಳನ್ನು ಬದಲಾಯಿಸಿ',
   'bulk.panel.close': 'ಮುಚ್ಚಿ',
+  'bulk.panel.delete': 'ಅಂಶಗಳನ್ನು ಅಳಿಸಲಾಗುತ್ತಿದೆ',
   'bulk.scope.legend': 'ಯಾವ ಐಟಂಗಳು',
   'bulk.scope.tickedOne': 'ಗುರುತು ಮಾಡಿದ ಐಟಂ',
   'bulk.scope.tickedMany': '{count} ಗುರುತು ಮಾಡಿದ ಐಟಂಗಳು',
@@ -112,6 +113,7 @@ export const kn: BulkMessages = {
   'bulk.word.valueChangesOne': '1 ಮೌಲ್ಯ ಬದಲಾವಣೆ',
   'bulk.word.valueChanges': '{count} ಮೌಲ್ಯ ಬದಲಾವಣೆಗಳು',
   'bulk.run.progress': 'ಬದಲಾಗುತ್ತಿರುವ ಐಟಂಗಳು: {total} ರಲ್ಲಿ {done}',
+  'bulk.run.deleteProgress': 'ಅಂಶಗಳನ್ನು ಟ್ರಾಶ್‌ಗೆ ಸ್ಥಳಾಂತರಿಸಲಾಗುತ್ತಿದೆ: {total} ರಲ್ಲಿ {done}',
   'bulk.run.undoProgress': 'ರದ್ದುಗೊಳಿಸುವುದು: {total} ರಲ್ಲಿ {done}',
   'bulk.run.stop': 'ನಿಲ್ಲಿಸಿ',
   'bulk.run.stopping': 'ನಿಲ್ಲಿಸಲಾಗುತ್ತಿದೆ…',
@@ -122,6 +124,10 @@ export const kn: BulkMessages = {
   'bulk.done.unchanged': '{count} ಈಗಾಗಲೇ ಹೊಂದಾಣಿಕೆಯಾಗಿದೆ, ಯಾವುದೇ ಬದಲಾವಣೆ ಇಲ್ಲ.',
   'bulk.done.failed': '{count} ಅನ್ನು ಬದಲಾಯಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ:',
   'bulk.done.stopped': 'ನಿಲ್ಲಿಸಲಾಗಿದೆ. {total} ರಲ್ಲಿ {done} ಐಟಂಗಳು ಬದಲಾಗಿವೆ.',
+  'bulk.done.trashedOne': '1 ಅಂಶವನ್ನು ಟ್ರಾಶ್‌ಗೆ ಸ್ಥಳಾಂತರಿಸಲಾಗಿದೆ.',
+  'bulk.done.trashedMany': '{count} ಅಂಶಗಳನ್ನು ಟ್ರಾಶ್‌ಗೆ ಸ್ಥಳಾಂತರಿಸಲಾಗಿದೆ.',
+  'bulk.done.trashStopped':
+    'ನಿಲ್ಲಿಸಲಾಗಿದೆ. {total} ರಲ್ಲಿ {done} ಅಂಶಗಳನ್ನು ಟ್ರಾಶ್‌ಗೆ ಸ್ಥಳಾಂತರಿಸಲಾಗಿದೆ.',
   'bulk.done.error': 'ಬದಲಾವಣೆಯು ದೋಷದಿಂದ ನಿಂತಿದೆ: {error}',
   'bulk.done.goOn': 'ಮುಂದುವರಿಯಿರಿ',
   'bulk.done.undo': 'ರದ್ದುಗೊಳಿಸಿ',
@@ -132,7 +138,8 @@ export const kn: BulkMessages = {
   'bulk.done.undoAgain': 'ಉಳಿದವುಗಳನ್ನು ರದ್ದುಗೊಳಿಸಿ',
   'bulk.done.notPutBack': 'ಮರಳಿ ಇಡದ:',
   'bulk.undo.restoreOne': 'ರದ್ದುಗೊಳಿಸುವುದು ಈ ಬದಲಾವಣೆಯ ಮೊದಲು ಇದ್ದಂತೆ 1 ವಸ್ತುವನ್ನು ಮರಳಿ ತರುತ್ತದೆ.',
-  'bulk.undo.restore': 'ರದ್ದುಗೊಳಿಸುವುದರಿಂದ {count} ಐಟಂಗಳು ಈ ಬದಲಾವಣೆಯ ಮೊದಲು ಇದ್ದ ಸ್ಥಿತಿಗೆ ಮರಳುತ್ತವೆ.',
+  'bulk.undo.restore':
+    'ರದ್ದುಗೊಳಿಸುವುದರಿಂದ {count} ಐಟಂಗಳು ಈ ಬದಲಾವಣೆಯ ಮೊದಲು ಇದ್ದ ಸ್ಥಿತಿಗೆ ಮರಳುತ್ತವೆ.',
   'bulk.undo.editedOne':
     '1 ವಸ್ತುವನ್ನು ಈ ಬದಲಾವಣೆಯ ನಂತರ ಸಂಪಾದಿಸಲಾಗಿದೆ. ರದ್ದುಗೊಳಿಸುವುದು ಅದನ್ನು ಹಾಗೆಯೇ ಬಿಡುತ್ತದೆ:',
   'bulk.undo.edited':
@@ -162,4 +169,6 @@ export const kn: BulkMessages = {
   'bulk.status.undo_stopping': 'ರದ್ದುಗೊಳಿಸುವುದನ್ನು ನಿಲ್ಲಿಸಲಾಗುತ್ತಿದೆ',
   'bulk.status.undone': 'ರದ್ದುಗೊಳಿಸಲಾಗಿದೆ',
   'bulk.status.partly_undone': 'ಭಾಗಶಃ ರದ್ದುಗೊಳಿಸಲಾಗಿದೆ',
+  'bulk.status.purged': 'ಟ್ರಾಶ್ ಖಾಲಿ ಮಾಡಲಾಗಿದೆ',
+  'bulk.word.delete': 'ಟ್ರಾಶ್‌ಗೆ ಸ್ಥಳಾಂತರಿಸಿ',
 };

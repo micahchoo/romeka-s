@@ -143,6 +143,7 @@ export const te: ResourcesMessages = {
   'items.bulkDone': '{site}కు ఇప్పుడు {total} అంశాలు ఉన్నాయి.',
   'items.bulkConfirmRemove': '{site} నుండి {count}ను తొలగించండి',
   'items.bulkEdit': 'అంశాలను మార్చండి…',
+  'items.bulkDelete': 'అంశాలను తొలగించండి…',
   'items.bulkRecent': 'ఇటీవలి బల్క్ మార్పులు',
   'items.bulkOpening': 'తెరుస్తోంది…',
   'browse.search': 'వెతకండి',

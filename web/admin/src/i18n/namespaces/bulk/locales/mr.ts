@@ -11,6 +11,7 @@ import type { BulkMessages } from '../index';
 export const mr: BulkMessages = {
   'bulk.panel.label': 'वस्तू बदला',
   'bulk.panel.close': 'बंद करा',
+  'bulk.panel.delete': 'घटक हटवणे',
   'bulk.scope.legend': 'कोणत्या वस्तू',
   'bulk.scope.tickedOne': 'चिन्हांकित वस्तू',
   'bulk.scope.tickedMany': '{count} चिन्हांकित वस्तू',
@@ -111,6 +112,7 @@ export const mr: BulkMessages = {
   'bulk.word.valueChangesOne': '1 मूल्य बदल',
   'bulk.word.valueChanges': '{count} मूल्य बदल',
   'bulk.run.progress': 'बदलत असलेल्या वस्तू: {total} पैकी {done}',
+  'bulk.run.deleteProgress': 'घटक ट्रॅशमध्ये हलवणे: {total} पैकी {done}',
   'bulk.run.undoProgress': 'पूर्ववत करणे: {total} पैकी {done}',
   'bulk.run.stop': 'थांबा',
   'bulk.run.stopping': 'थांबत आहे…',
@@ -121,6 +123,9 @@ export const mr: BulkMessages = {
   'bulk.done.unchanged': '{count} आधीच जुळले, कोणताही बदल नाही.',
   'bulk.done.failed': '{count} बदलता आले नाहीत:',
   'bulk.done.stopped': 'थांबवले. {total} पैकी {done} वस्तू बदलल्या.',
+  'bulk.done.trashedOne': '1 घटक ट्रॅशमध्ये हलवला.',
+  'bulk.done.trashedMany': '{count} घटक ट्रॅशमध्ये हलवले.',
+  'bulk.done.trashStopped': 'थांबवले. {total} पैकी {done} घटक ट्रॅशमध्ये हलवले.',
   'bulk.done.error': 'बदल एका त्रुटीमुळे थांबला: {error}',
   'bulk.done.goOn': 'पुढे जा',
   'bulk.done.undo': 'पूर्ववत करा',
@@ -130,10 +135,13 @@ export const mr: BulkMessages = {
     'जसे होते तसेच: {count}. बदलानंतर संपादित, त्यामुळे जसे आहेत तसे ठेवले: {kept}.',
   'bulk.done.undoAgain': 'बाकीचे पूर्ववत करा',
   'bulk.done.notPutBack': 'पूर्ववत न केलेले:',
-  'bulk.undo.restoreOne': 'पूर्ववत केल्याने या बदलापूर्वी जशी स्थिती होती, तशीच 1 घटक पूर्ववत होतो.',
+  'bulk.undo.restoreOne':
+    'पूर्ववत केल्याने या बदलापूर्वी जशी स्थिती होती, तशीच 1 घटक पूर्ववत होतो.',
   'bulk.undo.restore': 'पूर्ववत केल्यामुळे {count} वस्तू या बदलापूर्वी जशा होत्या तशा परत आल्या.',
-  'bulk.undo.editedOne': '1 घटक या बदलांनंतर संपादित केला होता. पूर्ववत केल्याने तो जसा आहे तसा राहतो:',
-  'bulk.undo.edited': '{count} वस्तू या बदलांनंतर संपादित केल्या. पूर्ववत केल्यामुळे त्या तशाच राहतात:',
+  'bulk.undo.editedOne':
+    '1 घटक या बदलांनंतर संपादित केला होता. पूर्ववत केल्याने तो जसा आहे तसा राहतो:',
+  'bulk.undo.edited':
+    '{count} वस्तू या बदलांनंतर संपादित केल्या. पूर्ववत केल्यामुळे त्या तशाच राहतात:',
   'bulk.undo.force': 'या देखील पूर्ववत करा',
   'bulk.undo.goneOne': '1 घटक आता ओमेका मध्ये नाही.',
   'bulk.undo.gone': '{count} वस्तू आता ओमेका मध्ये नाहीत.',
@@ -159,4 +167,6 @@ export const mr: BulkMessages = {
   'bulk.status.undo_stopping': 'पूर्ववत करणे थांबवणे',
   'bulk.status.undone': 'पूर्ववत केले',
   'bulk.status.partly_undone': 'अंशतः पूर्ववत',
+  'bulk.status.purged': 'कचरा साफ केला',
+  'bulk.word.delete': 'ट्रॅशमध्ये हलवणे',
 };

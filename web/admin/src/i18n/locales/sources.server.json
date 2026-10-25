@@ -232,5 +232,9 @@
  "server.bulkItemDenied": "The person who started this change may not edit this item.",
  "server.bulkItemTemplateRequires": "The new item type needs values this item does not have.",
  "server.bulkItemRemovesRequired": "The item type needs a value in a field this change would empty, so the change left the item as it is.",
- "server.bulkItemUndoDenied": "The person who asked for the undo may not edit this item, so the undo left it as it is."
+ "server.bulkItemUndoDenied": "The person who asked for the undo may not edit this item, so the undo left it as it is.",
+ "server.bulkItemDeleteDenied": "The person who started this change may not delete this item.",
+ "server.bulkItemIdTaken": "Another record now has this item's id, so the undo left the item in the trash.",
+ "server.bulkItemLinksLeft": "The item is back, but links to it from items edited since the delete were left out.",
+ "server.bulkPurged": "The trash of this change was emptied, so its items cannot come back."
 }

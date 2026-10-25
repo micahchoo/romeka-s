@@ -144,6 +144,7 @@ export const ta: ResourcesMessages = {
   'items.bulkDone': '{site}-இல் இப்போது {total} பொருட்கள் உள்ளன.',
   'items.bulkConfirmRemove': '{site}-லிருந்து {count}-ஐ நீக்கவும்',
   'items.bulkEdit': 'உருப்படிகளை மாற்றவும்…',
+  'items.bulkDelete': 'உருப்படிகளை நீக்கவும்…',
   'items.bulkRecent': 'சமீபத்திய மொத்த மாற்றங்கள்',
   'items.bulkOpening': 'திறக்கிறது…',
   'browse.search': 'தேடல்',

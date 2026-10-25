@@ -11,6 +11,7 @@ import type { BulkMessages } from '../index';
 export const ne: BulkMessages = {
   'bulk.panel.label': 'वस्तुहरू परिवर्तन गर्नुहोस्',
   'bulk.panel.close': 'बन्द गर्नुहोस्',
+  'bulk.panel.delete': 'वस्तुहरू मेटाउने',
   'bulk.scope.legend': 'कुन वस्तुहरू',
   'bulk.scope.tickedOne': 'टिक गरिएको वस्तु',
   'bulk.scope.tickedMany': '{count} टिक गरिएका वस्तुहरू',
@@ -111,6 +112,7 @@ export const ne: BulkMessages = {
   'bulk.word.valueChangesOne': '1 मान परिवर्तन',
   'bulk.word.valueChanges': '{count} मान परिवर्तनहरू',
   'bulk.run.progress': 'परिवर्तन भइरहेका वस्तुहरू: {total} मध्ये {done}',
+  'bulk.run.deleteProgress': 'वस्तुहरूलाई फोहोर टोकरीमा सार्ने: {total} मध्ये {done}',
   'bulk.run.undoProgress': 'पूर्ववत: {total} मध्ये {done}',
   'bulk.run.stop': 'रोक्नुहोस्',
   'bulk.run.stopping': 'रोकिँदै…',
@@ -121,6 +123,9 @@ export const ne: BulkMessages = {
   'bulk.done.unchanged': '{count} पहिले नै मेल खायो, कुनै परिवर्तन छैन।',
   'bulk.done.failed': '{count} परिवर्तन गर्न सकिएन:',
   'bulk.done.stopped': 'रोकियो। {total} मध्ये {done} वस्तुहरू परिवर्तन गरिए।',
+  'bulk.done.trashedOne': '1 वस्तु फोहोर टोकरीमा सारियो।',
+  'bulk.done.trashedMany': '{count} वस्तुहरू फोहोर टोकरीमा सारिए।',
+  'bulk.done.trashStopped': 'रोकियो। {total} मध्ये {done} वस्तुहरू फोहोर टोकरीमा सारिए।',
   'bulk.done.error': 'परिवर्तन त्रुटिमा रोकियो: {error}',
   'bulk.done.goOn': 'अगाडि बढ्नुहोस्',
   'bulk.done.undo': 'पूर्ववत (Undo)',
@@ -160,4 +165,6 @@ export const ne: BulkMessages = {
   'bulk.status.undo_stopping': 'उल्ट्याउने प्रक्रिया रोक्ने',
   'bulk.status.undone': 'उल्ट्याइएको',
   'bulk.status.partly_undone': 'आंशिक रूपमा उल्ट्याइएको',
+  'bulk.status.purged': 'फोहोर टोकरी खाली गरियो',
+  'bulk.word.delete': 'फोहोर टोकरीमा सार्ने',
 };

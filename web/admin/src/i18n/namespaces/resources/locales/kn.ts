@@ -143,6 +143,7 @@ export const kn: ResourcesMessages = {
   'items.bulkDone': '{site} ಈಗ {total} ಅಂಶಗಳನ್ನು ಹೊಂದಿದೆ.',
   'items.bulkConfirmRemove': '{site} ನಿಂದ {count} ಅನ್ನು ತೆಗೆದುಹಾಕಿ',
   'items.bulkEdit': 'ಐಟಂಗಳನ್ನು ಬದಲಾಯಿಸಿ…',
+  'items.bulkDelete': 'ಐಟಂಗಳನ್ನು ಅಳಿಸಿ…',
   'items.bulkRecent': 'ಇತ್ತೀಚಿನ ಬೃಹತ್ ಬದಲಾವಣೆಗಳು',
   'items.bulkOpening': 'ತೆರೆಯಲಾಗುತ್ತಿದೆ…',
   'browse.search': 'ಹುಡುಕಿ',

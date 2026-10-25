@@ -11,6 +11,7 @@ import type { BulkMessages } from '../index';
 export const ml: BulkMessages = {
   'bulk.panel.label': 'ഇനങ്ങൾ മാറ്റുക',
   'bulk.panel.close': 'അടയ്ക്കുക',
+  'bulk.panel.delete': 'ഇനങ്ങൾ നീക്കം ചെയ്യുന്നു',
   'bulk.scope.legend': 'ഏത് ഇനങ്ങൾ',
   'bulk.scope.tickedOne': 'അടയാളപ്പെടുത്തിയ ഇനം',
   'bulk.scope.tickedMany': '{count} അടയാളപ്പെടുത്തിയ ഇനങ്ങൾ',
@@ -111,6 +112,7 @@ export const ml: BulkMessages = {
   'bulk.word.valueChangesOne': '1 മൂല്യമാറ്റം',
   'bulk.word.valueChanges': '{count} മൂല്യമാറ്റങ്ങൾ',
   'bulk.run.progress': 'മാറ്റുന്ന ഇനങ്ങൾ: {total}-ൽ {done}',
+  'bulk.run.deleteProgress': 'ഇനങ്ങൾ ട്രാഷിലേക്ക് മാറ്റുന്നു: {total}-ൽ {done}',
   'bulk.run.undoProgress': 'പഴയപടിയാക്കൽ: {total}-ൽ {done}',
   'bulk.run.stop': 'നിർത്തുക',
   'bulk.run.stopping': 'നിർത്തുന്നു…',
@@ -121,6 +123,9 @@ export const ml: BulkMessages = {
   'bulk.done.unchanged': '{count} നേരത്തെ പൊരുത്തപ്പെട്ടവ, മാറ്റമില്ല.',
   'bulk.done.failed': '{count} മാറ്റാൻ കഴിഞ്ഞില്ല:',
   'bulk.done.stopped': 'നിർത്തി. {total}-ൽ {done} ഇനങ്ങൾ മാറി.',
+  'bulk.done.trashedOne': '1 ഇനം ട്രാഷിലേക്ക് മാറ്റി.',
+  'bulk.done.trashedMany': '{count} ഇനങ്ങൾ ട്രാഷിലേക്ക് മാറ്റി.',
+  'bulk.done.trashStopped': 'നിർത്തി. {total}-ൽ {done} ഇനങ്ങൾ ട്രാഷിലേക്ക് മാറ്റി.',
   'bulk.done.error': 'പിശകിൽ മാറ്റം നിന്നു: {error}',
   'bulk.done.goOn': 'തുടരുക',
   'bulk.done.undo': 'പഴയപടിയാക്കുക',
@@ -131,7 +136,8 @@ export const ml: BulkMessages = {
   'bulk.done.undoAgain': 'ബാക്കിയുള്ളവ പഴയപടിയാക്കുക',
   'bulk.done.notPutBack': 'പഴയപടിയാക്കാത്തവ:',
   'bulk.undo.restoreOne': 'പഴയപടിയാക്കുമ്പോൾ, ഈ മാറ്റത്തിന് മുൻപ്, 1 ഇനം പഴയതുപോലെ.',
-  'bulk.undo.restore': 'പഴയപടിയാക്കുമ്പോൾ {count} ഇനങ്ങൾ ഈ മാറ്റത്തിന് മുമ്പുള്ളതുപോലെ തിരികെ വരുന്നു.',
+  'bulk.undo.restore':
+    'പഴയപടിയാക്കുമ്പോൾ {count} ഇനങ്ങൾ ഈ മാറ്റത്തിന് മുമ്പുള്ളതുപോലെ തിരികെ വരുന്നു.',
   'bulk.undo.editedOne':
     '1 ഇനം ഈ മാറ്റത്തിന് ശേഷം എഡിറ്റ് ചെയ്തതാണ്. പഴയപടിയാക്കുമ്പോൾ, അത് മാറ്റമില്ലാതെ:',
   'bulk.undo.edited': '{count} ഇനങ്ങൾ ഈ മാറ്റത്തിന് ശേഷം എഡിറ്റ് ചെയ്തവ, പഴയതുപോലെ തുടരുന്നു:',
@@ -140,7 +146,8 @@ export const ml: BulkMessages = {
   'bulk.undo.gone': '{count} ഇനങ്ങൾ ഇനി Omeka-യിൽ ഇല്ല.',
   'bulk.undo.confirm': 'ഈ മാറ്റം പഴയപടിയാക്കുക',
   'bulk.undo.back': 'തിരിച്ച്',
-  'bulk.refused.denied': 'നിങ്ങൾക്ക് ഈ മാറ്റം വരുത്താൻ കഴിയില്ല. ഒരു അഡ്മിനിസ്ട്രേറ്ററോട് ചോദിക്കുക.',
+  'bulk.refused.denied':
+    'നിങ്ങൾക്ക് ഈ മാറ്റം വരുത്താൻ കഴിയില്ല. ഒരു അഡ്മിനിസ്ട്രേറ്ററോട് ചോദിക്കുക.',
   'bulk.recent.heading': 'അടുത്തകാലത്തെ ബൾക്ക് മാറ്റങ്ങൾ',
   'bulk.recent.loading': 'അടുത്തകാലത്തെ മാറ്റങ്ങൾ ലോഡ് ചെയ്യുന്നു…',
   'bulk.recent.none': 'ഇതുവരെ ബൾക്ക് മാറ്റങ്ങൾ ഒന്നുമില്ല.',
@@ -160,4 +167,6 @@ export const ml: BulkMessages = {
   'bulk.status.undo_stopping': 'പഴയപടിയാക്കുന്നത് നിർത്തുന്നു',
   'bulk.status.undone': 'പഴയപടിയാക്കി',
   'bulk.status.partly_undone': 'ഭാഗികമായി പഴയപടിയാക്കി',
+  'bulk.status.purged': 'ട്രാഷ് ശൂന്യമാക്കി',
+  'bulk.word.delete': 'ട്രാഷിലേക്ക് മാറ്റുന്നു',
 };

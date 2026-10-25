@@ -11,6 +11,7 @@ import type { BulkMessages } from '../index';
 export const ta: BulkMessages = {
   'bulk.panel.label': 'உருப்படிகளை மாற்றுதல்',
   'bulk.panel.close': 'மூடு',
+  'bulk.panel.delete': 'உருப்படிகளை நீக்குதல்',
   'bulk.scope.legend': 'எந்த உருப்படிகள்',
   'bulk.scope.tickedOne': 'தேர்வு செய்யப்பட்ட உருப்படி',
   'bulk.scope.tickedMany': 'தேர்வு செய்யப்பட்ட {count} உருப்படிகள்',
@@ -18,7 +19,8 @@ export const ta: BulkMessages = {
   'bulk.scope.matchingMany': 'பொருந்தும் அனைத்து {count} உருப்படிகள்',
   'bulk.scope.allOne': '1 உருப்படி',
   'bulk.scope.allMany': 'அனைத்து {count} உருப்படிகள்',
-  'bulk.scope.matchingRefused': 'உங்கள் பங்கு தேர்வு செய்யப்பட்ட உருப்படிகளை மட்டுமே மாற்ற முடியும். மாற்ற வேண்டிய உருப்படிகளைத் தேர்வு செய்யவும்.',
+  'bulk.scope.matchingRefused':
+    'உங்கள் பங்கு தேர்வு செய்யப்பட்ட உருப்படிகளை மட்டுமே மாற்ற முடியும். மாற்ற வேண்டிய உருப்படிகளைத் தேர்வு செய்யவும்.',
   'bulk.field.visibility': 'தெரிவுநிலை',
   'bulk.field.owner': 'உரிமையாளர்',
   'bulk.field.class': 'வகுப்பு',
@@ -111,6 +113,7 @@ export const ta: BulkMessages = {
   'bulk.word.valueChangesOne': '1 மதிப்பு மாற்றம்',
   'bulk.word.valueChanges': '{count} மதிப்பு மாற்றங்கள்',
   'bulk.run.progress': 'மாற்றப்பட்ட உருப்படிகள்: {total} இல் {done}',
+  'bulk.run.deleteProgress': 'உருப்படிகளை குப்பைத் தொட்டிக்கு நகர்த்துதல்: {total} இல் {done}',
   'bulk.run.undoProgress': 'ரத்து செய்தல்: {total} இல் {done}',
   'bulk.run.stop': 'நிறுத்து',
   'bulk.run.stopping': 'நிறுத்துதல்…',
@@ -121,6 +124,10 @@ export const ta: BulkMessages = {
   'bulk.done.unchanged': '{count} ஏற்கனவே பொருந்தியவை, மாற்றம் ஏதுமில்லை.',
   'bulk.done.failed': '{count} மாற்றப்பட முடியவில்லை:',
   'bulk.done.stopped': 'நிறுத்தப்பட்டது. {total} இல் {done} உருப்படிகள் மாற்றப்பட்டன.',
+  'bulk.done.trashedOne': '1 உருப்படி குப்பைத் தொட்டிக்கு நகர்த்தப்பட்டது.',
+  'bulk.done.trashedMany': '{count} உருப்படிகள் குப்பைத் தொட்டிக்கு நகர்த்தப்பட்டன.',
+  'bulk.done.trashStopped':
+    'நிறுத்தப்பட்டது. {total} இல் {done} உருப்படிகள் குப்பைத் தொட்டிக்கு நகர்த்தப்பட்டன.',
   'bulk.done.error': 'மாற்றம் ஒரு பிழையால் நிறுத்தப்பட்டது: {error}',
   'bulk.done.goOn': 'தொடரவும்',
   'bulk.done.undo': 'மீட்க',
@@ -163,4 +170,6 @@ export const ta: BulkMessages = {
   'bulk.status.undo_stopping': 'ரத்து செய்வதை நிறுத்துதல்',
   'bulk.status.undone': 'ரத்து செய்யப்பட்டது',
   'bulk.status.partly_undone': 'பகுதியளவு ரத்து செய்யப்பட்டது',
+  'bulk.status.purged': 'குப்பைத் தொட்டி காலி செய்யப்பட்டது',
+  'bulk.word.delete': 'குப்பைத் தொட்டிக்கு நகர்த்து',
 };

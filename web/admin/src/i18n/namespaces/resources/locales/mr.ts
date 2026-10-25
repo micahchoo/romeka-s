@@ -143,6 +143,7 @@ export const mr: ResourcesMessages = {
   'items.bulkDone': '{site} कडे आता {total} घटक आहेत.',
   'items.bulkConfirmRemove': '{site} मधून {count} काढून टाका',
   'items.bulkEdit': 'घटक बदला…',
+  'items.bulkDelete': 'घटक हटवा…',
   'items.bulkRecent': 'अलीकडील मोठ्या बदलांची नोंद',
   'items.bulkOpening': 'उघडत आहे…',
   'browse.search': 'शोध',

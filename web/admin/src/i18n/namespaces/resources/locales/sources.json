@@ -128,6 +128,7 @@
  "items.bulkDone": "{site} now has {total} items.",
  "items.bulkConfirmRemove": "Remove {count} from {site}",
  "items.bulkEdit": "Change items…",
+ "items.bulkDelete": "Delete items…",
  "items.bulkRecent": "Recent bulk changes",
  "items.bulkOpening": "Opening…",
  "browse.search": "Search",

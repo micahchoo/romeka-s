@@ -143,6 +143,7 @@ export const ne: ResourcesMessages = {
   'items.bulkDone': '{site} मा अहिले {total} वस्तुहरू छन्।',
   'items.bulkConfirmRemove': '{site} बाट {count} हटाउनुहोस्',
   'items.bulkEdit': 'वस्तुहरू परिवर्तन गर्नुहोस्…',
+  'items.bulkDelete': 'वस्तुहरू मेटाउनुहोस्…',
   'items.bulkRecent': 'हालैका ठुला परिवर्तनहरू',
   'items.bulkOpening': 'खोल्दै…',
   'browse.search': 'खोज्नुहोस्',

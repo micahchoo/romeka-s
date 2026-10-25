@@ -11,6 +11,7 @@ import type { BulkMessages } from '../index';
 export const hi: BulkMessages = {
   'bulk.panel.label': 'आइटम बदलें',
   'bulk.panel.close': 'बंद करें',
+  'bulk.panel.delete': 'आइटम हटाएँ',
   'bulk.scope.legend': 'कौन से आइटम',
   'bulk.scope.tickedOne': 'टिक किया गया आइटम',
   'bulk.scope.tickedMany': '{count} टिक किए गए आइटम',
@@ -111,6 +112,7 @@ export const hi: BulkMessages = {
   'bulk.word.valueChangesOne': '1 मान परिवर्तन',
   'bulk.word.valueChanges': '{count} मान परिवर्तन',
   'bulk.run.progress': 'आइटम बदलना: {total} में से {done}',
+  'bulk.run.deleteProgress': 'आइटम को ट्रैश में ले जाना: {total} में से {done}',
   'bulk.run.undoProgress': 'पूर्ववत करना: {total} में से {done}',
   'bulk.run.stop': 'रोकें',
   'bulk.run.stopping': 'रुकना…',
@@ -121,6 +123,9 @@ export const hi: BulkMessages = {
   'bulk.done.unchanged': '{count} पहले से मेल खा चुके हैं, कोई बदलाव नहीं।',
   'bulk.done.failed': '{count} नहीं बदला जा सका:',
   'bulk.done.stopped': 'रोका गया। {total} में से {done} आइटम बदले गए।',
+  'bulk.done.trashedOne': '1 आइटम ट्रैश में ले जाया गया।',
+  'bulk.done.trashedMany': '{count} आइटम ट्रैश में ले जाए गए।',
+  'bulk.done.trashStopped': 'रोका गया। {total} में से {done} आइटम ट्रैश में ले जाए गए।',
   'bulk.done.error': 'बदलाव एक त्रुटि के कारण रुक गया: {error}',
   'bulk.done.goOn': 'जारी रखें',
   'bulk.done.undo': 'पूर्ववत करें',
@@ -160,4 +165,6 @@ export const hi: BulkMessages = {
   'bulk.status.undo_stopping': 'अनडू को रोकना',
   'bulk.status.undone': 'पूर्ववत',
   'bulk.status.partly_undone': 'आंशिक रूप से पूर्ववत',
+  'bulk.status.purged': 'ट्रैश खाली किया गया',
+  'bulk.word.delete': 'ट्रैश में ले जाएँ',
 };

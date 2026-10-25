@@ -11,6 +11,7 @@ import type { BulkMessages } from '../index';
 export const te: BulkMessages = {
   'bulk.panel.label': 'అంశాలు మార్చండి',
   'bulk.panel.close': 'మూసివేయండి',
+  'bulk.panel.delete': 'అంశాలను తొలగించండి',
   'bulk.scope.legend': 'ఏ అంశాలు',
   'bulk.scope.tickedOne': 'టిక్ చేయబడిన అంశం',
   'bulk.scope.tickedMany': 'టిక్ చేయబడిన {count} అంశాలు',
@@ -111,6 +112,7 @@ export const te: BulkMessages = {
   'bulk.word.valueChangesOne': '1 విలువ మార్పు',
   'bulk.word.valueChanges': '{count} విలువ మార్పులు',
   'bulk.run.progress': 'మారుతున్న అంశాలు: {total} లో {done}',
+  'bulk.run.deleteProgress': 'అంశాలను ట్రాష్‌కి తరలించడం: {total} లో {done}',
   'bulk.run.undoProgress': 'వెనక్కి తీసుకోవడం: {total} లో {done}',
   'bulk.run.stop': 'ఆపివేయండి',
   'bulk.run.stopping': 'ఆపుతున్నాం…',
@@ -121,6 +123,9 @@ export const te: BulkMessages = {
   'bulk.done.unchanged': '{count} ఇప్పటికే సరిపోలాయి, మార్పు లేదు.',
   'bulk.done.failed': '{count} మార్చడం సాధ్యం కాలేదు:',
   'bulk.done.stopped': 'ఆపివేయబడింది. {total} లో {done} అంశాలు మారాయి.',
+  'bulk.done.trashedOne': '1 అంశం ట్రాష్‌కి తరలించబడింది.',
+  'bulk.done.trashedMany': '{count} అంశాలు ట్రాష్‌కి తరలించబడ్డాయి.',
+  'bulk.done.trashStopped': 'ఆపివేయబడింది. {total} లో {done} అంశాలు ట్రాష్‌కి తరలించబడ్డాయి.',
   'bulk.done.error': 'మార్పు ఒక లోపం వల్ల ఆగిపోయింది: {error}',
   'bulk.done.goOn': 'కొనసాగించండి',
   'bulk.done.undo': 'అన్డూ',
@@ -159,4 +164,6 @@ export const te: BulkMessages = {
   'bulk.status.undo_stopping': 'అన్డూని ఆపుతోంది',
   'bulk.status.undone': 'వెనక్కి తీసుకోబడింది',
   'bulk.status.partly_undone': 'పాక్షికంగా వెనక్కి తీసుకోబడింది',
+  'bulk.status.purged': 'ట్రాష్ ఖాళీ చేయబడింది',
+  'bulk.word.delete': 'ట్రాష్‌కి తరలించండి',
 };
