@@ -184,6 +184,37 @@ describe('items bulk change', () => {
     expect(will).toHaveTextContent('Subject: “Maps” (en), private, “Harbour”, “Harbour photograph”');
   });
 
+  it('holds Preview while the Values form has a change the person has not added, and keeps its input', async () => {
+    const sent = installServer([]);
+    await openList();
+    fireEvent.click(screen.getByRole('button', { name: 'Change items…' }));
+    const panel = await screen.findByRole('region', { name: 'Change items' });
+    fireEvent.change(within(panel).getByRole('combobox', { name: 'Visibility' }), { target: { value: 'private' } });
+    const preview = within(panel).getByRole('button', { name: 'Preview' });
+    expect(preview).toBeEnabled();
+
+    const values = await within(panel).findByRole('group', { name: 'Values' });
+    fireEvent.change(await within(values).findByRole('searchbox', { name: 'Change the values of a field' }), {
+      target: { value: 'description' },
+    });
+    fireEvent.click(within(values).getByRole('button', { name: /dcterms:description/ }));
+    fireEvent.change(within(values).getByRole('textbox', { name: 'Text' }), { target: { value: 'Maps' } });
+
+    expect(preview).toBeDisabled();
+    expect(within(panel).getByText('Add this change or clear it first.')).toBeInTheDocument();
+    fireEvent.submit(preview);
+    expect(sent.some((entry) => entry.method === 'POST' && entry.path === '/api/romeka/bulk')).toBe(false);
+    expect(within(values).getByRole('textbox', { name: 'Text' })).toHaveValue('Maps');
+
+    fireEvent.click(within(values).getByRole('button', { name: 'Clear this change' }));
+    expect(within(values).queryByRole('textbox', { name: 'Text' })).not.toBeInTheDocument();
+    expect(preview).toBeEnabled();
+    fireEvent.submit(preview);
+    await within(panel).findByText('3 items will change.');
+    const body = sent.find((entry) => entry.method === 'POST' && entry.path === '/api/romeka/bulk')?.body;
+    expect(body).toEqual({ query: {}, change: { kind: 'edit', isPublic: false } });
+  });
+
   it('undoes a recent change, keeping an item edited since unless the person ticks it', async () => {
     const sent = installServer([loadFixture('bulk/run-partly-undone.json')]);
     await openList();
