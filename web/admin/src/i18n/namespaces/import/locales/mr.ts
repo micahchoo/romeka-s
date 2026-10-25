@@ -223,7 +223,7 @@ export const mr: ImportMessages = {
     "Omeka मध्ये आधीपासून असलेल्या आयटम प्रकाराच्या नावाचा नवीन आयटम प्रकार",
   "problem.encoding-unsupported":
     "Omeka वाचू शकत नाही अशा मजकूर प्रकारातील सूची",
-  "problem.owner-not-allowed": "तुम्ही निवडू शकत नसलेला मालक",
+  "problem.owner-not-allowed": "जिला तुम्ही आयटम देऊ शकत नाही अशी व्यक्ती",
   "trip.again": "ही सूची पुन्हा अपलोड करा",
   "trip.againNext": "तुम्ही पाठवलेली पुढील फाईल {file} ची जागा घेते.",
   "trip.lacking":

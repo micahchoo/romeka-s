@@ -204,7 +204,7 @@ export const en = {
   'problem.template-missing': 'An item type that is no longer in Omeka',
   'problem.type-exists': 'A new item type with the name of one Omeka has',
   'problem.encoding-unsupported': 'A list in a kind of text Omeka cannot read',
-  'problem.owner-not-allowed': 'An owner you cannot choose',
+  'problem.owner-not-allowed': 'A person you cannot give the items to',
   // The list round trip: a list sent again in place of the one uploaded.
   'trip.again': 'Upload this list again',
   'trip.againNext': 'The next file you send takes the place of {file}.',

@@ -219,7 +219,7 @@ export const hi: ImportMessages = {
     "एक नया आइटम प्रकार, जिसका नाम Omeka के किसी मौजूदा आइटम प्रकार जैसा है",
   "problem.encoding-unsupported":
     "ऐसे टेक्स्ट में एक सूची जिसे Omeka पढ़ नहीं सकता",
-  "problem.owner-not-allowed": "ऐसा स्वामी जिसे आप चुन नहीं सकते",
+  "problem.owner-not-allowed": "एक व्यक्ति जिसे आप आइटम नहीं दे सकते",
   "trip.again": "इस सूची को फिर से अपलोड करें",
   "trip.againNext":
     "आपके द्वारा भेजी जाने वाली अगली फ़ाइल {file} का स्थान ले लेगी।",

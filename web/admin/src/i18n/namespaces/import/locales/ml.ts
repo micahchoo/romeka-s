@@ -223,7 +223,7 @@ export const ml: ImportMessages = {
     "Omekaയിലുള്ള ഒരു ഐറ്റത്തിന്റെ പേര് ഉൾപ്പെടുത്തിയ പുതിയ ഐറ്റം ടൈപ്പ്",
   "problem.encoding-unsupported":
     "Omeka-യ്ക്ക് വായിക്കാൻ കഴിയാത്ത ഒരുതരം ടെക്സ്റ്റ് പട്ടിക",
-  "problem.owner-not-allowed": "നിങ്ങൾക്ക് തിരഞ്ഞെടുക്കാൻ കഴിയാത്ത ഒരു ഉടമ",
+  "problem.owner-not-allowed": "നിങ്ങൾക്ക് ഇനങ്ങൾ നൽകാൻ കഴിയാത്ത ഒരു വ്യക്തി",
   "trip.again": "ഈ പട്ടിക വീണ്ടും അപ്‌ലോഡ് ചെയ്യുക",
   "trip.againNext": "നിങ്ങൾ അയക്കുന്ന അടുത്ത ഫയൽ {file}-ന് പകരമാകും.",
   "trip.lacking":
