@@ -59,6 +59,7 @@ export const ta: BulkMessages = {
   'bulk.values.clearNote':
     'இந்த புலத்தில் உள்ள ஒவ்வொரு மதிப்பும் ஒவ்வொரு உருப்படியிலிருந்து நீக்கப்படும்.',
   'bulk.values.addChange': 'இந்த மாற்றத்தைச் சேர்க்கவும்',
+  'bulk.values.discard': 'இந்த மாற்றத்தை நீக்கவும்',
   'bulk.values.remove': 'நீக்கு',
   'bulk.values.removeOne': 'நீக்கு: {change}',
   'bulk.op.add': '{field}: {value} ஐச் சேர்க்கவும்',
@@ -67,6 +68,7 @@ export const ta: BulkMessages = {
   'bulk.op.public': '{field}: மதிப்புகளைப் பொதுவாக்கவும்',
   'bulk.op.private': '{field}: மதிப்புகளைத் தனிப்பட்டதாக மாற்றவும்',
   'bulk.edit.nothing': 'குறைந்தபட்சம் ஒரு மாற்றத்தையாவது தேர்ந்தெடுக்கவும்.',
+  'bulk.edit.unadded': 'இந்த மாற்றத்தைச் சேர்க்கவும் அல்லது முதலில் அதை நீக்கவும்.',
   'bulk.edit.preview': 'முன்னோட்டம்',
   'bulk.edit.cancel': 'ரத்து செய்',
   'bulk.preview.changeOne': '1 உருப்படி மாறும்.',

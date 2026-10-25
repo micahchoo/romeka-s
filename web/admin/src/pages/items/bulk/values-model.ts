@@ -28,20 +28,6 @@ export interface Composer {
   readonly to: string;
 }
 
-export const NEW_COMPOSER: Composer = {
-  property: null,
-  action: 'add',
-  kind: 'literal',
-  text: '',
-  lang: '',
-  uri: '',
-  label: '',
-  item: '',
-  isPublic: true,
-  from: '',
-  to: '',
-};
-
 const filled = (text: string): string | null => (text.trim() === '' ? null : text.trim());
 
 /** A web address names its scheme, as `Uri::uriIsValid` needs; the server checks the rest. */

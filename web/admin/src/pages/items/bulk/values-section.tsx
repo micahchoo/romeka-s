@@ -1,10 +1,11 @@
 /**
  * The edit panel's Values section: the value changes chosen so far, each in words with a Remove
  * button, and a small form that writes one more. The form asks for a field with the plain-words
- * search the item form uses, then what to do with it, then the inputs that action needs.
+ * search the item form uses, then what to do with it, then the inputs that action needs. The edit
+ * step holds the form, because Preview waits while the form holds a change not yet added.
  */
 import type { ReactElement, ReactNode } from 'react';
-import { useId, useState } from 'react';
+import { useId } from 'react';
 import { api } from '../../../api/client';
 import type { ValueOp } from '../../../api/bulk-values';
 import { withOp } from '../../../api/bulk-values';
@@ -17,7 +18,8 @@ import { useAsync } from '../../../app/useAsync';
 import { useTranslator } from '../../../i18n';
 import { bulk } from '../../../i18n/namespaces/bulk';
 import { useTermLabels } from '../../../i18n/termText';
-import { ACTIONS, KINDS, NEW_COMPOSER, opOf } from './values-model';
+import { NEW_COMPOSER } from './values-form';
+import { ACTIONS, KINDS, opOf } from './values-model';
 import type { Composer, ValueAction, ValueKind } from './values-model';
 import type { BulkTranslate } from './words';
 import { opWords } from './words';
@@ -185,16 +187,19 @@ const ActionInputs = ({
 export const ValuesSection = ({
   ops,
   onOps,
+  composer,
+  onComposer,
 }: {
   readonly ops: readonly ValueOp[];
   readonly onOps: (ops: readonly ValueOp[]) => void;
+  readonly composer: Composer;
+  readonly onComposer: (composer: Composer) => void;
 }): ReactElement => {
   const { t } = useTranslator(bulk);
   const text = useTermLabels();
   const properties = useAsync(loadProperties, []);
-  const [composer, setComposer] = useState<Composer>(NEW_COMPOSER);
   const set = (change: Partial<Composer>): void => {
-    setComposer({ ...composer, ...change });
+    onComposer({ ...composer, ...change });
   };
   const list = properties.status === 'ready' ? properties.data : [];
   const nameOf = (id: PropertyId): string => {
@@ -269,11 +274,20 @@ export const ValuesSection = ({
               onClick={() => {
                 if (op !== null) {
                   onOps(withOp(ops, op));
-                  setComposer(NEW_COMPOSER);
+                  onComposer(NEW_COMPOSER);
                 }
               }}
             >
               {t('bulk.values.addChange')}
+            </button>{' '}
+            <button
+              type="button"
+              className="link-button"
+              onClick={() => {
+                onComposer(NEW_COMPOSER);
+              }}
+            >
+              {t('bulk.values.discard')}
             </button>
           </p>
         </div>

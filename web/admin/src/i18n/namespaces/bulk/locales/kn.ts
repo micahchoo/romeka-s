@@ -60,6 +60,7 @@ export const kn: BulkMessages = {
   'bulk.values.clearNote':
     'ಈ ಕ್ಷೇತ್ರದಲ್ಲಿರುವ ಪ್ರತಿಯೊಂದು ಮೌಲ್ಯವನ್ನು ಪ್ರತಿ ಐಟಂನಿಂದ ತೆಗೆದುಹಾಕಲಾಗುತ್ತದೆ.',
   'bulk.values.addChange': 'ಈ ಬದಲಾವಣೆಯನ್ನು ಸೇರಿಸಿ',
+  'bulk.values.discard': 'ಈ ಬದಲಾವಣೆಯನ್ನು ಅಳಿಸಿಹಾಕಿ',
   'bulk.values.remove': 'ತೆಗೆದುಹಾಕಿ',
   'bulk.values.removeOne': 'ತೆಗೆದುಹಾಕಿ: {change}',
   'bulk.op.add': '{field}: {value} ಸೇರಿಸಿ',
@@ -68,6 +69,7 @@ export const kn: BulkMessages = {
   'bulk.op.public': '{field}: ಮೌಲ್ಯಗಳನ್ನು ಸಾರ್ವಜನಿಕಗೊಳಿಸಿ',
   'bulk.op.private': '{field}: ಮೌಲ್ಯಗಳನ್ನು ಖಾಸಗಿಗೊಳಿಸಿ',
   'bulk.edit.nothing': 'ಕನಿಷ್ಠ ಒಂದು ಬದಲಾವಣೆಯನ್ನು ಆರಿಸಿ.',
+  'bulk.edit.unadded': 'ಈ ಬದಲಾವಣೆಯನ್ನು ಸೇರಿಸಿ ಅಥವಾ ಮೊದಲು ಅಳಿಸಿಹಾಕಿ.',
   'bulk.edit.preview': 'ಮುನ್ನೋಟ',
   'bulk.edit.cancel': 'ರದ್ದುಮಾಡಿ',
   'bulk.preview.changeOne': '1 ಐಟಂ ಬದಲಾಗುತ್ತದೆ.',

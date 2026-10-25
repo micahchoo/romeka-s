@@ -8,7 +8,8 @@ import { NO_EDIT, encodeEdit, parseBulkPreview, parseBulkRun, parseEdit } from '
 import type { ValueOp } from '../src/api/bulk-values';
 import { withOp } from '../src/api/bulk-values';
 import { brandId } from '../src/api/parse';
-import { NEW_COMPOSER, opOf } from '../src/pages/items/bulk/values-model';
+import { NEW_COMPOSER } from '../src/pages/items/bulk/values-form';
+import { opOf } from '../src/pages/items/bulk/values-model';
 import { loadFixture } from './loadFixture';
 
 const subject = brandId<'PropertyId'>(3);

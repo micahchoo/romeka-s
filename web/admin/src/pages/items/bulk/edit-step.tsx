@@ -4,7 +4,7 @@
  * the person chose.
  */
 import type { ReactElement } from 'react';
-import { Suspense, lazy, useId } from 'react';
+import { Suspense, lazy, useId, useState } from 'react';
 import type { Assign, BulkEdit, Membership } from '../../../api/bulk';
 import { namesSomething } from '../../../api/bulk';
 import { useTranslator } from '../../../i18n';
@@ -12,6 +12,8 @@ import { bulk } from '../../../i18n/namespaces/bulk';
 import { useTermLabels } from '../../../i18n/termText';
 import type { BrowseOptions } from '../browse-options';
 import type { Draft, Scope } from './model';
+import { NEW_COMPOSER, isWriting } from './values-form';
+import type { Composer } from './values-model';
 import { classNameOf } from './words';
 
 /** The Values section is its own chunk, so the panel stays inside its budget (`perf/budget.json`). */
@@ -181,6 +183,7 @@ export const EditStep = ({
   const { t } = useTranslator(bulk);
   const text = useTermLabels();
   const { edit } = draft;
+  const [composer, setComposer] = useState<Composer>(NEW_COMPOSER);
   const set = (change: Partial<BulkEdit>): void => {
     onDraft({ ...draft, edit: { ...edit, ...change } });
   };
@@ -188,7 +191,8 @@ export const EditStep = ({
   const classChoices = [...options.classNames.keys()]
     .map((id) => ({ value: String(id), label: classNameOf({ t, options, text }, id) }))
     .sort(byLabel);
-  const ready = namesSomething(edit) && (draft.scope === 'ticked' ? reach.ticked > 0 : reach.canMatchAll);
+  const writing = isWriting(composer);
+  const ready = !writing && namesSomething(edit) && (draft.scope === 'ticked' ? reach.ticked > 0 : reach.canMatchAll);
   return (
     <form
       className="bulk-edit"
@@ -264,9 +268,11 @@ export const EditStep = ({
           onOps={(values) => {
             set({ values });
           }}
+          composer={composer}
+          onComposer={setComposer}
         />
       </Suspense>
-      {ready ? null : <p className="bulk-note">{t('bulk.edit.nothing')}</p>}
+      {ready ? null : <p className="bulk-note">{t(writing ? 'bulk.edit.unadded' : 'bulk.edit.nothing')}</p>}
       <p className="bulk-actions">
         <button type="submit" disabled={!ready || busy} aria-busy={busy}>
           {t('bulk.edit.preview')}

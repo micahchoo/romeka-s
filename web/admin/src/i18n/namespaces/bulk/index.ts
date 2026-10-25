@@ -61,6 +61,7 @@ export const en = {
   'bulk.values.put': 'Put this text instead',
   'bulk.values.clearNote': 'Every value in this field is removed from each item.',
   'bulk.values.addChange': 'Add this change',
+  'bulk.values.discard': 'Clear this change',
   'bulk.values.remove': 'Remove',
   'bulk.values.removeOne': 'Remove: {change}',
   'bulk.op.add': '{field}: add {value}',
@@ -69,6 +70,7 @@ export const en = {
   'bulk.op.public': '{field}: make the values public',
   'bulk.op.private': '{field}: make the values private',
   'bulk.edit.nothing': 'Choose at least one change.',
+  'bulk.edit.unadded': 'Add this change or clear it first.',
   'bulk.edit.preview': 'Preview',
   'bulk.edit.cancel': 'Cancel',
   // The preview.
