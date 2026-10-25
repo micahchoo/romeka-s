@@ -323,6 +323,7 @@ Six global settings bound the uploads and the fetches. `GET /api/settings` answe
 | `import_upload_max_file` | 2147483648 (2 GiB) | One uploaded file, one file from a ZIP, one URL an import fetches |
 | `import_upload_max_total` | 53687091200 (50 GiB) | All files of one import, uploads in progress counted |
 | `import_staging_keep_days` | 30 | Days the files stay after an import is done or undone, or after its last attempt failed |
+| `romeka_trash_days` | 30 | Days a bulk delete keeps its items and files in the trash before they are deleted for good |
 | `import_draft_staging_keep_days` | 7 | Days a draft's files stay after it was last saved |
 | `import_allow_private_urls` | off | When on, an import and the API may fetch from private addresses. It lifts the address check and nothing else |
 | `media_type_whitelist`, `extension_whitelist`, `disable_file_validation` | upstream's lists | The file types an upload, the API and an import accept (below) |
