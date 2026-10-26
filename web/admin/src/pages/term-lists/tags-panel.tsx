@@ -14,7 +14,7 @@ import { ErrorNotice } from '../../app/errors';
 import { useLesson } from '../../app/lessons/lesson';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
-import { MergePrompt } from './merge-prompt';
+import { MergePrompts } from './merge-prompt';
 import { useTermListText } from './messages';
 import { RewriteCounts } from './rewrite-counts';
 import { similarGroups } from './similar';
@@ -104,35 +104,30 @@ export const TagsPanel = ({ onPromoted }: { readonly onPromoted: () => void }): 
     const ready = chosen.length > 0 && listName.trim() !== '' && step.kind !== 'busy';
     return (
       <>
-        {groups.map((group) => (
-          <MergePrompt
-            key={`${String(version)}:${group.map((count) => count.value).join('|')}`}
-            scope={TAGS}
-            group={group}
-            onDone={reload}
-          />
-        ))}
+        <MergePrompts scope={TAGS} groups={groups} version={version} onDone={reload} />
         <fieldset className="tag-choices" disabled={step.kind === 'busy'}>
           <legend>{tl('termLists.tagsLegend')}</legend>
-          {census.values.map((count) => (
-            <label key={count.value}>
-              <input
-                type="checkbox"
-                checked={chosen.includes(count.value)}
-                onChange={(event) => {
-                  const checked = event.target.checked;
-                  setChosen((current) =>
-                    checked
-                      ? [...current, count.value]
-                      : current.filter((value) => value !== count.value),
-                  );
-                  setStep({ kind: 'choose' });
-                }}
-              />
-              <span className="tag-choice-name">{count.value}</span>
-              <span className="tag-choice-count">{count.resources}</span>
-            </label>
-          ))}
+          <div className="tag-choice-grid">
+            {census.values.map((count) => (
+              <label key={count.value}>
+                <input
+                  type="checkbox"
+                  checked={chosen.includes(count.value)}
+                  onChange={(event) => {
+                    const checked = event.target.checked;
+                    setChosen((current) =>
+                      checked
+                        ? [...current, count.value]
+                        : current.filter((value) => value !== count.value),
+                    );
+                    setStep({ kind: 'choose' });
+                  }}
+                />
+                <span className="tag-choice-name">{count.value}</span>
+                <span className="tag-choice-count">{count.resources}</span>
+              </label>
+            ))}
+          </div>
         </fieldset>
         <p className="tag-list-name">
           <label htmlFor="tags-list-name">{tl('tags.listName')}</label>

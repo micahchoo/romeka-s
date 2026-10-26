@@ -1,17 +1,12 @@
-/* The Term lists page's Tags panel and the merge prompt. Loaded with the
+/* The Term lists page's Tags panel and the merge prompts. Loaded with the
  * panel, so the initial stylesheet carries none of it. */
 
+/* One column: hundreds of tags in a side column ran the page thousands of
+ * pixels tall beside an empty table. */
 .term-lists-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-5);
-  align-items: start;
-}
-
-@media (min-width: 1000px) {
-  .term-lists-layout {
-    grid-template-columns: minmax(0, 1fr) 22rem;
-  }
 }
 
 .tags-panel {
@@ -29,7 +24,16 @@
   margin: 0 0 var(--space-3);
 }
 
-.tag-choices > label {
+.tag-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  column-gap: var(--space-4);
+  max-height: 24rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.tag-choice-grid > label {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -55,6 +59,27 @@
 .tag-list-name input {
   display: block;
   width: 100%;
+  max-width: 28rem;
+}
+
+.merge-prompts h3 {
+  margin: 0 0 var(--space-1);
+  font-size: 1rem;
+}
+
+.merge-prompts > p {
+  margin: 0 0 var(--space-3);
+}
+
+.merge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+  gap: var(--space-3);
+  margin: 0 0 var(--space-4);
+}
+
+.merge-grid .merge-prompt {
+  margin: 0;
 }
 
 .merge-prompt,
@@ -71,7 +96,6 @@
   background: var(--accent-soft);
 }
 
-.merge-prompt h3,
 .promote-preview h3 {
   margin: 0 0 var(--space-2);
   font-size: 1rem;

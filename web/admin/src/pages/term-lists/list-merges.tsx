@@ -12,7 +12,7 @@ import { getCensus } from '../../api/tags';
 import type { ValueCount } from '../../api/tags';
 import type { TermList } from '../../api/types';
 import { useAsync } from '../../app/useAsync';
-import { MergePrompt } from './merge-prompt';
+import { MergePrompts } from './merge-prompt';
 import { similarGroups } from './similar';
 import './term-lists.css';
 
@@ -40,18 +40,14 @@ export const ListMerges = ({
     .map((term) => ({ value: term, resources: 0, editable: 0 }));
   const groups = similarGroups([...used, ...unused], census.distinct);
   return (
-    <>
-      {groups.map((group) => (
-        <MergePrompt
-          key={`${String(version)}:${group.map((count) => count.value).join('|')}`}
-          scope={scope}
-          group={group}
-          onDone={(message) => {
-            setVersion((current) => current + 1);
-            onMerged(message);
-          }}
-        />
-      ))}
-    </>
+    <MergePrompts
+      scope={scope}
+      groups={groups}
+      version={version}
+      onDone={(message) => {
+        setVersion((current) => current + 1);
+        onMerged(message);
+      }}
+    />
   );
 };

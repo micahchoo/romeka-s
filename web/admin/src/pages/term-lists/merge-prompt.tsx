@@ -1,5 +1,5 @@
 /**
- * One group of alike spellings and the choice it asks for: keep one spelling
+ * Groups of alike spellings and the choice each asks for: keep one spelling
  * and merge the others into it, or say they are different. A merge first asks
  * the server what it would change, then writes on confirmation.
  */
@@ -24,7 +24,7 @@ type Step =
 const asError = (error: unknown): Error =>
   error instanceof Error ? error : new Error(String(error));
 
-export const MergePrompt = ({
+const MergePrompt = ({
   scope,
   group,
   onDone,
@@ -38,7 +38,6 @@ export const MergePrompt = ({
   const tl = useTermListText();
   const [kept, setKept] = useState(group[0]?.value ?? '');
   const [step, setStep] = useState<Step>({ kind: 'choose' });
-  const lesson = useLesson('term-merge');
   const from = group.map((count) => count.value).filter((value) => value !== kept);
 
   const run = (task: () => Promise<void>): void => {
@@ -75,11 +74,6 @@ export const MergePrompt = ({
 
   return (
     <section className="merge-prompt" aria-label={tl('merge.title')}>
-      <h3>{tl('merge.title')}</h3>
-      <p>
-        {tl('merge.intro')} {lesson.toggle}
-      </p>
-      {lesson.panel}
       <fieldset
         className="merge-choices"
         aria-label={tl('merge.title')}
@@ -144,5 +138,47 @@ export const MergePrompt = ({
       )}
       {step.kind === 'error' ? <ErrorNotice error={step.error} /> : null}
     </section>
+  );
+};
+
+/**
+ * Every group under one heading, intro and lesson: a page with a dozen groups
+ * repeated them a dozen times and ran thousands of pixels tall.
+ */
+export const MergePrompts = ({
+  scope,
+  groups,
+  version,
+  onDone,
+}: {
+  readonly scope: ValueScope;
+  readonly groups: readonly (readonly ValueCount[])[];
+  /** Changes after each stored answer, so every prompt starts afresh. */
+  readonly version: number;
+  readonly onDone: (message: string) => void;
+}): ReactElement | null => {
+  const tl = useTermListText();
+  const lesson = useLesson('term-merge');
+  if (groups.length === 0) {
+    return null;
+  }
+  return (
+    <div className="merge-prompts">
+      <h3>{tl('merge.title')}</h3>
+      <p>
+        {tl('merge.intro')} {lesson.toggle}
+      </p>
+      {lesson.panel}
+      <div className="merge-grid">
+        {groups.map((group) => (
+          <MergePrompt
+            key={`${String(version)}:${group.map((count) => count.value).join('|')}`}
+            scope={scope}
+            group={group}
+            onDone={onDone}
+          />
+        ))}
+      </div>
+    </div>
   );
 };
