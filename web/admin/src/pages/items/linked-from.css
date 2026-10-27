@@ -1,0 +1,37 @@
+/* "Linked from": one row per kind and field, with the records of a set or media row under it. */
+.linked-from {
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.linked-from > li {
+  margin-bottom: var(--space-1);
+}
+
+.linked-records ul {
+  margin: var(--space-1) 0;
+  padding-inline-start: var(--space-4);
+}
+
+.linked-records p {
+  margin: 0;
+}
+
+/* `app/describe.css` also defines .link-button, with side padding, and it loads with the item
+   page; these rows line up with the links above them only with none. */
+.linked-from .link-button {
+  padding: 0;
+}
+
+/* A row that opens in place says so before it is pressed. */
+.linked-from button[aria-expanded]::before {
+  content: "▸";
+  display: inline-block;
+  width: 1.1em;
+  text-decoration: none;
+}
+
+.linked-from button[aria-expanded="true"]::before {
+  content: "▾";
+}

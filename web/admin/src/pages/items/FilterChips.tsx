@@ -13,6 +13,8 @@ import { useTermLabels } from '../../i18n/termText';
 import { activeFilters } from './browse';
 import type { BrowseFilters, FilterKey } from './browse';
 import type { BrowseOptions } from './browse-options';
+import { fieldName, recordName } from './links-card';
+import type { LinksPlace } from './links-card';
 
 type Translate = Translator<MessageKey | KeyOf<typeof common> | KeyOf<typeof resources>>['t'];
 
@@ -31,6 +33,7 @@ const chipText = (
   options: BrowseOptions,
   t: Translate,
   text: TermLabels,
+  linksPlace: LinksPlace,
 ): string => {
   switch (key) {
     case 'search':
@@ -39,6 +42,15 @@ const chipText = (
       return t('browse.chipClass', { name: filters.classId === null ? '' : className(options, filters.classId, text) });
     case 'itemSetId':
       return t('browse.chipItemSet', { name: filters.itemSetId === null ? '' : nameIn(options.itemSets, filters.itemSetId) });
+    case 'links': {
+      if (filters.links === null) {
+        return '';
+      }
+      const name = recordName(filters.links, linksPlace, t);
+      // A record that is not available names nothing else, so the chip tells no more than the card.
+      const field = linksPlace.status === 'unavailable' ? null : fieldName(filters.links, linksPlace, text);
+      return field === null ? t('browse.chipLinks', { name }) : t('browse.chipLinksVia', { name, field });
+    }
     case 'templateId':
       return t('browse.chipTemplate', { name: filters.templateId === null ? '' : nameIn(options.templates, filters.templateId) });
     case 'ownerId':
@@ -61,11 +73,13 @@ const chipText = (
 export interface FilterChipsProps {
   readonly filters: BrowseFilters;
   readonly options: BrowseOptions;
+  /** The record the links filter names, for the chip's words. */
+  readonly linksPlace: LinksPlace;
   readonly onRemove: (key: FilterKey) => void;
   readonly onClearAll: () => void;
 }
 
-export const FilterChips = ({ filters, options, onRemove, onClearAll }: FilterChipsProps): ReactElement | null => {
+export const FilterChips = ({ filters, options, linksPlace, onRemove, onClearAll }: FilterChipsProps): ReactElement | null => {
   const { t } = useTranslator(common, resources);
   const text = useTermLabels();
   const keys = activeFilters(filters);
@@ -76,7 +90,7 @@ export const FilterChips = ({ filters, options, onRemove, onClearAll }: FilterCh
     <div className="filter-chips">
       <ul aria-label={t('browse.activeFilters')}>
         {keys.map((key) => {
-          const label = chipText(key, filters, options, t, text);
+          const label = chipText(key, filters, options, t, text, linksPlace);
           return (
             <li key={key} className="filter-chip">
               <span>{label}</span>

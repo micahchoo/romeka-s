@@ -3,9 +3,11 @@
  */
 import { describe, expect, it } from 'vitest';
 import { brandId } from '../src/api/parse';
+import { matchingQuery } from '../src/api/bulk';
 import {
   browseQuery,
   formatBrowse,
+  linksPlaceHref,
   NO_FILTERS,
   parseBrowse,
   withFilters,
@@ -97,5 +99,45 @@ describe('browseQuery', () => {
   it('each sort names its column and order', () => {
     expect(browseQuery(parse('sort=oldest'))).toMatchObject({ sortBy: 'id', sortOrder: 'asc' });
     expect(browseQuery(parse('sort=title'))).toMatchObject({ sortBy: 'title', sortOrder: 'asc' });
+  });
+});
+
+describe('the links filter', () => {
+  it('reads back to the same URL, with and without a field, beside the other filters', () => {
+    for (const query of ['links=42', 'links=42&via=2', 'q=map&set=4&links=42&via=2&visibility=private']) {
+      expect(formatBrowse(parse(query)).toString()).toBe(query);
+    }
+    expect(parse('links=42&via=2').filters.links).toEqual({ target: 42, via: 2 });
+  });
+
+  it('drops a field without a record, and a malformed record or field', () => {
+    expect(parse('via=2')).toEqual(PLAIN);
+    expect(parse('links=0&via=2')).toEqual(PLAIN);
+    expect(parse('links=42&via=x').filters.links).toEqual({ target: 42, via: null });
+  });
+
+  it('a row of Linked from opens the address the URL reads back', () => {
+    const href = linksPlaceHref(brandId<'ItemId'>(42), brandId<'PropertyId'>(2));
+    expect(href).toBe('#/items?links=42&via=2');
+    expect(parse(href.slice('#/items?'.length)).filters.links).toEqual({ target: 42, via: 2 });
+  });
+
+  it('is sent as the res property search, and removing it leaves the plain list', () => {
+    expect(browseQuery(parse('links=42&via=2'))).toMatchObject({
+      'property[0][type]': 'res',
+      'property[0][text]': '42',
+      'property[0][property]': '2',
+    });
+    expect(browseQuery(parse('links=42'))).not.toHaveProperty('property[0][property]');
+    expect(withoutFilter(parse('links=42&via=2'), 'links')).toEqual(PLAIN);
+  });
+
+  it('a bulk change over every match selects through the same search', () => {
+    expect(matchingQuery(browseQuery(parse('set=4&links=42&via=2&page=3')))).toEqual({
+      item_set_id: 4,
+      'property[0][type]': 'res',
+      'property[0][text]': '42',
+      'property[0][property]': '2',
+    });
   });
 });

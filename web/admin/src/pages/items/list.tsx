@@ -26,6 +26,7 @@ import { FilterBar } from './FilterBar';
 import { FilterChips } from './FilterChips';
 import { ItemsGrid } from './ItemsGrid';
 import { ItemsTable } from './ItemsTable';
+import { LinksCard, useLinksPlace } from './links-card';
 import { SetCard, SetEmpty, useSetPlace } from './set-card';
 import type { ItemsViewProps } from './ItemsTable';
 import './browse.css';
@@ -155,7 +156,7 @@ interface ResultsProps {
   /** The next page is loading; this one stays on screen, dimmed. */
   readonly busy: boolean;
   readonly view: View;
-  /** The match count line; the set card states it in the set's place. */
+  /** The match count line; the set or links card states it in its place. */
   readonly showCount: boolean;
   readonly emptiness: Emptiness;
   readonly viewProps: Omit<ItemsViewProps, 'items'>;
@@ -203,10 +204,15 @@ export const ItemsList = (): ReactElement => {
   const filtered = active.length > 0;
   const setId = state.filters.itemSetId;
   const place = useSetPlace(setId, revision);
+  const links = state.filters.links;
+  const linksPlace = useLinksPlace(links, revision);
   /** Filters besides the set narrow the set's items. */
   const narrowed = active.some((key) => key !== 'itemSetId');
+  /** Filters besides the links filter narrow the linking items. */
+  const linksNarrowed = active.some((key) => key !== 'links');
   const emptiness: Emptiness = setId !== null && !narrowed ? 'set' : filtered ? 'filtered' : 'none';
-  const hidden = place.status === 'unavailable';
+  // A set or a record the caller may not see: its card says so once, and nothing lists under it.
+  const hidden = place.status === 'unavailable' || linksPlace.status === 'unavailable';
   const onFilter = (change: Partial<BrowseFilters>): void => {
     apply(withFilters(state, change));
   };
@@ -230,6 +236,7 @@ export const ItemsList = (): ReactElement => {
   return (
     <section className="items-browse">
       <SetCard place={place} matching={narrowed && shown !== null ? shown.total : null} />
+      <LinksCard links={links} place={linksPlace} matching={linksNarrowed && shown !== null ? shown.total : null} />
       <p>
         <a href="#/items/new">{t('items.add')}</a>
       </p>
@@ -259,6 +266,7 @@ export const ItemsList = (): ReactElement => {
       <FilterChips
         filters={state.filters}
         options={options}
+        linksPlace={linksPlace}
         onRemove={(key) => {
           apply(withoutFilter(state, key));
         }}
@@ -286,7 +294,7 @@ export const ItemsList = (): ReactElement => {
           page={shown}
           busy={itemsState.status === 'loading'}
           view={state.view}
-          showCount={filtered && setId === null}
+          showCount={filtered && setId === null && links === null}
           emptiness={emptiness}
           viewProps={viewProps}
           onClearAll={onClearAll}

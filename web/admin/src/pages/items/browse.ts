@@ -1,12 +1,14 @@
 /**
  * The Items browse query: one record the screen renders from, the URL that
- * holds it (`#/items?q=&class=&set=&template=&owner=&visibility=&site=&media=&sort=&view=&page=`),
+ * holds it (`#/items?q=&class=&set=&links=&via=&template=&owner=&visibility=&site=&media=&sort=&view=&page=`),
  * and the API query it sends. Every function is pure; the screen owns only the
  * effects (reading and writing the URL, the remembered view, the request).
  */
 import type { ResourceQuery } from '../../api/client';
 import { brandId } from '../../api/parse';
-import type { ClassId, ItemSetId, SiteId, TemplateId, UserId } from '../../api/types';
+import { linksQuery } from '../../api/places';
+import type { LinkTarget } from '../../api/places';
+import type { ClassId, ItemSetId, PropertyId, ResourceId, SiteId, TemplateId, UserId } from '../../api/types';
 import { isFilterKind, serverKindsOf } from '../../app/media';
 import type { FilterKind } from '../../app/media';
 
@@ -26,6 +28,12 @@ export type MediaFilter =
   | { readonly kind: 'none' }
   | { readonly kind: 'of'; readonly of: FilterKind };
 
+/** Items whose values point at one record, through one field or any. */
+export interface LinksFilter {
+  readonly target: ResourceId;
+  readonly via: PropertyId | null;
+}
+
 export type Sort = 'newest' | 'oldest' | 'modified' | 'title';
 export const SORTS: readonly Sort[] = ['newest', 'oldest', 'modified', 'title'];
 
@@ -36,6 +44,7 @@ export interface BrowseFilters {
   readonly search: string;
   readonly classId: ClassId | null;
   readonly itemSetId: ItemSetId | null;
+  readonly links: LinksFilter | null;
   readonly templateId: TemplateId | null;
   readonly ownerId: UserId | null;
   readonly visibility: Visibility | null;
@@ -56,6 +65,7 @@ export const NO_FILTERS: BrowseFilters = {
   search: '',
   classId: null,
   itemSetId: null,
+  links: null,
   templateId: null,
   ownerId: null,
   visibility: null,
@@ -68,6 +78,7 @@ export const FILTER_KEYS: readonly FilterKey[] = [
   'search',
   'classId',
   'itemSetId',
+  'links',
   'media',
   'templateId',
   'ownerId',
@@ -111,6 +122,14 @@ const itemSetIdOf = idOf<'ItemSetId'>();
 const templateIdOf = idOf<'TemplateId'>();
 const userIdOf = idOf<'UserId'>();
 const siteIdOf = idOf<'SiteId'>();
+const resourceIdOf = idOf<'ResourceId'>();
+const propertyIdOf = idOf<'PropertyId'>();
+
+/** `links=<id>` with an optional `via=<property id>`; `via` alone narrows nothing and is dropped. */
+const parseLinks = (links: string | null, via: string | null): LinksFilter | null => {
+  const target = resourceIdOf(links);
+  return target === null ? null : { target, via: propertyIdOf(via) };
+};
 
 const oneOf = <T extends string>(choices: readonly T[], text: string | null): T | null =>
   choices.find((choice) => choice === text) ?? null;
@@ -140,6 +159,7 @@ export const parseBrowse = (query: URLSearchParams, fallbackView: View): ItemBro
     search: query.get('q')?.trim() ?? '',
     classId: classIdOf(query.get('class')),
     itemSetId: itemSetIdOf(query.get('set')),
+    links: parseLinks(query.get('links'), query.get('via')),
     templateId: templateIdOf(query.get('template')),
     ownerId: userIdOf(query.get('owner')),
     visibility: oneOf<Visibility>(['public', 'private'], query.get('visibility')),
@@ -165,6 +185,8 @@ export const formatBrowse = (state: ItemBrowse): URLSearchParams => {
     ['q', filters.search === '' ? null : filters.search],
     ['class', filters.classId === null ? null : String(filters.classId)],
     ['set', filters.itemSetId === null ? null : String(filters.itemSetId)],
+    ['links', filters.links === null ? null : String(filters.links.target)],
+    ['via', filters.links === null || filters.links.via === null ? null : String(filters.links.via)],
     ['template', filters.templateId === null ? null : String(filters.templateId)],
     ['owner', filters.ownerId === null ? null : String(filters.ownerId)],
     ['visibility', filters.visibility],
@@ -212,6 +234,7 @@ export const browseQuery = (state: ItemBrowse): ResourceQuery => {
     ...(filters.search === '' ? {} : { search: filters.search }),
     ...(filters.classId === null ? {} : { resourceClassId: filters.classId }),
     ...(filters.itemSetId === null ? {} : { itemSetId: filters.itemSetId }),
+    ...(filters.links === null ? {} : linksQuery(filters.links.target, filters.links.via)),
     ...(filters.templateId === null ? {} : { resourceTemplateId: filters.templateId }),
     ...(filters.ownerId === null ? {} : { ownerId: filters.ownerId }),
     ...(filters.visibility === null ? {} : { isPublic: filters.visibility === 'public' ? 1 : 0 }),
@@ -219,3 +242,7 @@ export const browseQuery = (state: ItemBrowse): ResourceQuery => {
     ...mediaQuery(filters.media),
   };
 };
+
+/** The Items screen filtered to the items that link to `target` through `via`, under the record's card. */
+export const linksPlaceHref = (target: LinkTarget, via: PropertyId | null): string =>
+  via === null ? `#/items?links=${String(target)}` : `#/items?links=${String(target)}&via=${String(via)}`;

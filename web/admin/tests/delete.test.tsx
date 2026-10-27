@@ -75,7 +75,7 @@ const optionOrNotFound = (url: URL, init: RequestInit | undefined): Response => 
   return handler === undefined ? notFound() : handler(url, init);
 };
 
-/** The item show page: the row, its media list, and the form reference lists. */
+/** The item show page: the row, its media list, what links to it, and the form reference lists. */
 const itemDetailHandler =
   (deleteResponse: () => Response): Handler =>
   (url, init) => {
@@ -84,6 +84,9 @@ const itemDetailHandler =
         return deleteResponse();
       }
       return jsonResponse(itemFixture());
+    }
+    if (url.pathname === '/api/romeka/links/1') {
+      return jsonResponse(loadFixture('places/links-none.json'));
     }
     if (url.pathname === '/api/media') {
       return jsonResponse(loadFixture('media-page-live.json'), {

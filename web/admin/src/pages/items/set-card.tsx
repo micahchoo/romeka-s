@@ -4,7 +4,7 @@
  * URL), so removing the chip leaves the place and the card goes with it.
  */
 import type { ReactElement } from 'react';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useLayoutEffect, useRef, useState } from 'react';
 import type { ItemSet, ItemSetId } from '../../api/types';
 import { ErrorNotice } from '../../app/errors';
 import { useAsync } from '../../app/useAsync';
@@ -14,6 +14,9 @@ import { resources } from '../../i18n/namespaces/resources';
 import { SetDeleteControl } from '../item-sets/delete';
 import { isUnavailable, loadSetFacts, setEditHref } from '../item-sets/facts';
 import type { SetFacts } from '../item-sets/facts';
+
+/** "Linked from": its own chunk, fetched the first time the reader opens it. */
+const LinkedFrom = lazy(() => import('./linked-from'));
 
 export type SetPlace =
   | { readonly status: 'none' }
@@ -72,6 +75,31 @@ const Description = ({ text }: { readonly text: string }): ReactElement => {
         >
           {open ? t('setPlace.showLess') : t('setPlace.showAll')}
         </button>
+      ) : null}
+    </div>
+  );
+};
+
+/** What links to the set, collapsed until the reader opens it. */
+const SetLinks = ({ set }: { readonly set: ItemSet }): ReactElement => {
+  const { t } = useTranslator(resources);
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="set-card-links">
+      <button
+        type="button"
+        className="link-button"
+        aria-expanded={open}
+        onClick={() => {
+          setOpen(!open);
+        }}
+      >
+        {t('linkedFrom.heading')}
+      </button>
+      {open ? (
+        <Suspense fallback={<p role="status">{t('linkedFrom.loading')}</p>}>
+          <LinkedFrom target={set.id} />
+        </Suspense>
       ) : null}
     </div>
   );
@@ -150,6 +178,7 @@ export const SetCard = ({ place, matching }: SetCardProps): ReactElement | null 
         </p>
       )}
       {description === null ? null : <Description text={description} />}
+      <SetLinks set={set} />
       <div className="set-card-actions">
         <a className="button-link" href={setEditHref(set.id)}>
           {t('setPlace.edit')}

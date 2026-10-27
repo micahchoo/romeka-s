@@ -275,6 +275,32 @@ button.private-cue:hover:not(:disabled) {
   background: none;
 }
 
+/* "Linked from" in the set card: closed until opened, the same chevron as its rows. */
+.set-card-links {
+  margin-bottom: var(--space-2);
+}
+
+/* Without side padding, which `app/describe.css`'s .link-button adds when it has loaded. */
+.set-card-links > .link-button {
+  padding: 0;
+}
+
+.set-card-links > button[aria-expanded]::before {
+  content: "▸";
+  display: inline-block;
+  width: 1.1em;
+  text-decoration: none;
+}
+
+.set-card-links > button[aria-expanded="true"]::before {
+  content: "▾";
+}
+
+.set-card-links .linked-from {
+  margin: var(--space-1) 0 0;
+  padding-inline-start: 1.1em;
+}
+
 .set-empty p {
   margin: 0 0 var(--space-2);
 }

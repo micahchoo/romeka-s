@@ -43,6 +43,9 @@ const ItemNotesSections = lazy(() =>
   import('./notes/item-notes').then((module) => ({ default: module.ItemNotesSections })),
 );
 
+/** "Linked from": its own chunk, shared with the set card. */
+const LinkedFrom = lazy(() => import('./linked-from'));
+
 /** The file viewer: its own chunk, and the media page's stage loads inside it. */
 const MediaViewer = lazy(() =>
   import('./preview/viewer').then((module) => ({ default: module.MediaViewer })),
@@ -528,6 +531,11 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
 
       <h2>{t('items.valuesHeading')}</h2>
       <ValuesList values={item.values} />
+
+      <h2>{t('linkedFrom.heading')}</h2>
+      <Suspense fallback={<p role="status">{t('linkedFrom.loading')}</p>}>
+        <LinkedFrom target={item.id} />
+      </Suspense>
 
       <EditPanel label={t('items.editLabel')}>
         <ItemEditForm item={item} onSaved={setEdited} />
