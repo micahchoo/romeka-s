@@ -337,6 +337,13 @@ dd {
   margin: 0;
 }
 
+/* The links one fact holds, such as an item's sets, one per line. */
+.fact-links {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .site-slug,
 .value-lang {
   color: var(--text-muted);

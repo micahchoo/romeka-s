@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { api } from '../../api/client';
 import type { ItemSet, ItemSetId, ItemSetWrite } from '../../api/types';
 import { allValues, toValueWrites, type ResourceDraft } from '../../app/draft';
-import { DeleteControl } from '../../app/delete';
 import { CheckboxField, ResourceFields, SaveStatus, SubmitRow } from '../../app/fields';
 import { ErrorNotice, FormErrors } from '../../app/errors';
 import { loadFormOptions, type FormOptions } from '../../app/options';
@@ -17,6 +16,8 @@ import { useTranslator } from '../../i18n';
 import { useTermText } from '../../i18n/termComments';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
+import { SetDeleteReadingCounts } from './delete';
+import { setPlaceHref } from './facts';
 
 interface Loaded {
   readonly itemSet: ItemSet | null;
@@ -68,7 +69,7 @@ const ItemSetEditor = ({
     save(async () => {
       if (itemSetId === null) {
         const created = await api.createItemSet(write);
-        window.location.hash = `#/item-sets/${String(created.id)}`;
+        window.location.hash = setPlaceHref(created.id);
       } else {
         await api.updateItemSet(itemSetId, write);
       }
@@ -114,16 +115,7 @@ const ItemSetEditor = ({
           busy={saveState.status === 'saving'}
         />
       </form>
-      {stored === null ? null : (
-        <DeleteControl
-          label={t('itemSets.deleteLabel')}
-          rowName={stored.title ?? t('itemSets.rowName', { id: stored.id })}
-          onConfirm={async () => {
-            await api.deleteItemSet(stored.id);
-            window.location.hash = '#/item-sets';
-          }}
-        />
-      )}
+      {stored === null ? null : <SetDeleteReadingCounts set={stored} />}
     </div>
   );
 };

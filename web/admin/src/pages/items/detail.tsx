@@ -3,7 +3,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, useS
 import { api } from '../../api/client';
 import { listMediaForItem } from '../../api/media';
 import { currentUser, subscribeSession } from '../../api/session';
-import type { ClassId, Item, ItemId, Media, MediaId, User, UserId } from '../../api/types';
+import type { ClassId, Item, ItemId, ItemSetId, Media, MediaId, SiteId, User, UserId } from '../../api/types';
 import { fromBrowserEntry, fromDrop } from '../../app/upload/pick';
 import type { Picked } from '../../app/upload/pick';
 import { DeleteControl } from '../../app/delete';
@@ -24,6 +24,7 @@ import { ItemEditForm } from './form';
 import { annotateHref, mediaHref } from '../media/annotations/link';
 import { useItemNotes } from './notes/use-item-notes';
 import { itemHref, previewHref, previewIdOf } from './preview/url';
+import { setPlaceHref } from '../item-sets/facts';
 import { annotations } from '../../i18n/namespaces/annotations';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
@@ -81,6 +82,57 @@ const isFileDrag = (event: DragEvent): boolean =>
   event.dataTransfer !== null && Array.from(event.dataTransfer.types).includes('Files');
 
 const NO_MEDIA: readonly Media[] = [];
+
+/** The names of what the item points at, each read as the caller: a ref it may not read is left out. */
+interface ItemPlaces {
+  readonly templateName: string | null;
+  readonly sets: readonly { readonly id: ItemSetId; readonly title: string | null }[];
+  readonly sites: readonly { readonly id: SiteId; readonly title: string }[];
+}
+
+const idList = (refs: readonly { readonly id: number }[]): string => refs.map((ref) => String(ref.id)).join(',');
+
+const loadPlaces = async (item: Item): Promise<ItemPlaces> => {
+  const [template, sets, sites] = await Promise.all([
+    item.resourceTemplate === null ? Promise.resolve(null) : api.getResourceTemplate(item.resourceTemplate.id),
+    item.itemSets.length === 0
+      ? Promise.resolve([])
+      : api.listItemSets({ id: idList(item.itemSets), perPage: item.itemSets.length }).then((page) => page.items),
+    item.sites.length === 0
+      ? Promise.resolve([])
+      : api.listSites({ id: idList(item.sites), perPage: item.sites.length }).then((page) => page.items),
+  ]);
+  return {
+    templateName: template?.label ?? null,
+    sets: sets.map((set) => ({ id: set.id, title: set.title })),
+    sites: sites.map((site) => ({ id: site.id, title: site.title })),
+  };
+};
+
+/** A list of links, one per entry, or a fallback when the list is empty or still loading. */
+const LinkList = ({
+  links,
+  empty,
+}: {
+  readonly links: readonly { readonly key: number; readonly href: string; readonly text: string }[] | null;
+  readonly empty: string;
+}): ReactElement => {
+  if (links === null) {
+    return <>…</>;
+  }
+  if (links.length === 0) {
+    return <>{empty}</>;
+  }
+  return (
+    <ul className="fact-links">
+      {links.map((link) => (
+        <li key={link.key}>
+          <a href={link.href}>{link.text}</a>
+        </li>
+      ))}
+    </ul>
+  );
+};
 
 /** One media of the item: the image links to the original file. */
 const MediaCard = ({
@@ -239,6 +291,11 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
   // A save replaces the read view without a refetch, so the editor and the
   // record above it agree until the next navigation.
   const [edited, setEdited] = useState<Item | null>(null);
+  const shownItem = edited ?? (itemState.status === 'ready' ? itemState.data : null);
+  const placesState = useAsync(
+    () => (shownItem === null ? Promise.resolve(null) : loadPlaces(shownItem)),
+    [shownItem],
+  );
   const [panelOpen, setPanelOpen] = useState(false);
   const [added, setAdded] = useState<readonly Media[]>([]);
   const [outlined, setOutlined] = useState<MediaId | null>(null);
@@ -315,6 +372,19 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
   const ownerName = ownerNameOf(reads?.ownerNames ?? NO_NAMES, item.owner);
   const classLabel = classLabelOf(reads?.classLabels ?? NO_CLASSES, item.resourceClass, text);
   const adding = mayAddMedia(item, user);
+  const places = placesState.status === 'ready' ? placesState.data : null;
+  // A failed read of the names falls back to the ids, so the rows still say where the item is.
+  const failed = placesState.status === 'error';
+  const templateText =
+    item.resourceTemplate === null
+      ? t('common.none')
+      : (places?.templateName ?? (failed || places !== null ? `#${String(item.resourceTemplate.id)}` : '…'));
+  const setLinks = failed
+    ? item.itemSets.map((ref) => ({ key: ref.id, href: setPlaceHref(ref.id), text: `#${String(ref.id)}` }))
+    : (places?.sets.map((set) => ({ key: set.id, href: setPlaceHref(set.id), text: set.title ?? t('common.untitled') })) ?? null);
+  const siteLinks = failed
+    ? item.sites.map((ref) => ({ key: ref.id, href: `#/sites/${String(ref.id)}`, text: `#${String(ref.id)}` }))
+    : (places?.sites.map((site) => ({ key: site.id, href: `#/sites/${String(site.id)}`, text: site.title })) ?? null);
   const mediaTotal = reads === null ? 0 : reads.mediaTotal + Math.max(0, media.length - reads.media.length);
 
   const openPreview = (entry: Media): void => {
@@ -345,7 +415,15 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
         <dt>{t('column.class')}</dt>
         <dd>{classLabel ?? t('common.none')}</dd>
         <dt>{t('field.resourceTemplate')}</dt>
-        <dd>{item.resourceTemplate === null ? t('common.none') : `#${String(item.resourceTemplate.id)}`}</dd>
+        <dd>{templateText}</dd>
+        <dt>{t('items.inItemSets')}</dt>
+        <dd>
+          <LinkList links={setLinks} empty={t('common.none')} />
+        </dd>
+        <dt>{t('items.inSites')}</dt>
+        <dd>
+          <LinkList links={siteLinks} empty={t('common.none')} />
+        </dd>
         <dt>{t('column.owner')}</dt>
         <dd>{ownerName ?? t('common.noOwner')}</dd>
         <dt>{t('column.created')}</dt>

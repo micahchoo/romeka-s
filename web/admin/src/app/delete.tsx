@@ -8,7 +8,7 @@
  * state, so the message stays on screen without a request on the next click.
  */
 import { useEffect, useRef, useState } from 'react';
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { useTranslator } from '../i18n';
 import { ErrorNotice } from './errors';
 import { toError } from './useAsync';
@@ -19,6 +19,8 @@ export interface DeleteControlProps {
   readonly label: string;
   /** The row's display name. The confirmation and its button carry it. */
   readonly rowName: string;
+  /** What the delete changes besides the row, stated in the confirmation. */
+  readonly detail?: ReactNode;
   /** Runs on confirm. The caller deletes the row and leaves the page. */
   readonly onConfirm: () => Promise<void>;
 }
@@ -29,7 +31,7 @@ type Phase =
   | { readonly status: 'deleting' }
   | { readonly status: 'error'; readonly error: Error };
 
-export const DeleteControl = ({ label, rowName, onConfirm }: DeleteControlProps): ReactElement => {
+export const DeleteControl = ({ label, rowName, detail = null, onConfirm }: DeleteControlProps): ReactElement => {
   const { t } = useTranslator(common);
   const [phase, setPhase] = useState<Phase>({ status: 'idle' });
   const confirmButton = useRef<HTMLButtonElement>(null);
@@ -54,6 +56,7 @@ export const DeleteControl = ({ label, rowName, onConfirm }: DeleteControlProps)
     return (
       <section className="delete-control delete-confirm" role="group" aria-label={label}>
         <p>{t('delete.confirm', { name: rowName })}</p>
+        {detail}
         <p>
           <button
             ref={confirmButton}

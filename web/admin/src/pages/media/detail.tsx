@@ -112,6 +112,14 @@ export const MediaDetail = ({
   const [retryError, setRetryError] = useState<string | null>(null);
   const accessState =
     edited?.access?.state ?? (state.status === 'ready' ? state.data.access?.state : null);
+  const itemId = state.status === 'ready' ? (state.data.item?.id ?? null) : null;
+  // The item's title for the "Part of item" link; until it answers, or if it
+  // cannot be read, the link names the item by its id.
+  const itemState = useAsync(
+    () => (itemId === null ? Promise.resolve(null) : api.getItem(itemId)),
+    [itemId],
+  );
+  const itemTitle = itemState.status === 'ready' ? (itemState.data?.title ?? null) : null;
 
   // A copy in flight is the one thing this page reads again on its own. The
   // read replaces the document, so a percentage, a settled copy, or a failure
@@ -216,7 +224,7 @@ export const MediaDetail = ({
           {media.item === null ? (
             t('common.none')
           ) : (
-            <a href={`#/items/${String(media.item.id)}`}>{`#${String(media.item.id)}`}</a>
+            <a href={`#/items/${String(media.item.id)}`}>{itemTitle ?? `#${String(media.item.id)}`}</a>
           )}
         </dd>
         <dt>{t('column.created')}</dt>
