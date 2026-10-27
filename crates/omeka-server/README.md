@@ -282,6 +282,23 @@ writes nothing. The caller must be allowed to update the site: its owner, a site
 admin, or a global or site administrator. Only `item_site` rows change, the table
 upstream's job writes.
 
+## Set counts and links
+
+Two reads give the admin the counts behind an item set's place and a record's "Linked from"
+(`src/place_counts.rs`, logic in `omeka_api::read::place_counts`). Upstream has neither route.
+
+| Route | Response |
+| --- | --- |
+| `GET /api/romeka/item-sets/counts?id[]=<id>&id[]=…` | 200 `{item_sets: [{id, items}]}`; 400 past 200 distinct ids |
+| `GET /api/romeka/links/{id}` | 200 `{links: [{kind, property_id, term, label, count}]}`; 404 |
+
+Each count equals the total of the list it opens, for the same caller: a set's `items` is the
+`Omeka-S-Total-Results` of `GET /api/items?item_set_id=<id>`, and a link row's `count` is that of
+`GET /api/<kind>?property[0][property]=<property_id>&property[0][type]=res&property[0][text]=<id>`.
+A set the caller may not see, a missing set and an id that is not a positive integer are left out
+of the counts. A link target the caller may not see and a missing one are the same 404. Both answer
+`Cache-Control: no-store`. `tests/place_counts.rs` holds every count against its list.
+
 ## Page history
 
 Every `PUT` or `PATCH` of a site page is one transaction that also stores the page document it

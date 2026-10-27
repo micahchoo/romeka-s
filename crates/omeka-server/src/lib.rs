@@ -58,6 +58,7 @@ mod media_add;
 mod media_derivatives;
 mod media_render;
 mod page_versions;
+mod place_counts;
 mod publish;
 mod serve;
 mod settings;
@@ -221,6 +222,7 @@ fn build_app(pool: DbPool, services: Services, config: &Config) -> Router {
         .merge(media_derivatives::router())
         .merge(site_items::router())
         .merge(bulk::router())
+        .merge(place_counts::router())
         .merge(page_versions::router())
         .merge(imports::router())
         .merge(uploads::router())
