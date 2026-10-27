@@ -77,7 +77,15 @@ render the header and their own page, with no admin navigation:
 - `#/items` lists items. `#/items/new` creates one. `#/items/<id>` shows one item, with its values
   and an "Edit this item" panel for values, title, visibility, class, template, owner and item-set
   membership.
-- `#/item-sets` lists item sets. `#/item-sets/new` creates one. `#/item-sets/<id>` edits one.
+- `#/item-sets` lists item sets. `#/item-sets/new` creates one. `#/item-sets/<id>` opens the set's place: it
+  replaces its own history entry with `#/items?set=<id>`, the Items screen filtered to the set. Whenever the
+  Items screen has a set filter, the set's card heads the results (`pages/items/set-card.tsx`): its item
+  count, how many of them the other filters match, visibility, "Open to additions", the sites that show
+  it, its description, Edit set and Delete. A set the reader may not read, hidden or gone, reads "This set
+  is not available" over empty results. `#/item-sets/<id>/edit` edits one. The set delete, on the card and
+  on the form, states that the items stay and leave the set and how many sites stop showing it.
+- The item page lists the item's sets (each a link to the set's place) and sites, and names its resource
+  template; the media page names its item by title.
 - `#/users` lists users. `#/users/new` invites one: it creates the row and then mints the one-time
   password link, which the page shows with a copy control. `#/users/<id>` edits one and can mint
   another link.

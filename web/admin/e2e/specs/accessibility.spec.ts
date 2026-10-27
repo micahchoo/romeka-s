@@ -50,10 +50,19 @@ test("the admin item surfaces meet the axe budget", async ({
   await diagnostics.idle();
   await expectAxeBudget(page, "admin item create");
 
-  // The item set edit form.
+  // The item set's place, then its edit form.
   await page.goto("/#/item-sets");
   await page.locator("tbody a").first().click();
-  await expect(page).toHaveURL(/#\/item-sets\/\d+$/);
+  await expect(page).toHaveURL(/#\/items\?set=\d+$/);
+  await expect(page.locator(".set-card h2")).toBeVisible();
+  await diagnostics.idle();
+  await expectAxeBudget(page, "admin item set place");
+
+  await page.getByRole("link", { name: "Edit set" }).click();
+  await expect(page).toHaveURL(/#\/item-sets\/\d+\/edit$/);
+  await expect(
+    page.getByRole("textbox", { name: "Title", exact: true }),
+  ).toBeVisible();
   await diagnostics.idle();
   await expectAxeBudget(page, "admin item set edit");
 });

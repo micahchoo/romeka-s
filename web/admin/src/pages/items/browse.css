@@ -194,3 +194,87 @@ button.private-cue:hover:not(:disabled) {
 .item-grid-pick-all {
   margin: 0 0 var(--space-2);
 }
+
+/* The set's place: its card heads the filtered results. */
+.set-card {
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.set-card h2 {
+  margin: var(--space-1) 0 var(--space-2);
+}
+
+.set-card p {
+  margin: 0 0 var(--space-2);
+}
+
+.set-card-crumb a::after {
+  content: " ›";
+  color: var(--text-muted);
+}
+
+.set-card-count strong {
+  font-size: 1.125rem;
+}
+
+.set-card-match {
+  margin-inline-start: var(--space-3);
+  color: var(--text-muted);
+}
+
+.set-card-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.set-card-facts span {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+}
+
+.set-card-description {
+  max-width: 65ch;
+  margin-bottom: var(--space-2);
+}
+
+.set-card-description p {
+  margin: 0;
+  white-space: pre-line;
+}
+
+.set-card-clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+.set-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.set-card-actions .delete-control {
+  margin: 0;
+}
+
+.set-card-actions .delete-control:not(.delete-confirm) {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.set-empty p {
+  margin: 0 0 var(--space-2);
+}

@@ -26,6 +26,7 @@ import { FilterBar } from './FilterBar';
 import { FilterChips } from './FilterChips';
 import { ItemsGrid } from './ItemsGrid';
 import { ItemsTable } from './ItemsTable';
+import { SetCard, SetEmpty, useSetPlace } from './set-card';
 import type { ItemsViewProps } from './ItemsTable';
 import './browse.css';
 
@@ -126,9 +127,15 @@ const useBrowseState = () => {
   return { state, draft, setDraft, apply };
 };
 
-const EmptyList = ({ filtered, onClearAll }: { readonly filtered: boolean; readonly onClearAll: () => void }): ReactElement => {
+/** Why the list is empty: a set with no items yet, filters that match nothing, or no items at all. */
+type Emptiness = 'set' | 'filtered' | 'none';
+
+const EmptyList = ({ emptiness, onClearAll }: { readonly emptiness: Emptiness; readonly onClearAll: () => void }): ReactElement => {
   const { t } = useTranslator(common, resources);
-  return filtered ? (
+  if (emptiness === 'set') {
+    return <SetEmpty />;
+  }
+  return emptiness === 'filtered' ? (
     <p className="items-empty">
       {t('browse.noMatch')}{' '}
       <button type="button" onClick={onClearAll}>
@@ -148,23 +155,25 @@ interface ResultsProps {
   /** The next page is loading; this one stays on screen, dimmed. */
   readonly busy: boolean;
   readonly view: View;
-  readonly filtered: boolean;
+  /** The match count line; the set card states it in the set's place. */
+  readonly showCount: boolean;
+  readonly emptiness: Emptiness;
   readonly viewProps: Omit<ItemsViewProps, 'items'>;
   readonly onClearAll: () => void;
   readonly onPage: (page: number) => void;
 }
 
-const Results = ({ page, busy, view, filtered, viewProps, onClearAll, onPage }: ResultsProps): ReactElement => {
+const Results = ({ page, busy, view, showCount, emptiness, viewProps, onClearAll, onPage }: ResultsProps): ReactElement => {
   const { t, number } = useTranslator(common, resources);
   return (
     <div className="items-results" aria-busy={busy}>
-      {filtered ? (
+      {showCount ? (
         <p className="items-count" aria-live="polite">
           {page.total === 1 ? t('browse.matchOne') : t('browse.matchMany', { count: number(page.total) })}
         </p>
       ) : null}
       {page.items.length === 0 ? (
-        <EmptyList filtered={filtered} onClearAll={onClearAll} />
+        <EmptyList emptiness={emptiness} onClearAll={onClearAll} />
       ) : view === 'grid' ? (
         <ItemsGrid items={page.items} {...viewProps} />
       ) : (
@@ -190,7 +199,14 @@ export const ItemsList = (): ReactElement => {
   const itemsState = useAsync(() => api.listItems(query), [JSON.stringify(query), revision]);
   const shown: ApiPage<Item> | null = useLastPage(itemsState);
 
-  const filtered = activeFilters(state.filters).length > 0;
+  const active = activeFilters(state.filters);
+  const filtered = active.length > 0;
+  const setId = state.filters.itemSetId;
+  const place = useSetPlace(setId, revision);
+  /** Filters besides the set narrow the set's items. */
+  const narrowed = active.some((key) => key !== 'itemSetId');
+  const emptiness: Emptiness = setId !== null && !narrowed ? 'set' : filtered ? 'filtered' : 'none';
+  const hidden = place.status === 'unavailable';
   const onFilter = (change: Partial<BrowseFilters>): void => {
     apply(withFilters(state, change));
   };
@@ -213,6 +229,7 @@ export const ItemsList = (): ReactElement => {
 
   return (
     <section className="items-browse">
+      <SetCard place={place} matching={narrowed && shown !== null ? shown.total : null} />
       <p>
         <a href="#/items/new">{t('items.add')}</a>
       </p>
@@ -247,8 +264,8 @@ export const ItemsList = (): ReactElement => {
         }}
         onClearAll={onClearAll}
       />
-      <BulkSiteActions picked={picked} />
-      {shown === null ? null : (
+      {hidden ? null : <BulkSiteActions picked={picked} />}
+      {shown === null || hidden ? null : (
         <BulkEditBar
           picked={picked}
           query={query}
@@ -260,7 +277,7 @@ export const ItemsList = (): ReactElement => {
           }}
         />
       )}
-      {itemsState.status === 'error' ? (
+      {hidden ? null : itemsState.status === 'error' ? (
         <ErrorNotice error={itemsState.error} />
       ) : shown === null ? (
         <p role="status">{t('list.loading', { resource: t('resource.items') })}</p>
@@ -269,7 +286,8 @@ export const ItemsList = (): ReactElement => {
           page={shown}
           busy={itemsState.status === 'loading'}
           view={state.view}
-          filtered={filtered}
+          showCount={filtered && setId === null}
+          emptiness={emptiness}
           viewProps={viewProps}
           onClearAll={onClearAll}
           onPage={(page) => {

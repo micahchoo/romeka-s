@@ -5,7 +5,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
-import { brandId } from '../src/api/parse';
+import { brandId, isRecord, isUnknownArray } from '../src/api/parse';
 import { setSession } from '../src/api/session';
 import type { User } from '../src/api/types';
 import { ItemsList } from '../src/pages/items/list';
@@ -122,6 +122,15 @@ const openList = async (hash = '#/items'): Promise<Mock<typeof fetch>> => {
   return fetchMock;
 };
 
+const setFixture = (index: number): Record<string, unknown> => {
+  const page = loadFixture('item-sets-page.json');
+  const entry = isUnknownArray(page) ? page[index] : undefined;
+  if (!isRecord(entry)) {
+    throw new Error('expected an item set fixture');
+  }
+  return { ...entry };
+};
+
 const detailHandler = (url: URL): Response => {
   if (url.pathname === '/api/items/1') {
     return jsonResponse(loadFixture('item-1.json'));
@@ -136,6 +145,13 @@ const detailHandler = (url: URL): Response => {
   }
   if (url.pathname === '/api/resource_classes') {
     return jsonResponse(loadFixture('resource-classes-page.json'));
+  }
+  if (url.pathname === '/api/resource_templates/2') {
+    return jsonResponse(loadFixture('resource-template-2.json'));
+  }
+  // The item names set 4; the page reads it back by id.
+  if (url.pathname === '/api/item_sets' && url.searchParams.get('id') === '4') {
+    return jsonResponse([{ ...setFixture(0), 'o:id': 4, 'o:title': 'Box 12 letters' }]);
   }
   return jsonResponse(
     { errors: { error: `Unexpected request to ${url.pathname}` } },
@@ -346,7 +362,9 @@ describe('item detail', () => {
     expect(screen.getByText('Still Image')).toBeInTheDocument();
     expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
     expect(screen.getByText('Private')).toBeInTheDocument();
-    expect(screen.getByText('#2')).toBeInTheDocument();
+    expect(await screen.findByText('Photograph')).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Box 12 letters' })).toHaveAttribute('href', '#/items?set=4');
+    expect(screen.getByText('In sites').nextElementSibling).toHaveTextContent('[None]');
 
     expect(screen.getByRole('heading', { name: 'Media (3)', level: 2 })).toBeInTheDocument();
 
