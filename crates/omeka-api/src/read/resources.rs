@@ -9,8 +9,8 @@ use std::cmp::Ordering;
 
 use omeka_db::ids::{AssetId, ClassId, ItemId, ItemSetId, MediaId, ResourceId};
 use omeka_db::repos::{
-    ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo, MediaFilter, MediaRepo, Paging, ResourceRepo,
-    compare_opt_text_ci,
+    ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo, MediaFilter, MediaRepo, MediaVisibility,
+    Paging, ResourceRepo, compare_opt_text_ci,
 };
 use omeka_db::rows::{AssetRow, ItemRow, ItemSetRow, MediaRow, ValueAnnotationRow, resource_type};
 use omeka_db::with_db;
@@ -334,6 +334,9 @@ pub async fn search_item_sets(api: &Api<'_>, params: &Params) -> Result<ApiRespo
             |row| row.id().0,
             |row| hits.get(&row.id().0).copied().unwrap_or(0.0),
         ),
+        _ if params.get("sort_by") == Some("item_count") => {
+            item_count_page(api, rows, sort.descending, &limit).await?
+        }
         _ => sorted_page(rows, &sort, &limit, cmp_item_set(sort)),
     };
     let relations = Relations::load(
@@ -442,6 +445,33 @@ fn item_set_primary_media<'r>(
     let (item, primary) = relations.first_item_of(set.0)?;
     let media = visible_media(api, relations, ItemId(item));
     primary_media_of(&media, primary)
+}
+
+/// `ItemSetAdapter::sortQuery` for `sort_by=item_count`: `SIZE(omeka_root.items)`, then the id.
+///
+/// Doctrine renders `SIZE` on a many-to-many as a count over the join table alone, so no
+/// visibility filter reaches it: upstream orders by every item a set holds, the caller's or not.
+/// The port matches that order, so the count here is not the caller-visible count that
+/// `/api/romeka/item-sets/counts` answers. `docs/compat.md` records it.
+async fn item_count_page(
+    api: &Api<'_>,
+    rows: Vec<ItemSetRow>,
+    descending: bool,
+    limit: &Limit,
+) -> Result<(i64, Vec<ItemSetRow>), ApiError> {
+    let ids: Vec<ItemSetId> = rows.iter().map(ItemSetRow::id).collect();
+    let counts: std::collections::HashMap<ItemSetId, i64> =
+        super::place_counts::item_counts(api, &ids, MediaVisibility::All, MediaVisibility::All)
+            .await?
+            .into_iter()
+            .map(|count| (count.item_set, count.items))
+            .collect();
+    let count_of = |row: &ItemSetRow| counts.get(&row.id()).copied().unwrap_or(0);
+    Ok(ordered_page(rows, descending, limit, |a, b| {
+        count_of(a)
+            .cmp(&count_of(b))
+            .then(a.resource.id.cmp(&b.resource.id))
+    }))
 }
 
 // ---------------------------------------------------------------- media

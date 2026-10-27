@@ -485,7 +485,7 @@ const ITEM_SET_COLUMNS: &str = "SELECT resource.*, item_set.is_open FROM item_se
 
 /// `item_set` rows.
 pub struct ItemSetRepo<'a, DB: Backend = Sqlite> {
-    pool: &'a Pool<DB>,
+    pub(super) pool: &'a Pool<DB>,
 }
 
 impl<'a, DB: Backend> ItemSetRepo<'a, DB>

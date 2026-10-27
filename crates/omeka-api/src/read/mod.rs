@@ -14,6 +14,7 @@
 pub mod catalog;
 pub mod export;
 pub mod params;
+pub mod place_counts;
 pub mod query;
 pub mod response;
 

@@ -208,7 +208,11 @@ impl QueryFilter {
     ) -> Result<(), DbError>
     where
         for<'x> i64: Encode<'x, DB> + Type<DB>,
+        for<'x> String: Encode<'x, DB> + Type<DB>,
     {
+        // `AbstractResourceEntityAdapter::buildQuery` reads `property[i]` for item sets as for
+        // items and media.
+        self.push_value(statement)?;
         if let Some(site_id) = self.site_id {
             statement.push(
                 " AND EXISTS (SELECT 1 FROM site_item_set

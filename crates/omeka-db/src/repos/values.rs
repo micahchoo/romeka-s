@@ -16,7 +16,7 @@ use super::resources::insert_resource;
 
 /// `value` rows.
 pub struct ValueRepo<'a, DB: Backend = Sqlite> {
-    pool: &'a Pool<DB>,
+    pub(super) pool: &'a Pool<DB>,
 }
 
 impl<'a, DB: Backend> ValueRepo<'a, DB>

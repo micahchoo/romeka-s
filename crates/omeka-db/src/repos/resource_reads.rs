@@ -161,20 +161,33 @@ fn predicate(window: &ItemWindow) -> (String, Vec<i64>) {
         );
         sql.push_str("))");
     }
-    match window.visibility {
+    push_visibility(&mut sql, &mut binds, window.visibility, "resource");
+    (sql, binds)
+}
+
+/// `Actor::sees_resource` as SQL on one resource alias: every row for `view-all`, else public rows
+/// and the caller's own. A count that must equal a list total keeps its rows through this.
+pub(super) fn push_visibility(
+    sql: &mut String,
+    binds: &mut Vec<i64>,
+    visibility: MediaVisibility,
+    alias: &str,
+) {
+    match visibility {
         MediaVisibility::All => {}
         MediaVisibility::Actor(Some(user)) => {
-            sql.push_str(" AND (resource.is_public = 1 OR resource.owner_id = ?)");
+            sql.push_str(&format!(
+                " AND ({alias}.is_public = 1 OR {alias}.owner_id = ?)"
+            ));
             binds.push(user.0 as i64);
         }
-        MediaVisibility::Actor(None) => sql.push_str(" AND resource.is_public = 1"),
+        MediaVisibility::Actor(None) => sql.push_str(&format!(" AND {alias}.is_public = 1")),
     }
-    (sql, binds)
 }
 
 /// An empty list renders `NULL`, which no id equals, so `IN (NULL)` matches no row on both engines
 /// where `IN ()` is a MySQL syntax error.
-fn push_list(sql: &mut String, binds: &mut Vec<i64>, values: impl Iterator<Item = i64>) {
+pub(super) fn push_list(sql: &mut String, binds: &mut Vec<i64>, values: impl Iterator<Item = i64>) {
     let before = binds.len();
     for (index, value) in values.enumerate() {
         if index > 0 {

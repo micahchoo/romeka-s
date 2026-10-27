@@ -59,6 +59,7 @@ mod trash_rows;
 mod user_uploads;
 mod users;
 mod values;
+mod visible_counts;
 mod vocabularies;
 
 pub use assets::{AssetFilter, AssetOwner, AssetRepo};
@@ -105,6 +106,7 @@ pub use terms::{ClassTerm, PropertyTerm, TermRepo, TermScope};
 pub use user_uploads::UserUploadRepo;
 pub use users::{ApiKeyRepo, UserFilter, UserRepo};
 pub use values::ValueRepo;
+pub use visible_counts::{LinkCount, SetItemCount};
 pub use vocabularies::{
     ClassFilter, ClassRepo, PropertyFilter, PropertyRepo, VocabularyFilter, VocabularyRepo,
 };
