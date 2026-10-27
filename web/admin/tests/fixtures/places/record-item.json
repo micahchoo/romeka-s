@@ -1,0 +1,59 @@
+{
+  "@context": "http://localhost/api-context",
+  "@id": "http://localhost/api/items/1",
+  "@type": "o:Item",
+  "o:id": 1,
+  "o:is_public": true,
+  "o:owner": {
+    "@id": "http://localhost/api/users/1",
+    "o:id": 1
+  },
+  "o:resource_class": null,
+  "o:resource_template": null,
+  "o:thumbnail": null,
+  "o:title": "Person A",
+  "thumbnail_display_urls": {
+    "large": null,
+    "medium": null,
+    "square": null
+  },
+  "o:created": {
+    "@value": "2026-10-27T07:31:48+00:00",
+    "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+  },
+  "o:modified": {
+    "@value": "2026-10-27T07:31:48+00:00",
+    "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+  },
+  "o:primary_media": null,
+  "o:media": [],
+  "o:item_set": [],
+  "o:site": [],
+  "dcterms:title": [
+    {
+      "type": "literal",
+      "property_id": 1,
+      "property_label": "Title",
+      "is_public": true,
+      "@value": "Person A"
+    }
+  ],
+  "@reverse": {
+    "dcterms:subject": [
+      {
+        "@id": "http://localhost/api/resources/2",
+        "o:title": "Letters"
+      }
+    ],
+    "dcterms:creator": [
+      {
+        "@id": "http://localhost/api/resources/4",
+        "o:title": "Letter 1"
+      },
+      {
+        "@id": "http://localhost/api/resources/5",
+        "o:title": "Letter 2"
+      }
+    ]
+  }
+}

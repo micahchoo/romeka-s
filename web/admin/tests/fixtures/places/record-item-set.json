@@ -1,0 +1,54 @@
+{
+  "@context": "http://localhost/api-context",
+  "@id": "http://localhost/api/item_sets/2",
+  "@type": "o:ItemSet",
+  "o:id": 2,
+  "o:is_public": true,
+  "o:owner": {
+    "@id": "http://localhost/api/users/1",
+    "o:id": 1
+  },
+  "o:resource_class": null,
+  "o:resource_template": null,
+  "o:thumbnail": null,
+  "o:title": "Letters",
+  "thumbnail_display_urls": {
+    "large": null,
+    "medium": null,
+    "square": null
+  },
+  "o:created": {
+    "@value": "2026-10-27T07:31:48+00:00",
+    "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+  },
+  "o:modified": {
+    "@value": "2026-10-27T07:31:48+00:00",
+    "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+  },
+  "o:is_open": false,
+  "o:items": {
+    "@id": "http://localhost/api/items?item_set_id=2"
+  },
+  "dcterms:title": [
+    {
+      "type": "literal",
+      "property_id": 1,
+      "property_label": "Title",
+      "is_public": true,
+      "@value": "Letters"
+    }
+  ],
+  "dcterms:subject": [
+    {
+      "type": "resource",
+      "property_id": 3,
+      "property_label": "Subject",
+      "is_public": true,
+      "@id": "http://localhost/api/items/1",
+      "value_resource_id": 1,
+      "value_resource_name": "items",
+      "url": null,
+      "display_title": "Person A"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "links": [
+    {
+      "kind": "items",
+      "property_id": 2,
+      "term": "dcterms:creator",
+      "label": "Creator",
+      "count": 2
+    },
+    {
+      "kind": "item_sets",
+      "property_id": 3,
+      "term": "dcterms:subject",
+      "label": "Subject",
+      "count": 1
+    }
+  ]
+}
