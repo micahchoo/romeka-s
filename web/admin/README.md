@@ -86,6 +86,22 @@ render the header and their own page, with no admin navigation:
   on the form, states that the items stay and leave the set and how many sites stop showing it.
 - The item page lists the item's sets (each a link to the set's place) and sites, and names its resource
   template; the media page names its item by title.
+- The set list has an Items column: each set's count from one `GET /api/romeka/item-sets/counts` per page,
+  as a link to the set's place. A set the answer leaves out, or a failed read, shows a dash with the reason.
+  A reader whose role sees every item (reviewer and up) may sort by item count (`sort_by=item_count`).
+  Upstream's order counts every item a set holds, so for any other role the order and the visible
+  counts would disagree, and it is not offered.
+- "Linked from" (`pages/items/linked-from.tsx`, its own chunk) is open on the item page and folded in
+  the set card. It reads `GET /api/romeka/links/<id>` and shows one row per kind and field with its
+  count ("Creator · 2 items"). An items row opens `#/items?links=<id>&via=<property id>`; an item set or
+  media row lists its records in place, five at a time. Each count is the total of the `res` property
+  search its row opens, for the same reader.
+- The Items screen's `links` filter (+ optional `via`) is that `res` search, so it stacks with every
+  other filter and a bulk change over every match selects through it. Its chip reads "Links to: <title>
+  (as <field>)". The linked record's card heads the results (`pages/items/links-card.tsx`): "Items that
+  link to <title>", the field, the count, and a link to the record. A record the reader may not read,
+  hidden or gone, reads "This record is not available" over no results, and its chip names it by id.
+  With both a set and a links filter, both cards show, the set's first.
 - `#/users` lists users. `#/users/new` invites one: it creates the row and then mints the one-time
   password link, which the page shows with a copy control. `#/users/<id>` edits one and can mint
   another link.
