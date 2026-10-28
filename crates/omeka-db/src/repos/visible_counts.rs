@@ -1,5 +1,6 @@
-//! Counts that stand for a list: the items of each item set, and the resources whose values point
-//! at one resource, each kept to the rows a caller may see.
+//! Counts that stand for a list: the items of each item set, the resources whose values point at
+//! one resource, and the items of one template that fill each property, each kept to the rows a
+//! caller may see.
 //!
 //! A count here must equal the `totalResults` of the list it opens for the same caller, so every
 //! counted row passes the same visibility the list applies ([`super::resource_reads`]'s
@@ -9,10 +10,11 @@
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Type};
 
 use super::resource_reads::{push_list, push_visibility};
-use super::{ItemSetRepo, MediaVisibility, ValueRepo};
+use super::resources::ITEM_FROM;
+use super::{ItemRepo, ItemSetRepo, MediaVisibility, ValueRepo};
 use crate::DbError;
 use crate::backend::Backend;
-use crate::ids::{ItemSetId, PropertyId, ResourceId};
+use crate::ids::{ItemSetId, PropertyId, ResourceId, TemplateId};
 
 /// The items one item set holds, as the caller may see them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,6 +31,79 @@ pub struct LinkCount {
     pub property: PropertyId,
     /// Distinct linking resources, not values: a list counts each resource once.
     pub resources: i64,
+}
+
+/// The items of one template, and how many of them fill each property.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FieldCounts {
+    pub total: i64,
+    /// One row per property at least one counted item has a value for, in property id order. A
+    /// property absent here is filled by none.
+    pub fields: Vec<FieldCount>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FieldCount {
+    pub property: PropertyId,
+    /// Distinct items, not values: a list counts each item once.
+    pub items: i64,
+}
+
+impl<DB: Backend> ItemRepo<'_, DB>
+where
+    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
+    for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
+    usize: ColumnIndex<DB::Row>,
+    for<'x> i64: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> &'x str: ColumnIndex<DB::Row>,
+{
+    /// The items of `template` that `visibility` keeps, and per property how many of them have a
+    /// value for it.
+    ///
+    /// A property's count is the `ex` property search (`query.rs`, `MatchKind::Exists`) grouped:
+    /// it keeps a value whatever its own `is_public`, as that search does.
+    pub async fn field_counts(
+        &self,
+        template: TemplateId,
+        visibility: MediaVisibility,
+    ) -> Result<FieldCounts, DbError> {
+        let mut sql =
+            format!("SELECT COUNT(*) AS total{ITEM_FROM} WHERE resource.resource_template_id = ?");
+        let mut binds = vec![template.0 as i64];
+        push_visibility(&mut sql, &mut binds, visibility, "resource");
+        let mut query = sqlx::query::<DB>(&sql);
+        for bind in &binds {
+            query = query.bind(*bind);
+        }
+        let total = DB::int(&query.fetch_one(self.pool).await?, "total")?;
+
+        let table = DB::quote_identifier("value");
+        let mut sql = format!(
+            "SELECT v.property_id AS property_id, COUNT(DISTINCT resource.id) AS items \
+             FROM {table} v INNER JOIN item ON item.id = v.resource_id \
+             INNER JOIN resource ON resource.id = item.id \
+             WHERE resource.resource_template_id = ?"
+        );
+        let mut binds = vec![template.0 as i64];
+        push_visibility(&mut sql, &mut binds, visibility, "resource");
+        sql.push_str(" GROUP BY v.property_id ORDER BY v.property_id");
+        let mut query = sqlx::query::<DB>(&sql);
+        for bind in &binds {
+            query = query.bind(*bind);
+        }
+        let fields = query
+            .fetch_all(self.pool)
+            .await?
+            .iter()
+            .map(|row| {
+                Ok(FieldCount {
+                    property: DB::id(row, "property_id")?,
+                    items: DB::int(row, "items")?,
+                })
+            })
+            .collect::<Result<_, DbError>>()?;
+        Ok(FieldCounts { total, fields })
+    }
 }
 
 impl<DB: Backend> ItemSetRepo<'_, DB>

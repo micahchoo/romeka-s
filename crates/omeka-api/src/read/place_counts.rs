@@ -1,16 +1,20 @@
-//! The counts behind a set's place and a record's "Linked from": Romeka's own reads
-//! (`/api/romeka/item-sets/counts`, `/api/romeka/links/{id}`); upstream has neither route.
+//! The counts behind a set's place, a record's "Linked from" and an item type's fields: Romeka's
+//! own reads (`/api/romeka/item-sets/counts`, `/api/romeka/links/{id}`,
+//! `/api/romeka/field-counts`); upstream has none of these routes.
 //!
 //! Each count stands for a list the admin opens, so it must equal that list's `totalResults` for
-//! the same caller: a set's count is `GET /api/items?item_set_id=<id>`, and a link row's count is
-//! the `res` property search of its kind's endpoint. Both read the visibility the lists read
+//! the same caller: a set's count is `GET /api/items?item_set_id=<id>`, a link row's count is the
+//! `res` property search of its kind's endpoint, and a field's count is the `ex` property search
+//! on `GET /api/items?resource_template_id=<id>`. Both read the visibility the lists read
 //! (`media_visibility`, which is `Actor::sees_resource` as SQL), so a hidden record is never
 //! counted and a hidden or missing set or target answers the same.
 
 use std::collections::BTreeSet;
 
-use omeka_db::ids::{ItemSetId, ResourceId};
-use omeka_db::repos::{ItemSetRepo, MediaVisibility, RelationRepo, SetItemCount, ValueRepo};
+use omeka_db::ids::{ItemSetId, ResourceId, TemplateId};
+use omeka_db::repos::{
+    ItemRepo, ItemSetRepo, MediaVisibility, RelationRepo, SetItemCount, TemplateRepo, ValueRepo,
+};
 use omeka_db::rows::resource_type;
 use omeka_db::with_db;
 use serde::Serialize;
@@ -167,5 +171,52 @@ pub async fn links(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError>
     });
     Ok(ApiResponse::document(serialize(&Links {
         links: links.into_iter().map(|(_, link)| link).collect(),
+    })?))
+}
+
+#[derive(Serialize)]
+struct FieldCounts {
+    total: i64,
+    fields: Vec<FieldCount>,
+}
+
+#[derive(Serialize)]
+struct FieldCount {
+    property_id: u64,
+    filled: i64,
+}
+
+/// `GET /api/romeka/field-counts?resource_template_id=<id>`: how many items of this type the
+/// caller may see, and per property how many of them have a value for it. A property no counted
+/// item fills is left out. A missing type and an id that is not a positive integer are the same
+/// 404; a request that names no type is a 400.
+pub async fn field_counts(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
+    const CLASS: &str = "Omeka\\Entity\\ResourceTemplate";
+    let raw = params
+        .get("resource_template_id")
+        .ok_or_else(|| ApiError::bad_request(messages::BAD_REQUEST))?;
+    let id = raw
+        .parse::<u64>()
+        .ok()
+        .filter(|id| *id > 0 && i64::try_from(*id).is_ok())
+        .map(TemplateId)
+        .ok_or_else(|| not_found(CLASS, raw))?;
+    with_db!(api.pool(), |db| TemplateRepo::new(db).get(id).await)
+        .map_err(db_error)?
+        .ok_or_else(|| not_found(CLASS, raw))?;
+    let counts = with_db!(api.pool(), |db| ItemRepo::new(db)
+        .field_counts(id, media_visibility(api.actor()))
+        .await)
+    .map_err(db_error)?;
+    Ok(ApiResponse::document(serialize(&FieldCounts {
+        total: counts.total,
+        fields: counts
+            .fields
+            .into_iter()
+            .map(|field| FieldCount {
+                property_id: field.property.0,
+                filled: field.items,
+            })
+            .collect(),
     })?))
 }

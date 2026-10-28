@@ -1,9 +1,11 @@
-//! The count routes behind a set's place and a record's "Linked from". Upstream has neither.
+//! The count routes behind a set's place, a record's "Linked from" and an item type's fields.
+//! Upstream has none of them.
 //!
 //! | Route | Answer |
 //! | --- | --- |
 //! | `GET /api/romeka/item-sets/counts?id[]=..` | `{item_sets: [{id, items}]}` |
 //! | `GET /api/romeka/links/{id}` | `{links: [{kind, property_id, term, label, count}]}` |
+//! | `GET /api/romeka/field-counts?resource_template_id=..` | `{total, fields: [{property_id, filled}]}` |
 //!
 //! The rules live in `omeka_api::read::place_counts`; these handlers authenticate and copy the
 //! answer onto the wire.
@@ -21,6 +23,17 @@ pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/api/romeka/item-sets/counts", get(item_set_counts))
         .route("/api/romeka/links/{id}", get(links))
+        .route("/api/romeka/field-counts", get(field_counts))
+}
+
+async fn field_counts(State(state): State<AppState>, uri: Uri, headers: HeaderMap) -> Response {
+    let params = Params::parse(uri.query().unwrap_or(""));
+    match crate::open(&state, &uri, &headers).await {
+        Ok(api) => no_store(crate::finish(
+            place_counts::field_counts(&api, &params).await,
+        )),
+        Err(error) => crate::error_response(error),
+    }
 }
 
 async fn item_set_counts(State(state): State<AppState>, uri: Uri, headers: HeaderMap) -> Response {

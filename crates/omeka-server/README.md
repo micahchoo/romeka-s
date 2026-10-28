@@ -299,6 +299,20 @@ A set the caller may not see, a missing set and an id that is not a positive int
 of the counts. A link target the caller may not see and a missing one are the same 404. Both answer
 `Cache-Control: no-store`. `tests/place_counts.rs` holds every count against its list.
 
+A third read states how complete an item type's fields are:
+
+| Route | Response |
+| --- | --- |
+| `GET /api/romeka/field-counts?resource_template_id=<id>` | 200 `{total, fields: [{property_id, filled}]}`; 400 without the id; 404 |
+
+`total` is the `Omeka-S-Total-Results` of `GET /api/items?resource_template_id=<id>` for the same
+caller. A field's `filled` is that of the same list with `property[i][property]=<property_id>&
+property[i][type]=ex`, and `total - filled` is that of `nex`. A field no item the caller may see
+fills is left out, so its `filled` is 0. Like `ex`, a value counts whatever its own visibility.
+A missing type and an id that is not a positive integer are the same 404. The answer is
+`Cache-Control: no-store`. `tests/field_counts.rs` holds every number against its list for
+anonymous, two non-admins and an admin.
+
 ## Page history
 
 Every `PUT` or `PATCH` of a site page is one transaction that also stores the page document it
