@@ -27,12 +27,17 @@ export const mr: BulkDeleteMessages = {
   'bulkDelete.confirm.moveOne': '1 बाब कचऱ्यात हलवा',
   'bulkDelete.confirm.moveMany': '{count} बाबी कचऱ्यात हलवा',
   'bulkDelete.empty.open': 'कचरा रिकामी करा…',
-  'bulkDelete.empty.ask':
-    'बल्क डिलीटद्वारे ट्रॅशमध्ये हलवलेल्या प्रत्येक बाबीची मीडिया आणि फाईल्ससह कायमची विल्हेवाट लावली जाते. या बदलांची आता पूर्ववत (Undo) करता येणार नाही.',
+  'bulkDelete.empty.askAll':
+    'ट्रॅशमधील सर्व काही कायमचे हटवले जाते: मीडिया आणि फाईल्ससह आयटम, फाईल्ससह मीडिया आणि आयटम सेट्स. हे हटवणे आता पूर्ववत करता येणार नाही.',
   'bulkDelete.empty.confirm': 'कचरा रिकामी करा',
   'bulkDelete.empty.cancel': 'रद्द करा',
-  'bulkDelete.empty.doneOne': 'कचरा रिकामी झाला. 1 बाबीची कायमची विल्हेवाट लावली.',
-  'bulkDelete.empty.done': 'कचरा रिकामी झाला. {count} बाबींची कायमची विल्हेवाट लावली.',
+  'bulkDelete.empty.emptied': 'ट्रॅश रिकामी आहे.',
+  'bulkDelete.empty.itemsOne': '1 आयटम कायमचा हटवला.',
+  'bulkDelete.empty.itemsMany': '{count} आयटम कायमचे हटवले.',
+  'bulkDelete.empty.mediaOne': '1 मीडिया कायमचा हटवला.',
+  'bulkDelete.empty.mediaMany': '{count} मीडिया कायमचे हटवले.',
+  'bulkDelete.empty.setsOne': '1 आयटम सेट कायमचा हटवला.',
+  'bulkDelete.empty.setsMany': '{count} आयटम सेट्स कायमचे हटवले.',
   'bulkDelete.empty.nothing': 'कचरा आधीच रिकामी होता.',
   'bulkDelete.item.checking': 'या बाबीसोबत काय येते ते तपासत आहे…',
   'bulkDelete.item.cannotCheck':
@@ -53,4 +58,17 @@ export const mr: BulkDeleteMessages = {
   'bulkDelete.item.undoing': '{name} परत ठेवत आहे…',
   'bulkDelete.item.back': '{name} परत आले.',
   'bulkDelete.item.notBack': '{name} ट्रॅशमध्येच राहते.',
+  'bulkDelete.media.checking': 'या मीडियासह काय येते ते तपासत आहे…',
+  'bulkDelete.media.cannotCheck':
+    'या मीडियासह काय येते ते तपासता येत नाही, म्हणून आता ते ट्रॅशमध्ये हलवता येत नाही.',
+  'bulkDelete.media.denied': 'तुम्ही हा मीडिया हटवू शकत नाही.',
+  'bulkDelete.media.file': 'याची फाईल त्याच्यासोबत जाते: {size}.',
+  'bulkDelete.media.trash':
+    'कचरा {days} दिवसांसाठी ते ठेवतो. तोपर्यंत, मीडिया स्क्रीनवरील अनडू (Undo) मुळे ते त्याच्या फाईलसह त्याच्या आयटमवर परत येते.',
+  'bulkDelete.set.checking': 'या आयटम सेटसह काय येते ते तपासत आहे…',
+  'bulkDelete.set.cannotCheck':
+    'या आयटम सेटसह काय येते ते तपासता येत नाही, म्हणून आता ते ट्रॅशमध्ये हलवता येत नाही.',
+  'bulkDelete.set.denied': 'तुम्ही हा आयटम सेट हटवू शकत नाही.',
+  'bulkDelete.set.trash':
+    'कचरा {days} दिवसांसाठी ते ठेवतो. तोपर्यंत, आयटम सेट स्क्रीनवरील अनडू (Undo) मुळे ते त्याच्या आयटमसह आणि ते दर्शवणाऱ्या साइट्ससह पुन्हा एकत्र येते.',
 };

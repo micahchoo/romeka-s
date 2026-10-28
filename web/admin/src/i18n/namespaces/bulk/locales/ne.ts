@@ -167,4 +167,6 @@ export const ne: BulkMessages = {
   'bulk.status.partly_undone': 'आंशिक रूपमा उल्ट्याइएको',
   'bulk.status.purged': 'फोहोर टोकरी खाली गरियो',
   'bulk.word.delete': 'फोहोर टोकरीमा सार्ने',
+  'bulk.word.deleteMedia': 'मिडियालाई फोहोर टोकरीमा सार्ने',
+  'bulk.word.deleteSets': 'आइटम सेटहरूलाई फोहोर टोकरीमा सार्ने',
 };

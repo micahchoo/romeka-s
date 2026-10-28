@@ -28,12 +28,17 @@ export const ne: BulkDeleteMessages = {
   'bulkDelete.confirm.moveOne': '1 वस्तुलाई फोहोरमा सार्नुहोस्',
   'bulkDelete.confirm.moveMany': '{count} वस्तुहरूलाई फोहोरमा सार्नुहोस्',
   'bulkDelete.empty.open': 'फोहोर खाली गर्नुहोस्…',
-  'bulkDelete.empty.ask':
-    'बल्क डिलिट गरेर फोहोरमा सारिएका प्रत्येक वस्तुका लागि, यसको मिडिया र फाइलहरू सहित, यो स्थायी रूपमा मेटिन्छ। यस्ता परिवर्तनहरूलाई अब पूर्ववत गर्न सकिँदैन।',
+  'bulkDelete.empty.askAll':
+    'फोहोरमा रहेका सबै कुराहरू स्थायी रूपमा मेटिन्छन्: मिडिया र फाइलसहितका वस्तुहरू, फाइलसहितका मिडिया, र वस्तु समूहहरू। ती मेटाइने कुराहरूलाई अब पूर्ववत गर्न सकिँदैन।',
   'bulkDelete.empty.confirm': 'फोहोर खाली गर्नुहोस्',
   'bulkDelete.empty.cancel': 'रद्द गर्नुहोस्',
-  'bulkDelete.empty.doneOne': 'फोहोर खाली छ। 1 वस्तु स्थायी रूपमा मेटियो।',
-  'bulkDelete.empty.done': 'फोहोर खाली छ। {count} वस्तुहरू स्थायी रूपमा मेटिए।',
+  'bulkDelete.empty.emptied': 'फोहोर खाली छ।',
+  'bulkDelete.empty.itemsOne': '1 वस्तु स्थायी रूपमा मेटाइयो।',
+  'bulkDelete.empty.itemsMany': '{count} वस्तुहरू स्थायी रूपमा मेटिए।',
+  'bulkDelete.empty.mediaOne': '1 मिडिया स्थायी रूपमा मेटाइयो।',
+  'bulkDelete.empty.mediaMany': '{count} मिडिया स्थायी रूपमा मेटिए।',
+  'bulkDelete.empty.setsOne': '1 वस्तु समूह स्थायी रूपमा मेटाइयो।',
+  'bulkDelete.empty.setsMany': '{count} वस्तु समूहहरू स्थायी रूपमा मेटिए।',
   'bulkDelete.empty.nothing': 'फोहोर पहिले नै खाली थियो।',
   'bulkDelete.item.checking': 'यो वस्तुसँग के-के जान्छन् जाँच गर्दै…',
   'bulkDelete.item.cannotCheck':
@@ -55,4 +60,17 @@ export const ne: BulkDeleteMessages = {
   'bulkDelete.item.undoing': '{name} लाई फिर्ता राखिँदैछ…',
   'bulkDelete.item.back': '{name} फिर्ता आयो।',
   'bulkDelete.item.notBack': '{name} फोहोरमै रहन्छ।',
+  'bulkDelete.media.checking': 'यस मिडियासँग के-के सम्बन्धित छन्…',
+  'bulkDelete.media.cannotCheck':
+    'यस मिडियासँग के-के सम्बन्धित छन् भनी जाँच गर्न सकिएन, त्यसैले अहिले यसलाई फोहोरमा सार्न सकिँदैन।',
+  'bulkDelete.media.denied': 'तपाईँले यो मिडिया मेटाउन सक्नुहुन्न।',
+  'bulkDelete.media.file': 'यसको फाइल यससँगै जान्छ: {size}।',
+  'bulkDelete.media.trash':
+    'फोहोरले यसलाई {days} दिनका लागि राख्छ। त्यसपछि, मिडिया स्क्रिनमा अनडु (Undo) गर्दा यसलाई यसको फाइलसहित यसको वस्तुमा फिर्ता ल्याउँछ।',
+  'bulkDelete.set.checking': 'यस वस्तु समूहसँग के-के सम्बन्धित छन्…',
+  'bulkDelete.set.cannotCheck':
+    'यस वस्तु समूहसँग के-के सम्बन्धित छन् भनी जाँच गर्न सकिएन, त्यसैले अहिले यसलाई फोहोरमा सार्न सकिँदैन।',
+  'bulkDelete.set.denied': 'तपाईँले यो वस्तु समूह मेटाउन सक्नुहुन्न।',
+  'bulkDelete.set.trash':
+    'फोहोरले यसलाई {days} दिनका लागि राख्छ। त्यसपछि, वस्तु समूह स्क्रिनमा अनडु (Undo) गर्दा यसलाई यसका वस्तुहरू र यसलाई देखाउने साइटहरूसँगै फिर्ता ल्याउँछ।',
 };

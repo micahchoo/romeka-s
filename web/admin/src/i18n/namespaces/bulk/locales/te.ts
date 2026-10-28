@@ -166,4 +166,6 @@ export const te: BulkMessages = {
   'bulk.status.partly_undone': 'పాక్షికంగా వెనక్కి తీసుకోబడింది',
   'bulk.status.purged': 'ట్రాష్ ఖాళీ చేయబడింది',
   'bulk.word.delete': 'ట్రాష్‌కి తరలించండి',
+  'bulk.word.deleteMedia': 'మీడియాను ట్రాష్‌కి తరలించండి',
+  'bulk.word.deleteSets': 'ఐటమ్ సెట్‌లను ట్రాష్‌కి తరలించండి',
 };

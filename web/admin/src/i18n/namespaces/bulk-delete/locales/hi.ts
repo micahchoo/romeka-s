@@ -27,12 +27,17 @@ export const hi: BulkDeleteMessages = {
   'bulkDelete.confirm.moveOne': '1 आइटम को ट्रैश में ले जाएँ',
   'bulkDelete.confirm.moveMany': '{count} आइटम को ट्रैश में ले जाएँ',
   'bulkDelete.empty.open': 'ट्रैश खाली करें…',
-  'bulkDelete.empty.ask':
-    'बल्क डिलीट द्वारा ट्रैश में ले जाए गए प्रत्येक आइटम को उसके मीडिया और फ़ाइलों के साथ हमेशा के लिए हटा दिया जाता है। उन परिवर्तनों को अब अनडू नहीं किया जा सकता है।',
+  'bulkDelete.empty.askAll':
+    'ट्रैश में मौजूद हर चीज़ हमेशा के लिए हटा दी जाती है: आइटम अपने मीडिया और फ़ाइलों के साथ, मीडिया अपनी फ़ाइल के साथ, और आइटम सेट। इन हटाने को अब पूर्ववत नहीं किया जा सकता।',
   'bulkDelete.empty.confirm': 'ट्रैश खाली करें',
   'bulkDelete.empty.cancel': 'रद्द करें',
-  'bulkDelete.empty.doneOne': 'ट्रैश खाली है। 1 आइटम हमेशा के लिए हटा दिया गया।',
-  'bulkDelete.empty.done': 'ट्रैश खाली है। {count} आइटम हमेशा के लिए हटा दिए गए।',
+  'bulkDelete.empty.emptied': 'ट्रैश खाली है।',
+  'bulkDelete.empty.itemsOne': '1 आइटम को हमेशा के लिए हटा दिया गया।',
+  'bulkDelete.empty.itemsMany': '{count} आइटम को हमेशा के लिए हटा दिया गया।',
+  'bulkDelete.empty.mediaOne': '1 मीडिया को हमेशा के लिए हटा दिया गया।',
+  'bulkDelete.empty.mediaMany': '{count} मीडिया को हमेशा के लिए हटा दिया गया।',
+  'bulkDelete.empty.setsOne': '1 आइटम सेट को हमेशा के लिए हटा दिया गया।',
+  'bulkDelete.empty.setsMany': '{count} आइटम सेट को हमेशा के लिए हटा दिया गया।',
   'bulkDelete.empty.nothing': 'ट्रैश पहले से ही खाली है।',
   'bulkDelete.item.checking': 'इस आइटम के साथ क्या जाता है इसकी जाँच की जा रही है…',
   'bulkDelete.item.cannotCheck':
@@ -53,4 +58,17 @@ export const hi: BulkDeleteMessages = {
   'bulkDelete.item.undoing': '{name} को वापस रखा जा रहा है…',
   'bulkDelete.item.back': '{name} वापस आ गया है।',
   'bulkDelete.item.notBack': '{name} ट्रैश में ही रहता है।',
+  'bulkDelete.media.checking': 'इस मीडिया के साथ क्या जाता है इसकी जाँच की जा रही है…',
+  'bulkDelete.media.cannotCheck':
+    'इस मीडिया के साथ क्या-क्या है, इसकी जाँच नहीं की जा सकती, इसलिए इसे अभी ट्रैश में नहीं ले जाया जा सकता।',
+  'bulkDelete.media.denied': 'आप इस मीडिया को हटा नहीं सकते।',
+  'bulkDelete.media.file': 'इसकी फ़ाइल इसके साथ जाती है: {size}।',
+  'bulkDelete.media.trash':
+    'ट्रैश इसे {days} दिनों के लिए रखता है। तब तक, मीडिया स्क्रीन पर अनडू (Undo) करने से यह अपनी आइटम और फ़ाइल के साथ वापस आ जाता है।',
+  'bulkDelete.set.checking': 'इस आइटम सेट के साथ क्या जाता है इसकी जाँच की जा रही है…',
+  'bulkDelete.set.cannotCheck':
+    'इस आइटम सेट के साथ क्या-क्या है, इसकी जाँच नहीं की जा सकती, इसलिए इसे अभी ट्रैश में नहीं ले जाया जा सकता।',
+  'bulkDelete.set.denied': 'आप इस आइटम सेट को हटा नहीं सकते।',
+  'bulkDelete.set.trash':
+    'ट्रैश इसे {days} दिनों के लिए रखता है। तब तक, आइटम सेट स्क्रीन पर अनडू (Undo) करने से यह अपनी आइटम्स और उन साइट्स के साथ वापस आ जाता है जो इसे दिखाते हैं।',
 };

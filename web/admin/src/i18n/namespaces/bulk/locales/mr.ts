@@ -169,4 +169,6 @@ export const mr: BulkMessages = {
   'bulk.status.partly_undone': 'अंशतः पूर्ववत',
   'bulk.status.purged': 'कचरा साफ केला',
   'bulk.word.delete': 'ट्रॅशमध्ये हलवणे',
+  'bulk.word.deleteMedia': 'मीडिया ट्रॅशमध्ये हलवणे',
+  'bulk.word.deleteSets': 'आयटम सेट्स ट्रॅशमध्ये हलवणे',
 };

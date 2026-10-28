@@ -171,4 +171,6 @@ export const kn: BulkMessages = {
   'bulk.status.partly_undone': 'ಭಾಗಶಃ ರದ್ದುಗೊಳಿಸಲಾಗಿದೆ',
   'bulk.status.purged': 'ಟ್ರಾಶ್ ಖಾಲಿ ಮಾಡಲಾಗಿದೆ',
   'bulk.word.delete': 'ಟ್ರಾಶ್‌ಗೆ ಸ್ಥಳಾಂತರಿಸಿ',
+  'bulk.word.deleteMedia': 'ಮಾಧ್ಯಮವನ್ನು ಟ್ರಾಶ್‌ಗೆ ಸ್ಥಳಾಂತರಿಸಿ',
+  'bulk.word.deleteSets': 'ಐಟಂ ಸೆಟ್‌ಗಳನ್ನು ಟ್ರಾಶ್‌ಗೆ ಸ್ಥಳಾಂತರಿಸಿ',
 };

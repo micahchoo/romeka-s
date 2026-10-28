@@ -27,12 +27,17 @@ export const te: BulkDeleteMessages = {
   'bulkDelete.confirm.moveOne': '1 అంశాన్ని ట్రాష్‌కు తరలించండి',
   'bulkDelete.confirm.moveMany': '{count} అంశాలను ట్రాష్‌కు తరలించండి',
   'bulkDelete.empty.open': 'ట్రాష్‌ను ఖాళీ చేయండి…',
-  'bulkDelete.empty.ask':
-    'బల్క్ డిలీట్ ద్వారా ట్రాష్‌కు తరలించిన ప్రతి అంశం దాని మీడియా మరియు ఫైళ్లతో శాశ్వతంగా తొలగించబడుతుంది. ఆ మార్పులను అన్డూ చేయలేము.',
+  'bulkDelete.empty.askAll':
+    'ట్రాష్‌లోని ప్రతిదీ శాశ్వతంగా తొలగించబడుతుంది: మీడియా మరియు ఫైల్‌లతో కూడిన అంశాలు, ఫైల్‌లతో కూడిన మీడియా, మరియు అంశాల సమితులు. ఆ తొలగింపులను అన్డూ చేయలేము.',
   'bulkDelete.empty.confirm': 'ట్రాష్‌ను ఖాళీ చేయండి',
   'bulkDelete.empty.cancel': 'రద్దు చేయండి',
-  'bulkDelete.empty.doneOne': 'ట్రాష్ ఖాళీగా ఉంది. 1 అంశం శాశ్వతంగా తొలగించబడింది.',
-  'bulkDelete.empty.done': 'ట్రాష్ ఖాళీగా ఉంది. {count} అంశాలు శాశ్వతంగా తొలగించబడ్డాయి.',
+  'bulkDelete.empty.emptied': 'ట్రాష్ ఖాళీగా ఉంది.',
+  'bulkDelete.empty.itemsOne': '1 అంశం శాశ్వతంగా తొలగించబడింది.',
+  'bulkDelete.empty.itemsMany': '{count} అంశాలు శాశ్వతంగా తొలగించబడ్డాయి.',
+  'bulkDelete.empty.mediaOne': '1 మీడియా శాశ్వతంగా తొలగించబడింది.',
+  'bulkDelete.empty.mediaMany': '{count} మీడియా శాశ్వతంగా తొలగించబడ్డాయి.',
+  'bulkDelete.empty.setsOne': '1 అంశాల సమితి శాశ్వతంగా తొలగయింది.',
+  'bulkDelete.empty.setsMany': '{count} అంశాల సమితులు శాశ్వతంగా తొలగించబడ్డాయి.',
   'bulkDelete.empty.nothing': 'ట్రాష్ ఇప్పటికే ఖాళీగా ఉంది.',
   'bulkDelete.item.checking': 'ఈ అంశంతో ఏమి వెళ్తుందో తనిఖీ చేస్తున్నాము…',
   'bulkDelete.item.cannotCheck':
@@ -53,4 +58,17 @@ export const te: BulkDeleteMessages = {
   'bulkDelete.item.undoing': '{name} ను తిరిగి ఉంచడం…',
   'bulkDelete.item.back': '{name} తిరిగి వచ్చింది.',
   'bulkDelete.item.notBack': '{name} ట్రాష్‌లోనే ఉంటుంది.',
+  'bulkDelete.media.checking': 'ఈ మీడియా దేనితో కలిసి ఉందో తనిఖీ చేస్తున్నాను…',
+  'bulkDelete.media.cannotCheck':
+    'ఈ మీడియా దేనితో కలిసి ఉందో తనిఖీ చేయలేను, కాబట్టి దీనిని ఇప్పుడు ట్రాష్‌కు తరలించలేను.',
+  'bulkDelete.media.denied': 'మీరు ఈ మీడియాను తొలగించలేరు.',
+  'bulkDelete.media.file': 'దీని ఫైల్ దీనితోనే ఉంటుంది: {size}.',
+  'bulkDelete.media.trash':
+    'ట్రాష్ {days} రోజుల వరకు ఉంచుకుంటుంది. అప్పుడు వరకు, మీడియా స్క్రీన్‌పై అన్డూ (Undo) చేయడం ద్వారా దానిని దాని ఫైల్‌తో ఉన్న అంశంపైకి పునరుద్ధరిస్తుంది.',
+  'bulkDelete.set.checking': 'ఈ అంశాల సమితి దేనితో కలిసి ఉందో తనిఖీ చేస్తున్నాను…',
+  'bulkDelete.set.cannotCheck':
+    'ఈ అంశాల సమితి దేనితో కలిసి ఉందో తనిఖీ చేయలేను, కాబట్టి దీనిని ఇప్పుడు ట్రాష్‌కు తరలించలేను.',
+  'bulkDelete.set.denied': 'మీరు ఈ అంశాల సమితిని తొలగించలేరు.',
+  'bulkDelete.set.trash':
+    'ట్రాష్ {days} రోజుల వరకు ఉంచుకుంటుంది. అప్పుడు వరకు, ఐటమ్ సెట్స్‌పై అన్డూ చేయడం ద్వారా దానిని దాని అంశాలతో మరియు దానిని ప్రదర్శించే సైట్‌లతో కలిపి ఉంచుతుంది.',
 };

@@ -172,4 +172,6 @@ export const ta: BulkMessages = {
   'bulk.status.partly_undone': 'பகுதியளவு ரத்து செய்யப்பட்டது',
   'bulk.status.purged': 'குப்பைத் தொட்டி காலி செய்யப்பட்டது',
   'bulk.word.delete': 'குப்பைத் தொட்டிக்கு நகர்த்து',
+  'bulk.word.deleteMedia': 'ஊடகத்தை குப்பைத் தொட்டிக்கு நகர்த்து',
+  'bulk.word.deleteSets': 'உருப்படித் தொகுப்புகளை குப்பைத் தொட்டிக்கு நகர்த்து',
 };

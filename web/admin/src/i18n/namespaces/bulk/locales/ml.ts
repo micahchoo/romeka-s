@@ -169,4 +169,6 @@ export const ml: BulkMessages = {
   'bulk.status.partly_undone': 'ഭാഗികമായി പഴയപടിയാക്കി',
   'bulk.status.purged': 'ട്രാഷ് ശൂന്യമാക്കി',
   'bulk.word.delete': 'ട്രാഷിലേക്ക് മാറ്റുന്നു',
+  'bulk.word.deleteMedia': 'മീഡിയ ട്രാഷിലേക്ക് മാറ്റുന്നു',
+  'bulk.word.deleteSets': 'ഐറ്റം സെറ്റുകൾ ട്രാഷിലേക്ക് മാറ്റുന്നു',
 };

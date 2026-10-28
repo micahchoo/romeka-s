@@ -167,4 +167,6 @@ export const hi: BulkMessages = {
   'bulk.status.partly_undone': 'आंशिक रूप से पूर्ववत',
   'bulk.status.purged': 'ट्रैश खाली किया गया',
   'bulk.word.delete': 'ट्रैश में ले जाएँ',
+  'bulk.word.deleteMedia': 'मीडिया को ट्रैश में ले जाएँ',
+  'bulk.word.deleteSets': 'आइटम सेट को ट्रैश में ले जाएँ',
 };
