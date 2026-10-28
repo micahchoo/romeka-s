@@ -2,7 +2,8 @@
  * Finding against the real server. The header's jump-to box opens a record by its identifier,
  * by `#<id>`, and lists the two items that share a title. A saved list keeps the Items filters
  * and order under a name, shows under Items in the nav of a second browser, opens there, and is
- * renamed and deleted.
+ * renamed and deleted. Opened again and re-sorted, it says it changed since saved, updates in
+ * place, and a second browser opens it with the new sort.
  *
  * Saved lists belong to a signed-in user, so each test makes its own user and signs in with it.
  * `FINDING_SCREENSHOTS` names a folder for the pictures.
@@ -169,5 +170,55 @@ test('a saved list follows the user to another browser, opens there, and is rena
   await expect(second.getByText(`Deleted the saved list Renamed ${run}.`)).toBeVisible();
   await expect(secondNav.getByRole('list', { name: 'Saved lists' })).toBeHidden();
   await expect(second.getByRole('button', { name: 'Save this list' })).toBeVisible();
+  await elsewhere.close();
+});
+
+test('a saved list opened and re-sorted says it changed, updates in place, and opens with the new sort elsewhere', async ({
+  page,
+  browser,
+  baseURL,
+  diagnostics,
+}) => {
+  const run = String(Date.now());
+  await seed(page.request, run);
+  const account = await newAccount(page.request, 'finding-update');
+  await signIn(page, account, baseURL);
+  await page.goto(`/#/items?q=${encodeURIComponent(`Jump ${run}`)}&sort=title`);
+  await expect(page.locator('.items-results tbody tr')).toHaveCount(3);
+
+  await page.getByRole('button', { name: 'Save this list' }).click();
+  const name = page.getByRole('textbox', { name: 'Name' });
+  await expect(name).toHaveValue(`Search: Jump ${run}`);
+  await name.fill(`Shelf ${run}`);
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText(`Saved list: Shelf ${run}`)).toBeVisible();
+
+  const nav = page.getByRole('navigation', { name: 'Admin pages' });
+  await page.goto('/#/');
+  await nav.getByRole('link', { name: `Shelf ${run}` }).click();
+  await expect(page.getByText(`Saved list: Shelf ${run}`)).toBeVisible();
+  await page.getByLabel('Sort').selectOption({ label: 'Oldest first' });
+  await expect(page.getByText('Changed since saved')).toBeVisible();
+  await expect(nav.getByRole('link', { name: `Shelf ${run}` })).toHaveAttribute('aria-current', 'true');
+  await expectAxeBudget(page, 'items on a changed saved list');
+  await shoot(page, 'saved-list-changed');
+
+  await page.getByRole('button', { name: `Update Shelf ${run} with these filters` }).click();
+  await expect(page.getByText(`Updated Shelf ${run} with these filters.`)).toBeVisible();
+  await expect(page.getByText('Changed since saved')).toBeHidden();
+  await shoot(page, 'saved-list-updated');
+  await expectClean(diagnostics, 'update');
+
+  // A second browser shares nothing with the first but the server.
+  const elsewhere = await browser.newContext({ baseURL });
+  const second = await elsewhere.newPage();
+  await signIn(second, account, baseURL);
+  await second.goto('/#/');
+  await second.getByRole('navigation', { name: 'Admin pages' }).getByRole('link', { name: `Shelf ${run}` }).click();
+  await expect(second).toHaveURL(/sort=oldest/);
+  await expect(second.getByLabel('Sort')).toHaveValue('oldest');
+  await expect(second.getByText(`Saved list: Shelf ${run}`)).toBeVisible();
+  await expect(second.getByText('Changed since saved')).toBeHidden();
+  await expect(second.locator('.items-results tbody tr')).toHaveCount(3);
   await elsewhere.close();
 });

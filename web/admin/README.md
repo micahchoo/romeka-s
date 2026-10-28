@@ -143,13 +143,18 @@ render the header and their own page, with no admin navigation:
   a text field; on the Items screen `/` keeps its own search box. Escape clears the box. The answer
   is its own chunk (`app/jump.tsx`).
 - On the Items screen, "Save this list" names the screen's filters and order
-  (`pages/items/saved-lists.tsx`, its own chunk). The list is `{name, query}` in the user's
-  `romeka_saved_lists` setting, where `query` is the screen's URL query without the page and the
-  view (`savedQuery` in `pages/items/browse.ts`), so a new filter is saved with no change here. The
-  nav lists the names under Items (`app/saved-list-links.tsx`), from the session's user, each a link
-  to `#/items?<query>`; the one open is marked. On a saved list the screen reads "Saved list: <name>"
-  with Rename and Delete. Each change reads `GET /api/me` first, applies to that answer and writes
-  the whole list, so a list saved in another browser is kept.
+  (`pages/items/saved-lists.tsx`, its own chunk). The name field starts with the filter chips'
+  words ("Class: Book · Description: empty"). The list is `{name, query}` in the user's
+  `romeka_saved_lists` setting, where `query` is the screen's URL query without the page, the
+  view and `list` (`savedQuery` in `pages/items/browse.ts`), so a new filter is saved with no
+  change here. The nav lists the names under Items (`app/saved-list-links.tsx`), from the
+  session's user, each a link to `#/items?<query>&list=<name>`. The screen keeps `list` through
+  filter and order changes, so it knows which saved list it came from (`app/open-saved-list.ts`);
+  the nav marks that list. On a saved list the screen reads "Saved list: <name>" with Rename and
+  Delete. Once its filters or order differ from the saved query, it says "Changed since saved" and
+  offers "Update <name> with these filters" (the same name and place, the new query), "Save as a
+  new list" and a link back to the saved filters. Each change reads `GET /api/me` first, applies
+  to that answer and writes the whole list, so a list saved in another browser is kept.
 - `#/users` lists users. `#/users/new` invites one: it creates the row and then mints the one-time
   password link, which the page shows with a copy control. `#/users/<id>` edits one and can mint
   another link.
