@@ -281,3 +281,66 @@ on_both!(an_empty_id_list_reads_nothing, |pool| {
             .is_empty()
     );
 });
+
+// The public site asks for the titles of every resource a browse filters, so the id list is as
+// long as the collection, past what one statement may bind (32766 on SQLite, 65535 on MySQL).
+on_both!(
+    hidden_titles_answers_an_id_list_longer_than_one_statement_binds,
+    |pool| {
+        let vocabulary = VocabularyRepo::<Db>::new(pool)
+            .create(&NewVocabulary {
+                owner_id: None,
+                namespace_uri: "http://purl.org/dc/terms/".into(),
+                prefix: "dcterms".into(),
+                label: "Dublin Core".into(),
+                comment: None,
+            })
+            .await
+            .unwrap();
+        let title = PropertyRepo::<Db>::new(pool)
+            .create(&NewProperty {
+                owner_id: None,
+                vocabulary_id: vocabulary.id,
+                local_name: "title".into(),
+                label: "Title".into(),
+                comment: None,
+            })
+            .await
+            .unwrap();
+        let item = ItemRepo::<Db>::new(pool)
+            .create(&NewItem {
+                resource: NewResource {
+                    title: Some("Hiddentitle".into()),
+                    is_public: true,
+                    ..NewResource::default()
+                },
+                primary_media_id: None,
+            })
+            .await
+            .unwrap();
+        let values = ValueRepo::<Db>::new(pool);
+        for (text, is_public) in [("Hiddentitle", false), ("Shown title", true)] {
+            values
+                .create(
+                    &ValueContent {
+                        is_public,
+                        ..ValueContent::literal(title.id, text)
+                    }
+                    .on(item.resource.id),
+                )
+                .await
+                .unwrap();
+        }
+
+        let mut ids: Vec<ResourceId> = (1_000_000..1_070_000).map(ResourceId).collect();
+        ids.push(item.resource.id);
+        let shown = RelationRepo::<Db>::new(pool)
+            .hidden_titles(&ids, MediaVisibility::Actor(None))
+            .await
+            .unwrap();
+        assert_eq!(
+            shown,
+            vec![(item.resource.id, Some("Shown title".to_string()))]
+        );
+    }
+);
