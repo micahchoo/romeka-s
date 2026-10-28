@@ -32,7 +32,8 @@ test("the admin item surfaces meet the axe budget", async ({
   // The item show page and its edit panel, which is the app's largest form.
   await page.goto("/#/items");
   await page.locator("tbody a").first().click();
-  await expect(page).toHaveURL(/#\/items\/\d+$/);
+  // A row opens its item with the list it came from and its place in it.
+  await expect(page).toHaveURL(/#\/items\/\d+\?in=&at=1$/);
   await diagnostics.idle();
   await expectAxeBudget(page, "admin item show");
 
