@@ -1,9 +1,8 @@
 import type { ReactElement } from 'react';
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { api } from '../../api/client';
-import { deleteMedia, getMedia, retryMediaAccess } from '../../api/media';
+import { getMedia, retryMediaAccess } from '../../api/media';
 import type { Media, MediaId, ThumbnailType } from '../../api/types';
-import { DeleteControl } from '../../app/delete';
 import { formatBytes, formatDateTime } from '../../app/format';
 import { ErrorNotice } from '../../app/errors';
 import { EditPanel } from '../../app/fields';
@@ -16,6 +15,7 @@ import { useTranslator } from '../../i18n';
 import type { KeyOf, MessageKey, Translator } from '../../i18n';
 import { MediaAccessLine } from './access';
 import { MediaEditForm } from './form';
+import { TrashOpener } from '../trash/opener';
 import type { TrackSummary } from './annotations/client';
 import type { StageSlots } from './stage/slots';
 import type { NotesFocus } from './annotations/link';
@@ -273,13 +273,10 @@ export const MediaDetail = ({
         <MediaEditForm media={media} onSaved={setEdited} />
       </EditPanel>
 
-      <DeleteControl
+      <TrashOpener
         label={t('media.deleteLabel')}
-        rowName={mediaName(media) ?? t('common.untitled')}
-        onConfirm={async () => {
-          await deleteMedia(api, media.id);
-          window.location.hash = '#/media';
-        }}
+        target={{ of: 'media', id: media.id }}
+        name={mediaName(media) ?? t('common.untitled')}
       />
     </section>
   );

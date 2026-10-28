@@ -34,12 +34,22 @@ describe('bulk delete wire', () => {
     expect(parseBulkRun(loadFixture('bulk/delete-undone.json')).counts?.restored).toBe(2);
   });
 
+  it('reads what a delete of media or of item sets moves to the trash; an item delete names no kind', () => {
+    const media = parseBulkRun(loadFixture('bulk/delete-media-done.json'));
+    expect(media.kind === 'delete' ? media.of : null).toBe('media');
+    expect(undoable(media)).toBe(true);
+    const sets = parseBulkRun(loadFixture('bulk/delete-set-done.json'));
+    expect(sets.kind === 'delete' ? sets.of : null).toBe('item_sets');
+    const items = parseBulkRun(loadFixture('bulk/delete-done.json'));
+    expect(items.kind === 'delete' ? items.of : null).toBe('items');
+  });
+
   it('reads a run whose trash was emptied as one that cannot be undone', () => {
     const run = parseBulkRun(loadFixture('bulk/delete-purged.json'));
     expect(run.status).toBe('done');
     expect(run.purged).toBe('2026-10-24T09:00:00+00:00');
     expect(undoable(run)).toBe(false);
-    expect(parseEmptied(loadFixture('bulk/trash-purged.json'))).toEqual({ runs: 1, items: 1 });
+    expect(parseEmptied(loadFixture('bulk/trash-purged.json'))).toEqual({ runs: 1, items: 1, media: 0, itemSets: 0 });
   });
 
   it('refuses a delete preview that is not one', () => {

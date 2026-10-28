@@ -135,6 +135,7 @@ export const FAIL_REASONS = [
   'deleteDenied',
   'idTaken',
   'linksLeft',
+  'itemGone',
 ] as const;
 export type FailReason = (typeof FAIL_REASONS)[number];
 
@@ -145,8 +146,14 @@ export interface BulkFailure {
   readonly message: string | null;
 }
 
-/** What a run does: an edit names its change; a delete moves its items to the trash. */
-export type BulkWork = { readonly kind: 'edit'; readonly change: BulkEdit } | { readonly kind: 'delete' };
+/** What a delete moves to the trash: items with their media, media alone, or item sets alone. */
+export const TRASH_OF = ['items', 'media', 'item_sets'] as const;
+export type TrashOf = (typeof TRASH_OF)[number];
+
+/** What a run does: an edit names its change; a delete moves its targets to the trash. */
+export type BulkWork =
+  | { readonly kind: 'edit'; readonly change: BulkEdit }
+  | { readonly kind: 'delete'; readonly of: TrashOf };
 
 export type BulkRun = RunFacts & BulkWork;
 
@@ -318,15 +325,16 @@ const RUN_REQUIRED = [
   'purged',
 ];
 
-/** A delete's stored change, which names its kind alone. */
-const parseDelete = (raw: unknown, path: Path): void => {
-  member(strict(raw, path, ['kind']), 'kind', path, oneOf(['delete']));
+/** A delete's stored change: its kind, and `of` unless it deletes items. */
+const parseDelete = (raw: unknown, path: Path): TrashOf => {
+  const object = strict(raw, path, ['kind'], ['of']);
+  member(object, 'kind', path, oneOf(['delete']));
+  return object.of === undefined ? 'items' : member(object, 'of', path, oneOf(TRASH_OF));
 };
 
 const parseWork = (object: Record<string, unknown>, path: Path): BulkWork => {
   if (member(object, 'kind', path, oneOf(['edit', 'delete'])) === 'delete') {
-    member(object, 'change', path, parseDelete);
-    return { kind: 'delete' };
+    return { kind: 'delete', of: member(object, 'change', path, parseDelete) };
   }
   return { kind: 'edit', change: member(object, 'change', path, parseEdit) };
 };

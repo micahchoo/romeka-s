@@ -1,0 +1,8 @@
+/* The notice after a page moved one record to the trash: one line and its Undo. */
+.trashed-notice p {
+  margin: 0;
+}
+
+.trashed-notice p + p {
+  margin-top: var(--space-2);
+}

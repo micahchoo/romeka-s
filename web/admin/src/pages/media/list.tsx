@@ -11,6 +11,7 @@ import { hashQuery, replaceHashQuery } from '../../app/router';
 import { fixityFilterOf } from '../../api/fixity';
 import { MediaAccessCue } from './access';
 import { FixityFilterNote } from './fixity-filter';
+import { TrashedHere } from '../trash/here';
 import { useTranslator } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
@@ -55,6 +56,8 @@ export const MediaList = (): ReactElement => {
   const [kind, setKind] = useState<FilterKind | null>(readKind);
   const names = kind === null ? [] : serverKindsOf(kind);
   const [fixityFilter, setFixityFilter] = useState(() => fixityFilterOf(hashQuery(window.location.hash)));
+  /** Bumped when a media comes back from the trash, so the list reads its page again. */
+  const [revision, setRevision] = useState(0);
 
   const choose = (value: string): void => {
     const next = isFilterKind(value) ? value : null;
@@ -64,6 +67,12 @@ export const MediaList = (): ReactElement => {
 
   return (
     <section>
+      <TrashedHere
+        of="media"
+        onRestored={() => {
+          setRevision((current) => current + 1);
+        }}
+      />
       <p>
         {t('media.browse.intro')} <a href="#/items">{t('media.browse.items')}</a>.{' '}
         {t('media.browse.batch')} <a href="#/import">{t('media.browse.import')}</a>.
@@ -96,7 +105,7 @@ export const MediaList = (): ReactElement => {
         </select>
       </p>
       <ListPage<Media>
-        key={`${kind ?? 'all'}:${fixityFilter === null ? '' : `${fixityFilter.shown}:${String(fixityFilter.job)}`}`}
+        key={`${kind ?? 'all'}:${fixityFilter === null ? '' : `${fixityFilter.shown}:${String(fixityFilter.job)}`}:${String(revision)}`}
         resourceLabel={resource}
         emptyMessage={t('list.empty', { resource })}
         load={(page) =>

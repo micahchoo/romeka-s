@@ -4,8 +4,9 @@
  * it sends is the request the server would get. Every surface is covered: the
  * method and URL per resource, the confirmation gate that holds the request
  * back, the API message a refusal or a missing row renders, and the list the
- * page returns to after a success. The item page's delete moves the item to the
- * trash (a bulk delete of it alone) and never sends DELETE.
+ * page returns to after a success. The item page's, the media page's and the
+ * item set's delete move the record to the trash (a bulk delete of it alone)
+ * and never send DELETE.
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
@@ -188,51 +189,64 @@ describe('the request per resource', () => {
     window.location.hash = '';
   });
 
-  it('item_set_delete_sends_delete_to_the_item_sets_row_and_returns_to_the_list', async () => {
+  it('item_set_delete_moves_the_set_alone_to_the_trash_and_returns_to_the_list', async () => {
     const fetchMock = installFetch((url, init) => {
       if (url.pathname === '/api/item_sets/1') {
-        return jsonResponse(init?.method === 'DELETE' ? detached(itemSetFixture()) : itemSetFixture());
+        return init?.method === 'DELETE' ? notFound() : jsonResponse(itemSetFixture());
       }
-      return optionOrNotFound(url, init);
+      if (url.pathname === '/api/romeka/links/1') {
+        return jsonResponse(loadFixture('places/links-none.json'));
+      }
+      const trash = trashRoutes(() =>
+        jsonResponse(itemPreview({ samples: [{ id: 1, title: 'Featured photographs' }] }), { status: 201 }),
+      )[url.pathname];
+      return trash === undefined ? optionOrNotFound(url, init) : trash(url, init);
     });
     render(<ItemSetForm itemSetId={itemSetId} />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Delete this item set' }));
-    fireEvent.click(
-      await screen.findByRole('button', { name: 'Delete Featured photographs' }),
-    );
+    expect(await screen.findByText('Move Featured photographs to the trash?')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Move to the trash' }));
 
     await waitFor(() => {
-      expect(deletedRequests(fetchMock, '/api/item_sets/1')).toHaveLength(1);
+      expect(window.location.hash).toBe('#/item-sets');
     });
-    const request = first(deletedRequests(fetchMock, '/api/item_sets/1'));
-    expect(request.init?.method).toBe('DELETE');
-    expect(request.url.pathname).toBe('/api/item_sets/1');
-    expect(window.location.hash).toBe('#/item-sets');
+    expect(requestBody(first(requestsFor(fetchMock, '/api/romeka/bulk')))).toEqual({
+      query: { id: [1] },
+      change: { kind: 'delete', of: 'item_sets' },
+    });
+    expect(deletedRequests(fetchMock, '/api/item_sets/1')).toHaveLength(0);
     window.location.hash = '';
   });
 
-  it('media_delete_sends_delete_to_the_media_row_and_returns_to_the_list', async () => {
+  it('media_delete_moves_the_media_alone_to_the_trash_and_returns_to_the_list', async () => {
     const fetchMock = installFetch((url, init) => {
       if (url.pathname === '/api/media/951') {
-        return jsonResponse(init?.method === 'DELETE' ? detached(mediaFixture()) : mediaFixture());
+        return init?.method === 'DELETE' ? notFound() : jsonResponse(mediaFixture());
       }
-      return notFound();
+      if (url.pathname === '/api/romeka/links/951') {
+        return jsonResponse(loadFixture('places/links-none.json'));
+      }
+      const trash = trashRoutes(() =>
+        jsonResponse(itemPreview({ media: 1, bytes: 2048, samples: [{ id: 951, title: null }] }), { status: 201 }),
+      )[url.pathname];
+      return trash === undefined ? notFound() : trash(url, init);
     });
     render(<MediaPage param="951" />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Delete this media' }));
-    fireEvent.click(
-      await screen.findByRole('button', { name: 'Delete BHC006_GMT_AF_010a.jpg' }),
-    );
+    expect(await screen.findByText('Move BHC006_GMT_AF_010a.jpg to the trash?')).toBeInTheDocument();
+    expect(screen.getByText('Its file goes with it: 2 kB.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Move to the trash' }));
 
     await waitFor(() => {
-      expect(deletedRequests(fetchMock, '/api/media/951')).toHaveLength(1);
+      expect(window.location.hash).toBe('#/media');
     });
-    const request = first(deletedRequests(fetchMock, '/api/media/951'));
-    expect(request.init?.method).toBe('DELETE');
-    expect(request.url.pathname).toBe('/api/media/951');
-    expect(window.location.hash).toBe('#/media');
+    expect(requestBody(first(requestsFor(fetchMock, '/api/romeka/bulk')))).toEqual({
+      query: { id: [951] },
+      change: { kind: 'delete', of: 'media' },
+    });
+    expect(deletedRequests(fetchMock, '/api/media/951')).toHaveLength(0);
     window.location.hash = '';
   });
 

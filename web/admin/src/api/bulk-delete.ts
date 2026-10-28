@@ -1,37 +1,40 @@
 /**
  * The bulk delete's own requests (`crates/omeka-api/src/bulk/trash.rs`): its preview, and an
  * administrator's "Empty the trash". A delete then runs, stops and undoes through `bulk.ts` like
- * any run. The item page's delete is a bulk delete of that item alone, and watches its run with
- * `settled`. This module is imported by the delete chunks and the recent list only, so the
+ * any run. The item page's, the media page's and the set place's delete is a bulk delete of that
+ * one record, and watches its run with `settled`. This module is imported by the delete chunks and the recent list only, so the
  * panel's first chunk does not carry it.
  */
 import { api } from './client';
 import { BULK, bulkApi, isLive } from './bulk';
-import type { BulkId, BulkQuery, BulkRun } from './bulk';
+import type { BulkId, BulkQuery, BulkRun, TrashOf } from './bulk';
 import { asCount, list, member, nullable, oneOf, strict } from './import-read';
 import { asIdNumber, asString, brandId } from './parse';
 import type { ItemId, Parser } from './types';
 
 export interface BulkDeletePreview {
   readonly id: BulkId;
-  /** The items the run visits: the selection, frozen. */
+  /** The records the run visits: the selection, frozen. */
   readonly total: number;
-  /** Items the caller may not delete; the run leaves them. */
+  /** Records the caller may not delete; the run leaves them. */
   readonly denied: number;
-  /** The media of the items that go. */
+  /** The media that go: those of the items, or the media themselves. */
   readonly media: number;
   /** Their originals' bytes. */
   readonly bytes: number;
   /** How many days the trash keeps them. */
   readonly trashDays: number;
-  /** Up to five items that go. */
+  /** Up to five records that go. */
   readonly samples: readonly { readonly id: ItemId; readonly title: string | null }[];
 }
 
-/** What emptying the trash removed. */
+/** What emptying the trash removed: the runs, and the records of each kind. */
 export interface Emptied {
   readonly runs: number;
   readonly items: number;
+  /** Media trashed alone; an item's media go with the item. */
+  readonly media: number;
+  readonly itemSets: number;
 }
 
 const parseSample = (raw: unknown, path: readonly (string | number)[]) => {
@@ -58,8 +61,13 @@ export const parseDeletePreview: Parser<BulkDeletePreview> = (raw, path = []) =>
 };
 
 export const parseEmptied: Parser<Emptied> = (raw, path = []) => {
-  const object = strict(raw, path, ['runs', 'items']);
-  return { runs: member(object, 'runs', path, asCount), items: member(object, 'items', path, asCount) };
+  const object = strict(raw, path, ['runs', 'items', 'media', 'itemSets']);
+  return {
+    runs: member(object, 'runs', path, asCount),
+    items: member(object, 'items', path, asCount),
+    media: member(object, 'media', path, asCount),
+    itemSets: member(object, 'itemSets', path, asCount),
+  };
 };
 
 /**
@@ -85,8 +93,10 @@ export const bulkDeleteApi = {
       }
     }
   },
-  async preview(query: BulkQuery): Promise<BulkDeletePreview> {
-    return parseDeletePreview(await api.writeJson('POST', BULK, { query, change: { kind: 'delete' } }));
+  /** Preview a delete of the items `query` selects, or of the media or sets it names by id. */
+  async preview(query: BulkQuery, of: TrashOf = 'items'): Promise<BulkDeletePreview> {
+    const change = of === 'items' ? { kind: 'delete' } : { kind: 'delete', of };
+    return parseDeletePreview(await api.writeJson('POST', BULK, { query, change }));
   },
   async emptyTrash(): Promise<Emptied> {
     return parseEmptied(await api.writeJson('POST', `${BULK}/trash/purge`, {}));

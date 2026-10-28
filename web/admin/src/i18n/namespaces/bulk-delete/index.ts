@@ -1,6 +1,6 @@
 /**
- * The bulk delete's messages: its confirm step, and the administrator's "Empty the trash" in the
- * recent changes list.
+ * The bulk delete's messages: its confirm step, the trash confirm of one item, media or item set,
+ * and the administrator's "Empty the trash" in the recent changes list.
  *
  * English is here, in the chunk the delete step loads when it opens; every other locale is its
  * own chunk under `locales/`. Each locale file is typed `BulkDeleteMessages`, so a key added here
@@ -26,12 +26,17 @@ export const en = {
   'bulkDelete.confirm.moveOne': 'Move 1 item to the trash',
   'bulkDelete.confirm.moveMany': 'Move {count} items to the trash',
   'bulkDelete.empty.open': 'Empty the trash…',
-  'bulkDelete.empty.ask':
-    'Every item a bulk delete moved to the trash is deleted for good, with its media and files. Those changes can no longer be undone.',
+  'bulkDelete.empty.askAll':
+    'Everything in the trash is deleted for good: items with their media and files, media with their files, and item sets. Those deletes can no longer be undone.',
   'bulkDelete.empty.confirm': 'Empty the trash',
   'bulkDelete.empty.cancel': 'Cancel',
-  'bulkDelete.empty.doneOne': 'The trash is empty. 1 item was deleted for good.',
-  'bulkDelete.empty.done': 'The trash is empty. {count} items were deleted for good.',
+  'bulkDelete.empty.emptied': 'The trash is empty.',
+  'bulkDelete.empty.itemsOne': '1 item was deleted for good.',
+  'bulkDelete.empty.itemsMany': '{count} items were deleted for good.',
+  'bulkDelete.empty.mediaOne': '1 media was deleted for good.',
+  'bulkDelete.empty.mediaMany': '{count} media were deleted for good.',
+  'bulkDelete.empty.setsOne': '1 item set was deleted for good.',
+  'bulkDelete.empty.setsMany': '{count} item sets were deleted for good.',
   'bulkDelete.empty.nothing': 'The trash was already empty.',
   'bulkDelete.item.checking': 'Checking what goes with this item…',
   'bulkDelete.item.cannotCheck': 'Cannot check what goes with this item, so it cannot move to the trash now.',
@@ -51,6 +56,17 @@ export const en = {
   'bulkDelete.item.undoing': 'Putting {name} back…',
   'bulkDelete.item.back': '{name} is back.',
   'bulkDelete.item.notBack': '{name} stays in the trash.',
+  'bulkDelete.media.checking': 'Checking what goes with this media…',
+  'bulkDelete.media.cannotCheck': 'Cannot check what goes with this media, so it cannot move to the trash now.',
+  'bulkDelete.media.denied': 'You may not delete this media.',
+  'bulkDelete.media.file': 'Its file goes with it: {size}.',
+  'bulkDelete.media.trash':
+    'The trash keeps it for {days} days. Until then, Undo on the Media screen puts it back on its item with its file.',
+  'bulkDelete.set.checking': 'Checking what goes with this item set…',
+  'bulkDelete.set.cannotCheck': 'Cannot check what goes with this item set, so it cannot move to the trash now.',
+  'bulkDelete.set.denied': 'You may not delete this item set.',
+  'bulkDelete.set.trash':
+    'The trash keeps it for {days} days. Until then, Undo on the Item sets screen puts it back with its items and the sites that show it.',
 } as const;
 
 /** A complete table of this namespace, in one locale. */

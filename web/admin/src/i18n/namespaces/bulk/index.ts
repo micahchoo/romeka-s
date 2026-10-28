@@ -173,6 +173,8 @@ export const en = {
   'bulk.status.partly_undone': 'Partly undone',
   'bulk.status.purged': 'Trash emptied',
   'bulk.word.delete': 'Move to the trash',
+  'bulk.word.deleteMedia': 'Move media to the trash',
+  'bulk.word.deleteSets': 'Move item sets to the trash',
 } as const;
 
 /** A complete table of this namespace, in one locale. */

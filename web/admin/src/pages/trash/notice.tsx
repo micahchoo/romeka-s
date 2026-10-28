@@ -1,7 +1,7 @@
 /**
- * The Items screen's notice after the item page moved an item to the trash: "Deleted <name>."
- * and its Undo, which is the undo of that one-item run. What the undo did comes from the run:
- * the item is back (with any links it left out, in the server's words), or it stays in the trash
+ * A list screen's notice after a page moved one record to the trash: "Deleted <name>."
+ * and its Undo, which is the undo of that one-record run. What the undo did comes from the run:
+ * the record is back (with any links it left out, in the server's words), or it stays in the trash
  * and the run says why.
  *
  * ```text
@@ -9,7 +9,7 @@
  * undoing -> refused -(undo)-> undoing
  * ```
  *
- * Its own chunk, loaded only when the slot holds an item.
+ * Its own chunk, loaded only when the slot holds a record of the screen's kind.
  */
 import type { ReactElement } from 'react';
 import { useEffect, useRef, useState } from 'react';
@@ -20,8 +20,10 @@ import { ErrorNotice } from '../../app/errors';
 import { toError } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import { bulkDelete } from '../../i18n/namespaces/bulk-delete';
-import { ServerWords } from './server-words';
-import type { Trashed } from './trashed';
+import { ServerWords } from '../items/server-words';
+import { recordHref } from './kinds';
+import type { Trashed } from './slot';
+import './notice.css';
 
 type State =
   | { readonly step: 'trashed' }
@@ -38,7 +40,7 @@ const reasons = (run: BulkRun): readonly string[] =>
 
 export interface TrashedNoticeProps {
   readonly trashed: Trashed;
-  /** The item is back: the list reads its page again. */
+  /** The record is back: the list reads its page again. */
   readonly onRestored: () => void;
 }
 
@@ -83,7 +85,7 @@ export const TrashedNotice = ({ trashed, onRestored }: TrashedNoticeProps): Reac
   );
 
   return (
-    <div className="items-trashed" role="status">
+    <div className="trashed-notice" role="status">
       {state.step === 'trashed' ? (
         <p>
           {t('bulkDelete.item.trashed', { name: trashed.name })} {undoButton}
@@ -102,7 +104,7 @@ export const TrashedNotice = ({ trashed, onRestored }: TrashedNoticeProps): Reac
         <>
           {restored(state.run) ? (
             <p>
-              <a href={`#/items/${String(trashed.item)}`}>{t('bulkDelete.item.back', { name: trashed.name })}</a>
+              <a href={recordHref(trashed.target)}>{t('bulkDelete.item.back', { name: trashed.name })}</a>
             </p>
           ) : (
             <p>

@@ -11,6 +11,7 @@ import { useTranslator } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
 import { setPlaceHref } from './facts';
+import { TrashedHere } from '../trash/here';
 
 const PER_PAGE = 25;
 
@@ -108,8 +109,16 @@ export const ItemSetList = (): ReactElement => {
   const resource = t('resource.itemSets');
   const sortable = SEES_EVERY_ITEM.has(role);
   const sort = sortable ? chosen : 'oldest';
+  /** Bumped when a set comes back from the trash, so the list reads its page again. */
+  const [revision, setRevision] = useState(0);
   return (
     <div>
+      <TrashedHere
+        of="item_sets"
+        onRestored={() => {
+          setRevision((current) => current + 1);
+        }}
+      />
       <div className="item-sets-head">
         <a href="#/item-sets/new">{t('itemSets.add')}</a>
         {sortable ? (
@@ -132,7 +141,7 @@ export const ItemSetList = (): ReactElement => {
         ) : null}
       </div>
       <ListPage<ItemSetRow>
-        key={sort}
+        key={`${sort}:${String(revision)}`}
         resourceLabel={resource}
         emptyMessage={t('list.empty', { resource })}
         load={loader(sort)}

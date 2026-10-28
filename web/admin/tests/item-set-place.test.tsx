@@ -11,7 +11,7 @@ import { ItemSetForm } from '../src/pages/item-sets/form';
 import { ItemsList } from '../src/pages/items/list';
 import { MediaPage } from '../src/pages/media/page';
 import { loadFixture } from './loadFixture';
-import { detached, installFetch, jsonResponse, listResponse, requestsFor, requestUrl, route } from './stub';
+import { first, installFetch, jsonResponse, listResponse, requestBody, requestsFor, requestUrl, route } from './stub';
 import type { Handler } from './stub';
 
 const recordOf = (value: unknown): Record<string, unknown> => {
@@ -63,7 +63,7 @@ const placeHandler = ({ set, count, narrowed = 0 }: PlaceServer): Handler =>
       if (set === 'hidden') {
         return jsonResponse({ errors: { error: 'Forbidden' } }, { status: 403 });
       }
-      return jsonResponse(init?.method === 'DELETE' ? detached(setOne()) : setOne());
+      return init?.method === 'DELETE' ? jsonResponse({ errors: { error: 'Not found' } }, { status: 404 }) : jsonResponse(setOne());
     },
     '/api/items': (url) => {
       if (url.searchParams.get('per_page') === '1') {
@@ -83,9 +83,34 @@ const placeHandler = ({ set, count, narrowed = 0 }: PlaceServer): Handler =>
     '/api/data_types': () => jsonResponse(loadFixture('data-types-page.json')),
   });
 
+/** `handler`, with the routes behind the set's trash: its preview, what links to it, its run. */
+const withTrash = (handler: Handler): Handler => {
+  const trash = route({
+    '/api/romeka/bulk': () =>
+      jsonResponse(
+        {
+          id: 7,
+          status: 'previewed',
+          kind: 'delete',
+          total: 1,
+          denied: 0,
+          media: 0,
+          bytes: 0,
+          trashDays: 30,
+          samples: [{ id: 1, title: 'Featured photographs' }],
+        },
+        { status: 201 },
+      ),
+    '/api/romeka/links/1': () => jsonResponse(loadFixture('places/links-none.json')),
+    '/api/romeka/bulk/7/run': () => jsonResponse({ jobId: 3 }),
+    '/api/romeka/bulk/7': () => jsonResponse({ ...recordOf(loadFixture('bulk/delete-set-done.json')), id: 7, query: { id: [1] } }),
+  });
+  return (url, init) => (url.pathname.startsWith('/api/romeka/') ? trash(url, init) : handler(url, init));
+};
+
 const openPlace = (server: PlaceServer, query = 'set=1') => {
   window.history.replaceState(null, '', `/#/items?${query}`);
-  const fetchMock = installFetch(placeHandler(server));
+  const fetchMock = installFetch(withTrash(placeHandler(server)));
   render(<ItemsList />);
   return fetchMock;
 };
@@ -185,21 +210,30 @@ describe('the set card', () => {
     expect(window.location.hash).toBe('#/items');
   });
 
-  it('confirms a delete with what it changes, then deletes the set', async () => {
+  it('confirms a delete with what it changes and what Undo puts back, then moves the set to the trash', async () => {
     const fetchMock = openPlace({ set: 'ok', count: 3 });
     const place = await card();
 
     fireEvent.click(within(place).getByRole('button', { name: 'Delete this item set' }));
 
-    expect(within(place).getByText('Delete Featured photographs? This cannot be undone.')).toBeInTheDocument();
+    expect(await within(place).findByText('Move Featured photographs to the trash?')).toBeInTheDocument();
     expect(within(place).getByText('The 3 items stay. They leave this set.')).toBeInTheDocument();
     expect(within(place).getByText('1 site shows this set. It stops showing it.')).toBeInTheDocument();
+    expect(
+      within(place).getByText(
+        'The trash keeps it for 30 days. Until then, Undo on the Item sets screen puts it back with its items and the sites that show it.',
+      ),
+    ).toBeInTheDocument();
 
-    fireEvent.click(within(place).getByRole('button', { name: 'Delete Featured photographs' }));
+    fireEvent.click(within(place).getByRole('button', { name: 'Move to the trash' }));
     await waitFor(() => {
       expect(window.location.hash).toBe('#/item-sets');
     });
-    expect(requestsFor(fetchMock, '/api/item_sets/1').some((request) => request.init?.method === 'DELETE')).toBe(true);
+    expect(requestBody(first(requestsFor(fetchMock, '/api/romeka/bulk')))).toEqual({
+      query: { id: [1] },
+      change: { kind: 'delete', of: 'item_sets' },
+    });
+    expect(requestsFor(fetchMock, '/api/item_sets/1').some((request) => request.init?.method === 'DELETE')).toBe(false);
   });
 });
 
@@ -220,7 +254,7 @@ describe('the set routes', () => {
   });
 
   it('edits the set at its edit address, and its delete states the counts', async () => {
-    installFetch(placeHandler({ set: 'ok', count: 1 }));
+    installFetch(withTrash(placeHandler({ set: 'ok', count: 1 })));
     render(<ItemSetsPage param="1" rest={['1', 'edit']} />);
 
     expect(await screen.findByLabelText('Title')).toHaveValue('Featured photographs');

@@ -1,17 +1,16 @@
 /**
- * The item set delete, on the set's card and on its edit form. The delete is
- * permanent, so the confirmation states what it changes: the items stay and
- * leave the set, and the sites that show the set stop showing it.
+ * The item set delete, on the set's card and on its edit form. The set moves to the trash, so
+ * the confirmation states what it changes and what Undo puts back: the items stay and leave the
+ * set, and the sites that show the set stop showing it, until Undo.
  */
 import type { ReactElement } from 'react';
-import { api } from '../../api/client';
 import type { ItemSet } from '../../api/types';
-import { DeleteControl } from '../../app/delete';
 import { useAsync } from '../../app/useAsync';
 import type { AsyncState } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
+import { TrashOpener } from '../trash/opener';
 import { loadSetCounts } from './facts';
 import type { SetCounts } from './facts';
 
@@ -54,14 +53,11 @@ export const SetDeleteControl = ({
 }): ReactElement => {
   const { t } = useTranslator(common, resources);
   return (
-    <DeleteControl
+    <TrashOpener
       label={t('itemSets.deleteLabel')}
-      rowName={set.title ?? t('itemSets.rowName', { id: set.id })}
+      target={{ of: 'item_sets', id: set.id }}
+      name={set.title ?? t('itemSets.rowName', { id: set.id })}
       detail={<Consequences counts={counts} />}
-      onConfirm={async () => {
-        await api.deleteItemSet(set.id);
-        window.location.hash = '#/item-sets';
-      }}
     />
   );
 };

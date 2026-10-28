@@ -347,12 +347,3 @@ button.private-cue:hover:not(:disabled) {
 .set-empty p {
   margin: 0 0 var(--space-2);
 }
-
-/* The notice after the item page moved an item to the trash: one line and its Undo. */
-.items-trashed p {
-  margin: 0;
-}
-
-.items-trashed p + p {
-  margin-top: var(--space-2);
-}

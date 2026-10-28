@@ -480,10 +480,6 @@ export class ApiClient {
     await this.deleteJson(`/api/items/${String(id)}`);
   }
 
-  async deleteItemSet(id: ItemSetId): Promise<void> {
-    await this.deleteJson(`/api/item_sets/${String(id)}`);
-  }
-
   async deleteUser(id: UserId): Promise<void> {
     await this.deleteJson(`/api/users/${String(id)}`);
   }

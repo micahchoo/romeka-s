@@ -55,7 +55,7 @@ const EmptyTrash = ({ onEmptied }: { readonly onEmptied: (emptied: Emptied) => v
     case 'emptying':
       return (
         <div className="bulk-undo" role="group" aria-label={t('bulkDelete.empty.confirm')}>
-          <p>{t('bulkDelete.empty.ask')}</p>
+          <p>{t('bulkDelete.empty.askAll')}</p>
           <p className="bulk-actions">
             <button
               type="button"
@@ -94,7 +94,34 @@ const EmptyTrash = ({ onEmptied }: { readonly onEmptied: (emptied: Emptied) => v
   }
 };
 
-/** A delete whose items are still in the trash. */
+/** What emptying the trash deleted for good, one sentence per kind of record. */
+const EmptiedNote = ({ emptied }: { readonly emptied: Emptied }): ReactElement => {
+  const { t, number } = useTranslator(bulkDelete);
+  const counted = [
+    [emptied.items, 'bulkDelete.empty.itemsOne', 'bulkDelete.empty.itemsMany'],
+    [emptied.media, 'bulkDelete.empty.mediaOne', 'bulkDelete.empty.mediaMany'],
+    [emptied.itemSets, 'bulkDelete.empty.setsOne', 'bulkDelete.empty.setsMany'],
+  ] as const;
+  const sentences = counted
+    .filter(([count]) => count > 0)
+    .map(([count, one, many]) => (count === 1 ? t(one) : t(many, { count: number(count) })));
+  return (
+    <p role="status">
+      {sentences.length === 0
+        ? t('bulkDelete.empty.nothing')
+        : [t('bulkDelete.empty.emptied'), ...sentences].join(' ')}
+    </p>
+  );
+};
+
+/** The words for what a run did, in the Change column. */
+const DELETE_WORDS = {
+  items: 'bulk.word.delete',
+  media: 'bulk.word.deleteMedia',
+  item_sets: 'bulk.word.deleteSets',
+} as const;
+
+/** A delete whose records are still in the trash. */
 const inTrash = (run: BulkRun): boolean => run.kind === 'delete' && undoable(run);
 
 export const RecentStep = ({
@@ -115,17 +142,7 @@ export const RecentStep = ({
 }): ReactElement => {
   const admin = ADMINS.has(useSession()?.role ?? '');
   const [emptied, setEmptied] = useState<Emptied | null>(null);
-  const trashText = useTranslator(bulkDelete);
-  const note =
-    emptied === null ? null : (
-      <p role="status">
-        {emptied.items === 0
-          ? trashText.t('bulkDelete.empty.nothing')
-          : emptied.items === 1
-            ? trashText.t('bulkDelete.empty.doneOne')
-            : trashText.t('bulkDelete.empty.done', { count: trashText.number(emptied.items) })}
-      </p>
-    );
+  const note = emptied === null ? null : <EmptiedNote emptied={emptied} />;
   const translator = useTranslator(bulk);
   const { t, number, locale } = translator;
   const text = useTermLabels();
@@ -161,7 +178,7 @@ export const RecentStep = ({
         {runs.map((run) => (
           <tr key={String(run.id)}>
             <td>{formatDateTime(run.created, locale)}</td>
-            <td>{run.kind === 'delete' ? t('bulk.word.delete') : editWords({ t, options, text }, run.change)}</td>
+            <td>{run.kind === 'delete' ? t(DELETE_WORDS[run.of]) : editWords({ t, options, text }, run.change)}</td>
             <td>{run.purged === null ? t(`bulk.status.${run.status}`) : t('bulk.status.purged')}</td>
             <td>{t('bulk.recent.count', { done: number(run.done), total: number(run.total) })}</td>
             <td>

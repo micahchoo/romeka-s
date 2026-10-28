@@ -299,5 +299,23 @@ export const esServer: ServerCatalogue = {
     'Otro registro tiene ahora el identificador de este elemento, así que deshacer lo dejó en la papelera.',
   'server.bulkItemLinksLeft':
     'El elemento ha vuelto, pero no volvieron los enlaces a él desde elementos editados después de eliminarlo.',
+  'server.bulkMediaGone': 'Este medio ya no está en Omeka.',
+  'server.bulkMediaDeleteDenied': 'La persona que inició este cambio no puede eliminar este medio.',
+  'server.bulkMediaUndoDenied':
+    'La persona que pidió deshacer el cambio no puede eliminar este medio, así que deshacer lo dejó en la papelera.',
+  'server.bulkMediaIdTaken':
+    'Otro registro tiene ahora el identificador de este medio, así que deshacer dejó el medio en la papelera.',
+  'server.bulkMediaLinksLeft':
+    'El medio ha vuelto, pero no volvieron los enlaces a él desde elementos editados después de eliminarlo.',
+  'server.bulkMediaItemGone':
+    'El elemento al que pertenece este medio ya no está, así que deshacer dejó el medio en la papelera.',
+  'server.bulkSetGone': 'Este conjunto de elementos ya no está en Omeka.',
+  'server.bulkSetDeleteDenied': 'La persona que inició este cambio no puede eliminar este conjunto de elementos.',
+  'server.bulkSetUndoDenied':
+    'La persona que pidió deshacer el cambio no puede eliminar este conjunto de elementos, así que deshacer lo dejó en la papelera.',
+  'server.bulkSetIdTaken':
+    'Otro registro tiene ahora el identificador de este conjunto de elementos, así que deshacer lo dejó en la papelera.',
+  'server.bulkSetLinksLeft':
+    'El conjunto de elementos ha vuelto, pero no volvieron los enlaces a él desde elementos editados después de eliminarlo.',
   'server.bulkPurged': 'La papelera de este cambio se vació, así que sus elementos no pueden volver.',
 };

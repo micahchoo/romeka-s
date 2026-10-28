@@ -180,9 +180,6 @@ export const updateMedia = async (
 ): Promise<Media> =>
   parseMedia(await api.writeJson('PUT', `/api/media/${String(id)}`, encodeMedia(write)));
 
-export const deleteMedia = async (api: ApiClient, id: MediaId): Promise<void> =>
-  api.deleteJson(`/api/media/${String(id)}`);
-
 /**
  * `POST /api/romeka/media/{id}/derivatives/retry`: queue the media's access
  * copy again after its tool failed, and answer the media document with the

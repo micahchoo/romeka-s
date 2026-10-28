@@ -1,18 +1,20 @@
 /**
- * The item page's delete. The item moves to the trash as a bulk delete of it alone, so Undo puts
- * it back with its media, its files and the links other records had to it. The confirm states
- * only what the server counts: the media and their bytes (the delete preview), the records that
- * link to it by field (`/api/romeka/links/{id}`), and how many days the trash keeps it.
+ * The delete of one item, media or item set from its own page. The record moves to the trash as
+ * a bulk delete of it alone, so Undo puts it back: an item with its media, its files and the
+ * links other records had to it; a media on its item with its file; a set with its items and the
+ * sites that show it. The confirm states only what the server counts: the media and their bytes
+ * (the delete preview), the records that link to it by field (`/api/romeka/links/{id}`), and how
+ * many days the trash keeps it. A set's page adds its own counts as `detail`.
  *
  * ```text
- * checking -> confirm -> moving -> (Items, which offers the Undo)
+ * checking -> confirm -> moving -> (its list screen, which offers the Undo)
  * checking -> unchecked -(check again)-> checking
  * moving -> failed -(check again)-> checking
  * ```
  *
  * Its own chunk, loaded when the person presses Delete.
  */
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import type { BulkRefusal, BulkRun } from '../../api/bulk';
 import { bulkApi, bulkRefusal } from '../../api/bulk';
@@ -20,7 +22,6 @@ import type { BulkDeletePreview } from '../../api/bulk-delete';
 import { bulkDeleteApi } from '../../api/bulk-delete';
 import { placesApi } from '../../api/places';
 import type { LinkRow } from '../../api/places';
-import type { ItemId } from '../../api/types';
 import { ErrorNotice } from '../../app/errors';
 import { sizeText } from '../../app/upload/size-text';
 import { toError } from '../../app/useAsync';
@@ -28,9 +29,11 @@ import { useTranslator } from '../../i18n';
 import { bulkDelete } from '../../i18n/namespaces/bulk-delete';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
-import { useLinkRowWords } from './linked-from';
-import { ServerWords } from './server-words';
-import { rememberTrashed } from './trashed';
+import { useLinkRowWords } from '../items/linked-from';
+import { ServerWords } from '../items/server-words';
+import { TRASH_KINDS } from './kinds';
+import { rememberTrashed } from './slot';
+import type { TrashTarget } from './slot';
 
 interface Facts {
   readonly preview: BulkDeletePreview;
@@ -67,24 +70,46 @@ const reduce = (state: State, action: Action): State => {
 };
 
 /**
- * Whether the preview found the item and the caller may delete it. A missing item and one the
- * caller may not see both select nothing, so they read alike.
+ * Whether the preview found the record and the caller may delete it. A missing record and one
+ * the caller may not see both select nothing, so they read alike.
  */
 const movable = (preview: BulkDeletePreview): boolean => preview.total === 1 && preview.denied === 0;
 
-/** Whether the run moved this one item to the trash. */
+/** Whether the run moved this one record to the trash. */
 const trashed = (run: BulkRun): boolean => run.status === 'done' && run.counts?.done === 1;
 
-const Facts = ({ name, facts }: { readonly name: string; readonly facts: Facts }): ReactElement => {
+/** What goes with the record's files: an item's media, or a media's own file. */
+const Files = ({ target, preview }: { readonly target: TrashTarget; readonly preview: BulkDeletePreview }): ReactElement | null => {
   const { t, number, locale } = useTranslator(bulkDelete);
+  const size = sizeText(preview.bytes, locale);
+  if (target.of === 'media') {
+    return preview.bytes > 0 ? <p>{t('bulkDelete.media.file', { size })}</p> : null;
+  }
+  if (preview.media === 1) {
+    return <p>{t('bulkDelete.confirm.mediaOne', { size })}</p>;
+  }
+  return preview.media > 1 ? <p>{t('bulkDelete.confirm.mediaMany', { count: number(preview.media), size })}</p> : null;
+};
+
+const Facts = ({
+  target,
+  name,
+  facts,
+  detail,
+}: {
+  readonly target: TrashTarget;
+  readonly name: string;
+  readonly facts: Facts;
+  readonly detail: ReactNode;
+}): ReactElement => {
+  const { t, number } = useTranslator(bulkDelete);
   const rowWords = useLinkRowWords();
   const { preview, links } = facts;
-  const size = sizeText(preview.bytes, locale);
   return (
     <>
       <p>{t('bulkDelete.item.ask', { name })}</p>
-      {preview.media === 1 ? <p>{t('bulkDelete.confirm.mediaOne', { size })}</p> : null}
-      {preview.media > 1 ? <p>{t('bulkDelete.confirm.mediaMany', { count: number(preview.media), size })}</p> : null}
+      <Files target={target} preview={preview} />
+      {detail}
       {links.length === 0 ? (
         <p>{t('bulkDelete.item.notLinked')}</p>
       ) : (
@@ -98,12 +123,12 @@ const Facts = ({ name, facts }: { readonly name: string; readonly facts: Facts }
           <p>{t('bulkDelete.item.linksBack')}</p>
         </>
       )}
-      <p>{t('bulkDelete.item.trash', { days: number(preview.trashDays) })}</p>
+      <p>{t(TRASH_KINDS[target.of].trash, { days: number(preview.trashDays) })}</p>
     </>
   );
 };
 
-/** Why the run left the item in place: its error, or the server's reason for the item. */
+/** Why the run left the record in place: its error, or the server's reason for the record. */
 const Failure = ({ run, error }: { readonly run: BulkRun | null; readonly error: Error | null }): ReactElement | null => {
   if (error !== null) {
     return <ErrorNotice error={error} />;
@@ -118,15 +143,18 @@ const Failure = ({ run, error }: { readonly run: BulkRun | null; readonly error:
   );
 };
 
-export interface TrashItemProps {
-  readonly item: ItemId;
-  /** The item's display name, which the confirm and the Items notice carry. */
+export interface TrashConfirmProps {
+  readonly target: TrashTarget;
+  /** The record's display name, which the confirm and the list screen's notice carry. */
   readonly name: string;
+  /** Facts about the record that its own page counts, shown before the links. */
+  readonly detail?: ReactNode;
   readonly onCancel: () => void;
 }
 
-export const TrashItem = ({ item, name, onCancel }: TrashItemProps): ReactElement => {
+export const TrashConfirm = ({ target, name, detail = null, onCancel }: TrashConfirmProps): ReactElement => {
   const { t } = useTranslator(common, resources, bulkDelete);
+  const words = TRASH_KINDS[target.of];
   const [state, dispatch] = useReducer(reduce, { step: 'checking' });
   const mounted = useRef(true);
   const moveButton = useRef<HTMLButtonElement>(null);
@@ -138,9 +166,10 @@ export const TrashItem = ({ item, name, onCancel }: TrashItemProps): ReactElemen
     };
   }, []);
 
+  const { of, id } = target;
   const check = useCallback((): void => {
     dispatch({ type: 'check' });
-    Promise.all([bulkDeleteApi.preview({ id: [item] }), placesApi.links(item)]).then(
+    Promise.all([bulkDeleteApi.preview({ id: [id] }, of), placesApi.links(id)]).then(
       ([preview, links]) => {
         dispatch({ type: 'checked', facts: { preview, links } });
       },
@@ -148,7 +177,7 @@ export const TrashItem = ({ item, name, onCancel }: TrashItemProps): ReactElemen
         dispatch({ type: 'uncheckable', refusal: bulkRefusal(toError(error)) });
       },
     );
-  }, [item]);
+  }, [of, id]);
 
   useEffect(check, [check]);
 
@@ -161,21 +190,21 @@ export const TrashItem = ({ item, name, onCancel }: TrashItemProps): ReactElemen
 
   const move = (facts: Facts): void => {
     dispatch({ type: 'move' });
-    const id = facts.preview.id;
+    const run = facts.preview.id;
     bulkApi
-      .run(id)
-      .then(() => bulkDeleteApi.settled(id))
+      .run(run)
+      .then(() => bulkDeleteApi.settled(run))
       .then(
-        (run) => {
+        (settled) => {
           if (!mounted.current) {
             return;
           }
-          if (trashed(run)) {
-            rememberTrashed({ run: id, item, name });
-            window.location.hash = '#/items';
+          if (trashed(settled)) {
+            rememberTrashed({ run, target, name });
+            window.location.hash = words.listHref;
             return;
           }
-          dispatch({ type: 'failed', run, error: null });
+          dispatch({ type: 'failed', run: settled, error: null });
         },
         (error: unknown) => {
           dispatch({ type: 'failed', run: null, error: toError(error) });
@@ -193,7 +222,7 @@ export const TrashItem = ({ item, name, onCancel }: TrashItemProps): ReactElemen
     case 'checking':
       return (
         <section className="delete-control delete-confirm" aria-busy="true">
-          <p role="status">{t('bulkDelete.item.checking')}</p>
+          <p role="status">{t(words.checking)}</p>
           <p>{cancel}</p>
         </section>
       );
@@ -201,10 +230,10 @@ export const TrashItem = ({ item, name, onCancel }: TrashItemProps): ReactElemen
       return (
         <section className="delete-control delete-confirm">
           {state.refusal.kind === 'denied' ? (
-            <p role="alert">{t('bulkDelete.item.denied')}</p>
+            <p role="alert">{t(words.denied)}</p>
           ) : (
             <>
-              <p role="alert">{t('bulkDelete.item.cannotCheck')}</p>
+              <p role="alert">{t(words.cannotCheck)}</p>
               {state.refusal.kind === 'error' ? <ErrorNotice error={state.refusal.error} /> : null}
             </>
           )}
@@ -228,9 +257,9 @@ export const TrashItem = ({ item, name, onCancel }: TrashItemProps): ReactElemen
           {facts.preview.total === 0 ? (
             <p role="alert">{t('linksPlace.unavailable')}</p>
           ) : (
-            <Facts name={name} facts={facts} />
+            <Facts target={target} name={name} facts={facts} detail={detail} />
           )}
-          {facts.preview.denied > 0 ? <p role="alert">{t('bulkDelete.item.denied')}</p> : null}
+          {facts.preview.denied > 0 ? <p role="alert">{t(words.denied)}</p> : null}
           <p>
             {movable(facts.preview) ? (
               <button
@@ -269,4 +298,4 @@ export const TrashItem = ({ item, name, onCancel }: TrashItemProps): ReactElemen
   }
 };
 
-export default TrashItem;
+export default TrashConfirm;

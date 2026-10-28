@@ -162,4 +162,6 @@ export const es: BulkMessages = {
   'bulk.status.partly_undone': 'Deshecho en parte',
   'bulk.status.purged': 'Papelera vaciada',
   'bulk.word.delete': 'Mover a la papelera',
+  'bulk.word.deleteMedia': 'Mover medios a la papelera',
+  'bulk.word.deleteSets': 'Mover conjuntos de elementos a la papelera',
 };
