@@ -46,6 +46,7 @@ mod bulk;
 mod config;
 mod config_store;
 mod files_allow;
+mod fixity;
 mod http;
 mod iiif;
 mod imports;
@@ -221,6 +222,7 @@ fn build_app(pool: DbPool, services: Services, config: &Config) -> Router {
         .merge(annotations::router())
         .merge(media_render::router())
         .merge(media_derivatives::router())
+        .merge(fixity::router())
         .merge(site_items::router())
         .merge(bulk::router())
         .merge(place_counts::router())

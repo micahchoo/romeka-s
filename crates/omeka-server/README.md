@@ -314,6 +314,27 @@ A missing type and an id that is not a positive integer are the same 404. The an
 `Cache-Control: no-store`. `tests/field_counts.rs` holds every number against its list for
 anonymous, two non-admins and an admin.
 
+## Fixity
+
+A check of the stored originals against `media.sha256` (`src/fixity.rs`, logic in
+`omeka_api::fixity`). Upstream records the digest and never reads it again.
+
+| Route | Response |
+| --- | --- |
+| `POST /api/romeka/fixity` | 201 `{job}` for a new check; 200 `{job}` naming the check already starting or running; 403 |
+| `GET /api/romeka/fixity` | 200 `{check, running}`: the latest check with a result, or `null`, and the running check's job id, or `null`; 403 |
+| `GET /api/romeka/fixity/{job}` | 200 `{job, status, started, ended, checked, ok, differs, missing, unreadable}`; 403; 404 |
+
+A check is a job, so the jobs grant decides: global and site administrators start one, and those
+two roles with editors and reviewers read results. The new job goes to the process's job runner
+as `Romeka\Job\FixityCheck`. Each count is the `Omeka-S-Total-Results` of
+`GET /api/media?romeka_fixity=<name>&romeka_fixity_job=<job>` for the same caller, where `<name>`
+is `checked` or one of the four outcomes: both read the media the caller may see whose id the
+check recorded. A job that is not a check, or a check with no result yet, is a 404. The filter
+keeps nothing for a caller who may not read jobs, the same as for a check that does not exist.
+`romeka_fixity` without a job reads the latest check with a result. Both reads answer
+`Cache-Control: no-store`. `crates/omeka-cli/tests/fixity.rs` holds each count against its list.
+
 ## Items CSV
 
 `GET /api/romeka/items.csv?<item search query>` answers every item `GET /api/items` lists for the
