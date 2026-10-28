@@ -73,6 +73,7 @@ export const ne: ResourcesMessages = {
   'itemSets.sortMost': 'सबैभन्दा बढी वस्तुहरू पहिले',
   'itemSets.sortFewest': 'सबैभन्दा कम वस्तुहरू पहिले',
   'linkedFrom.heading': 'यहाँ लिङ्क गर्ने रेकर्डहरू',
+  'itemHistory.heading': 'इतिहास',
   'linkedFrom.loading': 'यहाँबाट के-के लिङ्क भएका छन् गणना गर्दै…',
   'linkedFrom.empty': 'यस रेकर्डमा कुनै पनि कुरा लिङ्क छैन।',
   'linkedFrom.row': '{field} · {count}',

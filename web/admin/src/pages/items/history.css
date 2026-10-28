@@ -1,0 +1,33 @@
+/* History: one entry per recorded change, its fields under it, each with its put-back. */
+.item-history-entries {
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.item-history-entries > li {
+  margin-bottom: var(--space-2);
+}
+
+.item-history-when {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.item-history-entries ul {
+  margin: var(--space-1) 0 0;
+  padding-inline-start: var(--space-4);
+}
+
+.item-history-entries ul li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: baseline;
+  overflow-wrap: anywhere;
+}
+
+/* `app/describe.css` gives .link-button side padding; a put-back sits after its words with none. */
+.item-history .link-button {
+  padding: 0;
+}

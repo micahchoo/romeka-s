@@ -38,6 +38,19 @@
   cursor: pointer;
 }
 
+/* The item page's History fold: its heading is the summary, with the marker on its line. */
+.item-history-fold > summary {
+  cursor: pointer;
+}
+
+.item-history-fold > summary > h2 {
+  display: inline;
+}
+
+.item-history-fold[open] > summary {
+  margin-bottom: var(--space-2);
+}
+
 /* "?" and the definition it opens in place. */
 .term-help {
   display: contents;

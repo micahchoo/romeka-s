@@ -74,6 +74,7 @@ export const kn: ResourcesMessages = {
   'itemSets.sortMost': 'ಹೆಚ್ಚಿನ ಅಂಶಗಳು ಮೊದಲು',
   'itemSets.sortFewest': 'ಕಡಿಮೆ ಅಂಶಗಳು ಮೊದಲು',
   'linkedFrom.heading': 'ಇವುಗಳಿಂದ ಲಿಂಕ್ ಮಾಡಲಾಗಿದೆ',
+  'itemHistory.heading': 'ಇತಿಹಾಸ',
   'linkedFrom.loading': 'ಇಲ್ಲಿ ಏನನ್ನು ಲಿಂಕ್ ಮಾಡಲಾಗಿದೆ ಎಂದು ಎಣಿಸಲಾಗುತ್ತಿದೆ…',
   'linkedFrom.empty': 'ಈ ರೆಕಾರ್ಡ್‌ಗೆ ಯಾವುದೇ ಲಿಂಕ್‌ಗಳಿಲ್ಲ.',
   'linkedFrom.row': '{field} · {count}',

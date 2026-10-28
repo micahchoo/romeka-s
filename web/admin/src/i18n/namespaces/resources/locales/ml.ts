@@ -74,6 +74,7 @@ export const ml: ResourcesMessages = {
   'itemSets.sortMost': 'ഏറ്റവും കൂടുതൽ ഇനങ്ങൾ ആദ്യം',
   'itemSets.sortFewest': 'ഏറ്റവും കുറഞ്ഞ ഇനങ്ങൾ ആദ്യം',
   'linkedFrom.heading': 'ഇതിലേക്ക് ലിങ്ക് ചെയ്യുന്നവ',
+  'itemHistory.heading': 'ചരിത്രം',
   'linkedFrom.loading': 'ഇവിടെ ലിങ്ക് ചെയ്തിരിക്കുന്നത് എണ്ണുന്നു…',
   'linkedFrom.empty': 'ഈ റെക്കോർഡിലേക്ക് ലിങ്ക് ചെയ്യുന്നില്ല.',
   'linkedFrom.row': '{field} · {count}',

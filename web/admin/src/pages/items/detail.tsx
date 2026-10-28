@@ -47,6 +47,9 @@ const ItemNotesSections = lazy(() =>
 /** "Linked from": its own chunk, shared with the set card. */
 const LinkedFrom = lazy(() => import('./linked-from'));
 
+/** History: its own chunk, loaded when the person opens it. */
+const ItemHistory = lazy(() => import('./history'));
+
 /** The delete's confirm: its own chunk, loaded when the person presses Delete. */
 const TrashItem = lazy(() => import('./trash-item'));
 
@@ -59,11 +62,11 @@ const MediaViewer = lazy(() =>
 const ADDING_ROLES: readonly string[] = ['author', 'reviewer', 'editor', 'site_admin', 'global_admin'];
 
 /**
- * `write/media.rs`'s `item()`: a media create is allowed when the caller may
- * update the item. An unknown session shows the button, because the server
- * decides and the key may carry the right; a known role answers here.
+ * The item `PUT`'s check (`write/access.rs`, `authorize_resource`), which a media create
+ * (`write/media.rs`'s `item()`) and the history read both ask. An unknown session shows the
+ * control, because the server decides and the key may carry the right; a known role answers here.
  */
-const mayAddMedia = (item: Item, user: User | null): boolean => {
+const mayUpdateItem = (item: Item, user: User | null): boolean => {
   if (user === null) {
     return true;
   }
@@ -273,6 +276,35 @@ const useWindowFiles = (
  * "Delete this item", which opens the trash confirm in place. Cancel closes it and gives focus
  * back to the button.
  */
+/** History, folded until opened; its chunk and its read wait for the first open. */
+const HistoryFold = ({
+  item,
+  onSaved,
+}: {
+  readonly item: ItemId;
+  readonly onSaved: (item: Item) => void;
+}): ReactElement => {
+  const { t } = useTranslator(resources);
+  const [open, setOpen] = useState(false);
+  return (
+    <details
+      className="item-history-fold"
+      onToggle={(event) => {
+        setOpen(event.currentTarget.open);
+      }}
+    >
+      <summary>
+        <h2>{t('itemHistory.heading')}</h2>
+      </summary>
+      {open ? (
+        <Suspense fallback={null}>
+          <ItemHistory item={item} onSaved={onSaved} />
+        </Suspense>
+      ) : null}
+    </details>
+  );
+};
+
 const ItemDelete = ({ item, name }: { readonly item: ItemId; readonly name: string }): ReactElement => {
   const { t } = useTranslator(resources);
   const [open, setOpen] = useState(false);
@@ -426,7 +458,7 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
   const item = edited ?? itemState.data;
   const ownerName = ownerNameOf(reads?.ownerNames ?? NO_NAMES, item.owner);
   const classLabel = classLabelOf(reads?.classLabels ?? NO_CLASSES, item.resourceClass, text);
-  const adding = mayAddMedia(item, user);
+  const adding = mayUpdateItem(item, user);
   const places = placesState.status === 'ready' ? placesState.data : null;
   // A failed read of the names falls back to the ids, so the rows still say where the item is.
   const failed = placesState.status === 'error';
@@ -589,6 +621,8 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
       <Suspense fallback={<p role="status">{t('linkedFrom.loading')}</p>}>
         <LinkedFrom target={item.id} />
       </Suspense>
+
+      {adding ? <HistoryFold item={item.id} onSaved={setEdited} /> : null}
 
       <EditPanel label={t('items.editLabel')} initiallyOpen={editing}>
         <ItemEditForm item={item} onSaved={setEdited} saveNext={walk === null ? null : saveNextHref(walk)} />

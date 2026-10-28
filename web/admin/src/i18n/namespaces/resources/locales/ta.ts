@@ -74,6 +74,7 @@ export const ta: ResourcesMessages = {
   'itemSets.sortMost': 'அதிக உருப்படிகள் உள்ளவை முதலில்',
   'itemSets.sortFewest': 'குறைவான உருப்படிகள் உள்ளவை முதலில்',
   'linkedFrom.heading': 'இதனுடன் இணைக்கப்பட்டது',
+  'itemHistory.heading': 'வரலாறு',
   'linkedFrom.loading': 'இங்கே இணைக்கப்பட்டுள்ளவற்றைக் கணக்கிடுகிறது…',
   'linkedFrom.empty': 'இந்த ஆவணத்திற்கு வேறு எந்த ஆவணமும் இணைக்கப்படவில்லை.',
   'linkedFrom.row': '{field} · {count}',

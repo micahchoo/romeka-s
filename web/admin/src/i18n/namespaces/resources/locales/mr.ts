@@ -73,6 +73,7 @@ export const mr: ResourcesMessages = {
   'itemSets.sortMost': 'सर्वाधिक घटक प्रथम',
   'itemSets.sortFewest': 'सर्वात कमी घटक प्रथम',
   'linkedFrom.heading': 'येथे जोडणाऱ्या नोंदी',
+  'itemHistory.heading': 'इतिहास',
   'linkedFrom.loading': 'येथे काय जोडलेले आहे याची गणना करत आहे…',
   'linkedFrom.empty': 'या नोंदीशी कोणतीही गोष्ट जोडलेली नाही.',
   'linkedFrom.row': '{field} · {count}',

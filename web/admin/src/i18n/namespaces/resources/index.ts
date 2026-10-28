@@ -74,6 +74,7 @@ export const en = {
   'itemSets.sortMost': 'Most items first',
   'itemSets.sortFewest': 'Fewest items first',
   'linkedFrom.heading': 'Linked from',
+  'itemHistory.heading': 'History',
   'linkedFrom.loading': 'Counting what links here…',
   'linkedFrom.empty': 'Nothing links to this record.',
   'linkedFrom.row': '{field} · {count}',

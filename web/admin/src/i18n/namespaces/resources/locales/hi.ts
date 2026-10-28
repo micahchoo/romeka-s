@@ -73,6 +73,7 @@ export const hi: ResourcesMessages = {
   'itemSets.sortMost': 'सबसे ज़्यादा आइटम वाले पहले',
   'itemSets.sortFewest': 'सबसे कम आइटम वाले पहले',
   'linkedFrom.heading': 'यहाँ लिंक करने वाले रिकॉर्ड',
+  'itemHistory.heading': 'इतिहास',
   'linkedFrom.loading': 'यहाँ लिंक करने वाले रिकॉर्ड गिने जा रहे हैं…',
   'linkedFrom.empty': 'कोई भी रिकॉर्ड इस रिकॉर्ड से लिंक नहीं करता।',
   'linkedFrom.row': '{field} · {count}',

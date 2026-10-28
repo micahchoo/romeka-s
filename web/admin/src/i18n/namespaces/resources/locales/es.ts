@@ -68,6 +68,7 @@ export const es: ResourcesMessages = {
   'itemSets.sortMost': 'Más elementos primero',
   'itemSets.sortFewest': 'Menos elementos primero',
   'linkedFrom.heading': 'Enlazado desde',
+  'itemHistory.heading': 'Historial',
   'linkedFrom.loading': 'Contando lo que enlaza aquí…',
   'linkedFrom.empty': 'Nada enlaza a este registro.',
   'linkedFrom.row': '{field} · {count}',

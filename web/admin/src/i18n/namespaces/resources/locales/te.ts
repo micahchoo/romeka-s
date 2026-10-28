@@ -73,6 +73,7 @@ export const te: ResourcesMessages = {
   'itemSets.sortMost': 'ఎక్కువ అంశాలు ఉన్నవి మొదట',
   'itemSets.sortFewest': 'తక్కువ అంశాలు ఉన్నవి మొదట',
   'linkedFrom.heading': 'దీనికి లింక్ చేసేవి',
+  'itemHistory.heading': 'చరిత్ర',
   'linkedFrom.loading': 'ఇక్కడ లింక్ చేయబడిన వాటిని లెక్కించడం…',
   'linkedFrom.empty': 'ఈ రికార్డుకు ఎటువంటి లింకులు లేవు.',
   'linkedFrom.row': '{field} · {count}',
