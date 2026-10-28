@@ -665,3 +665,37 @@ async fn a_title_sort_orders_by_the_title_each_caller_is_shown() {
         assert_eq!(got, want, "{}", who.name);
     }
 }
+
+/// A media's annotation container labels the media by the title the caller is shown, so a title
+/// drawn from a private value stays with those who may see it.
+#[tokio::test]
+async fn a_media_annotation_container_never_carries_a_hidden_title() {
+    let world = world().await;
+    let title: i64 = sqlx::query_scalar(
+        "SELECT p.id FROM property p JOIN vocabulary v ON v.id = p.vocabulary_id \
+         WHERE v.prefix = 'dcterms' AND p.local_name = 'title'",
+    )
+    .fetch_one(&world.pool)
+    .await
+    .unwrap();
+    let title = PropertyId(u64::try_from(title).unwrap());
+    value(&world.pool, world.media.as_resource(), title, "Mediasecret", None, false).await;
+    value(&world.pool, world.media.as_resource(), title, "Media shown", None, true).await;
+    sqlx::query("UPDATE resource SET title = 'Mediasecret' WHERE id = ?")
+        .bind(i64::try_from(world.media.0).unwrap())
+        .execute(&world.pool)
+        .await
+        .unwrap();
+
+    for who in &world.callers {
+        let path = format!("/annotations/media/{}/", world.media.0);
+        let answer = read(&world.app, &who.uri(&path)).await;
+        assert_eq!(
+            answer.body.contains("Mediasecret"),
+            who.sees_private,
+            "{}: {}",
+            who.name,
+            answer.body
+        );
+    }
+}

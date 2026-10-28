@@ -12,9 +12,10 @@ use omeka_api::annotation::{
     AnnotationError, AnnotationId, Annotations, Created, IdempotencyKey, IfMatch, Iris, Rights,
 };
 use omeka_api::messages;
+use omeka_api::read::query::media_visibility;
 use omeka_api::read::{Api, Params};
 use omeka_db::ids::MediaId;
-use omeka_db::repos::MediaRepo;
+use omeka_db::repos::{MediaRepo, RelationRepo};
 use omeka_db::with_db;
 
 use super::{
@@ -77,7 +78,7 @@ async fn container_get(
         Ok(page) => page,
         Err(error) => return wap_error(error, &iris),
     };
-    let title = media_title(state, media).await;
+    let title = media_title(state, &api, media).await;
     let document = container_document(
         &page,
         &iris,
@@ -375,13 +376,21 @@ pub(super) async fn caller<'a>(
         .map_err(|error| Box::new(super::annotated(crate::error_response(error))))
 }
 
-/// The media row's title, for the container's label. `None` when the row or its
-/// title is gone, which the page cannot show anyway.
-async fn media_title(state: &AppState, media: MediaId) -> Option<String> {
-    with_db!(&state.pool, |db| MediaRepo::new(db).get(media).await)
+/// The media's title as the caller is shown it, for the container's label: a title drawn from a
+/// value they may not see gives way to the first one they may. `None` when the row or its title
+/// is gone, which the page cannot show anyway.
+async fn media_title(state: &AppState, api: &Api<'_>, media: MediaId) -> Option<String> {
+    let row = with_db!(&state.pool, |db| MediaRepo::new(db).get(media).await)
         .ok()
-        .flatten()
-        .and_then(|row| row.resource.title)
+        .flatten()?;
+    let hidden = with_db!(&state.pool, |db| RelationRepo::new(db)
+        .hidden_titles(&[row.resource.id], media_visibility(api.actor()))
+        .await)
+    .ok()?;
+    match hidden.into_iter().next() {
+        Some((_, shown)) => shown,
+        None => row.resource.title,
+    }
 }
 
 pub(super) fn preflight(allow: &'static str) -> Response {
