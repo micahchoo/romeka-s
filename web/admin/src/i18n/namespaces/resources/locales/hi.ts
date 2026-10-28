@@ -216,6 +216,7 @@ export const hi: ResourcesMessages = {
   'browse.sortOldest': 'सबसे पुराना पहले',
   'browse.sortModified': 'हाल ही में बदले गए',
   'browse.sortTitle': 'शीर्षक A से Z',
+  'browse.sortByField': 'फ़ील्ड के अनुसार',
   'browse.view': 'दृश्य',
   'browse.viewTable': 'तालिका',
   'browse.viewGrid': 'ग्रिड',

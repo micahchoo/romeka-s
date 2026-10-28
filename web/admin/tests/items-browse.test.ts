@@ -103,6 +103,20 @@ describe('browseQuery', () => {
     expect(browseQuery(parse('sort=oldest'))).toMatchObject({ sortBy: 'id', sortOrder: 'asc' });
     expect(browseQuery(parse('sort=title'))).toMatchObject({ sortBy: 'title', sortOrder: 'asc' });
   });
+
+  it('a field sort names the term in the URL and sends it as the sort, first to last', () => {
+    const state = parse('set=4&sort=dcterms:identifier');
+    expect(state.sort).toBe('dcterms:identifier');
+    expect(formatBrowse(state).toString()).toBe('set=4&sort=dcterms%3Aidentifier');
+    expect(browseQuery(state)).toMatchObject({ sortBy: 'dcterms:identifier', sortOrder: 'asc' });
+    expect(everyMatchQuery(state)).toMatchObject({ sortBy: 'dcterms:identifier', sortOrder: 'asc' });
+  });
+
+  it('a sort that is neither a column nor a term opens newest first', () => {
+    expect(parse('sort=dcterms:').sort).toBe('newest');
+    expect(parse('sort=no term').sort).toBe('newest');
+    expect(parse('sort=a:b:c').sort).toBe('newest');
+  });
 });
 
 describe('the download queries', () => {

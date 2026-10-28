@@ -217,6 +217,7 @@ export const ml: ResourcesMessages = {
   'browse.sortOldest': 'ഏറ്റവും പഴയത് ആദ്യം',
   'browse.sortModified': 'അടുത്തിടെ മാറിയവ',
   'browse.sortTitle': 'തലക്കെട്ട് A മുതൽ Z വരെ',
+  'browse.sortByField': 'ഫീൽഡ് അനുസരിച്ച്',
   'browse.view': 'കാഴ്ച',
   'browse.viewTable': 'പട്ടിക',
   'browse.viewGrid': 'ഗ്രിഡ്',

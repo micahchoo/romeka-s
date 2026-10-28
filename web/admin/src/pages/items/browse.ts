@@ -44,8 +44,28 @@ export interface FieldFilter {
   readonly presence: Presence;
 }
 
-export type Sort = 'newest' | 'oldest' | 'modified' | 'title';
-export const SORTS: readonly Sort[] = ['newest', 'oldest', 'modified', 'title'];
+/** An order the server keeps by a column of the item. */
+export type ColumnSort = 'newest' | 'oldest' | 'modified' | 'title';
+export const COLUMN_SORTS: readonly ColumnSort[] = ['newest', 'oldest', 'modified', 'title'];
+
+/**
+ * An order by a field's values, in shelf order (`AF_2` before `AF_10`), named by the property's
+ * term so the link reads `sort=dcterms:identifier`.
+ */
+export type FieldSort = `${string}:${string}`;
+
+export type Sort = ColumnSort | FieldSort;
+
+const TERM = /^[A-Za-z][\w.-]*:[A-Za-z_][\w.-]*$/;
+
+export const isFieldSort = (sort: Sort): sort is FieldSort => sort.includes(':');
+
+/** Whether text is a property term, `prefix:localName`. */
+export const isTerm = (text: string): text is FieldSort => TERM.test(text);
+
+/** The sort a URL or a select names: a column sort, a field term, or newest first. */
+export const parseSort = (text: string | null): Sort =>
+  COLUMN_SORTS.find((sort) => sort === text) ?? (text !== null && isTerm(text) ? text : 'newest');
 
 export type View = 'table' | 'grid';
 
@@ -190,7 +210,7 @@ export const parseBrowse = (query: URLSearchParams, fallbackView: View): ItemBro
     site: parseSite(query.get('site')),
     media: parseMedia(query.get('media')),
   },
-  sort: oneOf(SORTS, query.get('sort')) ?? 'newest',
+  sort: parseSort(query.get('sort')),
   view: oneOf<View>(['table', 'grid'], query.get('view')) ?? fallbackView,
   page: positiveInt(query.get('page')) ?? 1,
 });
@@ -226,12 +246,17 @@ export const formatBrowse = (state: ItemBrowse): URLSearchParams => {
   );
 };
 
-const SORT_QUERY: Readonly<Record<Sort, Pick<ResourceQuery, 'sortBy' | 'sortOrder'>>> = {
+type SortQuery = Pick<ResourceQuery, 'sortBy' | 'sortOrder'>;
+
+const COLUMN_QUERY: Readonly<Record<ColumnSort, SortQuery>> = {
   newest: { sortBy: 'id', sortOrder: 'desc' },
   oldest: { sortBy: 'id', sortOrder: 'asc' },
   modified: { sortBy: 'modified', sortOrder: 'desc' },
   title: { sortBy: 'title', sortOrder: 'asc' },
 };
+
+const sortQuery = (sort: Sort): SortQuery =>
+  isFieldSort(sort) ? { sortBy: sort, sortOrder: 'asc' } : COLUMN_QUERY[sort];
 
 const siteQuery = (site: SiteFilter | null): ResourceQuery => {
   if (site === null) {
@@ -263,7 +288,7 @@ export const browseQuery = (state: ItemBrowse): ResourceQuery => ({
 export const everyMatchQuery = (state: ItemBrowse): ResourceQuery => {
   const { filters } = state;
   return {
-    ...SORT_QUERY[state.sort],
+    ...sortQuery(state.sort),
     ...(filters.search === '' ? {} : { search: filters.search }),
     ...(filters.classId === null ? {} : { resourceClassId: filters.classId }),
     ...(filters.itemSetId === null ? {} : { itemSetId: filters.itemSetId }),
@@ -279,7 +304,7 @@ export const everyMatchQuery = (state: ItemBrowse): ResourceQuery => {
 
 /** The ticked items alone, in the list's order. */
 export const tickedListQuery = (state: ItemBrowse, ticked: readonly ItemId[]): ResourceQuery => ({
-  ...SORT_QUERY[state.sort],
+  ...sortQuery(state.sort),
   id: ticked.join(','),
 });
 

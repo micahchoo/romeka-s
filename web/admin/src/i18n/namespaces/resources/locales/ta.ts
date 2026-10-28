@@ -218,6 +218,7 @@ export const ta: ResourcesMessages = {
   'browse.sortOldest': 'பழமையானவை முதலில்',
   'browse.sortModified': 'சமீபத்தில் மாற்றப்பட்டவை',
   'browse.sortTitle': 'தலைப்பு A முதல் Z வரை',
+  'browse.sortByField': 'புலத்தின் அடிப்படையில்',
   'browse.view': 'காட்சி',
   'browse.viewTable': 'அட்டவணை',
   'browse.viewGrid': 'கட்டம்',

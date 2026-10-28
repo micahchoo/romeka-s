@@ -10,11 +10,12 @@ import { useTranslator } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
 import { useTermLabels } from '../../i18n/termText';
-import { isSet, MORE_KEYS, PRESENCES, SORTS } from './browse';
-import type { BrowseFilters, ItemBrowse, MediaFilter, Presence, SiteFilter, Sort, View } from './browse';
+import { COLUMN_SORTS, isSet, MORE_KEYS, parseSort, PRESENCES } from './browse';
+import type { BrowseFilters, ColumnSort, ItemBrowse, MediaFilter, Presence, SiteFilter, Sort, View } from './browse';
 import { fieldChoices } from './browse-options';
 import type { BrowseOptions } from './browse-options';
 import type { OnFilter } from './filter-value';
+import { sortFields } from './sort-fields';
 
 export interface FilterBarProps {
   readonly state: ItemBrowse;
@@ -27,6 +28,8 @@ export interface FilterBarProps {
   readonly onFilter: OnFilter;
   readonly onSort: (sort: Sort) => void;
   readonly onView: (view: View) => void;
+  /** Whether the set the list is filtered to has items with an identifier: the sort list then offers it first. */
+  readonly setHasIdentifier: boolean;
 }
 
 interface Choice {
@@ -90,7 +93,7 @@ const SORT_LABEL = {
   oldest: 'browse.sortOldest',
   modified: 'browse.sortModified',
   title: 'browse.sortTitle',
-} as const satisfies Readonly<Record<Sort, string>>;
+} as const satisfies Readonly<Record<ColumnSort, string>>;
 
 /** "More filters" opens itself when one of its filters becomes set, and stays as the reader left it otherwise. */
 const useMoreOpen = (filters: BrowseFilters): readonly [boolean, (open: boolean) => void] => {
@@ -221,9 +224,38 @@ const mediaFilterOf = (value: string): MediaFilter | null => {
   return entry === undefined ? null : { kind: 'of', of: entry.kind };
 };
 
-const SortAndView = ({ state, onSort, onView }: Pick<FilterBarProps, 'state' | 'onSort' | 'onView'>): ReactElement => {
+const SortAndView = ({
+  state,
+  options,
+  setHasIdentifier,
+  onSort,
+  onView,
+}: Pick<FilterBarProps, 'state' | 'options' | 'setHasIdentifier' | 'onSort' | 'onView'>): ReactElement => {
   const { t } = useTranslator(resources);
+  const text = useTermLabels();
   const sortId = useId();
+  const fields = sortFields(
+    options,
+    { template: state.filters.templateId, chosen: state.sort, setHasIdentifier },
+    text,
+  );
+  const columns = COLUMN_SORTS.map((sort) => (
+    <option key={sort} value={sort}>
+      {t(SORT_LABEL[sort])}
+    </option>
+  ));
+  const byField =
+    fields.length === 0 ? null : (
+      <optgroup label={t('browse.sortByField')}>
+        {fields.map((field) => (
+          <option key={field.term} value={field.term}>
+            {field.name}
+          </option>
+        ))}
+      </optgroup>
+    );
+  /** In a set whose items have identifiers, shelf order is the first thing offered. */
+  const fieldsFirst = state.filters.itemSetId !== null && setHasIdentifier;
   return (
     <span className="items-sort-view">
       <span className="filter-field">
@@ -232,14 +264,12 @@ const SortAndView = ({ state, onSort, onView }: Pick<FilterBarProps, 'state' | '
           id={sortId}
           value={state.sort}
           onChange={(event) => {
-            onSort(SORTS.find((sort) => sort === event.target.value) ?? 'newest');
+            onSort(parseSort(event.target.value));
           }}
         >
-          {SORTS.map((sort) => (
-            <option key={sort} value={sort}>
-              {t(SORT_LABEL[sort])}
-            </option>
-          ))}
+          {fieldsFirst ? byField : null}
+          {columns}
+          {fieldsFirst ? null : byField}
         </select>
       </span>
       <span role="group" aria-label={t('browse.view')} className="view-toggle">
@@ -338,7 +368,13 @@ export const FilterBar = (props: FilterBarProps): ReactElement => {
       <div id={moreId} className="items-more-filters" hidden={!moreOpen}>
         <MoreFilters filters={filters} options={options} onFilter={onFilter} />
       </div>
-      <SortAndView state={state} onSort={props.onSort} onView={props.onView} />
+      <SortAndView
+        state={state}
+        options={options}
+        setHasIdentifier={props.setHasIdentifier}
+        onSort={props.onSort}
+        onView={props.onView}
+      />
     </div>
   );
 };

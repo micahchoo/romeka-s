@@ -217,6 +217,7 @@ export const kn: ResourcesMessages = {
   'browse.sortOldest': 'ಹಳೆಯದು ಮೊದಲು',
   'browse.sortModified': 'ಇತ್ತೀಚೆಗೆ ಬದಲಾದವು',
   'browse.sortTitle': 'ಶೀರ್ಷಿಕೆ A ಇಂದ Z ವರೆಗೆ',
+  'browse.sortByField': 'ಕ್ಷೇತ್ರದ ಮೂಲಕ',
   'browse.view': 'ನೋಟ',
   'browse.viewTable': 'ಕೋಷ್ಟಕ',
   'browse.viewGrid': 'ಗ್ರಿಡ್',

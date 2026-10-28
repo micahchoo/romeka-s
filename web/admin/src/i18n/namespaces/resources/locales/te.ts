@@ -216,6 +216,7 @@ export const te: ResourcesMessages = {
   'browse.sortOldest': 'పాతవి మొదట',
   'browse.sortModified': 'ఇటీవల మార్చబడినవి',
   'browse.sortTitle': 'శీర్షిక A నుండి Z వరకు',
+  'browse.sortByField': 'క్షేత్రం ప్రకారం',
   'browse.view': 'వీక్షణ',
   'browse.viewTable': 'పట్టిక',
   'browse.viewGrid': 'గ్రిడ్',

@@ -29,6 +29,7 @@ import { ItemsGrid } from './ItemsGrid';
 import { ItemsTable } from './ItemsTable';
 import { LinksCard, useLinksPlace } from './links-card';
 import { SetCard, SetEmpty, useSetPlace } from './set-card';
+import { IDENTIFIER, propertyOf, useSetHasIdentifier } from './sort-fields';
 import type { ItemsViewProps } from './ItemsTable';
 import { forgetTrashed, peekTrashed } from './trashed';
 import { itemPageHref } from './walk';
@@ -216,6 +217,7 @@ export const ItemsList = (): ReactElement => {
   const filtered = active.length > 0;
   const setId = state.filters.itemSetId;
   const place = useSetPlace(setId, revision);
+  const setHasIdentifier = useSetHasIdentifier(setId, propertyOf(options, IDENTIFIER), revision);
   const links = state.filters.links;
   const linksPlace = useLinksPlace(links, revision);
   /** Filters besides the set narrow the set's items. */
@@ -286,6 +288,7 @@ export const ItemsList = (): ReactElement => {
           rememberView(view);
           apply({ ...state, view });
         }}
+        setHasIdentifier={setHasIdentifier}
       />
       {/* A refused list says it once; a refused option list alone still leaves the rows. */}
       {optionsState.status === 'error' && itemsState.status !== 'error' ? (

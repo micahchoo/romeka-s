@@ -215,6 +215,7 @@ export const es: ResourcesMessages = {
   'browse.sortOldest': 'Más antiguos primero',
   'browse.sortModified': 'Cambiados recientemente',
   'browse.sortTitle': 'Título de la A a la Z',
+  'browse.sortByField': 'Por campo',
   'browse.view': 'Vista',
   'browse.viewTable': 'Tabla',
   'browse.viewGrid': 'Cuadrícula',

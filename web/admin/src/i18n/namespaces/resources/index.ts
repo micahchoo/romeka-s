@@ -222,6 +222,7 @@ export const en = {
   'browse.sortOldest': 'Oldest first',
   'browse.sortModified': 'Recently changed',
   'browse.sortTitle': 'Title A to Z',
+  'browse.sortByField': 'By field',
   'browse.view': 'View',
   'browse.viewTable': 'Table',
   'browse.viewGrid': 'Grid',

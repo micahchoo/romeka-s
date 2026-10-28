@@ -216,6 +216,7 @@ export const ne: ResourcesMessages = {
   'browse.sortOldest': 'पुरानो पहिले',
   'browse.sortModified': 'भर्खरै परिवर्तन गरिएको',
   'browse.sortTitle': 'शीर्षक A देखि Z सम्म',
+  'browse.sortByField': 'क्षेत्र अनुसार',
   'browse.view': 'दृश्य',
   'browse.viewTable': 'तालिका',
   'browse.viewGrid': 'ग्रिड',
