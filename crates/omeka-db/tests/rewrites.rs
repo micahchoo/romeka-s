@@ -15,6 +15,11 @@ use omeka_db::rows::{
 use serde_json::json;
 use sqlx::SqlitePool;
 
+const EDIT: omeka_db::rows::HistoryStamp = omeka_db::rows::HistoryStamp {
+    user: None,
+    source: omeka_db::rows::HistorySource::Edit,
+};
+
 async fn subject(pool: &SqlitePool) -> PropertyId {
     let vocabulary = VocabularyRepo::new(pool)
         .create(&NewVocabulary {
@@ -75,23 +80,26 @@ async fn a_failing_promotion_leaves_no_list_and_no_retyped_value() {
     assert_eq!(values.len(), 1);
 
     let failed = repo
-        .promote(&PromoteWrite {
-            list: PromoteList::Create(NewCustomVocab {
-                item_set_id: None,
-                owner_id: None,
-                label: "Topics".to_string(),
-                lang: None,
-                terms: Some(json!(["emigration"])),
-                uris: None,
-            }),
-            values: vec![values[0].id],
-            from_type: "literal".to_string(),
-            property,
-            templates: vec![TemplateId(999)],
-            unrestricted: vec!["literal".to_string()],
-            resources: vec![item],
-            terms_read: None,
-        })
+        .promote(
+            &PromoteWrite {
+                list: PromoteList::Create(NewCustomVocab {
+                    item_set_id: None,
+                    owner_id: None,
+                    label: "Topics".to_string(),
+                    lang: None,
+                    terms: Some(json!(["emigration"])),
+                    uris: None,
+                }),
+                values: vec![values[0].id],
+                from_type: "literal".to_string(),
+                property,
+                templates: vec![TemplateId(999)],
+                unrestricted: vec!["literal".to_string()],
+                resources: vec![item],
+                terms_read: None,
+            },
+            &EDIT,
+        )
         .await;
 
     assert!(failed.is_err());
@@ -110,17 +118,20 @@ async fn a_merge_rewrites_only_values_of_the_type_it_names() {
     let repo = ValueRewriteRepo::new(&pool);
     let value = repo.text_values("literal", None).await.unwrap()[0].id;
 
-    repo.merge(&MergeWrite {
-        rewrite: vec![value],
-        to: "Cork".to_string(),
-        of_type: "customvocab:1".to_string(),
-        delete: vec![value],
-        list_terms: None,
-        list_states: None,
-        resources: vec![item],
-        default_title_property: None,
-        terms_read: None,
-    })
+    repo.merge(
+        &MergeWrite {
+            rewrite: vec![value],
+            to: "Cork".to_string(),
+            of_type: "customvocab:1".to_string(),
+            delete: vec![value],
+            list_terms: None,
+            list_states: None,
+            resources: vec![item],
+            default_title_property: None,
+            terms_read: None,
+        },
+        &EDIT,
+    )
     .await
     .unwrap();
 
@@ -161,7 +172,7 @@ async fn a_promotion_planned_from_stale_words_is_refused_whole() {
         terms_read: Some(Some(read)),
     };
 
-    let stale = repo.promote(&write(json!([]))).await;
+    let stale = repo.promote(&write(json!([])), &EDIT).await;
     assert!(
         stale.as_ref().is_err_and(|error| error.is_conflict()),
         "{stale:?}"
@@ -171,7 +182,9 @@ async fn a_promotion_planned_from_stale_words_is_refused_whole() {
     let stored = ValueRepo::new(&pool).list_for_resource(item).await.unwrap();
     assert_eq!(stored[0].r#type, "literal");
 
-    repo.promote(&write(json!(["famine"]))).await.unwrap();
+    repo.promote(&write(json!(["famine"])), &EDIT)
+        .await
+        .unwrap();
     let promoted = lists.get(list.id).await.unwrap().unwrap();
     assert_eq!(promoted.terms, Some(json!(["emigration", "famine"])));
 }

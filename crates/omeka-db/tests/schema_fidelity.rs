@@ -364,6 +364,19 @@ const ROMEKA_TABLES: &[(&str, &[&str])] = &[
         &["id", "page_id", "version", "created", "user_id", "snapshot"],
     ),
     (
+        "romeka_item_history",
+        &[
+            "id",
+            "item_id",
+            "created",
+            "user_id",
+            "source",
+            "bulk_id",
+            "import_id",
+            "changes",
+        ],
+    ),
+    (
         "romeka_media_annotation",
         &[
             "id",

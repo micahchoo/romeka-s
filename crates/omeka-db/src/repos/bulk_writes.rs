@@ -25,8 +25,8 @@ use crate::DbError;
 use crate::backend::Backend;
 use crate::ids::{BulkId, ItemId};
 use crate::rows::{
-    Applied, BeforeImage, Described, FailReason, ImportAction, ImportFields, ImportResource,
-    ItemSlots, Restore, Reverted, Slot, TargetState, ValueWrites, Verdict,
+    Applied, BeforeImage, Described, FailReason, HistoryStamp, ImportAction, ImportFields,
+    ImportResource, ItemSlots, Restore, Reverted, Slot, TargetState, ValueWrites, Verdict,
 };
 use crate::time;
 
@@ -50,6 +50,7 @@ where
         &self,
         id: BulkId,
         item: ItemId,
+        stamp: &HistoryStamp,
         decide: impl FnOnce(&BeforeImage) -> Verdict,
     ) -> Result<Applied, DbError> {
         let mut tx = self.pool.begin_with(DB::begin_write()).await?;
@@ -79,6 +80,7 @@ where
                 writes
                     .apply_item(item, ImportAction::Update, &fields, &slots)
                     .await?;
+                writes.record_history(item, Some(&image), stamp).await?;
                 let written = writes.modified_of(target).await?.flatten();
                 settle(
                     &mut tx,
@@ -103,6 +105,7 @@ where
         id: BulkId,
         item: ItemId,
         force: bool,
+        stamp: &HistoryStamp,
         decide: impl FnOnce(&BeforeImage, BeforeImage) -> Restore,
     ) -> Result<Reverted, DbError> {
         let mut tx = self.pool.begin_with(DB::begin_write()).await?;
@@ -136,6 +139,7 @@ where
                 Some(now) => match decide(&now, image) {
                     Restore::Image(restore) => {
                         writes.restore(target, &restore).await?;
+                        writes.record_history(item, Some(&now), stamp).await?;
                         Reverted::Restored
                     }
                     Restore::Keep => Reverted::Kept,

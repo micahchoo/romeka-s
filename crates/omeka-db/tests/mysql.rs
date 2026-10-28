@@ -32,6 +32,11 @@ use omeka_db::rows::{
 use serde_json::json;
 use sqlx::MySql;
 
+const EDIT: omeka_db::rows::HistoryStamp = omeka_db::rows::HistoryStamp {
+    user: None,
+    source: omeka_db::rows::HistorySource::Edit,
+};
+
 /// A vocabulary with one property, ready for a value.
 async fn title_property(pool: &sqlx::MySqlPool) -> PropertyId {
     let vocabulary = VocabularyRepo::<MySql>::new(pool)
@@ -508,6 +513,7 @@ async fn a_whole_item_create_and_a_value_rewrite_commit_or_roll_back_as_one() {
             item.resource.id,
             &[old[0].id],
             &[ValueContent::literal(no_such_property, "new")],
+            &EDIT,
         )
         .await;
     assert!(refused.is_err());
@@ -518,6 +524,7 @@ async fn a_whole_item_create_and_a_value_rewrite_commit_or_roll_back_as_one() {
             item.resource.id,
             &[old[0].id],
             &[ValueContent::literal(property, "new")],
+            &EDIT,
         )
         .await
         .expect("rewrite");

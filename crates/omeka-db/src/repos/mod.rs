@@ -35,6 +35,8 @@ mod import_state;
 mod import_touched;
 mod import_writes;
 mod imports;
+mod item_history;
+mod item_saves;
 mod item_sites;
 mod jobs;
 mod media;
@@ -81,6 +83,8 @@ pub use import_lifecycle::{
 pub use import_touched::{ImportTouchRepo, Pointer, Presence, PropertyUsers};
 pub use import_writes::ImportWrites;
 pub use imports::{ImportRepo, PlanSave};
+pub use item_history::ItemHistoryRepo;
+pub use item_saves::{ItemSave, ItemWrite, Membership};
 pub use item_sites::ItemSiteRepo;
 pub use jobs::{JobFilter, JobRepo};
 pub use media::{MediaFileOwner, MediaFilter, MediaRepo};

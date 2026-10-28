@@ -50,6 +50,7 @@ mod fixity;
 mod http;
 mod iiif;
 mod imports;
+mod item_history;
 mod items_csv;
 pub mod jobs;
 mod limits;
@@ -226,6 +227,7 @@ fn build_app(pool: DbPool, services: Services, config: &Config) -> Router {
         .merge(site_items::router())
         .merge(bulk::router())
         .merge(place_counts::router())
+        .merge(item_history::router())
         .merge(items_csv::router())
         .merge(page_versions::router())
         .merge(imports::router())

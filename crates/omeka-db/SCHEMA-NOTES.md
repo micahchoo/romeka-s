@@ -291,3 +291,21 @@ that named them, and the values of other resources that linked to them), and its
 again, then deletes the files and clears each `image`, so a purge cut short goes on where it
 stopped. Ids are not reused: `resource.id` and `value.id` are `AUTOINCREMENT`, so an undo inserts
 the rows with their old ids.
+
+`0014_item_history.sql` adds `romeka_item_history`, one row per write that changed an item's
+values, visibility, class, item type, sets or sites. Upstream keeps no such record.
+
+- `changes` is JSON: one entry per changed field with its state before and after
+  (`FieldChange`). A value keeps its columns and its annotation's values, not its id, so an entry
+  reads the same after a restore writes the values again.
+- `source` is `edit`, `bulk` (`bulk_id`), `import` (`import_id`) or `restore` (an undo of the run
+  `bulk_id` or the import `import_id` names). SQLite holds the pairing in a `CHECK`; MySQL leaves
+  it to `HistorySource`, which parses the row. Neither run column has a foreign key, so an entry
+  names its run after the run's row goes.
+- `item_id` has no foreign key: a bulk delete takes the item row, and its undo puts it back with
+  the same id and must find the history still there. `ItemRepo::delete` and the trash purge
+  (`BulkRepo::clear_trash`) remove an item's rows when the item is gone for good.
+- The row commits in the write's own transaction (`ImportWrites::record_history`), after the
+  write, from the item's image read before it. A write that changes no field records nothing. A
+  run's later pass over an item whose newest entry is that run's, by the same person, folds into
+  that entry, so one import or bulk run makes one entry per item.

@@ -17,8 +17,8 @@ use omeka_db::repos::{
     BeforeImageRepo, ImportResourceRepo, ImportWrites, MediaFilter, MediaRepo, Paging,
 };
 use omeka_db::rows::{
-    ImportChange, ImportResource, ImportTarget, NewImportItem, NewImportItemSet, NewImportMedia,
-    NewImportResource,
+    BeforeImage, HistorySource, HistoryStamp, ImageMemberships, ImportChange, ImportResource,
+    ImportTarget, NewImportItem, NewImportItemSet, NewImportMedia, NewImportResource,
 };
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Transaction, Type};
 
@@ -239,15 +239,23 @@ where
             (Some(ImportTarget::Item(item)), Fate::Create) => (item, 0),
             (_, Fate::Act(raw)) if !self.written.holds(&record.origin.key()) => {
                 let item: ItemId = id(raw).ok_or(UnitError::Gone)?;
-                let held = self.before(tx, ImportResource::Item(item)).await?;
+                let image = self.before(tx, ImportResource::Item(item)).await?;
+                let held = match &image.memberships {
+                    ImageMemberships::Item { media_order, .. } => media_order.len() as i64,
+                    _ => 0,
+                };
                 let fields = named.changed(record, RecordKind::Item);
                 let slots = named.item_slots(record);
-                if !ImportWrites::<DB>::new(tx)
+                let mut writes = ImportWrites::<DB>::new(tx);
+                if !writes
                     .apply_item(item, self.action, &fields, &slots)
                     .await?
                 {
                     return Err(UnitError::Gone);
                 }
+                writes
+                    .record_history(item, Some(&image), &self.stamp())
+                    .await?;
                 self.ledger(tx, record, ImportTarget::Item(item)).await?;
                 wrote.push((record.id, record.origin.key(), ImportTarget::Item(item)));
                 (item, held)
@@ -262,7 +270,9 @@ where
                     item_sets: named.sets(record),
                     sites: Named::sites(record),
                 };
-                let item = ImportWrites::<DB>::new(tx).create_item(&new).await?;
+                let mut writes = ImportWrites::<DB>::new(tx);
+                let item = writes.create_item(&new).await?;
+                writes.record_history(item, None, &self.stamp()).await?;
                 self.ledger(tx, record, ImportTarget::Item(item)).await?;
                 wrote.push((record.id, record.origin.key(), ImportTarget::Item(item)));
                 (item, 0)
@@ -399,24 +409,27 @@ where
         Ok(all.len() as i64)
     }
 
-    /// Store the before-image of a resource the record changes, and answer
-    /// how many media an item has, which new media follow.
+    /// Store the before-image of a resource the record changes, and answer it.
     async fn before(
         &self,
         tx: &mut Transaction<'static, DB>,
         target: ImportResource,
-    ) -> Result<i64, UnitError> {
+    ) -> Result<BeforeImage, UnitError> {
         let image = ImportWrites::<DB>::new(tx)
             .before_image(target)
             .await?
             .ok_or(UnitError::Gone)?;
-        let count = match &image.memberships {
-            omeka_db::rows::ImageMemberships::Item { media_order, .. } => media_order.len() as i64,
-            _ => 0,
-        };
         BeforeImageRepo::<DB>::put(&mut **tx, self.import, target.target(), &image.to_json())
             .await?;
-        Ok(count)
+        Ok(image)
+    }
+
+    /// Who and what an item's history entry names for this run.
+    pub(super) fn stamp(&self) -> HistoryStamp {
+        HistoryStamp {
+            user: self.runner.user,
+            source: HistorySource::Import(self.import),
+        }
     }
 
     async fn ledger(

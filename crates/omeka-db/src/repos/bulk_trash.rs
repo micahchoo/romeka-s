@@ -23,12 +23,12 @@ use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Transaction, Ty
 
 use super::bulk_writes::{fail, lock_target, set_state};
 use super::trash_rows::{TrashRows, by_table, named, null_missing};
-use super::{BulkRepo, bind_id, json_text};
+use super::{BulkRepo, ImportWrites, bind_id, json_text};
 use crate::DbError;
 use crate::backend::Backend;
 use crate::ids::{BulkId, ItemId, SiteId};
 use crate::rows::trash::{TABLES, VALUE, int};
-use crate::rows::{FailReason, TargetState, TrashImage, TrashRow};
+use crate::rows::{FailReason, HistoryStamp, TargetState, TrashImage, TrashRow};
 use crate::time;
 
 /// What one target's turn in a delete did.
@@ -134,12 +134,14 @@ where
     }
 
     /// Put one done or kept target of a delete back in place. `sites` are the sites its item may
-    /// be put back in: those the caller may assign items to.
+    /// be put back in: those the caller may assign items to. The item's history gains one entry
+    /// under `stamp`, from nothing to the item as it came back.
     pub async fn untrash_target(
         &self,
         id: BulkId,
         item: ItemId,
         sites: &BTreeSet<SiteId>,
+        stamp: &HistoryStamp,
     ) -> Result<Untrashed, DbError> {
         let mut tx = self.pool.begin_with(DB::begin_write()).await?;
         if !matches!(
@@ -168,6 +170,9 @@ where
         }
         put_back(&mut rows, &image, sites).await?;
         let links_left = relink(&mut rows, &image).await?;
+        ImportWrites::<DB>::new(&mut tx)
+            .record_history(item, None, stamp)
+            .await?;
         set_state(&mut tx, id, item, TargetState::Restored).await?;
         if !links_left.is_empty() {
             sqlx::query(
@@ -253,13 +258,24 @@ where
             .collect()
     }
 
-    /// Drop a purged target's snapshot, once its files are gone.
+    /// Drop a purged target's snapshot, once its files are gone, and the history of its item,
+    /// which can no longer come back.
     pub async fn clear_trash(&self, id: BulkId, item: ItemId) -> Result<(), DbError> {
+        let mut tx = self.pool.begin().await?;
         sqlx::query("UPDATE romeka_bulk_target SET image = NULL WHERE bulk_id = ? AND item_id = ?")
             .bind(bind_id(id))
             .bind(bind_id(item))
-            .execute(self.pool)
+            .execute(&mut *tx)
             .await?;
+        sqlx::query(
+            "DELETE FROM romeka_item_history
+             WHERE item_id = ? AND NOT EXISTS (SELECT 1 FROM item WHERE id = ?)",
+        )
+        .bind(bind_id(item))
+        .bind(bind_id(item))
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
         Ok(())
     }
 

@@ -15,7 +15,9 @@ use omeka_db::Backend;
 use omeka_db::DbError;
 use omeka_db::ids::ResourceId;
 use omeka_db::repos::{ImportResourceRepo, ImportWrites};
-use omeka_db::rows::{ImportAction, ImportFields, ImportTarget, ItemSlots, Slot, ValueContent};
+use omeka_db::rows::{
+    ImportAction, ImportFields, ImportResource, ImportTarget, ItemSlots, Slot, ValueContent,
+};
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Type};
 
 use super::fields::{content, record_link_type, values as values_of};
@@ -121,6 +123,10 @@ where
     ) -> Result<(), DbError> {
         let mut tx = self.pool.begin_with(DB::begin_write()).await?;
         let mut writes = ImportWrites::<DB>::new(&mut tx);
+        let before = match target {
+            ImportTarget::Item(id) => writes.before_image(ImportResource::Item(id)).await?,
+            _ => None,
+        };
         let passes = [
             (ImportAction::Revise, replace),
             (ImportAction::Append, append),
@@ -149,6 +155,11 @@ where
                 }
                 ImportTarget::ResourceTemplate(_) | ImportTarget::Property(_) => return Ok(()),
             }
+        }
+        if let (ImportTarget::Item(id), Some(before)) = (target, &before) {
+            writes
+                .record_history(id, Some(before), &self.stamp())
+                .await?;
         }
         ImportResourceRepo::<DB>::touch(&mut *tx, self.import, target).await?;
         tx.commit().await?;

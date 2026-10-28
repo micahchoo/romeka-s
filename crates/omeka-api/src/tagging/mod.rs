@@ -324,17 +324,20 @@ async fn merge_once(api: &Api<'_>, scope: Scope, bytes: &[u8]) -> Result<ApiResp
     }
     let resources: Vec<ResourceId> = plan.changed.iter().copied().collect();
     with_db!(api.pool(), |db| ValueRewriteRepo::new(db)
-        .merge(&MergeWrite {
-            rewrite: plan.rewrite,
-            to,
-            of_type: scope.of_type(),
-            delete: plan.delete,
-            list_terms,
-            list_states,
-            resources: resources.clone(),
-            default_title_property: api.catalog().property_id("dcterms:title"),
-            terms_read,
-        })
+        .merge(
+            &MergeWrite {
+                rewrite: plan.rewrite,
+                to,
+                of_type: scope.of_type(),
+                delete: plan.delete,
+                list_terms,
+                list_states,
+                resources: resources.clone(),
+                default_title_property: api.catalog().property_id("dcterms:title"),
+                terms_read,
+            },
+            &crate::write::items::edit_stamp(api)
+        )
         .await)
     .map_err(|error| {
         if error.is_conflict() {

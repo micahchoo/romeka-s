@@ -134,12 +134,9 @@ pub async fn apply(
     .collect();
     let plan = plan(command.action, &current, &selected);
     if mode == Mode::Write {
+        let stamp = crate::write::items::edit_stamp(api);
         with_db!(api.pool(), |db| ItemSiteRepo::new(db)
-            .detach(site, &plan.detach)
-            .await)
-        .map_err(db_error)?;
-        with_db!(api.pool(), |db| ItemSiteRepo::new(db)
-            .attach(site, &plan.attach)
+            .change(site, &plan.attach, &plan.detach, &stamp)
             .await)
         .map_err(db_error)?;
         // A site joined or left is a change to the item: import undo keeps

@@ -20,8 +20,8 @@ use async_trait::async_trait;
 use serde::Deserialize;
 
 use omeka_db::ids::{PropertyId, ResourceId, ValueId};
-use omeka_db::repos::{ItemRepo, ItemSetRepo, MediaRepo, Paging, ResourceRepo, ValueRepo};
-use omeka_db::rows::{ValueContent, ValueRow};
+use omeka_db::repos::{ItemRepo, ItemSetRepo, JobRepo, MediaRepo, Paging, ResourceRepo, ValueRepo};
+use omeka_db::rows::{HistorySource, HistoryStamp, ValueContent, ValueRow};
 use omeka_db::with_db;
 
 use super::query::{chunk_size, query_arg};
@@ -139,13 +139,21 @@ impl Job for BatchUpdate {
             }
         };
 
+        // An item's history names the person who started the job, as an edit.
+        let stamp = HistoryStamp {
+            user: with_db!(context.pool, |db| JobRepo::new(db)
+                .get(context.job_id)
+                .await)?
+            .and_then(|job| job.owner_id),
+            source: HistorySource::Edit,
+        };
         let chunk = chunk_size(context).await?;
         for ids in ids.chunks(chunk) {
             if context.should_stop().await? {
                 return Ok(());
             }
             for id in ids {
-                if let Err(error) = update_one(context, *id, &edit).await {
+                if let Err(error) = update_one(context, *id, &edit, &stamp).await {
                     context.log(&format!("resource {}: {error}", id.0)).await?;
                 }
             }
@@ -215,6 +223,7 @@ async fn update_one(
     context: &JobContext<'_>,
     resource: ResourceId,
     edit: &Edit,
+    stamp: &HistoryStamp,
 ) -> Result<(), JobError> {
     let plan = edit.plan(&with_db!(context.pool, |db| ValueRepo::new(db)
         .list_for_resource(resource)
@@ -223,7 +232,7 @@ async fn update_one(
         return Ok(());
     }
     with_db!(context.pool, |db| ValueRepo::new(db)
-        .rewrite(resource, &plan.delete, &plan.insert)
+        .rewrite(resource, &plan.delete, &plan.insert, stamp)
         .await)?;
     // Upstream's batch update runs the adapter's `updateTimestamps`.
     with_db!(context.pool, |db| ResourceRepo::new(db)

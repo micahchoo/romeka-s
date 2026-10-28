@@ -320,7 +320,10 @@ where
         Ok(row)
     }
 
-    async fn insert_item(conn: &mut DB::Connection, new: &NewItem) -> Result<ItemRow, DbError> {
+    pub(crate) async fn insert_item(
+        conn: &mut DB::Connection,
+        new: &NewItem,
+    ) -> Result<ItemRow, DbError> {
         let resource = insert_resource(conn, &new.resource, resource_type::ITEM).await?;
         sqlx::query("INSERT INTO item (id, primary_media_id) VALUES (?, ?)")
             .bind(bind_id(resource.id))
@@ -356,9 +359,10 @@ where
         Ok(true)
     }
 
-    /// Delete an item, its values and every row that cascades from it.
+    /// Delete an item, its values, its history and every row that cascades from it.
     pub async fn delete(&self, id: ItemId) -> Result<bool, DbError> {
         let mut tx = self.pool.begin().await?;
+        super::item_history::forget_item::<DB>(&mut tx, id).await?;
         sqlx::query("DELETE FROM value WHERE resource_id = ?")
             .bind(bind_id(id))
             .execute(&mut *tx)

@@ -134,19 +134,22 @@ async fn promote_once(api: &Api<'_>, body: &Body) -> Result<Planned, ApiError> {
         return Ok(Planned::Done(ApiResponse::document(serialize(&answer)?)));
     }
     let written = with_db!(api.pool(), |db| ValueRewriteRepo::new(db)
-        .promote(&PromoteWrite {
-            list: target,
-            values,
-            from_type: super::TAG_TYPE.to_string(),
-            property,
-            templates: templates.iter().map(|(id, _)| *id).collect(),
-            unrestricted: UNRESTRICTED
-                .iter()
-                .map(|name| (*name).to_string())
-                .collect(),
-            resources: changed.into_iter().collect(),
-            terms_read,
-        })
+        .promote(
+            &PromoteWrite {
+                list: target,
+                values,
+                from_type: super::TAG_TYPE.to_string(),
+                property,
+                templates: templates.iter().map(|(id, _)| *id).collect(),
+                unrestricted: UNRESTRICTED
+                    .iter()
+                    .map(|name| (*name).to_string())
+                    .collect(),
+                resources: changed.into_iter().collect(),
+                terms_read,
+            },
+            &crate::write::items::edit_stamp(api)
+        )
         .await);
     let id = match written {
         Ok(id) => id,

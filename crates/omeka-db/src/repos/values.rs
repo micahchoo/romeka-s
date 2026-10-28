@@ -9,9 +9,12 @@ use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Sqlite, T
 use super::{Paging, Statement, bind_id, bind_opt_id, fetch_rows, insert_id, push_paging};
 use crate::DbError;
 use crate::backend::Backend;
-use crate::ids::{AnnotationId, PropertyId, ResourceId, ValueId};
-use crate::rows::{NewValue, ValueContent, ValueRow, ValueTree, resource_type};
+use crate::ids::{AnnotationId, ItemId, PropertyId, ResourceId, ValueId};
+use crate::rows::{
+    HistoryStamp, ImportResource, NewValue, ValueContent, ValueRow, ValueTree, resource_type,
+};
 
+use super::import_writes::ImportWrites;
 use super::resources::insert_resource;
 
 /// One value text a property sort reads ([`ValueRepo::sort_values`]).
@@ -65,14 +68,20 @@ where
 
     /// Delete some of a resource's values and insert new ones, all in one transaction: a failed
     /// insert keeps the values it would have replaced. An id that is not a value of this
-    /// resource deletes nothing.
+    /// resource deletes nothing. When the resource is an item, the same transaction records its
+    /// history entry under `stamp`.
     pub async fn rewrite(
         &self,
         resource_id: ResourceId,
         delete: &[ValueId],
         insert: &[ValueContent],
+        stamp: &HistoryStamp,
     ) -> Result<(), DbError> {
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.pool.begin_with(DB::begin_write()).await?;
+        let item = ItemId::from(u64::from(resource_id));
+        let before = ImportWrites::<DB>::new(&mut tx)
+            .before_image(ImportResource::Item(item))
+            .await?;
         for id in delete {
             sqlx::query("DELETE FROM value WHERE id = ? AND resource_id = ?")
                 .bind(bind_id(*id))
@@ -82,6 +91,11 @@ where
         }
         for content in insert {
             insert_value(&mut tx, &content.on(resource_id)).await?;
+        }
+        if let Some(before) = before {
+            ImportWrites::<DB>::new(&mut tx)
+                .record_history(item, Some(&before), stamp)
+                .await?;
         }
         tx.commit().await?;
         Ok(())
@@ -103,29 +117,7 @@ where
             .bind(bind_id(resource_id))
             .fetch_optional(&mut *tx)
             .await?;
-        clear_values::<DB>(&mut tx, resource_id).await?;
-        let mut pending: Vec<(ResourceId, &[ValueTree])> = vec![(resource_id, values)];
-        while let Some((owner, trees)) = pending.pop() {
-            for tree in trees {
-                let mut new = tree.content.on(owner);
-                new.value_annotation_id = None;
-                if let Some(annotation) = &tree.annotation {
-                    let made = insert_resource(
-                        &mut tx,
-                        &annotation.resource,
-                        resource_type::VALUE_ANNOTATION,
-                    )
-                    .await?;
-                    sqlx::query("INSERT INTO value_annotation (id) VALUES (?)")
-                        .bind(bind_id(made.id))
-                        .execute(&mut *tx)
-                        .await?;
-                    new.value_annotation_id = Some(AnnotationId::from(u64::from(made.id)));
-                    pending.push((made.id, &annotation.values));
-                }
-                insert_value(&mut tx, &new).await?;
-            }
-        }
+        replace_values::<DB>(&mut tx, resource_id, values).await?;
         tx.commit().await?;
         Ok(())
     }
@@ -334,6 +326,53 @@ where
             .bind(bind_id(annotation))
             .execute(&mut *conn)
             .await?;
+    }
+    Ok(())
+}
+
+/// Replace every value on a resource with `values` on the caller's connection: the old values go
+/// with their annotation resources at any depth, and each new annotation is created.
+pub(crate) async fn replace_values<DB: Backend>(
+    conn: &mut DB::Connection,
+    resource_id: ResourceId,
+    values: &[ValueTree],
+) -> Result<(), DbError>
+where
+    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
+    for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
+    usize: ColumnIndex<DB::Row>,
+    for<'x> i64: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> Option<i64>: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> bool: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> String: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> Option<String>: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> Vec<u8>: Decode<'x, DB> + Type<DB>,
+    for<'x> Option<Vec<u8>>: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> &'x str: Encode<'x, DB> + Type<DB> + ColumnIndex<DB::Row>,
+    for<'x> f64: Decode<'x, DB> + Type<DB>,
+{
+    clear_values::<DB>(&mut *conn, resource_id).await?;
+    let mut pending: Vec<(ResourceId, &[ValueTree])> = vec![(resource_id, values)];
+    while let Some((owner, trees)) = pending.pop() {
+        for tree in trees {
+            let mut new = tree.content.on(owner);
+            new.value_annotation_id = None;
+            if let Some(annotation) = &tree.annotation {
+                let made = insert_resource(
+                    &mut *conn,
+                    &annotation.resource,
+                    resource_type::VALUE_ANNOTATION,
+                )
+                .await?;
+                sqlx::query("INSERT INTO value_annotation (id) VALUES (?)")
+                    .bind(bind_id(made.id))
+                    .execute(&mut *conn)
+                    .await?;
+                new.value_annotation_id = Some(AnnotationId::from(u64::from(made.id)));
+                pending.push((made.id, &annotation.values));
+            }
+            insert_value(&mut *conn, &new).await?;
+        }
     }
     Ok(())
 }

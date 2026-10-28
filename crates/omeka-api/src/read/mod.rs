@@ -13,6 +13,7 @@
 
 pub mod catalog;
 pub mod export;
+pub mod item_history;
 pub mod params;
 pub mod place_counts;
 pub mod query;

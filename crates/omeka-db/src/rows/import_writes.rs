@@ -335,7 +335,7 @@ impl BeforeImage {
     }
 }
 
-fn value_json(value: &ImageValue) -> Value {
+pub(crate) fn value_json(value: &ImageValue) -> Value {
     let content = &value.content;
     json!({
         "property": content.property_id.0,
@@ -349,7 +349,7 @@ fn value_json(value: &ImageValue) -> Value {
     })
 }
 
-fn value_from(value: &Value) -> Result<ImageValue, DbError> {
+pub(crate) fn value_from(value: &Value) -> Result<ImageValue, DbError> {
     let object = value.as_object().ok_or_else(|| bad("value"))?;
     let property: PropertyId = opt_id(object, "property")?.ok_or_else(|| bad("property"))?;
     Ok(ImageValue {

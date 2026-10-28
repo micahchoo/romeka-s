@@ -24,7 +24,9 @@ use omeka_core::permissions::Action;
 use omeka_db::DbPool;
 use omeka_db::ids::{BulkId, ItemId, JobId, ResourceId, UserId};
 use omeka_db::repos::{BulkRepo, Trashed, Untrashed};
-use omeka_db::rows::{BulkKind, BulkPhase, BulkRow, FailReason, NewBulk, TrashImage};
+use omeka_db::rows::{
+    BulkKind, BulkPhase, BulkRow, FailReason, HistorySource, HistoryStamp, NewBulk, TrashImage,
+};
 use omeka_db::with_db;
 use omeka_media::store::{Store, StoreError};
 use serde::Serialize;
@@ -194,8 +196,12 @@ async fn put_back(
     }
     let store = ground.store.as_ref();
     move_files(store, &image, Toward::Place)?;
+    let stamp = HistoryStamp {
+        user: api.actor().user(),
+        source: HistorySource::BulkUndo(bulk),
+    };
     match with_db!(pool, |db| BulkRepo::new(db)
-        .untrash_target(bulk, item, sites)
+        .untrash_target(bulk, item, sites, &stamp)
         .await)?
     {
         Untrashed::Restored { image, .. } => {

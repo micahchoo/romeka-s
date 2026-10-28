@@ -523,7 +523,7 @@ pub(crate) fn content(input: &ValueInput) -> ValueContent {
     }
 }
 
-fn trees(inputs: &[ValueInput]) -> Vec<ValueTree> {
+pub(crate) fn trees(inputs: &[ValueInput]) -> Vec<ValueTree> {
     inputs
         .iter()
         .map(|input| ValueTree {

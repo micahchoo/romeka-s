@@ -38,10 +38,10 @@ use std::collections::HashMap;
 use omeka_db::Backend;
 use omeka_db::DbError;
 use omeka_db::ids::{ImportId, JobId};
-use omeka_db::repos::{BeforeImageRepo, ImportRepo, ImportResourceRepo, ImportWrites};
+use omeka_db::repos::{BeforeImageRepo, ImportRepo, ImportResourceRepo, ImportWrites, JobRepo};
 use omeka_db::rows::{
-    BeforeImage, ImportChange, ImportEnding, ImportKind, ImportResource, ImportResourceRow,
-    ImportStatus, ImportTarget,
+    BeforeImage, HistorySource, HistoryStamp, ImportChange, ImportEnding, ImportKind,
+    ImportResource, ImportResourceRow, ImportStatus, ImportTarget,
 };
 use serde_json::{Map, Value};
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Type};
@@ -145,11 +145,19 @@ where
     };
     base.remove(UNDO_MEMBER);
     let (rows, images) = ledger(pool, import).await?;
+    let asker = JobRepo::<DB>::new(pool)
+        .get(job)
+        .await?
+        .and_then(|job| job.owner_id);
     let mut undo = Undo {
         pool,
         removal,
         import,
         job,
+        stamp: HistoryStamp {
+            user: asker,
+            source: HistorySource::ImportUndo(import),
+        },
         judge: Judge::new(pool, import, force, &rows, images),
         base,
         report: UndoReport {
@@ -233,6 +241,8 @@ struct Undo<'u, DB: Backend> {
     removal: &'u dyn Removal,
     import: ImportId,
     job: JobId,
+    /// The person who asked for the undo, the owner of its job, which an item's history names.
+    stamp: HistoryStamp,
     judge: Judge<'u, DB>,
     /// The summary as the run left it.
     base: Map<String, Value>,
@@ -359,7 +369,14 @@ where
             tx.rollback().await?;
             return Ok(Outcome::Kept(vec![Touch::Edited]));
         }
+        let now = match resource {
+            ImportResource::Item(_) => writes.before_image(resource).await?,
+            _ => None,
+        };
         let restored = writes.restore(resource, image).await?;
+        if let (ImportResource::Item(item), Some(now)) = (resource, &now) {
+            writes.record_history(item, Some(now), &self.stamp).await?;
+        }
         ImportResourceRepo::<DB>::delete(&mut *tx, self.import, target).await?;
         BeforeImageRepo::<DB>::delete(&mut *tx, self.import, target).await?;
         tx.commit().await?;

@@ -17,6 +17,7 @@ mod derivatives;
 mod import_evidence;
 mod import_writes;
 mod imports;
+pub(crate) mod item_history;
 mod page_versions;
 mod publications;
 mod resources;
@@ -46,6 +47,7 @@ pub use imports::{
     BeforeImageRow, ImportChange, ImportEnding, ImportKind, ImportResourceRow, ImportRow,
     ImportStatus, ImportTarget, NewImport, NewImportResource, may_run,
 };
+pub use item_history::{FieldChange, HistoryEntryRow, HistorySource, HistoryStamp};
 pub use page_versions::{
     BlockChange, NewPageAttachment, NewPageBlock, PageImage, PageImageBlock, PageSave,
     PageSaveOutcome, PageVersionRow,

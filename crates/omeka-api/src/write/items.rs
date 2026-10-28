@@ -21,11 +21,20 @@
 //! member takes every site whose `assign_new_items` is true; here such a create
 //! joins the item to each of those sites whose item pool selects it
 //! (`crate::site_items::attach_on_create`). An update joins no site, as upstream.
+//!
+//! Every reference is resolved first; then the item row, its values, its sets
+//! and its sites are written in one transaction (`ItemRepo::save`) with the
+//! item's history entry, so a failed write leaves the item and its history as
+//! they were. Inline media, the search index and the synced sites follow it.
 
 use omeka_core::permissions::SubjectKind;
 use omeka_db::ids::{ItemId, ItemSetId, MediaId, SiteId, UserId};
-use omeka_db::repos::{ItemRepo, ItemSetRepo, MediaRepo, SiteRepo};
-use omeka_db::rows::{ItemRow, ItemSetRow, MediaRow, NewItem, SiteRow};
+use omeka_db::repos::{
+    ItemRepo, ItemSave, ItemSetRepo, ItemWrite, MediaRepo, Membership, SiteRepo,
+};
+use omeka_db::rows::{
+    HistorySource, HistoryStamp, ItemRow, ItemSetRow, MediaRow, NewItem, SiteRow,
+};
 use omeka_db::with_db;
 use serde_json::Value;
 
@@ -76,27 +85,24 @@ pub async fn create(
     // Every inline entry is resolved before the item row is written, so a body
     // whose media cannot ingest leaves no item behind.
     let inline = inline_media(api, payload, file, hydrated.resource.owner_id).await?;
-    let row = with_db!(api.pool(), |db| ItemRepo::new(db)
-        .create(&NewItem {
-            resource: hydrated.resource,
-            primary_media_id: primary,
-        })
-        .await)
-    .map_err(db_error)?;
-    resource::store_values(
-        api,
-        row.resource.id,
-        &hydrated.values,
-        hydrated.keep_stored_values,
-    )
-    .await?;
-    for id in item_sets {
-        with_db!(api.pool(), |db| ItemRepo::new(db)
-            .add_to_item_set(row.id(), id)
-            .await)
-        .map_err(db_error)?;
-    }
-    apply_sites(api, row.id(), sites).await?;
+    let new = NewItem {
+        resource: hydrated.resource,
+        primary_media_id: primary,
+    };
+    let trees = values::trees(&hydrated.values);
+    let save = ItemSave {
+        write: ItemWrite::Create(&new),
+        values: Some(&trees),
+        item_sets: Membership {
+            add: item_sets,
+            drop: Vec::new(),
+        },
+        sites: site_membership(sites),
+        stamp: edit_stamp(api),
+    };
+    let row = with_db!(api.pool(), |db| ItemRepo::new(db).save(&save).await)
+        .map_err(db_error)?
+        .ok_or_else(|| ApiError::internal("a created item has no row"))?;
     for prepared in inline {
         media::insert(api, &row, prepared).await?;
     }
@@ -143,18 +149,24 @@ pub async fn update(
     if !partial || payload.has("o:primary_media") {
         row.primary_media_id = primary_media(api, payload, &row).await?;
     }
-    with_db!(api.pool(), |db| ItemRepo::new(db).update(&row).await).map_err(db_error)?;
-    resource::store_values(
-        api,
-        row.resource.id,
-        &hydrated.values,
-        hydrated.keep_stored_values,
-    )
-    .await?;
-    if let Some(wanted) = wanted_item_sets {
-        apply_item_sets(api, row.id(), &wanted).await?;
+    let item_sets = match wanted_item_sets {
+        Some(wanted) => item_set_membership(api, row.id(), wanted).await?,
+        None => Membership::default(),
+    };
+    let trees = (!hydrated.keep_stored_values).then(|| values::trees(&hydrated.values));
+    let save = ItemSave {
+        write: ItemWrite::Update(&row),
+        values: trees.as_deref(),
+        item_sets,
+        sites: site_membership(sites),
+        stamp: edit_stamp(api),
+    };
+    if with_db!(api.pool(), |db| ItemRepo::new(db).save(&save).await)
+        .map_err(db_error)?
+        .is_none()
+    {
+        return Err(not_found(ITEM_CLASS, raw_id));
     }
-    apply_sites(api, row.id(), sites).await?;
     fulltext::reindex(api, "items", row.resource.id).await?;
     api.read_member("items", raw_id).await
 }
@@ -325,33 +337,34 @@ async fn visible_item_set(api: &Api<'_>, id: ItemSetId) -> Result<Option<ItemSet
     }))
 }
 
-/// Make the item's sets the `wanted` ones. A link to a set the caller cannot
-/// see stays: upstream loads `Item::$itemSets` through the visibility filter,
-/// so the hidden link is never in the collection a write prunes.
-async fn apply_item_sets(
+/// The links that make the item's sets the `wanted` ones. A link to a set the caller cannot see
+/// stays: upstream loads `Item::$itemSets` through the visibility filter, so the hidden link is
+/// never in the collection a write prunes.
+async fn item_set_membership(
     api: &Api<'_>,
     item: ItemId,
-    wanted: &[ItemSetId],
-) -> Result<(), ApiError> {
+    wanted: Vec<ItemSetId>,
+) -> Result<Membership<ItemSetId>, ApiError> {
+    let mut drop = Vec::new();
     for existing in with_db!(api.pool(), |db| ItemRepo::new(db)
         .list_item_sets(item)
         .await)
     .map_err(db_error)?
     {
         if !wanted.contains(&existing) && visible_item_set(api, existing).await?.is_some() {
-            with_db!(api.pool(), |db| ItemRepo::new(db)
-                .remove_from_item_set(item, existing)
-                .await)
-            .map_err(db_error)?;
+            drop.push(existing);
         }
     }
-    for id in wanted {
-        with_db!(api.pool(), |db| ItemRepo::new(db)
-            .add_to_item_set(item, *id)
-            .await)
-        .map_err(db_error)?;
+    Ok(Membership { add: wanted, drop })
+}
+
+/// A write through the API by the caller: an edit.
+pub(crate) fn edit_stamp(api: &Api<'_>) -> HistoryStamp {
+    HistoryStamp {
+        // `romeka`'s own jobs act as user 0, which no `user` row holds: no one.
+        user: api.actor().user().filter(|user| user.0 != 0),
+        source: HistorySource::Edit,
     }
-    Ok(())
 }
 
 /// `ItemAdapter::hydrate`'s `o:site`: the memberships one write adds and drops.
@@ -449,23 +462,11 @@ pub(crate) async fn can_assign(api: &Api<'_>, site: &SiteRow) -> Result<bool, Ap
     ))
 }
 
-async fn apply_sites(api: &Api<'_>, item: ItemId, plan: Option<SitePlan>) -> Result<(), ApiError> {
-    let Some(plan) = plan else {
-        return Ok(());
-    };
-    for site in plan.detach {
-        with_db!(api.pool(), |db| ItemRepo::new(db)
-            .remove_from_site(item, site)
-            .await)
-        .map_err(db_error)?;
-    }
-    for site in plan.attach {
-        with_db!(api.pool(), |db| ItemRepo::new(db)
-            .add_to_site(item, site)
-            .await)
-        .map_err(db_error)?;
-    }
-    Ok(())
+fn site_membership(plan: Option<SitePlan>) -> Membership<SiteId> {
+    plan.map_or_else(Membership::default, |plan| Membership {
+        add: plan.attach,
+        drop: plan.detach,
+    })
 }
 
 /// `ItemAdapter::hydrate`'s `o:primary_media`: the named media when it belongs

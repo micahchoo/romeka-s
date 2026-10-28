@@ -21,8 +21,8 @@ use omeka_db::DbPool;
 use omeka_db::ids::{BulkId, ItemId, JobId, PropertyId, SiteId, TemplateId, UserId};
 use omeka_db::repos::{BulkRepo, JobRepo, Paging, SiteFilter, SiteRepo, TemplateRepo, UserRepo};
 use omeka_db::rows::{
-    BeforeImage, BulkEnding, BulkPhase, BulkRow, Described, FailReason, ImageMemberships,
-    ItemMembers, Restore, ValueContent, Verdict, Written,
+    BeforeImage, BulkEnding, BulkPhase, BulkRow, Described, FailReason, HistorySource,
+    HistoryStamp, ImageMemberships, ItemMembers, Restore, ValueContent, Verdict, Written,
 };
 use omeka_db::with_db;
 
@@ -153,9 +153,13 @@ async fn run(ground: &Ground<'_>, row: &BulkRow, job: JobId) -> Result<Step, Bul
             values: values.as_ref(),
             required,
         };
+        let stamp = HistoryStamp {
+            user: api.actor().user(),
+            source: HistorySource::Bulk(row.id),
+        };
         for item in items {
             with_db!(pool, |db| BulkRepo::new(db)
-                .apply_target(row.id, item, |image| rules.verdict(image))
+                .apply_target(row.id, item, &stamp, |image| rules.verdict(image))
                 .await)?;
         }
         Ok(())
@@ -186,9 +190,13 @@ async fn undo(
             force,
             assignable: assignable(&api).await?,
         };
+        let stamp = HistoryStamp {
+            user: api.actor().user(),
+            source: HistorySource::BulkUndo(row.id),
+        };
         for item in items {
             with_db!(pool, |db| BulkRepo::new(db)
-                .revert_target(row.id, item, force, |now, kept| {
+                .revert_target(row.id, item, force, &stamp, |now, kept| {
                     restorer.restore(now, kept)
                 })
                 .await)?;

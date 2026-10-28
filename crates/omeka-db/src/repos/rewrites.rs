@@ -9,13 +9,15 @@
 use serde_json::Value;
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Sqlite, Type};
 
+use super::item_history::{images_before, record_each};
 use super::resources::touch_modified;
 use super::{bind_id, bind_opt_id, insert_id, json_text};
 use crate::DbError;
 use crate::backend::Backend;
 use crate::ids::{CustomVocabId, PropertyId, TemplateId};
 use crate::rows::{
-    MergeWrite, PromoteList, PromoteWrite, PublicationTarget, TextValueRow, resource_type,
+    HistoryStamp, MergeWrite, PromoteList, PromoteWrite, PublicationTarget, TextValueRow,
+    resource_type,
 };
 
 /// Bulk rewrites over `value`.
@@ -73,9 +75,15 @@ where
         rows.iter().map(TextValueRow::from_db_row::<DB>).collect()
     }
 
-    /// Write one promotion and return the list's id.
-    pub async fn promote(&self, write: &PromoteWrite) -> Result<CustomVocabId, DbError> {
+    /// Write one promotion and return the list's id. Each item it retypes a value of gains a
+    /// history entry under `stamp`.
+    pub async fn promote(
+        &self,
+        write: &PromoteWrite,
+        stamp: &HistoryStamp,
+    ) -> Result<CustomVocabId, DbError> {
         let mut tx = self.pool.begin_with(DB::begin_write()).await?;
+        let before = images_before::<DB>(&mut tx, &write.resources).await?;
         let list = match &write.list {
             PromoteList::Create(new) => {
                 let query = sqlx::query(
@@ -121,15 +129,17 @@ where
             )
             .await?;
         }
+        record_each::<DB>(&mut tx, &before, stamp).await?;
         touch_modified::<DB>(&mut tx, &write.resources).await?;
         tx.commit().await?;
         Ok(list)
     }
 
-    /// Write one merge.
-    pub async fn merge(&self, write: &MergeWrite) -> Result<(), DbError> {
+    /// Write one merge. Each item it changes gains a history entry under `stamp`.
+    pub async fn merge(&self, write: &MergeWrite, stamp: &HistoryStamp) -> Result<(), DbError> {
         let table = DB::quote_identifier("value");
         let mut tx = self.pool.begin_with(DB::begin_write()).await?;
+        let before = images_before::<DB>(&mut tx, &write.resources).await?;
         if let (Some((list, _)), Some(read)) = (&write.list_terms, &write.terms_read) {
             check_terms::<DB>(&mut tx, *list, read.as_ref()).await?;
         }
@@ -182,6 +192,7 @@ where
                 .execute(&mut *tx)
                 .await?;
         }
+        record_each::<DB>(&mut tx, &before, stamp).await?;
         touch_modified::<DB>(&mut tx, &write.resources).await?;
         tx.commit().await?;
         Ok(())
