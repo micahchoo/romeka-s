@@ -102,6 +102,15 @@ render the header and their own page, with no admin navigation:
   link to <title>", the field, the count, and a link to the record. A record the reader may not read,
   hidden or gone, reads "This record is not available" over no results, and its chip names it by id.
   With both a set and a links filter, both cards show, the set's first.
+- A row or card on Items opens `#/items/<id>?in=<the list's query>&at=<position>` (`pages/items/walk.ts`).
+  `in` is the Items screen's own URL query, so every filter walks, a new one included. The item page reads
+  the rows two before and two after `at` with that query, five to a page (one or two requests), and shows
+  "12 of 382 in <place>" with Previous and Next links that carry `in` and `at`. The place is the set's
+  title, the linked record's title, or "Items". The item is looked for at `at` and one place either side,
+  because a save can take an earlier item out of the list ("field is empty"); anywhere else, or a failed
+  read, shows no line, never a wrong number. An item opened with no `in` shows no line and reads no list.
+  When a next item exists, the edit form has "Save and next": it saves, then opens the next item at
+  `&edit=1`, which opens its edit form.
 - `#/users` lists users. `#/users/new` invites one: it creates the row and then mints the one-time
   password link, which the page shows with a copy control. `#/users/<id>` edits one and can mint
   another link.
