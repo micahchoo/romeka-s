@@ -415,7 +415,7 @@ List parameters (`GET /api/item_sets`).
 | `search` | string | `SearchQuery::parse (query.rs)` |
 | `site_attachments_only` | boolean | `SearchQuery::parse (query.rs)` |
 | `site_id` | table id | `SearchQuery::parse (query.rs)` |
-| `sort_by` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)`, `search_item_sets (resources.rs)` |
+| `sort_by` | string | `ResourceSort::read (order.rs)`, `Sort::from_params (params.rs)`, `link_pairs (php.rs)`, `search_item_sets (resources.rs)` |
 | `sort_order` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
 
 Request body members (`POST` and `PUT`).
@@ -491,7 +491,7 @@ List parameters (`GET /api/items`).
 | `search` | string | `SearchQuery::parse (query.rs)` |
 | `site_attachments_only` | boolean | `SearchQuery::parse (query.rs)` |
 | `site_id` | table id | `SearchQuery::parse (query.rs)` |
-| `sort_by` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
+| `sort_by` | string | `ResourceSort::read (order.rs)`, `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
 | `sort_order` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
 
 Request body members (`POST` and `PUT`).
@@ -627,7 +627,7 @@ List parameters (`GET /api/media`).
 | `search` | string | `SearchQuery::parse (query.rs)` |
 | `site_attachments_only` | boolean | `SearchQuery::parse (query.rs)` |
 | `site_id` | table id | `SearchQuery::parse (query.rs)` |
-| `sort_by` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
+| `sort_by` | string | `ResourceSort::read (order.rs)`, `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
 | `sort_order` | string | `Sort::from_params (params.rs)`, `link_pairs (php.rs)` |
 
 Request body members (`POST` and `PUT`).

@@ -19,6 +19,7 @@ pub mod query;
 pub mod response;
 
 mod meta;
+mod order;
 mod paging;
 mod php;
 #[cfg(test)]

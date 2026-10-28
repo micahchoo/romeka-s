@@ -312,7 +312,7 @@ async fn list_cost_split() {
     assert!(super::window::eligible(
         &filter,
         &search,
-        &super::params::Sort::from_params(&params),
+        &super::order::ResourceSort::ID_ASCENDING,
         &limit
     ));
 

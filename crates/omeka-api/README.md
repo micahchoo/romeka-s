@@ -153,7 +153,7 @@ ended by CRLF. The import's lists and the items CSV use it.
 
 | resource | list | member | notes |
 | --- | --- | --- | --- |
-| items, item_sets, media | yes | yes | value filters; `search` matches the title |
+| items, item_sets, media | yes | yes | value filters; `search` matches the title; `sort_by` takes a column, a property term, `resource_class_label`, `resource_template_label` or `owner_name`, and orders text in shelf order (`src/read/order.rs`) |
 | value_annotations | yes | yes | no `sortFields` upstream, so `sort_by` is ignored |
 | assets | yes | yes | `owner_id` filter; no visibility flag on the table |
 | jobs | yes | yes | `class` and `status` filters; `sort_by=owner_email` falls back to `id` |

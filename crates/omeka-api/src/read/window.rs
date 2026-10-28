@@ -20,8 +20,8 @@ use omeka_db::repos::{ItemFilter, ItemRepo, ItemWindow};
 use omeka_db::rows::ItemRow;
 use omeka_db::with_db;
 
+use super::order::ResourceSort;
 use super::paging::Limit;
-use super::params::{Sort, SortField};
 use super::query::{SearchQuery, media_visibility};
 use super::{Api, db_error};
 use crate::errors::ApiError;
@@ -39,7 +39,7 @@ pub(crate) struct ListPage {
 pub(crate) fn eligible(
     filter: &ItemFilter,
     search: &SearchQuery,
-    sort: &Sort,
+    sort: &ResourceSort,
     limit: &Limit,
 ) -> bool {
     limit.max.is_some()
@@ -52,8 +52,7 @@ pub(crate) fn eligible(
         && search.filter.has_media_kind.is_none()
         && search.filter.not_item_set_ids.is_empty()
         && search.filter.ids.is_none()
-        && sort.field == SortField::Id
-        && !sort.descending
+        && *sort == ResourceSort::ID_ASCENDING
 }
 
 /// Read the total and one window, as the caller may see them.
@@ -84,12 +83,10 @@ mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used)]
 
     use super::*;
+    use crate::read::order::{Shelved, SortKey};
 
-    fn no_sort() -> Sort {
-        Sort {
-            field: SortField::Id,
-            descending: false,
-        }
+    fn no_sort() -> ResourceSort {
+        ResourceSort::ID_ASCENDING
     }
 
     /// A limit that applies a `LIMIT`, which the SQL window needs.
@@ -122,8 +119,8 @@ mod tests {
             &no_sort(),
             &bounded()
         ));
-        let title = Sort {
-            field: SortField::Title,
+        let title = ResourceSort {
+            key: SortKey::Text(Shelved::Title),
             descending: false,
         };
         assert!(!eligible(
@@ -132,9 +129,9 @@ mod tests {
             &title,
             &bounded()
         ));
-        let descending = Sort {
-            field: SortField::Id,
+        let descending = ResourceSort {
             descending: true,
+            ..ResourceSort::ID_ASCENDING
         };
         assert!(!eligible(
             &ItemFilter::default(),

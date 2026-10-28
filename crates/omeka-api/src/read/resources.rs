@@ -5,12 +5,10 @@
 //! per-kind blocks; `AbstractResourceEntityRepresentation::getJsonLd` builds
 //! the common block. `assets`, `jobs` and `modules` live in [`super::system`].
 
-use std::cmp::Ordering;
-
 use omeka_db::ids::{AssetId, ClassId, ItemId, ItemSetId, MediaId, ResourceId};
 use omeka_db::repos::{
     ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo, MediaFilter, MediaRepo, MediaVisibility,
-    Paging, ResourceRepo, compare_opt_text_ci,
+    Paging, ResourceRepo,
 };
 use omeka_db::rows::{AssetRow, ItemRow, ItemSetRow, MediaRow, ValueAnnotationRow, resource_type};
 use omeka_db::with_db;
@@ -18,8 +16,9 @@ use omeka_media::kind::{KindInput, MediaKind};
 use omeka_media::store::{Download, FileKind};
 use omeka_media::thumbnailer::thumbnails_stored;
 
-use super::paging::{Limit, Window, ordered_page, sorted_page};
-use super::params::{Sort, SortField};
+use super::order::{ResourceSort, order_page};
+use super::paging::{Limit, Window, ordered_page};
+use super::params::Sort;
 use super::query::{
     SearchQuery, fulltext_matches, id_filter, id_matches, media_visibility, relevance_page,
 };
@@ -41,7 +40,7 @@ use crate::wire::{JsonLdType, ResourceRef, ThumbnailDisplayUrls, ThumbnailUrls};
 pub async fn search_items(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
     let window = Window::from_params(params);
     let limit = Limit::from_params(params);
-    let sort = Sort::from_params(params);
+    let sort = ResourceSort::read(api, params).await?;
     let filter = item_filter(params);
     let search = item_search(api, params).await?;
     let (total, page) = if window::eligible(&filter, &search, &sort, &limit) {
@@ -71,27 +70,27 @@ pub async fn search_items(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
 
 /// The list endpoint's in-memory window: every row the filter matches, the
 /// caller's visibility, the ordering, then the page slice
-/// ([`super::params::sorted_page`]).
+/// ([`super::order::order_page`]).
 async fn in_memory_page(
     api: &Api<'_>,
     filter: &ItemFilter,
     search: &SearchQuery,
-    sort: &Sort,
+    sort: &ResourceSort,
     limit: &Limit,
     params: &Params,
 ) -> Result<(i64, Vec<ItemRow>), ApiError> {
     let matches = fulltext_matches(api, "items", search.fulltext.as_deref()).await?;
     let rows = matching_rows(api, filter, search, matches.as_ref()).await?;
-    Ok(match (&matches, params.sort_by_is_default()) {
-        (Some(hits), true) => relevance_page(
+    match (&matches, params.sort_by_is_default()) {
+        (Some(hits), true) => Ok(relevance_page(
             rows,
             sort.descending,
             limit,
             |row| row.id().0,
             |row| hits.get(&row.id().0).copied().unwrap_or(0.0),
-        ),
-        _ => sorted_page(rows, sort, limit, cmp_item(*sort)),
-    })
+        )),
+        _ => order_page(api, rows, sort, limit, |row| &row.resource).await,
+    }
 }
 
 /// The [`ItemFilter`] half of an item query: the parameters that predate
@@ -297,7 +296,7 @@ pub(crate) fn item_doc(
 pub async fn search_item_sets(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
     let window = Window::from_params(params);
     let limit = Limit::from_params(params);
-    let sort = Sort::from_params(params);
+    let sort = ResourceSort::read(api, params).await?;
     let filter = ItemSetFilter {
         owner_id: params.id("owner_id"),
         resource_class_id: params.id("resource_class_id"),
@@ -337,7 +336,7 @@ pub async fn search_item_sets(api: &Api<'_>, params: &Params) -> Result<ApiRespo
         _ if params.get("sort_by") == Some("item_count") => {
             item_count_page(api, rows, sort.descending, &limit).await?
         }
-        _ => sorted_page(rows, &sort, &limit, cmp_item_set(sort)),
+        _ => order_page(api, rows, &sort, &limit, |row| &row.resource).await?,
     };
     let relations = Relations::load(
         api,
@@ -479,7 +478,7 @@ async fn item_count_page(
 pub async fn search_media(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
     let window = Window::from_params(params);
     let limit = Limit::from_params(params);
-    let sort = Sort::from_params(params);
+    let sort = ResourceSort::read(api, params).await?;
     let filter = MediaFilter {
         item_id: params.id("item_id"),
         ingester: params.get("ingester").map(str::to_string),
@@ -520,7 +519,7 @@ pub async fn search_media(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
             |row| row.id().0,
             |row| hits.get(&row.id().0).copied().unwrap_or(0.0),
         ),
-        _ => sorted_page(rows, &sort, &limit, cmp_media(sort)),
+        _ => order_page(api, rows, &sort, &limit, |row| &row.resource).await?,
     };
     let mut relations = Relations::load(
         api,
@@ -1003,40 +1002,4 @@ fn matches_search(title: Option<&str>, needle: Option<&str>) -> bool {
     title
         .map(|title| title.to_lowercase().contains(needle))
         .unwrap_or(false)
-}
-
-fn cmp_item(sort: Sort) -> impl Fn(&ItemRow, &ItemRow) -> Ordering {
-    move |a, b| match sort.field {
-        SortField::Title => {
-            compare_opt_text_ci(a.resource.title.as_deref(), b.resource.title.as_deref())
-        }
-        SortField::Created => a.resource.created.cmp(&b.resource.created),
-        SortField::Modified => a.resource.modified.cmp(&b.resource.modified),
-        SortField::IsPublic => a.resource.is_public.cmp(&b.resource.is_public),
-        SortField::Id => a.resource.id.cmp(&b.resource.id),
-    }
-}
-
-fn cmp_item_set(sort: Sort) -> impl Fn(&ItemSetRow, &ItemSetRow) -> Ordering {
-    move |a, b| match sort.field {
-        SortField::Title => {
-            compare_opt_text_ci(a.resource.title.as_deref(), b.resource.title.as_deref())
-        }
-        SortField::Created => a.resource.created.cmp(&b.resource.created),
-        SortField::Modified => a.resource.modified.cmp(&b.resource.modified),
-        SortField::IsPublic => a.resource.is_public.cmp(&b.resource.is_public),
-        SortField::Id => a.resource.id.cmp(&b.resource.id),
-    }
-}
-
-fn cmp_media(sort: Sort) -> impl Fn(&MediaRow, &MediaRow) -> Ordering {
-    move |a, b| match sort.field {
-        SortField::Title => {
-            compare_opt_text_ci(a.resource.title.as_deref(), b.resource.title.as_deref())
-        }
-        SortField::Created => a.resource.created.cmp(&b.resource.created),
-        SortField::Modified => a.resource.modified.cmp(&b.resource.modified),
-        SortField::IsPublic => a.resource.is_public.cmp(&b.resource.is_public),
-        SortField::Id => a.resource.id.cmp(&b.resource.id),
-    }
 }
