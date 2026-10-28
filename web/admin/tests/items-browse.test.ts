@@ -7,10 +7,12 @@ import { matchingQuery } from '../src/api/bulk';
 import {
   browseQuery,
   fieldPlaceHref,
+  everyMatchQuery,
   formatBrowse,
   linksPlaceHref,
   NO_FILTERS,
   parseBrowse,
+  tickedListQuery,
   withFilters,
   withoutFilter,
 } from '../src/pages/items/browse';
@@ -100,6 +102,24 @@ describe('browseQuery', () => {
   it('each sort names its column and order', () => {
     expect(browseQuery(parse('sort=oldest'))).toMatchObject({ sortBy: 'id', sortOrder: 'asc' });
     expect(browseQuery(parse('sort=title'))).toMatchObject({ sortBy: 'title', sortOrder: 'asc' });
+  });
+});
+
+describe('the download queries', () => {
+  it('every match is the page query without its window', () => {
+    const state = parse('q=map&set=4&links=42&via=2&media=none&sort=modified&page=3');
+    const { page, perPage, ...filters } = browseQuery(state);
+    expect([page, perPage]).toEqual([3, 24]);
+    expect(everyMatchQuery(state)).toEqual(filters);
+  });
+
+  it('the ticked items keep the order and drop the filters', () => {
+    const ticked = [brandId<'ItemId'>(12), brandId<'ItemId'>(9)];
+    expect(tickedListQuery(parse('q=map&set=4&sort=title'), ticked)).toEqual({
+      sortBy: 'title',
+      sortOrder: 'asc',
+      id: '12,9',
+    });
   });
 });
 

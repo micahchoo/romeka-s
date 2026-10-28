@@ -772,6 +772,11 @@ export class ApiClient {
     return buildUrl(this.baseUrl, path, withApiKey(params, currentKey()));
   }
 
+  /** A link the browser follows itself, such as a file download, with the signed-in key attached. */
+  downloadUrl(path: string, query: ResourceQuery): string {
+    return this.apiUrl(path, toSearchParams(query));
+  }
+
   /*
    * The four request helpers are public so a resource family that only lazy
    * pages read (`term-lists.ts`) keeps its parser and calls out of the initial

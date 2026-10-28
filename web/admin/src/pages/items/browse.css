@@ -134,6 +134,13 @@ button.private-cue:hover:not(:disabled) {
   color: var(--text-muted);
 }
 
+.items-download {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: 0 0 var(--space-2);
+}
+
 .item-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));

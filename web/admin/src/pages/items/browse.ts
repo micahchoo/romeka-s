@@ -8,7 +8,7 @@ import type { ResourceQuery } from '../../api/client';
 import { brandId } from '../../api/parse';
 import { fieldQuery, linksQuery } from '../../api/places';
 import type { LinkTarget } from '../../api/places';
-import type { ClassId, ItemSetId, PropertyId, ResourceId, SiteId, TemplateId, UserId } from '../../api/types';
+import type { ClassId, ItemId, ItemSetId, PropertyId, ResourceId, SiteId, TemplateId, UserId } from '../../api/types';
 import { isFilterKind, serverKindsOf } from '../../app/media';
 import type { FilterKind } from '../../app/media';
 
@@ -249,12 +249,20 @@ const mediaQuery = (media: MediaFilter | null): ResourceQuery => {
     : { hasMedia: media.kind === 'any' ? 1 : 0 };
 };
 
-/** The `/api/items` query for a browse state; `ResourceQuery` snake-cases each name. */
-export const browseQuery = (state: ItemBrowse): ResourceQuery => {
+/** The `/api/items` query for one page of a browse state; `ResourceQuery` snake-cases each name. */
+export const browseQuery = (state: ItemBrowse): ResourceQuery => ({
+  page: state.page,
+  perPage: PER_PAGE,
+  ...everyMatchQuery(state),
+});
+
+/**
+ * Every item a browse state matches, on every page: its filters and its order. The list page and
+ * the CSV download both read this, so a filter added here reaches both.
+ */
+export const everyMatchQuery = (state: ItemBrowse): ResourceQuery => {
   const { filters } = state;
   return {
-    page: state.page,
-    perPage: PER_PAGE,
     ...SORT_QUERY[state.sort],
     ...(filters.search === '' ? {} : { search: filters.search }),
     ...(filters.classId === null ? {} : { resourceClassId: filters.classId }),
@@ -268,6 +276,12 @@ export const browseQuery = (state: ItemBrowse): ResourceQuery => {
     ...mediaQuery(filters.media),
   };
 };
+
+/** The ticked items alone, in the list's order. */
+export const tickedListQuery = (state: ItemBrowse, ticked: readonly ItemId[]): ResourceQuery => ({
+  ...SORT_QUERY[state.sort],
+  id: ticked.join(','),
+});
 
 /** The Items screen filtered to the items that link to `target` through `via`, under the record's card. */
 export const linksPlaceHref = (target: LinkTarget, via: PropertyId | null): string =>

@@ -121,6 +121,11 @@ render the header and their own page, with no admin navigation:
   (`pages/item-types/field-fill.tsx`). "Open the 278 without a value" opens
   `#/items?template=<id>&field=<property id>:empty`, whose total is that number for the same reader. A
   type with no item the reader may see, or a failed read, states no number. A new type has none.
+- The Items screen, and so a set's place and a links place, offers "Download 382 items as CSV"
+  (`pages/items/csv-download.tsx`): a plain link to `GET /api/romeka/items.csv` with the screen's
+  filters and order, every page. The query comes from `everyMatchQuery` in `pages/items/browse.ts`,
+  the function the list page query is built from, so a new filter reaches the file. With ticked rows
+  it also offers "Download the 3 ticked items as CSV": those ids, in the screen's order.
 - `#/users` lists users. `#/users/new` invites one: it creates the row and then mints the one-time
   password link, which the page shows with a copy control. `#/users/<id>` edits one and can mint
   another link.

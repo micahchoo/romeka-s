@@ -22,6 +22,7 @@ import { BulkSiteActions } from './BulkSiteActions';
 import { activeFilters, browseQuery, formatBrowse, parseBrowse, withFilters, withoutFilter, withoutFilters } from './browse';
 import type { BrowseFilters, ItemBrowse, View } from './browse';
 import { loadBrowseOptions, NO_OPTIONS } from './browse-options';
+import { CsvDownload } from './csv-download';
 import { FilterBar } from './FilterBar';
 import { FilterChips } from './FilterChips';
 import { ItemsGrid } from './ItemsGrid';
@@ -292,6 +293,7 @@ export const ItemsList = (): ReactElement => {
           }}
         />
       )}
+      {shown === null || hidden ? null : <CsvDownload state={state} total={shown.total} picked={picked} />}
       {hidden ? null : itemsState.status === 'error' ? (
         <ErrorNotice error={itemsState.error} />
       ) : shown === null ? (
