@@ -614,3 +614,54 @@ async fn a_title_drawn_from_a_private_value_shows_only_to_callers_who_may_see_it
         }
     }
 }
+
+/// A title sort orders each caller's list by the title that caller is shown, so a private title
+/// never decides where a row sits for a caller who may not read it.
+#[tokio::test]
+async fn a_title_sort_orders_by_the_title_each_caller_is_shown() {
+    let world = world().await;
+    let item = |titles: serde_json::Value| {
+        let app = world.app.clone();
+        let uri = format!("/api/items?{}", world.owner_key);
+        async move {
+            let created = send(
+                app,
+                json_request(
+                    "POST",
+                    &uri,
+                    &json!({"o:is_public": true, "dcterms:title": titles}).to_string(),
+                ),
+            )
+            .await;
+            assert_eq!(created.status, StatusCode::OK, "{}", created.body);
+            created.json()["o:id"].as_u64().unwrap()
+        }
+    };
+    let hidden = item(json!([
+        {"type": "literal", "property_id": "auto", "@value": "Aaa private", "is_public": false},
+        {"type": "literal", "property_id": "auto", "@value": "Zzz shown"},
+    ]))
+    .await;
+    let plain = item(json!([{"type": "literal", "property_id": "auto", "@value": "Mmm"}])).await;
+
+    for who in &world.callers {
+        let want = if who.sees_private {
+            [hidden, plain]
+        } else {
+            [plain, hidden]
+        };
+        let list = read(
+            &world.app,
+            &who.uri(&format!("/api/items?id[]={hidden}&id[]={plain}&sort_by=title")),
+        )
+        .await;
+        let got: Vec<u64> = list
+            .json()
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|row| row["o:id"].as_u64().unwrap())
+            .collect();
+        assert_eq!(got, want, "{}", who.name);
+    }
+}

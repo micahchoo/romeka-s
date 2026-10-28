@@ -12,12 +12,13 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 
 use omeka_db::ids::{PropertyId, ResourceId, UserId};
-use omeka_db::repos::{ResourceRepo, SortLabel, ValueRepo, compare_natural};
+use omeka_db::repos::{RelationRepo, ResourceRepo, SortLabel, ValueRepo, compare_natural};
 use omeka_db::rows::ResourceRow;
 use omeka_db::with_db;
 
 use super::paging::{Limit, ordered_page};
 use super::params::{Params, Sort};
+use super::query::media_visibility;
 use super::{Api, db_error};
 use crate::errors::ApiError;
 
@@ -136,8 +137,24 @@ async fn shelf_texts<'r>(
     let mut texts: HashMap<u64, Vec<String>> = HashMap::new();
     match shelved {
         Shelved::Title => {
+            // A stored title drawn from a value the caller may not see is replaced by the one
+            // they are shown, so a private title never decides a row's place.
+            let rows: Vec<&ResourceRow> = rows.collect();
+            let ids: Vec<ResourceId> = rows.iter().map(|row| row.id).collect();
+            let shown: HashMap<u64, Option<String>> =
+                with_db!(api.pool(), |db| RelationRepo::new(db)
+                    .hidden_titles(&ids, media_visibility(api.actor()))
+                    .await)
+                .map_err(db_error)?
+                .into_iter()
+                .map(|(id, title)| (id.0, title))
+                .collect();
             for row in rows {
-                if let Some(title) = row.title.as_ref().filter(|title| !title.is_empty()) {
+                let title = match shown.get(&row.id.0) {
+                    Some(title) => title.as_ref(),
+                    None => row.title.as_ref(),
+                };
+                if let Some(title) = title.filter(|title| !title.is_empty()) {
                     texts.insert(row.id.0, vec![title.clone()]);
                 }
             }
