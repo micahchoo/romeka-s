@@ -1,6 +1,6 @@
 /**
  * The Items browse query: one record the screen renders from, the URL that
- * holds it (`#/items?q=&class=&set=&links=&via=&template=&field=&owner=&visibility=&site=&media=&sort=&view=&page=`),
+ * holds it (`#/items?q=&class=&set=&links=&via=&template=&field=&owner=&visibility=&site=&media=&changed=&sort=&view=&page=`),
  * and the API query it sends. Every function is pure; the screen owns only the
  * effects (reading and writing the URL, the remembered view, the request).
  */
@@ -69,18 +69,27 @@ export const parseSort = (text: string | null): Sort =>
 
 export type View = 'table' | 'grid';
 
+/** Items in no item set, or with no item type: `set=none`, `template=none`. */
+export const NONE = 'none';
+export type None = typeof NONE;
+
+/** The id a set or type filter names, or `null` when it names none or "none". */
+export const chosenId = <Id>(value: Id | None | null): Id | null => (value === NONE ? null : value);
+
 /** What narrows the list. `null` (or an empty search) is "not set". */
 export interface BrowseFilters {
   readonly search: string;
   readonly classId: ClassId | null;
-  readonly itemSetId: ItemSetId | null;
+  readonly itemSetId: ItemSetId | None | null;
   readonly links: LinksFilter | null;
-  readonly templateId: TemplateId | null;
+  readonly templateId: TemplateId | None | null;
   readonly field: FieldFilter | null;
   readonly ownerId: UserId | null;
   readonly visibility: Visibility | null;
   readonly site: SiteFilter | null;
   readonly media: MediaFilter | null;
+  /** Items someone else changed at or after this time (RFC 3339), from the dashboard. */
+  readonly changedSince: string | null;
 }
 
 export type FilterKey = keyof BrowseFilters;
@@ -103,6 +112,7 @@ export const NO_FILTERS: BrowseFilters = {
   visibility: null,
   site: null,
   media: null,
+  changedSince: null,
 };
 
 /** Chip order: the bar's order, the always-shown filters first. */
@@ -117,6 +127,7 @@ export const FILTER_KEYS: readonly FilterKey[] = [
   'ownerId',
   'visibility',
   'site',
+  'changedSince',
 ];
 
 /** The filters behind "More filters". */
@@ -177,6 +188,18 @@ const parseField = (text: string | null): FieldFilter | null => {
 
 const fieldText = (field: FieldFilter): string => `${String(field.property)}:${field.presence}`;
 
+/** `set=` or `template=`: an id, or `none`. */
+const idOrNone =
+  <Id>(idOf: (text: string | null) => Id | null) =>
+  (text: string | null): Id | None | null =>
+    text === NONE ? NONE : idOf(text);
+
+const TIME = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(Z|[+-]\d{2}:\d{2}))?$/;
+
+const parseTime = (text: string | null): string | null => (text !== null && TIME.test(text) ? text : null);
+
+const idText = (value: number | None | null): string | null => (value === null ? null : String(value));
+
 const parseSite = (text: string | null): SiteFilter | null => {
   if (text === 'any' || text === 'none') {
     return { kind: text };
@@ -201,14 +224,15 @@ export const parseBrowse = (query: URLSearchParams, fallbackView: View): ItemBro
   filters: {
     search: query.get('q')?.trim() ?? '',
     classId: classIdOf(query.get('class')),
-    itemSetId: itemSetIdOf(query.get('set')),
+    itemSetId: idOrNone(itemSetIdOf)(query.get('set')),
     links: parseLinks(query.get('links'), query.get('via')),
-    templateId: templateIdOf(query.get('template')),
+    templateId: idOrNone(templateIdOf)(query.get('template')),
     field: parseField(query.get('field')),
     ownerId: userIdOf(query.get('owner')),
     visibility: oneOf<Visibility>(['public', 'private'], query.get('visibility')),
     site: parseSite(query.get('site')),
     media: parseMedia(query.get('media')),
+    changedSince: parseTime(query.get('changed')),
   },
   sort: parseSort(query.get('sort')),
   view: oneOf<View>(['table', 'grid'], query.get('view')) ?? fallbackView,
@@ -228,15 +252,16 @@ export const formatBrowse = (state: ItemBrowse): URLSearchParams => {
   const entries: readonly (readonly [string, string | null])[] = [
     ['q', filters.search === '' ? null : filters.search],
     ['class', filters.classId === null ? null : String(filters.classId)],
-    ['set', filters.itemSetId === null ? null : String(filters.itemSetId)],
+    ['set', idText(filters.itemSetId)],
     ['links', filters.links === null ? null : String(filters.links.target)],
     ['via', filters.links === null || filters.links.via === null ? null : String(filters.links.via)],
-    ['template', filters.templateId === null ? null : String(filters.templateId)],
+    ['template', idText(filters.templateId)],
     ['field', filters.field === null ? null : fieldText(filters.field)],
     ['owner', filters.ownerId === null ? null : String(filters.ownerId)],
     ['visibility', filters.visibility],
     ['site', filters.site === null ? null : siteText(filters.site)],
     ['media', filters.media === null ? null : mediaText(filters.media)],
+    ['changed', filters.changedSince],
     ['sort', state.sort === 'newest' ? null : state.sort],
     ['view', state.view === 'table' ? null : state.view],
     ['page', state.page === 1 ? null : String(state.page)],
@@ -283,6 +308,20 @@ const mediaQuery = (media: MediaFilter | null): ResourceQuery => {
     : { hasMedia: media.kind === 'any' ? 1 : 0 };
 };
 
+const setQuery = (set: ItemSetId | None | null): ResourceQuery => {
+  if (set === null) {
+    return {};
+  }
+  return set === NONE ? { romekaNoItemSet: 1 } : { itemSetId: set };
+};
+
+const templateQuery = (template: TemplateId | None | null): ResourceQuery => {
+  if (template === null) {
+    return {};
+  }
+  return template === NONE ? { romekaNoResourceTemplate: 1 } : { resourceTemplateId: template };
+};
+
 /** The `/api/items` query for one page of a browse state; `ResourceQuery` snake-cases each name. */
 export const browseQuery = (state: ItemBrowse): ResourceQuery => ({
   page: state.page,
@@ -300,14 +339,15 @@ export const everyMatchQuery = (state: ItemBrowse): ResourceQuery => {
     ...sortQuery(state.sort),
     ...(filters.search === '' ? {} : { search: filters.search }),
     ...(filters.classId === null ? {} : { resourceClassId: filters.classId }),
-    ...(filters.itemSetId === null ? {} : { itemSetId: filters.itemSetId }),
+    ...setQuery(filters.itemSetId),
     ...(filters.links === null ? {} : linksQuery(filters.links.target, filters.links.via)),
-    ...(filters.templateId === null ? {} : { resourceTemplateId: filters.templateId }),
+    ...templateQuery(filters.templateId),
     ...(filters.field === null ? {} : fieldQuery(filters.field.property, filters.field.presence)),
     ...(filters.ownerId === null ? {} : { ownerId: filters.ownerId }),
     ...(filters.visibility === null ? {} : { isPublic: filters.visibility === 'public' ? 1 : 0 }),
     ...siteQuery(filters.site),
     ...mediaQuery(filters.media),
+    ...(filters.changedSince === null ? {} : { romekaChangedByOthersSince: filters.changedSince }),
   };
 };
 
@@ -321,11 +361,10 @@ export const tickedListQuery = (state: ItemBrowse, ticked: readonly ItemId[]): R
 export const linksPlaceHref = (target: LinkTarget, via: PropertyId | null): string =>
   via === null ? `#/items?links=${String(target)}` : `#/items?links=${String(target)}&via=${String(via)}`;
 
+/** The Items screen narrowed by `filters`, in the default order and view. */
+export const itemsHref = (filters: Partial<BrowseFilters>): string =>
+  `#/items?${formatBrowse({ filters: { ...NO_FILTERS, ...filters }, sort: 'newest', view: 'table', page: 1 }).toString()}`;
+
 /** The Items screen filtered to the items of one type whose field is empty, from that type's page. */
 export const fieldPlaceHref = (template: TemplateId, property: PropertyId): string =>
-  `#/items?${formatBrowse({
-    filters: { ...NO_FILTERS, templateId: template, field: { property, presence: 'empty' } },
-    sort: 'newest',
-    view: 'table',
-    page: 1,
-  }).toString()}`;
+  itemsHref({ templateId: template, field: { property, presence: 'empty' } });

@@ -6,11 +6,12 @@ import type { ReactElement } from 'react';
 import type { ClassId } from '../../api/types';
 import { KIND_LABEL } from '../../app/media';
 import { useTranslator } from '../../i18n';
-import type { KeyOf, MessageKey, TermLabels, Translator } from '../../i18n';
+import type { KeyOf, Locale, MessageKey, TermLabels, Translator } from '../../i18n';
+import { formatDateTime } from '../../app/format';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
 import { useTermLabels } from '../../i18n/termText';
-import { activeFilters } from './browse';
+import { activeFilters, chosenId, NONE } from './browse';
 import type { BrowseFilters, FilterKey } from './browse';
 import { fieldName } from './browse-options';
 import type { BrowseOptions } from './browse-options';
@@ -35,14 +36,20 @@ const chipText = (
   t: Translate,
   text: TermLabels,
   linksPlace: LinksPlace,
+  locale: Locale,
 ): string => {
   switch (key) {
     case 'search':
       return t('browse.chipSearch', { text: filters.search });
     case 'classId':
       return t('browse.chipClass', { name: filters.classId === null ? '' : className(options, filters.classId, text) });
-    case 'itemSetId':
-      return t('browse.chipItemSet', { name: filters.itemSetId === null ? '' : nameIn(options.itemSets, filters.itemSetId) });
+    case 'itemSetId': {
+      const set = chosenId(filters.itemSetId);
+      if (set === null) {
+        return filters.itemSetId === NONE ? t('browse.itemSetNone') : '';
+      }
+      return t('browse.chipItemSet', { name: nameIn(options.itemSets, set) });
+    }
     case 'links': {
       if (filters.links === null) {
         return '';
@@ -52,13 +59,18 @@ const chipText = (
       const field = linksPlace.status === 'unavailable' ? null : linkFieldName(filters.links, linksPlace, text);
       return field === null ? t('browse.chipLinks', { name }) : t('browse.chipLinksVia', { name, field });
     }
-    case 'templateId':
-      return t('browse.chipTemplate', { name: filters.templateId === null ? '' : nameIn(options.templates, filters.templateId) });
+    case 'templateId': {
+      const template = chosenId(filters.templateId);
+      if (template === null) {
+        return filters.templateId === NONE ? t('browse.templateNone') : '';
+      }
+      return t('browse.chipTemplate', { name: nameIn(options.templates, template) });
+    }
     case 'field': {
       if (filters.field === null) {
         return '';
       }
-      const field = fieldName(options, filters.templateId, filters.field.property, text);
+      const field = fieldName(options, chosenId(filters.templateId), filters.field.property, text);
       return t(filters.field.presence === 'empty' ? 'browse.chipFieldEmpty' : 'browse.chipFieldFilled', { field });
     }
     case 'ownerId':
@@ -75,6 +87,10 @@ const chipText = (
         return t('browse.chipMedia', { kind: t(KIND_LABEL[filters.media.of]) });
       }
       return t(filters.media?.kind === 'none' ? 'browse.mediaNone' : 'browse.mediaAny');
+    case 'changedSince':
+      return filters.changedSince === null
+        ? ''
+        : t('browse.chipChangedByOthers', { date: formatDateTime(filters.changedSince, locale) });
   }
 };
 
@@ -88,7 +104,7 @@ export interface FilterChipsProps {
 }
 
 export const FilterChips = ({ filters, options, linksPlace, onRemove, onClearAll }: FilterChipsProps): ReactElement | null => {
-  const { t } = useTranslator(common, resources);
+  const { t, locale } = useTranslator(common, resources);
   const text = useTermLabels();
   const keys = activeFilters(filters);
   if (keys.length === 0) {
@@ -98,7 +114,7 @@ export const FilterChips = ({ filters, options, linksPlace, onRemove, onClearAll
     <div className="filter-chips">
       <ul aria-label={t('browse.activeFilters')}>
         {keys.map((key) => {
-          const label = chipText(key, filters, options, t, text, linksPlace);
+          const label = chipText(key, filters, options, t, text, linksPlace, locale);
           return (
             <li key={key} className="filter-chip">
               <span>{label}</span>

@@ -13,6 +13,7 @@ import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
+import { chosenId } from './browse';
 import { itemPageHref, locate, WINDOW, windowPages, windowQuery } from './walk';
 import type { Located, Walk } from './walk';
 import './walk-line.css';
@@ -22,7 +23,7 @@ type Place = { readonly kind: 'items' } | { readonly kind: 'record'; readonly ti
 
 const placeOf = async (walk: Walk): Promise<Place> => {
   const { itemSetId, links } = walk.browse.filters;
-  const target = itemSetId ?? links?.target ?? null;
+  const target = chosenId(itemSetId) ?? links?.target ?? null;
   if (target === null) {
     return { kind: 'items' };
   }

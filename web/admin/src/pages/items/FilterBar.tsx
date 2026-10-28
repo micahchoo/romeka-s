@@ -10,7 +10,7 @@ import { useTranslator } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
 import { useTermLabels } from '../../i18n/termText';
-import { COLUMN_SORTS, isSet, MORE_KEYS, parseSort, PRESENCES } from './browse';
+import { chosenId, COLUMN_SORTS, isSet, MORE_KEYS, NONE, parseSort, PRESENCES } from './browse';
 import type { BrowseFilters, ColumnSort, ItemBrowse, MediaFilter, Presence, SiteFilter, Sort, View } from './browse';
 import { fieldChoices } from './browse-options';
 import type { BrowseOptions } from './browse-options';
@@ -123,7 +123,7 @@ const FieldFilterControl = ({
   const { t } = useTranslator(common, resources);
   const text = useTermLabels();
   const { field } = filters;
-  const choices = fieldChoices(options, filters.templateId, field?.property ?? null, text);
+  const choices = fieldChoices(options, chosenId(filters.templateId), field?.property ?? null, text);
   return (
     <>
       <SelectFilter
@@ -168,9 +168,9 @@ const MoreFilters = ({
         label={t('browse.template')}
         value={filters.templateId === null ? '' : String(filters.templateId)}
         anyLabel={any}
-        choices={choicesOf(options.templates)}
+        choices={[{ value: NONE, label: t('browse.templateNone') }, ...choicesOf(options.templates)]}
         onChoose={(value) => {
-          onFilter({ templateId: keyOf(options.templates, value) });
+          onFilter({ templateId: value === NONE ? NONE : keyOf(options.templates, value) });
         }}
       />
       <FieldFilterControl filters={filters} options={options} onFilter={onFilter} />
@@ -236,7 +236,7 @@ const SortAndView = ({
   const sortId = useId();
   const fields = sortFields(
     options,
-    { template: state.filters.templateId, chosen: state.sort, setHasIdentifier },
+    { template: chosenId(state.filters.templateId), chosen: state.sort, setHasIdentifier },
     text,
   );
   const columns = COLUMN_SORTS.map((sort) => (
@@ -255,7 +255,7 @@ const SortAndView = ({
       </optgroup>
     );
   /** In a set whose items have identifiers, shelf order is the first thing offered. */
-  const fieldsFirst = state.filters.itemSetId !== null && setHasIdentifier;
+  const fieldsFirst = chosenId(state.filters.itemSetId) !== null && setHasIdentifier;
   return (
     <span className="items-sort-view">
       <span className="filter-field">
@@ -340,9 +340,9 @@ export const FilterBar = (props: FilterBarProps): ReactElement => {
         label={t('browse.itemSet')}
         value={filters.itemSetId === null ? '' : String(filters.itemSetId)}
         anyLabel={t('browse.anyValue')}
-        choices={choicesOf(options.itemSets)}
+        choices={[{ value: NONE, label: t('browse.itemSetNone') }, ...choicesOf(options.itemSets)]}
         onChoose={(value) => {
-          onFilter({ itemSetId: keyOf(options.itemSets, value) });
+          onFilter({ itemSetId: value === NONE ? NONE : keyOf(options.itemSets, value) });
         }}
       />
       <SelectFilter

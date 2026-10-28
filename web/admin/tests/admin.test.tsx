@@ -49,7 +49,12 @@ describe('dashboard page', () => {
     installFetch(() => jsonResponse({ errors: { error: 'Server error' } }, { status: 500 }));
     render(<DashboardPage />);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Server error (HTTP 500)');
+    // "Needs attention" and the resource links read apart, and each says why it has nothing.
+    const alerts = await screen.findAllByRole('alert');
+    expect(alerts).toHaveLength(2);
+    for (const alert of alerts) {
+      expect(alert).toHaveTextContent('Server error (HTTP 500)');
+    }
   });
 });
 

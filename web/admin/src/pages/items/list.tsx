@@ -19,7 +19,17 @@ import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
 import { BulkEditBar } from './BulkEditBar';
 import { BulkSiteActions } from './BulkSiteActions';
-import { activeFilters, browseQuery, formatBrowse, parseBrowse, savedQuery, withFilters, withoutFilter, withoutFilters } from './browse';
+import {
+  activeFilters,
+  browseQuery,
+  chosenId,
+  formatBrowse,
+  parseBrowse,
+  savedQuery,
+  withFilters,
+  withoutFilter,
+  withoutFilters,
+} from './browse';
 import type { BrowseFilters, ItemBrowse, View } from './browse';
 import { loadBrowseOptions, NO_OPTIONS } from './browse-options';
 import { CsvDownload } from './csv-download';
@@ -209,7 +219,7 @@ export const ItemsList = (): ReactElement => {
 
   const active = activeFilters(state.filters);
   const filtered = active.length > 0;
-  const setId = state.filters.itemSetId;
+  const setId = chosenId(state.filters.itemSetId);
   const place = useSetPlace(setId, revision);
   const setHasIdentifier = useSetHasIdentifier(setId, propertyOf(options, IDENTIFIER), revision);
   const links = state.filters.links;

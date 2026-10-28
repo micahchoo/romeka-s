@@ -7,7 +7,7 @@ import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
 import { admin } from '../../i18n/namespaces/admin';
-import { FixityLine } from './fixity-line';
+import { NeedsAttention } from './needs-attention';
 
 interface DashboardView {
   readonly itemCount: number;
@@ -35,7 +35,14 @@ const load = async (): Promise<DashboardView> => {
   };
 };
 
-export const DashboardPage = (): ReactElement => {
+export const DashboardPage = (): ReactElement => (
+  <>
+    <NeedsAttention />
+    <Manage />
+  </>
+);
+
+const Manage = (): ReactElement => {
   const { t } = useTranslator(common, admin);
   const state = useAsync(load, []);
 
@@ -49,7 +56,6 @@ export const DashboardPage = (): ReactElement => {
   const view = state.data;
   return (
     <section>
-      <FixityLine />
       <h2>{t('dashboard.manageResources')}</h2>
       <ul>
         <li>

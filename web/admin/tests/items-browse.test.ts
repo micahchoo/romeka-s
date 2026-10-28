@@ -9,6 +9,7 @@ import {
   fieldPlaceHref,
   everyMatchQuery,
   formatBrowse,
+  itemsHref,
   linksPlaceHref,
   NO_FILTERS,
   parseBrowse,
@@ -222,5 +223,38 @@ describe('the field filter', () => {
       templateId: 2,
       field: { property: 7, presence: 'empty' },
     });
+  });
+});
+
+describe('the dashboard filters', () => {
+  const query = 'set=none&template=none&changed=2026-10-20T08%3A30%3A00Z';
+
+  it('no set, no item type and changed by others read back to the same URL', () => {
+    expect(formatBrowse(parse(query)).toString()).toBe(query);
+    expect(parse(query).filters).toMatchObject({
+      itemSetId: 'none',
+      templateId: 'none',
+      changedSince: '2026-10-20T08:30:00Z',
+    });
+  });
+
+  it('drops a changed time that is not a time', () => {
+    expect(parse('changed=last-week').filters.changedSince).toBeNull();
+  });
+
+  it('each is sent as its server parameter', () => {
+    expect(everyMatchQuery(parse(query))).toEqual({
+      sortBy: 'id',
+      sortOrder: 'desc',
+      romekaNoItemSet: 1,
+      romekaNoResourceTemplate: 1,
+      romekaChangedByOthersSince: '2026-10-20T08:30:00Z',
+    });
+  });
+
+  it('a dashboard line opens the address the URL reads back', () => {
+    const href = itemsHref({ itemSetId: 'none' });
+    expect(href).toBe('#/items?set=none');
+    expect(parse(href.slice('#/items?'.length)).filters.itemSetId).toBe('none');
   });
 });
