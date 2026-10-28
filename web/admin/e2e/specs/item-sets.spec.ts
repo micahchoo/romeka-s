@@ -1,7 +1,7 @@
 /**
  * An item set create, edit and delete round trip through the SPA, against the
  * running port. A new set lands on its place (Items filtered to it, under its
- * card); its edit form is a step away, and the card carries the delete.
+ * card); its edit form is a step away, and the card's delete moves it to the trash.
  */
 import { expect, expectClean, test } from '../fixtures';
 
@@ -41,12 +41,14 @@ test('an item set is created, renamed and deleted from the admin', async ({
 
   await page.getByRole('link', { name: RENAMED }).click();
   await card.getByRole('button', { name: 'Delete this item set' }).click();
-  await expect(page.getByText(`Delete ${RENAMED}? This cannot be undone.`)).toBeVisible();
-  await expect(page.getByText('The set has no items.')).toBeVisible();
-  await page.getByRole('button', { name: `Delete ${RENAMED}`, exact: true }).click();
+  const confirm = page.getByRole('region', { name: 'Move to the trash' });
+  await expect(confirm.getByText(`Move ${RENAMED} to the trash?`)).toBeVisible();
+  await expect(confirm.getByText('The set has no items.')).toBeVisible();
+  await confirm.getByRole('button', { name: 'Move to the trash' }).click();
 
-  // Deleted: back on the list, without the row.
+  // In the trash: back on the list, without the row, with the Undo notice.
   await expect(page).toHaveURL(/#\/item-sets$/);
+  await expect(page.locator('.trashed-notice').getByText(`Deleted ${RENAMED}.`)).toBeVisible();
   await expect(page.getByRole('link', { name: RENAMED })).toHaveCount(0);
   await expectClean(diagnostics, 'item set delete');
 });
@@ -65,7 +67,7 @@ test('the delete control holds the request back until it is confirmed', async ({
   await expect(page).toHaveURL(/#\/items\?set=\d+$/);
 
   await page.getByRole('button', { name: 'Delete this item set' }).click();
-  await expect(page.getByText(/This cannot be undone\./)).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Move to the trash' })).toBeVisible();
   await page.getByRole('button', { name: 'Cancel' }).click();
   await expect(page.getByRole('button', { name: 'Delete this item set' })).toBeVisible();
 
