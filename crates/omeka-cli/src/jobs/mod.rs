@@ -18,6 +18,7 @@ mod batch_update;
 mod bulk;
 mod dispatcher;
 mod env;
+mod fixity;
 mod import_run;
 mod index_fulltext_search;
 mod media_derivatives;
@@ -35,6 +36,7 @@ pub use dispatcher::{
     DATABASE_URL_ENV, Dispatcher, JobCommand, JobContext, ProcessDispatch, compose_job,
 };
 pub use env::{DEFAULT_BASE_URL, JobEnv};
+pub use fixity::FixityCheck;
 pub use import_run::{ImportRun, ImportScan, ImportUndo, refuse_live_hand_run};
 pub use index_fulltext_search::IndexFulltextSearch;
 pub use media_derivatives::{MediaDerivatives, YIELD_LIMIT, YIELD_POLL};
@@ -90,6 +92,7 @@ static MEDIA_DERIVATIVES: MediaDerivatives = MediaDerivatives;
 static UPDATE_SITE_ITEMS: UpdateSiteItems = UpdateSiteItems;
 static IMPORT_UNZIP: ImportUnzip = ImportUnzip;
 static IMPORT_SWEEP: ImportSweep = ImportSweep;
+static FIXITY_CHECK: FixityCheck = FixityCheck;
 
 /// The job for a `job.class` value, the port's registry of the four upstream
 /// jobs and Romeka's import jobs. `Dispatcher::dispatch` resolves the class the same way through the
@@ -109,6 +112,7 @@ pub fn job_for(class: &str) -> Option<&'static dyn Job> {
         omeka_api::import::unzip::UNZIP_JOB => Some(&IMPORT_UNZIP),
         omeka_api::import::sweep::SWEEP_JOB => Some(&IMPORT_SWEEP),
         omeka_api::derivatives::DERIVATIVES_JOB => Some(&MEDIA_DERIVATIVES),
+        omeka_api::fixity::CHECK_JOB => Some(&FIXITY_CHECK),
         _ => None,
     }
 }

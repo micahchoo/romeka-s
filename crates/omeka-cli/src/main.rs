@@ -13,6 +13,7 @@ use omeka_cli::commands::derivatives::{
     self as media_derivatives_cmd, DerivativeOptions, DerivativeReport,
 };
 use omeka_cli::commands::export::{self as export, CsvOptions as ExportCsvOptions, JsonldOptions};
+use omeka_cli::commands::fixity::{self as fixity_cmd, CheckOptions as FixityOptions};
 use omeka_cli::commands::import::list::{self as import_list, ListOptions as ImportListOptions};
 use omeka_cli::commands::import::run::{
     self as import_run, RunOptions as ImportRunOptions, RunOutcome,
@@ -78,6 +79,7 @@ fn build_app() -> Command {
         .subcommand(import_command())
         .subcommand(export_command())
         .subcommand(media_command())
+        .subcommand(fixity_command())
         .subcommand(backup_cli())
         .subcommand(restore_cli())
         .subcommand(job_command())
@@ -405,6 +407,20 @@ fn store_arg() -> Arg {
         .help("File store root, the directory holding original/ and the thumbnails")
 }
 
+fn fixity_command() -> Command {
+    group("fixity")
+        .about("Check stored files against the SHA-256 their media records")
+        .subcommand(
+            Command::new("check")
+                .about(
+                    "Read every original, compare its SHA-256, and record the result as a job; \
+                     exits 1 when a file differs, is missing or cannot be read",
+                )
+                .args(database_args())
+                .arg(optional_store_arg()),
+        )
+}
+
 fn job_command() -> Command {
     group("job")
         .about("Run and inspect background jobs")
@@ -474,6 +490,7 @@ async fn dispatch(matches: &ArgMatches) -> Result<ExitCode, CliError> {
         Some(("import", args)) => run_import(args).await,
         Some(("export", args)) => run_export(args).await,
         Some(("media", args)) => run_media(args).await,
+        Some(("fixity", args)) => run_fixity(args).await,
         Some(("backup", args)) => run_backup(args).await,
         Some(("restore", args)) => run_restore(args).await,
         Some(("job", args)) => run_job(args).await,
@@ -1004,6 +1021,42 @@ fn format_counts(counts: &std::collections::BTreeMap<String, i64>) -> String {
         .map(|(table, count)| format!("{table} {count}"))
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+async fn run_fixity(args: &ArgMatches) -> Result<ExitCode, CliError> {
+    let Some(("check", m)) = args.subcommand() else {
+        return Ok(ExitCode::SUCCESS);
+    };
+    let report = fixity_cmd::check(&FixityOptions {
+        database: location(m)?,
+        store: value_of(m, "store").map(PathBuf::from),
+    })
+    .await?;
+    let record = &report.record;
+    for (word, runs) in [
+        ("differs", &record.differs),
+        ("missing", &record.missing),
+        ("unreadable", &record.unreadable),
+    ] {
+        for id in runs.ids() {
+            println!("media {id}: {word}");
+        }
+    }
+    println!(
+        "job {} {}: checked {} files, {} ok, {} differ, {} missing, {} unreadable",
+        report.job.0,
+        report.status.as_str(),
+        record.ok.len() + record.differs.len() + record.missing.len() + record.unreadable.len(),
+        record.ok.len(),
+        record.differs.len(),
+        record.missing.len(),
+        record.unreadable.len(),
+    );
+    Ok(if report.has_problems() {
+        ExitCode::from(1)
+    } else {
+        ExitCode::SUCCESS
+    })
 }
 
 async fn run_job(args: &ArgMatches) -> Result<ExitCode, CliError> {

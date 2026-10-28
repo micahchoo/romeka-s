@@ -34,6 +34,7 @@ romeka export csv      -d PATH --out FILE [--resource items] [--item-set ID]
 romeka media derivatives -d PATH [--store DIR] [--media ID] [--retry]
 romeka media thumbnails -d PATH [--store DIR] [--force]
 romeka media sweep -d PATH [--store DIR] [--delete]
+romeka fixity check -d PATH [--store DIR]
 romeka backup      -d PATH --store DIR --out FILE
 romeka restore     -d PATH --store DIR --in FILE [--force]
 romeka serve       -d PATH [--host H] [--port P] [--base-url URL] [--store DIR]
@@ -309,6 +310,27 @@ Idempotent. The decision comes from the rows and the store as they are now, so
 a second `--delete` finds nothing to remove. The `--store DIR` root defaults to
 `files` beside the database.
 
+## Fixity check
+
+`romeka fixity check` reads every stored original and compares its SHA-256 with `media.sha256`,
+the digest recorded when the file was added. It runs `Romeka\Job\FixityCheck` in this process,
+so a cron can call it, and the run is an ordinary job row the Jobs screen and the dashboard show.
+
+```
+romeka fixity check -d PATH [--store DIR]
+```
+
+Each media with an original ends `ok`, `differs`, `missing` (the store has no file at its path)
+or `unreadable` (the store has something there and cannot read it to its end). Nothing is `ok`
+unless every byte was hashed. A media with an original and no recorded digest is left out and
+named in the job log. The command prints one line per problem file, then the totals, and exits 1
+when a file differs, is missing or cannot be read, or the job did not complete.
+
+The file is read through the store in 8 MiB ranges (`omeka_api::fixity::CHUNK`), so memory stays
+flat whatever the file's size and an object store answers each range with one GET. The result is
+the job's own `args.result`: the media ids of each outcome as runs of consecutive ids. It needs no
+table, and deleting the job deletes it.
+
 ## Backup and restore
 
 ```
@@ -440,6 +462,10 @@ synchronous strategy), and records `completed`, `stopped` or `error`. Jobs read
   function a test and the backfill drain. The server starts one on a create and
   the hourly `ImportSweep` starts one when the queue has work, so the two
   together are the queue's timer.
+
+- `Romeka\Job\FixityCheck` (Romeka's own): no arguments. It checks every original (see
+  Fixity check) and writes its record into its own `args` under `result`. The server composes it
+  through `POST /api/romeka/fixity`; `romeka fixity check` runs one here.
 
 `romeka job run <id>` takes `--store` (default `files` beside the database),
 `--base-url` (default `http://localhost`) and `--archive-root` (the root named

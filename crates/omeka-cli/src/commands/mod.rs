@@ -4,6 +4,7 @@ pub mod backup;
 pub mod derivatives;
 pub mod export;
 mod file_store;
+pub mod fixity;
 pub mod import;
 pub mod install;
 pub mod job;
