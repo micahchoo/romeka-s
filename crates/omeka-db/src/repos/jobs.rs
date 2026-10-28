@@ -164,6 +164,17 @@ where
         Ok(DB::rows_affected(&done) > 0)
     }
 
+    /// Replace the `args` JSON. Upstream's jobs only read their args; a Romeka job that keeps a
+    /// result keeps it here, beside the arguments it ran with, so the result goes when the job does.
+    pub async fn set_args(&self, id: JobId, args: &serde_json::Value) -> Result<bool, DbError> {
+        let done = sqlx::query("UPDATE job SET args = ? WHERE id = ?")
+            .bind(json_text(args)?)
+            .bind(bind_id(id))
+            .execute(self.pool)
+            .await?;
+        Ok(DB::rows_affected(&done) > 0)
+    }
+
     /// Append one line to the log, as `Entity\Job::addLog` does: the line then a newline, after
     /// whatever is stored. The concatenation spelling comes from the backend.
     pub async fn append_log(&self, id: JobId, line: &str) -> Result<bool, DbError> {
