@@ -631,3 +631,66 @@ async fn trash_older_than_the_setting_is_emptied_when_the_recent_list_is_read() 
         "the fresh trash stays: {new_run}"
     );
 }
+
+/// Whether `person` moves `item` to the trash with a delete of it alone, as the admin's item page
+/// does: preview, then run.
+async fn trashes_alone(site: &Site, person: &Person, item: u64) -> bool {
+    let (status, previewed) = person_preview(person, json!({ "id": [item] })).await;
+    if status == 403 {
+        return false;
+    }
+    assert_eq!(status, 201, "{previewed}");
+    let id = previewed["id"].as_u64().unwrap();
+    let (status, started) = person
+        .send("POST", &format!("/api/romeka/bulk/{id}/run"), None)
+        .await;
+    assert_eq!(status, 200, "{started}");
+    let ran = settled(site, id).await;
+    assert_eq!(ran["status"], "done", "{ran}");
+    ran["counts"]["done"] == 1
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn whoever_may_delete_an_item_may_trash_it_alone_and_nobody_else() {
+    let site = site().await;
+    let mut cases = Vec::new();
+    for role in ["researcher", "author", "reviewer", "editor", "site_admin"] {
+        let person = Person::new(&site, role).await;
+        let mut pairs = vec![(
+            "the administrator's",
+            item(&site, "A letter", &[]).await,
+            item(&site, "A letter", &[]).await,
+        )];
+        if role != "researcher" {
+            pairs.push((
+                "own",
+                own_item(&person, "A letter").await,
+                own_item(&person, "A letter").await,
+            ));
+        }
+        for (whose, deleted, trashed) in pairs {
+            let (status, answer) = person
+                .send("DELETE", &format!("/api/items/{deleted}"), None)
+                .await;
+            assert!(
+                [200, 204, 403].contains(&status),
+                "{role}, {whose}: {status} {answer}"
+            );
+            let may_delete = status != 403;
+            let may_trash = trashes_alone(&site, &person, trashed).await;
+            assert_eq!(
+                may_trash, may_delete,
+                "{role} on {whose} item: DELETE {status}"
+            );
+            cases.push((role, whose, may_delete));
+        }
+    }
+    for expected in [
+        ("author", "own", true),
+        ("author", "the administrator's", false),
+        ("researcher", "the administrator's", false),
+        ("editor", "the administrator's", true),
+    ] {
+        assert!(cases.contains(&expected), "{expected:?} in {cases:?}");
+    }
+}
