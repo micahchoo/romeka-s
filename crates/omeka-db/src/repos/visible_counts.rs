@@ -4,13 +4,15 @@
 //!
 //! A count here must equal the `totalResults` of the list it opens for the same caller, so every
 //! counted row passes the same visibility the list applies ([`super::resource_reads`]'s
-//! `push_visibility`, which is `Actor::sees_resource`). `omeka-server/tests/place_counts.rs` holds
+//! `push_visibility`, which is `Actor::sees_resource`), and every counted value passes
+//! `ValueVisibilityFilter` ([`super::value_visibility`]). `omeka-server/tests/place_counts.rs` holds
 //! each count against its list's total.
 
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Type};
 
 use super::resource_reads::{push_list, push_visibility};
 use super::resources::ITEM_FROM;
+use super::value_visibility::push_value_visibility;
 use super::{ItemRepo, ItemSetRepo, MediaVisibility, ValueRepo};
 use crate::DbError;
 use crate::backend::Backend;
@@ -60,8 +62,8 @@ where
     /// The items of `template` that `visibility` keeps, and per property how many of them have a
     /// value for it.
     ///
-    /// A property's count is the `ex` property search (`query.rs`, `MatchKind::Exists`) grouped:
-    /// it keeps a value whatever its own `is_public`, as that search does.
+    /// A property's count is the `ex` property search (`query.rs`, `MatchKind::Exists`) grouped: it
+    /// counts only the values `visibility` may see, as that search does.
     pub async fn field_counts(
         &self,
         template: TemplateId,
@@ -86,6 +88,7 @@ where
         );
         let mut binds = vec![template.0 as i64];
         push_visibility(&mut sql, &mut binds, visibility, "resource");
+        push_value_visibility(&mut sql, &mut binds, visibility, "v");
         sql.push_str(" GROUP BY v.property_id ORDER BY v.property_id");
         let mut query = sqlx::query::<DB>(&sql);
         for bind in &binds {
@@ -165,8 +168,8 @@ where
     /// The resources that `visibility` keeps whose values point at `target`, counted per
     /// (resource type, property), ordered by both.
     ///
-    /// This is the `res` property search (`query.rs`, `MatchKind::Resource`) grouped: it keeps a
-    /// value whatever its own `is_public`, as that search does.
+    /// This is the `res` property search (`query.rs`, `MatchKind::Resource`) grouped: it counts
+    /// only the values `visibility` may see, as that search does.
     pub async fn link_counts(
         &self,
         target: ResourceId,
@@ -180,6 +183,7 @@ where
         );
         let mut binds = vec![target.0 as i64];
         push_visibility(&mut sql, &mut binds, visibility, "resource");
+        push_value_visibility(&mut sql, &mut binds, visibility, "v");
         sql.push_str(
             " GROUP BY resource.resource_type, v.property_id \
              ORDER BY resource.resource_type, v.property_id",

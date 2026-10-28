@@ -433,7 +433,7 @@ async fn list_cost_split() {
     let mut samples = Vec::with_capacity(RUNS);
     for _ in 0..RUNS {
         let start = Instant::now();
-        let rows = super::relations::values_for(&db, &ids)
+        let rows = super::relations::values_for(&db, &ids, omeka_db::repos::MediaVisibility::All)
             .await
             .expect("values_for");
         assert_eq!(rows.len(), PER_PAGE);
@@ -444,7 +444,7 @@ async fn list_cost_split() {
     let mut samples = Vec::with_capacity(RUNS);
     for _ in 0..RUNS {
         let start = Instant::now();
-        let rows = super::relations::pointing_at(&db, &ids)
+        let rows = super::relations::pointing_at(&db, &ids, omeka_db::repos::MediaVisibility::All)
             .await
             .expect("pointing_at");
         assert!(rows.is_empty());

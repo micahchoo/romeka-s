@@ -20,10 +20,11 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 
 use omeka_db::DbPool;
 use omeka_db::ids::{ItemId, ItemSetId, MediaId, PropertyId, ResourceId, SiteId, TemplateId};
-use omeka_db::repos::{MediaDerivativeRepo, RelationRepo};
+use omeka_db::repos::{MediaDerivativeRepo, MediaVisibility, RelationRepo};
 use omeka_db::rows::{AssetRow, DerivativeRow, MediaRow, ResourceRow, ValueRow, resource_type};
 use omeka_db::with_db;
 
+use super::query::media_visibility;
 use super::values::MAX_ANNOTATION_DEPTH;
 use super::{Api, db_error};
 use crate::errors::ApiError;
@@ -63,6 +64,9 @@ pub(crate) struct Relations {
     /// What each page media's derivatives are doing, for
     /// `o-module-romeka:preview`, keyed by media id.
     derivatives: HashMap<u64, Vec<DerivativeRow>>,
+    /// The title each page or referenced resource shows instead of its stored
+    /// one, where the stored title came from a value the caller may not see.
+    hidden_titles: HashMap<u64, Option<String>>,
 }
 
 impl Relations {
@@ -163,8 +167,9 @@ impl Relations {
         ids: &[u64],
         templates: &[TemplateId],
     ) -> Result<(), ApiError> {
-        self.values = values_for(api.pool(), ids).await?;
-        self.pointing = pointing_at(api.pool(), ids).await?;
+        let visibility = media_visibility(api.actor());
+        self.values = values_for(api.pool(), ids, visibility).await?;
+        self.pointing = pointing_at(api.pool(), ids, visibility).await?;
         // The resources every document may print: the targets of its
         // resource-valued values, and the subjects of its reverse references.
         let mut referenced = BTreeSet::new();
@@ -182,6 +187,19 @@ impl Relations {
         }
         let referenced: Vec<u64> = referenced.into_iter().collect();
         self.resources = resources_for(api.pool(), &referenced).await?;
+        let titled: Vec<ResourceId> = ids
+            .iter()
+            .chain(&referenced)
+            .copied()
+            .map(ResourceId)
+            .collect();
+        self.hidden_titles = with_db!(api.pool(), |db| RelationRepo::new(db)
+            .hidden_titles(&titled, visibility)
+            .await)
+        .map_err(db_error)?
+        .into_iter()
+        .map(|(id, title)| (id.0, title))
+        .collect();
         self.assets = thumbnail_assets_for(api.pool(), ids).await?;
         self.template_properties = template_properties_for(api.pool(), templates).await?;
         Ok(())
@@ -220,6 +238,15 @@ impl Relations {
     /// The derivative rows of one media, in kind order.
     pub(crate) fn derivatives(&self, media: MediaId) -> &[DerivativeRow] {
         self.derivatives.get(&media.0).map_or(&[], Vec::as_slice)
+    }
+
+    /// The title a resource shows to the caller: its stored title, unless that
+    /// came from a value the caller may not see (`ValueVisibilityFilter`).
+    pub(crate) fn title(&self, resource: &ResourceRow) -> Option<String> {
+        match self.hidden_titles.get(&resource.id.0) {
+            Some(shown) => shown.clone(),
+            None => resource.title.clone(),
+        }
     }
 
     /// The values on a resource, in upstream's id order.
@@ -400,10 +427,12 @@ pub(crate) async fn thumbnail_assets_for(
 }
 
 /// Every value on each resource, plus the values on the annotations those
-/// values carry, to the depth the builder follows them.
+/// values carry, to the depth the builder follows them, as `visibility` may
+/// see them (`ValueVisibilityFilter`).
 pub(crate) async fn values_for(
     pool: &DbPool,
     resources: &[u64],
+    visibility: MediaVisibility,
 ) -> Result<HashMap<u64, Vec<ValueRow>>, ApiError> {
     let mut by_resource: HashMap<u64, Vec<ValueRow>> = HashMap::new();
     let mut loaded: HashSet<u64> = HashSet::new();
@@ -421,8 +450,10 @@ pub(crate) async fn values_for(
             break;
         }
         let level: Vec<ResourceId> = frontier.iter().copied().map(ResourceId).collect();
-        let rows =
-            with_db!(pool, |db| RelationRepo::new(db).values_of(&level).await).map_err(db_error)?;
+        let rows = with_db!(pool, |db| RelationRepo::new(db)
+            .values_of(&level, visibility)
+            .await)
+        .map_err(db_error)?;
         let mut next = Vec::new();
         for parsed in rows {
             if let Some(annotation) = parsed.value_annotation_id {
@@ -446,10 +477,11 @@ pub(crate) async fn values_for(
 pub(crate) async fn pointing_at(
     pool: &DbPool,
     resources: &[u64],
+    visibility: MediaVisibility,
 ) -> Result<HashMap<u64, Vec<ValueRow>>, ApiError> {
     let resources: Vec<ResourceId> = resources.iter().copied().map(ResourceId).collect();
     let rows = with_db!(pool, |db| RelationRepo::new(db)
-        .values_pointing_at(&resources)
+        .values_pointing_at(&resources, visibility)
         .await)
     .map_err(db_error)?;
     let mut pointing: HashMap<u64, Vec<ValueRow>> = HashMap::new();

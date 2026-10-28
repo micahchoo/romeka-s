@@ -19,6 +19,7 @@ use sqlx::{Encode, Type};
 
 use super::Statement;
 use super::bind_id;
+use super::value_visibility::{bind_title_visible, bind_value_visibility};
 use crate::DbError;
 use crate::backend::Backend;
 use crate::ids::{ItemSetId, PropertyId, SiteId, UserId};
@@ -86,6 +87,17 @@ pub enum MediaVisibility {
     Actor(Option<UserId>),
 }
 
+impl MediaVisibility {
+    /// `ValueVisibilityFilter` on one value already read, for a caller that filters rows in
+    /// memory; [`super::value_visibility`] is the same rule as SQL.
+    pub fn sees_value(self, is_public: bool, resource_owner: Option<UserId>) -> bool {
+        match self {
+            Self::All => true,
+            Self::Actor(user) => is_public || (user.is_some() && user == resource_owner),
+        }
+    }
+}
+
 /// The advanced search parameters shared by items, item sets and media.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct QueryFilter {
@@ -105,8 +117,9 @@ pub struct QueryFilter {
     /// `site_id` site (`ItemAdapter::buildQuery`). Only meaningful with
     /// `site_id`.
     pub site_attachments_only: bool,
-    /// The media rows the `has_media` test counts.
-    pub media_visibility: MediaVisibility,
+    /// Who reads: the media rows the `has_media` test counts, and the values the property rows
+    /// match (`ValueVisibilityFilter`, [`super::value_visibility`]).
+    pub visibility: MediaVisibility,
     /// `item_set_id`: items in any of these sets.
     pub item_set_ids: Vec<ItemSetId>,
     /// `not_item_set_id`: items in none of these sets.
@@ -258,7 +271,7 @@ impl QueryFilter {
     where
         for<'x> i64: Encode<'x, DB> + Type<DB>,
     {
-        match self.media_visibility {
+        match self.visibility {
             MediaVisibility::All => {}
             MediaVisibility::Actor(owner) => {
                 statement.push(" AND (").push(alias).push(".is_public = 1");
@@ -302,7 +315,8 @@ impl QueryFilter {
                 statement.push(" AND v.property_id = ");
                 statement.bind(bind_id(property))?;
             }
-            push_predicate(statement, row)?;
+            bind_value_visibility(statement, self.visibility, "v")?;
+            push_predicate(statement, row, self.visibility)?;
             statement.push(")");
         }
         Ok(())
@@ -409,6 +423,7 @@ where
 fn push_predicate<'q, DB: Backend>(
     statement: &mut Statement<'q, DB>,
     row: &ValueQuery,
+    visibility: MediaVisibility,
 ) -> Result<(), DbError>
 where
     for<'x> i64: Encode<'x, DB> + Type<DB>,
@@ -436,6 +451,7 @@ where
             statement
                 .push(" AND (v.value_resource_id IN (SELECT id FROM resource r2 WHERE r2.title = ");
             statement.bind(row.text.clone())?;
+            bind_title_visible(statement, visibility, "r2")?;
             statement.push(") OR v.value = ");
             statement.bind(row.text.clone())?;
             statement.push(" OR v.uri = ");
@@ -450,6 +466,7 @@ where
             );
             statement.bind(pattern.clone())?;
             statement.push(escape);
+            bind_title_visible(statement, visibility, "r2")?;
             statement.push(") OR v.value LIKE ");
             statement.bind(pattern.clone())?;
             statement.push(escape);

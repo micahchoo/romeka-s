@@ -18,7 +18,9 @@ use common::{
     Answer, KEY_CREDENTIAL, KEY_IDENTITY, caller, json_request, request, router, seeded_pool, send,
 };
 use omeka_db::ids::{ItemId, ItemSetId, MediaId, PropertyId, ResourceId, SiteId, TemplateId};
-use omeka_db::repos::{ItemRepo, ItemSetRepo, MediaRepo, PropertyRepo, TemplateRepo, ValueRepo};
+use omeka_db::repos::{
+    ItemRepo, ItemSetRepo, MediaRepo, PropertyRepo, SettingRepo, TemplateRepo, ValueRepo,
+};
 use omeka_db::rows::{
     NewItem, NewItemSet, NewMedia, NewProperty, NewResource, NewTemplate, NewValue,
 };
@@ -46,6 +48,7 @@ impl Who {
 }
 
 struct World {
+    pool: SqlitePool,
     app: Router,
     callers: Vec<Who>,
     owner_key: String,
@@ -181,19 +184,19 @@ async fn world() -> World {
 
     let media = MediaRepo::new(&pool)
         .create(&NewMedia {
-            resource: public_resource(owner.id, None, "Open page"),
+            resource: public_resource(owner.id, None, "Open photo"),
             item_id: item,
-            ingester: "html".to_string(),
-            renderer: "html".to_string(),
-            data: Some(json!({"html": "<p>A page</p>"})),
-            source: None,
-            media_type: None,
-            storage_id: None,
-            extension: None,
-            sha256: None,
-            size: None,
-            has_original: false,
-            has_thumbnails: false,
+            ingester: "upload".to_string(),
+            renderer: "file".to_string(),
+            data: None,
+            source: Some("photo.jpg".to_string()),
+            media_type: Some("image/jpeg".to_string()),
+            storage_id: Some("5c2f6c0f1a0a5a6b9a7c3d4e5f6a7b8c9d0e1f2a".to_string()),
+            extension: Some("jpg".to_string()),
+            sha256: Some("def456".to_string()),
+            size: Some(1234),
+            has_original: true,
+            has_thumbnails: true,
             position: Some(1),
             lang: None,
             alt_text: None,
@@ -205,7 +208,8 @@ async fn world() -> World {
 
     let admin_key = format!("key_identity={KEY_IDENTITY}&key_credential={KEY_CREDENTIAL}");
     World {
-        app: router(pool),
+        app: router(pool.clone()),
+        pool,
         owner_key: owner.key.clone(),
         callers: vec![
             Who {
@@ -474,4 +478,139 @@ async fn the_public_site_item_page_hides_a_private_value_from_a_visitor() {
     assert!(!page.body.contains(SECRET), "{}", page.body);
     let target = read(&world.app, &format!("/s/museum/item/{}", world.target.0)).await;
     assert!(!target.body.contains("Open letter"), "{}", target.body);
+}
+
+/// `MediaRepresentation::altTextResolved` reads the alt text property through `value()`, which
+/// sees only the values the filter keeps. The public site answers any visitor.
+#[tokio::test]
+async fn an_alt_text_drawn_from_a_private_value_is_not_shown_to_a_visitor() {
+    let world = world().await;
+    SettingRepo::new(&world.pool)
+        .set("media_alt_text_property", &json!("dcterms:note"))
+        .await
+        .unwrap();
+    let page = read(&world.app, &format!("/s/museum/media/{}", world.media.0)).await;
+    assert!(page.body.contains("Open photo"), "{}", page.body);
+    assert!(!page.body.contains(SECRET), "{}", page.body);
+}
+
+/// Upstream stores the first title value as `o:title` whatever its visibility, so its own reads
+/// print a private title. The port shows a caller the first title value they may see, in the
+/// document, in a reverse reference, in a linked value's `display_title`, in the CSV and in the
+/// fulltext index (which answers everyone, so it holds the public title).
+#[tokio::test]
+async fn a_title_drawn_from_a_private_value_shows_only_to_callers_who_may_see_it() {
+    let world = world().await;
+    let created = send(
+        world.app.clone(),
+        json_request(
+            "POST",
+            &format!("/api/items?{}", world.owner_key),
+            &json!({
+                "o:is_public": true,
+                "dcterms:title": [
+                    {"type": "literal", "property_id": "auto", "@value": "Hiddentitle", "is_public": false},
+                    {"type": "literal", "property_id": "auto", "@value": "Shown title"},
+                ],
+                "dcterms:creator": [
+                    {"type": "resource:item", "property_id": "auto", "value_resource_id": world.target.0},
+                ],
+            })
+            .to_string(),
+        ),
+    )
+    .await;
+    assert_eq!(created.status, StatusCode::OK, "{}", created.body);
+    let titled = created.json()["o:id"].as_u64().unwrap();
+    let linker = send(
+        world.app.clone(),
+        json_request(
+            "POST",
+            &format!("/api/items?{}", world.owner_key),
+            &json!({
+                "o:is_public": true,
+                "dcterms:title": [{"type": "literal", "property_id": "auto", "@value": "Linker"}],
+                "dcterms:note": [
+                    {"type": "resource:item", "property_id": "auto", "value_resource_id": titled},
+                ],
+            })
+            .to_string(),
+        ),
+    )
+    .await;
+    assert_eq!(linker.status, StatusCode::OK, "{}", linker.body);
+    let linker = linker.json()["o:id"].as_u64().unwrap();
+
+    for who in &world.callers {
+        let want = if who.sees_private {
+            "Hiddentitle"
+        } else {
+            "Shown title"
+        };
+        let item = read(&world.app, &who.uri(&format!("/api/items/{titled}"))).await;
+        assert_eq!(item.json()["o:title"], want, "{}", who.name);
+        let list = read(&world.app, &who.uri(&format!("/api/items?id[]={titled}"))).await;
+        assert_eq!(list.json()[0]["o:title"], want, "{}", who.name);
+        let target = read(
+            &world.app,
+            &who.uri(&format!("/api/items/{}", world.target.0)),
+        )
+        .await;
+        assert!(
+            target.json()["@reverse"].to_string().contains(want),
+            "{}: {}",
+            who.name,
+            target.body
+        );
+        let linked = read(&world.app, &who.uri(&format!("/api/items/{linker}"))).await;
+        assert_eq!(
+            linked.json()["dcterms:note"][0]["display_title"],
+            want,
+            "{}",
+            who.name
+        );
+        let csv = read(
+            &world.app,
+            &who.uri(&format!(
+                "/api/romeka/items.csv?id[]={titled}&id[]={linker}"
+            )),
+        )
+        .await;
+        assert_eq!(
+            csv.body.contains("Hiddentitle"),
+            who.sees_private,
+            "{}: {}",
+            who.name,
+            csv.body
+        );
+        assert_eq!(
+            total(
+                &world.app,
+                &who.uri("/api/items?fulltext_search=Hiddentitle")
+            )
+            .await,
+            0,
+            "{}",
+            who.name
+        );
+        let seen = u64::from(who.sees_private);
+        for search in [
+            format!(
+                "/api/items?property[0][property]={}&property[0][type]=eq&property[0][text]=Hiddentitle",
+                world.note.0
+            ),
+            format!(
+                "/api/items?property[0][property]={}&property[0][type]=in&property[0][text]=iddentit",
+                world.note.0
+            ),
+            "/api/resources?search=Hiddentitle".to_string(),
+        ] {
+            assert_eq!(
+                total(&world.app, &who.uri(&search)).await,
+                seen,
+                "{}: {search}",
+                who.name
+            );
+        }
+    }
 }

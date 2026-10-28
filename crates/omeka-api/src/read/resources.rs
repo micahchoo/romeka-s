@@ -268,7 +268,7 @@ pub(crate) fn item_doc(
             resource.resource_template_id.map(|id| id.0),
         ),
         thumbnail: resource_ref_opt(base, "assets", resource.thumbnail_id.map(|id| id.0)),
-        title: resource.title.clone(),
+        title: relations.title(resource),
         thumbnail_display_urls: thumbnails(
             api,
             relations,
@@ -416,7 +416,7 @@ pub(crate) fn item_set_doc(
             resource.resource_template_id.map(|id| id.0),
         ),
         thumbnail: resource_ref_opt(base, "assets", resource.thumbnail_id.map(|id| id.0)),
-        title: resource.title.clone(),
+        title: relations.title(resource),
         thumbnail_display_urls: thumbnails(
             api,
             relations,
@@ -616,7 +616,7 @@ pub(crate) fn media_doc(
             resource.resource_template_id.map(|id| id.0),
         ),
         thumbnail: resource_ref_opt(base, "assets", resource.thumbnail_id.map(|id| id.0)),
-        title: resource.title.clone(),
+        title: relations.title(resource),
         thumbnail_display_urls: thumbnails(api, relations, resource.thumbnail_id, Some(shown)),
         created: jsonld_date(resource.created),
         modified: resource.modified.map(jsonld_date),
@@ -809,7 +809,7 @@ pub(crate) fn value_annotation_doc(
             resource.resource_template_id.map(|id| id.0),
         ),
         thumbnail: resource_ref_opt(base, "assets", resource.thumbnail_id.map(|id| id.0)),
-        title: resource.title.clone(),
+        title: relations.title(resource),
         // `AbstractRepresentation::thumbnailDisplayUrl`: a custom asset when one
         // is set, and a value annotation has no primary media to fall back to.
         thumbnail_display_urls: thumbnails(api, relations, resource.thumbnail_id, None),

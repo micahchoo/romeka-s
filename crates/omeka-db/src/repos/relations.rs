@@ -13,7 +13,8 @@
 
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Sqlite, Type};
 
-use super::{Statement, bind_id, fetch_rows};
+use super::value_visibility::{bind_title_visible, bind_value_visibility, title_property};
+use super::{MediaVisibility, Statement, bind_id, fetch_rows};
 use crate::DbError;
 use crate::backend::Backend;
 use crate::ids::{ItemId, ItemSetId, MediaId, PropertyId, ResourceId, SiteId, TemplateId};
@@ -138,30 +139,55 @@ where
         rows.iter().map(AssetRow::from_db_row::<DB>).collect()
     }
 
-    /// Every value on the resources, by resource then id.
-    pub async fn values_of(&self, resources: &[ResourceId]) -> Result<Vec<ValueRow>, DbError> {
-        let rows = self
-            .rows_in(
-                "SELECT * FROM value WHERE resource_id IN (",
-                ") ORDER BY resource_id, id",
-                resources.iter().copied().map(bind_id),
-            )
-            .await?;
-        rows.iter().map(ValueRow::from_db_row::<DB>).collect()
+    /// Every value on the resources that `visibility` may see, by resource then id.
+    pub async fn values_of(
+        &self,
+        resources: &[ResourceId],
+        visibility: MediaVisibility,
+    ) -> Result<Vec<ValueRow>, DbError> {
+        self.values_where(
+            "resource_id",
+            resources,
+            visibility,
+            " ORDER BY v.resource_id, v.id",
+        )
+        .await
     }
 
-    /// Every value whose `value_resource_id` is one of the resources, by id.
+    /// Every value whose `value_resource_id` is one of the resources and that `visibility` may
+    /// see, by id.
     pub async fn values_pointing_at(
         &self,
         resources: &[ResourceId],
+        visibility: MediaVisibility,
     ) -> Result<Vec<ValueRow>, DbError> {
-        let rows = self
-            .rows_in(
-                "SELECT * FROM value WHERE value_resource_id IN (",
-                ") ORDER BY id",
-                resources.iter().copied().map(bind_id),
-            )
-            .await?;
+        self.values_where("value_resource_id", resources, visibility, " ORDER BY v.id")
+            .await
+    }
+
+    async fn values_where(
+        &self,
+        column: &str,
+        resources: &[ResourceId],
+        visibility: MediaVisibility,
+        order: &str,
+    ) -> Result<Vec<ValueRow>, DbError> {
+        if resources.is_empty() {
+            return Ok(Vec::new());
+        }
+        let mut statement =
+            Statement::<DB>::new(&format!("SELECT v.* FROM value v WHERE v.{column} IN ("));
+        for (index, id) in resources.iter().enumerate() {
+            if index > 0 {
+                statement.push(", ");
+            }
+            statement.bind(bind_id(*id))?;
+        }
+        statement.push(")");
+        bind_value_visibility(&mut statement, visibility, "v")?;
+        statement.push(order);
+        let (sql, arguments) = statement.into_parts();
+        let rows: Vec<DB::Row> = fetch_rows(&sql, arguments, self.pool).await?;
         rows.iter().map(ValueRow::from_db_row::<DB>).collect()
     }
 
@@ -175,6 +201,59 @@ where
             )
             .await?;
         rows.iter().map(ResourceRow::from_db_row::<DB>).collect()
+    }
+
+    /// The title each resource shows to `visibility` where its stored `title` came from a value
+    /// `visibility` may not see: the first non-empty value of the title property it may see, or
+    /// `None`. A resource whose stored title the caller may see is absent.
+    ///
+    /// `ResourceTitleHydrator` stores the first non-empty value of the template's title property
+    /// (`dcterms:title` without one) whatever that value's visibility, and every upstream read
+    /// prints that column. The port prints a title only from a value the caller may read.
+    pub async fn hidden_titles(
+        &self,
+        ids: &[ResourceId],
+        visibility: MediaVisibility,
+    ) -> Result<Vec<(ResourceId, Option<String>)>, DbError> {
+        if ids.is_empty() || visibility == MediaVisibility::All {
+            return Ok(Vec::new());
+        }
+        let mut statement = Statement::<DB>::new(&format!(
+            "SELECT r.id AS id, (SELECT v.value FROM value v WHERE v.resource_id = r.id \
+             AND v.value IS NOT NULL AND v.value <> '' AND v.property_id = {}",
+            title_property("r")
+        ));
+        bind_value_visibility(&mut statement, visibility, "v")?;
+        statement.push(
+            " ORDER BY v.id LIMIT 1) AS shown FROM resource r \
+             WHERE r.title IS NOT NULL AND r.id IN (",
+        );
+        for (index, id) in ids.iter().enumerate() {
+            if index > 0 {
+                statement.push(", ");
+            }
+            statement.bind(bind_id(*id))?;
+        }
+        statement.push(") AND NOT (1 = 1");
+        bind_title_visible(&mut statement, visibility, "r")?;
+        statement.push(")");
+        let (sql, arguments) = statement.into_parts();
+        let rows: Vec<DB::Row> = fetch_rows(&sql, arguments, self.pool).await?;
+        rows.iter()
+            .map(|row| Ok((DB::id(row, "id")?, DB::opt_text(row, "shown")?)))
+            .collect()
+    }
+
+    /// The title a resource shows to anyone: its stored title, unless that came from a private
+    /// value. The fulltext index answers every caller, so it holds this title.
+    pub async fn public_title(&self, row: &ResourceRow) -> Result<Option<String>, DbError> {
+        let hidden = self
+            .hidden_titles(&[row.id], MediaVisibility::Actor(None))
+            .await?;
+        Ok(match hidden.into_iter().next() {
+            Some((_, shown)) => shown,
+            None => row.title.clone(),
+        })
     }
 
     /// The `(template, property)` pairs of the templates, by template, then position, then id.

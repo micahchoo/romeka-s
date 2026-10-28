@@ -147,7 +147,7 @@ async fn world() -> World {
     let i4 = item(&pool, other.id, Some(template), false).await;
     value(&pool, i4, date, None, true).await;
     let i5 = item(&pool, author.id, Some(template), true).await;
-    // A private value on a public item: the count follows whatever `ex` does with it.
+    // A private value on a public item: only its owner and view-all callers see it (`ValueVisibilityFilter`).
     value(&pool, i5, date, None, false).await;
     // Another type's item fills nothing here.
     let elsewhere = item(&pool, admin, Some(seed.template), true).await;
@@ -269,9 +269,9 @@ async fn every_count_equals_the_items_list_total_it_opens_for_its_caller() {
 async fn counts_name_only_the_items_the_caller_may_see() {
     let world = world().await;
     let expected = [
-        ("anonymous", 2, vec![(world.date, 2), (world.creator, 1)]),
+        ("anonymous", 2, vec![(world.date, 1), (world.creator, 1)]),
         ("author", 3, vec![(world.date, 2), (world.creator, 2)]),
-        ("other", 3, vec![(world.date, 3), (world.creator, 1)]),
+        ("other", 3, vec![(world.date, 2), (world.creator, 1)]),
         ("admin", 5, vec![(world.date, 4), (world.creator, 2)]),
     ];
     for (who, (name, total, fields)) in world.callers.iter().zip(expected) {

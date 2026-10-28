@@ -476,6 +476,24 @@ assertion assigns (`admin` 1, `editor` 2, `viewer` 3). Reads consult the same
 rows through the site and site-page visibility (`Actor::sees_site`,
 `Actor::sees_site_page`), which the API reads and the `/s` routes share.
 
+### Private values
+
+A value has its own `is_public`. Upstream `ValueVisibilityFilter` joins every statement that
+reads `value`: a `view-all` caller (reviewer and up) sees every value, a signed-in caller also
+sees every value on the resources they own, and everyone else sees public values only. The port
+applies that rule in `omeka-db` (`repos/value_visibility.rs`) to the values a document prints,
+its `@reverse` references, the property search (`eq`, `in`, `ex`, `nex`, `res` and the rest, and
+`search`), the field and link counts, and the media alt text drawn from a value. The CSV is built
+from the documents, so it follows. The fulltext index holds public values only, as upstream's
+`getFulltextText` does.
+
+`o:title` differs from upstream. Upstream stores the first title value whatever its visibility
+and prints it to everyone. The port shows a caller the first title value they may see
+(`RelationRepo::hidden_titles`): in `o:title`, a reverse reference, a linked value's
+`display_title`, a title match in the property search and `GET /api/resources?search`. The
+fulltext index holds the public title. `tests/private_values.rs` in `omeka-server` reads all of
+this as five callers.
+
 ## Auth
 
 `src/auth.rs` parses the `key_identity` / `key_credential` query pair the way

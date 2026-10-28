@@ -63,7 +63,7 @@ pub(crate) fn reverse_map(
             .or_default()
             .push(ReverseRef {
                 id: api.base().api_resource("resources", subject.id.0),
-                title: subject.title.clone(),
+                title: relations.title(subject),
             });
     }
     if map.is_empty() { None } else { Some(map) }
@@ -153,7 +153,11 @@ fn resource_value(
         value_resource_id: value_id.0,
         value_resource_name: name.to_string(),
         url: None,
-        display_title: Some(target.title.clone().unwrap_or_else(|| UNTITLED.to_string())),
+        display_title: Some(
+            relations
+                .title(target)
+                .unwrap_or_else(|| UNTITLED.to_string()),
+        ),
         thumbnail_url: None,
         thumbnail_title: None,
         thumbnail_type: None,

@@ -9,8 +9,8 @@ mod import_db;
 use import_db::on_both;
 use omeka_db::ids::{ItemId, ItemSetId, ResourceId, TemplateId};
 use omeka_db::repos::{
-    AssetRepo, ItemRepo, ItemSetRepo, MediaRepo, PropertyRepo, RelationRepo, SiteRepo,
-    TemplateRepo, ValueRepo, VocabularyRepo,
+    AssetRepo, ItemRepo, ItemSetRepo, MediaRepo, MediaVisibility, PropertyRepo, RelationRepo,
+    SiteRepo, TemplateRepo, ValueRepo, VocabularyRepo,
 };
 use omeka_db::rows::{
     NewAsset, NewItem, NewItemSet, NewMedia, NewProperty, NewResource, NewSite, NewTemplate,
@@ -196,7 +196,7 @@ on_both!(a_page_reads_each_relation_over_its_ids, |pool| {
     assert_eq!(thumbnails[0].id, asset.id);
 
     let on_page: Vec<_> = reads
-        .values_of(&resources)
+        .values_of(&resources, MediaVisibility::All)
         .await
         .unwrap()
         .iter()
@@ -204,7 +204,7 @@ on_both!(a_page_reads_each_relation_over_its_ids, |pool| {
         .collect();
     assert_eq!(on_page, [named.id, link.id], "values by resource, then id");
     let pointing: Vec<_> = reads
-        .values_pointing_at(&resources)
+        .values_pointing_at(&resources, MediaVisibility::All)
         .await
         .unwrap()
         .iter()
@@ -258,10 +258,16 @@ on_both!(an_empty_id_list_reads_nothing, |pool| {
             .unwrap()
             .is_empty()
     );
-    assert!(reads.values_of(&no_resources).await.unwrap().is_empty());
     assert!(
         reads
-            .values_pointing_at(&no_resources)
+            .values_of(&no_resources, MediaVisibility::All)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        reads
+            .values_pointing_at(&no_resources, MediaVisibility::All)
             .await
             .unwrap()
             .is_empty()

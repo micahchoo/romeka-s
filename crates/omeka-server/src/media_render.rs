@@ -218,9 +218,14 @@ async fn visible(
         return Err(ApiError::not_found(messages::NOT_FOUND));
     }
     let catalog = Catalog::load(&state.pool).await?;
-    let alt_text = omeka_api::settings::media_alt_text(&state.pool, &catalog, &media)
-        .await
-        .map_err(ApiError::internal)?;
+    let alt_text = omeka_api::settings::media_alt_text(
+        &state.pool,
+        &catalog,
+        &media,
+        omeka_api::read::query::media_visibility(&actor),
+    )
+    .await
+    .map_err(ApiError::internal)?;
     let core = media_core(&media, alt_text);
     let base = state.base.as_str().to_string();
     let view = MediaView::new(

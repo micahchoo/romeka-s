@@ -41,7 +41,7 @@
 use omeka_db::DbError;
 use omeka_db::DbPool;
 use omeka_db::ids::UserId;
-use omeka_db::repos::{SettingRepo, UserSettingRepo, ValueRepo};
+use omeka_db::repos::{MediaVisibility, SettingRepo, UserSettingRepo, ValueRepo};
 use omeka_db::rows::MediaRow;
 use omeka_db::with_db;
 use omeka_media::http_guard::AddressPolicy;
@@ -207,8 +207,9 @@ pub async fn admin_locale(pool: &DbPool, user: UserId) -> Result<Option<String>,
 /// [`MEDIA_ALT_TEXT_PROPERTY`] names, else none.
 ///
 /// The fallback reads the value's own text, as the representation's `value()`
-/// does, and applies no visibility or language filter: upstream reads the first
-/// value of the term whatever its flags.
+/// does, from the first value `visibility` may see: upstream's `value()` reads
+/// the resource's values through `ValueVisibilityFilter`. It applies no
+/// language filter.
 ///
 /// # Errors
 /// [`DbError`] when the setting or a value row cannot be read.
@@ -216,6 +217,7 @@ pub async fn media_alt_text(
     pool: &DbPool,
     catalog: &Catalog,
     media: &MediaRow,
+    visibility: MediaVisibility,
 ) -> Result<Option<String>, DbError> {
     let stored = media.alt_text.clone().filter(|text| !text.is_empty());
     if stored.is_some() {
@@ -237,7 +239,7 @@ pub async fn media_alt_text(
         .await)?;
     Ok(values
         .into_iter()
-        .next()
+        .find(|value| visibility.sees_value(value.is_public, media.resource.owner_id))
         .and_then(|value| value.value)
         .or_else(|| media.alt_text.clone()))
 }

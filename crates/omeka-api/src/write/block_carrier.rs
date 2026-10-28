@@ -213,10 +213,15 @@ async fn plain_refs(
             refs = refs.media(
                 *id,
                 format!("/files/{path}"),
-                crate::settings::media_alt_text(api.pool(), api.catalog(), row)
-                    .await
-                    .map_err(db_error)?
-                    .unwrap_or_default(),
+                crate::settings::media_alt_text(
+                    api.pool(),
+                    api.catalog(),
+                    row,
+                    omeka_db::repos::MediaVisibility::Actor(None),
+                )
+                .await
+                .map_err(db_error)?
+                .unwrap_or_default(),
             );
         }
     }
@@ -389,10 +394,15 @@ async fn main_image(api: &Api<'_>, row: &ItemRow) -> Result<Option<PlainImage>, 
     };
     Ok(Some(PlainImage {
         url: format!("/files/{path}"),
-        alt: crate::settings::media_alt_text(api.pool(), api.catalog(), &media)
-            .await
-            .map_err(db_error)?
-            .unwrap_or_default(),
+        alt: crate::settings::media_alt_text(
+            api.pool(),
+            api.catalog(),
+            &media,
+            omeka_db::repos::MediaVisibility::Actor(None),
+        )
+        .await
+        .map_err(db_error)?
+        .unwrap_or_default(),
     }))
 }
 

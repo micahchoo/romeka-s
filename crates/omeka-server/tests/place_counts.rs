@@ -189,7 +189,7 @@ async fn world() -> World {
         link(&pool, from.as_resource(), creator, target, true).await;
     }
     link(&pool, i3.as_resource(), subject, target, true).await;
-    // A private value on a public item: the list follows whatever the `res` search does with it.
+    // A private value on a public item: only its owner and view-all callers see it (`ValueVisibilityFilter`).
     link(&pool, i5.as_resource(), creator, target, false).await;
     // Two values of one item on one property count the item once.
     link(&pool, i1.as_resource(), subject, target, true).await;

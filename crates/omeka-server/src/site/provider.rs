@@ -431,9 +431,14 @@ async fn load_image(
             id,
             Thumbnail::new(
                 url,
-                omeka_api::settings::media_alt_text(loader.pool(), loader.catalog(), &media)
-                    .await?
-                    .unwrap_or_default(),
+                omeka_api::settings::media_alt_text(
+                    loader.pool(),
+                    loader.catalog(),
+                    &media,
+                    omeka_db::repos::MediaVisibility::Actor(None),
+                )
+                .await?
+                .unwrap_or_default(),
             ),
         ));
     }

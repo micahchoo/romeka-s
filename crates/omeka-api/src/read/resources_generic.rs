@@ -22,9 +22,12 @@
 //! `value_annotation` query in [`super::system`]), so this module holds no SQL
 //! of its own.
 
+use std::collections::HashMap;
+
 use omeka_db::ids::ResourceId;
 use omeka_db::repos::{
-    ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo, MediaFilter, MediaRepo, Paging, ResourceRepo,
+    ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo, MediaFilter, MediaRepo, Paging, RelationRepo,
+    ResourceRepo,
 };
 use omeka_db::rows::{
     ItemRow, ItemSetRow, MediaRow, ResourceRow, ValueAnnotationRow, resource_type,
@@ -33,7 +36,7 @@ use omeka_db::with_db;
 
 use super::paging::{Limit, Window, ordered_page};
 use super::params::Params;
-use super::query::{id_filter, id_matches};
+use super::query::{id_filter, id_matches, media_visibility};
 use super::relations::Relations;
 use super::response::link_header;
 use super::{Api, db_error, not_found, parse_id, resources, system};
@@ -118,6 +121,7 @@ pub async fn search_resources(api: &Api<'_>, params: &Params) -> Result<ApiRespo
         })
         .filter(|row| title_matches(row.resource().title.as_deref(), needle.as_deref()))
         .collect();
+    let rows = drop_hidden_title_matches(api, rows, needle.as_deref()).await?;
     let (total, page) = ordered_page(
         rows,
         Sort::from_params(params).descending,
@@ -299,6 +303,34 @@ fn template_matches(template: Option<omeka_db::ids::TemplateId>, params: &Params
     params
         .id("resource_template_id")
         .is_none_or(|want: omeka_db::ids::TemplateId| template == Some(want))
+}
+
+/// The rows a title search kept whose stored title came from a value the caller
+/// may not see are kept only when the title the caller is shown matches too, so
+/// a private title is never found by its words.
+async fn drop_hidden_title_matches(
+    api: &Api<'_>,
+    rows: Vec<KindRow>,
+    needle: Option<&str>,
+) -> Result<Vec<KindRow>, ApiError> {
+    let Some(needle) = needle else {
+        return Ok(rows);
+    };
+    let ids: Vec<ResourceId> = rows.iter().map(|row| row.resource().id).collect();
+    let hidden: HashMap<u64, Option<String>> = with_db!(api.pool(), |db| RelationRepo::new(db)
+        .hidden_titles(&ids, media_visibility(api.actor()))
+        .await)
+    .map_err(db_error)?
+    .into_iter()
+    .map(|(id, shown)| (id.0, shown))
+    .collect();
+    Ok(rows
+        .into_iter()
+        .filter(|row| match hidden.get(&row.resource().id.0) {
+            Some(shown) => title_matches(shown.as_deref(), Some(needle)),
+            None => true,
+        })
+        .collect())
 }
 
 /// `AbstractResourceEntityAdapter::buildQuery`'s `search` branch is a contains

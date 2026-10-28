@@ -308,7 +308,8 @@ A third read states how complete an item type's fields are:
 `total` is the `Omeka-S-Total-Results` of `GET /api/items?resource_template_id=<id>` for the same
 caller. A field's `filled` is that of the same list with `property[i][property]=<property_id>&
 property[i][type]=ex`, and `total - filled` is that of `nex`. A field no item the caller may see
-fills is left out, so its `filled` is 0. Like `ex`, a value counts whatever its own visibility.
+fills is left out, so its `filled` is 0. Like `ex`, a value counts only when the caller may see it
+(a private value: its owner and reviewer and up).
 A missing type and an id that is not a positive integer are the same 404. The answer is
 `Cache-Control: no-store`. `tests/field_counts.rs` holds every number against its list for
 anonymous, two non-admins and an admin.

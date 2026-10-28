@@ -80,7 +80,7 @@ impl SearchQuery {
         filter.has_media = params.bool("has_media");
         filter.has_media_kind = kind_names(params.list("has_media_kind"));
         filter.site_attachments_only = params.bool("site_attachments_only").unwrap_or(false);
-        filter.media_visibility = visibility;
+        filter.visibility = visibility;
         filter.item_set_ids = ids(&params.list("item_set_id"));
         filter.not_item_set_ids = ids(&params.list("not_item_set_id"));
         let fulltext = params

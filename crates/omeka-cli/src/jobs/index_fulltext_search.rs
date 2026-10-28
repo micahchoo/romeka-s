@@ -16,7 +16,7 @@ use async_trait::async_trait;
 
 use omeka_db::ids::ResourceId;
 use omeka_db::repos::{
-    FulltextRepo, ItemRepo, ItemSetRepo, MediaRepo, Paging, ResourceRepo, ValueRepo,
+    FulltextRepo, ItemRepo, ItemSetRepo, MediaRepo, Paging, RelationRepo, ResourceRepo, ValueRepo,
 };
 use omeka_db::rows::{FulltextSearchRow, ResourceRow};
 use omeka_db::with_db;
@@ -115,12 +115,16 @@ async fn fulltext_row(
     kind: Searchable,
     resource: &ResourceRow,
 ) -> Result<FulltextSearchRow, JobError> {
+    // A title drawn from a private value stays out of the index, as private value text does.
+    let title = with_db!(context.pool, |db| RelationRepo::new(db)
+        .public_title(resource)
+        .await)?;
     Ok(FulltextSearchRow {
         id: resource.id,
         resource: kind.name().to_string(),
         owner_id: resource.owner_id,
         is_public: resource.is_public,
-        title: resource.title.clone(),
+        title,
         text: Some(fulltext_text(context, resource).await?),
     })
 }
@@ -164,11 +168,13 @@ async fn referenced_title(
     let Some(id) = resource else {
         return Ok(String::new());
     };
-    Ok(
-        with_db!(context.pool, |db| ResourceRepo::new(db).get(id).await)?
-            .and_then(|row| row.title)
-            .unwrap_or_default(),
-    )
+    let Some(row) = with_db!(context.pool, |db| ResourceRepo::new(db).get(id).await)? else {
+        return Ok(String::new());
+    };
+    Ok(with_db!(context.pool, |db| RelationRepo::new(db)
+        .public_title(&row)
+        .await)?
+    .unwrap_or_default())
 }
 
 #[cfg(test)]

@@ -618,7 +618,13 @@ impl<'a> Loader<'a> {
         options: &RenderOptions,
     ) -> Result<MediaRef, DbError> {
         let media_url = resource_show_url(&self.site.slug, "media", row.id().0);
-        let alt_text = omeka_api::settings::media_alt_text(self.pool, self.catalog, row).await?;
+        let alt_text = omeka_api::settings::media_alt_text(
+            self.pool,
+            self.catalog,
+            row,
+            omeka_db::repos::MediaVisibility::Actor(None),
+        )
+        .await?;
         // The renderers read `display_title` for the link's `title` and for an
         // iframe's name, so the media value carries the display name rather
         // than the raw title column. `MediaView` then has no fallback of its

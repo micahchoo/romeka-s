@@ -670,7 +670,7 @@ async fn has_media_filter_counts_only_the_media_the_caller_can_see() {
 
     let filter = |visibility| QueryFilter {
         has_media: Some(true),
-        media_visibility: visibility,
+        visibility,
         ..QueryFilter::default()
     };
     let anonymous = ItemRepo::new(&pool)

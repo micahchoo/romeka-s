@@ -18,7 +18,7 @@
 use omeka_db::fulltext::{linked_resource, strip_tags, value_text as text_of};
 use omeka_db::ids::{AnnotationId, PageId, ResourceId};
 use omeka_db::repos::{
-    FulltextRepo, MediaFilter, MediaRepo, Paging, ResourceRepo, SiteRepo, ValueRepo,
+    FulltextRepo, MediaFilter, MediaRepo, Paging, RelationRepo, ResourceRepo, SiteRepo, ValueRepo,
 };
 use omeka_db::rows::{FulltextSearchRow, MediaRow, ValueRow};
 use omeka_db::with_db;
@@ -82,12 +82,16 @@ async fn index_row(
         }
     }
     let text = texts.join("\n");
+    let title = with_db!(api.pool(), |db| RelationRepo::new(db)
+        .public_title(&row)
+        .await)
+    .map_err(db_error)?;
     Ok(Some(FulltextSearchRow {
         id,
         resource: resource.to_string(),
         owner_id: row.owner_id,
         is_public: row.is_public,
-        title: row.title,
+        title,
         text: Some(text),
     }))
 }
@@ -168,9 +172,15 @@ async fn annotation_texts(
 /// here.
 async fn value_text(api: &Api<'_>, value: &ValueRow) -> Result<String, ApiError> {
     let linked_title = match linked_resource(value) {
-        Some(id) => with_db!(api.pool(), |db| ResourceRepo::new(db).get(id).await)
+        Some(id) => match with_db!(api.pool(), |db| ResourceRepo::new(db).get(id).await)
             .map_err(db_error)?
-            .and_then(|row| row.title),
+        {
+            Some(row) => with_db!(api.pool(), |db| RelationRepo::new(db)
+                .public_title(&row)
+                .await)
+            .map_err(db_error)?,
+            None => None,
+        },
         None => None,
     };
     Ok(text_of(value, linked_title))

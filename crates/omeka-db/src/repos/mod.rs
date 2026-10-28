@@ -58,6 +58,7 @@ mod terms;
 mod trash_rows;
 mod user_uploads;
 mod users;
+mod value_visibility;
 mod values;
 mod visible_counts;
 mod vocabularies;
