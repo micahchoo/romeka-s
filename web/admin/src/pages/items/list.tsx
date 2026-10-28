@@ -5,7 +5,7 @@
  * sort change is one `/api/items` request.
  */
 import type { ReactElement, RefObject } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { api } from '../../api/client';
 import type { ApiPage, Item, ItemId } from '../../api/types';
 import { ErrorNotice } from '../../app/errors';
