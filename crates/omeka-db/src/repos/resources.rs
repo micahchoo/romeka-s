@@ -12,8 +12,8 @@ use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Sqlite, T
 
 use super::values::insert_value;
 use super::{
-    Paging, QueryFilter, Statement, bind_id, bind_opt_id, fetch_rows, insert_id, new_id,
-    push_paging,
+    MediaVisibility, Paging, QueryFilter, Statement, bind_id, bind_opt_id, fetch_rows, insert_id,
+    new_id, push_paging,
 };
 use crate::DbError;
 use crate::backend::Backend;
@@ -393,38 +393,42 @@ where
         paging: &Paging,
     ) -> Result<Vec<ItemRow>, DbError> {
         let mut statement = Statement::<DB>::new(&format!("{ITEM_PROJECTION}{ITEM_FROM}"));
-        statement.push(" WHERE 1 = 1");
-        if let Some(owner_id) = filter.owner_id {
-            statement.push(" AND resource.owner_id = ");
-            statement.bind(bind_id(owner_id))?;
-        }
-        if let Some(class_id) = filter.resource_class_id {
-            statement.push(" AND resource.resource_class_id = ");
-            statement.bind(bind_id(class_id))?;
-        }
-        if let Some(template_id) = filter.resource_template_id {
-            statement.push(" AND resource.resource_template_id = ");
-            statement.bind(bind_id(template_id))?;
-        }
-        if let Some(item_set_id) = filter.item_set_id {
-            statement.push(
-                " AND EXISTS (SELECT 1 FROM item_item_set
-                       WHERE item_item_set.item_id = item.id
-                         AND item_item_set.item_set_id = ",
-            );
-            statement.bind(bind_id(item_set_id))?;
-            statement.push(")");
-        }
-        if let Some(is_public) = filter.is_public {
-            statement.push(" AND resource.is_public = ");
-            statement.bind(is_public)?;
-        }
-        query.push_item(&mut statement)?;
+        push_item_filter(&mut statement, filter, query)?;
         statement.push(" ORDER BY resource.id");
         push_paging(&mut statement, paging)?;
         let (sql, arguments) = statement.into_parts();
         let rows: Vec<DB::Row> = fetch_rows(&sql, arguments, self.pool).await?;
         rows.iter().map(ItemRow::from_db_row::<DB>).collect()
+    }
+
+    /// How many rows [`Self::list_filtered`] answers with no paging, cut to those `visibility`
+    /// sees (`Actor::sees_resource` as SQL): the same `WHERE`, counted in one statement.
+    pub async fn count_filtered(
+        &self,
+        filter: &ItemFilter,
+        query: &QueryFilter,
+        visibility: MediaVisibility,
+    ) -> Result<i64, DbError> {
+        let mut statement = Statement::<DB>::new(&format!("SELECT COUNT(*) AS total{ITEM_FROM}"));
+        push_item_filter(&mut statement, filter, query)?;
+        match visibility {
+            MediaVisibility::All => {}
+            MediaVisibility::Actor(Some(user)) => {
+                statement.push(" AND (resource.is_public = 1 OR resource.owner_id = ");
+                statement.bind(bind_id(user))?;
+                statement.push(")");
+            }
+            MediaVisibility::Actor(None) => {
+                statement.push(" AND resource.is_public = 1");
+            }
+        }
+        let (sql, arguments) = statement.into_parts();
+        let rows: Vec<DB::Row> = fetch_rows(&sql, arguments, self.pool).await?;
+        let row = rows.first().ok_or(DbError::Column {
+            column: "total",
+            reason: "a count answered no row".to_string(),
+        })?;
+        DB::int(row, "total")
     }
 
     /// Attach an item to an item set. Attaching twice is a no-op, as adding to a Doctrine
@@ -675,4 +679,44 @@ where
             .await?;
     }
     Ok(())
+}
+
+/// The `WHERE` of an item query: the [`ItemFilter`] columns, then the [`QueryFilter`].
+fn push_item_filter<'q, DB: Backend>(
+    statement: &mut Statement<'q, DB>,
+    filter: &ItemFilter,
+    query: &QueryFilter,
+) -> Result<(), DbError>
+where
+    for<'x> i64: Encode<'x, DB> + Type<DB>,
+    for<'x> bool: Encode<'x, DB> + Type<DB>,
+    for<'x> String: Encode<'x, DB> + Type<DB>,
+{
+    statement.push(" WHERE 1 = 1");
+    if let Some(owner_id) = filter.owner_id {
+        statement.push(" AND resource.owner_id = ");
+        statement.bind(bind_id(owner_id))?;
+    }
+    if let Some(class_id) = filter.resource_class_id {
+        statement.push(" AND resource.resource_class_id = ");
+        statement.bind(bind_id(class_id))?;
+    }
+    if let Some(template_id) = filter.resource_template_id {
+        statement.push(" AND resource.resource_template_id = ");
+        statement.bind(bind_id(template_id))?;
+    }
+    if let Some(item_set_id) = filter.item_set_id {
+        statement.push(
+            " AND EXISTS (SELECT 1 FROM item_item_set
+                   WHERE item_item_set.item_id = item.id
+                     AND item_item_set.item_set_id = ",
+        );
+        statement.bind(bind_id(item_set_id))?;
+        statement.push(")");
+    }
+    if let Some(is_public) = filter.is_public {
+        statement.push(" AND resource.is_public = ");
+        statement.bind(is_public)?;
+    }
+    query.push_item(statement)
 }

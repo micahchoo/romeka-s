@@ -194,6 +194,25 @@ pub(crate) async fn matching_item_ids(
     Ok(ids)
 }
 
+/// How many items an item query selects for this caller: the length of [`matching_item_ids`]
+/// with no `within`. A query with no `id` and no `fulltext_search` is one SQL `COUNT` over the
+/// list's own `WHERE` and the caller's visibility, so a count of a large list loads no row.
+pub(crate) async fn matching_item_count(api: &Api<'_>, params: &Params) -> Result<i64, ApiError> {
+    let search = item_search(api, params).await?;
+    if search.ids.is_some() || search.fulltext.is_some() {
+        let ids = matching_item_ids(api, params, None).await?;
+        return Ok(i64::try_from(ids.len()).unwrap_or(i64::MAX));
+    }
+    with_db!(api.pool(), |db| ItemRepo::new(db)
+        .count_filtered(
+            &item_filter(params),
+            &search.filter,
+            media_visibility(api.actor())
+        )
+        .await)
+    .map_err(db_error)
+}
+
 pub async fn read_item(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let id = parse_id(ITEM_CLASS, raw_id)?;
     let Some(row) =

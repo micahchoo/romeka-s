@@ -226,8 +226,8 @@ const CHANGED_DAYS: i64 = 7;
 
 #[derive(Serialize)]
 struct Dashboard {
-    no_item_set: usize,
-    no_resource_template: usize,
+    no_item_set: i64,
+    no_resource_template: i64,
     changed_by_others: ChangedByOthers,
 }
 
@@ -236,11 +236,11 @@ struct ChangedByOthers {
     /// The `romeka_changed_by_others_since` value the count was read with, so the list it opens
     /// is the same list.
     since: String,
-    items: usize,
+    items: i64,
 }
 
 /// `GET /api/romeka/dashboard`: the dashboard's work counts. Each is the number of items the Items
-/// list answers this caller for its filter, read through that list's own matching: items in no
+/// list answers this caller for its filter, counted in SQL over that list's own matching: items in no
 /// set (`romeka_no_item_set=1`), with no item type (`romeka_no_resource_template=1`), and changed
 /// by someone else in the last seven days (`romeka_changed_by_others_since=<since>`).
 pub async fn dashboard(api: &Api<'_>) -> Result<ApiResponse, ApiError> {
@@ -258,7 +258,7 @@ pub async fn dashboard(api: &Api<'_>) -> Result<ApiResponse, ApiError> {
 }
 
 /// The total of `GET /api/items?<name>=<value>` for this caller.
-async fn listed(api: &Api<'_>, name: &str, value: &str) -> Result<usize, ApiError> {
+async fn listed(api: &Api<'_>, name: &str, value: &str) -> Result<i64, ApiError> {
     let params = Params::from_decoded(vec![(name.to_string(), value.to_string())]);
-    Ok(super::matching_item_ids(api, &params, None).await?.len())
+    super::matching_item_count(api, &params).await
 }

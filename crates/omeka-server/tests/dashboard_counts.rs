@@ -280,3 +280,88 @@ async fn the_romeka_filters_narrow_together_with_upstream_ones() {
     let public = admin.uri("/api/items?romeka_no_resource_template=1&is_public=1");
     assert_eq!(list_total(&world.app, &public).await, 1, "u2");
 }
+
+/// The dashboard's latency on 50 000 items, in-memory SQLite. Run in release:
+/// `cargo test --release -p omeka-server --test dashboard_counts measure -- --ignored --nocapture`.
+#[tokio::test]
+#[ignore = "a measurement, not a check"]
+async fn measure_the_dashboard_on_50000_items() {
+    const ITEMS: i64 = 50_000;
+    let (pool, seed) = seeded_pool().await;
+    let author = caller(&pool, "author").await;
+    let now = Utc::now()
+        .naive_utc()
+        .format("%Y-%m-%d %H:%M:%S")
+        .to_string();
+    let first: i64 = sqlx::query_scalar("SELECT COALESCE(MAX(id), 0) + 1 FROM resource")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    // Every third item is the author's, every fourth private, every second typed, every third
+    // in the seed's set; every fifth was changed this week by the other person.
+    sqlx::query(
+        "WITH RECURSIVE n(i) AS (SELECT 0 UNION ALL SELECT i + 1 FROM n WHERE i + 1 < ?)
+         INSERT INTO resource (id, owner_id, resource_template_id, title, is_public, created,
+                               resource_type)
+         SELECT ? + i, CASE WHEN i % 3 = 0 THEN ? ELSE ? END,
+                CASE WHEN i % 2 = 0 THEN ? END, 'an item', i % 4 <> 0, ?, 'Omeka\\Entity\\Item'
+         FROM n",
+    )
+    .bind(ITEMS)
+    .bind(first)
+    .bind(i64::try_from(author.id.0).unwrap())
+    .bind(i64::try_from(seed.user.0).unwrap())
+    .bind(i64::try_from(seed.template.0).unwrap())
+    .bind(&now)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query("INSERT INTO item (id) SELECT id FROM resource WHERE id >= ?")
+        .bind(first)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query(
+        "INSERT INTO item_item_set (item_id, item_set_id)
+         SELECT id, ? FROM resource WHERE id >= ? AND (id - ?) % 3 = 1",
+    )
+    .bind(i64::try_from(seed.item_set.0).unwrap())
+    .bind(first)
+    .bind(first)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO romeka_item_history (item_id, created, user_id, source, changes)
+         SELECT r.id, ?, CASE WHEN r.owner_id = ? THEN ? ELSE ? END, 'edit', '[]'
+         FROM resource r WHERE r.id >= ? AND (r.id - ?) % 5 = 0",
+    )
+    .bind(&now)
+    .bind(i64::try_from(author.id.0).unwrap())
+    .bind(i64::try_from(seed.user.0).unwrap())
+    .bind(i64::try_from(author.id.0).unwrap())
+    .bind(first)
+    .bind(first)
+    .execute(&pool)
+    .await
+    .unwrap();
+    let app = router(pool);
+    let admin = format!("key_identity={KEY_IDENTITY}&key_credential={KEY_CREDENTIAL}");
+    for (name, key) in [("admin", admin), ("author", author.key.clone())] {
+        let uri = Who { name, key }.uri("/api/romeka/dashboard");
+        let mut times = Vec::new();
+        let mut body = String::new();
+        for _ in 0..7 {
+            let started = std::time::Instant::now();
+            let answer = read(&app, &uri).await;
+            times.push(started.elapsed());
+            assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
+            body = answer.body.clone();
+        }
+        times.sort();
+        println!(
+            "{name}: median {:?}, min {:?}, max {:?}: {body}",
+            times[3], times[0], times[6]
+        );
+    }
+}
