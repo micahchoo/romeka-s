@@ -335,6 +335,60 @@ async fn a_second_start_answers_the_check_already_running() {
     );
 }
 
+/// A check row `in_progress` that records `pid` as its process.
+async fn check_running_as(site: &Site, pid: &str) -> u64 {
+    JobRepo::new(&site.pool)
+        .create(&NewJob {
+            owner_id: None,
+            pid: Some(pid.to_string()),
+            status: Some("in_progress".to_string()),
+            class: "Romeka\\Job\\FixityCheck".to_string(),
+            args: Some(serde_json::json!({})),
+            log: None,
+            started: None,
+        })
+        .await
+        .unwrap()
+        .id
+        .0
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_check_whose_process_is_gone_is_ended_and_a_new_check_starts() {
+    let site = site().await;
+    let admin_person = Person::new(&site, "global_admin").await;
+    // Past Linux's largest `pid_max` (2^22), so no process ever has it.
+    let dead = check_running_as(&site, "4194305").await;
+    let (status, started) = admin_person.send("POST", "/api/romeka/fixity", None).await;
+    assert_eq!(status, 201, "a new check starts: {started}");
+    let job = started["job"].as_u64().unwrap();
+    assert_ne!(job, dead);
+    let (_, row) = admin(&site, "GET", &format!("/api/jobs/{dead}"), None).await;
+    assert_eq!(row["o:status"], "error", "{row}");
+    assert!(!row["o:ended"].is_null(), "{row}");
+    let stored = JobRepo::new(&site.pool)
+        .get(omeka_db::ids::JobId(dead))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(stored.pid, None);
+    assert_eq!(
+        stored.log.as_deref(),
+        Some("the job's process 4194305 ended before the job did\n")
+    );
+    ended(&site, job).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_check_whose_process_lives_still_answers_a_second_start() {
+    let site = site().await;
+    let admin_person = Person::new(&site, "global_admin").await;
+    let running = check_running_as(&site, &std::process::id().to_string()).await;
+    let (status, again) = admin_person.send("POST", "/api/romeka/fixity", None).await;
+    assert_eq!(status, 200, "{again}");
+    assert_eq!(again["job"], running);
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn the_cli_check_records_a_job_and_reports_the_problems() {
     let site = site().await;

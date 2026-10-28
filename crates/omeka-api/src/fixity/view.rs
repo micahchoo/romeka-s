@@ -122,11 +122,20 @@ pub async fn latest(api: &Api<'_>) -> Result<Latest, ApiError> {
 
 /// `POST /api/romeka/fixity`: compose a check, or answer the one that is already composed or
 /// running, so a second click never reads the store twice at once. `true` when it composed one.
+/// A check whose process is gone is ended first ([`crate::dead_jobs`]), so it never stands for a
+/// running one.
 ///
 /// # Errors
 /// 403 for a caller who may not write jobs.
 pub async fn start(api: &Api<'_>) -> Result<(JobId, bool), ApiError> {
     crate::write::access::adapter(api.actor(), "jobs", Operation::Create)?;
+    crate::dead_jobs::settle(
+        api.pool(),
+        Some(CHECK_JOB),
+        crate::dead_jobs::Unstarted::Kept,
+    )
+    .await
+    .map_err(db_error)?;
     if let Some(row) = check_rows(api).await?.into_iter().rev().find(is_active) {
         return Ok((row.id, false));
     }

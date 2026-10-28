@@ -16,6 +16,7 @@ pub mod auth;
 pub mod auth_cache;
 pub mod bulk;
 pub mod csv;
+pub mod dead_jobs;
 pub mod derivatives;
 pub mod errors;
 pub mod fixity;

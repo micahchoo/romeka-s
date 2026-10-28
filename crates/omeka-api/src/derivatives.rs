@@ -289,6 +289,13 @@ pub async fn queue_worker(
     {
         return Ok(None);
     }
+    // A worker whose process died would hold the one-worker cap for good.
+    crate::dead_jobs::settle(
+        pool,
+        Some(DERIVATIVES_JOB),
+        crate::dead_jobs::Unstarted::Kept,
+    )
+    .await?;
     if with_db!(pool, |db| JobRepo::new(db)
         .active_of_class(DERIVATIVES_JOB)
         .await)?

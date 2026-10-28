@@ -209,6 +209,52 @@ where
         Ok(count > 0)
     }
 
+    /// Every job that is composed or running (`starting`, `in_progress` or `stopping`), of `class`
+    /// when one is named, in id order.
+    pub async fn active(&self, class: Option<&str>) -> Result<Vec<JobRow>, DbError> {
+        let mut statement = Statement::<DB>::new(
+            "SELECT * FROM job WHERE status IN ('starting', 'in_progress', 'stopping')",
+        );
+        if let Some(class) = class {
+            statement.push(" AND class = ");
+            statement.bind(class.to_string())?;
+        }
+        statement.push(" ORDER BY id");
+        let (sql, arguments) = statement.into_parts();
+        let rows: Vec<DB::Row> = fetch_rows(&sql, arguments, self.pool).await?;
+        rows.iter().map(JobRow::from_db_row::<DB>).collect()
+    }
+
+    /// End a job that can no longer finish as `error`, with `why` as its last log line: only while
+    /// it is still composed or running and still records `pid`, so a job that ended or was taken
+    /// up by another process since the caller read it is left alone. False when nothing changed.
+    pub async fn settle(&self, id: JobId, pid: Option<&str>, why: &str) -> Result<bool, DbError> {
+        const SETTLE: &str = "UPDATE job SET status = 'error', ended = ?, pid = NULL
+             WHERE id = ? AND status IN ('starting', 'in_progress', 'stopping') AND ";
+        let ended = time::format(time::now());
+        let done = match pid {
+            Some(pid) => {
+                sqlx::query(&format!("{SETTLE}pid = ?"))
+                    .bind(ended)
+                    .bind(bind_id(id))
+                    .bind(pid)
+                    .execute(self.pool)
+                    .await?
+            }
+            None => {
+                sqlx::query(&format!("{SETTLE}pid IS NULL"))
+                    .bind(ended)
+                    .bind(bind_id(id))
+                    .execute(self.pool)
+                    .await?
+            }
+        };
+        if DB::rows_affected(&done) == 0 {
+            return Ok(false);
+        }
+        self.append_log(id, why).await
+    }
+
     /// Delete the job unless an archive import that is running or undoing holds it. One statement,
     /// so no import can start between the check and the delete. False when the job is missing or held.
     pub async fn delete_unless_held(&self, id: JobId) -> Result<bool, DbError> {

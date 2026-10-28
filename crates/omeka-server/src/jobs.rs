@@ -5,6 +5,7 @@
 //! new process, and a test supplies one that runs the job in-process. The
 //! server never depends on the crate that holds the jobs.
 
+use omeka_api::dead_jobs::{self, Unstarted};
 use omeka_db::DbPool;
 use omeka_db::ids::JobId;
 use omeka_db::ids::UserId;
@@ -35,6 +36,24 @@ impl JobDispatch for NoDispatch {
             "job {} cannot start: this server has no job runner",
             job.0
         )))
+    }
+}
+
+/// How long before this server started a job with no process must have been composed for the
+/// server to end it: a `romeka` command that composes a job runs it within moments.
+const UNSTARTED_MARGIN: chrono::TimeDelta = chrono::TimeDelta::minutes(1);
+
+/// End the jobs a stopped server left behind (`omeka_api::dead_jobs`): each row whose process is
+/// gone, and each row that waited in that server's queue. Call it before this server composes a
+/// job, so none of its own rows is judged.
+pub async fn settle_dead_jobs(pool: &DbPool) {
+    let cutoff = chrono::Utc::now().naive_utc() - UNSTARTED_MARGIN;
+    match dead_jobs::settle(pool, None, Unstarted::ComposedBefore(cutoff)).await {
+        Ok(settled) if !settled.is_empty() => {
+            tracing::info!(jobs = ?settled, "settled jobs whose process is gone");
+        }
+        Ok(_) => {}
+        Err(error) => tracing::warn!("cannot settle dead jobs: {error}"),
     }
 }
 

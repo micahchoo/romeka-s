@@ -8,7 +8,8 @@
 //! import staging sweep when it boots and then every hour, so uploaded files
 //! go even when nobody uploads, and goes on with every import run a restart
 //! killed ([`resume_imports`]), and settles each bulk run whose worker died
-//! ([`settle_bulk_runs`]). When a signal stops it, it sends each job it
+//! ([`settle_bulk_runs`]), and ends each job whose process is gone ([`settle_dead_jobs`]). When a
+//! signal stops it, it sends each job it
 //! started a TERM and waits for them ([`ProcessDispatch::shutdown`]): an
 //! import run ends after the record in hand, `interrupted`.
 
@@ -28,6 +29,7 @@ use omeka_db::with_db;
 use omeka_media::store::Store;
 use omeka_server::{
     Config, JobDispatch, ResumeEnv, Services, purge_due_trash, resume_imports, settle_bulk_runs,
+    settle_dead_jobs,
 };
 
 use crate::error::CliError;
@@ -77,6 +79,7 @@ pub async fn run(
         base_url: Some(base_url.to_string()),
         archive_root: config.archive_root.clone(),
     }));
+    settle_dead_jobs(&pool).await;
     let jobs: Arc<dyn JobDispatch> = dispatch.clone();
     tokio::spawn(sweep_every(pool.clone(), Arc::clone(&jobs), SWEEP_EVERY));
     let store = omeka_server::file_store(store_root)
