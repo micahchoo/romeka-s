@@ -630,6 +630,15 @@ kind names) and a probe of a pasted link. The probe fetches through the guarded
 client with a 10-second cap, reads at most 1 MiB, names the ingesters that could
 read the link, and writes no row.
 
+## Fixity
+
+`fixity` checks each stored original against `media.sha256`. `check_file` reads one file through
+the `Store` in `CHUNK` ranges and answers `ok`, `differs`, `missing` or `unreadable`; `check_all`
+walks every media with an original in id order as one job, logs each problem, and writes a
+`CheckRecord` into the job's `args.result` (ids of each outcome as runs). `view` answers the
+routes and the `romeka_fixity` filter of `GET /api/media`; the counts read `read::listed_media`,
+the same rows the media search pages, so each count is its list's total.
+
 ## o-module extensions
 
 `wire::site::Site` carries an empty `extensions` map as the seam for

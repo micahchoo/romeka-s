@@ -18,6 +18,7 @@ pub mod bulk;
 pub mod csv;
 pub mod derivatives;
 pub mod errors;
+pub mod fixity;
 pub mod import;
 pub mod jsonld;
 pub mod limits;

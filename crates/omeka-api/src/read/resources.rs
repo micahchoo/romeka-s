@@ -479,38 +479,7 @@ pub async fn search_media(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
     let window = Window::from_params(params);
     let limit = Limit::from_params(params);
     let sort = ResourceSort::read(api, params).await?;
-    let filter = MediaFilter {
-        item_id: params.id("item_id"),
-        ingester: params.get("ingester").map(str::to_string),
-        renderer: params.get("renderer").map(str::to_string),
-        media_type: params.get("media_type").map(str::to_string),
-        kinds: super::query::kind_names(params.list("romeka_kind")),
-        owner_id: params.id("owner_id"),
-        resource_class_id: params.id("resource_class_id"),
-        resource_template_id: params.id("resource_template_id"),
-        is_public: params.bool("is_public"),
-    };
-    if !params.rows("property").is_empty() {
-        // A `property[i][property]` row names a term the page's own rows need
-        // not name, so the term table is loaded before the query resolves it.
-        api.fill_catalog().await?;
-    }
-    let search = SearchQuery::parse(params, api.catalog(), media_visibility(api.actor()));
-    let rows = with_db!(api.pool(), |db| MediaRepo::new(db)
-        .list_filtered(&filter, &search.filter, &Paging::default())
-        .await)
-    .map_err(db_error)?;
-    let matches = fulltext_matches(api, "media", search.fulltext.as_deref()).await?;
-    let rows: Vec<MediaRow> = rows
-        .into_iter()
-        .filter(|row| api.sees(row.resource.is_public, row.resource.owner_id))
-        .filter(|row| id_matches(&search.ids, row.id().0))
-        .filter(|row| {
-            matches
-                .as_ref()
-                .is_none_or(|hits| hits.contains_key(&row.id().0))
-        })
-        .collect();
+    let (rows, matches) = listed_media(api, params).await?;
     let (total, page) = match (&matches, params.sort_by_is_default()) {
         (Some(hits), true) => relevance_page(
             rows,
@@ -544,6 +513,55 @@ pub async fn search_media(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
         total,
         link_header(api.base(), "media", params, &window, total),
     ))
+}
+
+/// Every media a media search matches for the caller, before the page is cut, with the fulltext
+/// scores when the search has a fulltext term. The fixity counts read this too, so each count is
+/// the total of the list it opens.
+pub(crate) async fn listed_media(
+    api: &Api<'_>,
+    params: &Params,
+) -> Result<(Vec<MediaRow>, Option<std::collections::BTreeMap<u64, f64>>), ApiError> {
+    let filter = MediaFilter {
+        item_id: params.id("item_id"),
+        ingester: params.get("ingester").map(str::to_string),
+        renderer: params.get("renderer").map(str::to_string),
+        media_type: params.get("media_type").map(str::to_string),
+        kinds: super::query::kind_names(params.list("romeka_kind")),
+        owner_id: params.id("owner_id"),
+        resource_class_id: params.id("resource_class_id"),
+        resource_template_id: params.id("resource_template_id"),
+        is_public: params.bool("is_public"),
+    };
+    if !params.rows("property").is_empty() {
+        // A `property[i][property]` row names a term the page's own rows need
+        // not name, so the term table is loaded before the query resolves it.
+        api.fill_catalog().await?;
+    }
+    let search = SearchQuery::parse(params, api.catalog(), media_visibility(api.actor()));
+    let rows = with_db!(api.pool(), |db| MediaRepo::new(db)
+        .list_filtered(&filter, &search.filter, &Paging::default())
+        .await)
+    .map_err(db_error)?;
+    let matches = fulltext_matches(api, "media", search.fulltext.as_deref()).await?;
+    let fixity = crate::fixity::view::media_filter(
+        api,
+        params.get("romeka_fixity"),
+        params.get("romeka_fixity_job"),
+    )
+    .await?;
+    let rows: Vec<MediaRow> = rows
+        .into_iter()
+        .filter(|row| api.sees(row.resource.is_public, row.resource.owner_id))
+        .filter(|row| id_matches(&search.ids, row.id().0))
+        .filter(|row| {
+            matches
+                .as_ref()
+                .is_none_or(|hits| hits.contains_key(&row.id().0))
+        })
+        .filter(|row| fixity.as_ref().is_none_or(|shown| shown.holds(row.id().0)))
+        .collect();
+    Ok((rows, matches))
 }
 
 pub async fn read_media(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {

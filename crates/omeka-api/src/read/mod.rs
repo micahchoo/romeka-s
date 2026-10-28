@@ -57,6 +57,7 @@ use crate::write::access::{self, SiteRole};
 
 pub use paging::Window;
 pub use params::{Params, Sort, SortField};
+pub(crate) use resources::listed_media;
 pub use response::{ApiResponse, JSONLD_CONTENT_TYPE, OMEKA_VERSION};
 
 use catalog::Catalog;

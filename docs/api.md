@@ -608,22 +608,24 @@ List parameters (`GET /api/media`).
 | `has_media` | boolean | `SearchQuery::parse (query.rs)` |
 | `has_media_kind` | list | `SearchQuery::parse (query.rs)` |
 | `in_sites` | boolean | `SearchQuery::parse (query.rs)` |
-| `ingester` | string | `search_media (resources.rs)` |
-| `is_public` | boolean | `search_media (resources.rs)` |
-| `item_id` | table id | `search_media (resources.rs)` |
+| `ingester` | string | `listed_media (resources.rs)` |
+| `is_public` | boolean | `listed_media (resources.rs)` |
+| `item_id` | table id | `listed_media (resources.rs)` |
 | `item_set_id` | list | `SearchQuery::parse (query.rs)` |
 | `limit` | string | `Limit::from_params (paging.rs)` |
-| `media_type` | string | `search_media (resources.rs)` |
+| `media_type` | string | `listed_media (resources.rs)` |
 | `not_item_set_id` | list | `SearchQuery::parse (query.rs)` |
 | `offset` | string | `Limit::from_params (paging.rs)` |
-| `owner_id` | table id | `search_media (resources.rs)` |
+| `owner_id` | table id | `listed_media (resources.rs)` |
 | `page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
 | `per_page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
-| `property` | table rows | `SearchQuery::parse (query.rs)`, `search_media (resources.rs)` |
-| `renderer` | string | `search_media (resources.rs)` |
-| `resource_class_id` | table id | `search_media (resources.rs)` |
-| `resource_template_id` | table id | `search_media (resources.rs)` |
-| `romeka_kind` | list | `search_media (resources.rs)` |
+| `property` | table rows | `SearchQuery::parse (query.rs)`, `listed_media (resources.rs)` |
+| `renderer` | string | `listed_media (resources.rs)` |
+| `resource_class_id` | table id | `listed_media (resources.rs)` |
+| `resource_template_id` | table id | `listed_media (resources.rs)` |
+| `romeka_fixity` | string | `listed_media (resources.rs)` |
+| `romeka_fixity_job` | string | `listed_media (resources.rs)` |
+| `romeka_kind` | list | `listed_media (resources.rs)` |
 | `search` | string | `SearchQuery::parse (query.rs)` |
 | `site_attachments_only` | boolean | `SearchQuery::parse (query.rs)` |
 | `site_id` | table id | `SearchQuery::parse (query.rs)` |
