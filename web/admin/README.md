@@ -96,6 +96,13 @@ render the header and their own page, with no admin navigation:
   count ("Creator · 2 items"). An items row opens `#/items?links=<id>&via=<property id>`; an item set or
   media row lists its records in place, five at a time. Each count is the total of the `res` property
   search its row opens, for the same reader.
+- The item page's "Delete this item" moves the item to the trash (`pages/items/trash-item.tsx`, its own
+  chunk). It is a bulk delete of that item alone: a preview with `{"id": [<id>]}`, then the run, so the
+  rights are the item `DELETE`'s and the run is in the bulk panel's recent changes. The confirm states
+  the media and their size, the records that link to the item by field ("Creator · 2 items"), and the
+  trash days. The Items screen then reads "Deleted <title>." with Undo (`pages/items/trashed-notice.tsx`),
+  which is the run's undo; it states the links an undo left out in the server's words. A reload loses the
+  notice; the Undo stays in recent changes. `DELETE /api/items/<id>` itself is unchanged.
 - The Items screen's `links` filter (+ optional `via`) is that `res` search, so it stacks with every
   other filter and a bulk change over every match selects through it. Its chip reads "Links to: <title>
   (as <field>)". The linked record's card heads the results (`pages/items/links-card.tsx`): "Items that

@@ -214,6 +214,7 @@ export const TrashItem = ({ item, name, onCancel }: TrashItemProps): ReactElemen
                 {t('bulkDelete.item.checkAgain')}
               </button>
             )}
+            {' '}
             {cancel}
           </p>
         </section>
@@ -245,6 +246,7 @@ export const TrashItem = ({ item, name, onCancel }: TrashItemProps): ReactElemen
                 {busy ? t('bulkDelete.item.moving') : t('bulkDelete.item.move')}
               </button>
             ) : null}
+            {' '}
             {cancel}
           </p>
         </section>
@@ -259,6 +261,7 @@ export const TrashItem = ({ item, name, onCancel }: TrashItemProps): ReactElemen
             <button type="button" onClick={check}>
               {t('bulkDelete.item.checkAgain')}
             </button>
+            {' '}
             {cancel}
           </p>
         </section>

@@ -41,10 +41,11 @@ test('an item is created with an item set, renamed and deleted', async ({
 
   await page.getByRole('link', { name: RENAMED }).click();
   await page.getByRole('button', { name: 'Delete this item' }).click();
-  await expect(page.getByText(`Delete ${RENAMED}? This cannot be undone.`)).toBeVisible();
-  await page.getByRole('button', { name: `Delete ${RENAMED}`, exact: true }).click();
+  await expect(page.getByText(`Move ${RENAMED} to the trash?`)).toBeVisible();
+  await page.getByRole('button', { name: 'Move to the trash', exact: true }).click();
 
   await expect(page).toHaveURL(/#\/items$/);
+  await expect(page.getByText(`Deleted ${RENAMED}.`)).toBeVisible();
   await expect(page.getByRole('link', { name: RENAMED })).toHaveCount(0);
   await expectClean(diagnostics, 'item delete');
 });
