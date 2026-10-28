@@ -179,7 +179,11 @@ When `--out` is an existing directory, each document goes to its own
 `<resource>-<o:id>.json`. Any other `--out` is a file for one JSON array. The
 command prints the document count.
 
-`export csv` writes one row per item and one header cell per value column. The
+`export csv` writes one row per item and one header cell per value column. It
+is the file the admin downloads from `GET /api/romeka/items.csv`
+(`omeka_api::read::export::items_csv`), so both have one column set. The file
+starts with a UTF-8 byte order mark, so a spreadsheet reads Devanagari right,
+and ends each record with CRLF. The
 column set is a port decision: upstream at the frozen SHA has no CSV export.
 The only export upstream has is `Admin/ResourceTemplateController::exportAction`,
 which writes one resource template as JSON, so there is no upstream column set to

@@ -15,10 +15,11 @@ use serde::Serialize;
 
 use super::unpaired::unpaired_rows;
 use super::{Derived, ReadSheet};
+use crate::csv::{BYTE_ORDER_MARK, push_line};
 use crate::import::decisions::{Decision, EntryRef, FileRef, RowKey, RowRef};
 use crate::import::plan::SheetId;
 use crate::import::sheet::Sheet;
-use crate::import::template::{FILES, bracketed, guard, push_line, unguard};
+use crate::import::template::{FILES, bracketed, guard, unguard};
 use crate::import::values::fold_title;
 
 /// The header of the column that addresses the row.
@@ -119,7 +120,7 @@ pub fn pairs_csv(derived: &Derived) -> Vec<u8> {
         );
     }
 
-    let mut out = String::from('\u{feff}');
+    let mut out = String::from(BYTE_ORDER_MARK);
     let mut line = vec![ROW.to_string()];
     line.extend(headers.iter().map(|header| guard(header)));
     line.push(FILES.to_string());

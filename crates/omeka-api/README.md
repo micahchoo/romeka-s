@@ -144,7 +144,12 @@ described below.
 `src/read/export.rs` serves `romeka export jsonld`: it lists the searchable
 adapters (`resources()`), opens the list window so one call returns every row,
 and hands back the JSON array the collection endpoint answers. It adds no
-serializer; the CLI writes the documents this module reads.
+serializer; the CLI writes the documents this module reads. Its `items_csv`
+is the one items CSV: every item `GET /api/items?<query>` lists for the
+caller, whatever page the query names, flattened to the column set the module
+states. `romeka export csv` and `GET /api/romeka/items.csv` both write it.
+`src/csv.rs` is the one CSV writer: a byte order mark, then RFC 4180 records
+ended by CRLF. The import's lists and the items CSV use it.
 
 | resource | list | member | notes |
 | --- | --- | --- | --- |

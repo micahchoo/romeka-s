@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::testing::seeded_db;
+use omeka_api::wire::item::Item as ItemDocument;
 use omeka_db::ids::{ItemSetId, PropertyId};
 use omeka_db::repos::{ItemRepo, ItemSetRepo, ValueRepo};
 use omeka_db::rows::{NewItem, NewItemSet, NewResource, NewValue};
@@ -184,9 +185,9 @@ async fn csv_export_writes_one_row_per_item_with_a_column_per_value() {
 
     assert_eq!(
         std::fs::read_to_string(&out).expect("read"),
-        "dcterms:title,dcterms:creator,dcterms:creator,dcterms:description\n\
-         Alpha,Ada,Alan,first\n\
-         Beta,Grace,,\n"
+        "\u{feff}dcterms:title,dcterms:creator,dcterms:creator,dcterms:description\r\n\
+         Alpha,Ada,Alan,first\r\n\
+         Beta,Grace,,\r\n"
     );
 }
 
@@ -212,7 +213,7 @@ async fn csv_export_honours_an_explicit_column_list() {
     .expect("export csv");
     assert_eq!(report.columns, ["dcterms:title"]);
     let text = std::fs::read_to_string(&out).expect("read");
-    assert_eq!(text, "dcterms:title\nAlpha\n");
+    assert_eq!(text, "\u{feff}dcterms:title\r\nAlpha\r\n");
 }
 
 #[tokio::test]
@@ -246,7 +247,7 @@ async fn csv_export_writes_the_derived_header_before_any_row() {
     assert_eq!(report.columns, ["dcterms:title"]);
     assert_eq!(
         std::fs::read_to_string(&out).expect("read"),
-        "dcterms:title\nAlpha\n"
+        "\u{feff}dcterms:title\r\nAlpha\r\n"
     );
 }
 

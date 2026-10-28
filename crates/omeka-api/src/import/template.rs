@@ -17,6 +17,8 @@
 
 use serde::Serialize;
 
+use crate::csv::{BYTE_ORDER_MARK, push_line};
+
 use super::catalog::Catalog;
 use super::model::{Model, Origin, Record};
 use super::plan::{
@@ -160,7 +162,7 @@ pub fn template_csv(
     columns: &[ListColumn],
     series: SeriesIx,
 ) -> Vec<u8> {
-    let mut out = String::from('\u{feff}');
+    let mut out = String::from(BYTE_ORDER_MARK);
     let mut header = vec![IDENTIFIER.to_string(), FILES.to_string()];
     header.extend(columns.iter().map(|column| column.header(catalog)));
     push_line(&mut out, &header);
@@ -245,22 +247,6 @@ pub fn unescape_list(sheet: &mut Sheet, key: Option<&ColumnRef>) {
     if let Some(key) = key {
         super::sheet::key_rows(&mut sheet.rows, key);
     }
-}
-
-pub(crate) fn push_line(out: &mut String, cells: &[String]) {
-    for (at, cell) in cells.iter().enumerate() {
-        if at > 0 {
-            out.push(',');
-        }
-        if cell.contains([',', '"', '\r', '\n']) {
-            out.push('"');
-            out.push_str(&cell.replace('"', "\"\""));
-            out.push('"');
-        } else {
-            out.push_str(cell);
-        }
-    }
-    out.push_str("\r\n");
 }
 
 /// How an uploaded list is read: the encoding guessed (a spreadsheet may

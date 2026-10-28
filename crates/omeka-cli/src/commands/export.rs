@@ -11,37 +11,21 @@
 //!
 //! ## CSV
 //!
-//! Upstream at the frozen SHA has no CSV export. `Admin/*Export*` does not
-//! exist; the only export is `Admin/ResourceTemplateController::exportAction`,
-//! which writes one resource template as JSON. So there is no upstream column
-//! set to match. This command defines one:
-//!
-//! - One row per item, one header cell per value column.
-//! - A cell names a property as `prefix:local_name`, the term
-//!   [`crate::terms::resolve_property`] resolves.
-//! - The default column set is every property that holds a value on any
-//!   exported item: `dcterms:title` first, then the rest by term. `--columns`
-//!   names them instead, in the order given.
-//! - A property with several values on any item gets one column per value, and
-//!   the header repeats the term, so a multi-valued item keeps every value.
-//! - Values flatten to text: a literal is its `@value`, a URI its `@id`, a
-//!   resource value its display title. A language tag is dropped.
-//!
-//! The column set is a port decision, not an upstream one. It is recorded here
-//! and in `crates/omeka-cli/README.md`.
+//! `romeka export csv` writes [`export::items_csv`], the file the admin
+//! downloads from `GET /api/romeka/items.csv`, so both share one column set.
+//! That module states the column set. This command adds `--item-set`, and
+//! `--columns`, which names the property terms (each one
+//! [`crate::terms::resolve_property`] resolves) in the order given.
 
-use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use omeka_api::auth::Actor;
 use omeka_api::jsonld::BaseUrl;
 use omeka_api::read::export::{self, Selection};
-use omeka_api::wire::Value;
-use omeka_api::wire::item::Item as ItemDocument;
+use omeka_api::read::{Api, Params};
 use omeka_db::Location;
 use omeka_db::ids::UserId;
 
-use crate::csv;
 use crate::error::CliError;
 use crate::terms;
 
@@ -152,18 +136,20 @@ pub async fn run_csv(options: &CsvOptions) -> Result<CsvReport, CliError> {
     }
     let base = BaseUrl::parse(CSV_BASE_URL)
         .map_err(|error| CliError::message(format!("invalid base URL: {error}")))?;
-    let selection = Selection {
-        resource: "items".to_string(),
-        item_set: options.item_set,
-    };
-    let documents = export::documents(&pool, base, export_actor(), &selection).await?;
-    let items = item_rows(&documents)?;
-    let columns = columns(&items, &options.columns);
-    let text = csv::render(&csv_rows(&items, &columns));
-    write_output(&options.out, &text)?;
+    let query = Params::from_decoded(
+        options
+            .item_set
+            .map(|id| ("item_set_id".to_string(), id.to_string()))
+            .into_iter()
+            .collect(),
+    );
+    let api = Api::load(&pool, base, export_actor()).await?;
+    let file = export::items_csv(&api, &query, &options.columns).await?;
+    create_parent(&options.out)?;
+    std::fs::write(&options.out, &file.text)?;
     Ok(CsvReport {
-        items: items.len(),
-        columns: columns.iter().map(|column| column.term.clone()).collect(),
+        items: file.items,
+        columns: file.columns,
         out: options.out.clone(),
     })
 }
@@ -190,12 +176,6 @@ fn write_documents(
 fn write_json(path: &Path, value: &serde_json::Value) -> Result<(), CliError> {
     create_parent(path)?;
     std::fs::write(path, format!("{}\n", serde_json::to_string_pretty(value)?))?;
-    Ok(())
-}
-
-fn write_output(path: &Path, text: &str) -> Result<(), CliError> {
-    create_parent(path)?;
-    std::fs::write(path, text)?;
     Ok(())
 }
 
@@ -232,102 +212,6 @@ fn document_name(document: &serde_json::Value, position: usize) -> String {
     } else {
         safe
     }
-}
-
-/// One item's values, keyed by property term.
-type ItemRow = BTreeMap<String, Vec<String>>;
-
-/// Project each item document onto its values.
-fn item_rows(documents: &[serde_json::Value]) -> Result<Vec<ItemRow>, CliError> {
-    let mut rows = Vec::with_capacity(documents.len());
-    for document in documents {
-        let item: ItemDocument = serde_json::from_value(document.clone())?;
-        let mut row = ItemRow::new();
-        for (term, values) in &item.values {
-            row.insert(term.clone(), values.iter().map(flatten).collect());
-        }
-        rows.push(row);
-    }
-    Ok(rows)
-}
-
-/// One value as text: a literal is its `@value`, a URI its `@id`, a resource
-/// value its display title, or its `@id` when it has no title.
-fn flatten(value: &Value) -> String {
-    match value {
-        Value::Literal(literal) => literal.value.clone(),
-        Value::Uri(uri) => uri.id.clone(),
-        Value::Resource(resource) => resource
-            .display_title
-            .clone()
-            .unwrap_or_else(|| resource.id.clone()),
-    }
-}
-
-/// One header column: a property term and which of its values it carries.
-struct Column {
-    term: String,
-    index: usize,
-}
-
-/// The header and its repeats.
-///
-/// `dcterms:title` leads the derived set because it is the item's denormalised
-/// title, which is the first non-empty title cell.
-fn columns(rows: &[ItemRow], requested: &[String]) -> Vec<Column> {
-    let terms = column_terms(rows, requested);
-    let mut columns = Vec::new();
-    for term in terms {
-        let count = rows
-            .iter()
-            .map(|row| row.get(&term).map_or(0, Vec::len))
-            .max()
-            .unwrap_or(0)
-            .max(1);
-        for index in 0..count {
-            columns.push(Column {
-                term: term.clone(),
-                index,
-            });
-        }
-    }
-    columns
-}
-
-/// The property terms in export order: the requested list, or every term that
-/// holds a value, title first.
-fn column_terms(rows: &[ItemRow], requested: &[String]) -> Vec<String> {
-    if !requested.is_empty() {
-        return requested.to_vec();
-    }
-    let mut terms: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
-    for row in rows {
-        terms.extend(row.keys().cloned());
-    }
-    let mut ordered = Vec::with_capacity(terms.len());
-    if terms.remove("dcterms:title") {
-        ordered.push("dcterms:title".to_string());
-    }
-    ordered.extend(terms);
-    ordered
-}
-
-/// The header row and one row per item.
-fn csv_rows(rows: &[ItemRow], columns: &[Column]) -> Vec<Vec<String>> {
-    let mut records = vec![columns.iter().map(|column| column.term.clone()).collect()];
-    for row in rows {
-        let mut record = Vec::with_capacity(columns.len());
-        for column in columns {
-            let text = row
-                .get(&column.term)
-                .and_then(|values| values.get(column.index))
-                .cloned()
-                .unwrap_or_default();
-            record.push(text);
-        }
-        records.push(record);
-    }
-    records
 }
 
 #[cfg(test)]

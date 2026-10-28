@@ -15,6 +15,7 @@ pub mod annotation;
 pub mod auth;
 pub mod auth_cache;
 pub mod bulk;
+pub mod csv;
 pub mod derivatives;
 pub mod errors;
 pub mod import;
