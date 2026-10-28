@@ -359,6 +359,9 @@ messages! {
     fn setting_not_names(key) = "The setting {key} must be a list of strings or null.";
     /// A count setting written as anything but a whole number above zero.
     fn setting_not_count(key) = "The setting {key} must be a whole number above zero, or null.";
+    /// A saved lists setting that is not a list of named queries.
+    fn setting_not_saved_lists(key, most) =
+        "The setting {key} must be null or a list of at most {most} saved lists, each with its own name and a query.";
 
     // Publishing term lists and vocabularies (`crate::publish`). Romeka's own rule.
 

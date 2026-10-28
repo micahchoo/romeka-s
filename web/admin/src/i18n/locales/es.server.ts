@@ -129,6 +129,8 @@ export const esServer: ServerCatalogue = {
   'server.settingNotFlag': 'El ajuste {key} debe ser true, false o null.',
   'server.settingNotNames': 'El ajuste {key} debe ser una lista de cadenas o null.',
   'server.settingNotCount': 'El ajuste {key} debe ser un número entero mayor que cero, o null.',
+  'server.settingNotSavedLists':
+    'El ajuste {key} debe ser null o una lista de como mucho {most} listas guardadas, cada una con su propio nombre y una consulta.',
   'server.publicationTermsRemoved':
     'Un término publicado no se puede quitar ni renombrar: {terms}. Márcalo como obsoleto.',
   'server.publicationNamespaceFixed':

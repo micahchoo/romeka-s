@@ -549,9 +549,12 @@ Login and `GET /api/me` add `o:admin_locale` to the user document, from
 `src/settings.rs`: the user's `locale` setting, else the global one
 (`MvcListeners::bootstrapLocale`). The same module is the boundary for
 `o:user_settings` on the user read and write, and for the port's
-`/api/settings`. Only the keys in `USER_SETTINGS` (`locale`, and the port-only
-`romeka_hide_lessons` and `romeka_lessons_seen` the admin lessons keep) and
-`GLOBAL_SETTINGS` (`locale`) cross it.
+`/api/settings`. Only the keys in `USER_SETTINGS` (`locale`, the port-only
+`romeka_hide_lessons` and `romeka_lessons_seen` the admin lessons keep, and the
+port-only `romeka_saved_lists`) and `GLOBAL_SETTINGS` (`locale`) cross it.
+`romeka_saved_lists` is the Items screen's saved lists, at most 100
+`{"name", "query"}` objects with distinct trimmed names. Only the user reads it:
+another reader's copy of the user document leaves it out.
 
 `loginAction`, `logoutAction`, `createPasswordAction` and
 `forgotPasswordAction` are `application/src/Controller/LoginController.php`;

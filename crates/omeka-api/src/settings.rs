@@ -9,9 +9,11 @@
 //! boundary. Only the keys in [`USER_SETTINGS`] and [`GLOBAL_SETTINGS`] cross
 //! it: a caller cannot reach a row the port's admin has no field for.
 //!
-//! Two user keys are port-only, so upstream ignores their rows: the admin's
+//! Three user keys are port-only, so upstream ignores their rows: the admin's
 //! lessons record which lessons a user has seen ([`LESSONS_SEEN`]) and whether
-//! the user switched lessons off ([`HIDE_LESSONS`]).
+//! the user switched lessons off ([`HIDE_LESSONS`]), and the Items screen's
+//! saved lists are named browse queries ([`SAVED_LISTS`]). Only the user
+//! themselves reads the saved lists ([`load_user`]).
 //!
 //! A user's settings travel as `o:user_settings` on the user document and the
 //! user write, the way `o:site_settings` travels on the site
@@ -63,6 +65,20 @@ pub const LESSONS_SEEN: &str = "romeka_lessons_seen";
 
 /// `true` when the user switched the admin lessons off.
 pub const HIDE_LESSONS: &str = "romeka_hide_lessons";
+
+/// The Items lists a user saved: `[{"name": ..., "query": ...}]`, where `query`
+/// is the Items screen's own URL query. The admin reads the query; the server
+/// stores it as text.
+pub const SAVED_LISTS: &str = "romeka_saved_lists";
+
+/// The most saved lists one user keeps.
+pub const MOST_SAVED_LISTS: usize = 100;
+
+/// The longest saved list name, in characters.
+const LONGEST_LIST_NAME: usize = 200;
+
+/// The longest saved list query, in bytes.
+const LONGEST_LIST_QUERY: usize = 4000;
 
 /// `SettingForm`'s allowed media types, a list of strings.
 pub const MEDIA_TYPE_WHITELIST: &str = "media_type_whitelist";
@@ -144,10 +160,12 @@ enum Shape {
     AllowList,
     /// A whole number above zero; no row means the key's default.
     Count,
+    /// Saved lists, [`SAVED_LISTS`]; an empty list removes the row.
+    SavedLists,
 }
 
 /// The user keys the API reads and writes. Each one has a field in the admin.
-pub const USER_SETTINGS: &[&str] = &[LOCALE, HIDE_LESSONS, LESSONS_SEEN];
+pub const USER_SETTINGS: &[&str] = &[LOCALE, HIDE_LESSONS, LESSONS_SEEN, SAVED_LISTS];
 
 /// The global keys the API reads and writes.
 pub const GLOBAL_SETTINGS: &[&str] = &[
@@ -170,6 +188,7 @@ fn shape(key: &str) -> Shape {
         HIDE_LESSONS | DISABLE_FILE_VALIDATION | IMPORT_ALLOW_PRIVATE_URLS => Shape::Flag,
         ANNOTATIONS_PUBLIC => Shape::OptOut,
         LESSONS_SEEN => Shape::Names,
+        SAVED_LISTS => Shape::SavedLists,
         MEDIA_TYPE_WHITELIST | EXTENSION_WHITELIST => Shape::AllowList,
         IMPORT_UPLOAD_MAX_FILE
         | IMPORT_UPLOAD_MAX_TOTAL
@@ -245,12 +264,22 @@ pub async fn media_alt_text(
 }
 
 /// A user's API settings as one map, `None` when the user stores none.
+/// `reader` is who reads them: [`SAVED_LISTS`] is the user's own, so another
+/// reader's map leaves it out.
 ///
 /// # Errors
 /// [`ApiError::Internal`] when a row cannot be read.
-pub async fn load_user(pool: &DbPool, user: UserId) -> Result<Option<Value>, ApiError> {
+pub async fn load_user(
+    pool: &DbPool,
+    user: UserId,
+    reader: Option<UserId>,
+) -> Result<Option<Value>, ApiError> {
     let mut map = Map::new();
-    for key in USER_SETTINGS {
+    let own = reader == Some(user);
+    for key in USER_SETTINGS
+        .iter()
+        .filter(|key| own || **key != SAVED_LISTS)
+    {
         if let Some(value) =
             with_db!(pool, |db| UserSettingRepo::new(db).get(user, key).await).map_err(db_error)?
         {
@@ -578,6 +607,10 @@ fn parse_map(
                 return Err(invalid(messages::setting_not_names(key)));
             }
             (Shape::Count, _) => return Err(invalid(messages::setting_not_count(key))),
+            (Shape::SavedLists, Value::Array(lists)) if lists.is_empty() => None,
+            (Shape::SavedLists, _) => Some(saved_lists(stored).ok_or_else(|| {
+                invalid(messages::setting_not_saved_lists(key, MOST_SAVED_LISTS))
+            })?),
         };
         changes.push((*name, change));
     }
@@ -594,6 +627,32 @@ fn allow_list(names: &[Value]) -> Value {
         }
     }
     kept.into()
+}
+
+/// A [`SAVED_LISTS`] value as it is stored: each name trimmed, or `None` when
+/// it is not a list of at most [`MOST_SAVED_LISTS`] objects of exactly a
+/// non-empty `name` and a `query`, with no name twice.
+fn saved_lists(value: &Value) -> Option<Value> {
+    let lists = value
+        .as_array()
+        .filter(|lists| lists.len() <= MOST_SAVED_LISTS)?;
+    let mut kept: Vec<Value> = Vec::with_capacity(lists.len());
+    let mut names: Vec<&str> = Vec::with_capacity(lists.len());
+    for list in lists {
+        let object = list.as_object().filter(|object| object.len() == 2)?;
+        let name = object.get("name")?.as_str()?.trim();
+        let query = object.get("query")?.as_str()?;
+        if name.is_empty()
+            || name.chars().count() > LONGEST_LIST_NAME
+            || query.len() > LONGEST_LIST_QUERY
+            || names.contains(&name)
+        {
+            return None;
+        }
+        names.push(name);
+        kept.push(serde_json::json!({ "name": name, "query": query }));
+    }
+    Some(kept.into())
 }
 
 fn non_empty(value: Option<Value>) -> Option<String> {

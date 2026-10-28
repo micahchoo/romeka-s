@@ -75,7 +75,8 @@ pub async fn read_user(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiEr
         return Err(not_found(USER_CLASS, raw_id));
     };
     let mut document = user_doc(api.base(), &row);
-    document.user_settings = crate::settings::load_user(api.pool(), row.id).await?;
+    document.user_settings =
+        crate::settings::load_user(api.pool(), row.id, api.actor().user()).await?;
     Ok(ApiResponse::document(serialize(&document)?))
 }
 
@@ -122,7 +123,7 @@ pub async fn session_user_response(
     row: &UserRow,
 ) -> Result<ApiResponse, ApiError> {
     let mut document = user_doc(base, row);
-    document.user_settings = crate::settings::load_user(pool, row.id).await?;
+    document.user_settings = crate::settings::load_user(pool, row.id, Some(row.id)).await?;
     document.admin_locale = crate::settings::admin_locale(pool, row.id).await?;
     Ok(ApiResponse::document(serialize(&document)?))
 }
