@@ -28,6 +28,8 @@ export const te: ItemHistoryMessages = {
   'itemHistory.private': 'ప్రైవేటు',
   'itemHistory.none': '(ఏదీ లేదు)',
   'itemHistory.untitled': 'పేరు లేని {id}',
+  'itemHistory.inTrash': '{name} (ట్రాష్‌లో)',
+  'itemHistory.deletedSet': 'తొలగించబడిన అంశం సెట్ {id}',
   'itemHistory.privateValue': '{value} (ప్రైవేటు)',
   'itemHistory.putBack': 'ఈ విలువను తిరిగి ఉంచండి',
   'itemHistory.puttingBack': 'ఈ విలువను తిరిగి ఉంచడం…',

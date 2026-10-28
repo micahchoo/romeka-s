@@ -11,7 +11,7 @@ import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
 import { loadItemHistory } from '../../api/item-history';
-import type { HistoryChange, HistoryEntry, HistorySource, HistoryValue } from '../../api/item-history';
+import type { HistoryChange, HistoryEntry, HistorySet, HistorySource, HistoryValue } from '../../api/item-history';
 import type { Item, ItemId, ItemWrite } from '../../api/types';
 import { allValues, resourceDraftFrom, toValueWrites } from '../../app/draft';
 import { ErrorNotice } from '../../app/errors';
@@ -62,13 +62,18 @@ export const putBackWrite = (item: Item, change: HistoryChange): ItemWrite => {
   }
 };
 
-/** Whether the change has a state to go back to. A field that had no value is emptied in the form. */
+/**
+ * Whether the change has a state to go back to. A field that had no value is emptied in the form.
+ * A set in the trash or deleted for good cannot be joined again, so its change has none.
+ */
 const canPutBack = (change: HistoryChange): boolean => {
   switch (change.field) {
     case 'values':
       return change.before.length > 0;
     case 'visibility':
       return change.before !== null;
+    case 'item_sets':
+      return change.before.every((set) => set.gone === null);
     default:
       return true;
   }
@@ -108,6 +113,18 @@ const useChangeWords = (): ((change: HistoryChange) => readonly [string, string,
     side === null ? t('itemHistory.none') : (side.label ?? t('itemHistory.untitled', { id: String(side.id) }));
   const titled = (sides: readonly { readonly id: number; readonly title: string | null }[]): string =>
     joined(sides.map((side) => side.title ?? t('itemHistory.untitled', { id: String(side.id) })), t);
+  const setWords = (sets: readonly HistorySet[]): string =>
+    joined(
+      sets.map((set) => {
+        const id = String(set.id);
+        if (set.gone === 'deleted') {
+          return t('itemHistory.deletedSet', { id });
+        }
+        const name = set.title ?? t('itemHistory.untitled', { id });
+        return set.gone === 'trash' ? t('itemHistory.inTrash', { name }) : name;
+      }),
+      t,
+    );
   return (change) => {
     switch (change.field) {
       case 'values':
@@ -125,7 +142,7 @@ const useChangeWords = (): ((change: HistoryChange) => readonly [string, string,
       case 'template':
         return [t('itemHistory.field.template'), named(change.before), named(change.after)];
       case 'item_sets':
-        return [t('itemHistory.field.itemSets'), titled(change.before), titled(change.after)];
+        return [t('itemHistory.field.itemSets'), setWords(change.before), setWords(change.after)];
       case 'sites':
         return [t('itemHistory.field.sites'), titled(change.before), titled(change.after)];
     }

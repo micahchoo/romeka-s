@@ -28,6 +28,8 @@ export const ne: ItemHistoryMessages = {
   'itemHistory.private': 'निजी',
   'itemHistory.none': '(छैन)',
   'itemHistory.untitled': 'शीर्षकविहीन {id}',
+  'itemHistory.inTrash': '{name} (फोहोर टोकरीमा)',
+  'itemHistory.deletedSet': 'मेटिएको वस्तु सेट {id}',
   'itemHistory.privateValue': '{value} (निजी)',
   'itemHistory.putBack': 'यो मान फिर्ता राख्नुहोस्',
   'itemHistory.puttingBack': 'मान फिर्ता राख्दै…',

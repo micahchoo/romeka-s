@@ -34,6 +34,16 @@ export interface Titled<IdT extends number> {
   readonly title: string | null;
 }
 
+export const GONE_STATES = ['trash', 'deleted'] as const;
+
+/**
+ * An item set in a change. `gone` is `trash` for a set in the trash (with its title), `deleted`
+ * for one deleted for good (no title), and null for a set in place.
+ */
+export interface HistorySet extends Titled<ItemSetId> {
+  readonly gone: (typeof GONE_STATES)[number] | null;
+}
+
 export type HistoryChange =
   | {
       readonly field: 'values';
@@ -53,8 +63,8 @@ export type HistoryChange =
     }
   | {
       readonly field: 'item_sets';
-      readonly before: readonly Titled<ItemSetId>[];
-      readonly after: readonly Titled<ItemSetId>[];
+      readonly before: readonly HistorySet[];
+      readonly after: readonly HistorySet[];
     }
   | { readonly field: 'sites'; readonly before: readonly Titled<SiteId>[]; readonly after: readonly Titled<SiteId>[] };
 
@@ -140,6 +150,15 @@ const parseTitled =
     };
   };
 
+const parseSet = (raw: unknown, path: Path): HistorySet => {
+  const object = strict(raw, path, ['id', 'title'], ['state']);
+  return {
+    id: brandId<'ItemSetId'>(member(object, 'id', path, asIdNumber)),
+    title: member(object, 'title', path, nullable(asString)),
+    gone: 'state' in object ? member(object, 'state', path, oneOf(GONE_STATES)) : null,
+  };
+};
+
 const FIELDS = ['values', 'visibility', 'class', 'template', 'item_sets', 'sites'] as const;
 
 const parseChange = (raw: unknown, path: Path): HistoryChange => {
@@ -178,8 +197,8 @@ const parseChange = (raw: unknown, path: Path): HistoryChange => {
     case 'item_sets':
       return {
         field,
-        before: member(object, 'before', path, list(parseTitled<'ItemSetId'>())),
-        after: member(object, 'after', path, list(parseTitled<'ItemSetId'>())),
+        before: member(object, 'before', path, list(parseSet)),
+        after: member(object, 'after', path, list(parseSet)),
       };
     case 'sites':
       return {

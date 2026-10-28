@@ -28,6 +28,8 @@ export const ml: ItemHistoryMessages = {
   'itemHistory.private': 'പ്രൈവറ്റ്',
   'itemHistory.none': '(ഒന്നുമില്ല)',
   'itemHistory.untitled': 'പേര് നൽകാത്ത {id}',
+  'itemHistory.inTrash': '{name} (ട്രാഷിൽ)',
+  'itemHistory.deletedSet': 'ഡിലീറ്റ് ചെയ്ത ഇനം സെറ്റ് {id}',
   'itemHistory.privateValue': '{value} (പ്രൈവറ്റ്)',
   'itemHistory.putBack': 'ഈ മൂല്യം തിരികെ നൽകുക',
   'itemHistory.puttingBack': 'മൂല്യം തിരികെ വെക്കുന്നു…',

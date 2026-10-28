@@ -81,3 +81,61 @@ test('History states a change and puts the old value back as an edit of its own'
   await shoot(page, 'put-back');
   await expectClean(diagnostics, 'item history');
 });
+
+/** Run a bulk delete of one set into the trash and wait until it is done. */
+const trashSet = async (request: APIRequestContext, set: number): Promise<void> => {
+  const made = await request.post('/api/romeka/bulk', {
+    data: { query: { id: [set] }, change: { kind: 'delete', of: 'item_sets' } },
+  });
+  expect(made.status(), await made.text()).toBe(201);
+  const run = numberField(record(await made.json(), 'bulk'), 'id', 'bulk');
+  const started = await request.post(`/api/romeka/bulk/${String(run)}/run`);
+  expect(started.status(), await started.text()).toBe(200);
+  await expect
+    .poll(async () => record(await (await request.get(`/api/romeka/bulk/${String(run)}`)).json(), 'bulk')['status'])
+    .toBe('done');
+};
+
+test('History names a set in the trash and a set deleted for good', async ({ page, diagnostics, baseURL }) => {
+  const request = page.request;
+  const title = await propertyId(request, 'dcterms:title');
+  const set = async (name: string): Promise<number> => {
+    const made = await request.post('/api/item_sets', { data: { 'dcterms:title': literal(title, name) } });
+    expect(made.status(), await made.text()).toBe(200);
+    return numberField(record(await made.json(), 'set'), 'o:id', 'set');
+  };
+  const [trashed, gone] = [await set('History e2e trashed set'), await set('History e2e gone set')];
+  const made = await request.post('/api/items', {
+    data: {
+      'dcterms:title': literal(title, 'History e2e member'),
+      'o:item_set': [{ 'o:id': trashed }, { 'o:id': gone }],
+      'o:is_public': true,
+    },
+  });
+  expect(made.status(), await made.text()).toBe(200);
+  const id = numberField(record(await made.json(), 'item'), 'o:id', 'item');
+  await trashSet(request, trashed);
+  const deleted = await request.delete(`/api/item_sets/${String(gone)}`);
+  expect(deleted.status(), await deleted.text()).toBe(200);
+  await signIn(page, baseURL);
+
+  await page.goto(`/#/items/${String(id)}`);
+  await page.locator('summary', { hasText: 'History' }).click();
+  const entries = page.locator('.item-history .item-history-entries > li');
+  const goneName = `Deleted set ${String(gone)}`;
+  await expect(entries.nth(0).getByText(`Item sets: ${goneName} → (none)`)).toBeVisible();
+  await expect(
+    entries.nth(1).getByText(`Item sets: History e2e trashed set (in the trash), ${goneName} → ${goneName}`),
+  ).toBeVisible();
+  await expect(entries.nth(1).locator('.item-history-when')).toHaveText(/ · E2E Admin · Bulk change \d+$/);
+  for (const index of [0, 1]) {
+    await expect(
+      entries.nth(index).getByRole('button', { name: 'Put this value back' }),
+      'a set that is gone cannot be joined again',
+    ).toHaveCount(0);
+  }
+  await diagnostics.idle();
+  await expectAxeBudget(page, 'item history gone sets');
+  await shoot(page, 'gone-sets');
+  await expectClean(diagnostics, 'item history gone sets');
+});

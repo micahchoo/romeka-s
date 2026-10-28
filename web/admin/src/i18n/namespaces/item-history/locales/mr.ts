@@ -28,6 +28,8 @@ export const mr: ItemHistoryMessages = {
   'itemHistory.private': 'खाजगी',
   'itemHistory.none': '(काहीही नाही)',
   'itemHistory.untitled': 'शीर्षक नसलेले {id}',
+  'itemHistory.inTrash': '{name} (ट्रॅशमध्ये)',
+  'itemHistory.deletedSet': 'हटवलेला वस्तू संच {id}',
   'itemHistory.privateValue': '{value} (खाजगी)',
   'itemHistory.putBack': 'हे मूल्य पुन्हा ठेवा',
   'itemHistory.puttingBack': 'मूल्य पुन्हा ठेवले जात आहे…',

@@ -28,6 +28,8 @@ export const ta: ItemHistoryMessages = {
   'itemHistory.private': 'தனிப்பட்ட',
   'itemHistory.none': '(ஏதுமில்லை)',
   'itemHistory.untitled': 'பெயரிடப்படாத {id}',
+  'itemHistory.inTrash': '{name} (குப்பைத் தொட்டியில்)',
+  'itemHistory.deletedSet': 'நீக்கப்பட்ட உருப்படித் தொகுப்பு {id}',
   'itemHistory.privateValue': '{value} (தனிப்பட்ட)',
   'itemHistory.putBack': 'இந்த மதிப்பை மீண்டும் உள்ளிடவும்',
   'itemHistory.puttingBack': 'மதிப்பை மீண்டும் உள்ளிடுகிறோம்…',

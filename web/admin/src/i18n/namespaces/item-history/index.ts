@@ -29,6 +29,8 @@ export const en = {
   'itemHistory.private': 'Private',
   'itemHistory.none': '(none)',
   'itemHistory.untitled': 'Untitled {id}',
+  'itemHistory.inTrash': '{name} (in the trash)',
+  'itemHistory.deletedSet': 'Deleted set {id}',
   'itemHistory.privateValue': '{value} (private)',
   'itemHistory.putBack': 'Put this value back',
   'itemHistory.puttingBack': 'Putting the value back…',

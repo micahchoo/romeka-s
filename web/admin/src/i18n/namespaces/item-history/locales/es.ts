@@ -26,6 +26,8 @@ export const es: ItemHistoryMessages = {
   'itemHistory.private': 'Privado',
   'itemHistory.none': '(ninguno)',
   'itemHistory.untitled': 'Sin título {id}',
+  'itemHistory.inTrash': '{name} (en la papelera)',
+  'itemHistory.deletedSet': 'Conjunto de elementos eliminado {id}',
   'itemHistory.privateValue': '{value} (privado)',
   'itemHistory.putBack': 'Restaurar este valor',
   'itemHistory.puttingBack': 'Restaurando el valor…',

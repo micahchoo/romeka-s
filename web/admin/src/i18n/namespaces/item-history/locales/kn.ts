@@ -28,6 +28,8 @@ export const kn: ItemHistoryMessages = {
   'itemHistory.private': 'ಖಾಸಗಿ',
   'itemHistory.none': '(ಯಾವುದೂ ಇಲ್ಲ)',
   'itemHistory.untitled': 'ಹೆಸರಿಲ್ಲದ {id}',
+  'itemHistory.inTrash': '{name} (ಟ್ರಾಶ್‌ನಲ್ಲಿ)',
+  'itemHistory.deletedSet': 'ಅಳಿಸಲಾದ ಐಟಂ ಸೆಟ್ {id}',
   'itemHistory.privateValue': '{value} (ಖಾಸಗಿ)',
   'itemHistory.putBack': 'ಈ ಮೌಲ್ಯವನ್ನು ಹಿಂತಿರುಗಿಸಿ',
   'itemHistory.puttingBack': 'ಮೌಲ್ಯವನ್ನು ಹಿಂತಿರುಗಿಸಲಾಗುತ್ತಿದೆ…',
