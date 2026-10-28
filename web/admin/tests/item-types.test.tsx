@@ -3,7 +3,7 @@
  * template, each override a field and the type offer, the starter kinds, and
  * the preview being the real item form.
  */
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Mock } from 'vitest';
 import { isUnknownArray, parseUser } from '../src/api/parse';
@@ -312,6 +312,64 @@ describe('a stored item type', () => {
     await waitFor(() => {
       expect(window.localStorage.getItem('romeka.itemTypeUse')).toBe('{"2":["items","item-sets"]}');
     });
+  });
+});
+
+/** The server's field counts for the Photograph type; its fields are Title (1), Caption (4) and Relation (13). */
+const fieldCounts = (total: number, fields: readonly (readonly [number, number])[]): Handler => () =>
+  jsonResponse({ total, fields: fields.map(([id, filled]) => ({ property_id: id, filled })) });
+
+const rowOf = (name: string): HTMLElement => {
+  const row = within(fieldList())
+    .getAllByRole('listitem')
+    .find((item) => within(item).queryByDisplayValue(name) !== null || within(item).queryByPlaceholderText(name) !== null);
+  if (row === undefined) {
+    throw new Error(`expected the row of ${name}`);
+  }
+  return row;
+};
+
+describe("an item type's field counts", () => {
+  it('states how many of its items fill each field, and links the ones without a value to Items', async () => {
+    const fetchMock = await openPhotograph({
+      '/api/romeka/field-counts': fieldCounts(690, [
+        [1, 690],
+        [4, 412],
+        [99, 3],
+      ]),
+    });
+    expect(await within(rowOf('Caption')).findByText('412 of 690 items have a value.')).toBeInTheDocument();
+    expect(first(requestsFor(fetchMock, '/api/romeka/field-counts')).url.searchParams.get('resource_template_id')).toBe('2');
+    expect(within(rowOf('Caption')).getByRole('link', { name: 'Open the 278 without a value' })).toHaveAttribute(
+      'href',
+      '#/items?template=2&field=4%3Aempty',
+    );
+    expect(within(rowOf('Title')).getByText('690 of 690 items have a value.')).toBeInTheDocument();
+    expect(within(rowOf('Title')).queryByRole('link', { name: /without a value/ })).not.toBeInTheDocument();
+    expect(within(rowOf('Relation')).getByText('0 of 690 items have a value.')).toBeInTheDocument();
+    expect(within(rowOf('Relation')).getByRole('link', { name: 'Open the 690 without a value' })).toHaveAttribute(
+      'href',
+      '#/items?template=2&field=13%3Aempty',
+    );
+  });
+
+  it('words one item and one empty item in the singular', async () => {
+    await openPhotograph({ '/api/romeka/field-counts': fieldCounts(1, [[1, 1]]) });
+    expect(await within(rowOf('Title')).findByText('1 of 1 item has a value.')).toBeInTheDocument();
+    expect(within(rowOf('Relation')).getByText('0 of 1 item has a value.')).toBeInTheDocument();
+    expect(within(rowOf('Relation')).getByRole('link', { name: 'Open the 1 without a value' })).toBeInTheDocument();
+  });
+
+  it('states nothing for a type with no items the reader may see, or when the counts cannot be read', async () => {
+    for (const answer of [fieldCounts(0, []), () => jsonResponse({ errors: { error: 'down' } }, { status: 500 })]) {
+      const fetchMock = await openPhotograph({ '/api/romeka/field-counts': answer });
+      await waitFor(() => {
+        expect(requestsFor(fetchMock, '/api/romeka/field-counts')).toHaveLength(1);
+      });
+      expect(screen.getByRole('textbox', { name: 'Name on the form for dcterms:description' })).toBeInTheDocument();
+      expect(screen.queryByText(/have a value|has a value/)).not.toBeInTheDocument();
+      cleanup();
+    }
   });
 });
 

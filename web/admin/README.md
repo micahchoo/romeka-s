@@ -111,6 +111,16 @@ render the header and their own page, with no admin navigation:
   read, shows no line, never a wrong number. An item opened with no `in` shows no line and reads no list.
   When a next item exists, the edit form has "Save and next": it saves, then opens the next item at
   `&edit=1`, which opens its edit form.
+- The Items screen's `field` filter (`field=<property id>:empty` or `:filled`, under "More filters") is
+  the `nex` or `ex` property search on `property[1]`, so it never takes the links filter's
+  `property[0]` and both narrow one list. The field list is the chosen item type's fields, by the
+  names the type gives them, or every type's fields. Its chip reads "Date: empty" or "Date: has a
+  value". One field filter at a time.
+- The item type page states beside each field how many of the type's items have a value for it
+  ("412 of 690 items have a value."), from one `GET /api/romeka/field-counts?resource_template_id=<id>`
+  (`pages/item-types/field-fill.tsx`). "Open the 278 without a value" opens
+  `#/items?template=<id>&field=<property id>:empty`, whose total is that number for the same reader. A
+  type with no item the reader may see, or a failed read, states no number. A new type has none.
 - `#/users` lists users. `#/users/new` invites one: it creates the row and then mints the one-time
   password link, which the page shows with a copy control. `#/users/<id>` edits one and can mint
   another link.

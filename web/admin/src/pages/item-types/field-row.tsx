@@ -4,7 +4,7 @@
  * and language. Each smart default is shown and has its override in place.
  */
 import { Fragment, useId, useState } from 'react';
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { ReorderButtons, ReorderHandle } from '../../app/reorder/useReorderable';
 import type { Reorderable } from '../../app/reorder/useReorderable';
 import { useTermText } from '../../i18n/termComments';
@@ -54,6 +54,8 @@ export interface FieldRowProps {
   readonly dataTypes: readonly DataType[];
   readonly createField: (name: string) => Promise<Property>;
   readonly termLesson: TermLesson;
+  /** How many of the type's items fill this field, when the type is stored and the counts came. */
+  readonly fill: ReactNode;
 }
 
 const AcceptsEditor = ({
@@ -112,6 +114,7 @@ interface SettingsProps {
   readonly dataTypes: readonly DataType[];
   readonly createField: (name: string) => Promise<Property>;
   readonly termLesson: TermLesson;
+  readonly fill: ReactNode;
 }
 
 /** The standard term behind the field, and the picker that changes it. */
@@ -295,6 +298,7 @@ const FieldSettings = (props: SettingsProps): ReactElement => {
       </div>
       {lesson.panel}
       <TermLine {...props} />
+      {props.fill}
       <AcceptsLine {...props} />
       <FlagsLine {...props} />
     </div>
@@ -347,6 +351,7 @@ export const FieldRow = ({
   dataTypes,
   createField,
   termLesson,
+  fill,
 }: FieldRowProps): ReactElement => {
   const property = properties.find((entry) => entry.id === field.propertyId);
   const term = property?.term ?? `#${String(field.propertyId)}`;
@@ -367,6 +372,7 @@ export const FieldRow = ({
         dataTypes={dataTypes}
         createField={createField}
         termLesson={termLesson}
+        fill={fill}
       />
       <RowActions
         field={field}

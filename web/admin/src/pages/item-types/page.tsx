@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { api } from '../../api/client';
+import { placesApi } from '../../api/places';
 import { getStarters, type StarterTable } from '../../api/starters';
 import { templateIdFromParam } from '../../api/parse';
 import type { ResourceTemplate, TemplateId } from '../../api/types';
@@ -58,6 +59,8 @@ const EditType = ({ templateId }: { readonly templateId: TemplateId }): ReactEle
   const { t } = useTranslator(common, itemTypes);
   const typesText = useItemTypesText();
   const state = useAsync(() => loadType(templateId), [templateId]);
+  // The editor never waits on the counts: without them it states no number.
+  const counts = useAsync(() => placesApi.fieldCounts(templateId), [templateId]);
   const [saved, setSaved] = useState<ResourceTemplate | null>(null);
   if (state.status === 'loading') {
     return <p role="status">{t('loading.resourceTemplate')}</p>;
@@ -73,6 +76,7 @@ const EditType = ({ templateId }: { readonly templateId: TemplateId }): ReactEle
         initial={typeDraftFrom(state.data.template)}
         options={state.data.options}
         onSaved={setSaved}
+        counts={counts.status === 'ready' ? counts.data : null}
       />
       <DeleteControl
         label={typesText('type.delete')}

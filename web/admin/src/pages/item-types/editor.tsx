@@ -8,13 +8,15 @@ import { useState } from 'react';
 import type { ReactElement, SyntheticEvent } from 'react';
 import { useTermText } from '../../i18n/termComments';
 import { api } from '../../api/client';
-import type { Property, ResourceTemplate } from '../../api/types';
+import type { FieldCounts } from '../../api/places';
+import type { Property, ResourceTemplate, TemplateId } from '../../api/types';
 import { SaveStatus } from '../../app/fields';
 import { ReorderStatus, useReorderable } from '../../app/reorder/useReorderable';
 import { createLocalField, isLocalTerm } from '../../app/local-fields';
 import { useSave } from '../../app/save';
 import { StandardTermPicker } from '../../app/standard-term-picker';
 import { RESOURCE_KINDS, setUsedFor, usedFor, type ResourceKind } from '../../app/type-use';
+import { FieldFill } from './field-fill';
 import { FieldRow, type TermLesson } from './field-row';
 import { useItemTypesText } from './messages';
 import {
@@ -35,6 +37,8 @@ export interface TypeEditorProps {
   readonly initial: TypeDraft;
   readonly options: TypeOptions;
   readonly onSaved: (template: ResourceTemplate) => void;
+  /** How many of the stored type's items fill each field; absent for a new type or while unknown. */
+  readonly counts?: FieldCounts | null;
 }
 
 /** The properties a create added during this visit, beside the loaded ones. */
@@ -58,6 +62,7 @@ export const TypeEditor = ({
   initial,
   options,
   onSaved,
+  counts = null,
 }: TypeEditorProps): ReactElement => {
   const t = useItemTypesText();
   const [draft, setDraft] = useState(initial);
@@ -108,6 +113,7 @@ export const TypeEditor = ({
             properties={properties}
             options={options}
             createField={createField}
+            fill={template === null || counts === null ? null : { template: template.id, counts }}
           />
           <StandardTermPicker
             label={t('fields.add')}
@@ -146,6 +152,7 @@ interface FieldListProps {
   readonly properties: readonly Property[];
   readonly options: TypeOptions;
   readonly createField: (name: string) => Promise<Property>;
+  readonly fill: { readonly template: TemplateId; readonly counts: FieldCounts } | null;
 }
 
 const FieldList = ({
@@ -154,6 +161,7 @@ const FieldList = ({
   properties,
   options,
   createField,
+  fill,
 }: FieldListProps): ReactElement => {
   const t = useItemTypesText();
   const text = useTermText();
@@ -202,6 +210,11 @@ const FieldList = ({
             dataTypes={options.dataTypes}
             createField={createField}
             termLesson={termLesson(index)}
+            fill={
+              fill === null ? null : (
+                <FieldFill template={fill.template} property={field.propertyId} counts={fill.counts} />
+              )
+            }
           />
         ))}
       </ol>
