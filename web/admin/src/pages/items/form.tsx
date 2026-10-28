@@ -25,6 +25,8 @@ interface ItemEditorProps {
   readonly item: Item | null;
   readonly options: ItemOptions;
   readonly onSaved: (item: Item) => void;
+  /** The next item's edit address in the list this item was opened from, or null when none follows. */
+  readonly saveNext: string | null;
 }
 
 /** The shared form lists, plus the sites this user may add items to. */
@@ -37,7 +39,10 @@ const loadItemOptions = async (): Promise<ItemOptions> => {
   return { ...options, sites };
 };
 
-const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement => {
+/** The submit button that sends the walk on to the next item. */
+const SAVE_NEXT = 'next';
+
+const ItemEditor = ({ item, options, onSaved, saveNext }: ItemEditorProps): ReactElement => {
   const { t } = useTranslator(common, resources);
   const text = useTermText();
   const [draft, setDraft] = useState<ResourceDraft>(() =>
@@ -60,6 +65,8 @@ const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement =
 
   const submit = (event: SyntheticEvent<HTMLFormElement>): void => {
     event.preventDefault();
+    const submitter = event.nativeEvent instanceof SubmitEvent ? event.nativeEvent.submitter : null;
+    const then = submitter instanceof HTMLButtonElement && submitter.value === SAVE_NEXT ? saveNext : null;
     const errors = draftErrors(draft, options.templates, options.properties, t, text);
     setFormErrors(errors);
     if (errors.length > 0) {
@@ -81,6 +88,9 @@ const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement =
       const saved =
         item === null ? await api.createItem(write) : await api.updateItem(item.id, write);
       onSaved(saved);
+      if (then !== null) {
+        window.location.hash = then;
+      }
     });
   };
 
@@ -143,6 +153,13 @@ const ItemEditor = ({ item, options, onSaved }: ItemEditorProps): ReactElement =
       <SubmitRow
         label={item === null ? t('items.add') : t('action.save')}
         busy={saveState.status === 'saving'}
+        also={
+          saveNext === null ? null : (
+            <button type="submit" value={SAVE_NEXT} disabled={saveState.status === 'saving'}>
+              {t('walk.saveNext')}
+            </button>
+          )
+        }
       />
     </form>
   );
@@ -172,6 +189,7 @@ export const ItemForm = (): ReactElement => (
     {(options) => (
       <ItemEditor
         item={null}
+        saveNext={null}
         options={options}
         onSaved={(created) => {
           writtenItems.remember(created.id, created);
@@ -186,11 +204,13 @@ export const ItemForm = (): ReactElement => (
 export const ItemEditForm = ({
   item,
   onSaved,
+  saveNext,
 }: {
   readonly item: Item;
   readonly onSaved: (item: Item) => void;
+  readonly saveNext: string | null;
 }): ReactElement => (
   <OptionsState load={loadItemOptions}>
-    {(options) => <ItemEditor item={item} options={options} onSaved={onSaved} />}
+    {(options) => <ItemEditor item={item} options={options} onSaved={onSaved} saveNext={saveNext} />}
   </OptionsState>
 );

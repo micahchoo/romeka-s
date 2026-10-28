@@ -15,7 +15,7 @@ import { mediaName, previewImageUrl, previewLinkUrl } from '../../app/media';
 import { useAsync } from '../../app/useAsync';
 import { ValuesList } from '../../app/values';
 import { writtenItems } from '../../app/written';
-import { useHash } from '../../app/router';
+import { hashQuery, useHash } from '../../app/router';
 import { useTranslator } from '../../i18n';
 import { useTermLabels } from '../../i18n/termText';
 import { classLabelOf, classLabels, ownerNameOf, userNames } from './labels';
@@ -23,7 +23,9 @@ import type { TermName } from './labels';
 import { ItemEditForm } from './form';
 import { annotateHref, mediaHref } from '../media/annotations/link';
 import { useItemNotes } from './notes/use-item-notes';
-import { itemHref, previewHref, previewIdOf } from './preview/url';
+import { previewHref, previewIdOf } from './preview/url';
+import { parseWalk } from './walk';
+import { saveNextHref, useWalk, WalkLine } from './walk-line';
 import { setPlaceHref } from '../item-sets/facts';
 import { annotations } from '../../i18n/namespaces/annotations';
 import { common } from '../../i18n/namespaces/common';
@@ -342,6 +344,9 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
   // (Back, or the close button) closes it.
   const hash = useHash();
   const [preview, setPreview] = useState<MediaId | null>(() => previewIdOf(window.location.hash));
+  const query = hashQuery(hash);
+  const walk = useWalk(itemId, parseWalk(query));
+  const [editing] = useState(() => query.get('edit') === '1');
   const lastPreview = useRef<MediaId | null>(null);
   useEffect(() => {
     setPreview(previewIdOf(hash));
@@ -393,22 +398,23 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
   const openPreview = (entry: Media): void => {
     setPreview(entry.id);
     // A pushed entry, so Back closes the viewer (`preview/url.ts`).
-    window.location.hash = previewHref(item.id, entry.id);
+    window.location.hash = previewHref(item.id, hashQuery(window.location.hash), entry.id);
   };
   /** Another file in the viewer: the address changes, the history entry stays. */
   const showPreview = (id: MediaId): void => {
     setPreview(id);
     lastPreview.current = id;
-    window.history.replaceState(null, '', previewHref(item.id, id));
+    window.history.replaceState(null, '', previewHref(item.id, hashQuery(window.location.hash), id));
   };
   const closePreview = (): void => {
     setPreview(null);
     // The entry the viewer pushed becomes the item page's own URL again.
-    window.history.replaceState(null, '', itemHref(item.id));
+    window.history.replaceState(null, '', previewHref(item.id, hashQuery(window.location.hash), null));
   };
 
   return (
     <section>
+      {walk === null ? null : <WalkLine found={walk} />}
       <h2>{item.title ?? t('common.untitled')}</h2>
       <dl>
         <dt>{t('column.id')}</dt>
@@ -537,8 +543,8 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
         <LinkedFrom target={item.id} />
       </Suspense>
 
-      <EditPanel label={t('items.editLabel')}>
-        <ItemEditForm item={item} onSaved={setEdited} />
+      <EditPanel label={t('items.editLabel')} initiallyOpen={editing}>
+        <ItemEditForm item={item} onSaved={setEdited} saveNext={walk === null ? null : saveNextHref(walk)} />
       </EditPanel>
 
       <DeleteControl

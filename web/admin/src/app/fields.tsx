@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import type { User } from '../api/types';
 import { useTranslator } from '../i18n';
@@ -243,15 +243,18 @@ export const SaveStatus = ({ state }: { readonly state: SaveState }): ReactEleme
 export interface SubmitRowProps {
   readonly label: string;
   readonly busy: boolean;
+  /** A second submit button after the first, such as "Save and next". */
+  readonly also?: ReactNode;
 }
 
-export const SubmitRow = ({ label, busy }: SubmitRowProps): ReactElement => {
+export const SubmitRow = ({ label, busy, also }: SubmitRowProps): ReactElement => {
   const { t } = useTranslator(common);
   return (
     <p className="form-actions">
       <button type="submit" disabled={busy}>
         {busy ? t('field.saving') : label}
       </button>
+      {also}
     </p>
   );
 };
@@ -259,16 +262,24 @@ export const SubmitRow = ({ label, busy }: SubmitRowProps): ReactElement => {
 export interface EditPanelProps {
   readonly label: string;
   readonly children: ReactNode;
+  /** Open on arrival, scrolled into view: the page was opened to edit. */
+  readonly initiallyOpen?: boolean;
 }
 
 /**
  * The edit form on a show page. Closed by default, and the closed state renders
  * no form, so the record above it stays the only copy on the page.
  */
-export const EditPanel = ({ label, children }: EditPanelProps): ReactElement => {
-  const [open, setOpen] = useState(false);
+export const EditPanel = ({ label, children, initiallyOpen = false }: EditPanelProps): ReactElement => {
+  const [open, setOpen] = useState(initiallyOpen);
+  const panel = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (initiallyOpen) {
+      panel.current?.scrollIntoView({ block: 'start' });
+    }
+  }, [initiallyOpen]);
   return (
-    <section className="edit-panel">
+    <section className="edit-panel" ref={panel}>
       <button
         type="button"
         className="edit-toggle"

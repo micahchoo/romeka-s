@@ -99,7 +99,13 @@ describe('a link into the notes panel', () => {
   });
 
   it('names the item page, the viewer and the file it shows', () => {
-    expect(previewHref(brandId<'ItemId'>(3), brandId<'MediaId'>(9))).toBe('#/items/3?preview=9');
+    const item = brandId<'ItemId'>(3);
+    const query = (text: string): URLSearchParams => new URLSearchParams(text);
+    expect(previewHref(item, query(''), brandId<'MediaId'>(9))).toBe('#/items/3?preview=9');
+    // A walk's `in` and `at` stay through the viewer opening and closing.
+    expect(previewHref(item, query('in=set%3D4&at=2'), brandId<'MediaId'>(9))).toBe('#/items/3?in=set%3D4&at=2&preview=9');
+    expect(previewHref(item, query('in=set%3D4&at=2&preview=9'), null)).toBe('#/items/3?in=set%3D4&at=2');
+    expect(previewHref(item, query('preview=9'), null)).toBe('#/items/3');
     expect(previewIdOf('#/items/3?preview=9')).toBe(9);
     expect(previewIdOf('#/items/3')).toBeNull();
     expect(previewIdOf('#/items/3?preview=nine')).toBeNull();

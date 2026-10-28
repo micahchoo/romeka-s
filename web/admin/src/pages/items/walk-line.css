@@ -1,0 +1,31 @@
+/* The walk line: the previous item, the position, the next item, on one row that wraps when narrow. */
+.item-walk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.item-walk-position {
+  margin: 0;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A long title must not push the position off the row; the full title is the link's text. */
+.item-walk-previous,
+.item-walk-next {
+  max-width: 40ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-walk-next {
+  margin-inline-start: auto;
+}
