@@ -1,8 +1,9 @@
 /**
  * Saved lists: the Items screen names its filters and order, the nav lists the names under
- * Items, and opening one shows its name with Rename and Delete. The lists are the user's
- * `romeka_saved_lists` setting (`crates/omeka-server/tests/saved_lists.rs`); each change reads
- * `GET /api/me` first, so a list saved in another browser is kept.
+ * Items, and opening one shows its name with Rename and Delete; changed, it offers Update and
+ * Save as a new list. The lists are the user's `romeka_saved_lists` setting
+ * (`crates/omeka-server/tests/saved_lists.rs`); each change reads `GET /api/me` first, so a list
+ * saved in another browser is kept.
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -81,9 +82,17 @@ describe('saved lists', () => {
     render(<SavedListLinks />);
     const lists = screen.getByRole('list', { name: 'Saved lists' });
     const letters = within(lists).getByRole('link', { name: 'Letters' });
-    expect(letters).toHaveAttribute('href', '#/items?class=3');
+    expect(letters).toHaveAttribute('href', '#/items?class=3&list=Letters');
     expect(letters).toHaveAttribute('aria-current', 'true');
     expect(within(lists).getByRole('link', { name: 'Undated' })).not.toHaveAttribute('aria-current');
+  });
+
+  it('keeps marking the list the screen came from after its filters change', () => {
+    setSession(researcher([{ name: 'Letters', query: 'class=3' }, { name: 'Undated', query: 'field=7%3Aempty' }]));
+    window.history.replaceState(null, '', '/#/items?class=3&sort=title&list=Letters');
+    render(<SavedListLinks />);
+    const lists = screen.getByRole('list', { name: 'Saved lists' });
+    expect(within(lists).getByRole('link', { name: 'Letters' })).toHaveAttribute('aria-current', 'true');
   });
 
   it('shows no list for a user with none', () => {
@@ -129,6 +138,7 @@ describe('saved lists', () => {
     render(<ItemsList />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Save this list' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: '  ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(await screen.findByText('Give the list a name.')).toBeInTheDocument();
     fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: ' Letters ' } });
@@ -137,6 +147,57 @@ describe('saved lists', () => {
     await waitFor(() => {
       expect(written(server.fetchMock)).toEqual([]);
     });
+  });
+
+  it('says a saved list changed since saved, and updates it in place with the new order', async () => {
+    const undated = { name: 'Undated', query: 'field=7%3Aempty' };
+    const letters = { name: 'Letters', query: 'class=51' };
+    setSession(researcher([letters, undated]));
+    const server = installServer([letters, undated]);
+    window.history.replaceState(null, '', '/#/items?class=51&sort=title&list=Letters');
+    render(<ItemsList />);
+
+    expect(await screen.findByText('Saved list: Letters')).toBeInTheDocument();
+    expect(screen.getByText('Changed since saved')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Go back to the saved filters' })).toHaveAttribute(
+      'href',
+      '#/items?class=51&list=Letters',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Update Letters with these filters' }));
+    expect(await screen.findByText('Updated Letters with these filters.')).toBeInTheDocument();
+    expect(screen.queryByText('Changed since saved')).toBeNull();
+    expect(screen.getByText('Saved list: Letters')).toBeInTheDocument();
+    expect(server.stored()).toEqual([{ name: 'Letters', query: 'class=51&sort=title' }, undated]);
+  });
+
+  it('saves a changed list as a new one, named from its filters, and opens it', async () => {
+    const letters = { name: 'Letters', query: 'class=51' };
+    setSession(researcher([letters]));
+    const server = installServer([letters]);
+    window.history.replaceState(null, '', '/#/items?class=51&field=4%3Aempty&list=Letters');
+    render(<ItemsList />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Save as a new list' }));
+    expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue('Class: Book · Description: empty');
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('Saved list: Class: Book · Description: empty')).toBeInTheDocument();
+    expect(screen.queryByText('Changed since saved')).toBeNull();
+    expect(server.stored()).toEqual([letters, { name: 'Class: Book · Description: empty', query: 'class=51&field=4%3Aempty' }]);
+    await waitFor(() => {
+      expect(new URLSearchParams(window.location.hash.split('?')[1]).get('list')).toBe('Class: Book · Description: empty');
+    });
+  });
+
+  it('says so when the list to update was deleted in another window', async () => {
+    const letters = { name: 'Letters', query: 'class=51' };
+    setSession(researcher([letters]));
+    const server = installServer([]);
+    window.history.replaceState(null, '', '/#/items?class=51&sort=title&list=Letters');
+    render(<ItemsList />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Update Letters with these filters' }));
+    expect(await screen.findByText('This saved list was deleted in another window.')).toBeInTheDocument();
+    expect(written(server.fetchMock)).toEqual([]);
   });
 
   it('offers no save for the plain list of every item', async () => {

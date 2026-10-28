@@ -32,4 +32,9 @@ export const es: FindingMessages = {
   'savedLists.nameTaken': 'Ya tiene una lista llamada {name}.',
   'savedLists.tooMany': 'Tiene {count} listas guardadas. Es el máximo que una persona puede tener. Elimine una primero.',
   'savedLists.gone': 'Esta lista guardada se eliminó en otra ventana.',
+  'savedLists.changed': 'Cambiada desde que se guardó',
+  'savedLists.update': 'Actualizar {name} con estos filtros',
+  'savedLists.updated': 'Se actualizó {name} con estos filtros.',
+  'savedLists.saveNew': 'Guardar como una lista nueva',
+  'savedLists.revert': 'Volver a los filtros guardados',
 };

@@ -1,5 +1,5 @@
 /**
- * The user's saved lists as changes: save one, rename one, delete one. A change is checked and
+ * The user's saved lists as changes: save one, update one's query, rename one, delete one. A change is checked and
  * applied to the lists `GET /api/me` answers at that moment, then the whole list is written back
  * as the `romeka_saved_lists` setting, so a list saved in another browser since this page loaded
  * is kept. Two writes at the same moment still keep only the last.
@@ -16,6 +16,7 @@ export const LONGEST_NAME = 200;
 
 export type ListChange =
   | { readonly kind: 'save'; readonly list: SavedList }
+  | { readonly kind: 'update'; readonly name: string; readonly query: string }
   | { readonly kind: 'rename'; readonly from: string; readonly to: string }
   | { readonly kind: 'delete'; readonly name: string };
 
@@ -39,6 +40,8 @@ export const problemOf = (lists: readonly SavedList[], change: ListChange): Chan
         return 'taken';
       }
       return lists.length >= MOST_SAVED_LISTS ? 'tooMany' : null;
+    case 'update':
+      return has(lists, change.name) ? null : 'gone';
     case 'rename':
       if (!has(lists, change.from)) {
         return 'gone';
@@ -52,11 +55,13 @@ export const problemOf = (lists: readonly SavedList[], change: ListChange): Chan
   }
 };
 
-/** `lists` after `change`, which `problemOf` passed. A new list goes last. */
+/** `lists` after `change`, which `problemOf` passed. A new list goes last; an updated one keeps its place. */
 export const applyChange = (lists: readonly SavedList[], change: ListChange): readonly SavedList[] => {
   switch (change.kind) {
     case 'save':
       return [...lists, change.list];
+    case 'update':
+      return lists.map((list) => (list.name === change.name ? { ...list, query: change.query } : list));
     case 'rename':
       return lists.map((list) => (list.name === change.from ? { ...list, name: change.to } : list));
     case 'delete':

@@ -36,4 +36,9 @@ export const kn: FindingMessages = {
   'savedLists.tooMany':
     'ನಿಮ್ಮ ಬಳಿ {count} ಉಳಿಸಿದ ಪಟ್ಟಿಗಳಿವೆ. ಒಬ್ಬ ವ್ಯಕ್ತಿಯು ಇಟ್ಟುಕೊಳ್ಳಬಹುದಾದ ಗರಿಷ್ಠ ಸಂಖ್ಯೆ ಇದಾಗಿದೆ. ಒಂದನ್ನು ಮೊದಲು ಅಳಿಸಿ.',
   'savedLists.gone': 'ಈ ಉಳಿಸಿದ ಪಟ್ಟಿಯನ್ನು ಮತ್ತೊಂದು ವಿಂಡೋದಲ್ಲಿ ಅಳಿಸಲಾಗಿದೆ.',
+  'savedLists.changed': 'ಉಳಿಸಿದ ನಂತರ ಬದಲಾಗಿದೆ',
+  'savedLists.update': 'ಈ ಫಿಲ್ಟರ್‌ಗಳೊಂದಿಗೆ {name} ಅನ್ನು ನವೀಕರಿಸಿ',
+  'savedLists.updated': 'ಈ ಫಿಲ್ಟರ್‌ಗಳೊಂದಿಗೆ {name} ಅನ್ನು ನವೀಕರಿಸಲಾಗಿದೆ.',
+  'savedLists.saveNew': 'ಹೊಸ ಪಟ್ಟಿಯಾಗಿ ಉಳಿಸಿ',
+  'savedLists.revert': 'ಉಳಿಸಿದ ಫಿಲ್ಟರ್‌ಗಳಿಗೆ ಹಿಂತಿರುಗಿ',
 };

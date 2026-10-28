@@ -36,4 +36,9 @@ export const mr: FindingMessages = {
   'savedLists.tooMany':
     'तुमच्याकडे {count} जतन केलेल्या सूची आहेत. एक व्यक्ती जास्तीत जास्त इतक्याच सूची ठेवू शकते. प्रथम एक हटवा.',
   'savedLists.gone': 'ही जतन केलेली सूची दुसऱ्या खिडकीत हटवण्यात आली आहे.',
+  'savedLists.changed': 'जतन केल्यापासून बदलले',
+  'savedLists.update': 'या फिल्टर्ससह {name} अद्ययावत करा',
+  'savedLists.updated': 'या फिल्टर्ससह {name} अद्ययावत केले.',
+  'savedLists.saveNew': 'नवीन सूची म्हणून जतन करा',
+  'savedLists.revert': 'जतन केलेल्या फिल्टर्सवर परत जा',
 };

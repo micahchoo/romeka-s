@@ -36,4 +36,9 @@ export const hi: FindingMessages = {
   'savedLists.tooMany':
     'आपके पास {count} सहेजी गई सूचियाँ हैं। यह वह अधिकतम संख्या है जो एक व्यक्ति रख सकता है। पहले एक को हटा दें।',
   'savedLists.gone': 'यह सहेजी गई सूची किसी अन्य विंडो में हटा दी गई थी।',
+  'savedLists.changed': 'सहेजे जाने के बाद से बदला गया',
+  'savedLists.update': 'इन फ़िल्टरों के साथ {name} को अपडेट करें',
+  'savedLists.updated': 'इन फ़िल्टरों के साथ {name} को अपडेट किया गया।',
+  'savedLists.saveNew': 'एक नई सूची के रूप में सहेजें',
+  'savedLists.revert': 'सहेजे गए फ़िल्टरों पर वापस जाएँ',
 };

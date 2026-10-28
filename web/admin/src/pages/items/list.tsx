@@ -34,7 +34,7 @@ import type { BrowseFilters, ItemBrowse, View } from './browse';
 import { loadBrowseOptions, NO_OPTIONS } from './browse-options';
 import { CsvDownload } from './csv-download';
 import { FilterBar } from './FilterBar';
-import { FilterChips } from './FilterChips';
+import { FilterChips, useFilterWords } from './FilterChips';
 import { ItemsGrid } from './ItemsGrid';
 import { ItemsTable } from './ItemsTable';
 import { LinksCard, useLinksPlace } from './links-card';
@@ -224,6 +224,7 @@ export const ItemsList = (): ReactElement => {
   const setHasIdentifier = useSetHasIdentifier(setId, propertyOf(options, IDENTIFIER), revision);
   const links = state.filters.links;
   const linksPlace = useLinksPlace(links, revision);
+  const filterWords = useFilterWords(state.filters, options, linksPlace);
   /** Filters besides the set narrow the set's items. */
   const narrowed = active.some((key) => key !== 'itemSetId');
   /** Filters besides the links filter narrow the linking items. */
@@ -304,7 +305,14 @@ export const ItemsList = (): ReactElement => {
         onClearAll={onClearAll}
       />
       <Suspense fallback={null}>
-        <SavedListBar key={savedQuery(state)} state={state} />
+        <SavedListBar
+          key={savedQuery(state)}
+          state={state}
+          suggestedName={filterWords.map((word) => word.label).join(' · ')}
+          onOpen={(list) => {
+            apply({ ...state, list });
+          }}
+        />
       </Suspense>
       {hidden ? null : <BulkSiteActions picked={picked} />}
       {shown === null || hidden ? null : (

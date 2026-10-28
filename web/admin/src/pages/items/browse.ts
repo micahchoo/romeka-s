@@ -1,6 +1,6 @@
 /**
  * The Items browse query: one record the screen renders from, the URL that
- * holds it (`#/items?q=&class=&set=&links=&via=&template=&field=&owner=&visibility=&site=&media=&changed=&sort=&view=&page=`),
+ * holds it (`#/items?q=&class=&set=&links=&via=&template=&field=&owner=&visibility=&site=&media=&changed=&sort=&view=&page=&list=`),
  * and the API query it sends. Every function is pure; the screen owns only the
  * effects (reading and writing the URL, the remembered view, the request).
  */
@@ -11,6 +11,7 @@ import type { LinkTarget } from '../../api/places';
 import type { ClassId, ItemId, ItemSetId, PropertyId, ResourceId, SiteId, TemplateId, UserId } from '../../api/types';
 import { isFilterKind, serverKindsOf } from '../../app/media';
 import type { FilterKind } from '../../app/media';
+import { LIST_KEY } from '../../app/open-saved-list';
 
 export const PER_PAGE = 24;
 
@@ -99,6 +100,8 @@ export interface ItemBrowse {
   readonly sort: Sort;
   readonly view: View;
   readonly page: number;
+  /** The saved list the reader opened this from, kept through filter and order changes. */
+  readonly list: string | null;
 }
 
 export const NO_FILTERS: BrowseFilters = {
@@ -237,6 +240,7 @@ export const parseBrowse = (query: URLSearchParams, fallbackView: View): ItemBro
   sort: parseSort(query.get('sort')),
   view: oneOf<View>(['table', 'grid'], query.get('view')) ?? fallbackView,
   page: positiveInt(query.get('page')) ?? 1,
+  list: query.get(LIST_KEY) || null,
 });
 
 const siteText = (site: SiteFilter): string => (site.kind === 'site' ? String(site.id) : site.kind);
@@ -265,6 +269,7 @@ export const formatBrowse = (state: ItemBrowse): URLSearchParams => {
     ['sort', state.sort === 'newest' ? null : state.sort],
     ['view', state.view === 'table' ? null : state.view],
     ['page', state.page === 1 ? null : String(state.page)],
+    [LIST_KEY, state.list],
   ];
   return new URLSearchParams(
     entries.flatMap(([name, value]) => (value === null ? [] : [[name, value]])),
@@ -272,10 +277,12 @@ export const formatBrowse = (state: ItemBrowse): URLSearchParams => {
 };
 
 /**
- * The query a saved list stores: the filters and the order, without the page and the view. The
- * nav compares it with the open address the same way (`app/saved-list-links.tsx`).
+ * The query a saved list stores: the filters and the order, without the page, the view and the
+ * list it came from. The nav compares it with the open address the same way
+ * (`app/saved-list-links.tsx`).
  */
-export const savedQuery = (state: ItemBrowse): string => formatBrowse({ ...state, view: 'table', page: 1 }).toString();
+export const savedQuery = (state: ItemBrowse): string =>
+  formatBrowse({ ...state, view: 'table', page: 1, list: null }).toString();
 
 /** Whether the browse narrows or orders the list, so saving it says more than "every item". */
 export const isSavable = (state: ItemBrowse): boolean => savedQuery(state) !== '';
@@ -363,7 +370,7 @@ export const linksPlaceHref = (target: LinkTarget, via: PropertyId | null): stri
 
 /** The Items screen narrowed by `filters`, in the default order and view. */
 export const itemsHref = (filters: Partial<BrowseFilters>): string =>
-  `#/items?${formatBrowse({ filters: { ...NO_FILTERS, ...filters }, sort: 'newest', view: 'table', page: 1 }).toString()}`;
+  `#/items?${formatBrowse({ filters: { ...NO_FILTERS, ...filters }, sort: 'newest', view: 'table', page: 1, list: null }).toString()}`;
 
 /** The Items screen filtered to the items of one type whose field is empty, from that type's page. */
 export const fieldPlaceHref = (template: TemplateId, property: PropertyId): string =>

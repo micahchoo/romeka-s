@@ -161,6 +161,19 @@ button.private-cue:hover:not(:disabled) {
   margin: 0;
 }
 
+.saved-list-changed {
+  margin: 0;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.saved-list-done {
+  margin: 0;
+}
+
 .saved-list-where {
   color: var(--text-muted);
   font-size: 13px;

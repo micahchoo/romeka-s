@@ -21,12 +21,12 @@ import type { ItemBrowse } from '../src/pages/items/browse';
 
 const parse = (query: string): ItemBrowse => parseBrowse(new URLSearchParams(query), 'table');
 
-const PLAIN: ItemBrowse = { filters: NO_FILTERS, sort: 'newest', view: 'table', page: 1 };
+const PLAIN: ItemBrowse = { filters: NO_FILTERS, sort: 'newest', view: 'table', page: 1, list: null };
 
 describe('items browse URL', () => {
   it('a full query reads back to the same URL', () => {
     const query =
-      'q=harbour+map&class=13&set=4&template=2&owner=3&visibility=private&site=7&media=image&sort=title&view=grid&page=3';
+      'q=harbour+map&class=13&set=4&template=2&owner=3&visibility=private&site=7&media=image&sort=title&view=grid&page=3&list=Letters';
     expect(formatBrowse(parse(query)).toString()).toBe(query);
   });
 

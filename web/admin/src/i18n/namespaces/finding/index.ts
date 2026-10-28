@@ -35,6 +35,11 @@ export const en = {
   'savedLists.nameTaken': 'You already have a list named {name}.',
   'savedLists.tooMany': 'You have {count} saved lists. That is the most that one person can keep. Delete one first.',
   'savedLists.gone': 'This saved list was deleted in another window.',
+  'savedLists.changed': 'Changed since saved',
+  'savedLists.update': 'Update {name} with these filters',
+  'savedLists.updated': 'Updated {name} with these filters.',
+  'savedLists.saveNew': 'Save as a new list',
+  'savedLists.revert': 'Go back to the saved filters',
 } as const;
 
 /** A complete table of this namespace, in one locale. */

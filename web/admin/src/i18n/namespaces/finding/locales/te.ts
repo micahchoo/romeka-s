@@ -36,4 +36,9 @@ export const te: FindingMessages = {
   'savedLists.tooMany':
     'మీ వద్ద {count} ఆదా చేసిన జాబితాలు ఉన్నాయి. ఒక వ్యక్తి ఉంచుకోగలిగే వాటిలో ఇది అత్యంత ఎక్కువ. ముందుగా ఒకటి తొలగించండి.',
   'savedLists.gone': 'ఈ ఆదా చేసిన జాబితా మరొక విండోలో తొలగించబడింది.',
+  'savedLists.changed': 'ఆదా చేసినప్పటి నుండి మార్చబడింది',
+  'savedLists.update': 'ఈ ఫిల్టర్‌లతో {name}ని అప్‌డేట్ చేయండి',
+  'savedLists.updated': 'ఈ ఫిల్టర్‌లతో {name} అప్‌డేట్ చేయబడింది.',
+  'savedLists.saveNew': 'కొత్త జాబితాగా సేవ్ చేయండి',
+  'savedLists.revert': 'ఆదా చేసిన ఫిల్టర్‌లకు తిరిగి వెళ్లండి',
 };

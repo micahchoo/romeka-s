@@ -94,6 +94,18 @@ const chipText = (
   }
 };
 
+export interface FilterWords {
+  readonly key: FilterKey;
+  readonly label: string;
+}
+
+/** Each active filter in the chips' words, in the chips' order. A saved list's name starts from them. */
+export const useFilterWords = (filters: BrowseFilters, options: BrowseOptions, linksPlace: LinksPlace): readonly FilterWords[] => {
+  const { t, locale } = useTranslator(common, resources);
+  const text = useTermLabels();
+  return activeFilters(filters).map((key) => ({ key, label: chipText(key, filters, options, t, text, linksPlace, locale) }));
+};
+
 export interface FilterChipsProps {
   readonly filters: BrowseFilters;
   readonly options: BrowseOptions;
@@ -104,32 +116,28 @@ export interface FilterChipsProps {
 }
 
 export const FilterChips = ({ filters, options, linksPlace, onRemove, onClearAll }: FilterChipsProps): ReactElement | null => {
-  const { t, locale } = useTranslator(common, resources);
-  const text = useTermLabels();
-  const keys = activeFilters(filters);
-  if (keys.length === 0) {
+  const { t } = useTranslator(common, resources);
+  const words = useFilterWords(filters, options, linksPlace);
+  if (words.length === 0) {
     return null;
   }
   return (
     <div className="filter-chips">
       <ul aria-label={t('browse.activeFilters')}>
-        {keys.map((key) => {
-          const label = chipText(key, filters, options, t, text, linksPlace, locale);
-          return (
-            <li key={key} className="filter-chip">
-              <span>{label}</span>
-              <button
-                type="button"
-                aria-label={t('browse.removeFilter', { filter: label })}
-                onClick={() => {
-                  onRemove(key);
-                }}
-              >
-                ×
-              </button>
-            </li>
-          );
-        })}
+        {words.map(({ key, label }) => (
+          <li key={key} className="filter-chip">
+            <span>{label}</span>
+            <button
+              type="button"
+              aria-label={t('browse.removeFilter', { filter: label })}
+              onClick={() => {
+                onRemove(key);
+              }}
+            >
+              ×
+            </button>
+          </li>
+        ))}
       </ul>
       <button type="button" className="filter-clear-all" onClick={onClearAll}>
         {t('browse.clearAll')}
