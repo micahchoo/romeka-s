@@ -5,6 +5,7 @@ import { formatDateTime } from '../../app/format';
 import { ownerNameOf, userNames } from '../../app/labels';
 import { ListPage, mapPage } from '../../app/list';
 import { useTranslator } from '../../i18n';
+import { FixityStart } from './fixity-start';
 import { useJobClassLabel, useJobStatusLabel } from './messages';
 import { common } from '../../i18n/namespaces/common';
 import { admin } from '../../i18n/namespaces/admin';
@@ -32,32 +33,35 @@ export const JobList = (): ReactElement => {
   const classLabel = useJobClassLabel();
   const resource = t('resource.jobs');
   return (
-    <ListPage<JobRow>
-      resourceLabel={resource}
-      emptyMessage={t('list.empty', { resource })}
-      load={load}
-      rowKey={(row) => String(row.job.id)}
-      columns={[
-        {
-          header: t('column.id'),
-          cell: (row) => <a href={`#/jobs/${String(row.job.id)}`}>{row.job.id}</a>,
-          numeric: true,
-        },
-        { header: t('column.class'), cell: (row) => classLabel(row.job.jobClass) },
-        {
-          header: t('column.status'),
-          cell: (row) => statusLabel(row.job.status) ?? t('common.unknown'),
-        },
-        { header: t('column.owner'), cell: (row) => row.ownerName ?? t('common.noOwner') },
-        {
-          header: t('column.started'),
-          cell: (row) => (row.job.started === null ? '' : formatDateTime(row.job.started, locale)),
-        },
-        {
-          header: t('column.ended'),
-          cell: (row) => (row.job.ended === null ? '' : formatDateTime(row.job.ended, locale)),
-        },
-      ]}
-    />
+    <>
+      <FixityStart />
+      <ListPage<JobRow>
+        resourceLabel={resource}
+        emptyMessage={t('list.empty', { resource })}
+        load={load}
+        rowKey={(row) => String(row.job.id)}
+        columns={[
+          {
+            header: t('column.id'),
+            cell: (row) => <a href={`#/jobs/${String(row.job.id)}`}>{row.job.id}</a>,
+            numeric: true,
+          },
+          { header: t('column.class'), cell: (row) => classLabel(row.job.jobClass) },
+          {
+            header: t('column.status'),
+            cell: (row) => statusLabel(row.job.status) ?? t('common.unknown'),
+          },
+          { header: t('column.owner'), cell: (row) => row.ownerName ?? t('common.noOwner') },
+          {
+            header: t('column.started'),
+            cell: (row) => (row.job.started === null ? '' : formatDateTime(row.job.started, locale)),
+          },
+          {
+            header: t('column.ended'),
+            cell: (row) => (row.job.ended === null ? '' : formatDateTime(row.job.ended, locale)),
+          },
+        ]}
+      />
+    </>
   );
 };

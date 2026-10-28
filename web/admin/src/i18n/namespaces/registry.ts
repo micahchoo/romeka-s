@@ -41,4 +41,5 @@ export const NAMESPACES: readonly NamespaceRecord[] = [
   { id: 'media-add', what: 'add-media panel messages', type: 'MediaAddMessages' },
   { id: 'bulk', what: 'bulk change panel messages', type: 'BulkMessages' },
   { id: 'bulk-delete', what: 'bulk delete messages', type: 'BulkDeleteMessages' },
+  { id: 'fixity', what: 'fixity check messages', type: 'FixityMessages' },
 ];

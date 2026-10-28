@@ -6,6 +6,8 @@ import { ErrorNotice } from '../../app/errors';
 import { EditPanel } from '../../app/fields';
 import { formatDateTime } from '../../app/format';
 import { useTranslator } from '../../i18n';
+import { FIXITY_JOB_CLASS } from '../../api/fixity';
+import { FixityResult } from './fixity-result';
 import { JobUpdateForm } from './form';
 import { importOfJob, useJobClassLabel, useJobStatusLabel } from './messages';
 import './jobs.css';
@@ -88,6 +90,8 @@ export const JobDetail = ({ jobId }: { readonly jobId: Id<'JobId'> }): ReactElem
           <a href={`#/import/${String(importId)}`}>{t('jobs.openImport')}</a>
         </p>
       )}
+
+      {job.jobClass === FIXITY_JOB_CLASS ? <FixityResult job={job} /> : null}
 
       <h3>{t('jobs.args')}</h3>
       <pre>{JSON.stringify(job.args, null, 2)}</pre>

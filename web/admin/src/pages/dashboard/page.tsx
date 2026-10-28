@@ -7,6 +7,7 @@ import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
 import { admin } from '../../i18n/namespaces/admin';
+import { FixityLine } from './fixity-line';
 
 interface DashboardView {
   readonly itemCount: number;
@@ -48,6 +49,7 @@ export const DashboardPage = (): ReactElement => {
   const view = state.data;
   return (
     <section>
+      <FixityLine />
       <h2>{t('dashboard.manageResources')}</h2>
       <ul>
         <li>

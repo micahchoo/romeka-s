@@ -8,7 +8,9 @@ import { MediaImage, MediaKindBadge, MediaPreviewState } from '../../app/media-i
 import { KIND_FILTERS, KIND_LABEL, isFilterKind, mediaName, previewImageUrl, serverKindsOf } from '../../app/media';
 import type { FilterKind } from '../../app/media';
 import { hashQuery, replaceHashQuery } from '../../app/router';
+import { fixityFilterOf } from '../../api/fixity';
 import { MediaAccessCue } from './access';
+import { FixityFilterNote } from './fixity-filter';
 import { useTranslator } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
@@ -32,6 +34,13 @@ const writeKind = (kind: FilterKind | null): void => {
   replaceHashQuery('media', query);
 };
 
+const clearFixity = (): void => {
+  const query = hashQuery(window.location.hash);
+  query.delete('fixity');
+  query.delete('fixityJob');
+  replaceHashQuery('media', query);
+};
+
 const itemCell = (media: Media): ReactElement | string =>
   media.item === null ? '' : <a href={`#/items/${String(media.item.id)}`}>{`#${String(media.item.id)}`}</a>;
 
@@ -45,6 +54,7 @@ export const MediaList = (): ReactElement => {
   const resource = t('resource.media');
   const [kind, setKind] = useState<FilterKind | null>(readKind);
   const names = kind === null ? [] : serverKindsOf(kind);
+  const [fixityFilter, setFixityFilter] = useState(() => fixityFilterOf(hashQuery(window.location.hash)));
 
   const choose = (value: string): void => {
     const next = isFilterKind(value) ? value : null;
@@ -58,6 +68,16 @@ export const MediaList = (): ReactElement => {
         {t('media.browse.intro')} <a href="#/items">{t('media.browse.items')}</a>.{' '}
         {t('media.browse.batch')} <a href="#/import">{t('media.browse.import')}</a>.
       </p>
+      {fixityFilter === null ? null : (
+        <FixityFilterNote
+          shown={fixityFilter.shown}
+          job={fixityFilter.job}
+          onClear={() => {
+            clearFixity();
+            setFixityFilter(null);
+          }}
+        />
+      )}
       <p>
         <label htmlFor="media-kind-filter">{t('media.filter.label')}</label>{' '}
         <select
@@ -76,7 +96,7 @@ export const MediaList = (): ReactElement => {
         </select>
       </p>
       <ListPage<Media>
-        key={kind ?? 'all'}
+        key={`${kind ?? 'all'}:${fixityFilter === null ? '' : `${fixityFilter.shown}:${String(fixityFilter.job)}`}`}
         resourceLabel={resource}
         emptyMessage={t('list.empty', { resource })}
         load={(page) =>
@@ -86,6 +106,9 @@ export const MediaList = (): ReactElement => {
             sortBy: 'id',
             sortOrder: 'asc',
             ...(names.length === 0 ? {} : { romekaKind: names }),
+            ...(fixityFilter === null
+              ? {}
+              : { romekaFixity: fixityFilter.shown, romekaFixityJob: String(fixityFilter.job) }),
           })
         }
         rowKey={(media) => String(media.id)}

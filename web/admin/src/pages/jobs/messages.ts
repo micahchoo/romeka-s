@@ -4,7 +4,9 @@
  */
 import { useMemo } from 'react';
 import { useTranslator } from '../../i18n';
+import { FIXITY_JOB_CLASS } from '../../api/fixity';
 import { admin } from '../../i18n/namespaces/admin';
+import { fixity } from '../../i18n/namespaces/fixity';
 
 /**
  * `JobRepresentation::statusLabel` through `@translate`: the label of a stored
@@ -51,12 +53,16 @@ export const importOfJob = (jobClass: string, args: unknown): number | null => {
 /** A job class as a reader names it: Romeka's own get a name, any other shows as stored. */
 export const useJobClassLabel = (): ((jobClass: string) => string) => {
   const { t } = useTranslator(admin);
+  const fixityText = useTranslator(fixity).t;
   return useMemo(
     () =>
       (jobClass: string): string => {
+        if (jobClass === FIXITY_JOB_CLASS) {
+          return fixityText('fixity.class');
+        }
         const key = CLASS_TEXT[jobClass];
         return key === undefined ? jobClass : t(key);
       },
-    [t],
+    [t, fixityText],
   );
 };
