@@ -34,4 +34,23 @@ export const kn: BulkDeleteMessages = {
   'bulkDelete.empty.doneOne': 'ಕಸದ ಬುಟ್ಟಿ ಖಾಲಿ ಇದೆ. 1 ಅಂಶವನ್ನು ಶಾಶ್ವತವಾಗಿ ಅಳಿಸಲಾಗಿದೆ.',
   'bulkDelete.empty.done': 'ಕಸದ ಬುಟ್ಟಿ ಖಾಲಿ ಇದೆ. {count} ಅಂಶಗಳನ್ನು ಶಾಶ್ವತವಾಗಿ ಅಳಿಸಲಾಗಿದೆ.',
   'bulkDelete.empty.nothing': 'ಕಸದ ಬುಟ್ಟಿ ಈಗಾಗಲೇ ಖಾಲಿ ಇದೆ.',
+  'bulkDelete.item.checking': 'ಈ ಅಂಶದೊಂದಿಗೆ ಏನು ಹೋಗುತ್ತದೆ ಎಂದು ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ…',
+  'bulkDelete.item.cannotCheck':
+    'ಈ ಅಂಶದೊಂದಿಗೆ ಏನು ಹೋಗುತ್ತದೆ ಎಂದು ಪರಿಶೀಲಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ, ಆದ್ದರಿಂದ ಇದನ್ನು ಈಗ ಕಸದ ಬುಟ್ಟಿಗೆ ಸರಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ.',
+  'bulkDelete.item.checkAgain': 'ಮತ್ತೆ ಪರಿಶೀಲಿಸಿ',
+  'bulkDelete.item.denied': 'ನೀವು ಈ ಅಂಶವನ್ನು ಅಳಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ.',
+  'bulkDelete.item.ask': '{name} ಅನ್ನು ಕಸದ ಬುಟ್ಟಿಗೆ ಸರಿಸಬೇಕೆ?',
+  'bulkDelete.item.linked': 'ಇತರ ದಾಖಲೆಗಳು ಇದಕ್ಕೆ ಲಿಂಕ್ ಆಗಿವೆ:',
+  'bulkDelete.item.linksBack': 'ನೀವು ಇದನ್ನು ಮರುಸ್ಥಾಪಿಸಿದರೆ ಅವುಗಳ ಲಿಂಕ್‌ಗಳು ಮರಳುತ್ತವೆ.',
+  'bulkDelete.item.notLinked': 'ಇದಕ್ಕೆ ಯಾವುದೇ ಲಿಂಕ್‌ಗಳಿಲ್ಲ.',
+  'bulkDelete.item.trash':
+    'ಕಸದ ಬುಟ್ಟಿಯು ಇದನ್ನು {days} ದಿನಗಳವರೆಗೆ ಇರಿಸಿಕೊಳ್ಳುತ್ತದೆ. ಆ ಸಮಯ ಮುಗಿಯುವವರೆಗೆ, Items ಪರದೆಯ ಮೇಲೆ Undo ಮಾಡಿದರೆ ಅದರ ಮಾಧ್ಯಮ ಮತ್ತು ಫೈಲ್‌ಗಳೊಂದಿಗೆ ಅದನ್ನು ಮತ್ತೆ ಇರಿಸುತ್ತದೆ.',
+  'bulkDelete.item.move': 'ಕಸದ ಬುಟ್ಟಿಗೆ ಸರಿಸಿ',
+  'bulkDelete.item.moving': 'ಕಸದ ಬುಟ್ಟಿಗೆ ಸರಿಸಲಾಗುತ್ತಿದೆ…',
+  'bulkDelete.item.failed': '{name} ಅನ್ನು ಕಸದ ಬುಟ್ಟಿಗೆ ಸರಿಸಲಿಲ್ಲ. ಇದು ಮೊದಲಿನಂತೆಯೇ ಇರುತ್ತದೆ.',
+  'bulkDelete.item.trashed': '{name} ಅನ್ನು ಅಳಿಸಲಾಗಿದೆ.',
+  'bulkDelete.item.undo': 'ರದ್ದುಗೊಳಿಸಿ',
+  'bulkDelete.item.undoing': '{name} ಅನ್ನು ಮತ್ತೆ ಇರಿಸಲಾಗುತ್ತಿದೆ…',
+  'bulkDelete.item.back': '{name} ಮತ್ತೆ ಬಂದಿದೆ.',
+  'bulkDelete.item.notBack': '{name} ಕಸದ ಬುಟ್ಟಿಯಲ್ಲೇ ಇರುತ್ತದೆ.',
 };

@@ -35,4 +35,24 @@ export const ta: BulkDeleteMessages = {
   'bulkDelete.empty.done':
     'குப்பைத் தொட்டி காலியாக உள்ளது. {count} பொருட்கள் நிரந்தரமாக நீக்கப்பட்டன.',
   'bulkDelete.empty.nothing': 'குப்பைத் தொட்டி ஏற்கனவே காலியாக உள்ளது.',
+  'bulkDelete.item.checking': 'இந்த பொருளுடன் வேறு என்ன சேரும் என்று சரிபார்க்கிறது…',
+  'bulkDelete.item.cannotCheck':
+    'இந்த பொருளுடன் வேறு என்ன சேரும் என்று சரிபார்க்க முடியாது, எனவே இப்போது அதை குப்பைத் தொட்டிக்கு நகர்த்த முடியாது.',
+  'bulkDelete.item.checkAgain': 'மீண்டும் சரிபார்க்கவும்',
+  'bulkDelete.item.denied': 'இந்த பொருளை உங்களால் நீக்க முடியாது.',
+  'bulkDelete.item.ask': '{name} ஐ குப்பைத் தொட்டிக்கு நகர்த்தவா?',
+  'bulkDelete.item.linked': 'பிற பதிவுகள் இதனுடன் இணைக்கப்பட்டுள்ளன:',
+  'bulkDelete.item.linksBack': 'நீங்கள் அதை மீட்டெடுத்தால், அவற்றின் இணைப்புகள் மீண்டும் தோன்றும்.',
+  'bulkDelete.item.notLinked': 'இதனுடன் வேறு எந்தப் பதிவும் இணைக்கப்படவில்லை.',
+  'bulkDelete.item.trash':
+    'குப்பைத் தொட்டி இதை {days} நாட்களுக்கு வைத்திருக்கும். அதற்குப் பிறகு, Items திரையில் உள்ள Undo வசதி, ஊடகங்கள் மற்றும் கோப்புகளுடன் இதை மீண்டும் வைக்கிறது.',
+  'bulkDelete.item.move': 'குப்பைத் தொட்டிக்கு நகர்த்தவும்',
+  'bulkDelete.item.moving': 'குப்பைத் தொட்டிக்கு நகர்த்தப்படுகிறது…',
+  'bulkDelete.item.failed':
+    '{name} குப்பைத் தொட்டிக்கு நகர்த்தப்படவில்லை. இது முன்பைப் போலவே இருக்கும்.',
+  'bulkDelete.item.trashed': '{name} நீக்கப்பட்டது.',
+  'bulkDelete.item.undo': 'மீட்க',
+  'bulkDelete.item.undoing': '{name} மீண்டும் வைக்கப்படுகிறது…',
+  'bulkDelete.item.back': '{name} மீண்டும் வந்துவிட்டது.',
+  'bulkDelete.item.notBack': '{name} குப்பைத் தொட்டியில் இருக்கும்.',
 };

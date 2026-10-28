@@ -35,4 +35,23 @@ export const ml: BulkDeleteMessages = {
   'bulkDelete.empty.doneOne': 'ട്രാഷ് ശൂന്യമാണ്. 1 ഇനം എന്നെന്നേക്കുമായി ഡിലീറ്റ് ചെയ്തു.',
   'bulkDelete.empty.done': 'ട്രാഷ് ശൂന്യമാണ്. {count} ഇനങ്ങൾ എന്നെന്നേക്കുമായി ഡിലീറ്റ് ചെയ്തു.',
   'bulkDelete.empty.nothing': 'ട്രാഷ് നേരത്തെ തന്നെ ശൂന്യമായിരുന്നു.',
+  'bulkDelete.item.checking': 'ഈ ഇനത്തോടൊപ്പം എന്തൊക്കെ പോകുന്നു എന്ന് പരിശോധിക്കുന്നു…',
+  'bulkDelete.item.cannotCheck':
+    'ഈ ഇനത്തോടൊപ്പം എന്തൊക്കെ എന്ന് പരിശോധിക്കാൻ കഴിയില്ല, അതിനാൽ ഇപ്പോൾ ട്രാഷിലേക്ക് മാറ്റാൻ കഴിയില്ല.',
+  'bulkDelete.item.checkAgain': 'വീണ്ടും പരിശോധിക്കുക',
+  'bulkDelete.item.denied': 'ഈ ഇനം ഡിലീറ്റ് ചെയ്യാൻ കഴിയില്ല.',
+  'bulkDelete.item.ask': '{name} ട്രാഷിലേക്ക് മാറ്റണോ?',
+  'bulkDelete.item.linked': 'മറ്റ് റെക്കോർഡുകൾ ഇതിലേക്ക് ലിങ്ക് ചെയ്യുന്നു:',
+  'bulkDelete.item.linksBack': 'നിങ്ങൾ ഇത് പുനഃസ്ഥാപിച്ചാൽ അവയുടെ ലിങ്കുകൾ തിരികെ വരും.',
+  'bulkDelete.item.notLinked': 'ഇതിലേക്ക് ലിങ്കുകൾ ഒന്നുമില്ല.',
+  'bulkDelete.item.trash':
+    'ട്രാഷ് {days} ദിവസത്തേക്ക് ഇത് സൂക്ഷിക്കുന്നു. അതിനായി, Items screen-ൽ Undo ചെയ്താൽ ഇത് തിരികെ വരും.',
+  'bulkDelete.item.move': 'ട്രാഷിലേക്ക് മാറ്റുക',
+  'bulkDelete.item.moving': 'ട്രാഷിലേക്ക് മാറ്റുന്നു…',
+  'bulkDelete.item.failed': '{name} ട്രാഷിലേക്ക് മാറ്റപ്പെട്ടില്ല. അത് പഴയതുപോലെ തന്നെ തുടരുന്നു.',
+  'bulkDelete.item.trashed': '{name} നീക്കം ചെയ്തു.',
+  'bulkDelete.item.undo': 'പഴയപടിയാക്കുക',
+  'bulkDelete.item.undoing': '{name} തിരികെ വെക്കുന്നു…',
+  'bulkDelete.item.back': '{name} തിരികെ വന്നു.',
+  'bulkDelete.item.notBack': '{name} ട്രാഷിൽ തന്നെ തുടരുന്നു.',
 };

@@ -34,4 +34,23 @@ export const hi: BulkDeleteMessages = {
   'bulkDelete.empty.doneOne': 'ट्रैश खाली है। 1 आइटम हमेशा के लिए हटा दिया गया।',
   'bulkDelete.empty.done': 'ट्रैश खाली है। {count} आइटम हमेशा के लिए हटा दिए गए।',
   'bulkDelete.empty.nothing': 'ट्रैश पहले से ही खाली है।',
+  'bulkDelete.item.checking': 'इस आइटम के साथ क्या जाता है इसकी जाँच की जा रही है…',
+  'bulkDelete.item.cannotCheck':
+    'इस आइटम के साथ क्या जाता है, इसकी जाँच नहीं की जा सकती, इसलिए इसे अभी ट्रैश में नहीं ले जाया जा सकता।',
+  'bulkDelete.item.checkAgain': 'फिर से जाँचें',
+  'bulkDelete.item.denied': 'आप इस आइटम को हटा नहीं सकते।',
+  'bulkDelete.item.ask': '{name} को ट्रैश में ले जाएँ?',
+  'bulkDelete.item.linked': 'अन्य रिकॉर्ड इससे जुड़े हैं:',
+  'bulkDelete.item.linksBack': 'इसे पुनर्स्थापित करने पर उनके लिंक वापस आ जाते हैं।',
+  'bulkDelete.item.notLinked': 'इससे कोई भी लिंक नहीं जुड़ता है।',
+  'bulkDelete.item.trash':
+    'ट्रैश इसे {days} दिनों के लिए रखता है। तब तक, आइटम्स स्क्रीन पर अनडू (Undo) करने से यह अपनी मीडिया और फाइलों के साथ वापस आ जाता है।',
+  'bulkDelete.item.move': 'ट्रैश में ले जाएँ',
+  'bulkDelete.item.moving': 'ट्रैश में ले जाया जा रहा है…',
+  'bulkDelete.item.failed': '{name} को ट्रैश में नहीं ले जाया गया। यह वैसा ही रहता है।',
+  'bulkDelete.item.trashed': '{name} को हटा दिया गया।',
+  'bulkDelete.item.undo': 'पूर्ववत करें',
+  'bulkDelete.item.undoing': '{name} को वापस रखा जा रहा है…',
+  'bulkDelete.item.back': '{name} वापस आ गया है।',
+  'bulkDelete.item.notBack': '{name} ट्रैश में ही रहता है।',
 };

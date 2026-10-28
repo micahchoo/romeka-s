@@ -34,4 +34,23 @@ export const te: BulkDeleteMessages = {
   'bulkDelete.empty.doneOne': 'ట్రాష్ ఖాళీగా ఉంది. 1 అంశం శాశ్వతంగా తొలగించబడింది.',
   'bulkDelete.empty.done': 'ట్రాష్ ఖాళీగా ఉంది. {count} అంశాలు శాశ్వతంగా తొలగించబడ్డాయి.',
   'bulkDelete.empty.nothing': 'ట్రాష్ ఇప్పటికే ఖాళీగా ఉంది.',
+  'bulkDelete.item.checking': 'ఈ అంశంతో ఏమి వెళ్తుందో తనిఖీ చేస్తున్నాము…',
+  'bulkDelete.item.cannotCheck':
+    'ఈ అంశంతో ఏమి వెళ్తుందో తనిఖీ చేయలేము, కాబట్టి ఇది ఇప్పుడు ట్రాష్‌కు తరలించబడదు.',
+  'bulkDelete.item.checkAgain': 'మళ్ళీ తనిఖీ చేయండి',
+  'bulkDelete.item.denied': 'మీరు ఈ అంశాన్ని తొలగించలేరు.',
+  'bulkDelete.item.ask': '{name}ను ట్రాష్‌కు తరలించాలా?',
+  'bulkDelete.item.linked': 'ఇతర రికార్డులు దీనికి లింక్ చేయబడ్డాయి:',
+  'bulkDelete.item.linksBack': 'మీరు పునరుద్ధరిస్తే వాటి లింకులు తిరిగి వస్తాయి.',
+  'bulkDelete.item.notLinked': 'దీనికి ఎటువంటి లింకులు లేవు.',
+  'bulkDelete.item.trash':
+    'ట్రాష్ దీనిని {days} రోజుల పాటు ఉంచుకుంటుంది. ఆ సమయం వరకు, Items స్క్రీన్ పై Undo చేయడం వల్ల ఇది దాని మీడియా మరియు ఫైళ్లతో తిరిగి వస్తుంది.',
+  'bulkDelete.item.move': 'ట్రాష్‌కు తరలించండి',
+  'bulkDelete.item.moving': 'ట్రాష్‌కు తరలించడం…',
+  'bulkDelete.item.failed': '{name} ట్రాష్‌కు తరలించబడలేదు. ఇది అలాగే ఉంటుంది.',
+  'bulkDelete.item.trashed': '{name} తొలగించబడింది.',
+  'bulkDelete.item.undo': 'అన్డూ',
+  'bulkDelete.item.undoing': '{name} ను తిరిగి ఉంచడం…',
+  'bulkDelete.item.back': '{name} తిరిగి వచ్చింది.',
+  'bulkDelete.item.notBack': '{name} ట్రాష్‌లోనే ఉంటుంది.',
 };

@@ -34,4 +34,23 @@ export const mr: BulkDeleteMessages = {
   'bulkDelete.empty.doneOne': 'कचरा रिकामी झाला. 1 बाबीची कायमची विल्हेवाट लावली.',
   'bulkDelete.empty.done': 'कचरा रिकामी झाला. {count} बाबींची कायमची विल्हेवाट लावली.',
   'bulkDelete.empty.nothing': 'कचरा आधीच रिकामी होता.',
+  'bulkDelete.item.checking': 'या बाबीसोबत काय येते ते तपासत आहे…',
+  'bulkDelete.item.cannotCheck':
+    'या बाबीसोबत काय येते ते तपासता येत नाही, त्यामुळे आता ती ट्रॅशमध्ये हलवता येत नाही.',
+  'bulkDelete.item.checkAgain': 'पुन्हा तपासा',
+  'bulkDelete.item.denied': 'तुम्ही ही बाबी हटवू शकत नाही.',
+  'bulkDelete.item.ask': '{name} ला ट्रॅशमध्ये हलवा?',
+  'bulkDelete.item.linked': 'इतर नोंदी याला जोडलेल्या आहेत:',
+  'bulkDelete.item.linksBack': 'तुम्ही ते पूर्ववत केल्यास त्यांच्या लिंक्स पुन्हा येतील.',
+  'bulkDelete.item.notLinked': 'याला कोणतीही लिंक जोडलेली नाही.',
+  'bulkDelete.item.trash':
+    'ट्रॅश {days} दिवसांसाठी ते राखून ठेवते. ते पूर्ववत केल्यास, Items screen वरील Undo मुळे मीडिया आणि फाईल्ससह ते पुन्हा पूर्ववत होते.',
+  'bulkDelete.item.move': 'ट्रॅशमध्ये हलवा',
+  'bulkDelete.item.moving': 'ट्रॅशमध्ये हलवत आहे…',
+  'bulkDelete.item.failed': '{name} ट्रॅशमध्ये हलवले गेले नाही. ते पूर्वीप्रमाणेच राहते.',
+  'bulkDelete.item.trashed': '{name} हटवले.',
+  'bulkDelete.item.undo': 'पूर्ववत करा',
+  'bulkDelete.item.undoing': '{name} परत ठेवत आहे…',
+  'bulkDelete.item.back': '{name} परत आले.',
+  'bulkDelete.item.notBack': '{name} ट्रॅशमध्येच राहते.',
 };

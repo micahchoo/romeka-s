@@ -35,4 +35,24 @@ export const ne: BulkDeleteMessages = {
   'bulkDelete.empty.doneOne': 'फोहोर खाली छ। 1 वस्तु स्थायी रूपमा मेटियो।',
   'bulkDelete.empty.done': 'फोहोर खाली छ। {count} वस्तुहरू स्थायी रूपमा मेटिए।',
   'bulkDelete.empty.nothing': 'फोहोर पहिले नै खाली थियो।',
+  'bulkDelete.item.checking': 'यो वस्तुसँग के-के जान्छन् जाँच गर्दै…',
+  'bulkDelete.item.cannotCheck':
+    'यस वस्तुसँग के-के जान्छन् जाँच गर्न सकिएन, त्यसैले अहिले यसलाई फोहोरमा सार्न सकिँदैन।',
+  'bulkDelete.item.checkAgain': 'फेरि जाँच गर्नुहोस्',
+  'bulkDelete.item.denied': 'तपाईँले यो वस्तु मेटाउन सक्नुहुन्न।',
+  'bulkDelete.item.ask': '{name} लाई फोहोरमा सार्ने?',
+  'bulkDelete.item.linked': 'अन्य अभिलेखहरू यससँग जोडिएका छन्:',
+  'bulkDelete.item.linksBack':
+    'यदि तपाईँले यसलाई पुनर्स्थापित गर्नुभयो भने तिनीहरूका लिङ्कहरू पुनः आउँछन्।',
+  'bulkDelete.item.notLinked': 'यससँग केही पनि जोडिएको छैन।',
+  'bulkDelete.item.trash':
+    'फोहोरले यसलाई {days} दिनका लागि राख्छ। त्यसपछि, Items स्क्रिनमा Undo गर्दा यसको मिडिया र फाइलहरू सहित यसलाई फिर्ता राखिन्छ।',
+  'bulkDelete.item.move': 'फोहोरमा सार्नुहोस्',
+  'bulkDelete.item.moving': 'फोहोरमा सार्दै…',
+  'bulkDelete.item.failed': '{name} लाई फोहोरमा सार्न सकिएन। यो पहिलेकै अवस्थामा रहन्छ।',
+  'bulkDelete.item.trashed': '{name} लाई मेटाइयो।',
+  'bulkDelete.item.undo': 'पूर्ववत (Undo)',
+  'bulkDelete.item.undoing': '{name} लाई फिर्ता राखिँदैछ…',
+  'bulkDelete.item.back': '{name} फिर्ता आयो।',
+  'bulkDelete.item.notBack': '{name} फोहोरमै रहन्छ।',
 };
