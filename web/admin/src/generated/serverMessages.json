@@ -238,6 +238,17 @@
     "server.bulkItemDeleteDenied": "The person who started this change may not delete this item.",
     "server.bulkItemIdTaken": "Another record now has this item's id, so the undo left the item in the trash.",
     "server.bulkItemLinksLeft": "The item is back, but links to it from items edited since the delete were left out.",
+    "server.bulkMediaGone": "This media is no longer in Omeka.",
+    "server.bulkMediaDeleteDenied": "The person who started this change may not delete this media.",
+    "server.bulkMediaUndoDenied": "The person who asked for the undo may not delete this media, so the undo left it in the trash.",
+    "server.bulkMediaIdTaken": "Another record now has this media's id, so the undo left the media in the trash.",
+    "server.bulkMediaLinksLeft": "The media is back, but links to it from items edited since the delete were left out.",
+    "server.bulkMediaItemGone": "The item this media belongs to is gone, so the undo left the media in the trash.",
+    "server.bulkSetGone": "This item set is no longer in Omeka.",
+    "server.bulkSetDeleteDenied": "The person who started this change may not delete this item set.",
+    "server.bulkSetUndoDenied": "The person who asked for the undo may not delete this item set, so the undo left it in the trash.",
+    "server.bulkSetIdTaken": "Another record now has this item set's id, so the undo left the item set in the trash.",
+    "server.bulkSetLinksLeft": "The item set is back, but links to it from items edited since the delete were left out.",
     "server.bulkPurged": "The trash of this change was emptied, so its items cannot come back."
   }
 }

@@ -68,7 +68,7 @@ pub use system::{
     NewAsset, NewJob, SessionRow, SettingRow,
 };
 pub use templates::{NewTemplate, NewTemplateProperty, TemplatePropertyRow, TemplateRow};
-pub use trash::{AttachmentLink, IncomingLink, TrashImage, TrashRow, TrashedMedia};
+pub use trash::{Emptied, IncomingLink, Pointer, TrashImage, TrashKind, TrashRow, TrashedMedia};
 pub use user_uploads::{NewUserUpload, UserUploadRow};
 pub use users::{
     ApiKeyRow, NewApiKey, NewPasswordCreation, NewUser, PasswordCreationRow, UserRow,

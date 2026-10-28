@@ -1,11 +1,12 @@
-//! The rows of a trash snapshot on one transaction: read an item's rows into a [`TrashImage`],
+//! The rows of a trash snapshot on one transaction: read a record's rows into a [`TrashImage`],
 //! delete them, and insert them again.
 //!
 //! Every read and insert goes through a table's column list (`rows::trash::TABLES`), so a column
 //! is read and written the same way on both engines. Deletes lean on the schema's foreign keys
 //! where they cascade: a media's `resource` row takes its `media` row, notes, extent and
-//! derivative states with it, and the item's takes its `item` row and memberships, and empties
-//! the page block attachments that named it.
+//! derivative states with it; an item's takes its `item` row and memberships; a set's takes its
+//! `item_set` row, its items' memberships and the sites' rows that show it. The pointers others
+//! hold (`rows::trash::POINTERS`) empty.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -16,12 +17,11 @@ use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Type};
 use super::{Statement, bind_id};
 use crate::DbError;
 use crate::backend::Backend;
-use crate::ids::ItemId;
 use crate::rows::trash::{
-    Cell, ITEM, ITEM_ITEM_SET, ITEM_SITE, MEDIA, RESOURCE, TABLES, Table, VALUE, VALUE_ANNOTATION,
-    int,
+    Cell, ITEM_ITEM_SET, ITEM_SITE, MEDIA, POINTERS, RESOURCE, SITE_ITEM_SET, TABLES, Table, VALUE,
+    VALUE_ANNOTATION, int,
 };
-use crate::rows::{AttachmentLink, IncomingLink, TrashImage, TrashRow};
+use crate::rows::{Emptied, IncomingLink, TrashImage, TrashKind, TrashRow};
 use crate::time;
 
 /// Ids per `IN (...)` list.
@@ -44,17 +44,29 @@ where
     for<'x> Option<String>: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
     for<'x> &'x str: Encode<'x, DB> + Type<DB> + ColumnIndex<DB::Row>,
 {
-    /// Every row the item owns, and the rows of others that name it. `None` when no item has
-    /// the id.
-    pub(super) async fn snapshot(&mut self, item: ItemId) -> Result<Option<TrashImage>, DbError> {
-        let id = item.0;
-        let items = self.select(&ITEM, "id", &[id]).await?;
-        if items.is_empty() {
+    /// Every row the record `id` of `kind` owns, and the rows of others that name it. `None`
+    /// when no such record has the id.
+    pub(super) async fn snapshot(
+        &mut self,
+        kind: TrashKind,
+        id: u64,
+    ) -> Result<Option<TrashImage>, DbError> {
+        let own = self.select(kind.table(), "id", &[id]).await?;
+        if own.is_empty() {
             return Ok(None);
         }
-        let media = self.select(&MEDIA, "item_id", &[id]).await?;
+        let media = match kind {
+            TrashKind::Item => self.select(&MEDIA, "item_id", &[id]).await?,
+            TrashKind::Media => own.clone(),
+            TrashKind::ItemSet => Vec::new(),
+        };
         let media_ids: Vec<u64> = media.iter().filter_map(|row| int(row, "id")).collect();
-        let mut owners: Vec<u64> = [id].into_iter().chain(media_ids.iter().copied()).collect();
+        let mut owners: Vec<u64> = match kind {
+            TrashKind::Media => media_ids.clone(),
+            TrashKind::Item | TrashKind::ItemSet => {
+                [id].into_iter().chain(media_ids.iter().copied()).collect()
+            }
+        };
         let mut values = self.select(&VALUE, "resource_id", &owners).await?;
         let annotations: Vec<u64> = values
             .iter()
@@ -66,37 +78,51 @@ where
         let owned: BTreeSet<u64> = owners.iter().copied().collect();
         let mut tables = Vec::with_capacity(TABLES.len());
         for table in TABLES {
-            let rows = match table.name {
-                "resource" => self.select(&RESOURCE, "id", &owners).await?,
-                "item" => items.clone(),
-                "media" => media.clone(),
-                "value_annotation" => self.select(&VALUE_ANNOTATION, "id", &annotations).await?,
-                "value" => values.clone(),
-                "item_item_set" => self.select(&ITEM_ITEM_SET, "item_id", &[id]).await?,
-                "item_site" => self.select(&ITEM_SITE, "item_id", &[id]).await?,
+            let rows = match (table.name, kind) {
+                ("resource", _) => self.select(&RESOURCE, "id", &owners).await?,
+                ("item", TrashKind::Item) | ("item_set", TrashKind::ItemSet) => own.clone(),
+                ("item" | "item_set", _) => Vec::new(),
+                ("media", _) => media.clone(),
+                ("value_annotation", _) => {
+                    self.select(&VALUE_ANNOTATION, "id", &annotations).await?
+                }
+                ("value", _) => values.clone(),
+                ("item_item_set", TrashKind::Item) => {
+                    self.select(&ITEM_ITEM_SET, "item_id", &[id]).await?
+                }
+                ("item_item_set", TrashKind::ItemSet) => {
+                    self.select(&ITEM_ITEM_SET, "item_set_id", &[id]).await?
+                }
+                ("item_site", TrashKind::Item) => self.select(&ITEM_SITE, "item_id", &[id]).await?,
+                ("site_item_set", TrashKind::ItemSet) => {
+                    self.select(&SITE_ITEM_SET, "item_set_id", &[id]).await?
+                }
+                ("item_item_set" | "item_site" | "site_item_set", _) => Vec::new(),
                 _ => self.select(table, "media_id", &media_ids).await?,
             };
             tables.push((table.name, rows));
         }
-        let attachments = self.attachments(id, &media_ids).await?;
-        let mut incoming = Vec::new();
+        let mut image = TrashImage {
+            kind,
+            tables,
+            emptied: Vec::new(),
+            incoming: Vec::new(),
+        };
+        image.emptied = self.emptied(&image).await?;
         for value in self.select(&VALUE, "value_resource_id", &linkable).await? {
             let Some(resource) = int(&value, "resource_id").filter(|id| !owned.contains(id)) else {
                 continue;
             };
             let modified = self.modified(resource).await?.flatten();
-            incoming.push(IncomingLink { value, modified });
+            image.incoming.push(IncomingLink { value, modified });
         }
-        Ok(Some(TrashImage {
-            tables,
-            attachments,
-            incoming,
-        }))
+        Ok(Some(image))
     }
 
     /// Delete what `image` holds. The values that link in go first, then each resource's own
-    /// values, then the resources, media before the item, whose `media.item_id` has no cascade.
-    pub(super) async fn remove(&mut self, item: ItemId, image: &TrashImage) -> Result<(), DbError> {
+    /// values, then the resources, media before their item, whose `media.item_id` has no
+    /// cascade. The record's `resource` row takes its memberships with it.
+    pub(super) async fn remove(&mut self, image: &TrashImage) -> Result<(), DbError> {
         let incoming: Vec<u64> = image
             .incoming
             .iter()
@@ -113,19 +139,19 @@ where
             .filter_map(|row| int(row, "id"))
             .collect();
         self.delete_in("resource", "id", &annotations).await?;
-        self.delete_in("resource", "id", &[item.0]).await?;
-        sqlx::query("DELETE FROM fulltext_search WHERE resource = 'items' AND id = ?")
-            .bind(bind_id(item))
-            .execute(&mut *self.conn)
-            .await?;
-        for chunk in media.chunks(CHUNK) {
-            let mut statement =
-                Statement::<DB>::new("DELETE FROM fulltext_search WHERE resource = 'media'");
-            push_in(&mut statement, " AND id", chunk)?;
-            let (sql, arguments) = statement.into_parts();
-            sqlx::query_with::<DB, _>(&sql, arguments)
-                .execute(&mut *self.conn)
-                .await?;
+        let root: Vec<u64> = image.root().into_iter().collect();
+        self.delete_in("resource", "id", &root).await?;
+        for (resource, ids) in [(image.kind.resource_name(), &root), ("media", &media)] {
+            for chunk in ids.chunks(CHUNK) {
+                let mut statement =
+                    Statement::<DB>::new("DELETE FROM fulltext_search WHERE resource = ");
+                statement.bind(resource.to_string())?;
+                push_in(&mut statement, " AND id", chunk)?;
+                let (sql, arguments) = statement.into_parts();
+                sqlx::query_with::<DB, _>(&sql, arguments)
+                    .execute(&mut *self.conn)
+                    .await?;
+            }
         }
         Ok(())
     }
@@ -252,33 +278,43 @@ where
             .transpose()
     }
 
-    async fn attachments(
-        &mut self,
-        item: u64,
-        media: &[u64],
-    ) -> Result<Vec<AttachmentLink>, DbError> {
-        let mut statement = Statement::<DB>::new(
-            "SELECT id, item_id, media_id FROM site_block_attachment WHERE item_id = ",
-        );
-        statement.bind(bind_id(item))?;
-        if !media.is_empty() {
-            push_in(&mut statement, " OR media_id", media)?;
+    /// The rows of others whose pointer names a record `image` holds. An item's own row naming
+    /// its primary media is the snapshot's, not another's.
+    async fn emptied(&mut self, image: &TrashImage) -> Result<Vec<Emptied>, DbError> {
+        let own = image.resources();
+        let mut emptied = Vec::new();
+        for pointer in &POINTERS {
+            let targets: Vec<u64> = image
+                .rows(pointer.names)
+                .iter()
+                .filter_map(|row| int(row, "id"))
+                .collect();
+            for chunk in targets.chunks(CHUNK) {
+                let mut statement = Statement::<DB>::new(&format!(
+                    "SELECT id, {column} AS target FROM {table} WHERE 1 = 1",
+                    column = pointer.column,
+                    table = pointer.table,
+                ));
+                push_in(&mut statement, &format!(" AND {}", pointer.column), chunk)?;
+                statement.push(" ORDER BY id");
+                let (sql, arguments) = statement.into_parts();
+                let rows = sqlx::query_with::<DB, _>(&sql, arguments)
+                    .fetch_all(&mut *self.conn)
+                    .await?;
+                for row in &rows {
+                    let id: u64 = DB::id(row, "id")?;
+                    if pointer.table == "item" && own.contains(&id) {
+                        continue;
+                    }
+                    emptied.push(Emptied {
+                        pointer,
+                        row: id,
+                        target: DB::id(row, "target")?,
+                    });
+                }
+            }
         }
-        statement.push(" ORDER BY id");
-        let (sql, arguments) = statement.into_parts();
-        let rows = sqlx::query_with::<DB, _>(&sql, arguments)
-            .fetch_all(&mut *self.conn)
-            .await?;
-        let mine = |id: Option<u64>, ours: &dyn Fn(u64) -> bool| id.filter(|id| ours(*id));
-        rows.iter()
-            .map(|row| {
-                Ok(AttachmentLink {
-                    attachment: DB::id(row, "id")?,
-                    item: mine(DB::opt_id(row, "item_id")?, &|id| id == item),
-                    media: mine(DB::opt_id(row, "media_id")?, &|id| media.contains(&id)),
-                })
-            })
-            .collect()
+        Ok(emptied)
     }
 
     async fn delete_in(

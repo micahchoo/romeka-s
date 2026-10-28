@@ -309,3 +309,12 @@ values, visibility, class, item type, sets or sites. Upstream keeps no such reco
   write, from the item's image read before it. A write that changes no field records nothing. A
   run's later pass over an item whose newest entry is that run's, by the same person, folds into
   that entry, so one import or bulk run makes one entry per item.
+
+A delete of media or of item sets (`{"kind": "delete", "of": "media"}`, `"item_sets"`) needs no
+migration. Its targets sit in the same `item_id` column, holding a media's or a set's id, and the
+run's `change_json` names the kind. The snapshot records its kind (`"of"`): a media's snapshot
+holds the media's rows alone, a set's the set's rows, its items' memberships, and the
+`site_item_set` rows that showed it, which an undo inserts under new ids. The rows whose `ON DELETE
+SET NULL` column named the record (`site_block_attachment`, `item.primary_media_id`,
+`custom_vocab.item_set_id`) are kept as `emptied`, and an undo fills each column again if it is
+still empty.

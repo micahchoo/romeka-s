@@ -163,7 +163,7 @@ pub async fn preview(api: &Api<'_>, body: &[u8]) -> Result<Previewed, BulkError>
         BulkChange::Edit(edit) => edit_preview(api, &body.query, &change, edit)
             .await
             .map(Previewed::Edit),
-        BulkChange::Delete => super::trash::preview(api, &body.query)
+        BulkChange::Delete(kind) => super::trash::preview(api, &body.query, &scope, *kind)
             .await
             .map(Previewed::Delete),
     }

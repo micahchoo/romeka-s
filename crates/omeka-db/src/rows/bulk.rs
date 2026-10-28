@@ -236,6 +236,8 @@ stored_names!(
         /// Put back, but values on other resources edited since the delete did not link to it
         /// again. The target is `restored` and holds this as a note.
         LinksLeft => "linksLeft",
+        /// The item a trashed media belongs to is gone, so the media stays in the trash.
+        ItemGone => "itemGone",
     }
 );
 

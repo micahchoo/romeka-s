@@ -16,6 +16,7 @@
 //! item then needs the update right the item `PATCH` checks; an item that fails it is recorded as
 //! failed, not written. A delete ([`trash`]) needs `batch_delete_all` (editor and up) or
 //! `batch_delete`, and each item its delete right; its items go to a trash its undo empties back.
+//! A delete of ticked media or item sets moves each one alone into the same trash.
 
 mod access;
 mod change;

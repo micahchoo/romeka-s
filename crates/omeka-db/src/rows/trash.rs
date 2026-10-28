@@ -1,16 +1,20 @@
-//! The trash snapshot of one item a bulk delete removed (`romeka_bulk_target.image`).
+//! The trash snapshot of one record a bulk delete removed (`romeka_bulk_target.image`): an item
+//! with its media, a media alone, or an item set alone ([`TrashKind`]).
 //!
-//! The snapshot holds every row the item owns, column by column, so an undo can insert them again
-//! with the same ids: the item's and its media's `resource` rows, the `item` and `media` rows,
-//! the value annotations, every value of those resources, the item's set and site memberships,
-//! and the media's notes, extents and derivative states. Each table's columns are listed once in
+//! The snapshot holds every row the record owns, column by column, so an undo can insert them
+//! again with the same ids: the `resource` rows (the record's, its media's and its value
+//! annotations'), the `item`, `media` or `item_set` row, every value of those resources, the
+//! memberships (an item's sets and sites, a set's items and the sites that show it), and the
+//! media's notes, extents and derivative states. Each table's columns are listed once in
 //! [`TABLES`], with how each is read and written, so the snapshot and the restore cannot drift
-//! apart. Two kinds of row belong to someone else, so the snapshot records them apart: the page
-//! block attachments that named the item or its media (the delete leaves them empty), and the
-//! values on other resources that linked to it (the delete removes them).
+//! apart. Two kinds of row belong to someone else, so the snapshot records them apart: the rows
+//! whose [`Pointer`] named the record (the delete leaves them empty), and the values on other
+//! resources that linked to it (the delete removes them).
 //!
-//! The JSON form is `{"kind": "trash", "tables": {table: [row]}, "attachments": [...],
-//! "incoming": [...]}`; a row is an object of column to value.
+//! The JSON form is `{"kind": "trash", "of": "item", "tables": {table: [row]}, "emptied": [...],
+//! "incoming": [...]}`; a row is an object of column to value. A snapshot written before media
+//! and sets could be trashed has no `of` (it is an item's) and lists its emptied page block
+//! attachments as `"attachments": [{"id", "item", "media"}]`.
 
 use std::collections::BTreeSet;
 
@@ -18,7 +22,7 @@ use chrono::NaiveDateTime;
 use serde_json::{Map, Value, json};
 
 use crate::error::DbError;
-use crate::ids::{ResourceId, UserId};
+use crate::ids::{ItemId, ResourceId, UserId};
 use crate::time;
 
 /// How one column is read from a row and bound into an insert.
@@ -39,6 +43,54 @@ pub(crate) struct Table {
 
 use Cell::{Flag, Int, Text, Time};
 
+/// What one snapshot holds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TrashKind {
+    /// An item with its media.
+    #[default]
+    Item,
+    /// A media alone; its item stays.
+    Media,
+    /// An item set alone; its items stay.
+    ItemSet,
+}
+
+impl TrashKind {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Item => "item",
+            Self::Media => "media",
+            Self::ItemSet => "item_set",
+        }
+    }
+
+    fn parse(stored: &str) -> Option<Self> {
+        [Self::Item, Self::Media, Self::ItemSet]
+            .into_iter()
+            .find(|kind| kind.as_str() == stored)
+    }
+
+    /// The table of the record's own row, beside its `resource` row.
+    pub(crate) const fn table(self) -> &'static Table {
+        match self {
+            Self::Item => &ITEM,
+            Self::Media => &MEDIA,
+            Self::ItemSet => &ITEM_SET,
+        }
+    }
+
+    /// The resource name the full-text index files the record under.
+    #[must_use]
+    pub const fn resource_name(self) -> &'static str {
+        match self {
+            Self::Item => "items",
+            Self::Media => "media",
+            Self::ItemSet => "item_sets",
+        }
+    }
+}
+
 pub(crate) const RESOURCE: Table = Table {
     name: "resource",
     columns: &[
@@ -53,6 +105,11 @@ pub(crate) const RESOURCE: Table = Table {
         ("modified", Time),
         ("resource_type", Text),
     ],
+};
+
+pub(crate) const ITEM_SET: Table = Table {
+    name: "item_set",
+    columns: &[("id", Int), ("is_open", Flag)],
 };
 
 pub(crate) const ITEM: Table = Table {
@@ -113,6 +170,12 @@ pub(crate) const ITEM_SITE: Table = Table {
     columns: &[("item_id", Int), ("site_id", Int)],
 };
 
+/// No `id`: an undo inserts the row under a new one, so no other row can hold it.
+pub(crate) const SITE_ITEM_SET: Table = Table {
+    name: "site_item_set",
+    columns: &[("site_id", Int), ("item_set_id", Int), ("position", Int)],
+};
+
 pub(crate) const MEDIA_ANNOTATION: Table = Table {
     name: "romeka_media_annotation",
     columns: &[
@@ -166,14 +229,16 @@ pub(crate) const MEDIA_DERIVATIVE: Table = Table {
 
 /// Every table the snapshot copies, in the order an undo inserts them: a row comes after the
 /// rows its foreign keys name.
-pub(crate) const TABLES: [&Table; 10] = [
+pub(crate) const TABLES: [&Table; 12] = [
     &RESOURCE,
+    &ITEM_SET,
     &ITEM,
     &MEDIA,
     &VALUE_ANNOTATION,
     &VALUE,
     &ITEM_ITEM_SET,
     &ITEM_SITE,
+    &SITE_ITEM_SET,
     &MEDIA_ANNOTATION,
     &MEDIA_EXTENT,
     &MEDIA_DERIVATIVE,
@@ -182,12 +247,54 @@ pub(crate) const TABLES: [&Table; 10] = [
 /// One copied row: column name to its value.
 pub type TrashRow = Map<String, Value>;
 
-/// A page block attachment that named the item or one of its media.
+/// A column of another table that names a record by id and empties when the record goes (`ON
+/// DELETE SET NULL`), so a delete leaves the row and an undo fills the column again.
+#[derive(Debug, PartialEq, Eq)]
+pub struct Pointer {
+    pub table: &'static str,
+    pub column: &'static str,
+    /// The table of the records it names: `item`, `media` or `item_set`.
+    pub names: &'static str,
+}
+
+/// Every pointer a trashed record may be named by.
+pub(crate) const POINTERS: [Pointer; 4] = [
+    Pointer {
+        table: "site_block_attachment",
+        column: "item_id",
+        names: "item",
+    },
+    Pointer {
+        table: "site_block_attachment",
+        column: "media_id",
+        names: "media",
+    },
+    Pointer {
+        table: "item",
+        column: "primary_media_id",
+        names: "media",
+    },
+    Pointer {
+        table: "custom_vocab",
+        column: "item_set_id",
+        names: "item_set",
+    },
+];
+
+fn pointer(table: &str, column: &str) -> Option<&'static Pointer> {
+    POINTERS
+        .iter()
+        .find(|pointer| pointer.table == table && pointer.column == column)
+}
+
+/// A row of another table whose pointer named a record the snapshot holds, emptied by the delete.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AttachmentLink {
-    pub attachment: u64,
-    pub item: Option<u64>,
-    pub media: Option<u64>,
+pub struct Emptied {
+    pub pointer: &'static Pointer,
+    /// The row's `id`.
+    pub row: u64,
+    /// The record it named.
+    pub target: u64,
 }
 
 /// A value on another resource that linked to the item or one of its media, and that resource's
@@ -218,12 +325,13 @@ pub struct TrashedMedia {
     pub size: u64,
 }
 
-/// The trash snapshot of one item.
+/// The trash snapshot of one record.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TrashImage {
+    pub kind: TrashKind,
     /// Rows per table name, each table in [`TABLES`] order.
     pub tables: Vec<(&'static str, Vec<TrashRow>)>,
-    pub attachments: Vec<AttachmentLink>,
+    pub emptied: Vec<Emptied>,
     pub incoming: Vec<IncomingLink>,
 }
 
@@ -250,31 +358,48 @@ impl TrashImage {
             .map_or(&[], |(_, rows)| rows.as_slice())
     }
 
-    /// The item's own `resource` row.
-    fn item_row(&self) -> Option<&TrashRow> {
-        let item = self
-            .rows(ITEM.name)
+    /// The id of the record the snapshot was taken of.
+    #[must_use]
+    pub fn root(&self) -> Option<u64> {
+        self.rows(self.kind.table().name)
             .first()
-            .and_then(|row| int(row, "id"))?;
-        self.rows(RESOURCE.name)
-            .iter()
-            .find(|row| int(row, "id") == Some(item))
+            .and_then(|row| int(row, "id"))
     }
 
-    /// The item's owner, whose delete right the run checks.
+    /// The record's own `resource` row.
+    fn root_row(&self) -> Option<&TrashRow> {
+        let root = self.root()?;
+        self.rows(RESOURCE.name)
+            .iter()
+            .find(|row| int(row, "id") == Some(root))
+    }
+
+    /// The record's owner, whose delete right the run checks.
     #[must_use]
     pub fn owner(&self) -> Option<UserId> {
-        self.item_row()
+        self.root_row()
             .and_then(|row| int(row, "owner_id"))
             .map(UserId)
     }
 
     #[must_use]
     pub fn title(&self) -> Option<String> {
-        self.item_row().and_then(|row| text(row, "title"))
+        self.root_row().and_then(|row| text(row, "title"))
     }
 
-    /// Every resource the snapshot holds: the item, its media and the value annotations.
+    /// The item a media snapshot's media belongs to; `None` for the other kinds.
+    #[must_use]
+    pub fn item_of_media(&self) -> Option<ItemId> {
+        if self.kind != TrashKind::Media {
+            return None;
+        }
+        self.rows(MEDIA.name)
+            .first()
+            .and_then(|row| int(row, "item_id"))
+            .map(ItemId)
+    }
+
+    /// Every resource the snapshot holds: the record, its media and the value annotations.
     #[must_use]
     pub fn resources(&self) -> BTreeSet<u64> {
         self.rows(RESOURCE.name)
@@ -283,12 +408,13 @@ impl TrashImage {
             .collect()
     }
 
-    /// The item and its media: what another resource's value may link to.
+    /// The record and its media: what another resource's value may link to.
     #[must_use]
     pub fn linkable(&self) -> BTreeSet<u64> {
         self.rows(ITEM.name)
             .iter()
             .chain(self.rows(MEDIA.name))
+            .chain(self.rows(ITEM_SET.name))
             .filter_map(|row| int(row, "id"))
             .collect()
     }
@@ -331,9 +457,11 @@ impl TrashImage {
             .collect();
         json!({
             "kind": "trash",
+            "of": self.kind.as_str(),
             "tables": tables,
-            "attachments": self.attachments.iter().map(|link| json!({
-                "id": link.attachment, "item": link.item, "media": link.media,
+            "emptied": self.emptied.iter().map(|emptied| json!({
+                "table": emptied.pointer.table, "column": emptied.pointer.column,
+                "row": emptied.row, "target": emptied.target,
             })).collect::<Vec<_>>(),
             "incoming": self.incoming.iter().map(|link| json!({
                 "value": link.value, "modified": link.modified.map(time::format),
@@ -347,6 +475,13 @@ impl TrashImage {
         if object.get("kind").and_then(Value::as_str) != Some("trash") {
             return Err(bad("not a trash snapshot"));
         }
+        let kind = match object.get("of") {
+            None => TrashKind::Item,
+            Some(of) => of
+                .as_str()
+                .and_then(TrashKind::parse)
+                .ok_or_else(|| bad("an unknown kind"))?,
+        };
         let stored = object
             .get("tables")
             .and_then(Value::as_object)
@@ -371,19 +506,34 @@ impl TrashImage {
                 .cloned()
                 .unwrap_or_default()
         };
-        let attachments = list("attachments")
-            .iter()
-            .map(|link| {
-                Ok(AttachmentLink {
-                    attachment: link
-                        .get("id")
-                        .and_then(Value::as_u64)
-                        .ok_or_else(|| bad("an attachment id"))?,
-                    item: link.get("item").and_then(Value::as_u64),
-                    media: link.get("media").and_then(Value::as_u64),
-                })
-            })
-            .collect::<Result<_, DbError>>()?;
+        let id = |entry: &Value, key: &str| entry.get(key).and_then(Value::as_u64);
+        let mut emptied = Vec::new();
+        for entry in list("emptied") {
+            let named = entry
+                .get("table")
+                .and_then(Value::as_str)
+                .zip(entry.get("column").and_then(Value::as_str))
+                .and_then(|(table, column)| pointer(table, column))
+                .ok_or_else(|| bad("an emptied row names no known column"))?;
+            emptied.push(Emptied {
+                pointer: named,
+                row: id(&entry, "row").ok_or_else(|| bad("an emptied row"))?,
+                target: id(&entry, "target").ok_or_else(|| bad("an emptied target"))?,
+            });
+        }
+        for link in list("attachments") {
+            let row = id(&link, "id").ok_or_else(|| bad("an attachment id"))?;
+            for (column, key) in [("item_id", "item"), ("media_id", "media")] {
+                if let Some(target) = id(&link, key) {
+                    emptied.push(Emptied {
+                        pointer: pointer("site_block_attachment", column)
+                            .ok_or_else(|| bad("an attachment column"))?,
+                        row,
+                        target,
+                    });
+                }
+            }
+        }
         let incoming = list("incoming")
             .iter()
             .map(|link| {
@@ -400,8 +550,9 @@ impl TrashImage {
             })
             .collect::<Result<_, DbError>>()?;
         Ok(Self {
+            kind,
             tables,
-            attachments,
+            emptied,
             incoming,
         })
     }
@@ -430,6 +581,7 @@ mod tests {
         let mut value = TrashRow::new();
         value.insert("resource_id".into(), json!(9));
         let image = TrashImage {
+            kind: TrashKind::Item,
             tables: TABLES
                 .iter()
                 .map(|table| {
@@ -441,10 +593,10 @@ mod tests {
                     (table.name, rows)
                 })
                 .collect(),
-            attachments: vec![AttachmentLink {
-                attachment: 2,
-                item: Some(7),
-                media: None,
+            emptied: vec![Emptied {
+                pointer: &POINTERS[0],
+                row: 2,
+                target: 7,
             }],
             incoming: vec![IncomingLink {
                 value,
@@ -457,5 +609,35 @@ mod tests {
         assert_eq!(back.title().as_deref(), Some("Letter"));
         assert_eq!(back.incoming[0].resource(), Some(ResourceId(9)));
         assert!(TrashImage::from_json(&json!({ "kind": "item" })).is_err());
+    }
+
+    #[test]
+    fn a_snapshot_from_before_media_and_sets_reads_as_an_item_s() {
+        let stored = json!({
+            "kind": "trash",
+            "tables": { "item": [{ "id": 7, "primary_media_id": null }] },
+            "attachments": [{ "id": 2, "item": 7, "media": 9 }],
+            "incoming": [],
+        });
+        let image = TrashImage::from_json(&stored).unwrap();
+        assert_eq!(image.kind, TrashKind::Item);
+        assert_eq!(image.root(), Some(7));
+        let emptied: Vec<(&str, u64, u64)> = image
+            .emptied
+            .iter()
+            .map(|emptied| (emptied.pointer.column, emptied.row, emptied.target))
+            .collect();
+        assert_eq!(emptied, [("item_id", 2, 7), ("media_id", 2, 9)]);
+    }
+
+    #[test]
+    fn a_stored_pointer_must_be_one_the_trash_knows() {
+        let stored = json!({
+            "kind": "trash", "of": "media", "tables": {},
+            "emptied": [{ "table": "user", "column": "id", "row": 1, "target": 1 }],
+        });
+        assert!(TrashImage::from_json(&stored).is_err());
+        let unknown = json!({ "kind": "trash", "of": "site", "tables": {} });
+        assert!(TrashImage::from_json(&unknown).is_err());
     }
 }

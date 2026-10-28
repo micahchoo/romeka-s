@@ -10,13 +10,15 @@
 //!
 //! A member that is absent leaves the field alone. `class` and `template` take an id to set or
 //! `null` to clear. `values` lists value edits ([`super::values`]). An edit that names nothing,
-//! or adds and removes the same set or site, is refused. A delete is `{"kind": "delete"}` and
-//! names nothing else: it moves each item to the trash (`super::trash`).
+//! or adds and removes the same set or site, is refused. A delete is `{"kind": "delete"}`: it
+//! moves each item to the trash (`super::trash`). `{"kind": "delete", "of": "media"}` and `"of":
+//! "item_sets"` move each media, or each set, alone; `"of": "items"` is the item delete, stored
+//! without `of`.
 
 use std::collections::BTreeSet;
 
 use omeka_db::ids::{ClassId, ItemSetId, SiteId, TemplateId, UserId};
-use omeka_db::rows::{BulkKind, Described};
+use omeka_db::rows::{BulkKind, Described, TrashKind};
 use serde::{Deserialize, Deserializer};
 use serde_json::{Value, json};
 
@@ -26,7 +28,8 @@ use super::values::{OpWire, ValueEdits};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BulkChange {
     Edit(BulkEdit),
-    Delete,
+    /// Move each target, a record of this kind, to the trash.
+    Delete(TrashKind),
 }
 
 /// A field set to a value, or emptied.
@@ -111,7 +114,7 @@ impl BulkChange {
     pub fn kind(&self) -> BulkKind {
         match self {
             Self::Edit(_) => BulkKind::Edit,
-            Self::Delete => BulkKind::Delete,
+            Self::Delete(_) => BulkKind::Delete,
         }
     }
 
@@ -124,7 +127,9 @@ impl BulkChange {
             serde_json::from_value(value.clone()).map_err(|error| error.to_string())?;
         match wire {
             Wire::Edit(edit) => edit.into_edit().map(Self::Edit),
-            Wire::Delete(DeleteWire {}) => Ok(Self::Delete),
+            Wire::Delete(DeleteWire { of }) => {
+                Ok(Self::Delete(of.map_or(TrashKind::Item, Of::kind)))
+            }
         }
     }
 
@@ -133,7 +138,8 @@ impl BulkChange {
     pub fn to_json(&self) -> Value {
         let edit = match self {
             Self::Edit(edit) => edit,
-            Self::Delete => return json!({ "kind": "delete" }),
+            Self::Delete(TrashKind::Item) => return json!({ "kind": "delete" }),
+            Self::Delete(kind) => return json!({ "kind": "delete", "of": kind.resource_name() }),
         };
         let mut out = json!({ "kind": "edit" });
         if let Some(is_public) = edit.is_public {
@@ -180,10 +186,32 @@ enum Wire {
     Delete(DeleteWire),
 }
 
-/// A delete names nothing but its kind.
+/// A delete names its kind and, for media or sets, what it deletes.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct DeleteWire {}
+struct DeleteWire {
+    #[serde(default)]
+    of: Option<Of>,
+}
+
+/// What a delete deletes, by the resource name of the API.
+#[derive(Deserialize, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+enum Of {
+    Items,
+    Media,
+    ItemSets,
+}
+
+impl Of {
+    fn kind(self) -> TrashKind {
+        match self {
+            Self::Items => TrashKind::Item,
+            Self::Media => TrashKind::Media,
+            Self::ItemSets => TrashKind::ItemSet,
+        }
+    }
+}
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -338,11 +366,26 @@ mod tests {
     }
 
     #[test]
-    fn a_delete_names_nothing_else_and_reads_back() {
-        let change = BulkChange::parse(&json!({ "kind": "delete" })).unwrap();
-        assert_eq!(change, BulkChange::Delete);
-        assert_eq!(change.kind(), BulkKind::Delete);
-        assert_eq!(BulkChange::parse(&change.to_json()).unwrap(), change);
+    fn a_delete_names_what_it_deletes_and_reads_back() {
+        for (body, kind) in [
+            (json!({ "kind": "delete" }), TrashKind::Item),
+            (json!({ "kind": "delete", "of": "items" }), TrashKind::Item),
+            (json!({ "kind": "delete", "of": "media" }), TrashKind::Media),
+            (
+                json!({ "kind": "delete", "of": "item_sets" }),
+                TrashKind::ItemSet,
+            ),
+        ] {
+            let change = BulkChange::parse(&body).unwrap();
+            assert_eq!(change, BulkChange::Delete(kind), "{body}");
+            assert_eq!(change.kind(), BulkKind::Delete);
+            assert_eq!(BulkChange::parse(&change.to_json()).unwrap(), change);
+        }
+        assert_eq!(
+            BulkChange::Delete(TrashKind::Item).to_json(),
+            json!({ "kind": "delete" }),
+            "an item delete is stored as it was before media and sets"
+        );
     }
 
     #[test]
@@ -356,6 +399,7 @@ mod tests {
             json!({ "kind": "edit", "class": 0 }),
             json!({ "kind": "edit", "title": "x" }),
             json!({ "kind": "delete", "isPublic": false }),
+            json!({ "kind": "delete", "of": "sites" }),
             json!({ "isPublic": true }),
         ] {
             assert!(BulkChange::parse(&body).is_err(), "{body}");

@@ -1,7 +1,7 @@
 //! The reads: one run with its progress, the recent runs, and what an undo would keep.
 
 use omeka_db::repos::{BulkRepo, Presence, RunsOf};
-use omeka_db::rows::{BulkRow, Described, FailReason, TargetCounts};
+use omeka_db::rows::{BulkRow, Described, FailReason, TargetCounts, TrashKind};
 use omeka_db::with_db;
 use serde::Serialize;
 use serde_json::Value;
@@ -74,22 +74,34 @@ impl From<TargetCounts> for Counts {
 #[derive(Debug, Serialize)]
 pub struct Failure {
     pub item: u64,
-    /// `gone`, `denied`, `templateRequires`, `removesRequired` or `undoDenied`.
+    /// The [`FailReason`] code: `gone`, `denied`, `idTaken`, `itemGone` and the others.
     pub reason: Option<&'static str>,
     /// The reason in English, from the message registry, which the admin translates.
     pub message: Option<&'static str>,
 }
 
-fn reason_text(reason: FailReason) -> &'static str {
-    match reason {
-        FailReason::Gone => messages::BULK_ITEM_GONE,
-        FailReason::Denied => messages::BULK_ITEM_DENIED,
-        FailReason::TemplateRequires => messages::BULK_ITEM_TEMPLATE_REQUIRES,
-        FailReason::RemovesRequired => messages::BULK_ITEM_REMOVES_REQUIRED,
-        FailReason::UndoDenied => messages::BULK_ITEM_UNDO_DENIED,
-        FailReason::DeleteDenied => messages::BULK_ITEM_DELETE_DENIED,
-        FailReason::IdTaken => messages::BULK_ITEM_ID_TAKEN,
-        FailReason::LinksLeft => messages::BULK_ITEM_LINKS_LEFT,
+/// The reason in words about the kind of record the run's targets are.
+fn reason_text(reason: FailReason, kind: TrashKind) -> &'static str {
+    match (kind, reason) {
+        (TrashKind::Media, FailReason::Gone) => messages::BULK_MEDIA_GONE,
+        (TrashKind::Media, FailReason::DeleteDenied) => messages::BULK_MEDIA_DELETE_DENIED,
+        (TrashKind::Media, FailReason::UndoDenied) => messages::BULK_MEDIA_UNDO_DENIED,
+        (TrashKind::Media, FailReason::IdTaken) => messages::BULK_MEDIA_ID_TAKEN,
+        (TrashKind::Media, FailReason::LinksLeft) => messages::BULK_MEDIA_LINKS_LEFT,
+        (TrashKind::Media, FailReason::ItemGone) => messages::BULK_MEDIA_ITEM_GONE,
+        (TrashKind::ItemSet, FailReason::Gone | FailReason::ItemGone) => messages::BULK_SET_GONE,
+        (TrashKind::ItemSet, FailReason::DeleteDenied) => messages::BULK_SET_DELETE_DENIED,
+        (TrashKind::ItemSet, FailReason::UndoDenied) => messages::BULK_SET_UNDO_DENIED,
+        (TrashKind::ItemSet, FailReason::IdTaken) => messages::BULK_SET_ID_TAKEN,
+        (TrashKind::ItemSet, FailReason::LinksLeft) => messages::BULK_SET_LINKS_LEFT,
+        (_, FailReason::Gone | FailReason::ItemGone) => messages::BULK_ITEM_GONE,
+        (_, FailReason::Denied) => messages::BULK_ITEM_DENIED,
+        (_, FailReason::TemplateRequires) => messages::BULK_ITEM_TEMPLATE_REQUIRES,
+        (_, FailReason::RemovesRequired) => messages::BULK_ITEM_REMOVES_REQUIRED,
+        (_, FailReason::UndoDenied) => messages::BULK_ITEM_UNDO_DENIED,
+        (_, FailReason::DeleteDenied) => messages::BULK_ITEM_DELETE_DENIED,
+        (_, FailReason::IdTaken) => messages::BULK_ITEM_ID_TAKEN,
+        (_, FailReason::LinksLeft) => messages::BULK_ITEM_LINKS_LEFT,
     }
 }
 
@@ -154,6 +166,10 @@ pub async fn show(api: &Api<'_>, raw: &str) -> Result<BulkView, BulkError> {
     let failed = with_db!(api.pool(), |db| BulkRepo::new(db)
         .failures(row.id, FAILURES)
         .await)?;
+    let kind = match BulkChange::parse(&row.change).map_err(ApiError::internal)? {
+        BulkChange::Delete(kind) => kind,
+        BulkChange::Edit(_) => TrashKind::Item,
+    };
     let mut view = BulkView::of(&row);
     view.counts = Some(counts.into());
     view.failures = Some(
@@ -162,7 +178,7 @@ pub async fn show(api: &Api<'_>, raw: &str) -> Result<BulkView, BulkError> {
             .map(|target| Failure {
                 item: target.item_id.0,
                 reason: target.error.map(|reason| reason.as_str()),
-                message: target.error.map(reason_text),
+                message: target.error.map(|reason| reason_text(reason, kind)),
             })
             .collect(),
     );

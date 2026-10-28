@@ -246,3 +246,33 @@ async fn the_delete_fixtures_are_what_the_routes_answer() {
         send(&site, "POST", &undo, Some(json!({})), 409).await,
     );
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_media_and_set_delete_fixtures_are_what_the_routes_answer() {
+    let site = site().await;
+    let anna = item(&site, "Letter to Anna").await;
+    let title = |text: &str| json!([{ "type": "literal", "property_id": 1, "@value": text }]);
+    let media = json!({
+        "o:ingester": "html", "html": "<p>note</p>", "o:item": { "o:id": anna },
+        "dcterms:title": title("Envelope"),
+    });
+    let media = send(&site, "POST", "/api/media", Some(media), 200).await["o:id"]
+        .as_u64()
+        .unwrap();
+    let set = json!({ "dcterms:title": title("Letters") });
+    let set = send(&site, "POST", "/api/item_sets", Some(set), 200).await["o:id"]
+        .as_u64()
+        .unwrap();
+    for (name, of, id) in [
+        ("delete-media-done", "media", media),
+        ("delete-set-done", "item_sets", set),
+    ] {
+        let body = json!({ "query": { "id": [id] }, "change": { "kind": "delete", "of": of } });
+        let run = send(&site, "POST", "/api/romeka/bulk", Some(body), 201).await["id"]
+            .as_u64()
+            .unwrap();
+        let start = format!("/api/romeka/bulk/{run}/run");
+        send(&site, "POST", &start, None, 200).await;
+        record(name, settled(&site, run).await);
+    }
+}

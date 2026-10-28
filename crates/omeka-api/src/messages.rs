@@ -619,6 +619,17 @@ messages! {
     const BULK_ITEM_DELETE_DENIED = "The person who started this change may not delete this item.";
     const BULK_ITEM_ID_TAKEN = "Another record now has this item's id, so the undo left the item in the trash.";
     const BULK_ITEM_LINKS_LEFT = "The item is back, but links to it from items edited since the delete were left out.";
+    const BULK_MEDIA_GONE = "This media is no longer in Omeka.";
+    const BULK_MEDIA_DELETE_DENIED = "The person who started this change may not delete this media.";
+    const BULK_MEDIA_UNDO_DENIED = "The person who asked for the undo may not delete this media, so the undo left it in the trash.";
+    const BULK_MEDIA_ID_TAKEN = "Another record now has this media's id, so the undo left the media in the trash.";
+    const BULK_MEDIA_LINKS_LEFT = "The media is back, but links to it from items edited since the delete were left out.";
+    const BULK_MEDIA_ITEM_GONE = "The item this media belongs to is gone, so the undo left the media in the trash.";
+    const BULK_SET_GONE = "This item set is no longer in Omeka.";
+    const BULK_SET_DELETE_DENIED = "The person who started this change may not delete this item set.";
+    const BULK_SET_UNDO_DENIED = "The person who asked for the undo may not delete this item set, so the undo left it in the trash.";
+    const BULK_SET_ID_TAKEN = "Another record now has this item set's id, so the undo left the item set in the trash.";
+    const BULK_SET_LINKS_LEFT = "The item set is back, but links to it from items edited since the delete were left out.";
     const BULK_PURGED = "The trash of this change was emptied, so its items cannot come back.";
 }
 

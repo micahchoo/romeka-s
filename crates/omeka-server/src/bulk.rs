@@ -16,7 +16,7 @@ use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode, Uri, header};
 use axum::response::Response;
 use axum::routing::{get, post};
-use omeka_api::bulk::{self, BulkError, PurgeScope};
+use omeka_api::bulk::{self, BulkError, PurgeScope, Purged};
 use omeka_api::errors::ApiError;
 use omeka_db::DbPool;
 use omeka_db::ids::JobId;
@@ -43,10 +43,12 @@ pub(crate) fn router() -> Router<AppState> {
 /// server runs it at start and after each read of the recent list.
 pub async fn purge_due_trash(pool: &DbPool, store: &dyn Store) {
     match bulk::purge(pool, store, PurgeScope::Due).await {
-        Ok(purged) if purged.items > 0 || purged.runs > 0 => {
+        Ok(purged) if purged != Purged::default() => {
             tracing::info!(
                 runs = purged.runs,
                 items = purged.items,
+                media = purged.media,
+                item_sets = purged.item_sets,
                 "emptied due bulk trash"
             );
         }

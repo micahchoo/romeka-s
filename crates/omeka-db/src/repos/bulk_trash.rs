@@ -1,15 +1,18 @@
-//! A bulk delete's turn on one item, its undo's, and the purge of its trash.
+//! A bulk delete's turn on one record, its undo's, and the purge of its trash.
 //!
-//! A delete reads the item's trash snapshot ([`TrashImage`]), deletes the rows, and moves the
-//! target to `done` with the snapshot in one transaction, so the item is either in place or in
-//! the trash. An undo inserts the rows again with their ids. It puts back what still has a place:
-//! a column that names a row since deleted (an owner, a class, an item type, a thumbnail) is
-//! emptied, a value whose property or linked resource is gone stays out, a set or site
-//! membership comes back only if the set exists and the site does and is one the caller may
-//! assign items to. A value of another resource that linked to the item comes back only when
-//! that resource is still there and was not edited since the delete; the others are reported.
-//! When a row holds one of the ids the item needs, the item stays in the trash (`kept`, with
-//! [`FailReason::IdTaken`]).
+//! A run's targets are items, or for a delete of media or of item sets ([`TrashKind`]) media or
+//! sets, whose ids `romeka_bulk_target.item_id` holds. A delete reads the record's trash snapshot
+//! ([`TrashImage`]), deletes the rows, and moves the target to `done` with the snapshot in one
+//! transaction, so the record is either in place or in the trash. An undo inserts the rows again
+//! with their ids. It puts back what still has a place: a column that names a row since deleted
+//! (an owner, a class, an item type, a thumbnail) is emptied, a value whose property or linked
+//! resource is gone stays out, a set membership comes back only if the item and the set both
+//! exist, a site membership only if the site does and is one the caller may assign items to,
+//! and a site's row that showed a set only if the site exists. A value of another resource that
+//! linked to the record comes back only when that resource is still there and was not edited
+//! since the delete; the others are reported. When a row holds one of the ids the record needs,
+//! or a media's item is gone, the record stays in the trash (`kept`, with
+//! [`FailReason::IdTaken`] or [`FailReason::ItemGone`]).
 //!
 //! The files are the caller's: this crate names no store. The purge claims the runs whose trash
 //! is due by setting `purged` (which stops them from running or undoing again), and then clears
@@ -27,6 +30,7 @@ use super::{BulkRepo, ImportWrites, bind_id, json_text};
 use crate::DbError;
 use crate::backend::Backend;
 use crate::ids::{BulkId, ItemId, SiteId};
+use crate::rows::TrashKind;
 use crate::rows::trash::{TABLES, VALUE, int};
 use crate::rows::{FailReason, HistoryStamp, TargetState, TrashImage, TrashRow};
 use crate::time;
@@ -51,7 +55,7 @@ pub enum Untrashed {
         image: Box<TrashImage>,
         links_left: Vec<u64>,
     },
-    /// A row holds an id the item needs; it stays in the trash.
+    /// A row holds an id the record needs, or a media's item is gone; it stays in the trash.
     Kept,
     /// The target has no snapshot: its run's trash was emptied.
     Purged,
@@ -75,11 +79,12 @@ where
     for<'x> &'x str: Encode<'x, DB> + Type<DB> + ColumnIndex<DB::Row>,
     for<'x> f64: Decode<'x, DB> + Type<DB>,
 {
-    /// Delete one pending target into the trash. `refuse` reads the snapshot and says why the
-    /// item may not be deleted, or nothing.
+    /// Delete one pending target, a record of `kind`, into the trash. `refuse` reads the
+    /// snapshot and says why the record may not be deleted, or nothing.
     pub async fn trash_target(
         &self,
         id: BulkId,
+        kind: TrashKind,
         item: ItemId,
         refuse: impl FnOnce(&TrashImage) -> Option<FailReason>,
     ) -> Result<Trashed, DbError> {
@@ -89,7 +94,7 @@ where
             return Ok(Trashed::Settled);
         }
         let mut rows = TrashRows::<DB> { conn: &mut *tx };
-        let Some(image) = rows.snapshot(item).await? else {
+        let Some(image) = rows.snapshot(kind, item.0).await? else {
             fail(&mut tx, id, item, FailReason::Gone).await?;
             tx.commit().await?;
             return Ok(Trashed::Failed(FailReason::Gone));
@@ -99,7 +104,7 @@ where
             tx.commit().await?;
             return Ok(Trashed::Failed(reason));
         }
-        rows.remove(item, &image).await?;
+        rows.remove(&image).await?;
         sqlx::query(
             "UPDATE romeka_bulk_target SET state = 'done', image = ?, written = ?, error = NULL
              WHERE bulk_id = ? AND item_id = ?",
@@ -133,9 +138,9 @@ where
         image.as_ref().map(TrashImage::from_json).transpose()
     }
 
-    /// Put one done or kept target of a delete back in place. `sites` are the sites its item may
-    /// be put back in: those the caller may assign items to. The item's history gains one entry
-    /// under `stamp`, from nothing to the item as it came back.
+    /// Put one done or kept target of a delete back in place. `sites` are the sites an item may
+    /// be put back in: those the caller may assign items to. A restored item's history gains one
+    /// entry under `stamp`, from nothing to the item as it came back.
     pub async fn untrash_target(
         &self,
         id: BulkId,
@@ -163,8 +168,8 @@ where
         };
         let image = TrashImage::from_json(&image)?;
         let mut rows = TrashRows::<DB> { conn: &mut *tx };
-        if ids_taken(&mut rows, &image).await? {
-            keep(&mut tx, id, item).await?;
+        if let Some(reason) = blocked(&mut rows, &image).await? {
+            keep(&mut tx, id, item, reason).await?;
             tx.commit().await?;
             return Ok(Untrashed::Kept);
         }
@@ -305,11 +310,12 @@ where
     }
 }
 
-/// Whether a row holds a resource id, a value id or a storage id the snapshot needs back.
-async fn ids_taken<DB: Backend>(
+/// Why the snapshot cannot go back: a row holds a resource id, a value id or a storage id it
+/// needs, or the item of a media is gone.
+async fn blocked<DB: Backend>(
     rows: &mut TrashRows<'_, DB>,
     image: &TrashImage,
-) -> Result<bool, DbError>
+) -> Result<Option<FailReason>, DbError>
 where
     for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
     for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
@@ -322,27 +328,32 @@ where
     for<'x> &'x str: Encode<'x, DB> + Type<DB> + ColumnIndex<DB::Row>,
 {
     let resources = image.resources();
-    if !rows
-        .existing("resource", "id", &resources)
-        .await?
-        .is_empty()
-    {
-        return Ok(true);
-    }
     let values = named(image.rows("value"), "id");
-    if !rows.existing("value", "id", &values).await?.is_empty() {
-        return Ok(true);
-    }
     let storage: Vec<String> = image
         .media_files()
         .into_iter()
         .map(|media| media.storage_id)
         .collect();
-    rows.storage_taken(&storage).await
+    if !rows
+        .existing("resource", "id", &resources)
+        .await?
+        .is_empty()
+        || !rows.existing("value", "id", &values).await?.is_empty()
+        || rows.storage_taken(&storage).await?
+    {
+        return Ok(Some(FailReason::IdTaken));
+    }
+    if let Some(item) = image.item_of_media() {
+        let item = BTreeSet::from([item.0]);
+        if rows.existing("item", "id", &item).await?.is_empty() {
+            return Ok(Some(FailReason::ItemGone));
+        }
+    }
+    Ok(None)
 }
 
 /// Insert the snapshot's rows, each table after the tables it names, with every reference to a
-/// row since deleted emptied or left out.
+/// row since deleted emptied or left out, and fill again each pointer the delete emptied.
 async fn put_back<DB: Backend>(
     rows: &mut TrashRows<'_, DB>,
     image: &TrashImage,
@@ -384,23 +395,21 @@ where
             .execute(&mut *rows.conn)
             .await?;
     }
-    for link in &image.attachments {
-        for (column, id) in [("item_id", link.item), ("media_id", link.media)] {
-            let Some(id) = id else { continue };
-            sqlx::query(&format!(
-                "UPDATE site_block_attachment SET {column} = ? WHERE id = ? AND {column} IS NULL"
-            ))
-            .bind(id as i64)
-            .bind(link.attachment as i64)
-            .execute(&mut *rows.conn)
-            .await?;
-        }
+    for emptied in &image.emptied {
+        let (table, column) = (emptied.pointer.table, emptied.pointer.column);
+        sqlx::query(&format!(
+            "UPDATE {table} SET {column} = ? WHERE id = ? AND {column} IS NULL"
+        ))
+        .bind(emptied.target as i64)
+        .bind(emptied.row as i64)
+        .execute(&mut *rows.conn)
+        .await?;
     }
     Ok(())
 }
 
 /// The snapshot's rows as an undo inserts them: each reference to a row since deleted emptied,
-/// each row that cannot stand without one left out, and the item's primary media emptied until
+/// each row that cannot stand without one left out, and an item's primary media emptied until
 /// its media are in.
 async fn fitted<DB: Backend>(
     rows: &mut TrashRows<'_, DB>,
@@ -427,6 +436,7 @@ where
         table("item_site"),
         table("romeka_media_annotation"),
     );
+    let mut shown_in = table("site_item_set");
     for (column, target) in [
         ("owner_id", ("user", "id")),
         ("resource_class_id", ("resource_class", "id")),
@@ -455,10 +465,23 @@ where
             && int(row, "value_resource_id")
                 .is_none_or(|id| own.contains(&id) || linked.contains(&id))
     });
-    let set_ids = rows
-        .existing("item_set", "id", &named(&sets, "item_set_id"))
+    let mut members = rows
+        .existing("item", "id", &named(&sets, "item_id"))
         .await?;
-    sets.retain(|row| int(row, "item_set_id").is_some_and(|id| set_ids.contains(&id)));
+    members.extend(
+        rows.existing("item_set", "id", &named(&sets, "item_set_id"))
+            .await?,
+    );
+    members.extend(&own);
+    sets.retain(|row| {
+        ["item_id", "item_set_id"]
+            .iter()
+            .all(|column| int(row, column).is_some_and(|id| members.contains(&id)))
+    });
+    let showing = rows
+        .existing("site", "id", &named(&shown_in, "site_id"))
+        .await?;
+    shown_in.retain(|row| int(row, "site_id").is_some_and(|id| showing.contains(&id)));
     let site_ids = rows
         .existing("site", "id", &named(&site_rows, "site_id"))
         .await?;
@@ -474,13 +497,14 @@ where
         ("value", values),
         ("item_item_set", sets),
         ("item_site", site_rows),
+        ("site_item_set", shown_in),
         ("romeka_media_annotation", notes),
     ];
     ready.extend(tables);
     Ok(ready)
 }
 
-/// Insert the values of other resources that linked to the item, where the resource is there
+/// Insert the values of other resources that linked to the record, where the resource is there
 /// and unedited since the delete. Answers the resources whose links stayed out.
 async fn relink<DB: Backend>(
     rows: &mut TrashRows<'_, DB>,
@@ -532,11 +556,12 @@ where
     Ok(left.into_iter().collect())
 }
 
-/// Leave the target in the trash: a row holds an id its item needs.
+/// Leave the target in the trash, for `reason`.
 async fn keep<DB: Backend>(
     tx: &mut Transaction<'_, DB>,
     id: BulkId,
     item: ItemId,
+    reason: FailReason,
 ) -> Result<(), DbError>
 where
     for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
@@ -547,7 +572,7 @@ where
     sqlx::query(
         "UPDATE romeka_bulk_target SET state = 'kept', error = ? WHERE bulk_id = ? AND item_id = ?",
     )
-    .bind(FailReason::IdTaken.as_str())
+    .bind(reason.as_str())
     .bind(bind_id(id))
     .bind(bind_id(item))
     .execute(&mut **tx)
