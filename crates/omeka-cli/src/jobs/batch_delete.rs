@@ -7,7 +7,8 @@
 use async_trait::async_trait;
 
 use omeka_db::ids::{ItemId, ItemSetId, MediaId};
-use omeka_db::repos::{ItemRepo, ItemSetRepo, MediaRepo, Paging};
+use omeka_db::repos::{ItemRepo, ItemSetRepo, JobRepo, MediaRepo, Paging};
+use omeka_db::rows::{HistorySource, HistoryStamp};
 use omeka_db::with_db;
 
 use super::query::{chunk_size, query_arg};
@@ -46,6 +47,14 @@ impl Job for BatchDelete {
                 Ok(())
             }
             "item_sets" => {
+                // A member's history names the person who started the job, as an edit.
+                let stamp = HistoryStamp {
+                    user: with_db!(context.pool, |db| JobRepo::new(db)
+                        .get(context.job_id)
+                        .await)?
+                    .and_then(|job| job.owner_id),
+                    source: HistorySource::Edit,
+                };
                 let ids: Vec<ItemSetId> = with_db!(context.pool, |db| ItemSetRepo::new(db)
                     .list(&query.item_set_filter(), &Paging::default())
                     .await)?
@@ -57,7 +66,9 @@ impl Job for BatchDelete {
                         return Ok(());
                     }
                     for id in ids {
-                        with_db!(context.pool, |db| ItemSetRepo::new(db).delete(*id).await)?;
+                        with_db!(context.pool, |db| ItemSetRepo::new(db)
+                            .delete(*id, &stamp)
+                            .await)?;
                     }
                 }
                 Ok(())

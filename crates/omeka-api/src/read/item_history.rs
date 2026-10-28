@@ -8,6 +8,11 @@
 //! resource only when they may see it. A field that is then the same before and after is left
 //! out, and an entry left with no field is too.
 //!
+//! An item set that is no longer in place still names itself in a change, with `state`: a set
+//! in the trash (`"trash"`) with its title, to a caller who could see it before its delete; a set
+//! deleted for good (`"deleted"`) with no title, to a caller with `view-all` only, from whom
+//! nothing is hidden. To everyone else a deleted set and a hidden one are the same: left out.
+//!
 //! Each value carries the members the item write reads (`type`, `property_id`, `@value`, `@id`,
 //! `o:label`, `value_resource_id`, `@language`/`o:lang`, `is_public`), so the admin's "Put this
 //! value back" sends them through the ordinary item write, which records its own entry.
@@ -16,9 +21,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use omeka_db::ids::{ClassId, ItemId, ItemSetId, ResourceId, SiteId, TemplateId, UserId};
 use omeka_db::repos::{
-    ClassRepo, ItemHistoryRepo, ItemRepo, RelationRepo, SiteRepo, TemplateRepo, UserRepo,
+    BulkRepo, ClassRepo, ItemHistoryRepo, ItemRepo, RelationRepo, SiteRepo, TemplateRepo, UserRepo,
 };
-use omeka_db::rows::{FieldChange, HistoryEntryRow, HistorySource, ImageValue};
+use omeka_db::rows::{FieldChange, HistoryEntryRow, HistorySource, ImageValue, TrashKind};
 use omeka_db::with_db;
 use serde::Serialize;
 use serde_json::{Map, Value, json};
@@ -31,6 +36,51 @@ use crate::routes::Operation;
 use crate::write::access::{self, SiteRole};
 
 const ITEM_CLASS: &str = "Omeka\\Entity\\Item";
+
+/// The item sets of `missing`, which no resource row holds, that the caller may see named: those
+/// in the trash they could see before the delete, and for `view-all` the rest, deleted for good.
+async fn gone_sets(
+    api: &Api<'_>,
+    mut missing: BTreeSet<u64>,
+) -> Result<BTreeMap<u64, GoneSet>, ApiError> {
+    let mut gone = BTreeMap::new();
+    if missing.is_empty() {
+        return Ok(gone);
+    }
+    let ids: Vec<u64> = missing.iter().copied().collect();
+    let trashed =
+        with_db!(api.pool(), |db| BulkRepo::new(db).in_trash(&ids).await).map_err(db_error)?;
+    for image in trashed {
+        let Some(id) = image.root().filter(|_| image.kind == TrashKind::ItemSet) else {
+            continue;
+        };
+        if !missing.remove(&id) {
+            continue;
+        }
+        if api.sees(image.is_public(), image.owner()) {
+            let title = image.title();
+            gone.insert(
+                id,
+                GoneSet {
+                    title,
+                    state: "trash",
+                },
+            );
+        }
+    }
+    if api.actor().is_privileged() {
+        for id in missing {
+            gone.insert(
+                id,
+                GoneSet {
+                    title: None,
+                    state: "deleted",
+                },
+            );
+        }
+    }
+    Ok(gone)
+}
 
 /// Upstream's `ValueVisibilityFilter` rule for one resource: a caller with `view-all` sees every
 /// value, a signed-in caller sees the private values of a resource they own, everyone else sees
@@ -59,6 +109,13 @@ struct Source {
     kind: &'static str,
     /// The bulk run or import, for every kind but `edit`.
     id: Option<u64>,
+}
+
+/// An item set that is in the trash or deleted for good.
+struct GoneSet {
+    title: Option<String>,
+    /// `trash` or `deleted`.
+    state: &'static str,
 }
 
 #[derive(Serialize, Clone)]
@@ -98,6 +155,8 @@ struct Names {
     templates: BTreeMap<TemplateId, String>,
     /// The item sets and linked resources the caller may see, with their titles.
     resources: BTreeMap<u64, Option<String>>,
+    /// The item sets no longer in place that the caller may still see named.
+    gone_sets: BTreeMap<u64, GoneSet>,
     sites: BTreeMap<SiteId, String>,
 }
 
@@ -112,6 +171,7 @@ impl Names {
         let mut templates = BTreeSet::new();
         let mut resources = BTreeSet::new();
         let mut sites = BTreeSet::new();
+        let mut sets = BTreeSet::new();
         for row in rows {
             users.extend(row.user_id);
             for change in &row.changes {
@@ -129,6 +189,7 @@ impl Names {
                         templates.extend(before.iter().chain(after))
                     }
                     FieldChange::ItemSets { before, after } => {
+                        sets.extend(before.iter().chain(after).map(|id| id.0));
                         resources.extend(before.iter().chain(after).map(|id| id.as_resource()))
                     }
                     FieldChange::Sites { before, after } => {
@@ -144,6 +205,7 @@ impl Names {
             classes: BTreeMap::new(),
             templates: BTreeMap::new(),
             resources: BTreeMap::new(),
+            gone_sets: BTreeMap::new(),
             sites: BTreeMap::new(),
         };
         for user in users {
@@ -172,11 +234,13 @@ impl Names {
             for row in with_db!(api.pool(), |db| RelationRepo::new(db).resources(&ids).await)
                 .map_err(db_error)?
             {
+                sets.remove(&row.id.0);
                 if api.sees(row.is_public, row.owner_id) {
                     names.resources.insert(row.id.0, row.title);
                 }
             }
         }
+        names.gone_sets = gone_sets(api, sets).await?;
         for site in sites {
             if let Some(row) =
                 with_db!(api.pool(), |db| SiteRepo::new(db).get(site).await).map_err(db_error)?
@@ -187,6 +251,20 @@ impl Names {
         }
         api.fill_catalog().await?;
         Ok(names)
+    }
+
+    /// One side of an item set change: each set the caller may see or see named.
+    fn sets(&self, ids: &[ItemSetId]) -> Vec<Value> {
+        ids.iter()
+            .filter_map(|id| {
+                if let Some(title) = self.resources.get(&id.0) {
+                    return Some(json!({ "id": id.0, "title": title }));
+                }
+                self.gone_sets
+                    .get(&id.0)
+                    .map(|gone| json!({ "id": id.0, "title": gone.title, "state": gone.state }))
+            })
+            .collect()
     }
 
     fn entry(&self, api: &Api<'_>, row: &HistoryEntryRow) -> Option<Entry> {
@@ -256,16 +334,7 @@ impl Names {
                 "after": after.map(|id| named(id.0, self.templates.get(&id))),
             }),
             FieldChange::ItemSets { before, after } => {
-                let seen = |ids: &[ItemSetId]| -> Vec<Value> {
-                    ids.iter()
-                        .filter_map(|id| {
-                            self.resources
-                                .get(&id.0)
-                                .map(|title| json!({ "id": id.0, "title": title }))
-                        })
-                        .collect()
-                };
-                let (before, after) = (seen(before), seen(after));
+                let (before, after) = (self.sets(before), self.sets(after));
                 if before == after {
                     return None;
                 }

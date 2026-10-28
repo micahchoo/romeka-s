@@ -242,11 +242,15 @@ pub(super) async fn run(
 ) -> Result<Step, BulkError> {
     let pool = ground.pool;
     let kind = kind_of(row)?;
+    let stamp = HistoryStamp {
+        user: row.owner_id,
+        source: HistorySource::Bulk(row.id),
+    };
     chunks(pool, row, job, BulkPhase::Run, |targets| async move {
         let api = permitted(ground, row.owner_id, right).await?;
         for target in targets {
             let outcome = with_db!(pool, |db| BulkRepo::new(db)
-                .trash_target(row.id, kind, target, |image| {
+                .trash_target(row.id, kind, target, &stamp, |image| {
                     (!may_delete(&api, kind, image.owner())).then_some(FailReason::DeleteDenied)
                 })
                 .await)?;

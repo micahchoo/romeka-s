@@ -354,8 +354,12 @@ on_both!(restore_skips_what_was_deleted_since_the_image, |pool| {
     let target = ImportResource::Item(id);
     let image = image_of!(pool, target);
     ItemRepo::<Db>::new(pool).delete(w.other).await.unwrap();
+    let stamp = omeka_db::rows::HistoryStamp {
+        user: None,
+        source: omeka_db::rows::HistorySource::Edit,
+    };
     omeka_db::repos::ItemSetRepo::<Db>::new(pool)
-        .delete(w.sets[0])
+        .delete(w.sets[0], &stamp)
         .await
         .unwrap();
 

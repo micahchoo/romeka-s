@@ -387,6 +387,33 @@ impl TrashImage {
         self.root_row().and_then(|row| text(row, "title"))
     }
 
+    /// Whether the record was public, which with [`Self::owner`] says who could see it.
+    #[must_use]
+    pub fn is_public(&self) -> bool {
+        self.root_row().is_some_and(|row| flag(row, "is_public"))
+    }
+
+    /// The resources outside the snapshot whose rows the delete takes and the undo puts back:
+    /// the members of a set, and the resources whose values link to the record or its media.
+    /// The items among them are the ones whose history the delete and the undo change.
+    #[must_use]
+    pub fn others_touched(&self) -> Vec<ResourceId> {
+        let own = self.resources();
+        let members = [ITEM_ITEM_SET.name, ITEM_SITE.name]
+            .into_iter()
+            .flat_map(|table| self.rows(table))
+            .filter_map(|row| int(row, "item_id"));
+        let linking = self
+            .incoming
+            .iter()
+            .filter_map(|link| int(&link.value, "resource_id"));
+        let touched: BTreeSet<u64> = members
+            .chain(linking)
+            .filter(|id| !own.contains(id))
+            .collect();
+        touched.into_iter().map(ResourceId).collect()
+    }
+
     /// The item a media snapshot's media belongs to; `None` for the other kinds.
     #[must_use]
     pub fn item_of_media(&self) -> Option<ItemId> {

@@ -302,7 +302,11 @@ async fn deleting_an_item_set_removes_its_memberships() {
         .await
         .unwrap();
 
-    assert!(item_sets.delete(item_set.id()).await.unwrap());
+    let stamp = omeka_db::rows::HistoryStamp {
+        user: None,
+        source: omeka_db::rows::HistorySource::Edit,
+    };
+    assert!(item_sets.delete(item_set.id(), &stamp).await.unwrap());
 
     assert!(item_sets.get(item_set.id()).await.unwrap().is_none());
     assert!(items.list_item_sets(item.id()).await.unwrap().is_empty());

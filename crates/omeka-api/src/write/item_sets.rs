@@ -100,7 +100,11 @@ pub async fn delete(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError
     access::resource_entity(api.actor(), ITEM_SET_CLASS, row.resource.owner_id)?;
     let answer = crate::read::item_set_document(api, &row).await?;
     values::clear(api, row.resource.id).await?;
-    with_db!(api.pool(), |db| ItemSetRepo::new(db).delete(row.id()).await).map_err(db_error)?;
+    let stamp = super::items::edit_stamp(api);
+    with_db!(api.pool(), |db| ItemSetRepo::new(db)
+        .delete(row.id(), &stamp)
+        .await)
+    .map_err(db_error)?;
     fulltext::remove(api, "item_sets", row.resource.id).await?;
     Ok(answer)
 }

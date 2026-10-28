@@ -25,6 +25,7 @@ use serde_json::Value;
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Transaction, Type};
 
 use super::bulk_writes::{fail, lock_target, set_state};
+use super::item_history::{images_before, record_each};
 use super::trash_rows::{TrashRows, by_table, named, null_missing};
 use super::{BulkRepo, ImportWrites, bind_id, json_text};
 use crate::DbError;
@@ -80,12 +81,15 @@ where
     for<'x> f64: Decode<'x, DB> + Type<DB>,
 {
     /// Delete one pending target, a record of `kind`, into the trash. `refuse` reads the
-    /// snapshot and says why the record may not be deleted, or nothing.
+    /// snapshot and says why the record may not be deleted, or nothing. Each other item the
+    /// delete changes (a member of a set, an item whose value linked to the record) gains a
+    /// history entry under `stamp`.
     pub async fn trash_target(
         &self,
         id: BulkId,
         kind: TrashKind,
         item: ItemId,
+        stamp: &HistoryStamp,
         refuse: impl FnOnce(&TrashImage) -> Option<FailReason>,
     ) -> Result<Trashed, DbError> {
         let mut tx = self.pool.begin_with(DB::begin_write()).await?;
@@ -104,7 +108,9 @@ where
             tx.commit().await?;
             return Ok(Trashed::Failed(reason));
         }
+        let before = images_before::<DB>(&mut *rows.conn, &image.others_touched()).await?;
         rows.remove(&image).await?;
+        record_each::<DB>(&mut *rows.conn, &before, stamp).await?;
         sqlx::query(
             "UPDATE romeka_bulk_target SET state = 'done', image = ?, written = ?, error = NULL
              WHERE bulk_id = ? AND item_id = ?",
@@ -138,9 +144,34 @@ where
         image.as_ref().map(TrashImage::from_json).transpose()
     }
 
+    /// The trash snapshots of those `records` (item, media or set ids) that are in the trash
+    /// now: a target of a delete run whose trash is not purged, deleted and not put back.
+    pub async fn in_trash(&self, records: &[u64]) -> Result<Vec<TrashImage>, DbError> {
+        if records.is_empty() {
+            return Ok(Vec::new());
+        }
+        let marks = vec!["?"; records.len()].join(", ");
+        let sql = format!(
+            "SELECT t.image FROM romeka_bulk_target t
+             JOIN romeka_bulk b ON b.id = t.bulk_id
+             WHERE b.kind = 'delete' AND b.purged IS NULL AND t.image IS NOT NULL
+               AND t.state IN ('done', 'kept') AND t.item_id IN ({marks})
+             ORDER BY t.bulk_id"
+        );
+        let mut query = sqlx::query::<DB>(&sql);
+        for record in records {
+            query = query.bind(i64::try_from(*record).unwrap_or(i64::MAX));
+        }
+        let rows = query.fetch_all(self.pool).await?;
+        rows.iter()
+            .map(|row| TrashImage::from_json(&DB::json(row, "image")?))
+            .collect()
+    }
+
     /// Put one done or kept target of a delete back in place. `sites` are the sites an item may
-    /// be put back in: those the caller may assign items to. A restored item's history gains one
-    /// entry under `stamp`, from nothing to the item as it came back.
+    /// be put back in: those the caller may assign items to. Under `stamp`, a restored item's
+    /// history gains one entry from nothing to the item as it came back, and each other item the
+    /// undo changes (a member of a set, an item whose link came back) one entry too.
     pub async fn untrash_target(
         &self,
         id: BulkId,
@@ -173,11 +204,17 @@ where
             tx.commit().await?;
             return Ok(Untrashed::Kept);
         }
+        let before = images_before::<DB>(&mut *rows.conn, &image.others_touched()).await?;
         put_back(&mut rows, &image, sites).await?;
         let links_left = relink(&mut rows, &image).await?;
-        ImportWrites::<DB>::new(&mut tx)
+        if image.kind == TrashKind::Item {
+            ImportWrites::<DB> {
+                conn: &mut *rows.conn,
+            }
             .record_history(item, None, stamp)
             .await?;
+        }
+        record_each::<DB>(&mut *rows.conn, &before, stamp).await?;
         set_state(&mut tx, id, item, TargetState::Restored).await?;
         if !links_left.is_empty() {
             sqlx::query(

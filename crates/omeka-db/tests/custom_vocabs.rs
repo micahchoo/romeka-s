@@ -127,7 +127,14 @@ async fn deleting_the_item_set_or_the_owner_keeps_the_list() {
         .await
         .unwrap();
 
-    ItemSetRepo::new(&pool).delete(set.id()).await.unwrap();
+    let stamp = omeka_db::rows::HistoryStamp {
+        user: None,
+        source: omeka_db::rows::HistorySource::Edit,
+    };
+    ItemSetRepo::new(&pool)
+        .delete(set.id(), &stamp)
+        .await
+        .unwrap();
     UserRepo::new(&pool).delete(owner.id).await.unwrap();
 
     let stored = repo.get(list.id).await.unwrap().unwrap();

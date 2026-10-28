@@ -485,6 +485,235 @@ async fn adding_items_to_a_site_records_one_entry_per_item_it_joins() {
     assert_eq!(history(&site, bob).await.len(), 1, "Bob was not picked");
 }
 
+/// An item whose `dcterms:relation` links to `target`.
+async fn linking(site: &Site, name: &str, target: u64) -> u64 {
+    let relation = property_id(site, "dcterms:relation").await;
+    let (status, made) = admin(
+        site,
+        "POST",
+        "/api/items",
+        Some(json!({
+            "dcterms:title": title(name),
+            "dcterms:relation": [{ "type": "resource", "property_id": relation, "value_resource_id": target }],
+        })),
+    )
+    .await;
+    assert_eq!(status, 200, "{made}");
+    made["o:id"].as_u64().unwrap()
+}
+
+fn delete_of(of: &str) -> Value {
+    json!({ "kind": "delete", "of": of })
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn trashing_a_set_records_its_removal_on_each_member_and_undo_its_return() {
+    let site = site().await;
+    let letters = item_set(&site, "Letters").await;
+    let postcards = item_set(&site, "Postcards").await;
+    let members = [
+        item(&site, "Letter to Anna", &[letters, postcards]).await,
+        item(&site, "Letter to Bob", &[letters]).await,
+        item(&site, "Letter to Cleo", &[letters]).await,
+    ];
+    let outsider = item(&site, "Postcard", &[postcards]).await;
+    let card = linking(&site, "Index card", letters).await;
+    let previewed = preview(&site, json!({ "id": [letters] }), delete_of("item_sets")).await;
+    let run_id = previewed["id"].as_u64().unwrap();
+    assert_eq!(run(&site, run_id).await["counts"]["done"], 1);
+
+    let trashed = json!({ "id": letters, "title": "Letters", "state": "trash" });
+    let kept = json!({ "id": postcards, "title": "Postcards" });
+    let before = [json!([trashed, kept]), json!([trashed]), json!([trashed])];
+    let after = [json!([kept]), json!([]), json!([])];
+    for (index, member) in members.iter().enumerate() {
+        let entries = history(&site, *member).await;
+        assert_eq!(entries.len(), 2, "{entries:?}");
+        assert_eq!(
+            entries[0]["source"],
+            json!({ "kind": "bulk", "id": run_id })
+        );
+        assert_eq!(entries[0]["user"]["name"], "Admin");
+        assert_eq!(
+            entries[0]["changes"],
+            json!([{ "field": "item_sets", "before": before[index], "after": after[index] }]),
+            "the set left, named while it is in the trash"
+        );
+    }
+    assert_eq!(history(&site, outsider).await.len(), 1, "not a member");
+
+    assert_eq!(undo(&site, run_id, false).await["status"], "undone");
+
+    let back = json!({ "id": letters, "title": "Letters" });
+    for member in members {
+        let entries = history(&site, member).await;
+        assert_eq!(entries.len(), 3, "{entries:?}");
+        assert_eq!(
+            entries[0]["source"],
+            json!({ "kind": "bulk_undo", "id": run_id })
+        );
+        let returned = field(&entries[0], "item_sets", None);
+        assert!(
+            returned["after"].as_array().unwrap().contains(&back),
+            "{returned}"
+        );
+        assert!(
+            field(&entries[1], "item_sets", None)["before"]
+                .as_array()
+                .unwrap()
+                .contains(&back),
+            "the trash entry names the set in place again"
+        );
+    }
+    let entries = history(&site, card).await;
+    assert_eq!(entries.len(), 3, "the link went and came back: {entries:?}");
+    assert_eq!(
+        entries[1]["source"],
+        json!({ "kind": "bulk", "id": run_id })
+    );
+    assert_eq!(
+        shown(&field(&entries[1], "values", Some("Relation"))["before"]),
+        ["Letters"]
+    );
+    assert_eq!(
+        entries[0]["source"],
+        json!({ "kind": "bulk_undo", "id": run_id })
+    );
+    assert_eq!(
+        shown(&field(&entries[0], "values", Some("Relation"))["after"]),
+        ["Letters"]
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn trashing_a_media_records_nothing_on_its_item_and_undo_nothing_either() {
+    let site = site().await;
+    let anna = item(&site, "Letter to Anna", &[]).await;
+    let (status, media) = admin(
+        &site,
+        "POST",
+        "/api/media",
+        Some(json!({
+            "o:ingester": "html", "html": "<p>note</p>", "o:item": { "o:id": anna },
+            "dcterms:title": title("Note"), "o:is_public": true,
+        })),
+    )
+    .await;
+    assert_eq!(status, 200, "{media}");
+    let media = media["o:id"].as_u64().unwrap();
+    let card = linking(&site, "Index card", media).await;
+    let recorded = history(&site, anna).await.len();
+
+    let previewed = preview(&site, json!({ "id": [media] }), delete_of("media")).await;
+    let run_id = previewed["id"].as_u64().unwrap();
+    assert_eq!(run(&site, run_id).await["counts"]["done"], 1);
+    assert_eq!(
+        history(&site, anna).await.len(),
+        recorded,
+        "media and primary media are not history fields"
+    );
+    assert_eq!(undo(&site, run_id, false).await["status"], "undone");
+    assert_eq!(history(&site, anna).await.len(), recorded);
+
+    let entries = history(&site, card).await;
+    let sources: Vec<&Value> = entries.iter().map(|entry| &entry["source"]).collect();
+    assert_eq!(
+        sources,
+        [
+            &json!({ "kind": "bulk_undo", "id": run_id }),
+            &json!({ "kind": "bulk", "id": run_id }),
+            &json!({ "kind": "edit", "id": null }),
+        ],
+        "the item whose value linked to the media changed twice"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn deleting_a_set_for_good_records_its_removal_on_each_member() {
+    let site = site().await;
+    let letters = item_set(&site, "Letters").await;
+    let members = [
+        item(&site, "Letter to Anna", &[letters]).await,
+        item(&site, "Letter to Bob", &[letters]).await,
+        item(&site, "Letter to Cleo", &[letters]).await,
+    ];
+    let (status, deleted) =
+        admin(&site, "DELETE", &format!("/api/item_sets/{letters}"), None).await;
+    assert_eq!(status, 200, "{deleted}");
+
+    for member in members {
+        let entries = history(&site, member).await;
+        assert_eq!(entries.len(), 2, "{entries:?}");
+        assert_eq!(entries[0]["source"], json!({ "kind": "edit", "id": null }));
+        assert_eq!(entries[0]["user"]["name"], "Admin");
+        assert_eq!(
+            entries[0]["changes"],
+            json!([{
+                "field": "item_sets",
+                "before": [{ "id": letters, "title": null, "state": "deleted" }],
+                "after": [],
+            }])
+        );
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_set_deleted_for_good_is_named_only_to_a_caller_from_whom_nothing_is_hidden() {
+    let site = site().await;
+    let author = Person::new(&site, "author").await;
+    let (status, notes) = author
+        .send(
+            "POST",
+            "/api/item_sets",
+            Some(json!({ "dcterms:title": title("Notes"), "o:is_public": true })),
+        )
+        .await;
+    assert_eq!(status, 200, "{notes}");
+    let notes = notes["o:id"].as_u64().unwrap();
+    let (status, mine) = author
+        .send(
+            "POST",
+            "/api/items",
+            Some(json!({ "dcterms:title": title("My note"), "o:item_set": [{ "o:id": notes }] })),
+        )
+        .await;
+    assert_eq!(status, 200, "{mine}");
+    let mine = mine["o:id"].as_u64().unwrap();
+    let path = format!("/api/romeka/items/{mine}/history");
+    let (status, own) = author.send("GET", &path, None).await;
+    assert_eq!(status, 200, "{own}");
+    assert_eq!(
+        field(&own["entries"][0], "item_sets", None)["after"],
+        json!([{ "id": notes, "title": "Notes" }])
+    );
+
+    let (status, deleted) = admin(&site, "DELETE", &format!("/api/item_sets/{notes}"), None).await;
+    assert_eq!(status, 200, "{deleted}");
+
+    let (status, own) = author.send("GET", &path, None).await;
+    assert_eq!(status, 200, "{own}");
+    let entries = own["entries"].as_array().unwrap();
+    assert_eq!(
+        entries.len(),
+        1,
+        "to the author a deleted set and a hidden one are the same: {entries:?}"
+    );
+    assert!(
+        entries[0]["changes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|change| change["field"] != "item_sets"),
+        "{entries:?}"
+    );
+    let entries = history(&site, mine).await;
+    assert_eq!(entries.len(), 2, "{entries:?}");
+    assert_eq!(
+        field(&entries[0], "item_sets", None)["before"],
+        json!([{ "id": notes, "title": null, "state": "deleted" }])
+    );
+}
+
 /// What one item save costs over HTTP, entry included, for scale beside the repository
 /// measurement (`omeka-db/tests/item_history.rs`). Run with `cargo test -p omeka-cli --release
 /// --test item_history -- --ignored --nocapture`.
@@ -504,8 +733,62 @@ async fn measure_a_save_over_http() {
         )
         .await;
     }
-    println!(
-        "PATCH with entry {:?} per save",
-        started.elapsed() / SAVES
-    );
+    println!("PATCH with entry {:?} per save", started.elapsed() / SAVES);
+}
+
+/// What trashing a set of 5000 items costs, one history entry per member included, and its
+/// undo. Run with `cargo test -p omeka-cli --release --test item_history measure_trashing --
+/// --ignored --nocapture`.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "a measurement, not a check"]
+async fn measure_trashing_a_set_of_5000_items() {
+    const MEMBERS: i64 = 5000;
+    let site = site().await;
+    let letters = item_set(&site, "Letters").await;
+    let anna = item(&site, "Letter to Anna", &[letters]).await;
+    let first = i64::try_from(anna).unwrap() + 1;
+    sqlx::query(
+        "WITH RECURSIVE n(i) AS (SELECT 0 UNION ALL SELECT i + 1 FROM n WHERE i + 1 < ?)
+         INSERT INTO resource (id, title, is_public, created, resource_type)
+         SELECT ? + i, 'a letter', 1, '2026-10-01 00:00:00', 'Omeka\\Entity\\Item' FROM n",
+    )
+    .bind(MEMBERS)
+    .bind(first)
+    .execute(&site.pool)
+    .await
+    .unwrap();
+    sqlx::query("INSERT INTO item (id) SELECT id FROM resource WHERE id >= ?")
+        .bind(first)
+        .execute(&site.pool)
+        .await
+        .unwrap();
+    sqlx::query(
+        "INSERT INTO value (resource_id, property_id, type, value, is_public)
+         SELECT id, 1, 'literal', 'a letter', 1 FROM resource WHERE id >= ?",
+    )
+    .bind(first)
+    .execute(&site.pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO item_item_set (item_id, item_set_id) SELECT id, ? FROM item WHERE id >= ?",
+    )
+    .bind(i64::try_from(letters).unwrap())
+    .bind(first)
+    .execute(&site.pool)
+    .await
+    .unwrap();
+    let previewed = preview(&site, json!({ "id": [letters] }), delete_of("item_sets")).await;
+    let run_id = previewed["id"].as_u64().unwrap();
+    let started = std::time::Instant::now();
+    assert_eq!(run(&site, run_id).await["counts"]["done"], 1);
+    let trashed = started.elapsed();
+    let started = std::time::Instant::now();
+    assert_eq!(undo(&site, run_id, false).await["status"], "undone");
+    let undone = started.elapsed();
+    let entries: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM romeka_item_history")
+        .fetch_one(&site.pool)
+        .await
+        .unwrap();
+    println!("trash {trashed:?}, undo {undone:?}, {entries} entries in all");
 }

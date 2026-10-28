@@ -10,6 +10,7 @@
 
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Sqlite, Type};
 
+use super::item_history::{images_before, record_each};
 use super::values::insert_value;
 use super::{
     MediaVisibility, Paging, QueryFilter, Statement, bind_id, bind_opt_id, fetch_rows, insert_id,
@@ -19,7 +20,7 @@ use crate::DbError;
 use crate::backend::Backend;
 use crate::ids::{ClassId, ItemId, ItemSetId, ResourceId, SiteId, TemplateId, UserId};
 use crate::rows::{
-    ItemRow, ItemSetRow, NewItem, NewItemSet, NewResource, NewWholeItem, ResourceRow,
+    HistoryStamp, ItemRow, ItemSetRow, NewItem, NewItemSet, NewResource, NewWholeItem, ResourceRow,
     ValueAnnotationRow, resource_type,
 };
 use crate::time;
@@ -597,9 +598,24 @@ where
         Ok(true)
     }
 
-    /// Delete an item set: the membership rows go with the database cascade.
-    pub async fn delete(&self, id: ItemSetId) -> Result<bool, DbError> {
-        let mut tx = self.pool.begin().await?;
+    /// Delete an item set: the membership rows, and other resources' values that link to it,
+    /// go with the database cascade. Each item that loses one gains a history entry under
+    /// `stamp`, in the same transaction.
+    pub async fn delete(&self, id: ItemSetId, stamp: &HistoryStamp) -> Result<bool, DbError> {
+        let mut tx = self.pool.begin_with(DB::begin_write()).await?;
+        let touched: Vec<i64> = sqlx::query_scalar(
+            "SELECT item_id FROM item_item_set WHERE item_set_id = ?
+             UNION SELECT resource_id FROM value WHERE value_resource_id = ?",
+        )
+        .bind(bind_id(id))
+        .bind(bind_id(id))
+        .fetch_all(&mut *tx)
+        .await?;
+        let touched: Vec<ResourceId> = touched
+            .into_iter()
+            .filter_map(|id| u64::try_from(id).ok().map(ResourceId))
+            .collect();
+        let before = images_before::<DB>(&mut tx, &touched).await?;
         sqlx::query("DELETE FROM value WHERE resource_id = ?")
             .bind(bind_id(id))
             .execute(&mut *tx)
@@ -608,6 +624,7 @@ where
             .bind(bind_id(id))
             .execute(&mut *tx)
             .await?;
+        record_each::<DB>(&mut tx, &before, stamp).await?;
         tx.commit().await?;
         Ok(DB::rows_affected(&done) > 0)
     }
