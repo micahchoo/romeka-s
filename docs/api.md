@@ -488,6 +488,9 @@ List parameters (`GET /api/items`).
 | `property` | table rows | `SearchQuery::parse (query.rs)`, `item_search (resources.rs)` |
 | `resource_class_id` | table id | `item_filter (resources.rs)` |
 | `resource_template_id` | table id | `item_filter (resources.rs)` |
+| `romeka_changed_by_others_since` | string | `work_filters (query.rs)` |
+| `romeka_no_item_set` | boolean | `work_filters (query.rs)` |
+| `romeka_no_resource_template` | boolean | `work_filters (query.rs)` |
 | `search` | string | `SearchQuery::parse (query.rs)` |
 | `site_attachments_only` | boolean | `SearchQuery::parse (query.rs)` |
 | `site_id` | table id | `SearchQuery::parse (query.rs)` |

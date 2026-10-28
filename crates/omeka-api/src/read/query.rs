@@ -13,9 +13,13 @@
 
 use std::collections::BTreeMap;
 
+use chrono::{NaiveDate, NaiveDateTime};
 use indexmap::IndexMap;
 use omeka_db::ids::{ItemSetId, PropertyId, SiteId};
-use omeka_db::repos::{FulltextRepo, Joiner, MatchKind, MediaVisibility, QueryFilter, ValueQuery};
+use omeka_db::repos::{
+    FulltextRepo, Joiner, MatchKind, MediaVisibility, OthersChanges, QueryFilter, ValueQuery,
+    WorkFilters,
+};
 use omeka_db::with_db;
 
 use super::catalog::Catalog;
@@ -99,6 +103,37 @@ impl SearchQuery {
     pub fn has_fulltext(&self) -> bool {
         self.fulltext.is_some()
     }
+}
+
+/// Romeka's work filters on an items search (`omeka_db::repos::WorkFilters`): `romeka_no_item_set`,
+/// `romeka_no_resource_template` and `romeka_changed_by_others_since`, read for `actor`.
+///
+/// "Changed by others" reads the item history, which is for people who sign in: an anonymous
+/// caller's filter keeps no item, as does a `since` that is not a time. `since` is an RFC 3339
+/// time or a `YYYY-MM-DD` date, which reads as its midnight UTC.
+pub fn work_filters(params: &Params, actor: &Actor) -> WorkFilters {
+    WorkFilters {
+        no_item_set: params.bool("romeka_no_item_set") == Some(true),
+        no_resource_template: params.bool("romeka_no_resource_template") == Some(true),
+        changed_by_others: params.get("romeka_changed_by_others_since").map(|raw| {
+            match (since(raw), actor.user()) {
+                (Some(since), Some(reader)) => OthersChanges::Since { since, reader },
+                _ => OthersChanges::None,
+            }
+        }),
+    }
+}
+
+fn since(raw: &str) -> Option<NaiveDateTime> {
+    let raw = raw.trim();
+    chrono::DateTime::parse_from_rfc3339(raw)
+        .map(|at| at.naive_utc())
+        .ok()
+        .or_else(|| {
+            NaiveDate::parse_from_str(raw, "%Y-%m-%d")
+                .ok()
+                .and_then(|day| day.and_hms_opt(0, 0, 0))
+        })
 }
 
 /// A repeated kind parameter (`romeka_kind`, `has_media_kind`), trimmed, with

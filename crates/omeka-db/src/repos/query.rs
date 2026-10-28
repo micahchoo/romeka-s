@@ -20,6 +20,7 @@ use sqlx::{Encode, Type};
 use super::Statement;
 use super::bind_id;
 use super::value_visibility::{bind_title_visible, bind_value_visibility};
+use super::work_filters::WorkFilters;
 use crate::DbError;
 use crate::backend::Backend;
 use crate::ids::{ItemSetId, PropertyId, SiteId, UserId};
@@ -127,6 +128,9 @@ pub struct QueryFilter {
     /// `id`, as the PHP integer casts of the values the query sent: items with one of these ids.
     /// `None` adds nothing; an empty list matches no item. Only the item kind renders it.
     pub ids: Option<Vec<i64>>,
+    /// Romeka's own item filters, which upstream has no parameter for
+    /// ([`super::work_filters`]). Only the item kind renders them.
+    pub work: WorkFilters,
 }
 
 impl QueryFilter {
@@ -141,6 +145,7 @@ impl QueryFilter {
             && self.item_set_ids.is_empty()
             && self.not_item_set_ids.is_empty()
             && self.ids.is_none()
+            && self.work == WorkFilters::default()
     }
 
     /// The additions for `ItemAdapter::buildQuery`.
@@ -211,7 +216,8 @@ impl QueryFilter {
             push_media_kind(statement, kinds)?;
             statement.push(")");
         }
-        push_item_sets(statement, "item_item_set.item_id = resource.id", self)
+        push_item_sets(statement, "item_item_set.item_id = resource.id", self)?;
+        self.work.push(statement)
     }
 
     /// The additions for `ItemSetAdapter::buildQuery`.

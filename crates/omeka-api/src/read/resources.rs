@@ -21,6 +21,7 @@ use super::paging::{Limit, Window, ordered_page};
 use super::params::Sort;
 use super::query::{
     SearchQuery, fulltext_matches, id_filter, id_matches, media_visibility, relevance_page,
+    work_filters,
 };
 use super::relations::{Page, Relations};
 use super::response::link_header;
@@ -113,11 +114,9 @@ async fn item_search(api: &Api<'_>, params: &Params) -> Result<SearchQuery, ApiE
         // not name, so the term table is loaded before the query resolves it.
         api.fill_catalog().await?;
     }
-    Ok(SearchQuery::parse(
-        params,
-        api.catalog(),
-        media_visibility(api.actor()),
-    ))
+    let mut search = SearchQuery::parse(params, api.catalog(), media_visibility(api.actor()));
+    search.filter.work = work_filters(params, api.actor());
+    Ok(search)
 }
 
 /// Every item row an items query selects for the caller, in id order, with no

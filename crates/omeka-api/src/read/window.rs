@@ -16,7 +16,7 @@
 //! paths over the same seeded database and asserts they answer the same page
 //! and the same total for every filter shape the fast path accepts.
 
-use omeka_db::repos::{ItemFilter, ItemRepo, ItemWindow};
+use omeka_db::repos::{ItemFilter, ItemRepo, ItemWindow, WorkFilters};
 use omeka_db::rows::ItemRow;
 use omeka_db::with_db;
 
@@ -52,6 +52,7 @@ pub(crate) fn eligible(
         && search.filter.has_media_kind.is_none()
         && search.filter.not_item_set_ids.is_empty()
         && search.filter.ids.is_none()
+        && search.filter.work == WorkFilters::default()
         && *sort == ResourceSort::ID_ASCENDING
 }
 

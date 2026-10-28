@@ -64,6 +64,7 @@ mod value_visibility;
 mod values;
 mod visible_counts;
 mod vocabularies;
+mod work_filters;
 
 pub use assets::{AssetFilter, AssetOwner, AssetRepo};
 pub use attachments::SiteBlockAttachmentRepo;
@@ -115,6 +116,7 @@ pub use visible_counts::{FieldCount, FieldCounts, LinkCount, SetItemCount};
 pub use vocabularies::{
     ClassFilter, ClassRepo, PropertyFilter, PropertyRepo, VocabularyFilter, VocabularyRepo,
 };
+pub use work_filters::{OthersChanges, WorkFilters};
 
 use serde_json::Value;
 use sqlx::query::Query;

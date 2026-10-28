@@ -314,6 +314,23 @@ A missing type and an id that is not a positive integer are the same 404. The an
 `Cache-Control: no-store`. `tests/field_counts.rs` holds every number against its list for
 anonymous, two non-admins and an admin.
 
+A fourth read gives the dashboard its "Needs attention" counts:
+
+| Route | Response |
+| --- | --- |
+| `GET /api/romeka/dashboard` | 200 `{no_item_set, no_resource_template, changed_by_others: {since, items}}` |
+
+Each count is the `Omeka-S-Total-Results` of `GET /api/items` for the same caller with one of
+Romeka's work filters, read through that list's own matching: `romeka_no_item_set=1` (items in no
+item set), `romeka_no_resource_template=1` (items with no item type), and
+`romeka_changed_by_others_since=<since>` (items with an item history entry at or after `since` by
+anyone but the caller; a system job, and a user since deleted, count as someone else). `since` is
+seven days before the read, to the second, as RFC 3339 UTC, so the link carries the exact list.
+The history filter keeps nothing for an anonymous caller or a `since` that is not an RFC 3339 time
+or a `YYYY-MM-DD` date. Upstream has no such parameters. The answer is `Cache-Control: no-store`.
+`tests/dashboard_counts.rs` holds every count against its list for anonymous, an author, an editor
+and an admin.
+
 ## Fixity
 
 A check of the stored originals against `media.sha256` (`src/fixity.rs`, logic in
@@ -334,6 +351,13 @@ check recorded. A job that is not a check, or a check with no result yet, is a 4
 keeps nothing for a caller who may not read jobs, the same as for a check that does not exist.
 `romeka_fixity` without a job reads the latest check with a result. Both reads answer
 `Cache-Control: no-store`. `crates/omeka-cli/tests/fixity.rs` holds each count against its list.
+
+A check whose process died would stand for a running check for good. `POST /api/romeka/fixity`
+first ends as `error` every check whose recorded process is gone (`omeka_api::dead_jobs`), with a
+log line that names the pid, so the start begins a new check. The derivative queue does the same
+before it reads its one-worker cap, and `romeka serve` does it for every job as it starts
+(`settle_dead_jobs`), where it also ends the `starting` jobs a stopped server's queue still held.
+Only Linux's `/proc` answers whether a pid lives; elsewhere a job is taken to be alive.
 
 ## Items CSV
 

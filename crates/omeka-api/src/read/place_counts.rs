@@ -220,3 +220,45 @@ pub async fn field_counts(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
             .collect(),
     })?))
 }
+
+/// How far back the dashboard's "changed by others" reaches.
+const CHANGED_DAYS: i64 = 7;
+
+#[derive(Serialize)]
+struct Dashboard {
+    no_item_set: usize,
+    no_resource_template: usize,
+    changed_by_others: ChangedByOthers,
+}
+
+#[derive(Serialize)]
+struct ChangedByOthers {
+    /// The `romeka_changed_by_others_since` value the count was read with, so the list it opens
+    /// is the same list.
+    since: String,
+    items: usize,
+}
+
+/// `GET /api/romeka/dashboard`: the dashboard's work counts. Each is the number of items the Items
+/// list answers this caller for its filter, read through that list's own matching: items in no
+/// set (`romeka_no_item_set=1`), with no item type (`romeka_no_resource_template=1`), and changed
+/// by someone else in the last seven days (`romeka_changed_by_others_since=<since>`).
+pub async fn dashboard(api: &Api<'_>) -> Result<ApiResponse, ApiError> {
+    let since = (chrono::Utc::now() - chrono::Duration::days(CHANGED_DAYS))
+        .format("%Y-%m-%dT%H:%M:%SZ")
+        .to_string();
+    Ok(ApiResponse::document(serialize(&Dashboard {
+        no_item_set: listed(api, "romeka_no_item_set", "1").await?,
+        no_resource_template: listed(api, "romeka_no_resource_template", "1").await?,
+        changed_by_others: ChangedByOthers {
+            items: listed(api, "romeka_changed_by_others_since", &since).await?,
+            since,
+        },
+    })?))
+}
+
+/// The total of `GET /api/items?<name>=<value>` for this caller.
+async fn listed(api: &Api<'_>, name: &str, value: &str) -> Result<usize, ApiError> {
+    let params = Params::from_decoded(vec![(name.to_string(), value.to_string())]);
+    Ok(super::matching_item_ids(api, &params, None).await?.len())
+}
