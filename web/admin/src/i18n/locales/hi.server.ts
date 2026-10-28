@@ -137,6 +137,8 @@ export const hiServer: ServerCatalogue = {
   'server.settingNotFlag': 'सेटिंग {key} सत्य, असत्य या नल होनी चाहिए।',
   'server.settingNotNames': 'सेटिंग {key} स्ट्रिंग्स की एक सूची या नल होनी चाहिए।',
   'server.settingNotCount': 'सेटिंग {key} शून्य से ऊपर एक पूर्ण संख्या या शून्य होनी चाहिए।',
+  'server.settingNotSavedLists':
+    'सेटिंग {key} नल या अधिकतम {most} सहेजी गई सूचियों की सूची होनी चाहिए, जिनमें से प्रत्येक का अपना नाम और क्वेरी हो।',
   'server.publicationTermsRemoved':
     'एक प्रकाशित शब्द को हटाया या उसका नाम बदला नहीं जा सकता: {terms}। इसके बजाय इसे अप्रचलित (deprecate) करें।',
   'server.publicationNamespaceFixed':

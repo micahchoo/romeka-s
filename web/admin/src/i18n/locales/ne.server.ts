@@ -134,6 +134,8 @@ export const neServer: ServerCatalogue = {
   'server.settingNotFlag': 'सेटिङ {key} सत्य, असत्य वा नल हुनुपर्छ।',
   'server.settingNotNames': 'सेटिङ {key} स्ट्रिङहरूको सूची वा नल हुनुपर्छ।',
   'server.settingNotCount': 'सेटिङ {key} शून्यभन्दा माथिको पूर्ण सङ्ख्या वा शून्य हुनुपर्छ।',
+  'server.settingNotSavedLists':
+    '{key} को setting null वा बढीमा {most} वटा बचत गरिएका lists को सूची हुनुपर्छ, जसमा प्रत्येकको आफ्नै नाम र query हुन्छ।',
   'server.publicationTermsRemoved':
     'प्रकाशित शब्दलाई हटाउन वा पुन: नामकरण गर्न सकिँदैन: {terms}। यसलाई यसको सट्टा डिप्रिकेट गर्नुहोस्।',
   'server.publicationNamespaceFixed':

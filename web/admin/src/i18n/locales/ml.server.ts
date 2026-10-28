@@ -143,6 +143,8 @@ export const mlServer: ServerCatalogue = {
   'server.settingNotNames': '{key} സ്ട്രിംഗുകളുടെ ഒരു ലിസ്റ്റ് അല്ലെങ്കിൽ നൾ ആയിരിക്കണം.',
   'server.settingNotCount':
     '{key} എന്ന ക്രമീകരണം പൂജ്യത്തിന് മുകളിലുള്ള ഒരു പൂർണ്ണസംഖ്യയോ, അല്ലെങ്കിൽ നള്ളോ ആയിരിക്കണം.',
+  'server.settingNotSavedLists':
+    '{key} എന്നത് പരമാവധി {most} സേവ് ചെയ്ത ലിസ്റ്റുകളുടെ ഒരു ലിസ്റ്റ് ആയിരിക്കണം, ഓരോന്നിനും സ്വന്തം പേരും ക്വറിയും ഉണ്ടായിരിക്കണം.',
   'server.publicationTermsRemoved':
     'പ്രസിദ്ധീകരിച്ച ഒരു പദം നീക്കം ചെയ്യാനോ പുനർനാമകരണം ചെയ്യാനോ കഴിയില്ല: {terms}. പകരം അത് ഡിപ്രിക്കേറ്റ് ചെയ്യുക.',
   'server.publicationNamespaceFixed':

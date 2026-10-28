@@ -49,6 +49,7 @@ const researcher: User = {
   isActive: true,
   localeSetting: null,
   lessons: { hidden: false, seen: [] },
+  savedLists: [],
   adminLocale: null,
 };
 

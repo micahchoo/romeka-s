@@ -215,6 +215,21 @@ export interface User {
    * a sign-in and `GET /api/me` carry it; `null` when neither setting exists.
    */
   readonly adminLocale: string | null;
+  /**
+   * The Items lists the user saved, the port-only `romeka_saved_lists`. Only the
+   * user's own read carries them (`GET /api/me`, a sign-in, their own account);
+   * any other read is none.
+   */
+  readonly savedLists: readonly SavedList[];
+}
+
+/**
+ * A saved list: a name, unique among the user's lists, and the Items screen's
+ * URL query it opens (`#/items?<query>`).
+ */
+export interface SavedList {
+  readonly name: string;
+  readonly query: string;
 }
 
 /** `romeka_hide_lessons` and `romeka_lessons_seen`, two port-only user settings. */
@@ -744,6 +759,8 @@ export interface UserSettingsWrite {
   readonly locale?: string | undefined;
   readonly lessonsHidden?: boolean | undefined;
   readonly lessonsSeen?: readonly string[] | undefined;
+  /** The whole list: `[]` removes every saved list. */
+  readonly savedLists?: readonly SavedList[] | undefined;
 }
 
 /**

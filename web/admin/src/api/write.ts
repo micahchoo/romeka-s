@@ -148,6 +148,9 @@ export const encodeUserSettings = (write: UserSettingsWrite): WireBody => ({
     ...(write.locale === undefined ? {} : { locale: write.locale }),
     ...(write.lessonsHidden === undefined ? {} : { romeka_hide_lessons: write.lessonsHidden }),
     ...(write.lessonsSeen === undefined ? {} : { romeka_lessons_seen: write.lessonsSeen }),
+    ...(write.savedLists === undefined
+      ? {}
+      : { romeka_saved_lists: write.savedLists.map(({ name, query }) => ({ name, query })) }),
   },
 });
 

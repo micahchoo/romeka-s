@@ -387,6 +387,7 @@ const user = (role: string, id: number): User => ({
   isActive: true,
   localeSetting: null,
   lessons: { hidden: false, seen: [] },
+  savedLists: [],
   adminLocale: null,
 });
 

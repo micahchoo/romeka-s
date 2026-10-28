@@ -138,6 +138,8 @@ export const mrServer: ServerCatalogue = {
   'server.settingNotFlag': '{key} हे सेटिंग सत्य, असत्य किंवा नल असणे आवश्यक आहे.',
   'server.settingNotNames': '{key} हे सेटिंग स्ट्रिंग्सची सूची किंवा नल असणे आवश्यक आहे.',
   'server.settingNotCount': '{key} ही शून्य पेक्षा मोठी पूर्ण संख्या किंवा null असणे आवश्यक आहे.',
+  'server.settingNotSavedLists':
+    '{key} ही सेटिंग शून्य किंवा जास्तीत जास्त {most} जतन केलेल्या सूचींची सूची असणे आवश्यक आहे, ज्यातील प्रत्येकाचे स्वतःचे नाव आणि क्वेरी आहे.',
   'server.publicationTermsRemoved':
     'प्रकाशित शब्द काढता येत नाही किंवा त्याचे नाव बदलता येत नाही: {terms}. त्याऐवजी ते अप्रचलित (deprecate) करा.',
   'server.publicationNamespaceFixed':

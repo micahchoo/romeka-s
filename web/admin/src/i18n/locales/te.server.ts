@@ -139,6 +139,8 @@ export const teServer: ServerCatalogue = {
   'server.settingNotNames': '{key} సెట్టింగ్ స్ట్రింగ్స్ యొక్క జాబితా లేదా నల్ ఉండాలి.',
   'server.settingNotCount':
     '{key} సెట్టింగ్ తప్పనిసరిగా సున్నా కంటే ఎక్కువ ఉన్న పూర్ణాంకం లేదా null అయి ఉండాలి.',
+  'server.settingNotSavedLists':
+    '{key} సెట్టింగ్ తప్పనిసరిగా నల్ లేదా గరిష్టంగా {most} సేవ్ చేసిన లిస్ట్‌ల జాబితా అయి ఉండాలి, ప్రతిదానికి స్వంత పేరు మరియు క్వెరీ ఉండాలి.',
   'server.publicationTermsRemoved':
     'ఒక పబ్లిష్డ్ టర్మ్ తొలగించలేము లేదా రీనేమ్ చేయలేము: {terms}. దానికి బదులుగా డిప్రికేట్ చేయండి.',
   'server.publicationNamespaceFixed':

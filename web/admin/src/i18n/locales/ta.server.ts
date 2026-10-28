@@ -145,6 +145,8 @@ export const taServer: ServerCatalogue = {
     '{key} என்பது சரங்களின் பட்டியலாக (list of strings) அல்லது null ஆக இருக்க வேண்டும்.',
   'server.settingNotCount':
     '{key} அமைப்பானது பூஜ்ஜியத்திற்கு மேலான முழு எண்ணாகவோ அல்லது null ஆகவோ இருக்க வேண்டும்.',
+  'server.settingNotSavedLists':
+    '{key} என்ற அமைப்பானது, அதிகபட்சமாக {most} சேமிக்கப்பட்ட பட்டியல்களில் ஒன்றாக இருக்க வேண்டும், ஒவ்வொன்றும் அதன் சொந்த பெயரையும் வினவலையும் கொண்டிருக்க வேண்டும்.',
   'server.publicationTermsRemoved':
     'வெளியிடப்பட்ட ஒரு கலைச்சொல்லை நீக்கவோ அல்லது மறுபெயரிடவோ முடியாது: {terms}. அதற்குப் பதிலாக அதை நீக்கவும் (deprecate).',
   'server.publicationNamespaceFixed':

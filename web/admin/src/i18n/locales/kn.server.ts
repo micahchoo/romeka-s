@@ -141,6 +141,8 @@ export const knServer: ServerCatalogue = {
   'server.settingNotNames': 'ಸೆಟ್ಟಿಂಗ್ {key} ಸ್ಟ್ರಿಂಗ್‌ಗಳ ಪಟ್ಟಿಯಾಗಿರಬೇಕು ಅಥವಾ ನಲ್ ಆಗಿರಬೇಕು.',
   'server.settingNotCount':
     '{key} ಸೆಟ್ಟಿಂಗ್ ಶೂನ್ಯಕ್ಕಿಂತ ಹೆಚ್ಚಿನ ಪೂರ್ಣ ಸಂಖ್ಯೆಯಾಗಿರಬೇಕು, ಅಥವಾ ಶೂನ್ಯವಾಗಿರಬೇಕು.',
+  'server.settingNotSavedLists':
+    '{key} ಸೆಟ್ಟಿಂಗ್ ಶೂನ್ಯ ಅಥವಾ ಗರಿಷ್ಠ {most} ಉಳಿಸಿದ ಪಟ್ಟಿಗಳ ಪಟ್ಟಿಯಾಗಿರಬೇಕು, ಪ್ರತಿಯೊಂದೂ ತನ್ನದೇ ಆದ ಹೆಸರು ಮತ್ತು ಕ್ವೆರಿಯನ್ನು ಹೊಂದಿರಬೇಕು.',
   'server.publicationTermsRemoved':
     'ಪ್ರಕಟಿತ ಪದವನ್ನು ತೆಗೆದುಹಾಕಲು ಅಥವಾ ಮರುನಾಮಕರಣ ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ: {terms}. ಅದನ್ನು ಬದಲಿಗೆ ಡಿಪ್ರಿಕೇಟ್ ಮಾಡಿ.',
   'server.publicationNamespaceFixed':

@@ -19,6 +19,7 @@ import type {
   Job,
   JsonValue,
   LessonSettings,
+  SavedList,
   Module,
   PageId,
   Path,
@@ -510,7 +511,24 @@ export const parseUser: Parser<User> = (raw, path = []) => {
     localeSetting: parseLocaleSetting(object, 'o:user_settings', path),
     lessons: parseLessonSettings(object, path),
     adminLocale: optionalString(object, 'o:admin_locale', path),
+    savedLists: parseSavedLists(object, path),
   };
+};
+
+const parseSavedList: Parser<SavedList> = (raw, path = []) => {
+  const object = asRecord(raw, path);
+  return {
+    name: asString(field(object, 'name', path), [...path, 'name']),
+    query: asString(field(object, 'query', path), [...path, 'query']),
+  };
+};
+
+/** `romeka_saved_lists` of `o:user_settings`; absent is none. */
+const parseSavedLists = (object: Record<string, unknown>, path: Path): readonly SavedList[] => {
+  const raw = object['o:user_settings'];
+  const at = [...path, 'o:user_settings'];
+  const lists = raw === undefined || raw === null ? undefined : asRecord(raw, at).romeka_saved_lists;
+  return lists === undefined ? [] : parseListOf(parseSavedList)(lists, [...at, 'romeka_saved_lists']);
 };
 
 /** The `locale` key of a settings map member, `null` when the map or the key is absent. */
