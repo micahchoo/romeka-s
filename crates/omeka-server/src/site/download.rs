@@ -32,7 +32,7 @@ pub(crate) async fn media(
     common: &Common<'_>,
     id: u64,
 ) -> Result<Outcome, SiteError> {
-    let Some(row) = with_db!(common.loader.pool(), |db| MediaRepo::new(db)
+    let Some(mut row) = with_db!(common.loader.pool(), |db| MediaRepo::new(db)
         .get(omeka_db::ids::MediaId::from(id))
         .await)?
     else {
@@ -54,6 +54,10 @@ pub(crate) async fn media(
     };
     // A source that names no file falls back to the media's display name plus
     // its extension, not to the storage id a reader cannot read.
+    common
+        .loader
+        .show_public_titles([&mut row.resource])
+        .await?;
     let name = media_display_title(&row, common.loader.messages());
     let fallback = match row.extension.as_deref() {
         Some(extension) => format!("{name}.{extension}"),

@@ -27,7 +27,7 @@ use omeka_site::i18n::Translator;
 use omeka_site::search::{FormOption, SearchHit, SiteRef};
 use omeka_site::slug::{page_url, site_url};
 
-use super::load::{Access, BrowseScope, display_title, site_from_row};
+use super::load::{Access, BrowseScope, display_title, show_public_titles, site_from_row};
 
 /// The select options the advanced search form offers.
 pub(crate) struct FormOptions {
@@ -132,15 +132,22 @@ pub(crate) async fn form_options(
         FormOption::new(row.id.0.to_string(), text)
     })
     .collect();
-    let mut item_sets = Vec::new();
+    let mut rows = Vec::new();
     for entry in with_db!(pool, |db| SiteRepo::new(db).list_item_sets(site).await)? {
         if let Some(row) = with_db!(pool, |db| ItemSetRepo::new(db).get(entry.item_set_id).await)? {
-            item_sets.push(FormOption::new(
-                entry.item_set_id.0.to_string(),
-                display_title(&row.resource, messages),
-            ));
+            rows.push(row);
         }
     }
+    show_public_titles(pool, rows.iter_mut().map(|row| &mut row.resource)).await?;
+    let item_sets = rows
+        .iter()
+        .map(|row| {
+            FormOption::new(
+                row.id().0.to_string(),
+                display_title(&row.resource, messages),
+            )
+        })
+        .collect();
     Ok(FormOptions {
         properties,
         classes,

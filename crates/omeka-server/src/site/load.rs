@@ -7,9 +7,9 @@
 //! does not thread four arguments through every call.
 
 use std::cmp::Ordering;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io::Write as _;
-use std::sync::LazyLock;
+use std::sync::{LazyLock, Mutex, PoisonError};
 
 use flate2::Compression;
 use flate2::write::GzEncoder;
@@ -35,8 +35,8 @@ use omeka_db::ids as db;
 use omeka_db::repos::{
     AssetRepo, ClassRepo, FulltextRepo, ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo,
     MediaAnnotationRepo, MediaDerivativeRepo, MediaExtentRepo, MediaFilter, MediaRepo,
-    MediaVisibility, Paging, ResourceRepo, SiteBlockAttachmentRepo, SiteFilter, SiteRepo,
-    TemplateRepo, ValueRepo, compare_opt_text_ci, compare_text_ci,
+    MediaVisibility, Paging, RelationRepo, ResourceRepo, SiteBlockAttachmentRepo, SiteFilter,
+    SiteRepo, TemplateRepo, ValueRepo, compare_opt_text_ci, compare_text_ci,
 };
 use omeka_db::rows::{
     AssetRow, DerivativeKind, DerivativeState, ItemRow, ItemSetRow, MediaRow, ResourceRow,
@@ -182,6 +182,14 @@ impl LoadedRow {
             Self::Media(row) => &row.resource,
         }
     }
+
+    fn resource_mut(&mut self) -> &mut ResourceRow {
+        match self {
+            Self::Item(row) => &mut row.resource,
+            Self::ItemSet(row) => &mut row.resource,
+            Self::Media(row) => &mut row.resource,
+        }
+    }
 }
 
 /// Where the bundled theme's files are served (`crate::assets`).
@@ -222,6 +230,56 @@ pub(crate) struct Loader<'a> {
     settings: &'a SiteSettings,
     /// The size and run time of a stored media, for a note's overlay and rail.
     extents: &'a dyn ExtentSource,
+    /// The public titles this render has learned ([`Loader::show_public_titles`]).
+    titles: Mutex<PublicTitles>,
+}
+
+/// The titles a visitor is shown, learned a batch at a time and kept for the render.
+///
+/// A resource's stored `title` is its first title value whatever that value's visibility
+/// (`ResourceTitleHydrator`). The site prints public values only, to every caller, so it names a
+/// resource by its first public title value, as the API does for an anonymous caller
+/// ([`RelationRepo::hidden_titles`]). A page learns every title it will print in a few queries,
+/// so a view built for one row asks the database nothing more.
+#[derive(Default)]
+struct PublicTitles {
+    /// Every resource id asked about.
+    asked: HashSet<u64>,
+    /// The title shown where the stored one came from a private value, `None` when no public
+    /// title value is left.
+    replaced: HashMap<u64, Option<String>>,
+}
+
+fn apply_title(replaced: &HashMap<u64, Option<String>>, row: &mut ResourceRow) {
+    if let Some(shown) = replaced.get(&row.id.0) {
+        row.title.clone_from(shown);
+    }
+}
+
+/// Give each row the title a visitor is shown, in one query.
+pub(crate) async fn show_public_titles<'r>(
+    pool: &DbPool,
+    rows: impl IntoIterator<Item = &'r mut ResourceRow>,
+) -> Result<(), DbError> {
+    let mut rows: Vec<&mut ResourceRow> = rows.into_iter().collect();
+    let ids: Vec<db::ResourceId> = rows.iter().map(|row| row.id).collect();
+    let replaced = replaced_titles(pool, &ids).await?;
+    for row in &mut rows {
+        apply_title(&replaced, row);
+    }
+    Ok(())
+}
+
+async fn replaced_titles(
+    pool: &DbPool,
+    ids: &[db::ResourceId],
+) -> Result<HashMap<u64, Option<String>>, DbError> {
+    Ok(with_db!(pool, |db| RelationRepo::new(db)
+        .hidden_titles(ids, MediaVisibility::Actor(None))
+        .await)?
+    .into_iter()
+    .map(|(id, shown)| (id.0, shown))
+    .collect())
 }
 
 /// The visibility facts one site render reads: the asking actor and what the
@@ -293,7 +351,93 @@ impl<'a> Loader<'a> {
             access,
             settings,
             extents,
+            titles: Mutex::default(),
         }
+    }
+
+    fn learned_titles(&self) -> std::sync::MutexGuard<'_, PublicTitles> {
+        self.titles.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// Learn, in one query, the public title of each resource this render has not asked about.
+    async fn learn_titles(
+        &self,
+        ids: impl IntoIterator<Item = db::ResourceId>,
+    ) -> Result<(), DbError> {
+        let ids: Vec<db::ResourceId> = {
+            let learned = self.learned_titles();
+            let mut fresh = HashSet::new();
+            ids.into_iter()
+                .filter(|id| !learned.asked.contains(&id.0) && fresh.insert(id.0))
+                .collect()
+        };
+        if ids.is_empty() {
+            return Ok(());
+        }
+        let replaced = replaced_titles(self.pool, &ids).await?;
+        let mut learned = self.learned_titles();
+        learned.asked.extend(ids.iter().map(|id| id.0));
+        learned.replaced.extend(replaced);
+        Ok(())
+    }
+
+    /// Give each row the title a visitor is shown. A title the render has learned costs no query.
+    pub(crate) async fn show_public_titles<'r>(
+        &self,
+        rows: impl IntoIterator<Item = &'r mut ResourceRow>,
+    ) -> Result<(), DbError> {
+        let mut rows: Vec<&mut ResourceRow> = rows.into_iter().collect();
+        self.learn_titles(rows.iter().map(|row| row.id)).await?;
+        let learned = self.learned_titles();
+        for row in &mut rows {
+            apply_title(&learned.replaced, row);
+        }
+        Ok(())
+    }
+
+    /// Learn the titles a list of resources prints, in a fixed number of queries whatever its
+    /// length: each resource's own, each item's media and item sets, every resource a value of
+    /// one points at, and every resource whose value points at one. `items` are the listed
+    /// resources that are items.
+    pub(crate) async fn learn_list_titles(
+        &self,
+        ids: &[db::ResourceId],
+        items: &[db::ItemId],
+    ) -> Result<(), DbError> {
+        let media = with_db!(self.pool, |db| RelationRepo::new(db)
+            .media_of_items(items)
+            .await)?;
+        let item_sets = with_db!(self.pool, |db| RelationRepo::new(db)
+            .item_sets_of_items(items)
+            .await)?;
+        let values = with_db!(self.pool, |db| RelationRepo::new(db)
+            .values_of(ids, MediaVisibility::Actor(None))
+            .await)?;
+        let pointing = with_db!(self.pool, |db| RelationRepo::new(db)
+            .values_pointing_at(ids, MediaVisibility::Actor(None))
+            .await)?;
+        self.learn_titles(
+            ids.iter()
+                .copied()
+                .chain(media.iter().map(|media| media.resource.id))
+                .chain(item_sets.iter().map(|(_, set)| set.as_resource()))
+                .chain(values.iter().filter_map(|value| value.value_resource_id))
+                .chain(pointing.iter().map(|value| value.resource_id)),
+        )
+        .await
+    }
+
+    /// [`Self::learn_list_titles`] for loaded rows.
+    async fn learn_page_titles(&self, rows: &[LoadedRow]) -> Result<(), DbError> {
+        let ids: Vec<db::ResourceId> = rows.iter().map(|row| row.resource().id).collect();
+        let items: Vec<db::ItemId> = rows
+            .iter()
+            .filter_map(|row| match row {
+                LoadedRow::Item(row) => Some(row.id()),
+                _ => None,
+            })
+            .collect();
+        self.learn_list_titles(&ids, &items).await
     }
 
     /// The caller's visibility facts for this site render.
@@ -617,6 +761,9 @@ impl<'a> Loader<'a> {
         item_is_public: bool,
         options: &RenderOptions,
     ) -> Result<MediaRef, DbError> {
+        let mut shown = row.clone();
+        self.show_public_titles([&mut shown.resource]).await?;
+        let row = &shown;
         let media_url = resource_show_url(&self.site.slug, "media", row.id().0);
         let alt_text = omeka_api::settings::media_alt_text(
             self.pool,
@@ -813,6 +960,9 @@ impl<'a> Loader<'a> {
         start: Option<MediaStart>,
         transcript: Option<&str>,
     ) -> Result<ResourceView, DbError> {
+        let mut shown = row.clone();
+        self.show_public_titles([&mut shown.resource]).await?;
+        let row = &shown;
         let mut view = self.base_view(ResourceKind::Media, &row.resource).await?;
         let title = media_display_title(row, self.messages());
         view.title = title.clone();
@@ -823,7 +973,9 @@ impl<'a> Loader<'a> {
         }
         let start = start.map(|start| start.clamped_to(view.duration_ms));
         let alt = title;
-        let item = with_db!(self.pool, |db| ItemRepo::new(db).get(row.item_id).await)?;
+        let mut item = with_db!(self.pool, |db| ItemRepo::new(db).get(row.item_id).await)?;
+        self.show_public_titles(item.iter_mut().map(|item| &mut item.resource))
+            .await?;
         let item_is_public = item.as_ref().is_some_and(|item| item.resource.is_public);
         if view.thumbnail.is_none() {
             view.thumbnail = media_thumbnail(self.files, row, item_is_public, &alt);
@@ -1140,7 +1292,7 @@ impl<'a> Loader<'a> {
     /// the item's position order. `None` when the caller cannot see the media
     /// itself, which the route refuses before this point anyway.
     async fn media_position(&self, row: &MediaRow) -> Result<Option<MediaPosition>, DbError> {
-        let media = with_db!(self.pool, |db| MediaRepo::new(db)
+        let mut media = with_db!(self.pool, |db| MediaRepo::new(db)
             .list(
                 &MediaFilter {
                     item_id: Some(row.item_id),
@@ -1149,6 +1301,8 @@ impl<'a> Loader<'a> {
                 &Paging::default()
             )
             .await)?;
+        self.show_public_titles(media.iter_mut().map(|entry| &mut entry.resource))
+            .await?;
         let visible: Vec<&MediaRow> = media
             .iter()
             .filter(|entry| {
@@ -1201,6 +1355,7 @@ impl<'a> Loader<'a> {
         if let Some(limit) = query.limit {
             rows.truncate(limit);
         }
+        self.learn_page_titles(&rows).await?;
         let mut resources = Vec::with_capacity(rows.len());
         for row in &rows {
             resources.push(self.view_of(row).await?);
@@ -1270,13 +1425,16 @@ impl<'a> Loader<'a> {
                     .sees_resource(resource.is_public, resource.owner_id)
             })
             .collect();
-        let rows: Vec<LoadedRow> = match &ranks {
+        let mut rows: Vec<LoadedRow> = match &ranks {
             Some(ranks) => rows
                 .into_iter()
                 .filter(|row| ranks.contains_key(&row.resource().id.0))
                 .collect(),
             None => rows,
         };
+        // Every row gets its public title before the sort reads it.
+        self.show_public_titles(rows.iter_mut().map(LoadedRow::resource_mut))
+            .await?;
         Ok(Filtered {
             rows,
             ranks,
@@ -1304,13 +1462,15 @@ impl<'a> Loader<'a> {
         };
         let rows = self.selected_rows(kind, query, scope).await?;
         let total = rows.len();
-        let mut resources = Vec::new();
-        for row in rows
+        let rows: Vec<LoadedRow> = rows
             .into_iter()
             .skip(page.saturating_sub(1).saturating_mul(per_page))
             .take(per_page)
-        {
-            resources.push(self.browse_resource(&row).await?);
+            .collect();
+        self.learn_page_titles(&rows).await?;
+        let mut resources = Vec::with_capacity(rows.len());
+        for row in &rows {
+            resources.push(self.browse_resource(row).await?);
         }
         Ok(BrowseView {
             kind,
@@ -1433,8 +1593,10 @@ impl<'a> Loader<'a> {
         let rows = self.selected_rows(kind, query, scope).await?;
         let total = rows.len();
         let take = limit.unwrap_or(usize::MAX);
-        let mut hits = Vec::with_capacity(rows.len().min(take));
-        for row in rows.iter().take(take) {
+        let rows = &rows[..rows.len().min(take)];
+        self.learn_page_titles(rows).await?;
+        let mut hits = Vec::with_capacity(rows.len());
+        for row in rows {
             hits.push(self.hit_of(row).await?);
         }
         Ok((hits, total))
@@ -1515,6 +1677,9 @@ impl<'a> Loader<'a> {
         kind: ResourceKind,
         row: &ResourceRow,
     ) -> Result<ResourceView, DbError> {
+        let mut shown = row.clone();
+        self.show_public_titles([&mut shown]).await?;
+        let row = &shown;
         let url = resource_show_url(&self.site.slug, controller_for(kind), row.id.0);
         let mut view = ResourceView::new(
             ResourceId::new(row.id.0),
@@ -1568,6 +1733,8 @@ impl<'a> Loader<'a> {
             }
             public.push(value);
         }
+        self.learn_titles(public.iter().filter_map(|value| value.value_resource_id))
+            .await?;
         let template = self.template_properties(row.resource_template_id).await?;
         let order: Option<Vec<u64>> = template
             .as_ref()
@@ -1727,11 +1894,11 @@ impl<'a> Loader<'a> {
     }
 
     async fn resource_title(&self, id: db::ResourceId) -> Result<String, DbError> {
-        Ok(
-            with_db!(self.pool, |db| ResourceRepo::new(db).get(id).await)?
-                .map(|row| display_title(&row, self.messages()))
-                .unwrap_or_default(),
-        )
+        let mut row = with_db!(self.pool, |db| ResourceRepo::new(db).get(id).await)?;
+        self.show_public_titles(row.iter_mut()).await?;
+        Ok(row
+            .map(|row| display_title(&row, self.messages()))
+            .unwrap_or_default())
     }
 
     /// The item's item sets, media and site pages, plus the resources that link
@@ -1752,18 +1919,21 @@ impl<'a> Loader<'a> {
         } else {
             Vec::new()
         };
-        for id in with_db!(self.pool, |db| ItemRepo::new(db)
+        let item_sets: Vec<db::ItemSetId> = with_db!(self.pool, |db| ItemRepo::new(db)
             .list_item_sets(row.id())
             .await)?
-        {
-            if exclude && !site_item_sets.contains(&id) {
-                continue;
-            }
-            if let Some(set) = with_db!(self.pool, |db| ItemSetRepo::new(db).get(id).await)?
+        .into_iter()
+        .filter(|id| !exclude || site_item_sets.contains(id))
+        .collect();
+        self.learn_titles(item_sets.iter().map(|id| id.as_resource()))
+            .await?;
+        for id in item_sets {
+            if let Some(mut set) = with_db!(self.pool, |db| ItemSetRepo::new(db).get(id).await)?
                 && self
                     .access
                     .sees_resource(set.resource.is_public, set.resource.owner_id)
             {
+                self.show_public_titles([&mut set.resource]).await?;
                 view.item_sets.push(ResourceRef {
                     url: resource_show_url(&self.site.slug, "item-set", set.id().0),
                     title: display_title(&set.resource, self.messages()),
@@ -1783,13 +1953,15 @@ impl<'a> Loader<'a> {
             )
             .await)?;
         let item_url = view.url.clone();
-        let visible: Vec<MediaRow> = media
+        let mut visible: Vec<MediaRow> = media
             .into_iter()
             .filter(|entry| {
                 self.access
                     .sees_resource(entry.resource.is_public, entry.resource.owner_id)
             })
             .collect();
+        self.show_public_titles(visible.iter_mut().map(|entry| &mut entry.resource))
+            .await?;
         // One summary read for every file's notes: the first file's are drawn
         // on the picture, and each tile of the strip names its own count.
         let ids: Vec<db::MediaId> = visible.iter().map(MediaRow::id).collect();
@@ -1868,13 +2040,15 @@ impl<'a> Loader<'a> {
     async fn linked_resources(&self, id: db::ResourceId) -> Result<Vec<LinkedResource>, DbError> {
         let exclude = self.settings.exclude_resources_not_in_site();
         let mut out = Vec::new();
-        for value in with_db!(self.pool, |db| ValueRepo::new(db)
+        let pointing: Vec<ValueRow> = with_db!(self.pool, |db| ValueRepo::new(db)
             .list_pointing_at(id, &Paging::default())
             .await)?
-        {
-            if !value.is_public {
-                continue;
-            }
+        .into_iter()
+        .filter(|value| value.is_public)
+        .collect();
+        self.learn_titles(pointing.iter().map(|value| value.resource_id))
+            .await?;
+        for value in pointing {
             let Some((kind, resource)) = self.value_resource_ref(value.resource_id).await? else {
                 continue;
             };
@@ -1932,7 +2106,7 @@ impl<'a> Loader<'a> {
         &self,
         id: db::ResourceId,
     ) -> Result<Option<(ResourceKind, ResourceRef)>, DbError> {
-        if let Some(row) = with_db!(self.pool, |dbp| ItemRepo::new(dbp)
+        if let Some(mut row) = with_db!(self.pool, |dbp| ItemRepo::new(dbp)
             .get(db::ItemId::from(id.0))
             .await)?
         {
@@ -1942,6 +2116,7 @@ impl<'a> Loader<'a> {
             {
                 return Ok(None);
             }
+            self.show_public_titles([&mut row.resource]).await?;
             let title = display_title(&row.resource, self.messages());
             let thumbnail = self.item_square_thumbnail(&row, &title).await?;
             return Ok(Some((
@@ -1955,7 +2130,7 @@ impl<'a> Loader<'a> {
                 },
             )));
         }
-        if let Some(row) = with_db!(self.pool, |dbp| ItemSetRepo::new(dbp)
+        if let Some(mut row) = with_db!(self.pool, |dbp| ItemSetRepo::new(dbp)
             .get(db::ItemSetId::from(id.0))
             .await)?
         {
@@ -1965,6 +2140,7 @@ impl<'a> Loader<'a> {
             {
                 return Ok(None);
             }
+            self.show_public_titles([&mut row.resource]).await?;
             let thumbnail = match row.resource.thumbnail_id {
                 Some(asset) => self.asset_thumbnail(asset).await?,
                 None => None,
@@ -1980,7 +2156,7 @@ impl<'a> Loader<'a> {
                 },
             )));
         }
-        if let Some(row) = with_db!(self.pool, |dbp| MediaRepo::new(dbp)
+        if let Some(mut row) = with_db!(self.pool, |dbp| MediaRepo::new(dbp)
             .get(db::MediaId::from(id.0))
             .await)?
         {
@@ -1990,6 +2166,7 @@ impl<'a> Loader<'a> {
             {
                 return Ok(None);
             }
+            self.show_public_titles([&mut row.resource]).await?;
             let title = media_display_title(&row, self.messages());
             let item_is_public = self.item_is_public(row.item_id).await?;
             let thumbnail = square_thumbnail(self.files, &row, item_is_public, &title);

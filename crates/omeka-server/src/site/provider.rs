@@ -320,6 +320,9 @@ async fn load_selection(
     match selection {
         ItemSelection::Picked(ids) => {
             let access = loader.access();
+            let items: Vec<db::ItemId> = ids.iter().map(|id| db::ItemId(id.get())).collect();
+            let resources: Vec<db::ResourceId> = items.iter().map(|id| id.as_resource()).collect();
+            loader.learn_list_titles(&resources, &items).await?;
             for id in ids {
                 let Some(row) = with_db!(loader.pool(), |dbp| ItemRepo::new(dbp)
                     .get(db::ItemId(id.get()))
@@ -455,6 +458,17 @@ async fn load_attachments(
     pendings: Vec<Pending>,
 ) -> Result<(), DbError> {
     let access = loader.access();
+    let items: Vec<db::ItemId> = pendings.iter().filter_map(|pending| pending.item).collect();
+    let ids: Vec<db::ResourceId> = items
+        .iter()
+        .map(|id| id.as_resource())
+        .chain(
+            pendings
+                .iter()
+                .filter_map(|p| p.media.map(|id| id.as_resource())),
+        )
+        .collect();
+    loader.learn_list_titles(&ids, &items).await?;
     let mut refs = Vec::with_capacity(pendings.len());
     for pending in &pendings {
         // `ResourceVisibilityFilter` drops a `SiteBlockAttachment` whose item or
