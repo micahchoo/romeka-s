@@ -66,7 +66,7 @@ pub use assets::{AssetFilter, AssetOwner, AssetRepo};
 pub use attachments::SiteBlockAttachmentRepo;
 pub use bulk::{BulkRepo, DescribedItem, PREVIEW_LASTS, RunsOf, UndoCandidate};
 pub use bulk_trash::{Trashed, Untrashed};
-pub use collation::{compare_opt_text_ci, compare_text_ci};
+pub use collation::{compare_natural, compare_opt_text_ci, compare_text_ci};
 pub use custom_vocabs::CustomVocabRepo;
 pub use database::DatabaseRepo;
 pub use fulltext::{FulltextMatch, FulltextRepo, has_word, match_expression};
@@ -96,7 +96,7 @@ pub use publications::{NewPublicationVersion, PublicationRepo};
 pub use query::{Joiner, MatchKind, MediaKindFilter, MediaVisibility, QueryFilter, ValueQuery};
 pub use relations::RelationRepo;
 pub use resource_reads::{ItemPage, ItemWindow};
-pub use resources::{ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo, ResourceRepo};
+pub use resources::{ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo, ResourceRepo, SortLabel};
 pub use rewrites::ValueRewriteRepo;
 pub use sessions::SessionRepo;
 pub use settings::{SettingRepo, SiteSettingRepo, UserSettingRepo};
@@ -105,7 +105,7 @@ pub use templates::TemplateRepo;
 pub use terms::{ClassTerm, PropertyTerm, TermRepo, TermScope};
 pub use user_uploads::UserUploadRepo;
 pub use users::{ApiKeyRepo, UserFilter, UserRepo};
-pub use values::ValueRepo;
+pub use values::{SortValue, ValueRepo};
 pub use visible_counts::{FieldCount, FieldCounts, LinkCount, SetItemCount};
 pub use vocabularies::{
     ClassFilter, ClassRepo, PropertyFilter, PropertyRepo, VocabularyFilter, VocabularyRepo,

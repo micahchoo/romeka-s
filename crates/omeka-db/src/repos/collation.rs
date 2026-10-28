@@ -17,6 +17,9 @@
 //!
 //! Closing either gap needs a custom collation. `SCHEMA-NOTES.md` divergence 7 records the same
 //! limit for the column collations the migration carries.
+//!
+//! [`compare_natural`] departs from upstream on purpose: it reads a digit run as a number, so a
+//! resource list sorted by title or by a field puts `AF_2` before `AF_10` (`docs/compat.md`).
 
 use std::cmp::Ordering;
 
@@ -55,11 +58,101 @@ pub fn compare_opt_text_ci(left: Option<&str>, right: Option<&str>) -> Ordering 
     }
 }
 
+/// Order two strings the way a shelf orders call numbers: a run of ASCII digits compares as the
+/// number it spells, and everything else compares as [`compare_text_ci`] does. So `AF_2` comes
+/// before `AF_10`, and `Box 2` before `box 10`.
+///
+/// Leading zeros do not count, so `a01` and `a1` tie; the caller breaks a tie (a list sort falls
+/// back to the id). A digit run of any length compares without overflow: by its length once the
+/// zeros are gone, then digit by digit.
+pub fn compare_natural(left: &str, right: &str) -> Ordering {
+    let (mut left, mut right) = (left.as_bytes(), right.as_bytes());
+    loop {
+        match (left.first(), right.first()) {
+            (None, None) => return Ordering::Equal,
+            (None, Some(_)) => return Ordering::Less,
+            (Some(_), None) => return Ordering::Greater,
+            (Some(l), Some(r)) if l.is_ascii_digit() && r.is_ascii_digit() => {
+                let (l_run, l_rest) = split_digits(left);
+                let (r_run, r_rest) = split_digits(right);
+                match compare_digit_runs(l_run, r_run) {
+                    Ordering::Equal => (left, right) = (l_rest, r_rest),
+                    order => return order,
+                }
+            }
+            (Some(l), Some(r)) => match l.to_ascii_lowercase().cmp(&r.to_ascii_lowercase()) {
+                Ordering::Equal => (left, right) = (&left[1..], &right[1..]),
+                order => return order,
+            },
+        }
+    }
+}
+
+fn split_digits(text: &[u8]) -> (&[u8], &[u8]) {
+    let end = text
+        .iter()
+        .position(|byte| !byte.is_ascii_digit())
+        .unwrap_or(text.len());
+    text.split_at(end)
+}
+
+fn compare_digit_runs(left: &[u8], right: &[u8]) -> Ordering {
+    let significant = |run: &[u8]| {
+        run.iter()
+            .position(|digit| *digit != b'0')
+            .unwrap_or(run.len())
+    };
+    let (left, right) = (&left[significant(left)..], &right[significant(right)..]);
+    left.len().cmp(&right.len()).then_with(|| left.cmp(right))
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used)]
 
     use super::*;
+
+    fn shelved(mut words: Vec<&str>) -> Vec<&str> {
+        words.sort_by(|left, right| compare_natural(left, right));
+        words
+    }
+
+    #[test]
+    fn a_digit_run_compares_as_its_number() {
+        assert_eq!(
+            shelved(vec!["AF_10", "AF_2", "AF_1", "AF_100"]),
+            ["AF_1", "AF_2", "AF_10", "AF_100"]
+        );
+        assert_eq!(
+            shelved(vec!["1950", "c. 1950", "950"]),
+            ["950", "1950", "c. 1950"]
+        );
+    }
+
+    #[test]
+    fn natural_order_folds_case_like_the_collation() {
+        assert_eq!(
+            shelved(vec!["box 10", "Box 2", "apple"]),
+            ["apple", "Box 2", "box 10"]
+        );
+        assert_eq!(compare_natural("AF_2", "af_2"), Ordering::Equal);
+    }
+
+    #[test]
+    fn leading_zeros_tie_and_long_runs_never_overflow() {
+        assert_eq!(compare_natural("a01", "a1"), Ordering::Equal);
+        assert_eq!(compare_natural("0", "00"), Ordering::Equal);
+        assert_eq!(
+            compare_natural("99999999999999999999999999", "100000000000000000000000000"),
+            Ordering::Less
+        );
+    }
+
+    #[test]
+    fn a_prefix_sorts_before_the_longer_text() {
+        assert_eq!(compare_natural("AF", "AF_1"), Ordering::Less);
+        assert_eq!(compare_natural("AF_1", "AF_1a"), Ordering::Less);
+    }
 
     #[test]
     fn folds_case_across_the_ascii_gap_like_the_oracle() {

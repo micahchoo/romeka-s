@@ -49,6 +49,15 @@ pub struct ItemSetFilter {
     pub is_open: Option<bool>,
 }
 
+/// The labels `AbstractResourceEntityAdapter::sortQuery` can order a list by:
+/// `resource_class_label`, `resource_template_label` and `owner_name`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SortLabel {
+    Class,
+    Template,
+    Owner,
+}
+
 /// `resource` rows: read, update and delete by the shared id.
 pub struct ResourceRepo<'a, DB: Backend = Sqlite> {
     pub(super) pool: &'a Pool<DB>,
@@ -79,6 +88,32 @@ where
             .fetch_optional(self.pool)
             .await?;
         row.as_ref().map(ResourceRow::from_db_row::<DB>).transpose()
+    }
+
+    /// The text each resource sorts by for one of `sortQuery`'s label sorts. A resource with no
+    /// class, no template or no owner is absent.
+    pub async fn sort_labels(
+        &self,
+        label: SortLabel,
+    ) -> Result<Vec<(ResourceId, String)>, DbError> {
+        let sql = match label {
+            SortLabel::Class => {
+                "SELECT r.id AS resource_id, c.label AS text FROM resource r \
+                 JOIN resource_class c ON c.id = r.resource_class_id"
+            }
+            SortLabel::Template => {
+                "SELECT r.id AS resource_id, t.label AS text FROM resource r \
+                 JOIN resource_template t ON t.id = r.resource_template_id"
+            }
+            SortLabel::Owner => {
+                "SELECT r.id AS resource_id, u.name AS text FROM resource r \
+                 JOIN user u ON u.id = r.owner_id"
+            }
+        };
+        let rows = sqlx::query(sql).fetch_all(self.pool).await?;
+        rows.iter()
+            .map(|row| Ok((DB::id(row, "resource_id")?, DB::text(row, "text")?)))
+            .collect()
     }
 
     /// Write the shared resource columns. `created` and `resource_type` never change; `modified`

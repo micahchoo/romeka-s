@@ -14,6 +14,14 @@ use crate::rows::{NewValue, ValueContent, ValueRow, ValueTree, resource_type};
 
 use super::resources::insert_resource;
 
+/// One value text a property sort reads ([`ValueRepo::sort_values`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SortValue {
+    pub resource_id: ResourceId,
+    pub text: String,
+    pub is_public: bool,
+}
+
 /// `value` rows.
 pub struct ValueRepo<'a, DB: Backend = Sqlite> {
     pub(super) pool: &'a Pool<DB>,
@@ -207,6 +215,29 @@ where
         .await?;
         rows.iter()
             .map(|row| Ok((DB::id(row, "resource_id")?, DB::text(row, "sort_text")?)))
+            .collect()
+    }
+
+    /// Every non-empty value text of one property, by resource and then in value id order: the
+    /// text `AbstractResourceEntityAdapter::sortQuery` concatenates per resource for
+    /// `sort_by=<term>`. The caller drops the values its reader may not see.
+    pub async fn sort_values(&self, property_id: PropertyId) -> Result<Vec<SortValue>, DbError> {
+        let rows = sqlx::query(
+            "SELECT resource_id, value, is_public FROM value \
+             WHERE property_id = ? AND value IS NOT NULL AND value <> '' \
+             ORDER BY resource_id, id",
+        )
+        .bind(bind_id(property_id))
+        .fetch_all(self.pool)
+        .await?;
+        rows.iter()
+            .map(|row| {
+                Ok(SortValue {
+                    resource_id: DB::id(row, "resource_id")?,
+                    text: DB::text(row, "value")?,
+                    is_public: DB::boolean(row, "is_public")?,
+                })
+            })
             .collect()
     }
 
