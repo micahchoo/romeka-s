@@ -9,14 +9,13 @@ import { linksQuery, placesApi } from '../../api/places';
 import type { RecordSummary } from '../../api/places';
 import type { PropertyId } from '../../api/types';
 import { ErrorNotice } from '../../app/errors';
+import { recordHref } from '../../app/record-href';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import type { KeyOf, MessageKey, TermLabels, Translator } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
 import { useTermLabels } from '../../i18n/termText';
-import { setPlaceHref } from '../item-sets/facts';
-import { mediaHref } from '../media/annotations/link';
 import type { LinksFilter } from './browse';
 
 /** The field the items link through, by term so its label translates. */
@@ -81,17 +80,6 @@ export const useLinksPlace = (links: LinksFilter | null, revision: number): Link
     return isUnavailable(state.error) ? { status: 'unavailable' } : { status: 'error', error: state.error };
   }
   return state.status === 'ready' && state.data !== null ? { status: 'ready', facts: state.data } : { status: 'loading' };
-};
-
-const recordHref = (record: RecordSummary): string => {
-  switch (record.kind) {
-    case 'items':
-      return `#/items/${String(record.id)}`;
-    case 'item_sets':
-      return setPlaceHref(record.id);
-    case 'media':
-      return mediaHref(record.id);
-  }
 };
 
 type Translate = Translator<MessageKey | KeyOf<typeof common> | KeyOf<typeof resources>>['t'];

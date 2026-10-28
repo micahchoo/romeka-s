@@ -4,9 +4,11 @@ import { api } from '../api/client';
 import { currentUser, setSession } from '../api/session';
 import { LOCALES, parseLocale, setLocale, useLocale, useTranslator } from '../i18n';
 import { AuthBadge, useSession } from './auth';
+import { JumpBox } from './jump-box';
 import { PAGE_GROUPS, PAGES } from './pages';
 import type { AdminPageId } from './pages';
 import { parseAuthRoute, parseHash, useHash } from './router';
+import { SavedListLinks } from './saved-list-links';
 import { useAsync } from './useAsync';
 
 /**
@@ -162,6 +164,7 @@ const NavLink = ({ id, active }: { readonly id: AdminPageId; readonly active: bo
       <a className="nav-link" href={`#/${id}`} aria-current={active ? 'page' : undefined}>
         {t(PAGES[id].titleKey)}
       </a>
+      {id === 'items' ? <SavedListLinks /> : null}
     </li>
   );
 };
@@ -286,6 +289,7 @@ export const Shell = (): ReactElement => {
     <div className="shell">
       <header className="app-header">
         <span className="app-title">{t('app.title')}</span>
+        <JumpBox />
         <VersionBadge />
         <LocaleSwitch />
         <AuthBadge />

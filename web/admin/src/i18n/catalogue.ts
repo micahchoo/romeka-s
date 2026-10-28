@@ -73,6 +73,10 @@ export const en = {
   'nav.advanced': 'Advanced',
   'page.itemTypes': 'Item types',
   'page.standards': 'Standards',
+  // The jump-to box in the header and the saved lists under Items.
+  'jump.label': 'Jump to a record',
+  'jump.placeholder': '#id, identifier or title',
+  'nav.savedLists': 'Saved lists',
 } as const;
 
 /** Every message id in the catalogue. A key the English catalogue names. */

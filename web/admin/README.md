@@ -133,6 +133,23 @@ render the header and their own page, with no admin navigation:
   filters and order, every page. The query comes from `everyMatchQuery` in `pages/items/browse.ts`,
   the function the list page query is built from, so a new filter reaches the file. With ticked rows
   it also offers "Download the 3 ticked items as CSV": those ids, in the screen's order.
+- The header's jump-to box (`app/jump-box.tsx`) opens a record from anywhere. `#4021` reads
+  `GET /api/resources/4021` and opens the item, the set's place or the media. Other text runs
+  property searches over items, item sets and media, and stops at the first step that matches:
+  `dcterms:identifier` `eq`, then `dcterms:title` `eq`, then `dcterms:title` `in`
+  (`app/jump-lookup.ts`). One match opens; several list under the box, ten at most, with each
+  record's kind and the total; none reads "No record that you can see matches". Every read is the
+  caller's, so a hidden record answers like a missing one. `/` focuses the box when focus is not in
+  a text field; on the Items screen `/` keeps its own search box. Escape clears the box. The answer
+  is its own chunk (`app/jump.tsx`).
+- On the Items screen, "Save this list" names the screen's filters and order
+  (`pages/items/saved-lists.tsx`, its own chunk). The list is `{name, query}` in the user's
+  `romeka_saved_lists` setting, where `query` is the screen's URL query without the page and the
+  view (`savedQuery` in `pages/items/browse.ts`), so a new filter is saved with no change here. The
+  nav lists the names under Items (`app/saved-list-links.tsx`), from the session's user, each a link
+  to `#/items?<query>`; the one open is marked. On a saved list the screen reads "Saved list: <name>"
+  with Rename and Delete. Each change reads `GET /api/me` first, applies to that answer and writes
+  the whole list, so a list saved in another browser is kept.
 - `#/users` lists users. `#/users/new` invites one: it creates the row and then mints the one-time
   password link, which the page shows with a copy control. `#/users/<id>` edits one and can mint
   another link.
@@ -585,6 +602,7 @@ The teardown stops both servers and deletes the temporary directory.
 | `e2e/specs/locale.spec.ts` | Switches the shell to Spanish, asserts the labels and the nav change and the choice is stored, reloads to see it kept, then switches back to English. |
 | `e2e/specs/public-site.spec.ts` | Reads the site slug off the admin sites table and loads the port's `/s` routes for it. |
 | `e2e/specs/sign-in.spec.ts` | Signs in through the header form with the run's minted key, asserts the key survives a reload and rides on the next `/api` request, signs out and asserts it is gone, then has a malformed key refused with no request. Also signs in with the administrator's email and password, asserts the browser set the `Origin` header the server checks for a write, that the session cookie is not readable from the page, that the reload keeps the session and that a sign-out revokes it. |
+| `e2e/specs/finding.spec.ts` | Jumps from the header box to an identifier, to a `#<id>` set and to a title two items share, and has a miss said and cleared. Saves a searched, title-ordered Items list, opens it from the nav of a second browser, renames it and deletes it. |
 | `e2e/specs/password.spec.ts` | Invites a user from the users page, follows the link the mint answered, sets a password, then reuses the link and asserts the one-time key is refused with the server's message. Then opens a keyless password link, follows the reset form and asserts the request answers for an address that has no account. |
 
 ### Running one spec

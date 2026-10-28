@@ -66,4 +66,7 @@ export const ta: Catalogue = {
   'nav.advanced': 'மேம்பட்ட',
   'page.itemTypes': 'உருப்படி வகைகள்',
   'page.standards': 'தரநிலைகள்',
+  'jump.label': 'ஒரு பதிவிற்குச் செல்லவும்',
+  'jump.placeholder': '#id, அடையாளங்காட்டி அல்லது தலைப்பு',
+  'nav.savedLists': 'சேமிக்கப்பட்ட பட்டியல்கள்',
 };

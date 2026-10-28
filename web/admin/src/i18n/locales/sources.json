@@ -54,5 +54,8 @@
  "group.describe": "Describe",
  "nav.advanced": "Advanced",
  "page.itemTypes": "Item types",
- "page.standards": "Standards"
+ "page.standards": "Standards",
+ "jump.label": "Jump to a record",
+ "jump.placeholder": "#id, identifier or title",
+ "nav.savedLists": "Saved lists"
 }

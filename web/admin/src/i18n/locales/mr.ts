@@ -65,4 +65,7 @@ export const mr: Catalogue = {
   'nav.advanced': 'प्रगत',
   'page.itemTypes': 'घटकांचे प्रकार',
   'page.standards': 'मानके',
+  'jump.label': 'नोंदीवर जा',
+  'jump.placeholder': '#id, ओळखकर्ता किंवा शीर्षक',
+  'nav.savedLists': 'जतन केलेल्या याद्या',
 };

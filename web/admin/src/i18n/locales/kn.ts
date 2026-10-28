@@ -66,4 +66,7 @@ export const kn: Catalogue = {
   'nav.advanced': 'ಸುಧಾರಿತ',
   'page.itemTypes': 'ಅಂಶಗಳ ವಿಧಗಳು',
   'page.standards': 'ಮಾನದಂಡಗಳು',
+  'jump.label': 'ದಾಖಲೆಯನ್ನು ಜಿಗಿಯಿರಿ',
+  'jump.placeholder': '#id, ಗುರುತಿಸುವಿಕೆ ಅಥವಾ ಶೀರ್ಷಿಕೆ',
+  'nav.savedLists': 'ಉಳಿಸಿದ ಪಟ್ಟಿಗಳು',
 };

@@ -65,4 +65,7 @@ export const hi: Catalogue = {
   'nav.advanced': 'उन्नत',
   'page.itemTypes': 'आइटम प्रकार',
   'page.standards': 'मानक',
+  'jump.label': 'रिकॉर्ड पर जाएँ',
+  'jump.placeholder': '#id, पहचानकर्ता या शीर्षक',
+  'nav.savedLists': 'सहेजी गई सूचियाँ',
 };

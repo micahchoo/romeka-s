@@ -65,4 +65,7 @@ export const ne: Catalogue = {
   'nav.advanced': 'उन्नत',
   'page.itemTypes': 'वस्तुका प्रकारहरू',
   'page.standards': 'मानकहरू',
+  'jump.label': 'रेकर्डमा जानुहोस्',
+  'jump.placeholder': '#id, पहिचानकर्ता वा शीर्षक',
+  'nav.savedLists': 'सुरक्षित गरिएका सूचीहरू',
 };

@@ -55,18 +55,29 @@ export const parseHash = (hash: string): RouteMatch | null => {
   return { page: slug, param: rest[0] ?? null, rest };
 };
 
-/** The current hash, tracked so a route change re-renders the shell. */
-export const useHash = (): string => {
+/** The event `replaceHashQuery` sends, since `history.replaceState` sends none. */
+const QUERY_REPLACED = 'romeka:query-replaced';
+
+/**
+ * The current hash, tracked so a route change re-renders the shell. With `queries`, a list's
+ * query written in place (`replaceHashQuery`) re-renders too, for a reader of the whole address
+ * such as the nav's saved lists.
+ */
+export const useHash = (queries = false): string => {
   const [hash, setHash] = useState(() => window.location.hash);
   useEffect(() => {
     const onChange = (): void => {
       setHash(window.location.hash);
     };
     window.addEventListener('hashchange', onChange);
+    if (queries) {
+      window.addEventListener(QUERY_REPLACED, onChange);
+    }
     return () => {
       window.removeEventListener('hashchange', onChange);
+      window.removeEventListener(QUERY_REPLACED, onChange);
     };
-  }, []);
+  }, [queries]);
   return hash;
 };
 
@@ -107,6 +118,7 @@ export const replaceHashQuery = (route: string, query: URLSearchParams): void =>
   const search = query.toString();
   const hash = `#/${route}${search === '' ? '' : `?${search}`}`;
   window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${hash}`);
+  window.dispatchEvent(new Event(QUERY_REPLACED));
 };
 
 /**

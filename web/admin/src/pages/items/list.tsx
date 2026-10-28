@@ -19,7 +19,7 @@ import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
 import { BulkEditBar } from './BulkEditBar';
 import { BulkSiteActions } from './BulkSiteActions';
-import { activeFilters, browseQuery, formatBrowse, parseBrowse, withFilters, withoutFilter, withoutFilters } from './browse';
+import { activeFilters, browseQuery, formatBrowse, parseBrowse, savedQuery, withFilters, withoutFilter, withoutFilters } from './browse';
 import type { BrowseFilters, ItemBrowse, View } from './browse';
 import { loadBrowseOptions, NO_OPTIONS } from './browse-options';
 import { CsvDownload } from './csv-download';
@@ -37,6 +37,9 @@ import './browse.css';
 
 /** The Undo notice after the item page's delete: its own chunk, loaded only after one. */
 const TrashedNotice = lazy(() => import('./trashed-notice'));
+
+/** "Save this list", or the saved list's name with Rename and Delete: its own chunk. */
+const SavedListBar = lazy(() => import('./saved-lists'));
 
 const VIEW_KEY = 'romeka.items.view';
 const SEARCH_SETTLE_MS = 300;
@@ -303,6 +306,9 @@ export const ItemsList = (): ReactElement => {
         }}
         onClearAll={onClearAll}
       />
+      <Suspense fallback={null}>
+        <SavedListBar key={savedQuery(state)} state={state} />
+      </Suspense>
       {hidden ? null : <BulkSiteActions picked={picked} />}
       {shown === null || hidden ? null : (
         <BulkEditBar

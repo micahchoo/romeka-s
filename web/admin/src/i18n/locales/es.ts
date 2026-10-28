@@ -68,4 +68,8 @@ export const es: Catalogue = {
   'nav.advanced': 'Avanzado',
   'page.itemTypes': 'Tipos de elemento',
   'page.standards': 'Estándares',
+  // The jump-to box in the header and the saved lists under Items.
+  'jump.label': 'Ir a un registro',
+  'jump.placeholder': '#id, identificador o título',
+  'nav.savedLists': 'Listas guardadas',
 };

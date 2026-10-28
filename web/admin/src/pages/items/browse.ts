@@ -246,6 +246,15 @@ export const formatBrowse = (state: ItemBrowse): URLSearchParams => {
   );
 };
 
+/**
+ * The query a saved list stores: the filters and the order, without the page and the view. The
+ * nav compares it with the open address the same way (`app/saved-list-links.tsx`).
+ */
+export const savedQuery = (state: ItemBrowse): string => formatBrowse({ ...state, view: 'table', page: 1 }).toString();
+
+/** Whether the browse narrows or orders the list, so saving it says more than "every item". */
+export const isSavable = (state: ItemBrowse): boolean => savedQuery(state) !== '';
+
 type SortQuery = Pick<ResourceQuery, 'sortBy' | 'sortOrder'>;
 
 const COLUMN_QUERY: Readonly<Record<ColumnSort, SortQuery>> = {

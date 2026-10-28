@@ -97,6 +97,38 @@ a {
   font-variant-numeric: tabular-nums;
 }
 
+/* The jump-to box follows the title; its answer (`app/jump.css`) hangs under
+ * it. The `/` key cap says how to reach it from anywhere. */
+.jump {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: 1 1 14rem;
+  max-width: 24rem;
+}
+
+.jump-input {
+  width: 100%;
+  padding-inline-end: 28px;
+}
+
+.jump-key {
+  position: absolute;
+  inset-inline-end: 6px;
+  padding: 0 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-family: var(--font);
+  font-size: 11px;
+  line-height: 16px;
+  pointer-events: none;
+}
+
+.jump-input:focus + .jump-key {
+  display: none;
+}
+
 /* The locale switch sits between the version and the auth badge, and stays a
  * compact baseline-aligned control in the header row. */
 .locale-switch {
@@ -179,7 +211,38 @@ a {
   white-space: nowrap;
 }
 
+/* The saved lists under Items: inline after it in the phone strip, an indented
+ * run under it on the rail. */
+li:has(> .nav-saved) {
+  display: flex;
+  align-items: baseline;
+}
+
+.nav-saved .nav-link {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.nav-saved .nav-link[aria-current="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 @media (min-width: 900px) {
+  li:has(> .nav-saved) {
+    display: block;
+  }
+
+  .nav-saved {
+    margin-top: 2px;
+    padding-inline-start: var(--space-3);
+  }
+
+  .nav-saved .nav-link {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .nav-sub {
     display: block;
   }

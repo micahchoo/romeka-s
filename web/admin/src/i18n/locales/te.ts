@@ -65,4 +65,7 @@ export const te: Catalogue = {
   'nav.advanced': 'అధునాతన',
   'page.itemTypes': 'అంశాల రకాలు',
   'page.standards': 'ప్రమాణాలు',
+  'jump.label': 'రికార్డుకు వెళ్లండి',
+  'jump.placeholder': '#id, గుర్తింపు సంఖ్య లేదా శీర్షిక',
+  'nav.savedLists': 'సేవ్ చేసిన జాబితాలు',
 };

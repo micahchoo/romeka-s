@@ -66,4 +66,7 @@ export const ml: Catalogue = {
   'nav.advanced': 'വിപുലമായ',
   'page.itemTypes': 'ഇനങ്ങളുടെ തരങ്ങൾ',
   'page.standards': 'മാനദണ്ഡങ്ങൾ',
+  'jump.label': 'റെക്കോർഡിലേക്ക് പോകുക',
+  'jump.placeholder': '#id, തിരിച്ചറിയൽ നമ്പർ അല്ലെങ്കിൽ തലക്കെട്ട്',
+  'nav.savedLists': 'സംരക്ഷിച്ച പട്ടികകൾ',
 };

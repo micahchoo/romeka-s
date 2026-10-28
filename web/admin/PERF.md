@@ -1054,4 +1054,23 @@ round trip median 10.3 ms of 400 ms, first contentful paint 76.0 ms of 250 ms.
 That is 104 B more room than Decision 20 left (2360 B) and 96 B less than the 2.5 KB this unit was
 asked to leave. The per-chunk ceilings do not move; the largest lazy chunk is 9804 B.
 
+## Decision 32: the jump-to box and the saved list links cost the shell 849 B (accepted, no budget change)
+
+**Measured.** `vite build` then `node perf/bundle.mjs`, one build each. Main at `9e450680`: initial
+js 85464 B gzip, initial css 5585 B. The finding unit's tree: initial js 86313 B, initial css
+5741 B. The shell grew 849 B of js and 156 B of css, under the 87552 B and 6144 B ceilings.
+
+**What is in the shell.** Only what paints before any route: the jump-to box and its `/` key
+(`app/jump-box.tsx`), the saved list links under Items (`app/saved-list-links.tsx`), the
+`romeka_saved_lists` member of the user parser, the event `replaceHashQuery` sends so the nav marks
+the open list, and three shell catalogue keys. The links need no request: the names come with
+`GET /api/me`, which the shell already reads.
+
+**What is not.** The lookup and its answer are the `jump` chunk (1163 B gzip, and 376 B of css),
+fetched on the first Enter. "Save this list" with Rename and Delete is the `saved-lists` chunk
+(1426 B), fetched with the Items screen. Their strings are the `finding` namespace (801 B in
+English).
+
+**Budget.** No ceiling moves. 1239 B of initial js room is left.
+
 

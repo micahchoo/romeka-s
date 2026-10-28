@@ -134,6 +134,42 @@ button.private-cue:hover:not(:disabled) {
   color: var(--text-muted);
 }
 
+/* "Saved list: <name>" with Rename and Delete, or "Save this list" and its
+ * name form, on one wrapping row under the chips. */
+.saved-list,
+.saved-list-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin: 0 0 var(--space-2);
+}
+
+.saved-list-name {
+  margin: 0;
+  font-weight: 600;
+}
+
+.saved-list-form input {
+  flex: 0 1 20rem;
+  min-width: 0;
+}
+
+.saved-list-where,
+.saved-list-problem {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.saved-list-where {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.saved-list-problem {
+  color: var(--danger);
+}
+
 .items-download {
   display: flex;
   flex-wrap: wrap;
