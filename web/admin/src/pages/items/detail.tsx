@@ -6,7 +6,6 @@ import { currentUser, subscribeSession } from '../../api/session';
 import type { ClassId, Item, ItemId, ItemSetId, Media, MediaId, SiteId, User, UserId } from '../../api/types';
 import { fromBrowserEntry, fromDrop } from '../../app/upload/pick';
 import type { Picked } from '../../app/upload/pick';
-import { DeleteControl } from '../../app/delete';
 import { formatDateTime } from '../../app/format';
 import { ErrorNotice } from '../../app/errors';
 import { EditPanel } from '../../app/fields';
@@ -47,6 +46,9 @@ const ItemNotesSections = lazy(() =>
 
 /** "Linked from": its own chunk, shared with the set card. */
 const LinkedFrom = lazy(() => import('./linked-from'));
+
+/** The delete's confirm: its own chunk, loaded when the person presses Delete. */
+const TrashItem = lazy(() => import('./trash-item'));
 
 /** The file viewer: its own chunk, and the media page's stage loads inside it. */
 const MediaViewer = lazy(() =>
@@ -265,6 +267,51 @@ const useWindowFiles = (
   }, [enabled, onDropFiles]);
 
   return { count };
+};
+
+/**
+ * "Delete this item", which opens the trash confirm in place. Cancel closes it and gives focus
+ * back to the button.
+ */
+const ItemDelete = ({ item, name }: { readonly item: ItemId; readonly name: string }): ReactElement => {
+  const { t } = useTranslator(resources);
+  const [open, setOpen] = useState(false);
+  const opener = useRef<HTMLButtonElement>(null);
+  const closed = useRef(false);
+  useEffect(() => {
+    if (!open && closed.current) {
+      opener.current?.focus();
+    }
+  }, [open]);
+  if (open) {
+    return (
+      <Suspense fallback={<p role="status">…</p>}>
+        <TrashItem
+          item={item}
+          name={name}
+          onCancel={() => {
+            closed.current = true;
+            setOpen(false);
+          }}
+        />
+      </Suspense>
+    );
+  }
+  return (
+    <section className="delete-control">
+      <p>
+        <button
+          ref={opener}
+          type="button"
+          onClick={() => {
+            setOpen(true);
+          }}
+        >
+          {t('items.deleteLabel')}
+        </button>
+      </p>
+    </section>
+  );
 };
 
 export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElement => {
@@ -547,14 +594,7 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
         <ItemEditForm item={item} onSaved={setEdited} saveNext={walk === null ? null : saveNextHref(walk)} />
       </EditPanel>
 
-      <DeleteControl
-        label={t('items.deleteLabel')}
-        rowName={item.title ?? t('items.rowName', { id: item.id })}
-        onConfirm={async () => {
-          await api.deleteItem(item.id);
-          window.location.hash = '#/items';
-        }}
-      />
+      <ItemDelete item={item.id} name={item.title ?? t('items.rowName', { id: item.id })} />
     </section>
   );
 };

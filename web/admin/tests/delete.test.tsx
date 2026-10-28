@@ -4,12 +4,14 @@
  * it sends is the request the server would get. Every surface is covered: the
  * method and URL per resource, the confirmation gate that holds the request
  * back, the API message a refusal or a missing row renders, and the list the
- * page returns to after a success.
+ * page returns to after a success. The item page's delete moves the item to the
+ * trash (a bulk delete of it alone) and never sends DELETE.
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { Mock } from 'vitest';
 import {
+  isRecord,
   isUnknownArray,
   itemSetIdFromParam,
   userIdFromParam,
@@ -28,6 +30,7 @@ import {
   installFetch,
   jsonResponse,
   listResponse,
+  requestBody,
   requestsFor,
   type CapturedRequest,
   type Handler,
@@ -75,15 +78,45 @@ const optionOrNotFound = (url: URL, init: RequestInit | undefined): Response => 
   return handler === undefined ? notFound() : handler(url, init);
 };
 
-/** The item show page: the row, its media list, what links to it, and the form reference lists. */
+/** A one-item delete preview of item 1, as `POST /api/romeka/bulk` answers it. */
+const itemPreview = (overrides: Record<string, unknown> = {}): Record<string, unknown> => ({
+  id: 7,
+  status: 'previewed',
+  kind: 'delete',
+  total: 1,
+  denied: 0,
+  media: 0,
+  bytes: 0,
+  trashDays: 30,
+  samples: [{ id: 1, title: 'Fixture Item One' }],
+  ...overrides,
+});
+
+const trashedRun = (): unknown => {
+  const done = loadFixture('bulk/delete-done.json');
+  return {
+    ...(isRecord(done) ? done : {}),
+    id: 7,
+    query: { id: [1] },
+    total: 1,
+    done: 1,
+    counts: { pending: 0, done: 1, unchanged: 0, failed: 0, restored: 0, kept: 0 },
+  };
+};
+
+/** The bulk routes behind the item page's delete: the preview `preview` answers, the run, the done run. */
+const trashRoutes = (preview: () => Response): Readonly<Record<string, Handler>> => ({
+  '/api/romeka/bulk': preview,
+  '/api/romeka/bulk/7/run': () => jsonResponse({ jobId: 3 }),
+  '/api/romeka/bulk/7': () => jsonResponse(trashedRun()),
+});
+
+/** The item show page: the row, its media list, what links to it, the form reference lists, and the trash. */
 const itemDetailHandler =
-  (deleteResponse: () => Response): Handler =>
+  (preview: () => Response): Handler =>
   (url, init) => {
     if (url.pathname === '/api/items/1') {
-      if (init?.method === 'DELETE') {
-        return deleteResponse();
-      }
-      return jsonResponse(itemFixture());
+      return init?.method === 'DELETE' ? notFound() : jsonResponse(itemFixture());
     }
     if (url.pathname === '/api/romeka/links/1') {
       return jsonResponse(loadFixture('places/links-none.json'));
@@ -93,8 +126,11 @@ const itemDetailHandler =
         headers: { 'Omeka-S-Total-Results': '3' },
       });
     }
-    return optionOrNotFound(url, init);
+    const trash = trashRoutes(preview)[url.pathname];
+    return trash === undefined ? optionOrNotFound(url, init) : trash(url, init);
   };
+
+const previewed = (): Response => jsonResponse(itemPreview(), { status: 201 });
 
 const deletedRequests = (
   fetchMock: Mock<typeof fetch>,
@@ -110,44 +146,45 @@ if (itemSetId === null || userId === null) {
 
 describe('the confirmation gate', () => {
   it('delete_holds_the_request_until_the_confirmation_names_the_row', async () => {
-    const fetchMock = installFetch(itemDetailHandler(() => jsonResponse(detached(itemFixture()))));
+    const fetchMock = installFetch(itemDetailHandler(previewed));
     render(<ItemsPage param="1" />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Delete this item' }));
 
-    expect(
-      screen.getByText('Delete Fixture Item One? This cannot be undone.'),
-    ).toBeInTheDocument();
-    expect(deletedRequests(fetchMock, '/api/items/1')).toHaveLength(0);
+    expect(await screen.findByText('Move Fixture Item One to the trash?')).toBeInTheDocument();
+    expect(requestsFor(fetchMock, '/api/romeka/bulk/7/run')).toHaveLength(0);
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(deletedRequests(fetchMock, '/api/items/1')).toHaveLength(0);
+    expect(requestsFor(fetchMock, '/api/romeka/bulk/7/run')).toHaveLength(0);
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete this item' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Delete Fixture Item One' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Move to the trash' }));
 
     await waitFor(() => {
-      expect(deletedRequests(fetchMock, '/api/items/1')).toHaveLength(1);
+      expect(requestsFor(fetchMock, '/api/romeka/bulk/7/run')).toHaveLength(1);
     });
+    expect(deletedRequests(fetchMock, '/api/items/1')).toHaveLength(0);
     window.location.hash = '';
   });
 });
 
 describe('the request per resource', () => {
-  it('item_delete_sends_delete_to_the_items_row_and_returns_to_the_list', async () => {
-    const fetchMock = installFetch(itemDetailHandler(() => jsonResponse(detached(itemFixture()))));
+  it('item_delete_moves_the_item_alone_to_the_trash_and_returns_to_the_list', async () => {
+    const fetchMock = installFetch(itemDetailHandler(previewed));
     render(<ItemsPage param="1" />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Delete this item' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Delete Fixture Item One' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Move to the trash' }));
 
     await waitFor(() => {
-      expect(deletedRequests(fetchMock, '/api/items/1')).toHaveLength(1);
+      expect(window.location.hash).toBe('#/items');
     });
-    const request = first(deletedRequests(fetchMock, '/api/items/1'));
-    expect(request.init?.method).toBe('DELETE');
-    expect(request.url.pathname).toBe('/api/items/1');
-    expect(window.location.hash).toBe('#/items');
+    expect(requestBody(first(requestsFor(fetchMock, '/api/romeka/bulk')))).toEqual({
+      query: { id: [1] },
+      change: { kind: 'delete' },
+    });
+    expect(requestsFor(fetchMock, '/api/romeka/bulk/7/run')).toHaveLength(1);
+    expect(deletedRequests(fetchMock, '/api/items/1')).toHaveLength(0);
     window.location.hash = '';
   });
 
@@ -270,14 +307,14 @@ describe('the request per resource', () => {
 });
 
 describe('a refused or missing row', () => {
-  it('delete_renders_the_api_403_message_and_stays_on_the_page', async () => {
+  it('delete_states_a_refused_preview_and_stays_on_the_page', async () => {
     installFetch(
       itemDetailHandler(() =>
         jsonResponse(
           {
             errors: {
               error:
-                'Permission denied for the current user to delete the Omeka\\Api\\Adapter\\ItemAdapter resource.',
+                'Permission denied for the current user to batch_delete the Omeka\\Api\\Adapter\\ItemAdapter resource.',
             },
           },
           { status: 403 },
@@ -287,67 +324,55 @@ describe('a refused or missing row', () => {
     render(<ItemsPage param="1" />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Delete this item' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Delete Fixture Item One' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Permission denied for the current user to delete the Omeka\\Api\\Adapter\\ItemAdapter resource. (HTTP 403)',
-    );
+    expect(await screen.findByRole('alert')).toHaveTextContent('You may not delete this item.');
     expect(window.location.hash).toBe('');
-    // The page keeps its record and offers the action again rather than a blank
-    // screen.
+    // The page keeps its record rather than a blank screen.
     expect(screen.getByRole('heading', { level: 2, name: 'Fixture Item One' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Delete this item' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Move to the trash' })).not.toBeInTheDocument();
   });
 
-  it('delete_renders_the_not_found_message_for_a_missing_row', async () => {
-    installFetch(
-      itemDetailHandler(() =>
-        jsonResponse(
-          {
-            errors: {
-              error: 'Omeka\\Entity\\Item entity with criteria {"id":"1"} not found',
-            },
-          },
-          { status: 404 },
-        ),
-      ),
-    );
+  it('delete_states_a_missing_row_as_not_available', async () => {
+    installFetch(itemDetailHandler(() => jsonResponse(itemPreview({ total: 0, samples: [] }), { status: 201 })));
     render(<ItemsPage param="1" />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Delete this item' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Delete Fixture Item One' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Omeka\\Entity\\Item entity with criteria {"id":"1"} not found (HTTP 404)',
-    );
+    expect(await screen.findByRole('alert')).toHaveTextContent('This record is not available.');
+    expect(screen.queryByRole('button', { name: 'Move to the trash' })).not.toBeInTheDocument();
     expect(window.location.hash).toBe('');
   });
 });
 
-describe('an answer that is not detached', () => {
+describe('an answer that is not a preview', () => {
   it('delete_reports_the_unexpected_shape_and_stays_on_the_page', async () => {
-    installFetch(itemDetailHandler(() => jsonResponse(itemFixture())));
+    installFetch(itemDetailHandler(() => jsonResponse(itemFixture(), { status: 201 })));
     render(<ItemsPage param="1" />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Delete this item' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Delete Fixture Item One' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('$.o:id: expected null');
+    expect(
+      await screen.findByText('Cannot check what goes with this item, so it cannot move to the trash now.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Move to the trash' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Check again' })).toBeInTheDocument();
     expect(window.location.hash).toBe('');
-    expect(screen.getByRole('button', { name: 'Delete this item' })).toBeInTheDocument();
-    window.location.hash = '';
   });
 });
 
 describe('the list after a successful delete', () => {
-  it('item_delete_navigates_to_the_list_and_reloads_it', async () => {
+  it('item_delete_navigates_to_the_list_reloads_it_and_offers_the_undo', async () => {
     window.location.hash = '#/items/1';
+    const trash = trashRoutes(previewed);
     const fetchMock = installFetch((url, init) => {
       if (url.pathname === '/api/items/1') {
-        return jsonResponse(init?.method === 'DELETE' ? detached(itemFixture()) : itemFixture());
+        return jsonResponse(itemFixture());
       }
       if (url.pathname === '/api/items') {
         return listResponse(loadFixture('items-page.json'), 2);
+      }
+      if (url.pathname === '/api/romeka/links/1') {
+        return jsonResponse(loadFixture('places/links-none.json'));
       }
       if (url.pathname === '/api/media') {
         return jsonResponse(loadFixture('media-page-live.json'), {
@@ -357,24 +382,23 @@ describe('the list after a successful delete', () => {
       if (url.pathname === '/api') {
         return jsonResponse([]);
       }
-      return optionOrNotFound(url, init);
+      const handler = trash[url.pathname];
+      return handler === undefined ? optionOrNotFound(url, init) : handler(url, init);
     });
     render(<Shell />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Delete this item' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Delete Fixture Item One' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Move to the trash' }));
 
-    // The shell routed back to `#/items`, mounted the list and reloaded it.
-    expect(await screen.findByRole('link', { name: 'Fixture Item One' })).toHaveAttribute(
+    // The shell routed back to `#/items`, mounted the list, reloaded it, and offers the undo.
+    expect(await screen.findByRole('link', { name: 'Fixture Item One' }, { timeout: 3000 })).toHaveAttribute(
       'href',
       '#/items/12?in=&at=1',
     );
     expect(window.location.hash).toBe('#/items');
-    expect(
-      requestsFor(fetchMock, '/api/items').filter(
-        (request) => request.init?.method !== 'DELETE',
-      ),
-    ).toHaveLength(1);
+    expect(await screen.findByText('Deleted Fixture Item One.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument();
+    expect(requestsFor(fetchMock, '/api/items')).toHaveLength(1);
     window.location.hash = '';
   });
 });

@@ -105,13 +105,21 @@ const LinkedRecords = ({
   );
 };
 
-const RowLine = ({ target, row }: { readonly target: LinkTarget; readonly row: LinkRow }): ReactElement => {
-  const { t, number } = useTranslator(common, resources);
+/** A row's words, for example "Creator · 2 items"; the item page's delete states them too. */
+export const useLinkRowWords = (): ((row: LinkRow) => string) => {
+  const { t, number } = useTranslator(resources);
   const text = useTermLabels();
+  return (row) => {
+    const [one, many] = COUNT_WORDS[row.kind];
+    const count = row.count === 1 ? t(one) : t(many, { count: number(row.count) });
+    return t('linkedFrom.row', { field: text.label(row.term, row.label), count });
+  };
+};
+
+const RowLine = ({ target, row }: { readonly target: LinkTarget; readonly row: LinkRow }): ReactElement => {
+  const rowWords = useLinkRowWords();
   const [open, setOpen] = useState(false);
-  const [one, many] = COUNT_WORDS[row.kind];
-  const count = row.count === 1 ? t(one) : t(many, { count: number(row.count) });
-  const words = t('linkedFrom.row', { field: text.label(row.term, row.label), count });
+  const words = rowWords(row);
   if (row.kind === 'items') {
     return <a href={linksPlaceHref(target, row.propertyId)}>{words}</a>;
   }

@@ -5,7 +5,7 @@
  * sort change is one `/api/items` request.
  */
 import type { ReactElement, RefObject } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { api } from '../../api/client';
 import type { ApiPage, Item, ItemId } from '../../api/types';
 import { ErrorNotice } from '../../app/errors';
@@ -30,8 +30,12 @@ import { ItemsTable } from './ItemsTable';
 import { LinksCard, useLinksPlace } from './links-card';
 import { SetCard, SetEmpty, useSetPlace } from './set-card';
 import type { ItemsViewProps } from './ItemsTable';
+import { forgetTrashed, peekTrashed } from './trashed';
 import { itemPageHref } from './walk';
 import './browse.css';
+
+/** The Undo notice after the item page's delete: its own chunk, loaded only after one. */
+const TrashedNotice = lazy(() => import('./trashed-notice'));
 
 const VIEW_KEY = 'romeka.items.view';
 const SEARCH_SETTLE_MS = 300;
@@ -200,6 +204,12 @@ export const ItemsList = (): ReactElement => {
   /** Bumped when a bulk change ends, so the page shows what it wrote. */
   const [revision, setRevision] = useState(0);
   const itemsState = useAsync(() => api.listItems(query), [JSON.stringify(query), revision]);
+  const [trashed] = useState(peekTrashed);
+  useEffect(() => {
+    if (trashed !== null) {
+      forgetTrashed(trashed);
+    }
+  }, [trashed]);
   const shown: ApiPage<Item> | null = useLastPage(itemsState);
 
   const active = activeFilters(state.filters);
@@ -243,6 +253,16 @@ export const ItemsList = (): ReactElement => {
 
   return (
     <section className="items-browse">
+      {trashed === null ? null : (
+        <Suspense fallback={null}>
+          <TrashedNotice
+            trashed={trashed}
+            onRestored={() => {
+              setRevision((current) => current + 1);
+            }}
+          />
+        </Suspense>
+      )}
       <SetCard place={place} matching={narrowed && shown !== null ? shown.total : null} />
       <LinksCard links={links} place={linksPlace} matching={linksNarrowed && shown !== null ? shown.total : null} />
       <p>

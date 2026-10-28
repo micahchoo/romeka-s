@@ -33,6 +33,24 @@ export const en = {
   'bulkDelete.empty.doneOne': 'The trash is empty. 1 item was deleted for good.',
   'bulkDelete.empty.done': 'The trash is empty. {count} items were deleted for good.',
   'bulkDelete.empty.nothing': 'The trash was already empty.',
+  'bulkDelete.item.checking': 'Checking what goes with this item…',
+  'bulkDelete.item.cannotCheck': 'Cannot check what goes with this item, so it cannot move to the trash now.',
+  'bulkDelete.item.checkAgain': 'Check again',
+  'bulkDelete.item.denied': 'You may not delete this item.',
+  'bulkDelete.item.ask': 'Move {name} to the trash?',
+  'bulkDelete.item.linked': 'Other records link to it:',
+  'bulkDelete.item.linksBack': 'Their links come back if you restore it.',
+  'bulkDelete.item.notLinked': 'Nothing links to it.',
+  'bulkDelete.item.trash':
+    'The trash keeps it for {days} days. Until then, Undo on the Items screen puts it back with its media and files.',
+  'bulkDelete.item.move': 'Move to the trash',
+  'bulkDelete.item.moving': 'Moving to the trash…',
+  'bulkDelete.item.failed': '{name} was not moved to the trash. It stays as it is.',
+  'bulkDelete.item.trashed': 'Deleted {name}.',
+  'bulkDelete.item.undo': 'Undo',
+  'bulkDelete.item.undoing': 'Putting {name} back…',
+  'bulkDelete.item.back': '{name} is back.',
+  'bulkDelete.item.notBack': '{name} stays in the trash.',
 } as const;
 
 /** A complete table of this namespace, in one locale. */
