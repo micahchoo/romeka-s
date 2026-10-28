@@ -1,6 +1,6 @@
 /**
  * The Items browse bar. Search, class, item set and media are always shown;
- * item type, owner, visibility and site wait behind "More filters", which opens
+ * item type, field, owner, visibility and site wait behind "More filters", which opens
  * itself when one of them is set. Sort and the view toggle close the bar.
  */
 import type { ReactElement, ReactNode, Ref } from 'react';
@@ -10,8 +10,9 @@ import { useTranslator } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
 import { useTermLabels } from '../../i18n/termText';
-import { isSet, MORE_KEYS, SORTS } from './browse';
-import type { BrowseFilters, ItemBrowse, MediaFilter, SiteFilter, Sort, View } from './browse';
+import { isSet, MORE_KEYS, PRESENCES, SORTS } from './browse';
+import type { BrowseFilters, ItemBrowse, MediaFilter, Presence, SiteFilter, Sort, View } from './browse';
+import { fieldChoices } from './browse-options';
 import type { BrowseOptions } from './browse-options';
 import type { OnFilter } from './filter-value';
 
@@ -51,7 +52,8 @@ const SelectFilter = ({
 }: {
   readonly label: string;
   readonly value: string;
-  readonly anyLabel: string;
+  /** The "no filter" choice; a control that only refines another one has none. */
+  readonly anyLabel?: string;
   readonly choices: readonly Choice[];
   readonly onChoose: (value: string) => void;
 }): ReactElement => {
@@ -66,7 +68,7 @@ const SelectFilter = ({
           onChoose(event.target.value);
         }}
       >
-        <option value="">{anyLabel}</option>
+        {anyLabel === undefined ? null : <option value="">{anyLabel}</option>}
         {choices.map((choice) => (
           <option key={choice.value} value={choice.value}>
             {choice.label}
@@ -104,6 +106,47 @@ const useMoreOpen = (filters: BrowseFilters): readonly [boolean, (open: boolean)
   return [open, setOpen];
 };
 
+const PRESENCE_LABEL = {
+  empty: 'browse.fieldEmpty',
+  filled: 'browse.fieldFilled',
+} as const satisfies Readonly<Record<Presence, string>>;
+
+/** A field, then whether it is empty or has a value; the second control waits for the first. */
+const FieldFilterControl = ({
+  filters,
+  options,
+  onFilter,
+}: Pick<FilterBarProps, 'options' | 'onFilter'> & { readonly filters: BrowseFilters }): ReactNode => {
+  const { t } = useTranslator(common, resources);
+  const text = useTermLabels();
+  const { field } = filters;
+  const choices = fieldChoices(options, filters.templateId, field?.property ?? null, text);
+  return (
+    <>
+      <SelectFilter
+        label={t('browse.field')}
+        value={field === null ? '' : String(field.property)}
+        anyLabel={t('browse.anyValue')}
+        choices={choices.map((choice) => ({ value: String(choice.property), label: choice.name }))}
+        onChoose={(value) => {
+          const property = choices.find((choice) => String(choice.property) === value)?.property ?? null;
+          onFilter({ field: property === null ? null : { property, presence: field?.presence ?? 'empty' } });
+        }}
+      />
+      {field === null ? null : (
+        <SelectFilter
+          label={t('browse.fieldIs')}
+          value={field.presence}
+          choices={PRESENCES.map((presence) => ({ value: presence, label: t(PRESENCE_LABEL[presence]) }))}
+          onChoose={(value) => {
+            onFilter({ field: { property: field.property, presence: value === 'filled' ? 'filled' : 'empty' } });
+          }}
+        />
+      )}
+    </>
+  );
+};
+
 const MoreFilters = ({
   filters,
   options,
@@ -127,6 +170,7 @@ const MoreFilters = ({
           onFilter({ templateId: keyOf(options.templates, value) });
         }}
       />
+      <FieldFilterControl filters={filters} options={options} onFilter={onFilter} />
       <SelectFilter
         label={t('field.owner')}
         value={filters.ownerId === null ? '' : String(filters.ownerId)}

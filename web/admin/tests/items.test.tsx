@@ -61,6 +61,7 @@ const OPTION_FIXTURES: Readonly<Record<string, string>> = {
   '/api/item_sets': 'item-sets-page.json',
   '/api/resource_templates': 'resource-templates-page.json',
   '/api/sites': 'sites-page.json',
+  '/api/properties': 'properties-page.json',
 };
 
 /** Items answer from the fixtures; a query naming `search=nothing` matches no item. */
@@ -264,6 +265,47 @@ describe('items list', () => {
     expect(lastItemsUrl(fetchMock).searchParams.get('owner_id')).toBe('3');
     expect(more).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('combobox', { name: 'Owner' })).toHaveValue('3');
+  });
+
+  it('a field filter sends its own property row, names itself in a chip, and the chip removes it', async () => {
+    const fetchMock = await openList();
+    fireEvent.click(screen.getByRole('button', { name: 'More filters' }));
+    const fieldSelect = screen.getByRole('combobox', { name: 'Field' });
+    await within(fieldSelect).findByRole('option', { name: 'Description' });
+    expect(screen.queryByRole('combobox', { name: 'Field is' })).not.toBeInTheDocument();
+
+    fireEvent.change(fieldSelect, { target: { value: '4' } });
+
+    expect(await screen.findByText('Description: empty')).toBeInTheDocument();
+    expect(lastItemsUrl(fetchMock).searchParams.get('property[1][property]')).toBe('4');
+    expect(lastItemsUrl(fetchMock).searchParams.get('property[1][type]')).toBe('nex');
+    expect(routeQuery().get('field')).toBe('4:empty');
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Field is' }), { target: { value: 'filled' } });
+
+    expect(await screen.findByText('Description: has a value')).toBeInTheDocument();
+    expect(lastItemsUrl(fetchMock).searchParams.get('property[1][type]')).toBe('ex');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove filter: Description: has a value' }));
+
+    await waitFor(() => {
+      expect(lastItemsUrl(fetchMock).searchParams.has('property[1][type]')).toBe(false);
+    });
+    expect(fieldSelect).toHaveValue('');
+  });
+
+  it("with an item type chosen, the field filter offers that type's fields by the names it gives them", async () => {
+    const fetchMock = await openList('#/items?template=2&field=4:empty');
+    const fieldSelect = screen.getByRole('combobox', { name: 'Field' });
+    await within(fieldSelect).findByRole('option', { name: 'Caption' });
+    expect(within(fieldSelect).getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'Any',
+      '#13',
+      'Caption',
+      'Title',
+    ]);
+    expect(await screen.findByText('Caption: empty')).toBeInTheDocument();
+    expect(first(urlsFor(fetchMock, '/api/items')).searchParams.get('resource_template_id')).toBe('2');
   });
 
   it('clicking the Private cue filters to private items', async () => {

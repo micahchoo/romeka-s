@@ -6,7 +6,15 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { vi } from 'vitest';
 import { brandId, ParseError } from '../src/api/parse';
-import { linksQuery, parseLinkRows, parseRecordSummary, parseSetItemCounts, placesApi } from '../src/api/places';
+import {
+  fieldQuery,
+  linksQuery,
+  parseFieldCounts,
+  parseLinkRows,
+  parseRecordSummary,
+  parseSetItemCounts,
+  placesApi,
+} from '../src/api/places';
 import { loadFixture } from './loadFixture';
 import { installFetch, jsonResponse, urlsFor } from './stub';
 
@@ -65,9 +73,33 @@ describe('links wire', () => {
       'property[0][text]': '1',
       'property[0][property]': '2',
     });
+    // `buildPropertyQuery` skips a row without a `property` key, so "any field" sends it empty.
     expect(linksQuery(brandId<'ResourceId'>(1), null)).toEqual({
+      'property[0][property]': '',
       'property[0][type]': 'res',
       'property[0][text]': '1',
+    });
+  });
+});
+
+describe('field counts wire', () => {
+  it('reads the total and each filled field, and refuses a member it does not know', () => {
+    expect(parseFieldCounts({ total: 690, fields: [{ property_id: 7, filled: 412 }] })).toEqual({
+      total: 690,
+      filled: new Map([[7, 412]]),
+    });
+    expect(() => parseFieldCounts({ total: 690, fields: [], extra: 1 })).toThrow();
+    expect(() => parseFieldCounts({ total: -1, fields: [] })).toThrow();
+  });
+
+  it('the list a count opens is the ex or nex search on its own property row', () => {
+    expect(fieldQuery(brandId<'PropertyId'>(7), 'empty')).toEqual({
+      'property[1][property]': '7',
+      'property[1][type]': 'nex',
+    });
+    expect(fieldQuery(brandId<'PropertyId'>(7), 'filled')).toEqual({
+      'property[1][property]': '7',
+      'property[1][type]': 'ex',
     });
   });
 });

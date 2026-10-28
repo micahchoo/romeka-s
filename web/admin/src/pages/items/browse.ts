@@ -1,12 +1,12 @@
 /**
  * The Items browse query: one record the screen renders from, the URL that
- * holds it (`#/items?q=&class=&set=&links=&via=&template=&owner=&visibility=&site=&media=&sort=&view=&page=`),
+ * holds it (`#/items?q=&class=&set=&links=&via=&template=&field=&owner=&visibility=&site=&media=&sort=&view=&page=`),
  * and the API query it sends. Every function is pure; the screen owns only the
  * effects (reading and writing the URL, the remembered view, the request).
  */
 import type { ResourceQuery } from '../../api/client';
 import { brandId } from '../../api/parse';
-import { linksQuery } from '../../api/places';
+import { fieldQuery, linksQuery } from '../../api/places';
 import type { LinkTarget } from '../../api/places';
 import type { ClassId, ItemSetId, PropertyId, ResourceId, SiteId, TemplateId, UserId } from '../../api/types';
 import { isFilterKind, serverKindsOf } from '../../app/media';
@@ -34,6 +34,16 @@ export interface LinksFilter {
   readonly via: PropertyId | null;
 }
 
+/** Whether a field has no value on the item, or at least one. */
+export type Presence = 'empty' | 'filled';
+export const PRESENCES: readonly Presence[] = ['empty', 'filled'];
+
+/** Items whose one field is empty, or has a value. */
+export interface FieldFilter {
+  readonly property: PropertyId;
+  readonly presence: Presence;
+}
+
 export type Sort = 'newest' | 'oldest' | 'modified' | 'title';
 export const SORTS: readonly Sort[] = ['newest', 'oldest', 'modified', 'title'];
 
@@ -46,6 +56,7 @@ export interface BrowseFilters {
   readonly itemSetId: ItemSetId | null;
   readonly links: LinksFilter | null;
   readonly templateId: TemplateId | null;
+  readonly field: FieldFilter | null;
   readonly ownerId: UserId | null;
   readonly visibility: Visibility | null;
   readonly site: SiteFilter | null;
@@ -67,6 +78,7 @@ export const NO_FILTERS: BrowseFilters = {
   itemSetId: null,
   links: null,
   templateId: null,
+  field: null,
   ownerId: null,
   visibility: null,
   site: null,
@@ -81,13 +93,14 @@ export const FILTER_KEYS: readonly FilterKey[] = [
   'links',
   'media',
   'templateId',
+  'field',
   'ownerId',
   'visibility',
   'site',
 ];
 
 /** The filters behind "More filters". */
-export const MORE_KEYS: readonly FilterKey[] = ['templateId', 'ownerId', 'visibility', 'site'];
+export const MORE_KEYS: readonly FilterKey[] = ['templateId', 'field', 'ownerId', 'visibility', 'site'];
 
 export const isSet = (filters: BrowseFilters, key: FilterKey): boolean =>
   key === 'search' ? filters.search !== '' : filters[key] !== null;
@@ -134,6 +147,16 @@ const parseLinks = (links: string | null, via: string | null): LinksFilter | nul
 const oneOf = <T extends string>(choices: readonly T[], text: string | null): T | null =>
   choices.find((choice) => choice === text) ?? null;
 
+/** `field=<property id>:empty` or `:filled`. */
+const parseField = (text: string | null): FieldFilter | null => {
+  const [id = null, presenceText = null, ...rest] = text?.split(':') ?? [];
+  const property = propertyIdOf(id);
+  const presence = oneOf(PRESENCES, presenceText);
+  return property === null || presence === null || rest.length > 0 ? null : { property, presence };
+};
+
+const fieldText = (field: FieldFilter): string => `${String(field.property)}:${field.presence}`;
+
 const parseSite = (text: string | null): SiteFilter | null => {
   if (text === 'any' || text === 'none') {
     return { kind: text };
@@ -161,6 +184,7 @@ export const parseBrowse = (query: URLSearchParams, fallbackView: View): ItemBro
     itemSetId: itemSetIdOf(query.get('set')),
     links: parseLinks(query.get('links'), query.get('via')),
     templateId: templateIdOf(query.get('template')),
+    field: parseField(query.get('field')),
     ownerId: userIdOf(query.get('owner')),
     visibility: oneOf<Visibility>(['public', 'private'], query.get('visibility')),
     site: parseSite(query.get('site')),
@@ -188,6 +212,7 @@ export const formatBrowse = (state: ItemBrowse): URLSearchParams => {
     ['links', filters.links === null ? null : String(filters.links.target)],
     ['via', filters.links === null || filters.links.via === null ? null : String(filters.links.via)],
     ['template', filters.templateId === null ? null : String(filters.templateId)],
+    ['field', filters.field === null ? null : fieldText(filters.field)],
     ['owner', filters.ownerId === null ? null : String(filters.ownerId)],
     ['visibility', filters.visibility],
     ['site', filters.site === null ? null : siteText(filters.site)],
@@ -236,6 +261,7 @@ export const browseQuery = (state: ItemBrowse): ResourceQuery => {
     ...(filters.itemSetId === null ? {} : { itemSetId: filters.itemSetId }),
     ...(filters.links === null ? {} : linksQuery(filters.links.target, filters.links.via)),
     ...(filters.templateId === null ? {} : { resourceTemplateId: filters.templateId }),
+    ...(filters.field === null ? {} : fieldQuery(filters.field.property, filters.field.presence)),
     ...(filters.ownerId === null ? {} : { ownerId: filters.ownerId }),
     ...(filters.visibility === null ? {} : { isPublic: filters.visibility === 'public' ? 1 : 0 }),
     ...siteQuery(filters.site),
@@ -246,3 +272,12 @@ export const browseQuery = (state: ItemBrowse): ResourceQuery => {
 /** The Items screen filtered to the items that link to `target` through `via`, under the record's card. */
 export const linksPlaceHref = (target: LinkTarget, via: PropertyId | null): string =>
   via === null ? `#/items?links=${String(target)}` : `#/items?links=${String(target)}&via=${String(via)}`;
+
+/** The Items screen filtered to the items of one type whose field is empty, from that type's page. */
+export const fieldPlaceHref = (template: TemplateId, property: PropertyId): string =>
+  `#/items?${formatBrowse({
+    filters: { ...NO_FILTERS, templateId: template, field: { property, presence: 'empty' } },
+    sort: 'newest',
+    view: 'table',
+    page: 1,
+  }).toString()}`;

@@ -12,8 +12,9 @@ import { resources } from '../../i18n/namespaces/resources';
 import { useTermLabels } from '../../i18n/termText';
 import { activeFilters } from './browse';
 import type { BrowseFilters, FilterKey } from './browse';
+import { fieldName } from './browse-options';
 import type { BrowseOptions } from './browse-options';
-import { fieldName, recordName } from './links-card';
+import { fieldName as linkFieldName, recordName } from './links-card';
 import type { LinksPlace } from './links-card';
 
 type Translate = Translator<MessageKey | KeyOf<typeof common> | KeyOf<typeof resources>>['t'];
@@ -48,11 +49,18 @@ const chipText = (
       }
       const name = recordName(filters.links, linksPlace, t);
       // A record that is not available names nothing else, so the chip tells no more than the card.
-      const field = linksPlace.status === 'unavailable' ? null : fieldName(filters.links, linksPlace, text);
+      const field = linksPlace.status === 'unavailable' ? null : linkFieldName(filters.links, linksPlace, text);
       return field === null ? t('browse.chipLinks', { name }) : t('browse.chipLinksVia', { name, field });
     }
     case 'templateId':
       return t('browse.chipTemplate', { name: filters.templateId === null ? '' : nameIn(options.templates, filters.templateId) });
+    case 'field': {
+      if (filters.field === null) {
+        return '';
+      }
+      const field = fieldName(options, filters.templateId, filters.field.property, text);
+      return t(filters.field.presence === 'empty' ? 'browse.chipFieldEmpty' : 'browse.chipFieldFilled', { field });
+    }
     case 'ownerId':
       return t('browse.chipOwner', { name: filters.ownerId === null ? '' : nameIn(options.users, filters.ownerId) });
     case 'visibility':

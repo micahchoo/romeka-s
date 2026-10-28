@@ -1,7 +1,8 @@
 /**
- * The reads behind a set's place and a record's "Linked from": Romeka's own count routes
- * (`crates/omeka-api/src/read/place_counts.rs`), the one-record read that names a link target,
- * and the `res` property search each link row opens. Every read runs as the caller, so a count
+ * The reads behind a set's place, a record's "Linked from" and an item type's field counts:
+ * Romeka's own count routes (`crates/omeka-api/src/read/place_counts.rs`), the one-record read
+ * that names a link target, and the property searches the counts open (`res` for a link row,
+ * `ex` and `nex` for a field). Every read runs as the caller, so a count
  * equals the total of the list it opens, and a record the caller may not see answers like a
  * missing one.
  */
@@ -9,7 +10,7 @@ import { api } from './client';
 import type { ResourceQuery } from './client';
 import { asCount, list, member, oneOf, strict } from './import-read';
 import { ParseError, asIdNumber, asRecord, asString, brandId, isUnknownArray } from './parse';
-import type { ItemId, ItemSetId, MediaId, Parser, Path, PropertyId, ResourceId } from './types';
+import type { ItemId, ItemSetId, MediaId, Parser, Path, PropertyId, ResourceId, TemplateId } from './types';
 
 /** The most set ids one counts request may name (`MOST_SET_IDS`). */
 export const MOST_SET_IDS = 200;
@@ -105,10 +106,43 @@ export const parseRecordSummary: Parser<RecordSummary> = (raw, path = []) => {
  * browse's other filters and a bulk change selects through it.
  */
 export const linksQuery = (target: LinkTarget, via: PropertyId | null): ResourceQuery => ({
+  // `buildPropertyQuery` skips a row without a `property` key; an empty one is "any field".
+  'property[0][property]': via === null ? '' : String(via),
   'property[0][type]': 'res',
   'property[0][text]': String(target),
-  ...(via === null ? {} : { 'property[0][property]': String(via) }),
 });
+
+/**
+ * The search that lists the items whose `property` is empty (`nex`) or has a value (`ex`): the
+ * query a field count is the total of. Its row index is not the links filter's, so both apply.
+ */
+export const fieldQuery = (property: PropertyId, presence: 'empty' | 'filled'): ResourceQuery => ({
+  'property[1][property]': String(property),
+  'property[1][type]': presence === 'empty' ? 'nex' : 'ex',
+});
+
+/** How many items of one type the caller may see, and how many of them fill each field. */
+export interface FieldCounts {
+  readonly total: number;
+  /** A field absent here is filled by none of them. */
+  readonly filled: ReadonlyMap<PropertyId, number>;
+}
+
+const parseFieldCount = (raw: unknown, path: Path): readonly [PropertyId, number] => {
+  const object = strict(raw, path, ['property_id', 'filled']);
+  return [
+    brandId<'PropertyId'>(member(object, 'property_id', path, asIdNumber)),
+    member(object, 'filled', path, asCount),
+  ];
+};
+
+export const parseFieldCounts: Parser<FieldCounts> = (raw, path = []) => {
+  const object = strict(raw, path, ['total', 'fields']);
+  return {
+    total: member(object, 'total', path, asCount),
+    filled: new Map(member(object, 'fields', path, list(parseFieldCount))),
+  };
+};
 
 export const placesApi = {
   /** One request for a page of sets; past `MOST_SET_IDS` the server refuses it. */
@@ -121,6 +155,10 @@ export const placesApi = {
   },
   async links(target: LinkTarget): Promise<readonly LinkRow[]> {
     return parseLinkRows(await api.requestJson(`/api/romeka/links/${String(target)}`));
+  },
+  async fieldCounts(template: TemplateId): Promise<FieldCounts> {
+    const params = new URLSearchParams({ resource_template_id: String(template) });
+    return parseFieldCounts(await api.requestJson('/api/romeka/field-counts', params));
   },
   async record(id: ResourceId): Promise<RecordSummary> {
     return parseRecordSummary(await api.requestJson(`/api/resources/${String(id)}`));

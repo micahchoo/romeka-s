@@ -6,6 +6,7 @@ import { brandId } from '../src/api/parse';
 import { matchingQuery } from '../src/api/bulk';
 import {
   browseQuery,
+  fieldPlaceHref,
   formatBrowse,
   linksPlaceHref,
   NO_FILTERS,
@@ -128,7 +129,8 @@ describe('the links filter', () => {
       'property[0][text]': '42',
       'property[0][property]': '2',
     });
-    expect(browseQuery(parse('links=42'))).not.toHaveProperty('property[0][property]');
+    // `buildPropertyQuery` skips a row without a `property` key, so "any field" sends it empty.
+    expect(browseQuery(parse('links=42'))).toMatchObject({ 'property[0][property]': '' });
     expect(withoutFilter(parse('links=42&via=2'), 'links')).toEqual(PLAIN);
   });
 
@@ -138,6 +140,53 @@ describe('the links filter', () => {
       'property[0][type]': 'res',
       'property[0][text]': '42',
       'property[0][property]': '2',
+    });
+  });
+});
+
+describe('the field filter', () => {
+  it('reads back to the same URL, empty and filled, beside the other filters', () => {
+    for (const query of ['field=7%3Aempty', 'field=7%3Afilled', 'q=map&links=42&via=2&template=2&field=7%3Aempty']) {
+      expect(formatBrowse(parse(query)).toString()).toBe(query);
+    }
+    expect(parse('field=7:empty').filters.field).toEqual({ property: 7, presence: 'empty' });
+    expect(parse('field=7:filled').filters.field).toEqual({ property: 7, presence: 'filled' });
+  });
+
+  it('drops a malformed field filter', () => {
+    for (const query of ['field=7', 'field=7:blank', 'field=x:empty', 'field=0:filled', 'field=:empty']) {
+      expect(parse(query)).toEqual(PLAIN);
+    }
+  });
+
+  it('is sent as the nex or ex property search, and removing it leaves the plain list', () => {
+    expect(browseQuery(parse('field=7:empty'))).toMatchObject({
+      'property[1][property]': '7',
+      'property[1][type]': 'nex',
+    });
+    expect(browseQuery(parse('field=7:filled'))).toMatchObject({
+      'property[1][property]': '7',
+      'property[1][type]': 'ex',
+    });
+    expect(withoutFilter(parse('field=7:empty&page=2'), 'field')).toEqual(PLAIN);
+  });
+
+  it('keeps its own property row beside the links filter, so both narrow the list', () => {
+    expect(matchingQuery(browseQuery(parse('links=42&field=7:empty')))).toEqual({
+      'property[0][property]': '',
+      'property[0][type]': 'res',
+      'property[0][text]': '42',
+      'property[1][property]': '7',
+      'property[1][type]': 'nex',
+    });
+  });
+
+  it("an item type's missing count opens the address the URL reads back", () => {
+    const href = fieldPlaceHref(brandId<'TemplateId'>(2), brandId<'PropertyId'>(7));
+    expect(href).toBe('#/items?template=2&field=7%3Aempty');
+    expect(parse(href.slice('#/items?'.length)).filters).toMatchObject({
+      templateId: 2,
+      field: { property: 7, presence: 'empty' },
     });
   });
 });
