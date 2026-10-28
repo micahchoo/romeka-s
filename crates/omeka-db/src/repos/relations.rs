@@ -215,33 +215,40 @@ where
         ids: &[ResourceId],
         visibility: MediaVisibility,
     ) -> Result<Vec<(ResourceId, Option<String>)>, DbError> {
-        if ids.is_empty() || visibility == MediaVisibility::All {
+        if visibility == MediaVisibility::All {
             return Ok(Vec::new());
         }
-        let mut statement = Statement::<DB>::new(&format!(
-            "SELECT r.id AS id, (SELECT v.value FROM value v WHERE v.resource_id = r.id \
-             AND v.value IS NOT NULL AND v.value <> '' AND v.property_id = {}",
-            title_property("r")
-        ));
-        bind_value_visibility(&mut statement, visibility, "v")?;
-        statement.push(
-            " ORDER BY v.id LIMIT 1) AS shown FROM resource r \
-             WHERE r.title IS NOT NULL AND r.id IN (",
-        );
-        for (index, id) in ids.iter().enumerate() {
-            if index > 0 {
-                statement.push(", ");
+        // The public site asks about every resource a browse filters, more ids than one
+        // statement may bind.
+        const IDS_PER_STATEMENT: usize = 1000;
+        let mut shown = Vec::new();
+        for chunk in ids.chunks(IDS_PER_STATEMENT) {
+            let mut statement = Statement::<DB>::new(&format!(
+                "SELECT r.id AS id, (SELECT v.value FROM value v WHERE v.resource_id = r.id \
+                 AND v.value IS NOT NULL AND v.value <> '' AND v.property_id = {}",
+                title_property("r")
+            ));
+            bind_value_visibility(&mut statement, visibility, "v")?;
+            statement.push(
+                " ORDER BY v.id LIMIT 1) AS shown FROM resource r \
+                 WHERE r.title IS NOT NULL AND r.id IN (",
+            );
+            for (index, id) in chunk.iter().enumerate() {
+                if index > 0 {
+                    statement.push(", ");
+                }
+                statement.bind(bind_id(*id))?;
             }
-            statement.bind(bind_id(*id))?;
+            statement.push(") AND NOT (1 = 1");
+            bind_title_visible(&mut statement, visibility, "r")?;
+            statement.push(")");
+            let (sql, arguments) = statement.into_parts();
+            let rows: Vec<DB::Row> = fetch_rows(&sql, arguments, self.pool).await?;
+            for row in &rows {
+                shown.push((DB::id(row, "id")?, DB::opt_text(row, "shown")?));
+            }
         }
-        statement.push(") AND NOT (1 = 1");
-        bind_title_visible(&mut statement, visibility, "r")?;
-        statement.push(")");
-        let (sql, arguments) = statement.into_parts();
-        let rows: Vec<DB::Row> = fetch_rows(&sql, arguments, self.pool).await?;
-        rows.iter()
-            .map(|row| Ok((DB::id(row, "id")?, DB::opt_text(row, "shown")?)))
-            .collect()
+        Ok(shown)
     }
 
     /// The title a resource shows to anyone: its stored title, unless that came from a private
