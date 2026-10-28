@@ -321,7 +321,8 @@ A fourth read gives the dashboard its "Needs attention" counts:
 | `GET /api/romeka/dashboard` | 200 `{no_item_set, no_resource_template, changed_by_others: {since, items}}` |
 
 Each count is the `Omeka-S-Total-Results` of `GET /api/items` for the same caller with one of
-Romeka's work filters, read through that list's own matching: `romeka_no_item_set=1` (items in no
+Romeka's work filters, counted by one SQL `COUNT` over that list's own `WHERE` and the caller's
+visibility (`ItemRepo::count_filtered`), so no item row is loaded: `romeka_no_item_set=1` (items in no
 item set), `romeka_no_resource_template=1` (items with no item type), and
 `romeka_changed_by_others_since=<since>` (items with an item history entry at or after `since` by
 anyone but the caller; a system job, and a user since deleted, count as someone else). `since` is
