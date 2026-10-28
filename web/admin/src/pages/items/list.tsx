@@ -29,6 +29,7 @@ import { ItemsTable } from './ItemsTable';
 import { LinksCard, useLinksPlace } from './links-card';
 import { SetCard, SetEmpty, useSetPlace } from './set-card';
 import type { ItemsViewProps } from './ItemsTable';
+import { itemPageHref } from './walk';
 import './browse.css';
 
 const VIEW_KEY = 'romeka.items.view';
@@ -221,7 +222,13 @@ export const ItemsList = (): ReactElement => {
     setDraft('');
   };
   const pageIds = shown?.items.map((item) => item.id) ?? [];
+  /** A row's place in the whole list: the rows on the pages before the one shown, then its own. */
+  const hrefOf = (item: Item): string => {
+    const before = shown === null ? 0 : (shown.page - 1) * shown.perPage;
+    return itemPageHref(item.id, { walk: { browse: state, at: before + pageIds.indexOf(item.id) + 1 }, edit: false });
+  };
   const viewProps = {
+    hrefOf,
     options,
     picked,
     onPick: (id: ItemId, on: boolean) => {

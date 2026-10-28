@@ -175,9 +175,10 @@ describe('items list', () => {
   it('browse rows show title, class, item sets, owner, created and the Private cue', async () => {
     const fetchMock = await openList();
 
-    expect(screen.getByRole('link', { name: 'Fixture Item One' })).toHaveAttribute('href', '#/items/12');
+    // Each row's page keeps the list (`in`, empty for the plain list) and the row's place in it.
+    expect(screen.getByRole('link', { name: 'Fixture Item One' })).toHaveAttribute('href', '#/items/12?in=&at=1');
     expect(screen.getAllByRole('row')).toHaveLength(3);
-    expect(screen.getByRole('link', { name: 'Fixture Item Two' })).toHaveAttribute('href', '#/items/9');
+    expect(screen.getByRole('link', { name: 'Fixture Item Two' })).toHaveAttribute('href', '#/items/9?in=&at=2');
     expect(await screen.findByRole('button', { name: 'Still Image' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Book' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ada Lovelace' })).toBeInTheDocument();

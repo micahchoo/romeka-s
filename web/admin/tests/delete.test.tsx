@@ -367,7 +367,7 @@ describe('the list after a successful delete', () => {
     // The shell routed back to `#/items`, mounted the list and reloaded it.
     expect(await screen.findByRole('link', { name: 'Fixture Item One' })).toHaveAttribute(
       'href',
-      '#/items/12',
+      '#/items/12?in=&at=1',
     );
     expect(window.location.hash).toBe('#/items');
     expect(

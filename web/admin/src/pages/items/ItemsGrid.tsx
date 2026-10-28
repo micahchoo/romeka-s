@@ -49,6 +49,7 @@ export const ItemsGrid = ({
   onPick,
   onPickPage,
   onFilter,
+  hrefOf,
 }: ItemsViewProps): ReactElement => {
   const { t } = useTranslator(common, resources);
   const text = useTermLabels();
@@ -83,7 +84,7 @@ export const ItemsGrid = ({
                   onPick(item.id, event.target.checked);
                 }}
               />
-              <a className="item-card-title" href={`#/items/${String(item.id)}`}>
+              <a className="item-card-title" href={hrefOf(item)}>
                 {title}
               </a>
               <span className="item-card-facts">

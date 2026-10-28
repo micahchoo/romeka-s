@@ -23,6 +23,8 @@ export interface ItemsViewProps {
   readonly onPick: (id: ItemId, on: boolean) => void;
   readonly onPickPage: (on: boolean) => void;
   readonly onFilter: OnFilter;
+  /** Each row's item page, which keeps this list and the row's place in it. */
+  readonly hrefOf: (item: Item) => string;
 }
 
 const ItemRow = ({
@@ -31,6 +33,7 @@ const ItemRow = ({
   picked,
   onPick,
   onFilter,
+  hrefOf,
 }: Omit<ItemsViewProps, 'items' | 'picked' | 'onPickPage'> & {
   readonly item: Item;
   readonly picked: boolean;
@@ -53,7 +56,7 @@ const ItemRow = ({
         />
       </td>
       <td>
-        <a href={`#/items/${String(item.id)}`}>{title}</a>
+        <a href={hrefOf(item)}>{title}</a>
         {item.isPublic ? null : <> <PrivateCue onFilter={onFilter} /></>}
       </td>
       <td>
@@ -104,6 +107,7 @@ export const ItemsTable = ({
   onPick,
   onPickPage,
   onFilter,
+  hrefOf,
 }: ItemsViewProps): ReactElement => {
   const { t } = useTranslator(common, resources);
   const allPicked = items.length > 0 && items.every((item) => picked.includes(item.id));
@@ -138,6 +142,7 @@ export const ItemsTable = ({
               picked={picked.includes(item.id)}
               onPick={onPick}
               onFilter={onFilter}
+              hrefOf={hrefOf}
             />
           ))}
         </tbody>
