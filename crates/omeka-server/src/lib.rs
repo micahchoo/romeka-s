@@ -49,6 +49,7 @@ mod files_allow;
 mod http;
 mod iiif;
 mod imports;
+mod items_csv;
 pub mod jobs;
 mod limits;
 mod logging;
@@ -223,6 +224,7 @@ fn build_app(pool: DbPool, services: Services, config: &Config) -> Router {
         .merge(site_items::router())
         .merge(bulk::router())
         .merge(place_counts::router())
+        .merge(items_csv::router())
         .merge(page_versions::router())
         .merge(imports::router())
         .merge(uploads::router())

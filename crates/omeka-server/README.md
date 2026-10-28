@@ -313,6 +313,23 @@ A missing type and an id that is not a positive integer are the same 404. The an
 `Cache-Control: no-store`. `tests/field_counts.rs` holds every number against its list for
 anonymous, two non-admins and an admin.
 
+## Items CSV
+
+`GET /api/romeka/items.csv?<item search query>` answers every item `GET /api/items` lists for the
+same query and caller, as a CSV download (`src/items_csv.rs`, logic in
+`omeka_api::read::export::items_csv`). Upstream has no export route. `page`, `per_page`, `limit`
+and `offset` are dropped, so the file holds every page; the filters and the sort stay. The file is
+the one `romeka export csv` writes (`crates/omeka-cli/README.md`, "Export"). The answer is
+`text/csv; charset=utf-8`, `Content-Disposition: attachment; filename="items-<UTC date>.csv"` and
+`Cache-Control: no-store`. The caller is read as on `GET /api/items`: the session cookie, then the
+key pair, so the admin's plain link carries the reader.
+`tests/items_csv.rs` holds the rows against the list's `Omeka-S-Total-Results` for anonymous, an
+author, a researcher and an admin.
+
+The file is built whole before it is sent: the header names each property once per value the
+fullest item holds, so it depends on every row. `read/params.rs` already loads every matching row
+for most item filters, so a page-by-page stream would repeat that load per page.
+
 ## Page history
 
 Every `PUT` or `PATCH` of a site page is one transaction that also stores the page document it
