@@ -4715,6 +4715,21 @@ body {
   text-align: center;
 }
 
+/* A hint where a block's words will go: the admin preview only, never a
+   visitor's page, because an unwritten block renders nothing for visitors. */
+.romeka-hint {
+  font-style: italic;
+  opacity: 0.6;
+}
+
+p.romeka-hint {
+  border: 1px dashed var(--color-border);
+  color: var(--color-muted);
+  opacity: 1;
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+}
+
 /* The Romeka accordion: each heading opens its answer below it. */
 .romeka-accordion {
   border-top: 1px solid var(--color-border);

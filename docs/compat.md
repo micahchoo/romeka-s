@@ -186,6 +186,11 @@ Every block this product adds obeys four consequences:
   again here, and a page whose text was edited there renders the edit.
 - A block that has no plain rendering (a live search, an interactive map) writes a plain statement of
   what is missing and a link to this product's page, never nothing.
+- A block whose primary field is empty (`blocks.json` `primary`: a hero's heading, an HTML block's
+  text, a quote's text, a list's pages) is not written. Romeka S renders nothing for it, wrapper
+  included, and its plain rendering is empty, so upstream shows nothing either. Upstream renders an
+  empty `html` block as an empty wrapper. Carried by
+  [`crates/omeka-site/src/blocks/written.rs`](../crates/omeka-site/src/blocks/written.rs).
 
 Page-level settings of this product do not go in page `o:layout_data`, because an upstream save drops
 them.

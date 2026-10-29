@@ -279,6 +279,8 @@ export const es: SitesMessages = {
   'siteHub.slugNote': 'La dirección pública será {url}.',
   'siteHub.homepage': 'Página de inicio',
   'siteHub.inNavigation': 'En la navegación',
+  'siteHub.unwrittenOne': '1 bloque sin escribir',
+  'siteHub.unwritten': '{count} bloques sin escribir',
   'siteHub.addToNavigation': 'Añadir a la navegación',
   'siteHub.edit': 'Editar',
   'siteHub.view': 'Ver',

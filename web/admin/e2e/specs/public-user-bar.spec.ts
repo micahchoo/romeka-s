@@ -166,7 +166,7 @@ test('Logout from a private page returns the reader to the site home, not a 404'
 
     // The site root answers with the first page its menu links.
     await expect(page).toHaveURL(new RegExp(`/s/${SITE_SLUG}(/page/${WELCOME_SLUG})?$`));
-    await expect(page.getByText('This is the first page of your site.')).toBeVisible();
+    await expect(page.locator('.romeka-hero-heading')).toHaveText('Welcome');
     await expect(page.getByRole('navigation', { name: 'Omeka User' })).toHaveCount(0);
   } finally {
     if (typeof pageId === 'number') {

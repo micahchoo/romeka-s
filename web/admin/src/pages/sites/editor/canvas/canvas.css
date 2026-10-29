@@ -77,6 +77,16 @@
   box-shadow: 0 0 0 1px var(--accent);
 }
 
+/* A block whose words are not written yet, or are an earlier template's. */
+.canvas-card[data-writing] {
+  border-style: dashed;
+}
+
+.canvas-badge-writing {
+  background: var(--bg);
+  color: var(--text-muted);
+}
+
 .canvas-card[data-picked] {
   border-style: dashed;
   border-color: var(--accent);

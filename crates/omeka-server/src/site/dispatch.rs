@@ -6,6 +6,8 @@
 
 mod search;
 
+use std::collections::BTreeMap;
+
 use axum::http::Uri;
 
 use omeka_api::auth::Actor;
@@ -409,6 +411,8 @@ pub(crate) struct PreviewPage<'a> {
     /// `o:theme_settings` from the body, which overrides the stored tokens for
     /// this render only.
     pub(crate) theme_settings: Option<&'a ThemeSettings>,
+    /// The hint text an empty primary field shows, by hint key.
+    pub(crate) hints: &'a BTreeMap<String, String>,
 }
 
 /// Render a page assembled from a preview body.
@@ -482,7 +486,10 @@ pub(crate) async fn render_preview(
     // The editor maps each block wrapper back to its draft block through these
     // markers. This is the only render that turns them on.
     #[allow(clippy::disallowed_methods)]
-    let mut ctx = common.context(Some(page), &loaded).with_preview_markers();
+    let mut ctx = common
+        .context(Some(page), &loaded)
+        .with_preview_markers()
+        .with_hints(preview.hints.clone());
     // The document is the one the saved page will serve, so the path is the
     // page's own and the request's query is dropped: a preview request carries
     // credentials there, not a page query, and a block that builds a link from

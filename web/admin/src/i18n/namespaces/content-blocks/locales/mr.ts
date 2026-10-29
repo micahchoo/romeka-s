@@ -75,6 +75,7 @@ export const mr: ContentBlockMessages = {
   'romekaChoice.button.large': 'मोठे',
   'romekaField.quote.text': 'अवतरण',
   'fieldHelp.quote.text': 'अवतरण चिन्हाशिवाय उद्धृत केलेले शब्द.',
+  'fieldExample.quote.text': 'उदा. तो मेंदू, जो माझ्याकडे आहे, तो केवळ मर्त्य नाही.',
   'romekaField.quote.attribution': 'कोणी म्हटले',
   'fieldHelp.quote.attribution': 'ज्या व्यक्तीकडून किंवा कार्याकडून शब्द आले आहेत.',
   'fieldExample.quote.attribution': 'अडा लोव्हलेस, 1843',

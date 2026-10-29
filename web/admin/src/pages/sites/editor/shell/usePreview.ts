@@ -7,6 +7,9 @@ import type { JsonValue, PageId, SiteId } from '../../../../api/types';
 import { toError } from '../../../../app/useAsync';
 import type { PageContent } from '../draft';
 import { previewRequest, requestPreview } from '../preview';
+import { BLOCK_REGISTRY } from '../../blockRegistry';
+import { useEditorText } from '../messages';
+import { previewHints } from '../written';
 import type { PreviewRender } from '../preview';
 
 /** How long the loop waits after the last change before it asks for a render. */
@@ -48,9 +51,11 @@ export const usePreview = (
   const sent = useRef(0);
   const shown = useRef(0);
   const inFlight = useRef<AbortController | null>(null);
+  const e = useEditorText();
 
   useEffect(() => {
-    const { body, order } = previewRequest(draft, siteId, pageId, themeSettings);
+    const hints = previewHints(BLOCK_REGISTRY, e);
+    const { body, order } = previewRequest(draft, siteId, pageId, themeSettings, hints);
     const text = JSON.stringify(body);
     if (text === lastSent.current) {
       return;
@@ -93,7 +98,7 @@ export const usePreview = (
     return () => {
       clearTimeout(timer);
     };
-  }, [draft, siteSlug, siteId, pageId, themeSettings]);
+  }, [draft, siteSlug, siteId, pageId, themeSettings, e]);
 
   useEffect(
     () => () => {

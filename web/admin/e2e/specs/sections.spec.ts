@@ -1,9 +1,9 @@
 /**
  * Sections end to end: a new page gets the "Media and text" section from the
- * block picker, saves, and the public page lays its two blocks side by side
- * on a desktop and one under the other on a phone. The picker offers the bare
- * block group as "Empty section", and the narrow Outline stacks a section's
- * slots.
+ * block picker, the curator writes its empty text block, it saves, and the
+ * public page lays its two blocks side by side on a desktop and one under the
+ * other on a phone. The picker offers the bare block group as "Empty
+ * section", and the narrow Outline stacks a section's slots.
  */
 import { expect, test } from '../fixtures';
 import type { Locator } from '@playwright/test';
@@ -41,6 +41,12 @@ test('the Media and text section is two columns on a desktop and one on a phone'
     'true',
   );
 
+  // The section's text block starts empty, with its hint; the curator writes it.
+  await section.locator('.canvas-slot').nth(1).getByText('Text', { exact: true }).click();
+  const words = page.getByRole('textbox', { name: 'Text', exact: true });
+  await expect(words).toHaveAttribute('data-placeholder', 'Write what visitors read here.');
+  await words.fill('A line for this part');
+
   // The page's own settings come back when the selection is cleared.
   await page.getByRole('button', { name: 'Page', exact: true }).click();
   await page.getByLabel('Title').fill('Media and text');
@@ -55,7 +61,7 @@ test('the Media and text section is two columns on a desktop and one on a phone'
   await expect(group).toHaveCount(1);
   const media = group.locator('> .block-media');
   const text = group.locator('> .block-html');
-  await expect(text.getByRole('heading', { name: 'A heading for this part' })).toBeVisible();
+  await expect(text.getByText('A line for this part')).toBeVisible();
 
   const wide = { media: await corner(media), text: await corner(text) };
   expect(wide.text.x).toBeGreaterThan(wide.media.x + 200);

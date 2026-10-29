@@ -33,6 +33,16 @@ import {
 import { common } from '../../../../i18n/namespaces/common';
 import { EDITOR_NAMESPACES } from '../messages';
 
+/**
+ * Whether the block holds the words a visitor reads (`written.ts`): written,
+ * not written yet (its primary field is empty, so visitors do not see it), or
+ * still holding text an earlier template laid down, which `clear` empties.
+ */
+export type CardWriting =
+  | { readonly kind: 'written' }
+  | { readonly kind: 'unwritten' }
+  | { readonly kind: 'templateText'; readonly clear: DraftAction };
+
 /** The pixels a resize drag travels for one column when the card width is unknown. */
 const RESIZE_STEP = 40;
 
@@ -48,6 +58,7 @@ export interface CanvasCardProps {
   readonly listNote: ReactElement;
   /** Whether the carrier's stored html was edited outside Romeka. */
   readonly mismatch: boolean;
+  readonly writing: CardWriting;
   readonly selected: boolean;
   readonly picked: boolean;
   readonly grid: boolean;
@@ -71,6 +82,7 @@ export const CanvasCard = ({
   issues,
   listNote,
   mismatch,
+  writing,
   selected,
   picked,
   grid,
@@ -219,6 +231,7 @@ export const CanvasCard = ({
       data-key={block.key}
       data-selected={selected ? 'true' : undefined}
       data-picked={picked ? 'true' : undefined}
+      data-writing={writing.kind === 'written' ? undefined : writing.kind}
       aria-label={name}
       aria-current={selected ? 'true' : undefined}
       tabIndex={0}
@@ -253,6 +266,25 @@ export const CanvasCard = ({
         {issues.length === 0 ? null : (
           <span className="canvas-badge">{counted(t, 'issues', issues.length)}</span>
         )}
+        {writing.kind === 'unwritten' ? (
+          <span className="canvas-badge canvas-badge-writing">{t('canvas.notWritten')}</span>
+        ) : null}
+        {writing.kind === 'templateText' ? (
+          <>
+            <span className="canvas-badge canvas-badge-writing">{t('canvas.templateText')}</span>
+            <button
+              type="button"
+              className="canvas-clear-template"
+              onClick={(event) => {
+                event.stopPropagation();
+                dispatch(writing.clear);
+                onAnnounce(t('canvas.templateTextCleared', { label }));
+              }}
+            >
+              {t('canvas.clearTemplateText')}
+            </button>
+          </>
+        ) : null}
         {listNote}
         {mismatch ? (
           <>

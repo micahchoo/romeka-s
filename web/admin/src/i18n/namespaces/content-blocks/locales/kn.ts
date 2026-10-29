@@ -73,6 +73,7 @@ export const kn: ContentBlockMessages = {
   'romekaChoice.button.large': 'ದೊಡ್ಡ',
   'romekaField.quote.text': 'ಉಲ್ಲೇಖ',
   'fieldHelp.quote.text': 'ಉಲ್ಲೇಖಿಸಲಾದ ಪದಗಳು, ಉದ್ಧರಣ ಚಿಹ್ನೆಗಳಿಲ್ಲದೆ.',
+  'fieldExample.quote.text': 'ಉದಾಹರಣೆಗೆ, ಆ ಮೆದುಳು ನನ್ನದು ಕೇವಲ ಮರ್ತ್ಯವಾದುದಕ್ಕಿಂತ ಹೆಚ್ಚಿನದಾಗಿದೆ.',
   'romekaField.quote.attribution': 'ಹೇಳಿದವರಿಂದ',
   'fieldHelp.quote.attribution': 'ಪದಗಳು ಬರುವ ವ್ಯಕ್ತಿ ಅಥವಾ ಕೃತಿ.',
   'fieldExample.quote.attribution': 'ಅಡಾ ಲವ್‌ಲೇಸ್, 1843',

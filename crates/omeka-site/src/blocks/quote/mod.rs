@@ -27,7 +27,9 @@ const STYLE: &[ChoiceOption] = &[
 
 const SCHEMA: LayoutSchema = LayoutSchema {
     fields: &[
-        html("text", "romekaField.quote.text", "fieldHelp.quote.text").required(),
+        html("text", "romekaField.quote.text", "fieldHelp.quote.text")
+            .placeholder("fieldExample.quote.text")
+            .primary(),
         text(
             "attribution",
             "romekaField.quote.attribution",

@@ -135,30 +135,47 @@ describe('the block form scalar controls', () => {
     expect(screen.getByLabelText('Media URL')).toHaveAttribute('aria-invalid', 'true');
   });
 
-  it('a new hero says nothing about its empty heading until the user leaves the field', () => {
+  it('a new button says nothing about its empty label until the user leaves the field', () => {
+    const state = draftReducer(emptyDraft(), { type: 'addBlock', layout: 'button', index: 0 });
+    const block = at(state.blocks, 0);
+    const romka = romkaFor(state.registry, block);
+    if (romka === undefined) {
+      throw new Error('the button carrier names no Romeka block');
+    }
+    const issues = validate(state);
+    expect(issues).toEqual([
+      { kind: 'required', blockKey: null, field: 'title' },
+      { kind: 'required', blockKey: block.key, field: 'button_label' },
+    ]);
+    render(
+      <RomkaForm block={block} romka={romka} issues={issues} siteId={SITE_ID} dispatch={dispatchSpy()} />,
+    );
+
+    const label = screen.getByLabelText('Button text');
+    expect(screen.queryByText('This field is required.')).not.toBeInTheDocument();
+    expect(label).toHaveAttribute('aria-invalid', 'false');
+
+    fireEvent.focus(label);
+    fireEvent.blur(label);
+    expect(screen.getByText('This field is required.')).toBeInTheDocument();
+    expect(label).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('a new hero saves with an empty heading, which shows its hint instead', () => {
     const state = draftReducer(emptyDraft(), { type: 'addBlock', layout: 'hero', index: 0 });
     const block = at(state.blocks, 0);
     const romka = romkaFor(state.registry, block);
     if (romka === undefined) {
       throw new Error('the hero carrier names no Romeka block');
     }
-    const issues = validate(state);
-    expect(issues).toEqual([
-      { kind: 'required', blockKey: null, field: 'title' },
-      { kind: 'required', blockKey: block.key, field: 'heading' },
-    ]);
+    expect(validate(state)).toEqual([{ kind: 'required', blockKey: null, field: 'title' }]);
     render(
-      <RomkaForm block={block} romka={romka} issues={issues} siteId={SITE_ID} dispatch={dispatchSpy()} />,
+      <RomkaForm block={block} romka={romka} issues={[]} siteId={SITE_ID} dispatch={dispatchSpy()} />,
     );
-
-    const heading = screen.getByLabelText('Heading');
-    expect(screen.queryByText('This field is required.')).not.toBeInTheDocument();
-    expect(heading).toHaveAttribute('aria-invalid', 'false');
-
-    fireEvent.focus(heading);
-    fireEvent.blur(heading);
-    expect(screen.getByText('This field is required.')).toBeInTheDocument();
-    expect(heading).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Heading')).toHaveAttribute(
+      'placeholder',
+      'e.g. Welcome to the collection',
+    );
   });
 
   it('a bound issue on a stored value shows before the user visits the field', () => {

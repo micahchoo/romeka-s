@@ -89,6 +89,7 @@ const HtmlControl = ({
         label={e(field.label)}
         value={asText(value)}
         required={field.required}
+        {...(field.placeholder === null ? {} : { placeholder: e(field.placeholder) })}
         onChange={onChange}
       />
       {error}

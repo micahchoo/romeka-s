@@ -142,6 +142,18 @@ describe('the page settings come back after a selection (R1)', () => {
 
     expect(title()).toHaveValue('Welcome');
   });
+
+  it('keeps the selection when a press on a card is released off it', async () => {
+    await renderEditor();
+    const card = screen.getByRole('listitem', { name: FIRST });
+    // Selecting on the press can move the layout, so the release lands elsewhere and the
+    // browser fires the click on the canvas, a parent of both.
+    fireEvent.pointerDown(card);
+    await selectFirst();
+    fireEvent.click(screen.getByRole('region', { name: 'Page canvas' }));
+
+    expect(pageSettingsShown()).toBe(false);
+  });
 });
 
 describe('Undo and Redo in the toolbar (R7)', () => {

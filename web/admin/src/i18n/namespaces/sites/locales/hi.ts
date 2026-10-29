@@ -305,6 +305,8 @@ export const hi: SitesMessages = {
   'siteHub.slugNote': 'सार्वजनिक पता {url} होगा।',
   'siteHub.homepage': 'होमपेज',
   'siteHub.inNavigation': 'नेविगेशन में',
+  'siteHub.unwrittenOne': '1 ब्लॉक नहीं लिखा गया',
+  'siteHub.unwritten': '{count} ब्लॉक नहीं लिखे गए',
   'siteHub.addToNavigation': 'नेविगेशन में जोड़ें',
   'siteHub.edit': 'संपादित करें',
   'siteHub.view': 'देखें',

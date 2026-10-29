@@ -63,6 +63,7 @@ export const es: ContentBlockMessages = {
   'romekaChoice.button.large': 'Grande',
   'romekaField.quote.text': 'Cita',
   'fieldHelp.quote.text': 'Las palabras citadas, sin comillas.',
+  'fieldExample.quote.text': 'p. ej., Este cerebro mío es algo más que meramente mortal.',
   'romekaField.quote.attribution': 'Autor',
   'fieldHelp.quote.attribution': 'La persona u obra de la que vienen las palabras.',
   'fieldExample.quote.attribution': 'Ada Lovelace, 1843',

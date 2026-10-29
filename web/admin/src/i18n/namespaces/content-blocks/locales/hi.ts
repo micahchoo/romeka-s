@@ -75,6 +75,7 @@ export const hi: ContentBlockMessages = {
   'romekaChoice.button.large': 'बड़ी',
   'romekaField.quote.text': 'उद्धरण',
   'fieldHelp.quote.text': 'उद्धृत शब्द, बिना उद्धरण चिह्नों के।',
+  'fieldExample.quote.text': 'उदाहरण के लिए, मेरा यह मस्तिष्क केवल नश्वर से कुछ अधिक है।',
   'romekaField.quote.attribution': 'द्वारा कहा गया',
   'fieldHelp.quote.attribution': 'वह व्यक्ति या कृति जिससे शब्द आए हैं।',
   'fieldExample.quote.attribution': 'एडा लवलेस, 1843',

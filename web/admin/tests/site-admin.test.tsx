@@ -107,6 +107,33 @@ describe('site hub', () => {
     );
   });
 
+  it('hub_says_how_many_blocks_of_a_page_are_not_written', async () => {
+    const draftPage = loadFixture('site-page-2-private.json');
+    const unwrittenPage = isRecord(draftPage)
+      ? {
+          ...draftPage,
+          'o:block': [
+            { 'o:layout': 'html', 'o:data': { html: '' }, 'o:layout_data': null, 'o:attachment': [] },
+            { 'o:layout': 'html', 'o:data': { html: '<p><br></p>' }, 'o:layout_data': null, 'o:attachment': [] },
+            { 'o:layout': 'html', 'o:data': { html: '<p>Kept</p>' }, 'o:layout_data': null, 'o:attachment': [] },
+          ],
+        }
+      : draftPage;
+    installFetch(
+      (url) =>
+        (url.pathname === '/api/site_pages'
+          ? listResponse([loadFixture('site-page-1.json'), unwrittenPage], 2)
+          : null) ??
+        siteRoutes(url) ??
+        notFound(),
+    );
+    render(<SitesPage param="1" rest={['1']} />);
+
+    const table = await screen.findByRole('table');
+    expect(within(table).getByRole('row', { name: /Draft/ })).toHaveTextContent('2 blocks not written');
+    expect(within(table).getByRole('row', { name: /Welcome/ })).not.toHaveTextContent('not written');
+  });
+
   it('hub_counts_the_sites_items_and_links_an_empty_site_to_its_items_tab', async () => {
     installFetch((url) => siteRoutes(url) ?? notFound());
     const { unmount } = render(<SitesPage param="1" rest={['1']} />);

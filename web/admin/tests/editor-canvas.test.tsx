@@ -406,3 +406,33 @@ describe('the empty draft', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('The page has 1 issue.');
   });
 });
+
+describe('the words a card says are missing', () => {
+  it('marks an empty block not written and a list with no pages', () => {
+    const draft = load([
+      rawBlock('html', { html: '' }),
+      rawBlock('listOfPages', { pagelist: '[]' }),
+      rawBlock('html', { html: '<p>Written</p>' }),
+    ]);
+    renderCanvas(draft);
+    const [empty, list, written] = draft.blocks.map((block) => card(block.key));
+    expect(empty).toHaveAttribute('data-writing', 'unwritten');
+    expect(within(empty ?? document.body).getByText('Not written yet')).toBeInTheDocument();
+    expect(within(list ?? document.body).getByText('No pages chosen')).toBeInTheDocument();
+    expect(written).not.toHaveAttribute('data-writing');
+  });
+
+  it('offers to clear an earlier template text, as one undoable edit', () => {
+    const initial = load([
+      rawBlock('html', { html: '<p>A line worth remembering.</p>' }),
+    ]);
+    const onAction = vi.fn();
+    render(<Harness initial={initial} onAction={onAction} />);
+    const key = blockAt(initial.blocks, 0).key;
+    expect(within(card(key)).getByText('Template text')).toBeInTheDocument();
+    fireEvent.click(within(card(key)).getByRole('button', { name: 'Clear it' }));
+    expect(onAction).toHaveBeenCalledWith({ type: 'setBlockData', blockKey: key, data: { html: '' } });
+    expect(card(key)).toHaveAttribute('data-writing', 'unwritten');
+    expect(within(card(key)).getByText('Not written yet')).toBeInTheDocument();
+  });
+});

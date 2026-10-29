@@ -17,9 +17,9 @@
               "block": "hero",
               "settings": {
                 "alignment": "left",
-                "heading": "Your exhibit title",
+                "heading": "",
                 "overlay": "medium",
-                "subheading": "A sentence about what this exhibit holds"
+                "subheading": ""
               },
               "v": 2
             }
@@ -28,7 +28,7 @@
         {
           "layout": "html",
           "data": {
-            "html": "<p>Introduce the exhibit here. This page came from a template, so every block is yours to edit or remove.</p>"
+            "html": ""
           },
           "layoutData": null
         },
@@ -72,9 +72,9 @@
               "block": "hero",
               "settings": {
                 "alignment": "left",
-                "heading": "Collection highlight",
+                "heading": "",
                 "overlay": "medium",
-                "subheading": "One object, up close"
+                "subheading": ""
               },
               "v": 2
             }
@@ -112,7 +112,7 @@
         {
           "layout": "html",
           "data": {
-            "html": "<p>About this site. Replace this text with the story behind the collection.</p>"
+            "html": ""
           },
           "layoutData": null
         },
@@ -232,7 +232,7 @@
         {
           "layout": "html",
           "data": {
-            "html": "<h2>A heading for this part</h2><p>Say what the image shows and why it matters. Every word here is yours to change.</p>"
+            "html": ""
           },
           "layoutData": null
         }
@@ -264,7 +264,7 @@
         {
           "layout": "html",
           "data": {
-            "html": "<h2>A heading for this part</h2><p>Say what the image shows and why it matters. Every word here is yours to change.</p>"
+            "html": ""
           },
           "layoutData": null
         },
@@ -305,21 +305,21 @@
         {
           "layout": "html",
           "data": {
-            "html": "<h3>First card</h3><p>One line about it.</p>"
+            "html": ""
           },
           "layoutData": null
         },
         {
           "layout": "html",
           "data": {
-            "html": "<h3>Second card</h3><p>One line about it.</p>"
+            "html": ""
           },
           "layoutData": null
         },
         {
           "layout": "html",
           "data": {
-            "html": "<h3>Third card</h3><p>One line about it.</p>"
+            "html": ""
           },
           "layoutData": null
         }
@@ -426,9 +426,9 @@
             "romeka": {
               "block": "quote",
               "settings": {
-                "attribution": "Who said it",
+                "attribution": "",
                 "style": "large",
-                "text": "<p>A line worth remembering.</p>"
+                "text": ""
               },
               "v": 2
             }

@@ -47,6 +47,7 @@ const COUNTED = {
   pageIssues: { one: 'canvas.pageIssuesOne', other: 'canvas.pageIssues' },
   toolbarIssues: { one: 'editor.issueOne', other: 'editor.issueCount' },
   attachments: { one: 'canvas.attachmentsOne', other: 'canvas.attachments' },
+  pages: { one: 'canvas.pagesOne', other: 'canvas.pages' },
   blocksAdded: { one: 'history.addedOne', other: 'history.added' },
   blocksRemoved: { one: 'history.removedOne', other: 'history.removed' },
   blocksChanged: { one: 'history.changedOne', other: 'history.changed' },

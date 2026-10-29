@@ -34,14 +34,16 @@ export interface PreviewRender {
 /**
  * The body is the write a `PUT /api/site_pages/<id>` takes, plus the id when
  * editing, plus an unsaved site-wide theme map, which the route renders in
- * place of the stored one. The body and the order come from one canonical
- * block list, so they cannot disagree.
+ * place of the stored one, plus the hint text an empty field shows in the
+ * frame (`romeka_hints`, `written.ts#previewHints`). The body and the order
+ * come from one canonical block list, so they cannot disagree.
  */
 export const previewRequest = (
   draft: PageContent,
   siteId: SiteId,
   pageId: PageId | null,
   themeSettings: Readonly<Record<string, JsonValue>> | null = null,
+  hints: Readonly<Record<string, string>> | null = null,
 ): PreviewRequest => {
   const blocks = canonicalBlocks(draft.blocks);
   return {
@@ -49,6 +51,7 @@ export const previewRequest = (
       ...encodeSitePage(toPageWrite({ ...draft, blocks }, siteId)),
       ...(pageId === null ? {} : { 'o:id': pageId }),
       ...(themeSettings === null ? {} : { 'o:theme_settings': themeSettings }),
+      ...(hints === null ? {} : { romeka_hints: hints }),
     },
     order: blocks.map((block) => block.key),
   };

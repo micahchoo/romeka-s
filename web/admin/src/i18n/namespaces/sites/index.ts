@@ -285,6 +285,8 @@ export const en = {
   'siteHub.slugNote': 'The public address will be {url}.',
   'siteHub.homepage': 'Homepage',
   'siteHub.inNavigation': 'In navigation',
+  'siteHub.unwrittenOne': '1 block not written',
+  'siteHub.unwritten': '{count} blocks not written',
   'siteHub.addToNavigation': 'Add to navigation',
   'siteHub.edit': 'Edit',
   'siteHub.view': 'View',

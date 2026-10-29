@@ -308,6 +308,8 @@ export const te: SitesMessages = {
   'siteHub.slugNote': 'పబ్లిక్ అడ్రస్ {url} అవుతుంది.',
   'siteHub.homepage': 'హోమ్‌పేజీ',
   'siteHub.inNavigation': 'నావిగేషన్‌లో',
+  'siteHub.unwrittenOne': '1 బ్లాక్ వ్రాయబడలేదు',
+  'siteHub.unwritten': '{count} బ్లాకులు వ్రాయబడలేదు',
   'siteHub.addToNavigation': 'నావిగేషన్‌కు జోడించు',
   'siteHub.edit': 'సవరించు',
   'siteHub.view': 'చూడండి',

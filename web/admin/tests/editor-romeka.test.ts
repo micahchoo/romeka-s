@@ -10,6 +10,7 @@ import { draftReducer } from '../src/pages/sites/editor/reducer';
 import { toApi } from '../src/pages/sites/editor/wire';
 import type { PageDraft } from '../src/pages/sites/editor/draft';
 import { carrierOf, settingsOf } from '../src/pages/sites/editor/romeka';
+import { unwrittenField } from '../src/pages/sites/editor/written';
 import {
   legacyPlainHash,
   plainHash,
@@ -159,18 +160,15 @@ describe('editing a Romeka block', () => {
     });
   });
 
-  it('reports the required heading as an issue on the block', () => {
+  it('saves an emptied heading, which leaves the hero not written rather than invalid', () => {
     const draft = load([carrierBlock('<h2>Old</h2>', null)]);
     const cleared = apply(draft, {
       type: 'setLayoutDataValues',
       blockKey: blockAt(draft.blocks, 0).key,
       values: { 'romeka.heading': '' },
     });
-    expect(validate(cleared)).toContainEqual({
-      kind: 'required',
-      blockKey: blockAt(draft.blocks, 0).key,
-      field: 'heading',
-    });
+    expect(validate(cleared)).toEqual([]);
+    expect(unwrittenField(cleared.registry, blockAt(cleared.blocks, 0))?.key).toBe('heading');
   });
 });
 

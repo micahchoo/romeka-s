@@ -73,6 +73,7 @@ export const ne: ContentBlockMessages = {
   'romekaChoice.button.large': 'ठुलो',
   'romekaField.quote.text': 'उद्धरण',
   'fieldHelp.quote.text': 'उद्धृत शब्दहरू, उद्धरण चिन्ह बिना।',
+  'fieldExample.quote.text': 'जस्तै, मेरो यो मस्तिष्क केवल नश्वरभन्दा केही बढी हो।',
   'romekaField.quote.attribution': 'भनिएको',
   'fieldHelp.quote.attribution': 'शब्दहरू आउने व्यक्ति वा कृति।',
   'fieldExample.quote.attribution': 'एडा लोभलेस, 1843',

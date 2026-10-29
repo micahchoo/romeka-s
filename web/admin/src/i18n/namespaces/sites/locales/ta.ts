@@ -318,6 +318,8 @@ export const ta: SitesMessages = {
   'siteHub.slugNote': 'பொது முகவரி {url} ஆக இருக்கும்.',
   'siteHub.homepage': 'முகப்புப் பக்கம்',
   'siteHub.inNavigation': 'வழிசெலுத்தலில்',
+  'siteHub.unwrittenOne': '1 தொகுதி எழுதப்படவில்லை',
+  'siteHub.unwritten': '{count} தொகுதிகள் எழுதப்படவில்லை',
   'siteHub.addToNavigation': 'வழிசெலுத்தலில் சேர்க்கவும்',
   'siteHub.edit': 'திருத்தவும்',
   'siteHub.view': 'பார்க்கவும்',

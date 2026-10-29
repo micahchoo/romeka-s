@@ -76,6 +76,7 @@ export const ml: ContentBlockMessages = {
   'romekaChoice.button.large': 'വലുത്',
   'romekaField.quote.text': 'ഉദ്ധരണി',
   'fieldHelp.quote.text': 'ഉദ്ധരിച്ച വാക്കുകൾ, ഉദ്ധരണ ചിഹ്നങ്ങൾ ഇല്ലാതെ.',
+  'fieldExample.quote.text': 'ഉദാഹരണത്തിന്, എന്റെ ഈ മസ്തിഷ്കം കേവലം നശ്വരമായതിനേക്കാൾ കൂടുതലാണ്.',
   'romekaField.quote.attribution': 'പറഞ്ഞിട്ടുള്ളത്',
   'fieldHelp.quote.attribution': 'വാക്കുകൾ വന്ന വ്യക്തി അല്ലെങ്കിൽ കൃതി.',
   'fieldExample.quote.attribution': 'അഡാ ലോവ്‌ലേസ്, 1843',
