@@ -1,6 +1,7 @@
-//! The counts behind a set's place, a record's "Linked from" and an item type's fields: Romeka's
-//! own reads (`/api/romeka/item-sets/counts`, `/api/romeka/links/{id}`,
-//! `/api/romeka/field-counts`); upstream has none of these routes.
+//! The counts behind a set's place, a record's "Linked from", an item type's fields and the Items
+//! browse's item type chips: Romeka's own reads (`/api/romeka/item-sets/counts`,
+//! `/api/romeka/links/{id}`, `/api/romeka/field-counts`, `/api/romeka/item-types/counts`);
+//! upstream has none of these routes.
 //!
 //! Each count stands for a list the admin opens, so it must equal that list's `totalResults` for
 //! the same caller: a set's count is `GET /api/items?item_set_id=<id>`, a link row's count is the
@@ -218,6 +219,41 @@ pub async fn field_counts(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
                 filled: field.items,
             })
             .collect(),
+    })?))
+}
+
+#[derive(Serialize)]
+struct ItemTypeCounts {
+    item_types: Vec<ItemTypeCount>,
+    no_item_type: i64,
+    with_class: i64,
+}
+
+#[derive(Serialize)]
+struct ItemTypeCount {
+    id: u64,
+    items: i64,
+}
+
+/// `GET /api/romeka/item-types/counts`: the Items browse's item type chips. Every item type, in id
+/// order, with the number of items the Items list answers this caller for
+/// `resource_template_id=<id>` (an unused type answers 0); then `romeka_no_resource_template=1`
+/// as `no_item_type` and `romeka_has_resource_class=1` as `with_class`. Each is a type's total,
+/// not a total under any other filter.
+pub async fn item_type_counts(api: &Api<'_>) -> Result<ApiResponse, ApiError> {
+    let templates =
+        with_db!(api.pool(), |db| TemplateRepo::new(db).list().await).map_err(db_error)?;
+    let mut item_types = Vec::with_capacity(templates.len());
+    for template in templates {
+        item_types.push(ItemTypeCount {
+            id: template.id.0,
+            items: listed(api, "resource_template_id", &template.id.0.to_string()).await?,
+        });
+    }
+    Ok(ApiResponse::document(serialize(&ItemTypeCounts {
+        item_types,
+        no_item_type: listed(api, "romeka_no_resource_template", "1").await?,
+        with_class: listed(api, "romeka_has_resource_class", "1").await?,
     })?))
 }
 

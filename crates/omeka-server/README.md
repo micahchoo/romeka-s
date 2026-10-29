@@ -332,6 +332,20 @@ or a `YYYY-MM-DD` date. Upstream has no such parameters. The answer is `Cache-Co
 `tests/dashboard_counts.rs` holds every count against its list for anonymous, an author, an editor
 and an admin.
 
+A fifth read gives the Items browse its item type chips:
+
+| Route | Response |
+| --- | --- |
+| `GET /api/romeka/item-types/counts` | 200 `{item_types: [{id, items}], no_item_type, with_class}` |
+
+Every item type is listed, in id order, an unused one with `items` 0. Its `items` is the
+`Omeka-S-Total-Results` of `GET /api/items?resource_template_id=<id>` for the same caller,
+`no_item_type` that of `romeka_no_resource_template=1`, and `with_class` that of
+`romeka_has_resource_class=1` (items with a resource class; the admin shows its Class column only
+while this is above 0). Each is a type's total, not a total under the browse's other filters.
+The answer is `Cache-Control: no-store`. `tests/item_type_counts.rs` holds every count against its
+list for anonymous, an author, an editor and an admin.
+
 ## Fixity
 
 A check of the stored originals against `media.sha256` (`src/fixity.rs`, logic in

@@ -1,11 +1,12 @@
-//! Romeka's own item filters: the lists the dashboard's counts open. Upstream has no parameter
-//! for any of them (`ItemAdapter::buildQuery` reads `item_set_id` and `resource_template_id` only
-//! as ids to match).
+//! Romeka's own item filters: the lists the dashboard's and the Items browse's counts open.
+//! Upstream has no parameter for any of them (`ItemAdapter::buildQuery` reads `item_set_id`,
+//! `resource_template_id` and `resource_class_id` only as ids to match).
 //!
 //! | Parameter | Items kept |
 //! | --- | --- |
 //! | `romeka_no_item_set=1` | in no item set |
 //! | `romeka_no_resource_template=1` | with no resource template |
+//! | `romeka_has_resource_class=1` | with a resource class |
 //! | `romeka_changed_by_others_since=<time>` | with a history entry since then by anyone but the reader |
 
 use chrono::NaiveDateTime;
@@ -22,6 +23,7 @@ use crate::time;
 pub struct WorkFilters {
     pub no_item_set: bool,
     pub no_resource_template: bool,
+    pub has_resource_class: bool,
     pub changed_by_others: Option<OthersChanges>,
 }
 
@@ -55,6 +57,9 @@ impl WorkFilters {
         }
         if self.no_resource_template {
             statement.push(" AND resource.resource_template_id IS NULL");
+        }
+        if self.has_resource_class {
+            statement.push(" AND resource.resource_class_id IS NOT NULL");
         }
         match &self.changed_by_others {
             None => {}

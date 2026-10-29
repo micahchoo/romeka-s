@@ -106,7 +106,8 @@ impl SearchQuery {
 }
 
 /// Romeka's work filters on an items search (`omeka_db::repos::WorkFilters`): `romeka_no_item_set`,
-/// `romeka_no_resource_template` and `romeka_changed_by_others_since`, read for `actor`.
+/// `romeka_no_resource_template`, `romeka_has_resource_class` and
+/// `romeka_changed_by_others_since`, read for `actor`.
 ///
 /// "Changed by others" reads the item history, which is for people who sign in: an anonymous
 /// caller's filter keeps no item, as does a `since` that is not a time. `since` is an RFC 3339
@@ -115,6 +116,7 @@ pub fn work_filters(params: &Params, actor: &Actor) -> WorkFilters {
     WorkFilters {
         no_item_set: params.bool("romeka_no_item_set") == Some(true),
         no_resource_template: params.bool("romeka_no_resource_template") == Some(true),
+        has_resource_class: params.bool("romeka_has_resource_class") == Some(true),
         changed_by_others: params.get("romeka_changed_by_others_since").map(|raw| {
             match (since(raw), actor.user()) {
                 (Some(since), Some(reader)) => OthersChanges::Since { since, reader },
