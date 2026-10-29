@@ -27,6 +27,7 @@ pub mod login;
 pub mod media_add;
 pub mod messages;
 pub mod origin;
+pub mod page_changes;
 pub mod page_history;
 pub mod password;
 pub mod publish;

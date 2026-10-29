@@ -25,7 +25,29 @@ pub struct PageVersionRow {
     pub snapshot: Value,
 }
 
+/// Who made a version, as far as the row can tell.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VersionAuthor {
+    /// The user saved it; the user row may since have gone.
+    User(UserId),
+    /// The state a page had before its first recorded save. No one was recorded as its author.
+    NotRecorded,
+    /// A save by a user whose row was deleted since (`ON DELETE SET NULL`).
+    Deleted,
+}
+
 impl PageVersionRow {
+    /// [`crate::repos::PageVersionRepo::save`] writes version 1 with no user, as the state before
+    /// history began, and every later version with the saving user. So a later version with no
+    /// user lost it when the user was deleted.
+    pub fn author(&self) -> VersionAuthor {
+        match (self.user_id, self.version) {
+            (Some(user), _) => VersionAuthor::User(user),
+            (None, 1) => VersionAuthor::NotRecorded,
+            (None, _) => VersionAuthor::Deleted,
+        }
+    }
+
     pub fn from_db_row<DB: Backend>(row: &DB::Row) -> Result<Self, DbError> {
         let version = DB::int(row, "version")?;
         Ok(Self {

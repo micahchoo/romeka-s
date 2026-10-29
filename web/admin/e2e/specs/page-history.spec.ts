@@ -1,6 +1,6 @@
 /**
  * Page history in a real browser against the real server: two saves become
- * versions, the first one renders through the preview route, Restore puts it in
+ * versions, each saying what it changed, the first one renders through the preview route, Restore puts it in
  * the draft and the next Save stores it; and a save made from a page someone
  * else saved since is refused with their name, and Keep mine saves over theirs.
  */
@@ -80,7 +80,10 @@ test('two saves are versions; the first one restores and saves again', async ({ 
   const entries = panel.getByRole('button', { name: / · / });
   await expect(entries).toHaveCount(3);
   await expect(entries.first()).toContainText('E2E Admin · 1 block');
-  await expect(entries.nth(2)).toContainText('Unknown author · 1 block');
+  await expect(entries.first()).toContainText('Title changed from “First save” to “Second save”');
+  await expect(entries.nth(1)).toContainText('Title changed from “Opening title” to “First save”');
+  await expect(entries.nth(2)).toContainText('Author not recorded · 1 block');
+  await expect(entries.nth(2)).toContainText('First saved version');
 
   // The middle entry is the first save.
   const rendered = page.waitForResponse(
