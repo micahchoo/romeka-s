@@ -326,18 +326,6 @@ impl<'a> Api<'a> {
         }
     }
 
-    /// `UserAdapter` entity access: admins may change any user, everyone else
-    /// only their own account (`IsSelfAssertion`).
-    pub(crate) fn authorize_user_update(&self, target: UserId) -> Result<(), ApiError> {
-        match self.actor.role() {
-            Some("global_admin" | "site_admin") => Ok(()),
-            _ => match self.actor.user() {
-                Some(me) if me == target => Ok(()),
-                _ => Err(entity_denied("Omeka\\Entity\\User", Operation::Update)),
-            },
-        }
-    }
-
     /// `Site` entity access for a create: `AclFactory::addRulesForSites`
     /// grants `create` to `editor` only, and the two admin roles hold it
     /// through their blanket allow.

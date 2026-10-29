@@ -1,7 +1,9 @@
 //! `POST` and `PUT` for `users`.
 //!
 //! `UserAdapter::hydrate` sets `o:name`, `o:email` and, when the value changes,
-//! `o:role` and `o:is_active`; `validateEntity` requires a name, a valid and
+//! `o:role` and `o:is_active`, each behind its own privilege: `change-role`,
+//! `change-role-admin` for an admin role, and `activate-user`. The `update`
+//! privilege on the row comes first. `validateEntity` requires a name, a valid and
 //! unused email, and a role. A new user is inactive and has no password, which
 //! matches the upstream entity defaults; the password and activation flow is the
 //! admin surface's work, not this handler's.
@@ -11,6 +13,8 @@
 //! with the user and stored after the row, as upstream stores it after the API
 //! update ([`crate::settings`]).
 
+use omeka_core::ids::UserId as CoreUserId;
+use omeka_core::permissions::{Action, Context, Role, SubjectKind};
 use omeka_db::ids::UserId;
 use omeka_db::repos::UserRepo;
 use omeka_db::rows::{NewUser, UserRow};
@@ -33,6 +37,14 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
         .to_string();
     let role = payload.str_member("o:role").unwrap_or_default().to_string();
     let settings = user_settings(payload)?;
+    if access::is_admin_role(Some(&role)) {
+        authorize(
+            api,
+            Action::ChangeRoleAdmin,
+            "change-role-admin",
+            &Context::entity(SubjectKind::User),
+        )?;
+    }
     validate(None, api, &name, &email, &role).await?;
     let taken = taken_or_db_error("o:email", messages::email_taken(&email));
     let row = with_db!(api.pool(), |db| UserRepo::new(db)
@@ -62,7 +74,13 @@ pub async fn update(
     else {
         return Err(not_found(USER_CLASS, raw_id));
     };
-    api.authorize_user_update(row.id)?;
+    let target = Context::User {
+        id: CoreUserId::new(row.id.0),
+        // A role outside the six is no admin role, which is all the
+        // assertions read from it.
+        role: Role::from_wire_name(&row.role).unwrap_or(Role::Researcher),
+    };
+    authorize(api, Action::Update, "update", &target)?;
 
     let name = member_or(payload, "o:name", partial, &row.name);
     let email = member_or(payload, "o:email", partial, &row.email);
@@ -70,20 +88,45 @@ pub async fn update(
         .str_member("o:role")
         .map(str::to_string)
         .unwrap_or_else(|| row.role.clone());
+    if !role.is_empty() && role != row.role {
+        authorize(api, Action::ChangeRole, "change-role", &target)?;
+        if access::is_admin_role(Some(&role)) {
+            authorize(api, Action::ChangeRoleAdmin, "change-role-admin", &target)?;
+        }
+    }
+    let is_active = payload.bool_member("o:is_active", row.is_active);
+    if is_active != row.is_active {
+        authorize(api, Action::ActivateUser, "activate-user", &target)?;
+    }
     let settings = user_settings(payload)?;
     validate(Some(&row), api, &name, &email, &role).await?;
     row.name = name;
     row.email = email;
     row.role = role;
-    if payload.has("o:is_active") {
-        row.is_active = payload.bool_member("o:is_active", row.is_active);
-    }
+    row.is_active = is_active;
     with_db!(api.pool(), |db| UserRepo::new(db).update(&row).await).map_err(taken_or_db_error(
         "o:email",
         messages::email_taken(&row.email),
     ))?;
     settings::store_user(api.pool(), row.id, &settings).await?;
     api.read_member("users", raw_id).await
+}
+
+/// `AbstractEntityAdapter::authorize` on a user row. The refusal names the
+/// privilege as upstream's ACL spells it.
+fn authorize(
+    api: &Api<'_>,
+    action: Action,
+    privilege: &str,
+    context: &Context,
+) -> Result<(), ApiError> {
+    if api.actor().is_allowed(action, context) {
+        Ok(())
+    } else {
+        Err(ApiError::PermissionDenied {
+            message: messages::permission_denied(privilege, USER_CLASS),
+        })
+    }
 }
 
 /// The settings writes `o:user_settings` asks for. An absent member writes none,

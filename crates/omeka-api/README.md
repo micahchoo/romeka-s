@@ -466,7 +466,7 @@ adapter and the entity rule is the gate.
 | resource_templates | author and up | author and up | author and up | update: author own row, reviewer and up any; delete: author own row, editor and up any; a reviewer holds no grant on the adapter |
 | vocabularies, resource_classes, properties, jobs | site_admin, global_admin | site_admin, global_admin | site_admin, global_admin | delete and update of a vocabulary: a `site_admin` only their own row |
 | sites, site_pages | editor and up (site create); any caller at the adapter level, so the entity rule decides the rest | any caller at the adapter level; the entity rule needs the owner or a site role | any caller at the adapter level; the entity rule needs the owner | a page write: the site's owner or a site `editor`/`admin`; a site update: the site's owner or a site `admin`; a site create: `editor` and up; delete: `OwnsEntityAssertion` |
-| users | site_admin, global_admin | researcher and up | site_admin, global_admin | update: self or admin; delete: nobody's own account, and no `site_admin` on another admin |
+| users | site_admin, global_admin | researcher and up | site_admin, global_admin | update: self or admin, and no `site_admin` on another admin; a changed `o:role` (`change-role`) or `o:is_active` (`activate-user`): an admin, never on their own account; an admin role (`change-role-admin`): `global_admin` only; delete: nobody's own account, and no `site_admin` on another admin |
 
 Roles, highest first: `global_admin`, `site_admin`, `editor`, `reviewer`,
 `author`, `researcher`. This is the port's read of `AclFactory`. The
