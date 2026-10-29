@@ -8,8 +8,9 @@ import { isRecord, isUnknownArray, parseUser } from '../src/api/parse';
 import { setSession } from '../src/api/session';
 import { Shell } from '../src/app/shell';
 import { ItemsPage } from '../src/pages/items/page';
+import { classRoutes, classesWithTwin, vocabulariesWithSchema } from './class-routes';
 import { loadFixture } from './loadFixture';
-import { installFetch, jsonResponse, requestBody, requestsFor, signedIn } from './stub';
+import { installFetch, jsonResponse, requestBody, requestsFor, route, signedIn } from './stub';
 
 const itemFixture = (): Record<string, unknown> => {
   const fixture = loadFixture('item-1.json');
@@ -21,7 +22,7 @@ const itemFixture = (): Record<string, unknown> => {
 
 const optionsRoutes: Readonly<Record<string, () => Response>> = {
   '/api/users': () => jsonResponse(loadFixture('users-page.json')),
-  '/api/resource_classes': () => jsonResponse(loadFixture('resource-classes-page.json')),
+  ...classRoutes,
   '/api/resource_templates': () => jsonResponse(loadFixture('resource-templates-page.json')),
   '/api/properties': () => jsonResponse(loadFixture('properties-page.json')),
   '/api/item_sets': () => jsonResponse(loadFixture('item-sets-page.json')),
@@ -91,6 +92,25 @@ describe('item create form', () => {
     ]);
     expect(window.location.hash).toBe('#/items/1');
     window.location.hash = '';
+  });
+});
+
+describe('item form class select', () => {
+  it('names two classes that share a label each with its standard', async () => {
+    installFetch(
+      route({
+        ...optionsRoutes,
+        '/api/resource_classes': () => jsonResponse(classesWithTwin()),
+        '/api/vocabularies': () => jsonResponse(vocabulariesWithSchema()),
+      }),
+    );
+    render(<ItemsPage param="new" />);
+
+    await screen.findByLabelText('Title');
+    const classSelect = screen.getByRole('combobox', { name: 'Class', hidden: true });
+    expect(within(classSelect).getByRole('option', { name: 'Still Image (Dublin Core Type)', hidden: true })).toBeInTheDocument();
+    expect(within(classSelect).getByRole('option', { name: 'Still Image (Schema.org)', hidden: true })).toBeInTheDocument();
+    expect(within(classSelect).getByRole('option', { name: 'Book', hidden: true })).toBeInTheDocument();
   });
 });
 

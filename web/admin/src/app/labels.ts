@@ -1,8 +1,6 @@
 import type {
-  ClassId,
   Property,
   PropertyId,
-  ResourceClass,
   ResourceRef,
   User,
   UserId,
@@ -23,11 +21,6 @@ export interface TermName {
 
 export const userNames = (users: readonly User[]): ReadonlyMap<UserId, string> =>
   new Map(users.map((user) => [user.id, user.name]));
-
-export const classLabels = (classes: readonly ResourceClass[]): ReadonlyMap<ClassId, TermName> =>
-  new Map(
-    classes.map((entry) => [entry.id, { term: entry.term, label: entry.label ?? entry.term }]),
-  );
 
 export const vocabularyLabels = (
   vocabularies: readonly Vocabulary[],
@@ -61,6 +54,5 @@ const termLabelOf =
     return name === undefined ? missing(ref) : text.label(name.term, name.label);
   };
 
-export const classLabelOf = termLabelOf<ClassId>();
 export const vocabularyLabelOf = termLabelOf<VocabularyId>();
 export const propertyLabelOf = termLabelOf<PropertyId>();

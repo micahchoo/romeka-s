@@ -9,6 +9,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { isRecord } from '../src/api/parse';
 import { ItemsPage } from '../src/pages/items/page';
+import { classRoutes } from './class-routes';
 import { loadFixture } from './loadFixture';
 import { installFetch, jsonResponse, listResponse, urlsFor } from './stub';
 
@@ -106,8 +107,9 @@ const serve = () => {
     if (path === '/api/users') {
       return jsonResponse(loadFixture('users-page.json'));
     }
-    if (path === '/api/resource_classes') {
-      return jsonResponse(loadFixture('resource-classes-page.json'));
+    const classRoute = classRoutes[path];
+    if (classRoute !== undefined) {
+      return classRoute(url, init);
     }
     if (path === '/api/resource_templates') {
       return jsonResponse(loadFixture('resource-templates-page.json'));
