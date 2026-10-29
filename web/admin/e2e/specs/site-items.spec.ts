@@ -173,7 +173,7 @@ test('a new site starts empty, and its Items tab picks, syncs and replaces items
   await rows.nth(2).check();
   await expect(page.getByText('Selected: 2')).toBeVisible();
   await page.getByRole('button', { name: 'Add to site…' }).click();
-  await page.getByLabel('Site', { exact: true }).selectOption({ label: BULK_SITE });
+  await page.getByLabel('Site to add them to').selectOption({ label: BULK_SITE });
   await page.getByRole('button', { name: `Add 2 to ${BULK_SITE}` }).click();
   await expect(page.getByText(`${BULK_SITE} now has 2 items.`)).toBeVisible();
   await expectClean(diagnostics, 'the Items list bulk add');

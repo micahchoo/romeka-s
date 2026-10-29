@@ -83,7 +83,7 @@ export const BulkSiteActions = ({
       </p>
       {mode === null ? null : (
         <p className="bulk-site-row">
-          <label htmlFor="bulk-site">{t('items.bulkSite')}</label>
+          <label htmlFor="bulk-site">{t(mode === 'add' ? 'items.bulkSiteAdd' : 'items.bulkSiteRemove')}</label>
           <select
             id="bulk-site"
             value={siteId === null ? '' : String(siteId)}
