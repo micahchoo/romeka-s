@@ -36,15 +36,22 @@
 //! [`TRASH_DAYS`], is how many days a bulk delete's trash keeps its items
 //! ([`trash_days`]), a count like the upload ones.
 //!
+//! Seven global keys are `SettingForm`'s general, display, editing and search
+//! fields. Four of them shape screens every caller sees, so [`installation`]
+//! answers those to anyone: the title, the page size, the time zone and
+//! whether a new item set starts private. One, [`INDEX_FULLTEXT_SEARCH`], is a
+//! request, not a setting: `true` asks for the index job, and upstream's
+//! `SettingController` never stores it.
+//!
 //! The admin locale is `MvcListeners::bootstrapLocale` (lines 132-146): the
 //! signed-in user's `locale`, else the global `locale`, else none, which the
 //! client reads as its own default.
 
 use omeka_db::DbError;
 use omeka_db::DbPool;
-use omeka_db::ids::UserId;
-use omeka_db::repos::{MediaVisibility, SettingRepo, UserSettingRepo, ValueRepo};
-use omeka_db::rows::MediaRow;
+use omeka_db::ids::{JobId, UserId};
+use omeka_db::repos::{JobRepo, MediaVisibility, SettingRepo, UserSettingRepo, ValueRepo};
+use omeka_db::rows::{MediaRow, NewJob};
 use omeka_db::with_db;
 use omeka_media::http_guard::AddressPolicy;
 use omeka_media::validation::{DEFAULT_EXTENSIONS, DEFAULT_MEDIA_TYPES, FileValidation};
@@ -56,6 +63,8 @@ use crate::messages;
 use crate::read::catalog::Catalog;
 use crate::read::response::serialize;
 use crate::read::{Api, ApiResponse, db_error};
+use crate::time_zones::TIME_ZONES;
+use crate::write::users::email_is_valid;
 
 /// The `locale` key, in `setting` and in `user_setting` alike.
 pub const LOCALE: &str = "locale";
@@ -119,6 +128,44 @@ pub const IMPORT_DRAFT_STAGING_KEEP_DAYS: &str = "import_draft_staging_keep_days
 /// container, the manifest, the public page and search).
 pub const ANNOTATIONS_PUBLIC: &str = "romeka_annotations_public";
 
+/// `SettingForm`'s installation title, required. The admin header, the admin
+/// page title, the public site and mail name the installation by it.
+pub const INSTALLATION_TITLE: &str = "installation_title";
+
+/// `SettingForm`'s administrator email, required, an email address.
+pub const ADMINISTRATOR_EMAIL: &str = "administrator_email";
+
+/// `SettingForm`'s time zone, required, one of [`TIME_ZONES`].
+pub const TIME_ZONE: &str = "time_zone";
+
+/// `SettingForm`'s results per page, required, digits.
+pub const PAGINATION_PER_PAGE: &str = "pagination_per_page";
+
+/// `SettingForm`'s switch that starts a new item set private.
+pub const DEFAULT_TO_PRIVATE_ITEM_SETS: &str = "default_to_private_item_sets";
+
+/// `SettingForm`'s switch for new-version notices.
+pub const VERSION_NOTIFICATIONS: &str = "version_notifications";
+
+/// `SettingForm`'s "Index full-text search" box: `true` starts [`INDEX_JOB`].
+/// Never stored.
+pub const INDEX_FULLTEXT_SEARCH: &str = "index_fulltext_search";
+
+/// The member of a `PATCH` answer naming the index job that write composed.
+pub const INDEX_FULLTEXT_SEARCH_JOB: &str = "index_fulltext_search_job";
+
+/// The job [`INDEX_FULLTEXT_SEARCH`] asks for.
+const INDEX_JOB: &str = "Omeka\\Job\\IndexFulltextSearch";
+
+/// The title when no row holds one: the port's name, as upstream's is `Omeka S`.
+pub const INSTALLATION_TITLE_DEFAULT: &str = "Romeka S";
+
+/// `Paginator::PER_PAGE`, the page size when no row holds one.
+pub const PAGINATION_PER_PAGE_DEFAULT: u64 = 25;
+
+/// `SettingForm`'s time zone when no row holds one.
+pub const TIME_ZONE_DEFAULT: &str = "UTC";
+
 /// Days a bulk delete keeps its items in the trash before a purge empties it
 /// (`crate::bulk::trash`). Port-only; upstream deletes at once.
 pub const TRASH_DAYS: &str = "romeka_trash_days";
@@ -162,6 +209,14 @@ enum Shape {
     Count,
     /// Saved lists, [`SAVED_LISTS`]; an empty list removes the row.
     SavedLists,
+    /// A string that is not empty once trimmed, as a `required` text field.
+    Required,
+    /// A required email address.
+    Email,
+    /// A required name from [`TIME_ZONES`].
+    TimeZone,
+    /// `true` asks for an action and `false` asks for none; never stored.
+    Request,
 }
 
 /// The user keys the API reads and writes. Each one has a field in the admin.
@@ -181,11 +236,26 @@ pub const GLOBAL_SETTINGS: &[&str] = &[
     IMPORT_DRAFT_STAGING_KEEP_DAYS,
     ANNOTATIONS_PUBLIC,
     TRASH_DAYS,
+    INSTALLATION_TITLE,
+    ADMINISTRATOR_EMAIL,
+    TIME_ZONE,
+    PAGINATION_PER_PAGE,
+    DEFAULT_TO_PRIVATE_ITEM_SETS,
+    VERSION_NOTIFICATIONS,
+    INDEX_FULLTEXT_SEARCH,
 ];
 
 fn shape(key: &str) -> Shape {
     match key {
-        HIDE_LESSONS | DISABLE_FILE_VALIDATION | IMPORT_ALLOW_PRIVATE_URLS => Shape::Flag,
+        HIDE_LESSONS
+        | DISABLE_FILE_VALIDATION
+        | IMPORT_ALLOW_PRIVATE_URLS
+        | DEFAULT_TO_PRIVATE_ITEM_SETS
+        | VERSION_NOTIFICATIONS => Shape::Flag,
+        INSTALLATION_TITLE => Shape::Required,
+        ADMINISTRATOR_EMAIL => Shape::Email,
+        TIME_ZONE => Shape::TimeZone,
+        INDEX_FULLTEXT_SEARCH => Shape::Request,
         ANNOTATIONS_PUBLIC => Shape::OptOut,
         LESSONS_SEEN => Shape::Names,
         SAVED_LISTS => Shape::SavedLists,
@@ -194,7 +264,8 @@ fn shape(key: &str) -> Shape {
         | IMPORT_UPLOAD_MAX_TOTAL
         | IMPORT_STAGING_KEEP_DAYS
         | IMPORT_DRAFT_STAGING_KEEP_DAYS
-        | TRASH_DAYS => Shape::Count,
+        | TRASH_DAYS
+        | PAGINATION_PER_PAGE => Shape::Count,
         _ => Shape::Text,
     }
 }
@@ -441,6 +512,87 @@ pub async fn trash_days(pool: &DbPool) -> Result<u64, DbError> {
         .unwrap_or(TRASH_DAYS_DEFAULT))
 }
 
+/// The four settings that shape screens outside the Settings page, as they
+/// apply.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Installation {
+    pub title: String,
+    pub per_page: u64,
+    pub time_zone: String,
+    pub default_private_item_sets: bool,
+}
+
+/// [`Installation`]: each setting as stored, else its default. A stored value
+/// of the wrong shape reads as the default, so a hand-edited row cannot break
+/// every screen.
+///
+/// # Errors
+/// [`DbError`] when a setting row cannot be read.
+pub async fn installation(pool: &DbPool) -> Result<Installation, DbError> {
+    let time_zone = non_empty(setting(pool, TIME_ZONE).await?)
+        .filter(|zone| TIME_ZONES.contains(&zone.as_str()))
+        .unwrap_or_else(|| TIME_ZONE_DEFAULT.to_string());
+    Ok(Installation {
+        title: installation_title(pool).await?,
+        per_page: pagination_per_page(pool).await?,
+        time_zone,
+        default_private_item_sets: setting(pool, DEFAULT_TO_PRIVATE_ITEM_SETS)
+            .await?
+            .is_some_and(|value| php_truthy(&value)),
+    })
+}
+
+/// `$setting('installation_title', ...)`: the stored title, else
+/// [`INSTALLATION_TITLE_DEFAULT`].
+///
+/// # Errors
+/// [`DbError`] when the setting row cannot be read.
+pub async fn installation_title(pool: &DbPool) -> Result<String, DbError> {
+    Ok(non_empty(setting(pool, INSTALLATION_TITLE).await?)
+        .filter(|title| !title.trim().is_empty())
+        .unwrap_or_else(|| INSTALLATION_TITLE_DEFAULT.to_string()))
+}
+
+/// `PaginatorFactory`: the stored page size, else
+/// [`PAGINATION_PER_PAGE_DEFAULT`]. An adopted database stores it as digits.
+///
+/// # Errors
+/// [`DbError`] when the setting row cannot be read.
+pub async fn pagination_per_page(pool: &DbPool) -> Result<u64, DbError> {
+    Ok(setting(pool, PAGINATION_PER_PAGE)
+        .await?
+        .as_ref()
+        .and_then(count_of)
+        .unwrap_or(PAGINATION_PER_PAGE_DEFAULT))
+}
+
+/// `GET /api/romeka/installation`: [`Installation`] for any caller, signed in
+/// or not. Each value shapes what every caller already sees (the title on
+/// every page, the page size of every list, the time of every date) or what a
+/// new item set's form starts with. None of them describes a record.
+///
+/// # Errors
+/// [`ApiError::Internal`] when a row cannot be read.
+pub async fn read_installation(api: &Api<'_>) -> Result<ApiResponse, ApiError> {
+    let facts = installation(api.pool()).await.map_err(db_error)?;
+    let document = serde_json::json!({
+        INSTALLATION_TITLE: facts.title,
+        PAGINATION_PER_PAGE: facts.per_page,
+        TIME_ZONE: facts.time_zone,
+        DEFAULT_TO_PRIVATE_ITEM_SETS: facts.default_private_item_sets,
+    });
+    Ok(ApiResponse::document(serialize(&document)?))
+}
+
+/// `GET /api/romeka/time-zones`: [`TIME_ZONES`], the names a `time_zone`
+/// write accepts, in `SettingForm`'s order.
+///
+/// # Errors
+/// [`ApiError::Internal`] when the list cannot be serialised.
+pub fn read_time_zones() -> Result<ApiResponse, ApiError> {
+    Ok(ApiResponse::document(serialize(&Value::from(TIME_ZONES))?))
+}
+
 /// A whole number above zero, as a JSON number or a string of digits.
 fn count_of(value: &Value) -> Option<u64> {
     match value {
@@ -481,7 +633,11 @@ fn php_truthy(value: &Value) -> bool {
 /// when a row cannot be read.
 pub async fn read_global(api: &Api<'_>) -> Result<ApiResponse, ApiError> {
     authorize_global(api.actor())?;
-    let pool = api.pool();
+    let map = global_map(api.pool()).await?;
+    Ok(ApiResponse::document(serialize(&Value::Object(map))?))
+}
+
+async fn global_map(pool: &DbPool) -> Result<Map<String, Value>, ApiError> {
     let mut map = Map::new();
     if let Some(value) = setting(pool, LOCALE).await.map_err(db_error)? {
         map.insert(LOCALE.to_string(), value);
@@ -520,22 +676,55 @@ pub async fn read_global(api: &Api<'_>) -> Result<ApiResponse, ApiError> {
         TRASH_DAYS.to_string(),
         trash_days(pool).await.map_err(db_error)?.into(),
     );
-    Ok(ApiResponse::document(serialize(&Value::Object(map))?))
+    for key in [INSTALLATION_TITLE, ADMINISTRATOR_EMAIL] {
+        if let Some(value) = setting(pool, key).await.map_err(db_error)? {
+            map.insert(key.to_string(), value);
+        }
+    }
+    let facts = installation(pool).await.map_err(db_error)?;
+    map.insert(TIME_ZONE.to_string(), facts.time_zone.into());
+    map.insert(PAGINATION_PER_PAGE.to_string(), facts.per_page.into());
+    map.insert(
+        DEFAULT_TO_PRIVATE_ITEM_SETS.to_string(),
+        facts.default_private_item_sets.into(),
+    );
+    map.insert(
+        VERSION_NOTIFICATIONS.to_string(),
+        setting(pool, VERSION_NOTIFICATIONS)
+            .await
+            .map_err(db_error)?
+            .is_some_and(|value| php_truthy(&value))
+            .into(),
+    );
+    Ok(map)
 }
 
 /// `PATCH /api/settings`: merge a map into the global settings, for a global
 /// admin, and answer the stored map. A key the map omits keeps its value; a
-/// `null` or an empty string removes the row.
+/// `null` or an empty string removes the row, except that a required field
+/// refuses both.
+///
+/// `index_fulltext_search: true` composes the index job in `starting`, owned
+/// by the caller. The answer names it as [`INDEX_FULLTEXT_SEARCH_JOB`], and the
+/// returned id is the job the caller must start.
 ///
 /// # Errors
 /// [`ApiError::PermissionDenied`] for any other caller, a 400 for a body that
 /// is not a JSON object, [`ApiError::Validation`] for a map [`read_global`]
 /// could not have answered, [`ApiError::Internal`] for a storage failure.
-pub async fn write_global(api: &Api<'_>, bytes: &[u8]) -> Result<ApiResponse, ApiError> {
+pub async fn write_global(
+    api: &Api<'_>,
+    bytes: &[u8],
+) -> Result<(ApiResponse, Option<JobId>), ApiError> {
     authorize_global(api.actor())?;
     let body: Value =
         serde_json::from_slice(bytes).map_err(|_| ApiError::bad_request(messages::JSON_SYNTAX))?;
+    let mut index = false;
     for (key, value) in parse_map("settings", GLOBAL_SETTINGS, &body)? {
+        if key == INDEX_FULLTEXT_SEARCH {
+            index = value.is_some();
+            continue;
+        }
         match value {
             Some(value) => with_db!(api.pool(), |db| SettingRepo::new(db).set(key, &value).await)
                 .map_err(db_error)?,
@@ -545,7 +734,26 @@ pub async fn write_global(api: &Api<'_>, bytes: &[u8]) -> Result<ApiResponse, Ap
             }
         }
     }
-    read_global(api).await
+    let mut map = global_map(api.pool()).await?;
+    let job = if index {
+        let row = with_db!(api.pool(), |db| JobRepo::new(db)
+            .create(&NewJob {
+                owner_id: api.actor().user(),
+                pid: None,
+                status: Some("starting".to_string()),
+                class: INDEX_JOB.to_string(),
+                args: None,
+                log: None,
+                started: None,
+            })
+            .await)
+        .map_err(db_error)?;
+        map.insert(INDEX_FULLTEXT_SEARCH_JOB.to_string(), row.id.0.into());
+        Some(row.id)
+    } else {
+        None
+    };
+    Ok((ApiResponse::document(serialize(&Value::Object(map))?), job))
 }
 
 fn authorize_global(actor: &Actor) -> Result<(), ApiError> {
@@ -577,6 +785,19 @@ fn parse_map(
             return Err(invalid(messages::setting_unavailable(key)));
         };
         let change = match (shape(name), stored) {
+            (Shape::Required, Value::String(text)) if !text.trim().is_empty() => {
+                Some(stored.clone())
+            }
+            (Shape::Required, _) => return Err(invalid(messages::setting_required(key))),
+            (Shape::Email, Value::String(text)) if email_is_valid(text) => Some(stored.clone()),
+            (Shape::Email, _) => return Err(invalid(messages::setting_not_email(key))),
+            (Shape::TimeZone, Value::String(zone)) if TIME_ZONES.contains(&zone.as_str()) => {
+                Some(stored.clone())
+            }
+            (Shape::TimeZone, _) => return Err(invalid(messages::setting_not_time_zone(key))),
+            (Shape::Request, Value::Bool(true)) => Some(stored.clone()),
+            (Shape::Request, Value::Bool(false) | Value::Null) => None,
+            (Shape::Request, _) => return Err(invalid(messages::setting_not_flag(key))),
             (_, Value::Null) => None,
             (Shape::Text, Value::String(text)) if text.is_empty() => None,
             (Shape::Flag, Value::Bool(false)) => None,

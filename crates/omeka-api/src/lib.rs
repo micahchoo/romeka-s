@@ -38,6 +38,7 @@ pub mod site_items;
 pub mod site_settings;
 pub mod tagging;
 pub mod theme_settings;
+pub mod time_zones;
 pub mod token;
 pub mod uploads;
 pub mod vocab_import;

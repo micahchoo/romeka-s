@@ -359,6 +359,12 @@ messages! {
     fn setting_not_names(key) = "The setting {key} must be a list of strings or null.";
     /// A count setting written as anything but a whole number above zero.
     fn setting_not_count(key) = "The setting {key} must be a whole number above zero, or null.";
+    /// A required text setting (`SettingForm`'s `required`) written empty or as anything but text.
+    fn setting_required(key) = "The setting {key} is required and must be text that is not empty.";
+    /// The administrator email written as anything but an email address.
+    fn setting_not_email(key) = "The setting {key} must be an email address, such as name@example.org.";
+    /// A time zone written as a name `DateTimeZone::listIdentifiers` does not list.
+    fn setting_not_time_zone(key) = "The setting {key} must be a time zone name from the list, such as Europe/Paris.";
     /// A saved lists setting that is not a list of named queries.
     fn setting_not_saved_lists(key, most) =
         "The setting {key} must be null or a list of at most {most} saved lists, each with its own name and a query.";

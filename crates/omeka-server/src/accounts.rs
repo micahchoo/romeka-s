@@ -52,8 +52,6 @@ use omeka_api::origin;
 use omeka_api::password::PasswordRules;
 use omeka_api::read::{session_user_response, user_response};
 use omeka_api::session;
-use omeka_db::repos::SettingRepo;
-use omeka_db::with_db;
 use omeka_site::blocks::browse_preview::parse_query;
 use serde::{Deserialize, Serialize};
 
@@ -402,13 +400,9 @@ fn client_address(headers: &HeaderMap, peer: Option<SocketAddr>) -> Option<IpAdd
 
 /// The installation title, `Mailer::getInstallationTitle`.
 async fn installation_title(pool: &omeka_db::DbPool) -> String {
-    with_db!(pool, |db| SettingRepo::new(db)
-        .get("installation_title")
-        .await)
-    .ok()
-    .flatten()
-    .and_then(|value| value.as_str().map(str::to_string))
-    .unwrap_or_else(|| "Romeka S".to_string())
+    omeka_api::settings::installation_title(pool)
+        .await
+        .unwrap_or_else(|_| omeka_api::settings::INSTALLATION_TITLE_DEFAULT.to_string())
 }
 
 fn bad_body() -> Response {

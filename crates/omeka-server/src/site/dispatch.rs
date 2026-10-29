@@ -18,9 +18,7 @@ use omeka_core::site::{Site, SitePage, Slug};
 use omeka_db::DbError;
 use omeka_db::DbPool;
 use omeka_db::ids as db;
-use omeka_db::repos::{
-    AssetRepo, ItemRepo, ItemSetRepo, MediaRepo, SettingRepo, SiteRepo, UserRepo,
-};
+use omeka_db::repos::{AssetRepo, ItemRepo, ItemSetRepo, MediaRepo, SiteRepo, UserRepo};
 use omeka_db::rows::{MediaRow, ResourceRow, SiteRow};
 use omeka_db::with_db;
 use omeka_media::render::MediaStart;
@@ -747,18 +745,8 @@ async fn site_permission(
 /// The global `pagination_per_page` setting, the fallback when a site sets no
 /// page size (`PaginatorFactory.php:20`), or 25 when even that is unset.
 async fn global_per_page(pool: &DbPool) -> Result<usize, SiteError> {
-    let value = with_db!(pool, |db| SettingRepo::new(db)
-        .get("pagination_per_page")
-        .await)?;
-    Ok(value
-        .and_then(|value| match value {
-            serde_json::Value::Number(number) => number.as_u64(),
-            serde_json::Value::String(text) => text.trim().parse().ok(),
-            _ => None,
-        })
-        .and_then(|value| usize::try_from(value).ok())
-        .filter(|value| *value > 0)
-        .unwrap_or(25))
+    let per_page = omeka_api::settings::pagination_per_page(pool).await?;
+    Ok(usize::try_from(per_page).unwrap_or(usize::MAX))
 }
 
 /// The `favicon` setting's asset id resolved to its file URL

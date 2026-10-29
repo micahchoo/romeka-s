@@ -154,8 +154,16 @@ locale `MvcListeners::bootstrapLocale` resolves: the user's `locale` setting, el
 the global one, absent when neither exists.
 
 `src/settings.rs` serves `GET` and `PATCH /api/settings`, a port route for the
-global settings the admin's settings page edits (only `locale` so far). Only a
-global admin may call it; `omeka_api::settings` holds the rules. A body that is not a JSON object is 400 with
+global settings the admin's settings page edits. Only a global admin may call
+it; `omeka_api::settings` holds the rules. A `PATCH` with
+`index_fulltext_search: true` starts the index job it composed through the
+process's `JobDispatch`, and the answer names it as `index_fulltext_search_job`.
+The same file serves two port routes any caller may read:
+`GET /api/romeka/installation`, `{installation_title, pagination_per_page,
+time_zone, default_to_private_item_sets}` as they apply (`no-store`), and
+`GET /api/romeka/time-zones`, the names a `time_zone` write accepts.
+
+A body that is not a JSON object is 400 with
 the API error document; a member that is absent reads as empty and the flow
 answers its own status. A 401 from a route the SPA calls signs the caller out
 there.

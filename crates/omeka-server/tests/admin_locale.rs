@@ -192,7 +192,7 @@ async fn a_setting_the_admin_has_no_field_for_is_refused() {
         json_request(
             "PATCH",
             &append_key("/api/settings"),
-            &json!({ "installation_title": "x" }).to_string(),
+            &json!({ "server_url": "https://example.org" }).to_string(),
         ),
     )
     .await;

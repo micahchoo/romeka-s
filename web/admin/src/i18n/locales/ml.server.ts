@@ -143,6 +143,11 @@ export const mlServer: ServerCatalogue = {
   'server.settingNotNames': '{key} സ്ട്രിംഗുകളുടെ ഒരു ലിസ്റ്റ് അല്ലെങ്കിൽ നൾ ആയിരിക്കണം.',
   'server.settingNotCount':
     '{key} എന്ന ക്രമീകരണം പൂജ്യത്തിന് മുകളിലുള്ള ഒരു പൂർണ്ണസംഖ്യയോ, അല്ലെങ്കിൽ നള്ളോ ആയിരിക്കണം.',
+  'server.settingRequired':
+    '{key} എന്ന ക്രമീകരണം ആവശ്യമാണ്, അത് ശൂന്യമല്ലാത്ത ടെക്സ്റ്റ് ആയിരിക്കണം.',
+  'server.settingNotEmail': '{key} ഒരു ഇമെയിൽ വിലാസമായിരിക്കണം, ഉദാഹരണത്തിന് name@example.org.',
+  'server.settingNotTimeZone':
+    '{key} പട്ടികയിൽ നിന്നുള്ള ഒരു സമയമേഖലയുടെ പേര് ആയിരിക്കണം, ഉദാഹരണത്തിന് Europe/Paris.',
   'server.settingNotSavedLists':
     '{key} എന്നത് പരമാവധി {most} സേവ് ചെയ്ത ലിസ്റ്റുകളുടെ ഒരു ലിസ്റ്റ് ആയിരിക്കണം, ഓരോന്നിനും സ്വന്തം പേരും ക്വറിയും ഉണ്ടായിരിക്കണം.',
   'server.publicationTermsRemoved':
@@ -344,7 +349,8 @@ export const mlServer: ServerCatalogue = {
   'server.bulkItemLinksLeft':
     'ഐറ്റം തിരികെ വന്നു, എന്നാൽ ഡിലീറ്റ് ചെയ്തതിന് ശേഷം എഡിറ്റ് ചെയ്ത ഐറ്റങ്ങളിൽ നിന്നുള്ള ലിങ്കുകൾ വിട്ടു.',
   'server.bulkMediaGone': 'ഈ മീഡിയ ഇപ്പോൾ Omeka-യിൽ ഇല്ല.',
-  'server.bulkMediaDeleteDenied': 'ഈ മാറ്റം തുടങ്ങിയ വ്യക്തിക്ക് ഈ മീഡിയ ഡിലീറ്റ് ചെയ്യാൻ കഴിയില്ല.',
+  'server.bulkMediaDeleteDenied':
+    'ഈ മാറ്റം തുടങ്ങിയ വ്യക്തിക്ക് ഈ മീഡിയ ഡിലീറ്റ് ചെയ്യാൻ കഴിയില്ല.',
   'server.bulkMediaUndoDenied':
     'പഴയപടിയാക്കാൻ ആവശ്യപ്പെട്ട വ്യക്തിക്ക് ഈ മീഡിയ ഡിലീറ്റ് ചെയ്യാൻ കഴിയില്ല, അതിനാൽ ഇത് ട്രാഷിലേക്ക് വിട്ടു.',
   'server.bulkMediaIdTaken':
@@ -354,7 +360,8 @@ export const mlServer: ServerCatalogue = {
   'server.bulkMediaItemGone':
     'ഈ മീഡിയ ഉൾപ്പെടുന്ന ഐറ്റം പോയി, അതിനാൽ പഴയപടിയാക്കിയപ്പോൾ മീഡിയ ട്രാഷിലേക്ക് വിട്ടു.',
   'server.bulkSetGone': 'ഈ ഐറ്റം സെറ്റ് ഇപ്പോൾ Omeka-യിൽ ഇല്ല.',
-  'server.bulkSetDeleteDenied': 'ഈ മാറ്റം തുടങ്ങിയ വ്യക്തിക്ക് ഈ ഐറ്റം സെറ്റ് ഡിലീറ്റ് ചെയ്യാൻ കഴിയില്ല.',
+  'server.bulkSetDeleteDenied':
+    'ഈ മാറ്റം തുടങ്ങിയ വ്യക്തിക്ക് ഈ ഐറ്റം സെറ്റ് ഡിലീറ്റ് ചെയ്യാൻ കഴിയില്ല.',
   'server.bulkSetUndoDenied':
     'പഴയപടിയാക്കാൻ ആവശ്യപ്പെട്ട വ്യക്തിക്ക് ഈ ഐറ്റം സെറ്റ് ഡിലീറ്റ് ചെയ്യാൻ കഴിയില്ല, അതിനാൽ ഇത് ട്രാഷിലേക്ക് വിട്ടു.',
   'server.bulkSetIdTaken':

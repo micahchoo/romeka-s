@@ -141,6 +141,10 @@ export const knServer: ServerCatalogue = {
   'server.settingNotNames': 'ಸೆಟ್ಟಿಂಗ್ {key} ಸ್ಟ್ರಿಂಗ್‌ಗಳ ಪಟ್ಟಿಯಾಗಿರಬೇಕು ಅಥವಾ ನಲ್ ಆಗಿರಬೇಕು.',
   'server.settingNotCount':
     '{key} ಸೆಟ್ಟಿಂಗ್ ಶೂನ್ಯಕ್ಕಿಂತ ಹೆಚ್ಚಿನ ಪೂರ್ಣ ಸಂಖ್ಯೆಯಾಗಿರಬೇಕು, ಅಥವಾ ಶೂನ್ಯವಾಗಿರಬೇಕು.',
+  'server.settingRequired': 'ಸೆಟ್ಟಿಂಗ್ {key} ಅಗತ್ಯವಿದೆ ಮತ್ತು ಅದು ಖಾಲಿ ಇಲ್ಲದ ಪಠ್ಯವಾಗಿರಬೇಕು.',
+  'server.settingNotEmail': 'ಸೆಟ್ಟಿಂಗ್ {key} ಇಮೇಲ್ ವಿಳಾಸವಾಗಿರಬೇಕು, ಉದಾಹರಣೆಗೆ name@example.org.',
+  'server.settingNotTimeZone':
+    'ಸೆಟ್ಟಿಂಗ್ {key} ಪಟ್ಟಿಯಿಂದ ಸಮಯ ವಲಯದ ಹೆಸರಾಗಿರಬೇಕು, ಉದಾಹರಣೆಗೆ Europe/Paris.',
   'server.settingNotSavedLists':
     '{key} ಸೆಟ್ಟಿಂಗ್ ಶೂನ್ಯ ಅಥವಾ ಗರಿಷ್ಠ {most} ಉಳಿಸಿದ ಪಟ್ಟಿಗಳ ಪಟ್ಟಿಯಾಗಿರಬೇಕು, ಪ್ರತಿಯೊಂದೂ ತನ್ನದೇ ಆದ ಹೆಸರು ಮತ್ತು ಕ್ವೆರಿಯನ್ನು ಹೊಂದಿರಬೇಕು.',
   'server.publicationTermsRemoved':

@@ -138,6 +138,10 @@ export const mrServer: ServerCatalogue = {
   'server.settingNotFlag': '{key} हे सेटिंग सत्य, असत्य किंवा नल असणे आवश्यक आहे.',
   'server.settingNotNames': '{key} हे सेटिंग स्ट्रिंग्सची सूची किंवा नल असणे आवश्यक आहे.',
   'server.settingNotCount': '{key} ही शून्य पेक्षा मोठी पूर्ण संख्या किंवा null असणे आवश्यक आहे.',
+  'server.settingRequired': '{key} हे सेटिंग आवश्यक आहे आणि ते रिकामे नसावे.',
+  'server.settingNotEmail': '{key} हे ईमेल पत्ता असावा, जसे की name@example.org.',
+  'server.settingNotTimeZone':
+    '{key} हे युरोप/पॅरिस या सूचीतील वेळ क्षेत्र नाव असावे, जसे की Europe/Paris.',
   'server.settingNotSavedLists':
     '{key} ही सेटिंग शून्य किंवा जास्तीत जास्त {most} जतन केलेल्या सूचींची सूची असणे आवश्यक आहे, ज्यातील प्रत्येकाचे स्वतःचे नाव आणि क्वेरी आहे.',
   'server.publicationTermsRemoved':

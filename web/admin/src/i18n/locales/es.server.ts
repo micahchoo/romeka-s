@@ -129,6 +129,10 @@ export const esServer: ServerCatalogue = {
   'server.settingNotFlag': 'El ajuste {key} debe ser true, false o null.',
   'server.settingNotNames': 'El ajuste {key} debe ser una lista de cadenas o null.',
   'server.settingNotCount': 'El ajuste {key} debe ser un número entero mayor que cero, o null.',
+  'server.settingRequired': 'El ajuste {key} es obligatorio y debe ser un texto no vacío.',
+  'server.settingNotEmail': 'El ajuste {key} debe ser una dirección de correo, como nombre@example.org.',
+  'server.settingNotTimeZone':
+    'El ajuste {key} debe ser un nombre de zona horaria de la lista, como Europe/Paris.',
   'server.settingNotSavedLists':
     'El ajuste {key} debe ser null o una lista de como mucho {most} listas guardadas, cada una con su propio nombre y una consulta.',
   'server.publicationTermsRemoved':

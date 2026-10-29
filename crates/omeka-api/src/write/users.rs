@@ -182,7 +182,7 @@ async fn validate(
 /// (`is not a valid hostname`, the dot-atom and quoted-string details) are not
 /// reproduced; an input that reaches one of them is still refused, with
 /// [`messages::INVALID_EMAIL`]. Reported as a gap.
-fn email_is_valid(email: &str) -> bool {
+pub(crate) fn email_is_valid(email: &str) -> bool {
     let mut parts = email.split('@');
     let (Some(local), Some(domain), None) = (parts.next(), parts.next(), parts.next()) else {
         return false;

@@ -137,6 +137,10 @@ export const hiServer: ServerCatalogue = {
   'server.settingNotFlag': 'सेटिंग {key} सत्य, असत्य या नल होनी चाहिए।',
   'server.settingNotNames': 'सेटिंग {key} स्ट्रिंग्स की एक सूची या नल होनी चाहिए।',
   'server.settingNotCount': 'सेटिंग {key} शून्य से ऊपर एक पूर्ण संख्या या शून्य होनी चाहिए।',
+  'server.settingRequired': 'सेटिंग {key} आवश्यक है और इसमें ऐसा टेक्स्ट होना चाहिए जो खाली न हो।',
+  'server.settingNotEmail': 'सेटिंग {key} एक ईमेल पता होना चाहिए, जैसे name@example.org।',
+  'server.settingNotTimeZone':
+    'सेटिंग {key} सूची से एक समय क्षेत्र का नाम होना चाहिए, जैसे Europe/Paris।',
   'server.settingNotSavedLists':
     'सेटिंग {key} नल या अधिकतम {most} सहेजी गई सूचियों की सूची होनी चाहिए, जिनमें से प्रत्येक का अपना नाम और क्वेरी हो।',
   'server.publicationTermsRemoved':
@@ -330,7 +334,8 @@ export const hiServer: ServerCatalogue = {
   'server.bulkItemLinksLeft':
     'आइटम वापस आ गया है, लेकिन हटाने के बाद संपादित आइटमों से इसके लिंक छोड़ दिए गए हैं।',
   'server.bulkMediaGone': 'यह मीडिया अब ओमेका में नहीं है।',
-  'server.bulkMediaDeleteDenied': 'इस परिवर्तन को शुरू करने वाले व्यक्ति को इस मीडिया को हटाने की अनुमति नहीं है।',
+  'server.bulkMediaDeleteDenied':
+    'इस परिवर्तन को शुरू करने वाले व्यक्ति को इस मीडिया को हटाने की अनुमति नहीं है।',
   'server.bulkMediaUndoDenied':
     'जिस व्यक्ति ने पूर्ववत करने के लिए कहा था, वह इस मीडिया को हटा नहीं सकता था, इसलिए पूर्ववत करने से यह ट्रैश में रह गया।',
   'server.bulkMediaIdTaken':
@@ -340,7 +345,8 @@ export const hiServer: ServerCatalogue = {
   'server.bulkMediaItemGone':
     'यह मीडिया जिस आइटम से संबंधित है, वह चला गया है, इसलिए पूर्ववत करने से मीडिया ट्रैश में रह गया।',
   'server.bulkSetGone': 'यह आइटम सेट अब ओमेका में नहीं है।',
-  'server.bulkSetDeleteDenied': 'इस परिवर्तन को शुरू करने वाले व्यक्ति को इस आइटम सेट को हटाने की अनुमति नहीं है।',
+  'server.bulkSetDeleteDenied':
+    'इस परिवर्तन को शुरू करने वाले व्यक्ति को इस आइटम सेट को हटाने की अनुमति नहीं है।',
   'server.bulkSetUndoDenied':
     'जिस व्यक्ति ने पूर्ववत करने के लिए कहा था, वह इस आइटम सेट को हटा नहीं सकता था, इसलिए पूर्ववत करने से यह ट्रैश में रह गया।',
   'server.bulkSetIdTaken':

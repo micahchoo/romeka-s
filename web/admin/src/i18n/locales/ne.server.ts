@@ -134,6 +134,10 @@ export const neServer: ServerCatalogue = {
   'server.settingNotFlag': 'सेटिङ {key} सत्य, असत्य वा नल हुनुपर्छ।',
   'server.settingNotNames': 'सेटिङ {key} स्ट्रिङहरूको सूची वा नल हुनुपर्छ।',
   'server.settingNotCount': 'सेटिङ {key} शून्यभन्दा माथिको पूर्ण सङ्ख्या वा शून्य हुनुपर्छ।',
+  'server.settingRequired': '{key} को setting आवश्यक छ र यो खाली नभएको पाठ हुनुपर्छ।',
+  'server.settingNotEmail': '{key} को setting एउटा इमेल ठेगाना हुनुपर्छ, जस्तै name@example.org।',
+  'server.settingNotTimeZone':
+    '{key} को setting समय क्षेत्रको नामहरूको सूचीबाट हुनुपर्छ, जस्तै Europe/Paris।',
   'server.settingNotSavedLists':
     '{key} को setting null वा बढीमा {most} वटा बचत गरिएका lists को सूची हुनुपर्छ, जसमा प्रत्येकको आफ्नै नाम र query हुन्छ।',
   'server.publicationTermsRemoved':
@@ -330,16 +334,19 @@ export const neServer: ServerCatalogue = {
   'server.bulkMediaDeleteDenied': 'यस परिवर्तन सुरु गर्ने व्यक्तिले यो मिडिया मेटाउन सक्दैन।',
   'server.bulkMediaUndoDenied':
     'जसले यो मिडिया पूर्ववत गर्न अनुरोध गरे, उसले यसलाई मेटाउन सक्दैन, त्यसैले पूर्ववतले यसलाई trash मा छोडिदियो।',
-  'server.bulkMediaIdTaken': 'अर्को record मा अहिले यो मिडिया को id छ, त्यसैले पूर्ववतले मिडिया लाई trash मा छोडिदियो।',
+  'server.bulkMediaIdTaken':
+    'अर्को record मा अहिले यो मिडिया को id छ, त्यसैले पूर्ववतले मिडिया लाई trash मा छोडिदियो।',
   'server.bulkMediaLinksLeft': 'मिडिया फिर्ता आयो, तर delete पछिका items बाट यसका links हरू हटाइए।',
-  'server.bulkMediaItemGone': 'यो मिडिया जुन item मा छ, त्यो हरायो, त्यसैले पूर्ववतले मिडिया लाई trash मा छोडिदियो।',
+  'server.bulkMediaItemGone':
+    'यो मिडिया जुन item मा छ, त्यो हरायो, त्यसैले पूर्ववतले मिडिया लाई trash मा छोडिदियो।',
   'server.bulkSetGone': 'यो वस्तु समूह अब Omeka मा छैन।',
   'server.bulkSetDeleteDenied': 'यस परिवर्तन सुरु गर्ने व्यक्तिले यो वस्तु समूह मेटाउन सक्दैन।',
   'server.bulkSetUndoDenied':
     'जसले यो वस्तु समूह पूर्ववत गर्न अनुरोध गरे, उसले यसलाई मेटाउन सक्दैन, त्यसैले पूर्ववतले यसलाई trash मा छोडिदियो।',
   'server.bulkSetIdTaken':
     'अर्को record मा अहिले यो वस्तु समूह को id छ, त्यसैले पूर्ववतले वस्तु समूह लाई trash मा छोडिदियो।',
-  'server.bulkSetLinksLeft': 'वस्तु समूह फिर्ता आयो, तर delete पछिका items बाट यसका links हरू हटाइए।',
+  'server.bulkSetLinksLeft':
+    'वस्तु समूह फिर्ता आयो, तर delete पछिका items बाट यसका links हरू हटाइए।',
   'server.bulkPurged':
     'यस परिवर्तनको trash खाली गरिएको थियो, त्यसैले यसका items हरू फिर्ता आउन सक्दैनन्।',
 };

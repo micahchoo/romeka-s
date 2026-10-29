@@ -145,6 +145,12 @@ export const taServer: ServerCatalogue = {
     '{key} என்பது சரங்களின் பட்டியலாக (list of strings) அல்லது null ஆக இருக்க வேண்டும்.',
   'server.settingNotCount':
     '{key} அமைப்பானது பூஜ்ஜியத்திற்கு மேலான முழு எண்ணாகவோ அல்லது null ஆகவோ இருக்க வேண்டும்.',
+  'server.settingRequired':
+    '{key} என்ற அமைப்பு தேவைப்படுகிறது மற்றும் அது காலியாக இல்லாத உரை வடிவில் இருக்க வேண்டும்.',
+  'server.settingNotEmail':
+    '{key} என்ற அமைப்பு ஒரு மின்னஞ்சல் முகவரியாக, அதாவது name@example.org என இருக்க வேண்டும்.',
+  'server.settingNotTimeZone':
+    '{key} என்ற அமைப்பு பட்டியலிலிருந்து ஒரு கால மண்டலப் பெயராக, உதாரணமாக Europe/Paris என இருக்க வேண்டும்.',
   'server.settingNotSavedLists':
     '{key} என்ற அமைப்பானது, அதிகபட்சமாக {most} சேமிக்கப்பட்ட பட்டியல்களில் ஒன்றாக இருக்க வேண்டும், ஒவ்வொன்றும் அதன் சொந்த பெயரையும் வினவலையும் கொண்டிருக்க வேண்டும்.',
   'server.publicationTermsRemoved':

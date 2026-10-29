@@ -139,6 +139,11 @@ export const teServer: ServerCatalogue = {
   'server.settingNotNames': '{key} సెట్టింగ్ స్ట్రింగ్స్ యొక్క జాబితా లేదా నల్ ఉండాలి.',
   'server.settingNotCount':
     '{key} సెట్టింగ్ తప్పనిసరిగా సున్నా కంటే ఎక్కువ ఉన్న పూర్ణాంకం లేదా null అయి ఉండాలి.',
+  'server.settingRequired': '{key} సెట్టింగ్ తప్పనిసరిగా ఉండాలి మరియు అది ఖాళీగా ఉండకూడదు.',
+  'server.settingNotEmail':
+    '{key} సెట్టింగ్ తప్పనిసరిగా ఈమెయిల్ అడ్రస్ అయి ఉండాలి, ఉదాహరణకు name@example.org.',
+  'server.settingNotTimeZone':
+    '{key} సెట్టింగ్ తప్పనిస ఈ జాబితా నుండి ఒక టైమ్ జోన్ పేరు ఉండాలి, ఉదాహరణకు Europe/Paris.',
   'server.settingNotSavedLists':
     '{key} సెట్టింగ్ తప్పనిసరిగా నల్ లేదా గరిష్టంగా {most} సేవ్ చేసిన లిస్ట్‌ల జాబితా అయి ఉండాలి, ప్రతిదానికి స్వంత పేరు మరియు క్వెరీ ఉండాలి.',
   'server.publicationTermsRemoved':
