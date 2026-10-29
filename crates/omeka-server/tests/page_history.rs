@@ -360,3 +360,68 @@ async fn the_version_routes_need_a_signed_in_reader_of_the_page() {
         StatusCode::NOT_FOUND
     );
 }
+
+#[tokio::test]
+async fn each_listed_version_says_what_it_changed_and_why_an_author_is_missing() {
+    let scenario = scenario().await;
+    let saves = [
+        (&scenario.ana, scenario.write("First", &["a", "b"])),
+        (&scenario.ben, scenario.write("First", &["b", "a"])),
+        (&scenario.ana, scenario.write("First", &["b", "a, edited"])),
+    ];
+    for (who, body) in saves {
+        assert_eq!(scenario.put(who, body).await.status, StatusCode::OK);
+    }
+    assert!(
+        UserRepo::new(&scenario.pool)
+            .delete(scenario.ana.id)
+            .await
+            .unwrap()
+    );
+
+    let list = scenario
+        .get(
+            Some(&scenario.ben),
+            &format!("{}/versions", scenario.page_path()),
+        )
+        .await;
+    assert_eq!(list.status, StatusCode::OK, "{}", list.body);
+    let entries = list.json();
+    let authors: Vec<(Value, Value)> = entries
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|entry| (entry["o:author"].clone(), entry["o:user"]["o:name"].clone()))
+        .collect();
+    assert_eq!(
+        authors,
+        [
+            (json!("deleted_user"), Value::Null),
+            (json!("user"), json!("Ben")),
+            (json!("deleted_user"), Value::Null),
+            (json!("not_recorded"), Value::Null),
+        ]
+    );
+    let edited = json!({
+        "o:title": null, "o:settings_changed": false,
+        "o:blocks_added": 0, "o:blocks_removed": 0, "o:blocks_changed": 1, "o:blocks_moved": 0,
+        "o:changed_blocks": [{ "o:layout": "html", "o:layout_data": null }],
+    });
+    let moved = json!({
+        "o:title": null, "o:settings_changed": false,
+        "o:blocks_added": 0, "o:blocks_removed": 0, "o:blocks_changed": 0, "o:blocks_moved": 1,
+        "o:changed_blocks": [],
+    });
+    let first = json!({
+        "o:title": { "o:before": "Intro", "o:after": "First" }, "o:settings_changed": false,
+        "o:blocks_added": 2, "o:blocks_removed": 0, "o:blocks_changed": 0, "o:blocks_moved": 0,
+        "o:changed_blocks": [],
+    });
+    let changes: Vec<Value> = entries
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|entry| entry["o:changes"].clone())
+        .collect();
+    assert_eq!(changes, [edited, moved, first, Value::Null]);
+}

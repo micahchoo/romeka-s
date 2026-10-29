@@ -38,8 +38,11 @@ import type {
   SiteBlockAttachment,
   SiteId,
   SiteItemSet,
+  ChangedPageBlock,
   PageAuthor,
   PageSaveResult,
+  PageVersionAuthor,
+  PageVersionChanges,
   PageVersionSummary,
   SitePage,
   SitePageBlock,
@@ -861,13 +864,65 @@ const parsePageAuthor = (value: unknown, path: Path): PageAuthor => {
   };
 };
 
+const parseVersionAuthor = (object: Record<string, unknown>, path: Path): PageVersionAuthor => {
+  const state = asString(field(object, 'o:author', path), [...path, 'o:author']);
+  const user = nullableField(object, 'o:user', path, parsePageAuthor);
+  if (state === 'user' && user !== null) {
+    return { kind: 'user', user };
+  }
+  if (state === 'not_recorded' && user === null) {
+    return { kind: 'notRecorded' };
+  }
+  if (state === 'deleted_user' && user === null) {
+    return { kind: 'deletedUser' };
+  }
+  throw new ParseError([...path, 'o:author'], 'user with o:user, or not_recorded or deleted_user without');
+};
+
+const parseChangedPageBlock = (raw: unknown, path: Path): ChangedPageBlock => {
+  const object = asRecord(raw, path);
+  return {
+    layout: asString(field(object, 'o:layout', path), [...path, 'o:layout']),
+    layoutData: nullableField(object, 'o:layout_data', path, asJsonValue),
+  };
+};
+
+const parseTitleChange = (raw: unknown, path: Path): { before: string; after: string } => {
+  const object = asRecord(raw, path);
+  return {
+    before: asString(field(object, 'o:before', path), [...path, 'o:before']),
+    after: asString(field(object, 'o:after', path), [...path, 'o:after']),
+  };
+};
+
+const parseVersionChanges = (raw: unknown, path: Path): PageVersionChanges => {
+  const object = asRecord(raw, path);
+  const count = (key: string): number => asNumber(field(object, key, path), [...path, key]);
+  return {
+    title: nullableField(object, 'o:title', path, parseTitleChange),
+    settingsChanged: asBoolean(
+      field(object, 'o:settings_changed', path),
+      [...path, 'o:settings_changed'],
+    ),
+    added: count('o:blocks_added'),
+    removed: count('o:blocks_removed'),
+    changed: count('o:blocks_changed'),
+    moved: count('o:blocks_moved'),
+    changedBlocks: parseListOf(parseChangedPageBlock)(
+      field(object, 'o:changed_blocks', path),
+      [...path, 'o:changed_blocks'],
+    ),
+  };
+};
+
 export const parsePageVersionSummary: Parser<PageVersionSummary> = (raw, path = []) => {
   const object = asRecord(raw, path);
   return {
     version: asIdNumber(field(object, 'o:version', path), [...path, 'o:version']),
     created: asDateTime(field(object, 'o:created', path), [...path, 'o:created']),
-    author: nullableField(object, 'o:user', path, parsePageAuthor),
+    author: parseVersionAuthor(object, path),
     blockCount: asNumber(field(object, 'o:block_count', path), [...path, 'o:block_count']),
+    changes: nullableField(object, 'o:changes', path, parseVersionChanges),
   };
 };
 

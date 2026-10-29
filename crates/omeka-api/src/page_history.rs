@@ -2,7 +2,9 @@
 //!
 //! Every save stores the page document it makes as a version
 //! ([`omeka_db::repos::PageVersionRepo::save`]). `GET /api/site_pages/{id}/versions` lists them,
-//! newest first, and `GET /api/site_pages/{id}/versions/{version}` answers one version's document.
+//! newest first, each with who saved it and what it changed against the version before it
+//! ([`crate::page_changes`]), and `GET /api/site_pages/{id}/versions/{version}` answers one
+//! version's document.
 //! Both need a signed-in caller who may read the page.
 //!
 //! A save that sends the `o:modified` it loaded is refused with 409 when the page was saved since;
@@ -12,13 +14,14 @@
 use chrono::{DateTime, NaiveDateTime};
 use omeka_db::ids::{PageId, UserId};
 use omeka_db::repos::{PageVersionRepo, SiteRepo, UserRepo};
-use omeka_db::rows::PageVersionRow;
+use omeka_db::rows::{PageVersionRow, VersionAuthor};
 use omeka_db::with_db;
 use serde::Serialize;
 use serde_json::Value;
 
 use crate::errors::{ApiError, SavedBy, StalePageError};
 use crate::messages;
+use crate::page_changes::{self, VersionChanges};
 use crate::read::{Api, ApiResponse, db_error, jsonld_date, not_found, parse_id, serialize};
 use crate::routes::Operation;
 use crate::wire::common::JsonLdDate;
@@ -68,6 +71,18 @@ async fn user_ref(api: &Api<'_>, id: UserId) -> Result<Option<SavedBy>, ApiError
         }))
 }
 
+/// Whether a version names its author, and why not when it does not.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum AuthorState {
+    /// `o:user` names who saved it.
+    User,
+    /// The state the page had before its first recorded save.
+    NotRecorded,
+    /// The user who saved it was deleted.
+    DeletedUser,
+}
+
 /// One entry of the version list.
 #[derive(Debug, Serialize)]
 struct VersionEntry {
@@ -77,36 +92,53 @@ struct VersionEntry {
     created: JsonLdDate,
     #[serde(rename = "o:user")]
     user: Option<SavedBy>,
+    #[serde(rename = "o:author")]
+    author: AuthorState,
     #[serde(rename = "o:block_count")]
     block_count: usize,
+    /// What this version changed against the one listed after it; `null` for the oldest kept.
+    #[serde(rename = "o:changes")]
+    changes: Option<VersionChanges>,
 }
 
-/// `GET /api/site_pages/{id}/versions`: every kept version, newest first.
+/// `GET /api/site_pages/{id}/versions`: every kept version, newest first, each with what it
+/// changed. The changes are computed here so the list never ships a snapshot.
 pub async fn list(api: &Api<'_>, raw_id: &str) -> Result<ApiResponse, ApiError> {
     let page = readable_page(api, raw_id).await?;
     let rows =
         with_db!(api.pool(), |db| PageVersionRepo::new(db).list(page).await).map_err(db_error)?;
     let mut entries = Vec::with_capacity(rows.len());
-    for row in rows {
-        entries.push(entry(api, row).await?);
+    for (index, row) in rows.iter().enumerate() {
+        let older = rows.get(index + 1).map(|older| &older.snapshot);
+        entries.push(entry(api, row, older).await?);
     }
     Ok(ApiResponse::document(serialize(&entries)?))
 }
 
-async fn entry(api: &Api<'_>, row: PageVersionRow) -> Result<VersionEntry, ApiError> {
-    let user = match row.user_id {
-        Some(id) => user_ref(api, id).await?,
-        None => None,
+async fn entry(
+    api: &Api<'_>,
+    row: &PageVersionRow,
+    older: Option<&Value>,
+) -> Result<VersionEntry, ApiError> {
+    let (user, author) = match row.author() {
+        VersionAuthor::User(id) => match user_ref(api, id).await? {
+            Some(user) => (Some(user), AuthorState::User),
+            None => (None, AuthorState::DeletedUser),
+        },
+        VersionAuthor::NotRecorded => (None, AuthorState::NotRecorded),
+        VersionAuthor::Deleted => (None, AuthorState::DeletedUser),
     };
     Ok(VersionEntry {
         version: row.version,
         created: jsonld_date(row.created),
         user,
+        author,
         block_count: row
             .snapshot
             .get("o:block")
             .and_then(Value::as_array)
             .map_or(0, Vec::len),
+        changes: older.map(|older| page_changes::changes(older, &row.snapshot)),
     })
 }
 

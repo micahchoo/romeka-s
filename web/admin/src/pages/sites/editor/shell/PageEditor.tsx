@@ -495,6 +495,7 @@ export const PageEditor = ({
             ) : history.kind === 'open' && pageId !== null ? (
               <HistoryPanel
                 pageId={pageId}
+                registry={draft.registry}
                 savedAt={saving.loadedModified}
                 viewing={history.viewing?.summary.version ?? null}
                 onView={(version) => {

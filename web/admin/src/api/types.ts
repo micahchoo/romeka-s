@@ -611,14 +611,42 @@ export interface PageAuthor {
   readonly name: string;
 }
 
+/** Who saved a page version, or the reason no one is named. */
+export type PageVersionAuthor =
+  | { readonly kind: 'user'; readonly user: PageAuthor }
+  /** Version 1: the state the page had before its first recorded save. */
+  | { readonly kind: 'notRecorded' }
+  /** A save by a user who was deleted since. */
+  | { readonly kind: 'deletedUser' };
+
+/** A changed block, as the history names it: its layout and layout data. */
+export interface ChangedPageBlock {
+  readonly layout: string;
+  readonly layoutData: JsonValue | null;
+}
+
+/** What one version changed against the version before it, as the server counted it. */
+export interface PageVersionChanges {
+  readonly title: { readonly before: string; readonly after: string } | null;
+  /** The slug, the visibility, the page layout or its layout data changed. */
+  readonly settingsChanged: boolean;
+  readonly added: number;
+  readonly removed: number;
+  readonly changed: number;
+  readonly moved: number;
+  /** The changed blocks when there are one or two; empty otherwise. */
+  readonly changedBlocks: readonly ChangedPageBlock[];
+}
+
 /** One entry of `GET /api/site_pages/{id}/versions`, a Romeka route. */
 export interface PageVersionSummary {
   readonly version: number;
   /** When this state went live. */
   readonly created: string;
-  /** `null` for the state a page had before its first recorded save, or a deleted user. */
-  readonly author: PageAuthor | null;
+  readonly author: PageVersionAuthor;
   readonly blockCount: number;
+  /** `null` for the oldest version the page keeps. */
+  readonly changes: PageVersionChanges | null;
 }
 
 /**
