@@ -30,7 +30,7 @@ describe('dashboard page', () => {
     '/api/sites': () => listResponse(loadFixture('sites-page.json'), 2),
   };
 
-  it('dashboard_shows_resource_counts_and_the_site_list', async () => {
+  it('dashboard_shows_resource_counts_and_links_each_site', async () => {
     installFetch(route(dashboardRoutes));
     render(<DashboardPage />);
 
@@ -41,8 +41,8 @@ describe('dashboard page', () => {
     expect(screen.getByRole('link', { name: 'Item sets (2)' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Vocabularies (2)' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Resource templates (2)' })).toBeInTheDocument();
-    expect(screen.getByText('My Site')).toBeInTheDocument();
-    expect(screen.getByText('Second Site')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'My Site' })).toHaveAttribute('href', '#/sites/1');
+    expect(screen.getByRole('link', { name: 'Second Site' })).toHaveAttribute('href', '#/sites/2');
   });
 
   it('dashboard_error_state_shows_the_upstream_message', async () => {

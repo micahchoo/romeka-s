@@ -78,7 +78,7 @@ const Manage = (): ReactElement => {
         <ul>
           {view.sites.map((site) => (
             <li key={site.id}>
-              {site.title}
+              <a href={`#/sites/${String(site.id)}`}>{site.title}</a>
               <span className="site-slug">{` (${site.slug})`}</span>
             </li>
           ))}
