@@ -1,0 +1,21 @@
+{
+ "siteCheck.title": "Before you share this site",
+ "siteCheck.intro": "Counts what visitors meet on this site's public pages.",
+ "siteCheck.run": "Check this site",
+ "siteCheck.again": "Check again",
+ "siteCheck.running": "Checking the site…",
+ "siteCheck.nothing": "Nothing to check.",
+ "siteCheck.unwrittenOne": "1 block not written, on 1 public page",
+ "siteCheck.unwrittenOnePage": "{count} blocks not written, on 1 public page",
+ "siteCheck.unwritten": "{count} blocks not written, on {pages} public pages",
+ "siteCheck.emptyListsOne": "1 list shows nothing to visitors, on 1 public page",
+ "siteCheck.emptyListsOnePage": "{count} lists show nothing to visitors, on 1 public page",
+ "siteCheck.emptyLists": "{count} lists show nothing to visitors, on {pages} public pages",
+ "siteCheck.privateOne": "1 block points to private items or media, on 1 public page",
+ "siteCheck.privateOnePage": "{count} blocks point to private items or media, on 1 public page",
+ "siteCheck.private": "{count} blocks point to private items or media, on {pages} public pages",
+ "siteCheck.privateNote": "Visitors do not see private items or media.",
+ "siteCheck.outsideMenuOne": "1 public page is not in the menu",
+ "siteCheck.outsideMenu": "{count} public pages are not in the menu",
+ "siteCheck.outsideMenuNote": "Visitors reach a page outside the menu only by its link."
+}

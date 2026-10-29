@@ -9,7 +9,7 @@
  * edit of its neighbours.
  */
 import { pageIdFromParam } from '../../api/parse';
-import type { JsonValue, PageId } from '../../api/types';
+import type { JsonValue, PageId, Site } from '../../api/types';
 
 /** The link types the port models (`src/Site/Navigation/Link/*`). */
 export const NAVIGATION_TYPES = ['page', 'url', 'browse', 'browseItemSets'] as const;
@@ -352,3 +352,7 @@ export const firstLinkedPage = (stored: readonly JsonValue[]): PageId | null => 
   const [first] = linkedPages(stored);
   return first ?? null;
 };
+
+/** The page `/s/<slug>` opens: the homepage, else the first page in the menu. */
+export const homepageOf = (site: Site): PageId | null =>
+  site.homepage?.id ?? firstLinkedPage(site.navigation);

@@ -44,4 +44,5 @@ export const NAMESPACES: readonly NamespaceRecord[] = [
   { id: 'fixity', what: 'fixity check messages', type: 'FixityMessages' },
   { id: 'item-history', what: 'item history messages', type: 'ItemHistoryMessages' },
   { id: 'finding', what: 'jump-to box and saved list messages', type: 'FindingMessages' },
+  { id: 'site-check', what: 'site check messages', type: 'SiteCheckMessages' },
 ];
