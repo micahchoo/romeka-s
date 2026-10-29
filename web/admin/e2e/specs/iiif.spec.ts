@@ -7,6 +7,7 @@
 import type { Page } from '@playwright/test';
 import { expect, expectClean, test } from '../fixtures';
 import { record } from '../harness/json';
+import { settled } from '../harness/preview';
 import { png } from '../harness/png';
 import { SITE_SLUG } from '../harness/seed';
 import { readHarness } from '../harness/state';
@@ -24,7 +25,7 @@ const idOf = (value: unknown): number => {
 
 const first = (value: unknown): unknown => (Array.isArray(value) ? value[0] : value);
 
-/** An item holding one uploaded image, created through the API. */
+/** An item holding one uploaded image, created through the API, its preview settled. */
 const createItem = async (page: Page): Promise<{ item: number; media: number }> => {
   const properties: unknown = await (await page.request.get('/api/properties?term=dcterms:title')).json();
   const title = idOf(first(properties));
@@ -40,7 +41,10 @@ const createItem = async (page: Page): Promise<{ item: number; media: number }> 
   });
   expect(created.status(), await created.text()).toBe(200);
   const document: unknown = await created.json();
-  return { item: idOf(document), media: idOf(first(record(document, 'item')['o:media'])) };
+  const media = idOf(first(record(document, 'item')['o:media']));
+  // A note on a region needs the picture's canvas, made with its preview.
+  await settled(page.request, media);
+  return { item: idOf(document), media };
 };
 
 /** A fresh page with one HTML block, so the spec owns what it edits. */

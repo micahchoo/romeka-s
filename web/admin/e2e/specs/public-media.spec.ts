@@ -13,6 +13,7 @@ import type { APIRequestContext } from '@playwright/test';
 
 import { expect, expectClean, test } from '../fixtures';
 import { isArray, isRecord, numberField, record, stringField } from '../harness/json';
+import { settled } from '../harness/preview';
 import { SITE_SLUG } from '../harness/seed';
 import { REPO_ROOT, readHarness } from '../harness/state';
 
@@ -45,24 +46,6 @@ Un carre rouge, puis une barre bleue.
 `;
 
 /** Upload one corpus file as the only media of a new public item. */
-/** Wait until the derivative worker has settled the media's preview. */
-const settled = async (request: APIRequestContext, media: number): Promise<void> => {
-  const deadline = Date.now() + 30_000;
-  for (;;) {
-    const document: unknown = await (await request.get(`/api/media/${String(media)}`)).json();
-    const preview = record(document, 'media')['o-module-romeka:preview'];
-    const state =
-      typeof preview === 'object' && preview !== null && 'state' in preview ? preview.state : null;
-    if (state === null || state === 'ready' || state === 'none') {
-      return;
-    }
-    if (Date.now() > deadline) {
-      throw new Error(`media ${String(media)} preview stayed ${JSON.stringify(state)}`);
-    }
-    await new Promise((done) => setTimeout(done, 100));
-  }
-};
-
 const upload = async (
   request: APIRequestContext,
   name: string,
