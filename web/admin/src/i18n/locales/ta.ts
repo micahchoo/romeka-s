@@ -9,7 +9,7 @@
 import type { Catalogue } from '../catalogue';
 
 export const ta: Catalogue = {
-  'app.title': 'Romeka S நிர்வாகி',
+  'app.title': '{title} நிர்வாகி',
   'shell.navLabel': 'நிர்வாகப் பக்கங்கள்',
   'shell.noPage': 'இத்தகைய பக்கம் இல்லை. நிர்வாகத் தகவல் பலகத்திற்குச் செல்லவும்.',
   'shell.loadFailed':

@@ -1,12 +1,11 @@
 import type { ReactElement } from 'react';
 import { api } from '../../api/client';
+import { installation } from '../../app/installation';
 import { formatDateTime } from '../../app/format';
 import { ListPage } from '../../app/list';
 import { useTranslator } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
 import { admin } from '../../i18n/namespaces/admin';
-
-const PER_PAGE = 25;
 
 /** `Admin/UserController::browseAction`: email, name, role, active, created. */
 export const UserList = (): ReactElement => {
@@ -20,7 +19,7 @@ export const UserList = (): ReactElement => {
       <ListPage
         resourceLabel={resource}
         emptyMessage={t('list.empty', { resource })}
-        load={(page) => api.listUsers({ page, perPage: PER_PAGE, sortBy: 'id', sortOrder: 'asc' })}
+        load={(page) => api.listUsers({ page, perPage: installation().perPage, sortBy: 'id', sortOrder: 'asc' })}
         rowKey={(user) => String(user.id)}
         columns={[
           {

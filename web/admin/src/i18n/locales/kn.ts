@@ -9,7 +9,7 @@
 import type { Catalogue } from '../catalogue';
 
 export const kn: Catalogue = {
-  'app.title': 'Romeka S ಆಡಳಿತ',
+  'app.title': '{title} ಆಡಳಿತ',
   'shell.navLabel': 'ಅಡ್ಮಿನ್ ಪುಟಗಳು',
   'shell.noPage': 'ಅಂತಹ ಪುಟವಿಲ್ಲ. ಅಡ್ಮಿನ್ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್‌ಗೆ ಹೋಗಿ.',
   'shell.loadFailed':

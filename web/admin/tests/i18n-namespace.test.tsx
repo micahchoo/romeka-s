@@ -80,7 +80,7 @@ describe('a namespace', () => {
     const sample = i18n.defineNamespace('sample', en, loadersWith(gate.load));
     const Greeting = (): ReactElement => {
       const { t } = i18n.useTranslator(sample);
-      return <p>{t('sample.greeting')} {t('app.title')}</p>;
+      return <p>{t('sample.greeting')} {t('app.title', { title: 'Romeka S' })}</p>;
     };
 
     render(

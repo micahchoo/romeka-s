@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
+import { installation } from '../../app/installation';
 import { listMedia } from '../../api/media';
 import type { Media } from '../../api/types';
 import { ListPage } from '../../app/list';
@@ -16,7 +17,6 @@ import { useTranslator } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
 
-const PER_PAGE = 25;
 const KIND_PARAM = 'kind';
 
 const readKind = (): FilterKind | null => {
@@ -111,7 +111,7 @@ export const MediaList = (): ReactElement => {
         load={(page) =>
           listMedia(api, {
             page,
-            perPage: PER_PAGE,
+            perPage: installation().perPage,
             sortBy: 'id',
             sortOrder: 'asc',
             ...(names.length === 0 ? {} : { romekaKind: names }),

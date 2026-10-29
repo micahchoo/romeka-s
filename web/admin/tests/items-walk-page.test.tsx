@@ -84,8 +84,9 @@ describe('a row on Items', () => {
     );
     render(<ItemsList />);
 
-    expect(await screen.findByRole('link', { name: 'Item 30' })).toHaveAttribute('href', `#/items/30?${IN_SET}&at=25`);
-    expect(screen.getByRole('link', { name: 'Item 31' })).toHaveAttribute('href', `#/items/31?${IN_SET}&at=26`);
+    // Page 2 at the default page size of 25 starts at the 26th item.
+    expect(await screen.findByRole('link', { name: 'Item 30' })).toHaveAttribute('href', `#/items/30?${IN_SET}&at=26`);
+    expect(screen.getByRole('link', { name: 'Item 31' })).toHaveAttribute('href', `#/items/31?${IN_SET}&at=27`);
   });
 
   it('a card in the grid opens the same address', async () => {

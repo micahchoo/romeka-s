@@ -61,7 +61,7 @@ describe('the links place', () => {
     expect(screen.getByText('Links to: Person A (as Creator)')).toBeInTheDocument();
     expect(screen.queryByText(/items match$/)).not.toBeInTheDocument();
 
-    const list = urlsFor(fetchMock, '/api/items').find((url) => url.searchParams.get('per_page') === '24');
+    const list = urlsFor(fetchMock, '/api/items').find((url) => url.searchParams.get('per_page') === '25');
     expect(list?.searchParams.get('property[0][type]')).toBe('res');
     expect(list?.searchParams.get('property[0][text]')).toBe('1');
     expect(list?.searchParams.get('property[0][property]')).toBe('2');

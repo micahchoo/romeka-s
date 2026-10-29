@@ -1,7 +1,8 @@
 /**
  * The Items browse query: one record the screen renders from, the URL that
  * holds it (`#/items?q=&class=&set=&links=&via=&template=&field=&owner=&visibility=&site=&media=&changed=&sort=&view=&page=&list=`),
- * and the API query it sends. Every function is pure; the screen owns only the
+ * and the API query it sends. Every function is pure but `browseQuery`, which reads
+ * the installation page size (`app/installation.ts`); the screen owns only the
  * effects (reading and writing the URL, the remembered view, the request).
  */
 import type { ResourceQuery } from '../../api/client';
@@ -11,9 +12,8 @@ import type { LinkTarget } from '../../api/places';
 import type { ClassId, ItemId, ItemSetId, PropertyId, ResourceId, SiteId, TemplateId, UserId } from '../../api/types';
 import { isFilterKind, serverKindsOf } from '../../app/media';
 import type { FilterKind } from '../../app/media';
+import { installation } from '../../app/installation';
 import { LIST_KEY } from '../../app/open-saved-list';
-
-export const PER_PAGE = 24;
 
 export type Visibility = 'public' | 'private';
 
@@ -332,7 +332,7 @@ const templateQuery = (template: TemplateId | None | null): ResourceQuery => {
 /** The `/api/items` query for one page of a browse state; `ResourceQuery` snake-cases each name. */
 export const browseQuery = (state: ItemBrowse): ResourceQuery => ({
   page: state.page,
-  perPage: PER_PAGE,
+  perPage: installation().perPage,
   ...everyMatchQuery(state),
 });
 

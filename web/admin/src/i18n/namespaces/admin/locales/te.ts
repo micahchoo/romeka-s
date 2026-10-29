@@ -121,19 +121,36 @@ export const te: AdminMessages = {
   'query.search': 'వెతకండి',
   'query.idle': 'ఒక క్వెరీని నమోదు చేసి, ప్రివ్యూ చూడండి.',
   'query.empty': 'ఎటువంటి వనరులు ఈ క్వెరీతో సరిపోలడం లేదు.',
+  'settings.general': 'సాధారణ',
+  'settings.display': 'ప్రదర్శన',
+  'settings.editing': 'సవరణ',
+  'settings.search': 'వెతుకులాట',
   'settings.installationTitle': 'ఇన్‌స్టాలేషన్ శీర్షిక',
+  'settings.installationTitleInfo':
+    'అడ్మిన్ హెడర్, ప్రతి పేజీ శీర్షిక మరియు ఈమెయిల్ ఇన్‌స్టాలేషన్‌ను పేర్కొంటాయి.',
   'settings.administratorEmail': 'అడ్మినిస్ట్రేటర్ ఈమెయిల్',
+  'settings.administratorEmailNotYet':
+    'ప్రస్తుతం మాత్రమే నిల్వ చేయబడుతుంది. ఈమెయిల్స్ సర్వర్ సెట్ చేసిన చిరునామా నుండి వెళ్తాయి, ఇది దీనితో సంబంధం కలిగి ఉండదు.',
   'settings.timeZone': 'సమయ మండలం',
-  'settings.paginationPerPage': 'పేజీకిPagination',
-  'settings.defaultPrivateItemSets': 'డిఫాల్ట్‌గా ప్రైవేట్ ఐటమ్ సెట్‌లను ఎంచుకోండి',
-  'settings.indexFulltextSearch': 'ఇండెక్స్ ఫుల్‌టెక్స్ట్ సెర్చ్',
-  'settings.versionNotifications': 'వెర్షన్ నోటిఫికేషన్‌లు',
+  'settings.timeZoneInfo': 'అడ్మిన్‌లోని ప్రతి తేదీ ఈ కాల మండలంలో కనిపిస్తుంది.',
+  'settings.paginationPerPage': 'పేజీకి ఫలితాలు',
+  'settings.paginationPerPageInfo':
+    'బ్రౌజ్ జాబితాలోని ప్రతి అంశానికి ఒక పేజీలో ఎక్కువ ఫలితాలు కనిపిస్తాయి.',
+  'settings.defaultPrivateItemSets': 'కొత్త ఐటమ్ సెట్‌లను ప్రైవేట్‌గా మార్చండి',
+  'settings.defaultPrivateItemSetsInfo':
+    'కొత్త ఐటమ్ సెట్ ప్రైవేట్‌గా ప్రారంభమవుతుంది. మీరు ఇప్పటికీ ప్రతి దానిని పబ్లిక్ చేయవచ్చు.',
+  'settings.indexFulltextSearch': 'పూర్తి-పాఠ్య శోధన ఇండెక్స్‌ను పునర్నిర్మించండి',
+  'settings.indexFulltextSearchInfo':
+    'మీరు సేవ్ చేసినప్పుడు ఒక పనిని ప్రారంభిస్తుంది. ఈ పని ప్రతి అంశాన్ని, ఐటమ్ సెట్ మరియు మీడియాను మళ్ళీ చదువుతుంది. దీని కోసం ఏమీ నిల్వ చేయబడదు.',
+  'settings.indexStarted': 'ఇండెక్స్ పునర్నిర్మాణం {job} అనే పనిగా ప్రారంభమైంది.',
+  'settings.indexStartedLink': 'దాని పని పేజీలో దానిని అనుసరించండి.',
+  'settings.versionNotifications': 'కొత్త వెర్షన్ల గురించి నాకు చెప్పండి',
+  'settings.versionNotificationsNotYet':
+    'ప్రస్తుతం మాత్రమే నిల్వ చేయబడింది. Romeka ఇంకా కొత్త వెర్షన్ల కోసం తనిఖీ చేయదు.',
   'settings.mediaAltTextProperty': 'మీడియా ఆల్ట్ టెక్స్ట్ ప్రాపర్టీ',
   'settings.mediaAltTextPropertyInfo':
     'మొదటి విలువ మీడియాను వివరిస్తుంది, కానీ ఆల్ట్ టెక్స్ట్ సెట్ చేయబడనప్పుడు. దీనిని ఖాళీగా ఉంచండి మరియు ఆల్ట్ టెక్స్ట్ లేని మీడియాకు ఏదీ ఉండదు.',
   'settings.saved': 'సెట్టింగ్‌లు అప్‌డేట్ చేయబడ్డాయి.',
-  'settings.note':
-    'పోర్ట్ లోకేల్, మీడియా ఆల్ట్ టెక్స్ట్ ప్రాపర్టీ మరియు సెక్యూరిటీ సెట్టింగ్‌లను సేవ్ చేస్తుంది; ఇతర మార్పులు సేవ్ చేయబడవు.',
   'settings.security': 'భద్రత',
   'settings.disableFileValidation': 'ఫైల్ వాలిడేషన్ డిసేబుల్ చేయండి',
   'settings.disableFileValidationInfo':

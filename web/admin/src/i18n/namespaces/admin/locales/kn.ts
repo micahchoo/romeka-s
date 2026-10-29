@@ -121,19 +121,36 @@ export const kn: AdminMessages = {
   'query.search': 'ಹುಡುಕಿ',
   'query.idle': 'ಒಂದು ಪ್ರಶ್ನೆಯನ್ನು ನಮೂದಿಸಿ ಮತ್ತು ಅದನ್ನು ಮುನ್ನೋಟ (preview) ಮಾಡಿ.',
   'query.empty': 'ಯಾವುದೇ ಸಂಪನ್ಮೂಲಗಳು ಪ್ರಶ್ನೆಗೆ ಹೊಂದಿಕೆಯಾಗುವುದಿಲ್ಲ.',
+  'settings.general': 'ಸಾಮಾನ್ಯ',
+  'settings.display': 'ಪ್ರದರ್ಶನ',
+  'settings.editing': 'ಎಡಿಟಿಂಗ್',
+  'settings.search': 'ಹುಡುಕಾಟ',
   'settings.installationTitle': 'ಅನುಸ್ಥಾಪನಾ ಶೀರ್ಷಿಕೆ',
+  'settings.installationTitleInfo':
+    'ಅಡ್ಮಿನ್ ಹೆಡರ್, ಪ್ರತಿ ಪುಟದ ಶೀರ್ಷಿಕೆ ಮತ್ತು ಇಮೇಲ್‌ಗಳು ಇನ್‌ಸ್ಟಾಲೇಶನ್ ಹೆಸರನ್ನು ಹೊಂದಿರುತ್ತವೆ.',
   'settings.administratorEmail': 'ನಿರ್ವಾಹಕರ ಇಮೇಲ್',
+  'settings.administratorEmailNotYet':
+    'ಈಗ ಮಾತ್ರ ಸಂಗ್ರಹಿಸಲಾಗುತ್ತದೆ. ಇಮೇಲ್‌ಗಳು ಸರ್ವರ್ ಸೆಟ್ ಮಾಡಲಾದ ವಿಳಾಸದಿಂದ ಹೋಗುತ್ತವೆ, ಇದು ಈ ವಿಳಾಸವಲ್ಲ.',
   'settings.timeZone': 'ಸಮಯ ವಲಯ',
-  'settings.paginationPerPage': 'ಪ್ರತಿ ಪುಟಕ್ಕೆ ಪುಟ ವಿನ್ಯಾಸ',
-  'settings.defaultPrivateItemSets': 'ಡಿಫಾಲ್ಟ್ ಆಗಿ ಖಾಸಗಿ ಐಟಂ ಸೆಟ್‌ಗಳು',
-  'settings.indexFulltextSearch': 'ಪೂರ್ಣಪಠ್ಯ ಹುಡುಕಾಟ ಸೂಚ್ಯಂಕ',
-  'settings.versionNotifications': 'ಆವೃತ್ತಿ ಅಧಿಸೂಚನೆಗಳು',
+  'settings.timeZoneInfo': 'ಅಡ್ಮಿನ್‌ನಲ್ಲಿರುವ ಪ್ರತಿ ದಿನಾಂಕವು ಈ ಸಮಯ ವಲಯದಲ್ಲಿ ತೋರಿಸುತ್ತದೆ.',
+  'settings.paginationPerPage': 'ಪ್ರತಿ ಪುಟಕ್ಕೆ ಫಲಿತಾಂಶಗಳು',
+  'settings.paginationPerPageInfo':
+    'ಬ್ರೌಸ್ ಪಟ್ಟಿಯಲ್ಲಿ ಪ್ರತಿ ಬ್ರೌಸ್‌ಗೆ ಒಂದು ಪುಟದಲ್ಲಿ ಗರಿಷ್ಠ ಫಲಿತಾಂಶಗಳು.',
+  'settings.defaultPrivateItemSets': 'ಹೊಸ ಐಟಂ ಸೆಟ್‌ಗಳನ್ನು ಖಾಸಗಿ ಮಾಡಿ',
+  'settings.defaultPrivateItemSetsInfo':
+    'ಹೊಸ ಐಟಂ ಸೆಟ್ ಖಾಸಗಿ ಸ್ಥಿತಿಯಲ್ಲಿ ಪ್ರಾರಂಭವಾಗುತ್ತದೆ. ನೀವು ಇನ್ನೂ ಪ್ರತಿಯೊಂದನ್ನು ಸಾರ್ವಜನಿಕಗೊಳಿಸಬಹುದು.',
+  'settings.indexFulltextSearch': 'ಪೂರ್ಣ-ಪಠ್ಯ ಹುಡುಕಾಟ ಸೂಚಿಯನ್ನು ಮರುನಿರ್ಮಿಸಿ',
+  'settings.indexFulltextSearchInfo':
+    'ನೀವು ಉಳಿಸಿದಾಗ ಪ್ರಾರಂಭವಾಗುತ್ತದೆ. ಕೆಲಸವು ಪ್ರತಿ ಐಟಂ, ಐಟಂ ಸೆಟ್ ಮತ್ತು ಮೀಡಿಯಾವನ್ನು ಮತ್ತೆ ಓದುತ್ತದೆ. ಈ ಬಾಕ್ಸ್‌ಗಾಗಿ ಯಾವುದೇ ಸಂಗ್ರಹಣೆ ಇಲ್ಲ.',
+  'settings.indexStarted': 'ಪೂರ್ಣ-ಪಠ್ಯ ಹುಡುಕಾಟ ಸೂಚಿಯ ಮರುನಿರ್ಮಾಣವು {job} ಕೆಲಸವಾಗಿ ಪ್ರಾರಂಭವಾಯಿತು.',
+  'settings.indexStartedLink': 'ಅದರ ಕೆಲಸದ ಪುಟದಲ್ಲಿ ಅದನ್ನು ಅನುಸರಿಸಿ.',
+  'settings.versionNotifications': 'ಹೊಸ ಆವೃತ್ತಿಗಳ ಬಗ್ಗೆ ನನಗೆ ತಿಳಿಸಿ',
+  'settings.versionNotificationsNotYet':
+    'ಪ್ರಸ್ತುತಕ್ಕಾಗಿ ಮಾತ್ರ ಸಂಗ್ರಹಿಸಲಾಗಿದೆ. Romeka ಇನ್ನೂ ಹೊಸ ಆವೃತ್ತಿಗಳಿಗಾಗಿ ಪರಿಶೀಲಿಸುವುದಿಲ್ಲ.',
   'settings.mediaAltTextProperty': 'ಮೀಡಿಯಾ ಆಲ್ಟ್ ಟೆಕ್ಸ್ಟ್ ಪ್ರಾಪರ್ಟಿ',
   'settings.mediaAltTextPropertyInfo':
     'ಯಾವುದೇ alt text ಸೆಟ್ ಮಾಡದಿದ್ದಾಗ media ಅನ್ನು ವಿವರಿಸುವ ಮೊದಲ ಮೌಲ್ಯವನ್ನು ಹೊಂದಿರುವ property. ಇದನ್ನು ಖಾಲಿ ಬಿಡಿ ಮತ್ತು alt text ಇಲ್ಲದ media ಗೆ ಯಾವುದೂ ಇರುವುದಿಲ್ಲ.',
   'settings.saved': 'ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ನವೀಕರಿಸಲಾಗಿದೆ.',
-  'settings.note':
-    'ಪೋರ್ಟ್ ಸ್ಥಳೀಯತೆ, ಮೀಡಿಯಾ ಆಲ್ಟ್ ಟೆಕ್ಸ್ಟ್ ಪ್ರಾಪರ್ಟಿ ಮತ್ತು ಭದ್ರತಾ ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ಉಳಿಸುತ್ತದೆ; ಇತರ ಬದಲಾವಣೆಗಳು ಉಳಿಯುವುದಿಲ್ಲ.',
   'settings.security': 'ಭದ್ರತೆ',
   'settings.disableFileValidation': 'ಫೈಲ್ ಮೌಲ್ಯೀಕರಣವನ್ನು ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಿ',
   'settings.disableFileValidationInfo':

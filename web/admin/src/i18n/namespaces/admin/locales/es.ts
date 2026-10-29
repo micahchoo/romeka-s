@@ -119,19 +119,35 @@ export const es: AdminMessages = {
   'query.search': 'Buscar',
   'query.idle': 'Introduzca una consulta y previsualícela.',
   'query.empty': 'Ningún recurso coincide con la consulta.',
+  'settings.general': 'General',
+  'settings.display': 'Visualización',
+  'settings.editing': 'Edición',
+  'settings.search': 'Búsqueda',
   'settings.installationTitle': 'Título de la instalación',
+  'settings.installationTitleInfo':
+    'La cabecera de la administración, el título de cada página y los correos nombran la instalación con él.',
   'settings.administratorEmail': 'Correo del administrador',
+  'settings.administratorEmailNotYet':
+    'Por ahora solo se guarda. Los correos salen desde la dirección con la que está configurado el servidor, no desde esta.',
   'settings.timeZone': 'Zona horaria',
+  'settings.timeZoneInfo': 'Todas las fechas de la administración se muestran en esta zona horaria.',
   'settings.paginationPerPage': 'Resultados por página',
-  'settings.defaultPrivateItemSets': 'Conjuntos de elementos privados por defecto',
-  'settings.indexFulltextSearch': 'Indexar búsqueda de texto completo',
-  'settings.versionNotifications': 'Notificaciones de versión',
+  'settings.paginationPerPageInfo': 'El número máximo de resultados que cada lista muestra en una página.',
+  'settings.defaultPrivateItemSets': 'Hacer privados los conjuntos de elementos nuevos',
+  'settings.defaultPrivateItemSetsInfo':
+    'Un conjunto de elementos nuevo empieza como privado. Aún puede hacer público cada uno.',
+  'settings.indexFulltextSearch': 'Reconstruir el índice de búsqueda de texto completo',
+  'settings.indexFulltextSearchInfo':
+    'Inicia una tarea al guardar. La tarea vuelve a leer cada elemento, conjunto de elementos y medio. Esta casilla no se guarda.',
+  'settings.indexStarted': 'La reconstrucción del índice comenzó como la tarea {job}.',
+  'settings.indexStartedLink': 'Sígala en la página de la tarea.',
+  'settings.versionNotifications': 'Avisarme de las versiones nuevas',
+  'settings.versionNotificationsNotYet':
+    'Por ahora solo se guarda. Romeka todavía no comprueba si hay versiones nuevas.',
   'settings.mediaAltTextProperty': 'Propiedad de texto alternativo de los medios',
   'settings.mediaAltTextPropertyInfo':
     'La propiedad cuyo primer valor describe un medio cuando no se ha definido un texto alternativo. Si la deja vacía, un medio sin texto alternativo no tendrá ninguno.',
   'settings.saved': 'Configuración actualizada.',
-  'settings.note':
-    'El port guarda el idioma, la propiedad de texto alternativo de los medios y la configuración de seguridad; los demás cambios no se guardan.',
   'settings.security': 'Seguridad',
   'settings.disableFileValidation': 'Deshabilitar validación de ficheros',
   'settings.disableFileValidationInfo':

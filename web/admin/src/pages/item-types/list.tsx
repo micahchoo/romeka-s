@@ -4,6 +4,7 @@
  */
 import type { ReactElement } from 'react';
 import { api } from '../../api/client';
+import { installation } from '../../app/installation';
 import type { ApiPage, ResourceClass, ResourceTemplate } from '../../api/types';
 import { ALL_PAGES_PER_PAGE, allPages } from '../../app/all-pages';
 import { ListPage, mapPage } from '../../app/list';
@@ -11,8 +12,6 @@ import { plainName } from '../../app/plain-terms';
 import { useTranslator } from '../../i18n';
 import { useTermLabels } from '../../i18n/termText';
 import { useItemTypesText } from './messages';
-
-const PER_PAGE = 25;
 
 interface TypeRow {
   readonly template: ResourceTemplate;
@@ -22,7 +21,7 @@ interface TypeRow {
 
 const load = async (page: number): Promise<ApiPage<TypeRow>> => {
   const [templates, classes] = await Promise.all([
-    api.listResourceTemplates({ page, perPage: PER_PAGE, sortBy: 'label', sortOrder: 'asc' }),
+    api.listResourceTemplates({ page, perPage: installation().perPage, sortBy: 'label', sortOrder: 'asc' }),
     allPages((next) => api.listResourceClasses({ page: next, perPage: ALL_PAGES_PER_PAGE })),
   ]);
   const counts = await Promise.all(

@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
+import { installation } from '../../app/installation';
 import { listTermLists } from '../../api/term-lists';
 import type { ApiPage, ItemSet, TermList } from '../../api/types';
 import { ownerNameOf, userNames } from '../../app/labels';
@@ -10,8 +11,6 @@ import { useTermListText } from './messages';
 import type { TermListMessageKey } from './messages';
 import { TagsPanel } from './tags-panel';
 import { common } from '../../i18n/namespaces/common';
-
-const PER_PAGE = 25;
 
 interface TermListRow {
   readonly list: TermList;
@@ -53,7 +52,7 @@ const itemSetTitle = (sets: readonly ItemSet[], list: TermList): string | null =
 
 const load = async (page: number): Promise<ApiPage<TermListRow>> => {
   const [lists, users, sets] = await Promise.all([
-    listTermLists(api, { page, perPage: PER_PAGE, sortBy: 'label' }),
+    listTermLists(api, { page, perPage: installation().perPage, sortBy: 'label' }),
     api.listUsers({ perPage: 100 }),
     api.listItemSets({ perPage: 200 }),
   ]);

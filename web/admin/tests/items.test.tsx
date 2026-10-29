@@ -206,7 +206,7 @@ describe('items list', () => {
 
     const itemsUrl = lastItemsUrl(fetchMock);
     expect(itemsUrl.searchParams.get('page')).toBe('1');
-    expect(itemsUrl.searchParams.get('per_page')).toBe('24');
+    expect(itemsUrl.searchParams.get('per_page')).toBe('25');
     expect(itemsUrl.searchParams.get('sort_by')).toBe('id');
     expect(itemsUrl.searchParams.get('sort_order')).toBe('desc');
     for (const path of ['/api/users', '/api/resource_classes', '/api/item_sets', '/api/resource_templates', '/api/sites']) {

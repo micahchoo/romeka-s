@@ -26,7 +26,7 @@ import {
   parseSitePage,
   parsePageVersionSummary,
   parseStalePage,
-  parseGlobalSettings,
+  parseInstallation,
   parseUser,
 } from './parse';
 import type {
@@ -68,8 +68,7 @@ import type {
   UserId,
   UserSettingsWrite,
   UserWrite,
-  GlobalSettings,
-  GlobalSettingsWrite,
+  Installation,
   VocabularyMemberWrite,
 } from './types';
 import type { WireBody } from './write';
@@ -358,28 +357,9 @@ export class ApiClient {
     await this.writeJson('PATCH', `/api/users/${String(id)}`, encodeUserSettings(write));
   }
 
-  /** `GET /api/settings`, a port route only a global admin may read. */
-  async getSettings(): Promise<GlobalSettings> {
-    return parseGlobalSettings(await this.requestJson('/api/settings'));
-  }
-
-  /**
-   * `PATCH /api/settings`: store the global `locale` (`''` removes it), the
-   * media alt text property, the file validation settings and the private URL
-   * switch.
-   */
-  async updateSettings(write: GlobalSettingsWrite): Promise<GlobalSettings> {
-    return parseGlobalSettings(
-      await this.writeJson('PATCH', '/api/settings', {
-        locale: write.locale ?? '',
-        media_alt_text_property: write.mediaAltTextProperty ?? '',
-        media_type_whitelist: write.mediaTypeWhitelist,
-        extension_whitelist: write.extensionWhitelist,
-        disable_file_validation: write.disableFileValidation,
-        import_allow_private_urls: write.importAllowPrivateUrls,
-        romeka_annotations_public: write.annotationsPublic,
-      }),
-    );
+  /** `GET /api/romeka/installation`, a port route any caller may read. */
+  async getInstallation(): Promise<Installation> {
+    return parseInstallation(await this.requestJson('/api/romeka/installation'));
   }
 
   async getSite(id: SiteId): Promise<Site> {

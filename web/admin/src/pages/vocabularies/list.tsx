@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import { api } from '../../api/client';
+import { installation } from '../../app/installation';
 import { listVocabularies } from '../../api/vocabularies';
 import type { ApiPage, Vocabulary } from '../../api/types';
 import { ListPage } from '../../app/list';
@@ -11,8 +12,6 @@ import { useStandardsText } from '../standards/messages';
 import { common } from '../../i18n/namespaces/common';
 import { standards } from '../../i18n/namespaces/standards';
 import './import.css';
-
-const PER_PAGE = 25;
 
 interface VocabularyRow {
   readonly vocabulary: Vocabulary;
@@ -27,7 +26,7 @@ interface VocabularyRow {
 const load = async (page: number): Promise<ApiPage<VocabularyRow>> => {
   const vocabularies = await listVocabularies(api, {
     page,
-    perPage: PER_PAGE,
+    perPage: installation().perPage,
     sortBy: 'id',
     sortOrder: 'asc',
   });

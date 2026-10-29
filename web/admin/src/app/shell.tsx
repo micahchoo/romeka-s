@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { currentUser, setSession } from '../api/session';
 import { LOCALES, parseLocale, setLocale, useLocale, useTranslator } from '../i18n';
 import { AuthBadge, useSession } from './auth';
+import { loadInstallation, useInstallation } from './installation';
 import { JumpBox } from './jump-box';
 import { PAGE_GROUPS, PAGES } from './pages';
 import type { AdminPageId } from './pages';
@@ -245,13 +246,18 @@ const AdminNav = ({ activeId }: { readonly activeId: AdminPageId | null }): Reac
   );
 };
 
+/** `layout-admin.phtml`'s logo: the installation title, and that this is its admin. */
+const AppTitle = (): ReactElement => {
+  const { t } = useTranslator();
+  return <span className="app-title">{t('app.title', { title: useInstallation().title })}</span>;
+};
+
 /** The layout a set-password or forgot link opens: the header, and no admin nav. */
 const AuthLayout = ({ children }: { readonly children: ReactElement }): ReactElement => {
-  const { t } = useTranslator();
   return (
     <div className="shell">
       <header className="app-header">
-        <span className="app-title">{t('app.title')}</span>
+        <AppTitle />
         <AuthBadge />
       </header>
       <main className="app-main">{children}</main>
@@ -259,10 +265,20 @@ const AuthLayout = ({ children }: { readonly children: ReactElement }): ReactEle
   );
 };
 
+/** `layout-admin.phtml`'s `headTitle`: the page, then the installation, ` · ` between. */
+const DocumentTitle = ({ pageTitle }: { readonly pageTitle: string | null }): null => {
+  const { title } = useInstallation();
+  useEffect(() => {
+    document.title = pageTitle === null ? title : `${pageTitle} · ${title}`;
+  }, [pageTitle, title]);
+  return null;
+};
+
 export const Shell = (): ReactElement => {
   const { t } = useTranslator();
   const hash = useHash();
   useSessionProbe();
+  const settings = useAsync(loadInstallation, []);
   const authRoute = parseAuthRoute(hash, window.location.search);
 
   if (authRoute !== null) {
@@ -284,11 +300,13 @@ export const Shell = (): ReactElement => {
   const route = parseHash(hash);
   const activeId = route === null ? null : route.page;
   const page = route === null ? null : PAGES[route.page];
+  const pageTitle = page === null ? null : t(page.titleKey);
 
   return (
     <div className="shell">
+      <DocumentTitle pageTitle={pageTitle} />
       <header className="app-header">
-        <span className="app-title">{t('app.title')}</span>
+        <AppTitle />
         <JumpBox />
         <VersionBadge />
         <LocaleSwitch />
@@ -304,9 +322,13 @@ export const Shell = (): ReactElement => {
       >
         {page === null ? (
           <p role="alert">{t('shell.noPage')}</p>
+        ) : settings.status === 'loading' ? (
+          // A list asks for its first page at the stored page size, so the
+          // route waits for the settings; a failed read leaves the defaults.
+          <p role="status">{t('loading.page')}</p>
         ) : (
           <>
-            <h1>{t(page.titleKey)}</h1>
+            <h1>{pageTitle}</h1>
             {/* The page module is fetched on the first visit to this route. The
                 heading comes from the table, so it paints before the chunk does. */}
             <RouteBoundary key={activeId}>

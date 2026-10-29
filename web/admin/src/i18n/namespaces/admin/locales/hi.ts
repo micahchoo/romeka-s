@@ -121,19 +121,35 @@ export const hi: AdminMessages = {
   'query.search': 'खोजें',
   'query.idle': 'एक क्वेरी दर्ज करें और उसका पूर्वावलोकन करें।',
   'query.empty': 'कोई भी संसाधन क्वेरी से मेल नहीं खाता।',
+  'settings.general': 'सामान्य',
+  'settings.display': 'डिस्प्ले',
+  'settings.editing': 'संपादन',
+  'settings.search': 'खोज',
   'settings.installationTitle': 'इंस्टॉलेशन शीर्षक',
+  'settings.installationTitleInfo':
+    'एडमिन हेडर, हर पेज का शीर्षक और ईमेल इंस्टॉलेशन का नाम बताते हैं।',
   'settings.administratorEmail': 'प्रशासक ईमेल',
+  'settings.administratorEmailNotYet':
+    'केवल अभी के लिए संग्रहीत। ईमेल उस पते से भेजे जाते हैं जिस पर सर्वर सेट किया गया है, न कि इस एक से।',
   'settings.timeZone': 'समय क्षेत्र',
-  'settings.paginationPerPage': 'प्रति पृष्ठ पेजिनैशन',
-  'settings.defaultPrivateItemSets': 'डिफ़ॉल्ट रूप से निजी आइटम सेट',
-  'settings.indexFulltextSearch': 'पूर्णपाठ खोज सूचकांक',
-  'settings.versionNotifications': 'संस्करण अधिसूचना',
+  'settings.timeZoneInfo': 'एडमिन में हर तारीख इस टाइम ज़ोन में दिखाई देती है।',
+  'settings.paginationPerPage': 'प्रति पृष्ठ परिणाम',
+  'settings.paginationPerPageInfo': 'ब्राउज़ सूची एक पृष्ठ पर सबसे अधिक परिणाम दिखाती है।',
+  'settings.defaultPrivateItemSets': 'नए आइटम सेट निजी बनाएँ',
+  'settings.defaultPrivateItemSetsInfo':
+    'एक नया आइटम सेट निजी शुरू होता है। आप अभी भी प्रत्येक को सार्वजनिक बना सकते हैं।',
+  'settings.indexFulltextSearch': 'पूर्ण-पाठ खोज सूचकांक का पुनर्निर्माण करें',
+  'settings.indexFulltextSearchInfo':
+    'सहेजने पर एक कार्य शुरू होता है। कार्य प्रत्येक आइटम, आइटम सेट और मीडिया को फिर से पढ़ता है। इस बॉक्स के लिए कुछ भी संग्रहीत नहीं किया जाता है।',
+  'settings.indexStarted': 'पूर्ण-पाठ खोज सूचकांक पुनर्निर्माण कार्य {job} के रूप में शुरू हुआ।',
+  'settings.indexStartedLink': 'इसके जॉब पेज पर इसका अनुसरण करें।',
+  'settings.versionNotifications': 'मुझे नए संस्करणों के बारे में बताएं',
+  'settings.versionNotificationsNotYet':
+    'केवल अभी के लिए संग्रहीत। Romeka अभी तक नए संस्करणों की जांच नहीं करता है।',
   'settings.mediaAltTextProperty': 'मीडिया ऑल्ट टेक्स्ट प्रॉपर्टी',
   'settings.mediaAltTextPropertyInfo':
     'वह प्रॉपर्टी जिसकी पहली वैल्यू मीडिया का वर्णन करती है जब कोई ऑल्ट टेक्स्ट सेट नहीं होता है। इसे खाली छोड़ दें और बिना ऑल्ट टेक्स्ट वाली मीडिया में कोई नहीं होता है।',
   'settings.saved': 'सेटिंग्स अपडेट की गईं।',
-  'settings.note':
-    'पोर्ट लोक्यूल, मीडिया ऑल्ट टेक्स्ट प्रॉपर्टी और सिक्योरिटी सेटिंग्स को सहेजता है; अन्य परिवर्तन सुरक्षित नहीं रखे जाते हैं।',
   'settings.security': 'सुरक्षा',
   'settings.disableFileValidation': 'फ़ाइल सत्यापन अक्षम करें',
   'settings.disableFileValidationInfo':

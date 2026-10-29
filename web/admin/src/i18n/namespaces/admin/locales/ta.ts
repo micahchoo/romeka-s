@@ -123,19 +123,37 @@ export const ta: AdminMessages = {
   'query.search': 'தேடல்',
   'query.idle': 'ஒரு வினவலை உள்ளிட்டு அதை முன்னோட்டமிடவும்.',
   'query.empty': 'வினவலுக்குப் பொருந்தும் வளங்கள் எதுவும் இல்லை.',
+  'settings.general': 'பொதுவான',
+  'settings.display': 'காட்சி',
+  'settings.editing': 'திருத்துதல்',
+  'settings.search': 'தேடல்',
   'settings.installationTitle': 'நிறுவல் தலைப்பு',
+  'settings.installationTitleInfo':
+    'நிர்வாக தலைப்பு, ஒவ்வொரு பக்கத்தின் தலைப்பும் மற்றும் மின்னஞ்சல் பெயரும் நிறுவலை அடையாளம் காட்டுகின்றன.',
   'settings.administratorEmail': 'நிர்வாகி மின்னஞ்சல்',
+  'settings.administratorEmailNotYet':
+    'தற்போது மட்டுமே சேமிக்கப்படுகிறது. மின்னஞ்சல்கள் இந்த முகவரியிலிருந்து அல்லாமல், சர்வர் கட்டமைக்கப்பட்டுள்ள முகவரியிலிருந்து அனுப்பப்படுகின்றன.',
   'settings.timeZone': 'கால மண்டலம்',
-  'settings.paginationPerPage': 'பக்க அளவு',
-  'settings.defaultPrivateItemSets': 'இயல்பாகத் தனிப்பட்ட உருப்படித் தொகுப்புகளைப் பயன்படுத்தவும்',
-  'settings.indexFulltextSearch': 'முழு உரைத் தேடல் குறியீட்டைப் புதுப்பிக்கவும்',
-  'settings.versionNotifications': 'பதிப்பு அறிவிப்புகள்',
+  'settings.timeZoneInfo':
+    'நிர்வாகத்தில் உள்ள ஒவ்வொரு தேதியும் இந்த கால மண்டலத்தில் காட்டப்படுகிறது.',
+  'settings.paginationPerPage': 'ஒரு பக்கத்திற்கான முடிவுகள்',
+  'settings.paginationPerPageInfo':
+    'ஒரு பக்கத்தில் மிக அதிகமான முடிவுகள் அடங்கிய பட்டியலை இது காட்டுகிறது.',
+  'settings.defaultPrivateItemSets': 'புதிய உருப்படித் தொகுப்புகளைத் தனிப்பட்டதாக மாற்றவும்',
+  'settings.defaultPrivateItemSetsInfo':
+    'ஒரு புதிய உருப்படித் தொகுப்பு தனிப்பட்டதாகத் தொடங்குகிறது. நீங்கள் இன்னும் ஒவ்வொன்றையும் பொதுவாக்க முடியும்.',
+  'settings.indexFulltextSearch': 'முழு-உரை தேடல் குறியீட்டை மீண்டும் உருவாக்கவும்',
+  'settings.indexFulltextSearchInfo':
+    'உருப்படிகள், உருப்படித் தொகுப்புகள் மற்றும் ஊடகங்களை மீண்டும் வாசிப்பதன் மூலம், சேமிக்கும்போது இந்த வேலை தொடங்குகிறது. இந்த பெட்டிக்கு எதுவும் சேமிக்கப்படுவதில்லை.',
+  'settings.indexStarted': 'குறியீட்டு மறுசீரமைப்பு வேலை {job} என்ற பணியாகத் தொடங்கியது.',
+  'settings.indexStartedLink': 'அதன் பணிப் பக்கத்தில் அதைப் பின்தொடரவும்.',
+  'settings.versionNotifications': 'புதிய பதிப்புகள் பற்றி எனக்குச் சொல்லுங்கள்',
+  'settings.versionNotificationsNotYet':
+    'தற்போது மட்டுமே சேமிக்கப்படுகிறது. Romeka இன்னும் புதிய பதிப்புகளைச் சரிபார்க்கவில்லை.',
   'settings.mediaAltTextProperty': 'ஊடக மாற்று உரை பண்பு',
   'settings.mediaAltTextPropertyInfo':
     'மாற்று உரை எதுவும் அமைக்கப்படாதபோது, ஒரு ஊடகத்தை விவரிக்கும் முதல் மதிப்பு. இதை காலியாக விட்டுவிடுங்கள், அப்போது மாற்று உரை இல்லாத ஒரு ஊடகத்திற்கு மாற்று உரை இருக்காது.',
   'settings.saved': 'அமைப்புகள் புதுப்பிக்கப்பட்டன.',
-  'settings.note':
-    'போர்ட் (Port) உள்ளூர் மொழி, ஊடக மாற்று உரை பண்பு மற்றும் பாதுகாப்பு அமைப்புகளைச் சேமிக்கிறது; மற்ற மாற்றங்கள் சேமிக்கப்படுவதில்லை.',
   'settings.security': 'பாதுகாப்பு',
   'settings.disableFileValidation': 'கோப்பு சரிபார்ப்பை முடக்கவும்',
   'settings.disableFileValidationInfo':

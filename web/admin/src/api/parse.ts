@@ -47,7 +47,7 @@ import type {
   TemplateId,
   ThumbnailType,
   ThumbnailUrls,
-  GlobalSettings,
+  Installation,
   User,
   UserId,
   Value,
@@ -556,27 +556,16 @@ const parseLessonSettings = (object: Record<string, unknown>, path: Path): Lesso
   };
 };
 
-/** `GET /api/settings`, a port route that answers one map of setting keys. */
-export const parseGlobalSettings: Parser<GlobalSettings> = (raw, path = []) => {
+/** `GET /api/romeka/installation`, a port route: the settings every screen applies. */
+export const parseInstallation: Parser<Installation> = (raw, path = []) => {
   const object = asRecord(raw, path);
-  const names = (key: string): readonly string[] =>
-    parseListOf(asString)(field(object, key, path), [...path, key]);
   return {
-    locale: optionalString(object, 'locale', path),
-    mediaAltTextProperty: optionalString(object, 'media_alt_text_property', path),
-    mediaTypeWhitelist: names('media_type_whitelist'),
-    extensionWhitelist: names('extension_whitelist'),
-    disableFileValidation: asBoolean(field(object, 'disable_file_validation', path), [
+    title: asString(field(object, 'installation_title', path), [...path, 'installation_title']),
+    perPage: asIdNumber(field(object, 'pagination_per_page', path), [...path, 'pagination_per_page']),
+    timeZone: asString(field(object, 'time_zone', path), [...path, 'time_zone']),
+    defaultPrivateItemSets: asBoolean(field(object, 'default_to_private_item_sets', path), [
       ...path,
-      'disable_file_validation',
-    ]),
-    importAllowPrivateUrls: asBoolean(field(object, 'import_allow_private_urls', path), [
-      ...path,
-      'import_allow_private_urls',
-    ]),
-    annotationsPublic: asBoolean(field(object, 'romeka_annotations_public', path), [
-      ...path,
-      'romeka_annotations_public',
+      'default_to_private_item_sets',
     ]),
   };
 };

@@ -9,7 +9,7 @@
 import type { Catalogue } from '../catalogue';
 
 export const hi: Catalogue = {
-  'app.title': 'Romeka S एडमिन',
+  'app.title': '{title} एडमिन',
   'shell.navLabel': 'एडमिन पेज',
   'shell.noPage': 'ऐसा कोई पेज नहीं है। एडमिन डैशबोर्ड पर जाएँ।',
   'shell.loadFailed': 'यह पृष्ठ लोड नहीं हो सका। कनेक्शन की जाँच करें, फिर पुनः लोड करें।',

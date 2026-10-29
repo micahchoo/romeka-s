@@ -1,44 +1,17 @@
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
+import { getSettings, getTimeZones, updateSettings } from '../../api/settings';
 import type { GlobalSettings } from '../../api/types';
 import { ErrorNotice } from '../../app/errors';
 import { SaveStatus } from '../../app/fields';
+import { reloadInstallation } from '../../app/installation';
 import { LocaleSelect, localeValue } from '../../app/locale-select';
 import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
-import type { KeyOf, MessageKey } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
 import { admin } from '../../i18n/namespaces/admin';
-
-/** A message id this file names: the shell's or its namespaces'. */
-type MessageId = MessageKey | KeyOf<typeof common> | KeyOf<typeof admin>;
-
-interface SettingField {
-  readonly id: string;
-  readonly labelKey: MessageId;
-  readonly kind: 'text' | 'checkbox';
-}
-
-/** The global settings `Admin\SettingForm` exposes, in its group order. */
-const SETTING_FIELDS: readonly SettingField[] = [
-  { id: 'installation_title', labelKey: 'settings.installationTitle', kind: 'text' },
-  { id: 'administrator_email', labelKey: 'settings.administratorEmail', kind: 'text' },
-  { id: 'time_zone', labelKey: 'settings.timeZone', kind: 'text' },
-  { id: 'pagination_per_page', labelKey: 'settings.paginationPerPage', kind: 'text' },
-  {
-    id: 'default_to_private_item_sets',
-    labelKey: 'settings.defaultPrivateItemSets',
-    kind: 'checkbox',
-  },
-  { id: 'index_fulltext_search', labelKey: 'settings.indexFulltextSearch', kind: 'checkbox' },
-  { id: 'version_notifications', labelKey: 'settings.versionNotifications', kind: 'checkbox' },
-];
-
-const EMPTY_VALUES: Readonly<Record<string, string>> = Object.fromEntries(
-  SETTING_FIELDS.map((field) => [field.id, field.kind === 'checkbox' ? 'false' : '']),
-);
 
 /**
  * One allow list as the form holds it: `SettingForm`'s comma-separated text,
@@ -57,31 +30,61 @@ const listNames = (draft: ListDraft): readonly string[] | null =>
         .map((name) => name.trim())
         .filter((name) => name !== '');
 
+interface Loaded {
+  readonly stored: GlobalSettings;
+  readonly timeZones: readonly string[];
+}
+
+const load = async (): Promise<Loaded> => {
+  const [stored, timeZones] = await Promise.all([getSettings(api), getTimeZones(api)]);
+  return { stored, timeZones };
+};
+
 /**
- * `Admin/SettingController::browseAction`. The port's `/api/settings` stores
- * the locale, the alt text property, the three file validation settings, the
- * private URL switch and the notes switch (`annotationsPublic`), so those are
- * saved; every other field keeps its edits in page state and does not persist
- * them.
+ * `Admin/SettingController::browseAction`: every `SettingForm` field the port
+ * has, each stored through `PATCH /api/settings`. The browser checks the
+ * required fields, the email shape and the page size before it sends; the
+ * server checks them again.
  */
 export const SettingsPage = (): ReactElement => {
   const { t } = useTranslator(common, admin);
-  const stored = useAsync(() => api.getSettings(), []);
-  if (stored.status === 'loading') {
+  const loaded = useAsync(load, []);
+  if (loaded.status === 'loading') {
     return <p role="status">{t('loading.page')}</p>;
   }
   // A caller other than a global admin is refused, as upstream's ACL refuses
   // them the settings controller.
-  if (stored.status === 'error') {
-    return <ErrorNotice error={stored.error} />;
+  if (loaded.status === 'error') {
+    return <ErrorNotice error={loaded.error} />;
   }
-  return <SettingsForm stored={stored.data} />;
+  return <SettingsForm stored={loaded.data.stored} timeZones={loaded.data.timeZones} />;
 };
 
-const SettingsForm = ({ stored }: { readonly stored: GlobalSettings }): ReactElement => {
+/** A field's one line of help, which its control names as its description. */
+const Info = ({ id, children }: { readonly id: string; readonly children: ReactNode }): ReactElement => (
+  <>
+    <br />
+    <small id={id}>{children}</small>
+  </>
+);
+
+const SettingsForm = ({
+  stored,
+  timeZones,
+}: {
+  readonly stored: GlobalSettings;
+  readonly timeZones: readonly string[];
+}): ReactElement => {
   const { t } = useTranslator(common, admin);
-  const [values, setValues] = useState<Readonly<Record<string, string>>>(EMPTY_VALUES);
   const [saved, setSaved] = useState(false);
+  const [indexJob, setIndexJob] = useState<number | null>(null);
+  const [title, setTitle] = useState(stored.installationTitle ?? '');
+  const [email, setEmail] = useState(stored.administratorEmail ?? '');
+  const [timeZone, setTimeZone] = useState(stored.timeZone);
+  const [perPage, setPerPage] = useState(String(stored.perPage));
+  const [privateSets, setPrivateSets] = useState(stored.defaultPrivateItemSets);
+  const [versionNotices, setVersionNotices] = useState(stored.versionNotifications);
+  const [reindex, setReindex] = useState(false);
   const [locale, setLocale] = useState(localeValue(stored.locale));
   const [altTextProperty, setAltTextProperty] = useState(stored.mediaAltTextProperty ?? '');
   const [disabled, setDisabled] = useState(stored.disableFileValidation);
@@ -97,10 +100,6 @@ const SettingsForm = ({ stored }: { readonly stored: GlobalSettings }): ReactEle
       setSaved(false);
       set(value);
     };
-  const setValue = (id: string, value: string): void => {
-    setSaved(false);
-    setValues((previous) => ({ ...previous, [id]: value }));
-  };
 
   return (
     <section>
@@ -108,8 +107,16 @@ const SettingsForm = ({ stored }: { readonly stored: GlobalSettings }): ReactEle
         onSubmit={(event) => {
           event.preventDefault();
           setSaved(false);
+          setIndexJob(null);
           save(async () => {
-            const answer = await api.updateSettings({
+            const answer = await updateSettings(api, {
+              installationTitle: title,
+              administratorEmail: email,
+              timeZone,
+              perPage: Number(perPage),
+              defaultPrivateItemSets: privateSets,
+              versionNotifications: versionNotices,
+              indexFulltextSearch: reindex,
               locale,
               mediaAltTextProperty: altTextProperty,
               mediaTypeWhitelist: listNames(mediaTypes),
@@ -118,60 +125,166 @@ const SettingsForm = ({ stored }: { readonly stored: GlobalSettings }): ReactEle
               importAllowPrivateUrls: allowPrivate,
               annotationsPublic: notesPublic,
             });
+            setTitle(answer.installationTitle ?? '');
+            setEmail(answer.administratorEmail ?? '');
+            setTimeZone(answer.timeZone);
+            setPerPage(String(answer.perPage));
+            setPrivateSets(answer.defaultPrivateItemSets);
+            setVersionNotices(answer.versionNotifications);
+            setReindex(false);
+            setIndexJob(answer.indexJob);
             setMediaTypes(listText(answer.mediaTypeWhitelist));
             setExtensions(listText(answer.extensionWhitelist));
             setAltTextProperty(answer.mediaAltTextProperty ?? '');
             setDisabled(answer.disableFileValidation);
             setAllowPrivate(answer.importAllowPrivateUrls);
             setNotesPublic(answer.annotationsPublic);
+            // The header, the page title, the lists and the dates follow at once.
+            await reloadInstallation();
             setSaved(true);
           });
         }}
       >
-        <LocaleSelect id="setting-locale" value={locale} onChange={edited(setLocale)} />
-        {SETTING_FIELDS.map((field) =>
-          field.kind === 'text' ? (
-            <p key={field.id}>
-              <label htmlFor={`setting-${field.id}`}>{t(field.labelKey)}</label>
+        <fieldset>
+          <legend>{t('settings.general')}</legend>
+          <p>
+            <label htmlFor="setting-administrator_email">{t('settings.administratorEmail')}</label>
+            <br />
+            <input
+              id="setting-administrator_email"
+              type="email"
+              required
+              aria-describedby="setting-administrator_email-info"
+              value={email}
+              onChange={(event) => {
+                edited(setEmail)(event.target.value);
+              }}
+            />
+            <Info id="setting-administrator_email-info">{t('settings.administratorEmailNotYet')}</Info>
+          </p>
+          <p>
+            <label htmlFor="setting-installation_title">{t('settings.installationTitle')}</label>
+            <br />
+            <input
+              id="setting-installation_title"
+              required
+              pattern=".*\S.*"
+              aria-describedby="setting-installation_title-info"
+              value={title}
+              onChange={(event) => {
+                edited(setTitle)(event.target.value);
+              }}
+            />
+            <Info id="setting-installation_title-info">{t('settings.installationTitleInfo')}</Info>
+          </p>
+          <p>
+            <label htmlFor="setting-time_zone">{t('settings.timeZone')}</label>
+            <br />
+            <select
+              id="setting-time_zone"
+              required
+              aria-describedby="setting-time_zone-info"
+              value={timeZone}
+              onChange={(event) => {
+                edited(setTimeZone)(event.target.value);
+              }}
+            >
+              {timeZones.map((zone) => (
+                <option key={zone} value={zone}>
+                  {zone}
+                </option>
+              ))}
+            </select>
+            <Info id="setting-time_zone-info">{t('settings.timeZoneInfo')}</Info>
+          </p>
+          <LocaleSelect id="setting-locale" value={locale} onChange={edited(setLocale)} />
+          <p>
+            <label>
               <input
-                id={`setting-${field.id}`}
-                value={values[field.id] ?? ''}
+                type="checkbox"
+                checked={versionNotices}
+                aria-describedby="setting-version_notifications-info"
                 onChange={(event) => {
-                  setValue(field.id, event.target.value);
+                  edited(setVersionNotices)(event.target.checked);
                 }}
               />
-            </p>
-          ) : (
-            <p key={field.id}>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={values[field.id] === 'true'}
-                  onChange={(event) => {
-                    setValue(field.id, event.target.checked ? 'true' : 'false');
-                  }}
-                />
-                {t(field.labelKey)}
-              </label>
-            </p>
-          ),
-        )}
-        <p>
-          <label htmlFor="setting-media_alt_text_property">
-            {t('settings.mediaAltTextProperty')}
-          </label>
-          <input
-            id="setting-media_alt_text_property"
-            aria-describedby="setting-media_alt_text_property-info"
-            value={altTextProperty}
-            onChange={(event) => {
-              edited(setAltTextProperty)(event.target.value);
-            }}
-          />
-          <small id="setting-media_alt_text_property-info">
-            {t('settings.mediaAltTextPropertyInfo')}
-          </small>
-        </p>
+              {t('settings.versionNotifications')}
+            </label>
+            <Info id="setting-version_notifications-info">{t('settings.versionNotificationsNotYet')}</Info>
+          </p>
+        </fieldset>
+        <fieldset>
+          <legend>{t('settings.display')}</legend>
+          <p>
+            <label htmlFor="setting-pagination_per_page">{t('settings.paginationPerPage')}</label>
+            <br />
+            <input
+              id="setting-pagination_per_page"
+              type="number"
+              required
+              min={1}
+              step={1}
+              aria-describedby="setting-pagination_per_page-info"
+              value={perPage}
+              onChange={(event) => {
+                edited(setPerPage)(event.target.value);
+              }}
+            />
+            <Info id="setting-pagination_per_page-info">{t('settings.paginationPerPageInfo')}</Info>
+          </p>
+        </fieldset>
+        <fieldset>
+          <legend>{t('settings.editing')}</legend>
+          <p>
+            <label>
+              <input
+                type="checkbox"
+                checked={privateSets}
+                aria-describedby="setting-default_to_private_item_sets-info"
+                onChange={(event) => {
+                  edited(setPrivateSets)(event.target.checked);
+                }}
+              />
+              {t('settings.defaultPrivateItemSets')}
+            </label>
+            <Info id="setting-default_to_private_item_sets-info">
+              {t('settings.defaultPrivateItemSetsInfo')}
+            </Info>
+          </p>
+          <p>
+            <label htmlFor="setting-media_alt_text_property">
+              {t('settings.mediaAltTextProperty')}
+            </label>
+            <input
+              id="setting-media_alt_text_property"
+              aria-describedby="setting-media_alt_text_property-info"
+              value={altTextProperty}
+              onChange={(event) => {
+                edited(setAltTextProperty)(event.target.value);
+              }}
+            />
+            <small id="setting-media_alt_text_property-info">
+              {t('settings.mediaAltTextPropertyInfo')}
+            </small>
+          </p>
+        </fieldset>
+        <fieldset>
+          <legend>{t('settings.search')}</legend>
+          <p>
+            <label>
+              <input
+                type="checkbox"
+                checked={reindex}
+                aria-describedby="setting-index_fulltext_search-info"
+                onChange={(event) => {
+                  edited(setReindex)(event.target.checked);
+                }}
+              />
+              {t('settings.indexFulltextSearch')}
+            </label>
+            <Info id="setting-index_fulltext_search-info">{t('settings.indexFulltextSearchInfo')}</Info>
+          </p>
+        </fieldset>
         <fieldset>
           <legend>{t('settings.notesOnPublicPages')}</legend>
           <p>
@@ -269,7 +382,12 @@ const SettingsForm = ({ stored }: { readonly stored: GlobalSettings }): ReactEle
       </form>
       {saveState.status === 'error' ? <SaveStatus state={saveState} /> : null}
       {saved ? <p role="status">{t('settings.saved')}</p> : null}
-      <p>{t('settings.note')}</p>
+      {saved && indexJob !== null ? (
+        <p role="status">
+          {t('settings.indexStarted', { job: indexJob })}{' '}
+          <a href={`#/jobs/${String(indexJob)}`}>{t('settings.indexStartedLink')}</a>
+        </p>
+      ) : null}
     </section>
   );
 };

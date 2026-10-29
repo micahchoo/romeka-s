@@ -121,55 +121,114 @@ describe('settings page', () => {
     import_allow_private_urls: false,
     romeka_annotations_public: true,
   };
-
-  it('settings_saves_the_global_locale_and_keeps_the_other_fields_in_the_page', async () => {
-    const fetchMock = installFetch(
-      route({
-        '/api/settings': (_url, init) =>
-          jsonResponse({ ...fileSettings, locale: init?.method === 'PATCH' ? 'en' : 'es' }),
+  /** `SettingForm`'s general, display and editing fields as a new install answers them. */
+  const installSettings = {
+    installation_title: 'Romeka S',
+    administrator_email: 'admin@example.org',
+    time_zone: 'UTC',
+    pagination_per_page: 25,
+    default_to_private_item_sets: false,
+    version_notifications: false,
+  };
+  const installSettingsWrite = { ...installSettings, index_fulltext_search: false };
+  const settingsRoutes = (settings: (init: RequestInit | undefined) => object) => ({
+    '/api/settings': (_url: URL, init: RequestInit | undefined) =>
+      jsonResponse({ ...fileSettings, ...installSettings, ...settings(init) }),
+    '/api/romeka/time-zones': () => jsonResponse(['Asia/Kolkata', 'Europe/Paris', 'UTC']),
+    '/api/romeka/installation': () =>
+      jsonResponse({
+        installation_title: 'Romeka S',
+        pagination_per_page: 25,
+        time_zone: 'UTC',
+        default_to_private_item_sets: false,
       }),
+  });
+  const patchOf = (fetchMock: ReturnType<typeof installFetch>) =>
+    first(requestsFor(fetchMock, '/api/settings').filter((request) => request.init?.method === 'PATCH'));
+
+  it('settings_saves_every_field_and_reads_the_installation_again', async () => {
+    const fetchMock = installFetch(
+      route(settingsRoutes((init) => ({ locale: init?.method === 'PATCH' ? 'en' : 'es' }))),
     );
     render(<SettingsPage />);
 
     const locale = await screen.findByLabelText('Locale');
     expect(locale).toHaveValue('es');
     fireEvent.change(locale, { target: { value: 'en' } });
-    fireEvent.change(screen.getByLabelText('Installation title'), {
-      target: { value: 'My Omeka' },
+    const title = screen.getByLabelText('Installation title');
+    expect(title).toHaveValue('Romeka S');
+    expect(title).toBeRequired();
+    fireEvent.change(title, { target: { value: 'Gawan Museum' } });
+    fireEvent.change(screen.getByLabelText('Administrator email'), {
+      target: { value: 'registrar@gawan.example' },
     });
-    expect(screen.getByLabelText('Installation title')).toHaveValue('My Omeka');
-    const altTextProperty = screen.getByLabelText('Media alt text property');
-    expect(altTextProperty).toHaveValue('');
-    fireEvent.change(altTextProperty, { target: { value: 'dcterms:title' } });
+    const zone = screen.getByLabelText('Time zone');
+    expect(zone).toHaveValue('UTC');
+    expect(screen.getAllByRole('option', { name: 'Asia/Kolkata' })).toHaveLength(1);
+    fireEvent.change(zone, { target: { value: 'Asia/Kolkata' } });
+    const perPage = screen.getByLabelText('Results per page');
+    expect(perPage).toHaveValue(25);
+    fireEvent.change(perPage, { target: { value: '50' } });
+    fireEvent.click(screen.getByLabelText('Make new item sets private'));
+    expect(screen.getByLabelText('Tell me about new versions')).toHaveAccessibleDescription(
+      'Stored only for now. Romeka does not check for new versions yet.',
+    );
+    fireEvent.change(screen.getByLabelText('Media alt text property'), {
+      target: { value: 'dcterms:title' },
+    });
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(await screen.findByRole('status')).toHaveTextContent('Settings updated.');
-    const patch = first(
-      requestsFor(fetchMock, '/api/settings').filter((request) => request.init?.method === 'PATCH'),
-    );
-    expect(requestBody(patch)).toEqual({
+    expect(requestBody(patchOf(fetchMock))).toEqual({
+      ...fileSettings,
+      ...installSettingsWrite,
       locale: 'en',
       media_alt_text_property: 'dcterms:title',
-      ...fileSettings,
+      installation_title: 'Gawan Museum',
+      administrator_email: 'registrar@gawan.example',
+      time_zone: 'Asia/Kolkata',
+      pagination_per_page: 50,
+      default_to_private_item_sets: true,
     });
+    expect(requestsFor(fetchMock, '/api/romeka/installation')).toHaveLength(1);
+  });
+
+  it('settings_starts_the_index_job_and_links_to_it', async () => {
+    const fetchMock = installFetch(
+      route(
+        settingsRoutes((init) => (init?.method === 'PATCH' ? { index_fulltext_search_job: 7 } : {})),
+      ),
+    );
+    render(<SettingsPage />);
+
+    const reindex = await screen.findByLabelText('Rebuild the full-text search index');
+    expect(reindex).not.toBeChecked();
+    fireEvent.click(reindex);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByText('The index rebuild started as job 7.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Follow it on its job page.' })).toHaveAttribute(
+      'href',
+      '#/jobs/7',
+    );
+    expect(requestBody(patchOf(fetchMock))).toMatchObject({ index_fulltext_search: true });
+    expect(screen.getByLabelText('Rebuild the full-text search index')).not.toBeChecked();
   });
 
   it('settings_saves_the_file_validation_lists_and_restores_a_default_with_null', async () => {
     const restoredTypes = ['application/msword', 'application/pdf'];
     const fetchMock = installFetch(
-      route({
-        '/api/settings': (_url, init) =>
-          jsonResponse(
-            init?.method === 'PATCH'
-              ? {
-                  ...fileSettings,
-                  media_type_whitelist: restoredTypes,
-                  extension_whitelist: ['pdf', 'tif'],
-                  disable_file_validation: true,
-                }
-              : fileSettings,
-          ),
-      }),
+      route(
+        settingsRoutes((init) =>
+          init?.method === 'PATCH'
+            ? {
+                media_type_whitelist: restoredTypes,
+                extension_whitelist: ['pdf', 'tif'],
+                disable_file_validation: true,
+              }
+            : {},
+        ),
+      ),
     );
     render(<SettingsPage />);
 
@@ -195,6 +254,7 @@ describe('settings page', () => {
       requestsFor(fetchMock, '/api/settings').filter((request) => request.init?.method === 'PATCH'),
     );
     expect(requestBody(patch)).toEqual({
+      ...installSettingsWrite,
       locale: '',
       media_alt_text_property: '',
       media_type_whitelist: null,
@@ -209,14 +269,9 @@ describe('settings page', () => {
 
   it('settings_allows_private_urls_and_warns_while_the_switch_is_on', async () => {
     const fetchMock = installFetch(
-      route({
-        '/api/settings': (_url, init) =>
-          jsonResponse({
-            ...fileSettings,
-            locale: null,
-            import_allow_private_urls: init?.method === 'PATCH',
-          }),
-      }),
+      route(
+        settingsRoutes((init) => ({ locale: null, import_allow_private_urls: init?.method === 'PATCH' })),
+      ),
     );
     render(<SettingsPage />);
 

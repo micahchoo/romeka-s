@@ -67,8 +67,8 @@ describe('items browse filters', () => {
 });
 
 describe('browseQuery', () => {
-  it('the plain list asks for 24 items, newest first', () => {
-    expect(browseQuery(PLAIN)).toEqual({ page: 1, perPage: 24, sortBy: 'id', sortOrder: 'desc' });
+  it('the plain list asks for a page at the installation page size, 25 unless stored, newest first', () => {
+    expect(browseQuery(PLAIN)).toEqual({ page: 1, perPage: 25, sortBy: 'id', sortOrder: 'desc' });
   });
 
   it('every filter becomes its server parameter', () => {
@@ -77,7 +77,7 @@ describe('browseQuery', () => {
     );
     expect(browseQuery(state)).toEqual({
       page: 2,
-      perPage: 24,
+      perPage: 25,
       sortBy: 'modified',
       sortOrder: 'desc',
       search: 'map',
@@ -124,7 +124,7 @@ describe('the download queries', () => {
   it('every match is the page query without its window', () => {
     const state = parse('q=map&set=4&links=42&via=2&media=none&sort=modified&page=3');
     const { page, perPage, ...filters } = browseQuery(state);
-    expect([page, perPage]).toEqual([3, 24]);
+    expect([page, perPage]).toEqual([3, 25]);
     expect(everyMatchQuery(state)).toEqual(filters);
   });
 

@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { useId, useState } from 'react';
 import { api } from '../../api/client';
+import { installation } from '../../app/installation';
 import { placesApi } from '../../api/places';
 import type { ApiPage, ItemSet } from '../../api/types';
 import { useSession } from '../../app/auth';
@@ -12,8 +13,6 @@ import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
 import { setPlaceHref } from './facts';
 import { TrashedHere } from '../trash/here';
-
-const PER_PAGE = 25;
 
 /** A set's item count: the number, absent from the answer (the set went or is hidden), or a failed read. */
 type Count =
@@ -68,7 +67,7 @@ const loader =
   (sort: SetSort) =>
   async (page: number): Promise<ApiPage<ItemSetRow>> => {
     const [itemSets, users] = await Promise.all([
-      api.listItemSets({ page, perPage: PER_PAGE, ...SORT_QUERY[sort] }),
+      api.listItemSets({ page, perPage: installation().perPage, ...SORT_QUERY[sort] }),
       api.listUsers({ perPage: 100 }),
     ]);
     const names = userNames(users.items);

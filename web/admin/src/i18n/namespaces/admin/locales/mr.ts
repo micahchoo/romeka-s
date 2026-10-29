@@ -120,19 +120,34 @@ export const mr: AdminMessages = {
   'query.search': 'शोध',
   'query.idle': 'क्वेरी प्रविष्ट करा आणि त्याचे पूर्वावलोकन करा.',
   'query.empty': 'कोणतेही संसाधन क्वेरीशी जुळत नाही.',
+  'settings.general': 'सामान्य',
+  'settings.display': 'प्रदर्शन',
+  'settings.editing': 'संपादन',
+  'settings.search': 'शोध',
   'settings.installationTitle': 'इन्स्टॉलेशन शीर्षक',
+  'settings.installationTitleInfo':
+    'ॲडमिन हेडर, प्रत्येक पेजचे शीर्षक आणि ईमेल इन्स्टॉलेशनचे नाव सांगतात.',
   'settings.administratorEmail': 'प्रशासक ईमेल',
+  'settings.administratorEmailNotYet':
+    'सध्या फक्त साठवले जाते. ईमेल सर्व्हर ज्या पत्त्यावर सेट केला आहे तिथून पाठवले जातात, यावरून नाहीत.',
   'settings.timeZone': 'वेळ क्षेत्र',
-  'settings.paginationPerPage': 'प्रति पृष्ठ पृष्ठसंख्या',
-  'settings.defaultPrivateItemSets': 'डीफॉल्टनुसार खाजगी आयटम सेट',
-  'settings.indexFulltextSearch': 'इंडेक्स फुलटेक्स्ट सर्च',
-  'settings.versionNotifications': 'आवृत्ती सूचना',
+  'settings.timeZoneInfo': 'ॲडमिनमधील प्रत्येक तारीख या टाइम झोनमध्ये दर्शविली जाते.',
+  'settings.paginationPerPage': 'प्रति पृष्ठ निकाल',
+  'settings.paginationPerPageInfo': 'ब्राउझ सूचीमध्ये प्रत्येक वेळी एक पृष्ठ दाखवले जाते.',
+  'settings.defaultPrivateItemSets': 'नवीन आयटम सेट खाजगी करा',
+  'settings.defaultPrivateItemSetsInfo':
+    'नवीन आयटम सेट खाजगी सुरू होतो. तुम्ही अजूनही प्रत्येक एक सार्वजनिक करू शकता.',
+  'settings.indexFulltextSearch': 'पूर्ण-मजकूर शोध अनुक्रमणिका पुन्हा तयार करा',
+  'settings.indexFulltextSearchInfo':
+    'जतन करताना सुरू होते. काम प्रत्येक आयटम, आयटम सेट आणि मीडिया पुन्हा वाचते. या बॉक्ससाठी काहीही साठवले जात नाही.',
+  'settings.indexStarted': 'अनुक्रमणिका पुनर्निर्मिती {job} या कामासह सुरू झाली.',
+  'settings.indexStartedLink': 'त्याच्या जॉब पेजवर त्याचा मागोवा घ्या.',
+  'settings.versionNotifications': 'नवीन आवृत्त्यांबद्दल मला सांगा',
+  'settings.versionNotificationsNotYet': 'आता फक्त साठवले. Romeka अजून नवीन आवृत्त्या तपासत नाही.',
   'settings.mediaAltTextProperty': 'मीडिया ऑल्ट टेक्स्ट प्रॉपर्टी',
   'settings.mediaAltTextPropertyInfo':
     'ज्या गुणधर्माची पहिली व्हॅल्यू मीडियाचे वर्णन करते जेव्हा ऑल्ट टेक्स्ट सेट केलेला नसतो. ते रिकामे सोडा आणि ऑल्ट टेक्स्ट नसलेल्या मीडियाची ऑल्ट टेक्स्टही नसेल.',
   'settings.saved': 'सेटिंग्ज अपडेट केल्या.',
-  'settings.note':
-    'पोर्ट लोकॅल, मीडिया ऑल्ट टेक्स्ट प्रॉपर्टी आणि सिक्युरिटी सेटिंग्ज जतन करते; इतर बदल जतन केले जात नाहीत.',
   'settings.security': 'सुरक्षा',
   'settings.disableFileValidation': 'फाईल प्रमाणीकरण अक्षम करा',
   'settings.disableFileValidationInfo':

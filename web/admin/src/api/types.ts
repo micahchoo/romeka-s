@@ -794,6 +794,35 @@ export interface GlobalSettings {
    * visitors when this is `true`. Captions show either way.
    */
   readonly annotationsPublic: boolean;
+  /** `installation_title`, or `null` when none is stored. */
+  readonly installationTitle: string | null;
+  /** `administrator_email`, or `null` when none is stored. */
+  readonly administratorEmail: string | null;
+  /** `version_notifications`, stored only: the port checks for no new version. */
+  readonly versionNotifications: boolean;
+  /** `time_zone` as it applies, `UTC` when none is stored. */
+  readonly timeZone: string;
+  /** `pagination_per_page` as it applies, 25 when none is stored. */
+  readonly perPage: number;
+  /** `default_to_private_item_sets`. */
+  readonly defaultPrivateItemSets: boolean;
+  /** The job a write with `indexFulltextSearch` started, else `null`. */
+  readonly indexJob: number | null;
+}
+
+/**
+ * The settings every admin screen applies (`GET /api/romeka/installation`, a
+ * port route any caller may read), each as it applies.
+ */
+export interface Installation {
+  /** `installation_title`, else `Romeka S`. */
+  readonly title: string;
+  /** `pagination_per_page`, the page size of a browse list, else 25. */
+  readonly perPage: number;
+  /** `time_zone`, the zone every admin date prints in, else `UTC`. */
+  readonly timeZone: string;
+  /** `default_to_private_item_sets`: a new item set starts private. */
+  readonly defaultPrivateItemSets: boolean;
 }
 
 /**
@@ -808,6 +837,14 @@ export interface GlobalSettingsWrite {
   readonly disableFileValidation: boolean;
   readonly importAllowPrivateUrls: boolean;
   readonly annotationsPublic: boolean;
+  readonly installationTitle: string;
+  readonly administratorEmail: string;
+  readonly timeZone: string;
+  readonly perPage: number;
+  readonly defaultPrivateItemSets: boolean;
+  readonly versionNotifications: boolean;
+  /** Start the full-text index job; never stored. */
+  readonly indexFulltextSearch: boolean;
 }
 
 /**

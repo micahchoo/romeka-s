@@ -121,19 +121,35 @@ export const ne: AdminMessages = {
   'query.search': 'खोज्नुहोस्',
   'query.idle': 'क्वेरी प्रविष्ट गर्नुहोस् र पूर्वावलोकन गर्नुहोस्।',
   'query.empty': 'कुनै पनि संसाधनले क्वेरीसँग मेल खाँदैनन्।',
+  'settings.general': 'सामान्य',
+  'settings.display': 'प्रदर्शन',
+  'settings.editing': 'सम्पादन',
+  'settings.search': 'खोज',
   'settings.installationTitle': 'स्थापना शीर्षक',
+  'settings.installationTitleInfo':
+    'एडमिन हेडर, प्रत्येक पृष्ठको शीर्षक र इमेलको नामले इन्स्टालेसनलाई नाम दिन्छ।',
   'settings.administratorEmail': 'प्रशासक इमेल',
+  'settings.administratorEmailNotYet':
+    'हालका लागि मात्र भण्डारण गरिएको। इमेलहरू सर्भर सेट अप गरिएको ठेगानाबाट जान्छन्, योबाट होइन।',
   'settings.timeZone': 'समय क्षेत्र',
-  'settings.paginationPerPage': 'प्रति पृष्ठ पृष्ठसङ्ख्या',
-  'settings.defaultPrivateItemSets': 'पूर्वनिर्धारित रूपमा निजी वस्तु सेटहरू',
-  'settings.indexFulltextSearch': 'पूर्णपाठ खोज इन्डेक्स',
-  'settings.versionNotifications': 'संस्करण सूचनाहरू',
+  'settings.timeZoneInfo': 'एडमिनमा रहेको प्रत्येक मिति यस टाइम जोनमा देखाइन्छ।',
+  'settings.paginationPerPage': 'प्रति पृष्ठ परिणाम',
+  'settings.paginationPerPageInfo': 'ब्राउज सूचीमा सबैभन्दा बढी परिणामहरू एक पृष्ठमा देखाइन्छ।',
+  'settings.defaultPrivateItemSets': 'नयाँ आयटम सेटहरू निजी बनाउनुहोस्',
+  'settings.defaultPrivateItemSetsInfo':
+    'नयाँ आयटम सेट निजी रूपमा सुरु हुन्छ। तपाईँले अझै पनि प्रत्येकलाई सार्वजनिक बनाउन सक्नुहुन्छ।',
+  'settings.indexFulltextSearch': 'पूर्ण-पाठ खोज इन्डेक्स पुन: निर्माण गर्नुहोस्',
+  'settings.indexFulltextSearchInfo':
+    'जब तपाईँले सुरक्षित गर्नुहुन्छ, तब एउटा काम सुरु हुन्छ। कामले प्रत्येक आयटम, आयटम सेट र मिडियालाई फेरि पढ्छ। यसका लागि केही पनि भण्डारण गरिँदैन।',
+  'settings.indexStarted': 'इन्डेक्स पुन: निर्माण कार्य {job} को रूपमा सुरु भयो।',
+  'settings.indexStartedLink': 'यसको काम पृष्ठमा यसलाई पछ्याउनुहोस्।',
+  'settings.versionNotifications': 'नयाँ संस्करणहरूको बारेमा मलाई बताउनुहोस्',
+  'settings.versionNotificationsNotYet':
+    'अहिलेका लागि मात्र भण्डारण गरिएको। Romeka ले अझै नयाँ संस्करणहरू जाँच गर्दैन।',
   'settings.mediaAltTextProperty': 'मिडिया अल्टरनेटिभ टेक्स्ट प्रोपर्टी',
   'settings.mediaAltTextPropertyInfo':
     'जब कुनै alt text सेट गरिएको हुँदैन, तब media को वर्णन गर्ने पहिलो मान। यसलाई खाली छोड्नुहोस् र alt text बिनाको media को कुनै alt text हुँदैन।',
   'settings.saved': 'सेटिङहरू अद्यावधिक गरियो।',
-  'settings.note':
-    'पोर्टले लोकेल, मिडिया अल्टरनेट टेक्स्ट प्रोपर्टी र सेक्युरिटी सेटिङहरू सुरक्षित गर्छ; अन्य परिवर्तनहरू सुरक्षित हुँदैनन्।',
   'settings.security': 'सुरक्षा',
   'settings.disableFileValidation': 'फाइल प्रमाणीकरण असक्षम गर्नुहोस्',
   'settings.disableFileValidationInfo':

@@ -1,12 +1,11 @@
 import type { ReactElement } from 'react';
 import { api } from '../../api/client';
+import { installation } from '../../app/installation';
 import type { JsonValue, Module } from '../../api/types';
 import { ListPage } from '../../app/list';
 import { useTranslator } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
 import { admin } from '../../i18n/namespaces/admin';
-
-const PER_PAGE = 25;
 
 const isJsonObject = (value: JsonValue): value is { readonly [key: string]: JsonValue } =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -28,7 +27,7 @@ export const ModulesPage = (): ReactElement => {
     <ListPage<Module>
       resourceLabel={resource}
       emptyMessage={t('list.empty', { resource })}
-      load={(page) => api.listModules({ page, perPage: PER_PAGE })}
+      load={(page) => api.listModules({ page, perPage: installation().perPage })}
       rowKey={(module) => module.id}
       columns={[
         { header: t('column.id'), cell: (module) => module.id, numeric: true },

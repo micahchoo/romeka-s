@@ -1,13 +1,12 @@
 import type { ReactElement } from 'react';
 import { api } from '../../api/client';
+import { installation } from '../../app/installation';
 import { formatDateTime } from '../../app/format';
 import { ListPage } from '../../app/list';
 import { useTranslator } from '../../i18n';
 import { themeLabel } from './SiteFrame';
 import { common } from '../../i18n/namespaces/common';
 import { sites } from '../../i18n/namespaces/sites';
-
-const PER_PAGE = 25;
 
 /** `SiteAdmin/IndexController::indexAction`: the site browse table. */
 export const SiteList = (): ReactElement => {
@@ -21,7 +20,7 @@ export const SiteList = (): ReactElement => {
       <ListPage
         resourceLabel={resource}
         emptyMessage={t('list.empty', { resource })}
-        load={(page) => api.listSites({ page, perPage: PER_PAGE, sortBy: 'id', sortOrder: 'asc' })}
+        load={(page) => api.listSites({ page, perPage: installation().perPage, sortBy: 'id', sortOrder: 'asc' })}
         rowKey={(site) => String(site.id)}
         columns={[
           {

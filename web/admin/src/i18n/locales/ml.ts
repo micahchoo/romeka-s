@@ -9,7 +9,7 @@
 import type { Catalogue } from '../catalogue';
 
 export const ml: Catalogue = {
-  'app.title': 'Romeka S അഡ്മിൻ',
+  'app.title': '{title} അഡ്മിൻ',
   'shell.navLabel': 'അഡ്മിൻ പേജുകൾ',
   'shell.noPage': 'ഇത്തരമൊരു പേജ് നിലവിലില്ല. അഡ്മിൻ ഡാഷ്‌ബോർഡിലേക്ക് പോകുക.',
   'shell.loadFailed':

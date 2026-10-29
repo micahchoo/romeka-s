@@ -13,7 +13,7 @@
  */
 export const en = {
   // Application shell and navigation.
-  'app.title': 'Romeka S admin',
+  'app.title': '{title} admin',
   'shell.navLabel': 'Admin pages',
   'shell.noPage': 'No such page. Go to the admin dashboard.',
   'shell.loadFailed': 'This page could not load. Check the connection, then reload.',

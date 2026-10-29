@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
+import { installation } from '../../app/installation';
 import type { ApiPage, Asset } from '../../api/types';
 import { ownerNameOf, userNames } from '../../app/labels';
 import { ListPage, mapPage } from '../../app/list';
@@ -11,8 +12,6 @@ import { admin } from '../../i18n/namespaces/admin';
 import { resources } from '../../i18n/namespaces/resources';
 import { AssetTile, AssetUpload } from './upload';
 
-const PER_PAGE = 25;
-
 interface AssetRow {
   readonly asset: Asset;
   readonly ownerName: string | null;
@@ -20,7 +19,7 @@ interface AssetRow {
 
 const load = async (page: number): Promise<ApiPage<AssetRow>> => {
   const [assets, users] = await Promise.all([
-    api.listAssets({ page, perPage: PER_PAGE, sortBy: 'id', sortOrder: 'asc' }),
+    api.listAssets({ page, perPage: installation().perPage, sortBy: 'id', sortOrder: 'asc' }),
     api.listUsers({ perPage: 100 }),
   ]);
   const names = userNames(users.items);

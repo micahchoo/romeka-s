@@ -12,6 +12,7 @@ import { useRef } from 'react';
 import type { ReactElement } from 'react';
 import type { Check } from '../../../api/import-sections';
 import { ErrorNotice } from '../../../app/errors';
+import { zonedFormat } from '../../../app/format';
 import { useDraft } from '../draft-context';
 import { placeHref } from '../screens';
 import { nodeHref } from '../picked-node';
@@ -121,7 +122,7 @@ export const Ready = ({ live, summary: SimpleSummary }: { readonly live: LiveImp
         </p>
       ) : (
         <p className="muted">
-          {t('run.ready.counted', { time: new Intl.DateTimeFormat(locale, { timeStyle: 'short' }).format(at) })}{' '}
+          {t('run.ready.counted', { time: zonedFormat(locale, 'time').format(at) })}{' '}
           <button type="button" className="link-button" onClick={start.recount}>
             {t('run.ready.recount')}
           </button>

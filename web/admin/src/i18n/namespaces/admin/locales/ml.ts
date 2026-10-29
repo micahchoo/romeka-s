@@ -121,19 +121,35 @@ export const ml: AdminMessages = {
   'query.search': 'തിരയുക',
   'query.idle': 'ഒരു ക്വറിയും പ്രിവ്യൂവും നൽകുക.',
   'query.empty': 'ക്വറിക്ക് അനുയോജ്യമായ റിസോഴ്സുകൾ ഒന്നുമില്ല.',
+  'settings.general': 'പൊതുവായ',
+  'settings.display': 'പ്രദർശിപ്പിക്കുക',
+  'settings.editing': 'എഡിറ്റിംഗ്',
+  'settings.search': 'തിരയുക',
   'settings.installationTitle': 'ഇൻസ്റ്റാളേഷൻ തലക്കെട്ട്',
+  'settings.installationTitleInfo':
+    'അഡ്മിൻ ഹെഡർ, ഓരോ പേജ് ടൈറ്റിലും ഇമെയിലുകളും ഇൻസ്റ്റാളേഷനെ സൂചിപ്പിക്കുന്നു.',
   'settings.administratorEmail': 'അഡ്മിനിസ്ട്രേറ്റർ ഇമെയിൽ',
+  'settings.administratorEmailNotYet':
+    'ഇപ്പോൾ മാത്രം സൂക്ഷിക്കുന്നു. ഇമെയിലുകൾ ഈ വിലാസത്തിൽ നിന്നാണ് പോകുന്നത്, ഇതിൽ നിന്നല്ല.',
   'settings.timeZone': 'സമയമേഖല',
-  'settings.paginationPerPage': 'പേജ് തിരിച്ചുള്ള പേജിനേഷൻ',
-  'settings.defaultPrivateItemSets': 'ഡിഫോൾട്ട് പ്രൈവറ്റ് ഐറ്റം സെറ്റുകൾ',
-  'settings.indexFulltextSearch': 'ഇൻഡക്സ് ഫുൾ ടെക്സ്റ്റ് സെർച്ച്',
-  'settings.versionNotifications': 'പതിപ്പ് അറിയിപ്പുകൾ',
+  'settings.timeZoneInfo': 'അഡ്മിനിൽ ഓരോ തീയതിയും ഈ സമയമേഖലയിൽ കാണിക്കുന്നു.',
+  'settings.paginationPerPage': 'ഓരോ പേജിലും ഫലങ്ങൾ',
+  'settings.paginationPerPageInfo': 'ഓരോ ബ്രൗസ് ലിസ്റ്റും ഒരു പേജിൽ ഒരു ഫലം കാണിക്കുന്നു.',
+  'settings.defaultPrivateItemSets': 'പുതിയ ഐറ്റം സെറ്റുകൾ സ്വകാര്യമാക്കുക',
+  'settings.defaultPrivateItemSetsInfo':
+    'ഒരു പുതിയ ഐറ്റം സെറ്റ് സ്വകാര്യമായി തുടങ്ങുന്നു. നിങ്ങൾക്ക് ഓരോന്നും പൊതുവാക്കാം.',
+  'settings.indexFulltextSearch': 'പൂർണ്ണമായ ടെക്സ്റ്റ് സെർച്ച് ഇൻഡക്സ് പുനർനിർമ്മിക്കുക',
+  'settings.indexFulltextSearchInfo':
+    'നിങ്ങൾ സേവ് ചെയ്യുമ്പോൾ ഒരു ജോലി തുടങ്ങുന്നു. ജോലി ഓരോ ഐറ്റം, ഐറ്റം സെറ്റ്, മീഡിയ എന്നിവ വീണ്ടും വായിക്കുന്നു. ഈ ബോക്സിനായി ഒന്നും സൂക്ഷിക്കുന്നില്ല.',
+  'settings.indexStarted': 'ഇൻഡക്സ് പുനർനിർമ്മാണം {job} എന്ന ജോലിയായി തുടങ്ങിയിരിക്കുന്നു.',
+  'settings.indexStartedLink': 'അതിന്റെ ജോബ് പേജിൽ അത് പിന്തുടരുക.',
+  'settings.versionNotifications': 'പുതിയ പതിപ്പുകളെക്കുറിച്ച് പറയൂ',
+  'settings.versionNotificationsNotYet':
+    'ഇപ്പോൾ മാത്രം സംഭരിക്കുന്നു. Romeka പുതിയ പതിപ്പുകൾ പരിശോധിക്കുന്നില്ല.',
   'settings.mediaAltTextProperty': 'മീഡിയ ആൾട്ട് ടെക്സ്റ്റ് പ്രോപ്പർട്ടി',
   'settings.mediaAltTextPropertyInfo':
     'ആൾട്ട് ടെക്സ്റ്റ് സെറ്റ് ചെയ്യാത്തപ്പോൾ ഒരു മീഡിയയെ വിവരിക്കുന്ന ആദ്യ മൂല്യം. ഇത് ശൂന്യമായി വിടുക, ആൾട്ട് ടെക്സ്റ്റ് ഇല്ലാത്ത ഒരു മീഡിയയ്ക്ക് ആൾട്ട് ടെക്സ്റ്റ് ഇല്ല.',
   'settings.saved': 'ക്രമീകരണങ്ങൾ പുതുക്കി.',
-  'settings.note':
-    'പോർട്ട് ലൊക്കേൽ, മീഡിയ ആൾട്ട് ടെക്സ്റ്റ് പ്രോപ്പർട്ടി, സെക്യൂരിറ്റി സെറ്റിംഗ്സ് എന്നിവ സേവ് ചെയ്യുന്നു; മറ്റ് മാറ്റങ്ങൾ സേവ് ചെയ്യപ്പെടുന്നില്ല.',
   'settings.security': 'സുരക്ഷ',
   'settings.disableFileValidation': 'ഫയൽ വാലിഡേഷൻ ഡിസേബിൾ ചെയ്യുക',
   'settings.disableFileValidationInfo':

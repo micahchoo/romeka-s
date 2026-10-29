@@ -275,7 +275,9 @@ the rule and hides the edit and delete controls for those two.
 | `createItemSet` / `updateItemSet` | `POST /api/item_sets`, `PUT /api/item_sets/<id>` | `ItemSet` |
 | `createUser` / `updateUser` | `POST /api/users`, `PUT /api/users/<id>` | `User` |
 | `updateUserLocale` | `PATCH /api/users/<id>` with `o:user_settings` | nothing |
-| `getSettings` / `updateSettings` | `GET`, `PATCH /api/settings` | `GlobalSettings` |
+| `getSettings` / `updateSettings` (`api/settings.ts`) | `GET`, `PATCH /api/settings` | `GlobalSettings` |
+| `getTimeZones` (`api/settings.ts`) | `GET /api/romeka/time-zones` | the zone names |
+| `getInstallation` | `GET /api/romeka/installation` | `Installation` |
 | `updateMedia` | `PUT /api/media/<id>` | `Media` |
 | `createVocabulary` / `updateVocabulary` | `POST /api/vocabularies`, `PATCH /api/vocabularies/<id>` | `Vocabulary` |
 | `createProperty` / `updateProperty` | `POST /api/properties`, `PUT /api/properties/<id>` | `Property` |
@@ -500,7 +502,10 @@ These are the upstream details the parsers depend on. They are read from the PHP
 - `thumbnail_display_urls` has the keys `large`, `medium`, `square`, always present. Each is the
   derivative URL when the row has thumbnails, and the bundled fallback asset otherwise, so it is
   never a signal that a real thumbnail exists.
-- Item browse defaults are `sort_by=id` and `sort_order=desc`; `per_page=25` is the upstream default.
+- Item browse defaults are `sort_by=id` and `sort_order=desc`. Every browse list asks for
+  `per_page` from the installation's `pagination_per_page` (`app/installation.ts`), 25 unless stored.
+  The shell reads it before the first route renders; the same store gives the header its
+  installation title, every date its `time_zone`, and a new item set its starting visibility.
 - Item set adds `o:is_open` and an `o:items` search link. `o:items` carries only `@id`, no `o:id`.
 - Asset is not a resource entity: it has no `o:is_public` and no dates. Its fields are `o:owner`,
   `o:name`, `o:filename`, `o:media_type`, `o:asset_url`, `o:alt_text`.

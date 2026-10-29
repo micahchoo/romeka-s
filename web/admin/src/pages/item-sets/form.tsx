@@ -5,6 +5,7 @@ import type { ItemSet, ItemSetId, ItemSetWrite } from '../../api/types';
 import { allValues, toValueWrites, type ResourceDraft } from '../../app/draft';
 import { CheckboxField, ResourceFields, SaveStatus, SubmitRow } from '../../app/fields';
 import { ErrorNotice, FormErrors } from '../../app/errors';
+import { installation } from '../../app/installation';
 import { loadFormOptions, type FormOptions } from '../../app/options';
 import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
@@ -42,9 +43,14 @@ const ItemSetEditor = ({
   const { t } = useTranslator(common, resources);
   const text = useTermText();
   const { options } = loaded;
-  const [draft, setDraft] = useState<ResourceDraft>(() =>
-    openDraft(loaded.itemSet, options.templates, options.properties),
-  );
+  const [draft, setDraft] = useState<ResourceDraft>(() => {
+    const opened = openDraft(loaded.itemSet, options.templates, options.properties);
+    // `item-set/form.phtml`: a new item set starts private when
+    // `default_to_private_item_sets` is on.
+    return loaded.itemSet === null && installation().defaultPrivateItemSets
+      ? { ...opened, isPublic: false }
+      : opened;
+  });
   const [isOpen, setIsOpen] = useState(loaded.itemSet?.isOpen ?? false);
   const [formErrors, setFormErrors] = useState<readonly string[]>([]);
   const { state: saveState, save } = useSave();
