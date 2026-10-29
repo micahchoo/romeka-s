@@ -43,6 +43,7 @@ export const NAMESPACES: readonly NamespaceRecord[] = [
   { id: 'bulk-delete', what: 'bulk delete messages', type: 'BulkDeleteMessages' },
   { id: 'fixity', what: 'fixity check messages', type: 'FixityMessages' },
   { id: 'item-history', what: 'item history messages', type: 'ItemHistoryMessages' },
+  { id: 'page-history', what: 'page history messages', type: 'PageHistoryMessages' },
   { id: 'finding', what: 'jump-to box and saved list messages', type: 'FindingMessages' },
   { id: 'class-filter', what: 'class filter messages', type: 'ClassFilterMessages' },
 ];

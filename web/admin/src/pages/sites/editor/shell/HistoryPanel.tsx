@@ -20,6 +20,7 @@ import { contentFromApi } from '../wire';
 import { versionTime } from './versionTime';
 import { common } from '../../../../i18n/namespaces/common';
 import { EDITOR_NAMESPACES } from '../messages';
+import { pageHistory } from '../../../../i18n/namespaces/page-history';
 import './history.css';
 
 /** A version the user opened: its list entry and the page it stored. */
@@ -47,7 +48,7 @@ export const HistoryPanel = ({
   onView,
   onClose,
 }: HistoryPanelProps): ReactElement => {
-  const translator = useTranslator(common, sites, ...EDITOR_NAMESPACES);
+  const translator = useTranslator(common, sites, ...EDITOR_NAMESPACES, pageHistory);
   const { t } = translator;
   const versions = useAsync(() => api.listPageVersions(pageId), [pageId, savedAt]);
   const [opening, setOpening] = useState<number | null>(null);
@@ -138,7 +139,7 @@ export const VersionView = ({
   onRestore,
   onBack,
 }: VersionViewProps): ReactElement => {
-  const translator = useTranslator(...EDITOR_NAMESPACES);
+  const translator = useTranslator(...EDITOR_NAMESPACES, pageHistory);
   const { t } = translator;
   const [render, setRender] = useState<Render>({ status: 'loading' });
 

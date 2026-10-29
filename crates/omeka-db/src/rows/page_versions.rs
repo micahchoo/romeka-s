@@ -9,42 +9,76 @@ use serde_json::Value;
 use crate::backend::Backend;
 use crate::error::DbError;
 use crate::ids::{ItemId, MediaId, PageId, UserId};
-use crate::rows::{SiteBlockAttachmentRow, SiteBlockRow, SitePageRow};
+use crate::rows::{NewSitePage, SiteBlockAttachmentRow, SiteBlockRow, SitePageRow};
 
 /// One saved state of a page, never changed afterwards.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PageVersionRow {
     pub page_id: PageId,
-    /// 1 for the oldest state kept since history began, then one more per save.
+    /// 1 for the first state kept, then one more per save.
     pub version: u32,
     /// When this state went live.
     pub created: NaiveDateTime,
-    /// Who saved it. `None` for the state a page had before its first recorded save, or once the
-    /// user is deleted.
+    /// Who made it. `None` for [`PageVersionOrigin::BeforeHistory`], or once the user is deleted.
     pub user_id: Option<UserId>,
+    pub origin: PageVersionOrigin,
     pub snapshot: Value,
+}
+
+/// What made a version (migration 0015). A restore is a plain save: the editor loads the old
+/// version into the draft and the next save stores it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PageVersionOrigin {
+    /// The state a page had before its first recorded save, kept as version 1 with no user.
+    BeforeHistory,
+    /// The state the page create made, version 1.
+    Create,
+    Save,
+}
+
+impl PageVersionOrigin {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::BeforeHistory => "before_history",
+            Self::Create => "create",
+            Self::Save => "save",
+        }
+    }
+
+    fn parse(raw: &str) -> Result<Self, DbError> {
+        Ok(match raw {
+            "before_history" => Self::BeforeHistory,
+            "create" => Self::Create,
+            "save" => Self::Save,
+            _ => {
+                return Err(DbError::Column {
+                    column: "origin",
+                    reason: format!("not a version origin: {raw}"),
+                });
+            }
+        })
+    }
 }
 
 /// Who made a version, as far as the row can tell.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VersionAuthor {
-    /// The user saved it; the user row may since have gone.
+    /// The user made it; the user row may since have gone.
     User(UserId),
     /// The state a page had before its first recorded save. No one was recorded as its author.
     NotRecorded,
-    /// A save by a user whose row was deleted since (`ON DELETE SET NULL`).
+    /// A create or save by a user whose row was deleted since (`ON DELETE SET NULL`).
     Deleted,
 }
 
 impl PageVersionRow {
-    /// [`crate::repos::PageVersionRepo::save`] writes version 1 with no user, as the state before
-    /// history began, and every later version with the saving user. So a later version with no
-    /// user lost it when the user was deleted.
+    /// The state before history has no author. A create or save is written with its user, so one
+    /// with no user lost it when the user was deleted.
     pub fn author(&self) -> VersionAuthor {
-        match (self.user_id, self.version) {
-            (Some(user), _) => VersionAuthor::User(user),
-            (None, 1) => VersionAuthor::NotRecorded,
-            (None, _) => VersionAuthor::Deleted,
+        match (self.origin, self.user_id) {
+            (PageVersionOrigin::BeforeHistory, _) => VersionAuthor::NotRecorded,
+            (_, Some(user)) => VersionAuthor::User(user),
+            (_, None) => VersionAuthor::Deleted,
         }
     }
 
@@ -58,6 +92,7 @@ impl PageVersionRow {
             })?,
             created: DB::datetime(row, "created")?,
             user_id: DB::opt_id(row, "user_id")?,
+            origin: PageVersionOrigin::parse(&DB::text(row, "origin")?)?,
             snapshot: DB::json(row, "snapshot")?,
         })
     }
@@ -116,6 +151,14 @@ pub struct PageSave<'a> {
     /// The `modified` the saver last read. When it is given and the stored page differs, the save
     /// writes nothing and answers [`PageSaveOutcome::Stale`].
     pub expected_modified: Option<NaiveDateTime>,
+}
+
+/// One page create: the page row, its blocks, and who creates it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PageCreate<'a> {
+    pub page: &'a NewSitePage,
+    pub blocks: &'a [NewPageBlock],
+    pub user: Option<UserId>,
 }
 
 /// What [`crate::repos::PageVersionRepo::save`] did.

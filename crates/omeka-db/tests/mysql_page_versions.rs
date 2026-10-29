@@ -1,6 +1,7 @@
 //! `romeka_site_page_version` against a real MySQL server: migration 0007 applies after the gap at
 //! 0004 and 0006, a save records its versions in one transaction, a stale save is refused, a
-//! failing row rolls back, and a page delete cascades. Gated as `tests/mysql.rs` is.
+//! failing row rolls back, and a page delete cascades; a create records version 1 with origin
+//! `create` in one transaction. Gated as `tests/mysql.rs` is.
 
 #![cfg(feature = "mysql")]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
@@ -11,8 +12,8 @@ use omeka_db::DbError;
 use omeka_db::ids::ItemId;
 use omeka_db::repos::{PageVersionRepo, SiteRepo, UserRepo};
 use omeka_db::rows::{
-    BlockChange, NewPageAttachment, NewPageBlock, NewSite, NewSitePage, NewUser, PageImage,
-    PageSave, PageSaveOutcome, SitePageRow,
+    BlockChange, NewPageAttachment, NewPageBlock, NewSite, NewSitePage, NewUser, PageCreate,
+    PageImage, PageSave, PageSaveOutcome, PageVersionOrigin, SitePageRow,
 };
 use serde_json::{Value, json};
 use sqlx::MySql;
@@ -144,18 +145,24 @@ async fn page_versions_save_refuse_roll_back_and_cascade_on_mysql() {
         .await;
     assert!(failed.is_err(), "a missing item fails the attachment row");
 
-    let snapshots: Vec<Value> = repo
+    let snapshots: Vec<(Value, PageVersionOrigin)> = repo
         .list(page.id)
         .await
         .expect("list")
         .into_iter()
-        .map(|row| row.snapshot)
+        .map(|row| (row.snapshot, row.origin))
         .collect();
     assert_eq!(
         snapshots,
         [
-            json!({"title": "Welcome", "blocks": ["one"]}),
-            json!({"title": "Intro", "blocks": []}),
+            (
+                json!({"title": "Welcome", "blocks": ["one"]}),
+                PageVersionOrigin::Save
+            ),
+            (
+                json!({"title": "Intro", "blocks": []}),
+                PageVersionOrigin::BeforeHistory
+            ),
         ]
     );
     let stored = sites.get_page(page.id).await.expect("get").expect("page");
@@ -163,6 +170,77 @@ async fn page_versions_save_refuse_roll_back_and_cascade_on_mysql() {
 
     sites.delete_page(page.id).await.expect("delete page");
     assert!(repo.list(page.id).await.expect("list").is_empty());
+
+    db.cleanup().await;
+}
+
+#[tokio::test]
+async fn a_page_create_is_one_transaction_with_its_version_on_mysql() {
+    let Some(db) = common::mysql().await else {
+        return;
+    };
+    let site = SiteRepo::<MySql>::new(&db.pool)
+        .create(&NewSite {
+            slug: "created".to_string(),
+            theme: "default".to_string(),
+            title: "Created".to_string(),
+            ..NewSite::default()
+        })
+        .await
+        .expect("create site");
+    let new = |slug: &str| NewSitePage {
+        site_id: site.id,
+        slug: slug.to_string(),
+        title: "Made".to_string(),
+        is_public: true,
+        ..NewSitePage::default()
+    };
+    let repo = PageVersionRepo::<MySql>::new(&db.pool);
+
+    let made = repo
+        .create(
+            &PageCreate {
+                page: &new("made"),
+                blocks: &[html("one")],
+                user: None,
+            },
+            &summary,
+        )
+        .await
+        .expect("create");
+    let broken = NewPageBlock {
+        attachments: vec![NewPageAttachment {
+            item_id: Some(ItemId(999_999)),
+            media_id: None,
+            caption: String::new(),
+        }],
+        ..html("broken")
+    };
+    let failed = repo
+        .create(
+            &PageCreate {
+                page: &new("lost"),
+                blocks: &[broken],
+                user: None,
+            },
+            &summary,
+        )
+        .await;
+
+    assert!(failed.is_err(), "a missing item fails the attachment row");
+    let pages = SiteRepo::<MySql>::new(&db.pool)
+        .list_pages(site.id)
+        .await
+        .expect("pages");
+    assert_eq!(pages.len(), 1, "the failed create left no page");
+    let versions: Vec<(u32, PageVersionOrigin)> = repo
+        .list(made.id)
+        .await
+        .expect("list")
+        .into_iter()
+        .map(|row| (row.version, row.origin))
+        .collect();
+    assert_eq!(versions, [(1, PageVersionOrigin::Create)]);
 
     db.cleanup().await;
 }

@@ -612,11 +612,17 @@ export interface PageAuthor {
 }
 
 /** Who saved a page version, or the reason no one is named. */
+/**
+ * What made a version: the state a page had before its first recorded save,
+ * the page create, or a save. A restore is a save.
+ */
+export type PageVersionOrigin = 'beforeHistory' | 'create' | 'save';
+
 export type PageVersionAuthor =
   | { readonly kind: 'user'; readonly user: PageAuthor }
-  /** Version 1: the state the page had before its first recorded save. */
+  /** The state the page had before its first recorded save. */
   | { readonly kind: 'notRecorded' }
-  /** A save by a user who was deleted since. */
+  /** A create or save by a user who was deleted since. */
   | { readonly kind: 'deletedUser' };
 
 /** A changed block, as the history names it: its layout and layout data. */
@@ -643,6 +649,7 @@ export interface PageVersionSummary {
   readonly version: number;
   /** When this state went live. */
   readonly created: string;
+  readonly origin: PageVersionOrigin;
   readonly author: PageVersionAuthor;
   readonly blockCount: number;
   /** `null` for the oldest version the page keeps. */

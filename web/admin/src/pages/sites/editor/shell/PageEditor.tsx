@@ -175,7 +175,7 @@ export const PageEditor = ({
       guard.allowLeave();
       window.location.hash = `#/sites/${String(siteId)}/pages/${String(created.id)}`;
     },
-    notSaved: t('history.notSaved'),
+    notSaved: t('editor.notSaved'),
   });
   const selectedBlock = blockOf(draft, selection);
   // Without a working preview the Outline is the only surface, so it stays open.
@@ -374,7 +374,7 @@ export const PageEditor = ({
               setHistory(history.kind === 'open' ? { kind: 'closed' } : { kind: 'open', viewing: null });
             }}
           >
-            {t('history.button')}
+            {t('editor.history')}
           </button>
         )}
         <KeysPopover />
