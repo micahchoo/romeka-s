@@ -1,24 +1,28 @@
 /**
- * The Items browse table: one row per item, with the class, item sets, owner
- * and the Private cue as values that filter the list.
+ * The Items browse table: one row per item, with the item type, the class (while any item has
+ * one), item sets, owner and the Private cue as values that filter the list.
  */
 import type { ReactElement } from 'react';
-import type { Item, ItemId } from '../../api/types';
+import type { ClassId, Item, ItemId } from '../../api/types';
 import { formatDateTime } from '../../app/format';
-import { classLabelOf, ownerNameOf } from '../../app/labels';
+import { ownerNameOf } from '../../app/labels';
 import { TableScroll } from '../../app/table-scroll';
 import { useTranslator } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
 import { useTermLabels } from '../../i18n/termText';
+import { classNamesOf } from './browse-options';
 import type { BrowseOptions } from './browse-options';
 import { FilterValue } from './filter-value';
 import type { OnFilter } from './filter-value';
+import { ClassValue, ItemTypeValue } from './item-facts';
 import { PrivateCue } from './PrivateCue';
 
 export interface ItemsViewProps {
   readonly items: readonly Item[];
   readonly options: BrowseOptions;
+  /** Whether any item the caller may see has a class: only then does the class show. */
+  readonly showClass: boolean;
   readonly picked: readonly ItemId[];
   readonly onPick: (id: ItemId, on: boolean) => void;
   readonly onPickPage: (on: boolean) => void;
@@ -30,18 +34,19 @@ export interface ItemsViewProps {
 const ItemRow = ({
   item,
   options,
+  classNames,
   picked,
   onPick,
   onFilter,
   hrefOf,
-}: Omit<ItemsViewProps, 'items' | 'picked' | 'onPickPage'> & {
+}: Omit<ItemsViewProps, 'items' | 'picked' | 'onPickPage' | 'showClass'> & {
   readonly item: Item;
   readonly picked: boolean;
+  /** The class names, or `null` while no item has a class. */
+  readonly classNames: ReadonlyMap<ClassId, string> | null;
 }): ReactElement => {
   const { t, locale } = useTranslator(common, resources);
-  const text = useTermLabels();
   const title = item.title ?? t('common.untitled');
-  const className = classLabelOf(options.classNames, item.resourceClass, text);
   const owner = ownerNameOf(options.users, item.owner);
   return (
     <tr>
@@ -60,15 +65,13 @@ const ItemRow = ({
         {item.isPublic ? null : <> <PrivateCue onFilter={onFilter} /></>}
       </td>
       <td>
-        {className === null || item.resourceClass === null ? null : (
-          <FilterValue
-            label={className}
-            title={t('browse.onlyClass')}
-            change={{ classId: item.resourceClass.id }}
-            onFilter={onFilter}
-          />
-        )}
+        <ItemTypeValue item={item} options={options} onFilter={onFilter} />
       </td>
+      {classNames === null ? null : (
+        <td>
+          <ClassValue item={item} classNames={classNames} onFilter={onFilter} />
+        </td>
+      )}
       <td>
         <ul className="filter-value-list">
           {item.itemSets.map((set) => (
@@ -103,6 +106,7 @@ const ItemRow = ({
 export const ItemsTable = ({
   items,
   options,
+  showClass,
   picked,
   onPick,
   onPickPage,
@@ -110,6 +114,8 @@ export const ItemsTable = ({
   hrefOf,
 }: ItemsViewProps): ReactElement => {
   const { t } = useTranslator(common, resources);
+  const text = useTermLabels();
+  const classNames = showClass ? classNamesOf(options, text) : null;
   const allPicked = items.length > 0 && items.every((item) => picked.includes(item.id));
   return (
     <TableScroll label={t('list.tableLabel', { resource: t('resource.items') })}>
@@ -127,7 +133,8 @@ export const ItemsTable = ({
               />
             </th>
             <th>{t('column.title')}</th>
-            <th>{t('column.resourceClass')}</th>
+            <th>{t('browse.template')}</th>
+            {classNames === null ? null : <th>{t('column.class')}</th>}
             <th>{t('items.setsLegend')}</th>
             <th>{t('column.owner')}</th>
             <th>{t('column.created')}</th>
@@ -139,6 +146,7 @@ export const ItemsTable = ({
               key={item.id}
               item={item}
               options={options}
+              classNames={classNames}
               picked={picked.includes(item.id)}
               onPick={onPick}
               onFilter={onFilter}

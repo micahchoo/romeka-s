@@ -121,6 +121,14 @@ render the header and their own page, with no admin navigation:
   read, shows no line, never a wrong number. An item opened with no `in` shows no line and reads no list.
   When a next item exists, the edit form has "Save and next": it saves, then opens the next item at
   `&edit=1`, which opens its edit form.
+- The Items screen's first filter is a row of item type chips ("Artifact 297"), from one
+  `GET /api/romeka/item-types/counts` (`pages/items/item-type-chips.tsx`). Each count is the type's
+  total for the reader, not a total under the other filters, and equals the list `template=<id>`
+  opens. "No item type 12" shows while some item has none. The names come from the item type list,
+  so the chips filter before the counts arrive; a failed count shows no numbers. The table's Item
+  type column replaces Resource class; the Class column shows only while `with_class` is above 0
+  (and when the count failed). The Class select is under "More filters", and a label two classes
+  share carries the vocabulary prefix ("Image (dctype)").
 - The Items screen's `field` filter (`field=<property id>:empty` or `:filled`, under "More filters") is
   the `nex` or `ex` property search on `property[1]`, so it never takes the links filter's
   `property[0]` and both narrow one list. The field list is the chosen item type's fields, by the

@@ -13,7 +13,7 @@ import { resources } from '../../i18n/namespaces/resources';
 import { useTermLabels } from '../../i18n/termText';
 import { activeFilters, chosenId, NONE } from './browse';
 import type { BrowseFilters, FilterKey } from './browse';
-import { fieldName } from './browse-options';
+import { classNamesOf, fieldName } from './browse-options';
 import type { BrowseOptions } from './browse-options';
 import { fieldName as linkFieldName, recordName } from './links-card';
 import type { LinksPlace } from './links-card';
@@ -23,10 +23,8 @@ type Translate = Translator<MessageKey | KeyOf<typeof common> | KeyOf<typeof res
 const nameIn = <K extends number>(map: ReadonlyMap<K, string>, id: K): string =>
   map.get(id) ?? `#${String(id)}`;
 
-const className = (options: BrowseOptions, id: ClassId, text: TermLabels): string => {
-  const name = options.classNames.get(id);
-  return name === undefined ? `#${String(id)}` : text.label(name.term, name.label);
-};
+const className = (options: BrowseOptions, id: ClassId, text: TermLabels): string =>
+  classNamesOf(options, text).get(id) ?? `#${String(id)}`;
 
 /** The chip's words for one set filter. */
 const chipText = (

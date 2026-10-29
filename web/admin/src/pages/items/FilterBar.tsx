@@ -1,6 +1,6 @@
 /**
- * The Items browse bar. Search, class, item set and media are always shown;
- * item type, field, owner, visibility and site wait behind "More filters", which opens
+ * The Items browse bar. The item type chips lead, then search, item set and media;
+ * class, field, owner, visibility and site wait behind "More filters", which opens
  * itself when one of them is set. Sort and the view toggle close the bar.
  */
 import type { ReactElement, ReactNode, Ref } from 'react';
@@ -12,9 +12,11 @@ import { resources } from '../../i18n/namespaces/resources';
 import { useTermLabels } from '../../i18n/termText';
 import { chosenId, COLUMN_SORTS, isSet, MORE_KEYS, NONE, parseSort, PRESENCES } from './browse';
 import type { BrowseFilters, ColumnSort, ItemBrowse, MediaFilter, Presence, SiteFilter, Sort, View } from './browse';
-import { fieldChoices } from './browse-options';
+import { classNamesOf, fieldChoices } from './browse-options';
 import type { BrowseOptions } from './browse-options';
 import type { OnFilter } from './filter-value';
+import { ItemTypeChips } from './item-type-chips';
+import type { ChipCounts } from './item-type-chips';
 import { sortFields } from './sort-fields';
 
 export interface FilterBarProps {
@@ -22,6 +24,9 @@ export interface FilterBarProps {
   readonly draft: string;
   readonly searchRef: Ref<HTMLInputElement>;
   readonly options: BrowseOptions;
+  /** The option lists arrived; until then the item type chips wait. */
+  readonly optionsReady: boolean;
+  readonly chipCounts: ChipCounts;
   readonly onDraft: (text: string) => void;
   /** Escape in the search box: clear it now, without the settle delay. */
   readonly onClearSearch: () => void;
@@ -156,7 +161,9 @@ const MoreFilters = ({
   onFilter,
 }: Pick<FilterBarProps, 'options' | 'onFilter'> & { readonly filters: BrowseFilters }): ReactNode => {
   const { t } = useTranslator(common, resources);
+  const text = useTermLabels();
   const any = t('browse.anyValue');
+  const classChoices = choicesOf(classNamesOf(options, text));
   const siteChoices: readonly Choice[] = [
     { value: 'any', label: t('browse.siteAny') },
     { value: 'none', label: t('browse.siteNone') },
@@ -165,12 +172,12 @@ const MoreFilters = ({
   return (
     <>
       <SelectFilter
-        label={t('browse.template')}
-        value={filters.templateId === null ? '' : String(filters.templateId)}
+        label={t('field.class')}
+        value={filters.classId === null ? '' : String(filters.classId)}
         anyLabel={any}
-        choices={[{ value: NONE, label: t('browse.templateNone') }, ...choicesOf(options.templates)]}
+        choices={classChoices}
         onChoose={(value) => {
-          onFilter({ templateId: value === NONE ? NONE : keyOf(options.templates, value) });
+          onFilter({ classId: keyOf(options.classNames, value) });
         }}
       />
       <FieldFilterControl filters={filters} options={options} onFilter={onFilter} />
@@ -293,14 +300,10 @@ const SortAndView = ({
 export const FilterBar = (props: FilterBarProps): ReactElement => {
   const { state, draft, searchRef, options, onDraft, onClearSearch, onFilter } = props;
   const { t } = useTranslator(common, resources);
-  const text = useTermLabels();
   const searchId = useId();
   const moreId = useId();
   const [moreOpen, setMoreOpen] = useMoreOpen(state.filters);
   const { filters } = state;
-  const classChoices = options.classes
-    .map((entry) => ({ value: String(entry.id), label: text.label(entry.term, entry.label ?? entry.term) }))
-    .sort(byLabel);
   const mediaChoices: readonly Choice[] = [
     { value: 'any', label: t('browse.mediaAny') },
     { value: 'none', label: t('browse.mediaNone') },
@@ -308,6 +311,13 @@ export const FilterBar = (props: FilterBarProps): ReactElement => {
   ];
   return (
     <div className="items-filter-bar">
+      <ItemTypeChips
+        chosen={filters.templateId}
+        options={options}
+        optionsReady={props.optionsReady}
+        counts={props.chipCounts}
+        onFilter={onFilter}
+      />
       <span className="filter-field filter-search">
         <label htmlFor={searchId}>{t('browse.search')}</label>
         <input
@@ -327,15 +337,6 @@ export const FilterBar = (props: FilterBarProps): ReactElement => {
           }}
         />
       </span>
-      <SelectFilter
-        label={t('field.class')}
-        value={filters.classId === null ? '' : String(filters.classId)}
-        anyLabel={t('browse.anyValue')}
-        choices={classChoices}
-        onChoose={(value) => {
-          onFilter({ classId: keyOf(options.classNames, value) });
-        }}
-      />
       <SelectFilter
         label={t('browse.itemSet')}
         value={filters.itemSetId === null ? '' : String(filters.itemSetId)}

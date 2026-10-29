@@ -17,6 +17,52 @@
   max-width: 14rem;
 }
 
+/* The item type chips: the first filter, labelled like the selects beside it. */
+.item-type-chips {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.item-type-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+button.item-type-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  border-radius: 999px;
+}
+
+button.item-type-chip:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+button.item-type-chip[aria-checked="true"],
+button.item-type-chip[aria-checked="true"]:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.item-type-chip-count {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+button.item-type-chip[aria-checked="true"] .item-type-chip-count {
+  color: inherit;
+}
+
+.item-type-chips-empty {
+  margin: 0;
+  align-self: center;
+}
+
 .filter-search input {
   width: 16rem;
   max-width: 100%;

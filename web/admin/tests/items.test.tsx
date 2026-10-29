@@ -64,8 +64,21 @@ const OPTION_FIXTURES: Readonly<Record<string, string>> = {
   '/api/properties': 'properties-page.json',
 };
 
+/** The chip counts: Photograph (2) and Document (3), with the given untyped and classed totals. */
+const typeCounts = (noItemType: number, withClass: number): unknown => ({
+  item_types: [
+    { id: 2, items: 297 },
+    { id: 3, items: 0 },
+  ],
+  no_item_type: noItemType,
+  with_class: withClass,
+});
+
 /** Items answer from the fixtures; a query naming `search=nothing` matches no item. */
 const listHandler = (url: URL): Response => {
+  if (url.pathname === '/api/romeka/item-types/counts') {
+    return jsonResponse(typeCounts(0, 2));
+  }
   if (url.pathname === '/api/items') {
     if (url.searchParams.get('search') === 'nothing') {
       return jsonResponse([], { headers: { 'Omeka-S-Total-Results': '0' } });
@@ -239,6 +252,7 @@ describe('items list', () => {
 
   it('a class filter sends its id, names itself in a chip, and the chip removes it', async () => {
     const fetchMock = await openList();
+    fireEvent.click(screen.getByRole('button', { name: 'More filters' }));
     const classSelect = screen.getByRole('combobox', { name: 'Class' });
     await within(classSelect).findByRole('option', { name: 'Book' });
 
@@ -376,6 +390,189 @@ describe('items list', () => {
       expect(lastItemsUrl(fetchMock).searchParams.has('search')).toBe(false);
     });
     expect(screen.getByRole('searchbox', { name: 'Search' })).toHaveValue('');
+  });
+});
+
+/** `listHandler`, with some paths answered otherwise. */
+const overriding =
+  (answers: Readonly<Record<string, () => Response>>) =>
+  (url: URL): Response =>
+    answers[url.pathname]?.() ?? listHandler(url);
+
+const openWith = async (handler: (url: URL) => Response, hash = '#/items'): Promise<Mock<typeof fetch>> => {
+  window.history.replaceState(null, '', `/${hash}`);
+  const fetchMock = installFetch(handler);
+  render(<ItemsList />);
+  await screen.findByRole('link', { name: 'Fixture Item One' });
+  return fetchMock;
+};
+
+/** The fixture page with its first item made a Photograph. */
+const typedItems = (): Response => {
+  const page = loadFixture('items-page.json');
+  const items = isUnknownArray(page) ? page.filter(isRecord) : [];
+  const [head, ...rest] = items;
+  return jsonResponse(
+    head === undefined
+      ? []
+      : [{ ...head, 'o:resource_template': { '@id': 'http://localhost/api/resource_templates/2', 'o:id': 2 } }, ...rest],
+    { headers: { 'Omeka-S-Total-Results': '2' } },
+  );
+};
+
+const chipGroup = async (): Promise<HTMLElement> => screen.findByRole('radiogroup', { name: 'Item type' });
+
+describe('item type chips', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  it('lead the bar: each type by name with its total, unused ones at 0, and no Class select in the first row', async () => {
+    await openList();
+    const group = await chipGroup();
+    await within(group).findByRole('radio', { name: 'Document 0' });
+    expect(within(group).getAllByRole('radio').map((chip) => chip.textContent)).toEqual(['Document 0', 'Photograph 297']);
+    expect(within(group).getByRole('radio', { name: 'Photograph 297' })).toHaveAttribute(
+      'title',
+      '297 items of this type in all',
+    );
+    // No item lacks a type here, so there is no "No item type" chip.
+    expect(within(group).queryByRole('radio', { name: /No item type/ })).not.toBeInTheDocument();
+    // Class waits behind More filters.
+    expect(screen.queryByRole('combobox', { name: 'Class' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'More filters' }));
+    expect(screen.getByRole('combobox', { name: 'Class' })).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Item type' })).not.toBeInTheDocument();
+  });
+
+  it('a press filters to the type, keeps it in the URL and a chip; a second press lets it go', async () => {
+    const fetchMock = await openList();
+    const photograph = await within(await chipGroup()).findByRole('radio', { name: 'Photograph 297' });
+    expect(photograph).toHaveAttribute('aria-checked', 'false');
+
+    fireEvent.click(photograph);
+
+    expect(await screen.findByText('Item type: Photograph')).toBeInTheDocument();
+    expect(lastItemsUrl(fetchMock).searchParams.get('resource_template_id')).toBe('2');
+    expect(routeQuery().get('template')).toBe('2');
+    expect(photograph).toHaveAttribute('aria-checked', 'true');
+    // The count is the type's total, so choosing it does not change it.
+    expect(photograph).toHaveAccessibleName('Photograph 297');
+
+    fireEvent.click(photograph);
+
+    await waitFor(() => {
+      expect(lastItemsUrl(fetchMock).searchParams.has('resource_template_id')).toBe(false);
+    });
+    expect(screen.queryByText('Item type: Photograph')).not.toBeInTheDocument();
+    expect(photograph).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('arrow keys move focus between the chips without choosing', async () => {
+    const fetchMock = await openList('#/items?template=2');
+    const group = await chipGroup();
+    const document_ = await within(group).findByRole('radio', { name: 'Document 0' });
+    const photograph = within(group).getByRole('radio', { name: 'Photograph 297' });
+    // The chosen chip is the one Tab reaches.
+    expect(photograph).toHaveAttribute('tabindex', '0');
+    expect(document_).toHaveAttribute('tabindex', '-1');
+    const requests = urlsFor(fetchMock, '/api/items').length;
+
+    photograph.focus();
+    fireEvent.keyDown(photograph, { key: 'ArrowRight' });
+
+    expect(document_).toHaveFocus();
+    expect(urlsFor(fetchMock, '/api/items')).toHaveLength(requests);
+  });
+
+  it('"No item type" shows while some item has none, and filters to them', async () => {
+    const fetchMock = await openWith(
+      overriding({ '/api/romeka/item-types/counts': () => jsonResponse(typeCounts(12, 2)) }),
+    );
+    const none = await within(await chipGroup()).findByRole('radio', { name: 'No item type 12' });
+    expect(none).toHaveAttribute('title', '12 items with no item type in all');
+
+    fireEvent.click(none);
+
+    await waitFor(() => {
+      expect(lastItemsUrl(fetchMock).searchParams.get('romeka_no_resource_template')).toBe('1');
+    });
+    expect(routeQuery().get('template')).toBe('none');
+  });
+
+  it('chips work without counts when the counts fail', async () => {
+    const fetchMock = await openWith(
+      overriding({ '/api/romeka/item-types/counts': () => jsonResponse({ errors: { error: 'no' } }, { status: 500 }) }),
+    );
+    const photograph = await within(await chipGroup()).findByRole('radio', { name: 'Photograph' });
+
+    fireEvent.click(photograph);
+
+    await waitFor(() => {
+      expect(lastItemsUrl(fetchMock).searchParams.get('resource_template_id')).toBe('2');
+    });
+    // Unknown is not "none": the class column stays.
+    expect(screen.getByRole('columnheader', { name: 'Class' })).toBeInTheDocument();
+  });
+
+  it('with no item types, say so and point to Item types', async () => {
+    await openWith(
+      overriding({
+        '/api/resource_templates': () => jsonResponse([]),
+        '/api/romeka/item-types/counts': () =>
+          jsonResponse({ item_types: [], no_item_type: 2, with_class: 2 }),
+      }),
+    );
+    expect(await screen.findByText('No item types yet.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Make one in Item types.' })).toHaveAttribute('href', '#/resource-templates');
+    expect(screen.queryByRole('radiogroup', { name: 'Item type' })).not.toBeInTheDocument();
+  });
+});
+
+describe('items table columns', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  it('the Item type column names each row\'s type, and a press filters by it', async () => {
+    const fetchMock = await openWith(overriding({ '/api/items': typedItems }));
+    expect(screen.getByRole('columnheader', { name: 'Item type' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Resource class' })).not.toBeInTheDocument();
+    const row = first(screen.getAllByRole('row').filter((entry) => within(entry).queryByText('Fixture Item One') !== null));
+
+    fireEvent.click(await within(row).findByRole('button', { name: 'Photograph' }));
+
+    await waitFor(() => {
+      expect(lastItemsUrl(fetchMock).searchParams.get('resource_template_id')).toBe('2');
+    });
+  });
+
+  it('the Class column shows only while some item has a class', async () => {
+    await openWith(overriding({ '/api/romeka/item-types/counts': () => jsonResponse(typeCounts(0, 0)) }));
+    await within(await chipGroup()).findByRole('radio', { name: 'Photograph 297' });
+    expect(screen.queryByRole('columnheader', { name: 'Class' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Still Image' })).not.toBeInTheDocument();
+  });
+
+  it('two classes with one name carry their vocabulary prefix, in the select and the chip', async () => {
+    const classes = loadFixture('resource-classes-page.json');
+    const twin = {
+      ...(isUnknownArray(classes) && isRecord(classes[0]) ? classes[0] : {}),
+      'o:id': 60,
+      'o:term': 'schema:StillImage',
+      'o:local_name': 'StillImage',
+    };
+    await openWith(
+      overriding({
+        '/api/resource_classes': () => jsonResponse([...(isUnknownArray(classes) ? classes : []), twin]),
+      }),
+      '#/items?class=60',
+    );
+    const classSelect = screen.getByRole('combobox', { name: 'Class' });
+    await within(classSelect).findByRole('option', { name: 'Still Image (schema)' });
+    expect(within(classSelect).getByRole('option', { name: 'Still Image (dctype)' })).toBeInTheDocument();
+    expect(within(classSelect).getByRole('option', { name: 'Book' })).toBeInTheDocument();
+    expect(await screen.findByText('Class: Still Image (schema)')).toBeInTheDocument();
   });
 });
 

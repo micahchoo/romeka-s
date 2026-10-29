@@ -1,5 +1,6 @@
 /**
- * The reads behind a set's place, a record's "Linked from" and an item type's field counts:
+ * The reads behind a set's place, a record's "Linked from", an item type's field counts and the
+ * Items browse's item type chips:
  * Romeka's own count routes (`crates/omeka-api/src/read/place_counts.rs`), the one-record read
  * that names a link target, and the property searches the counts open (`res` for a link row,
  * `ex` and `nex` for a field). Every read runs as the caller, so a count
@@ -50,6 +51,31 @@ const parseSetCount = (raw: unknown, path: Path): readonly [ItemSetId, number] =
 export const parseSetItemCounts: Parser<SetItemCounts> = (raw, path = []) => {
   const object = strict(raw, path, ['item_sets']);
   return new Map(member(object, 'item_sets', path, list(parseSetCount)));
+};
+
+/**
+ * The Items browse's item type chips: each type's item total (every type, an unused one at 0),
+ * the items with no type, and the items with a class. Each is a total over the whole collection
+ * the caller may see, not under the browse's other filters.
+ */
+export interface ItemTypeCounts {
+  readonly items: ReadonlyMap<TemplateId, number>;
+  readonly noItemType: number;
+  readonly withClass: number;
+}
+
+const parseTypeCount = (raw: unknown, path: Path): readonly [TemplateId, number] => {
+  const object = strict(raw, path, ['id', 'items']);
+  return [brandId<'TemplateId'>(member(object, 'id', path, asIdNumber)), member(object, 'items', path, asCount)];
+};
+
+export const parseItemTypeCounts: Parser<ItemTypeCounts> = (raw, path = []) => {
+  const object = strict(raw, path, ['item_types', 'no_item_type', 'with_class']);
+  return {
+    items: new Map(member(object, 'item_types', path, list(parseTypeCount))),
+    noItemType: member(object, 'no_item_type', path, asCount),
+    withClass: member(object, 'with_class', path, asCount),
+  };
 };
 
 const parseLinkRow = (raw: unknown, path: Path): LinkRow => {
@@ -159,6 +185,9 @@ export const placesApi = {
   async fieldCounts(template: TemplateId): Promise<FieldCounts> {
     const params = new URLSearchParams({ resource_template_id: String(template) });
     return parseFieldCounts(await api.requestJson('/api/romeka/field-counts', params));
+  },
+  async itemTypeCounts(): Promise<ItemTypeCounts> {
+    return parseItemTypeCounts(await api.requestJson('/api/romeka/item-types/counts'));
   },
   async record(id: ResourceId): Promise<RecordSummary> {
     return parseRecordSummary(await api.requestJson(`/api/resources/${String(id)}`));

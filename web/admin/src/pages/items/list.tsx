@@ -7,6 +7,7 @@
 import type { ReactElement, RefObject } from 'react';
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { api } from '../../api/client';
+import { placesApi } from '../../api/places';
 import type { ApiPage, Item, ItemId } from '../../api/types';
 import { ErrorNotice } from '../../app/errors';
 import { Pager } from '../../app/list';
@@ -37,6 +38,7 @@ import { FilterBar } from './FilterBar';
 import { FilterChips, useFilterWords } from './FilterChips';
 import { ItemsGrid } from './ItemsGrid';
 import { ItemsTable } from './ItemsTable';
+import type { ChipCounts } from './item-type-chips';
 import { LinksCard, useLinksPlace } from './links-card';
 import { SetCard, SetEmpty, useSetPlace } from './set-card';
 import { IDENTIFIER, propertyOf, useSetHasIdentifier } from './sort-fields';
@@ -216,6 +218,17 @@ export const ItemsList = (): ReactElement => {
   const [revision, setRevision] = useState(0);
   const itemsState = useAsync(() => api.listItems(query), [JSON.stringify(query), revision]);
   const shown: ApiPage<Item> | null = useLastPage(itemsState);
+  // A bulk change can move items between types, so the counts follow the revision.
+  const countsState = useAsync(() => placesApi.itemTypeCounts(), [revision]);
+  const lastCounts = useLastPage(countsState);
+  const chipCounts: ChipCounts =
+    lastCounts !== null
+      ? { status: 'ready', counts: lastCounts }
+      : countsState.status === 'error'
+        ? { status: 'failed' }
+        : { status: 'loading' };
+  // Unknown is not "none": a failed count keeps the class in view rather than hide what items carry.
+  const showClass = chipCounts.status === 'ready' ? chipCounts.counts.withClass > 0 : chipCounts.status === 'failed';
 
   const active = activeFilters(state.filters);
   const filtered = active.length > 0;
@@ -248,6 +261,7 @@ export const ItemsList = (): ReactElement => {
   const viewProps = {
     hrefOf,
     options,
+    showClass,
     picked,
     onPick: (id: ItemId, on: boolean) => {
       setPicked((current) => (on ? [...current, id] : current.filter((entry) => entry !== id)));
@@ -276,6 +290,8 @@ export const ItemsList = (): ReactElement => {
         draft={draft}
         searchRef={searchRef}
         options={options}
+        optionsReady={optionsState.status === 'ready'}
+        chipCounts={chipCounts}
         onDraft={setDraft}
         onClearSearch={() => {
           apply(withFilters(state, { search: '' }));

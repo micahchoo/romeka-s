@@ -12,7 +12,6 @@ import type {
   ItemSetId,
   Property,
   PropertyId,
-  ResourceClass,
   SiteId,
   TemplateId,
   UserId,
@@ -29,7 +28,6 @@ export interface TypeField {
 }
 
 export interface BrowseOptions {
-  readonly classes: readonly ResourceClass[];
   readonly classNames: ReadonlyMap<ClassId, TermName>;
   readonly itemSets: ReadonlyMap<ItemSetId, string>;
   readonly templates: ReadonlyMap<TemplateId, string>;
@@ -41,7 +39,6 @@ export interface BrowseOptions {
 
 /** No names yet: the rows show `#id` until the lists arrive. */
 export const NO_OPTIONS: BrowseOptions = {
-  classes: [],
   classNames: new Map(),
   itemSets: new Map(),
   templates: new Map(),
@@ -67,7 +64,6 @@ export const loadBrowseOptions = async (): Promise<BrowseOptions> => {
     every((query) => api.listProperties(query)),
   ]);
   return {
-    classes,
     classNames: classLabels(classes),
     itemSets: new Map(sets.map((set) => [set.id, set.title ?? `#${String(set.id)}`])),
     templates: new Map(templates.map((template) => [template.id, template.label])),
@@ -81,6 +77,24 @@ export const loadBrowseOptions = async (): Promise<BrowseOptions> => {
     users: userNames(users),
     sites: new Map(sites.map((site) => [site.id, site.title])),
   };
+};
+
+/**
+ * Each class by its name in the reader's language. A name two classes share carries each one's
+ * vocabulary prefix, so the choices tell them apart: "Image (dctype)", "Image (schema)".
+ */
+export const classNamesOf = (options: BrowseOptions, text: TermLabels): ReadonlyMap<ClassId, string> => {
+  const named = [...options.classNames].map(([id, name]) => ({ id, term: name.term, label: text.label(name.term, name.label) }));
+  const uses = new Map<string, number>();
+  for (const { label } of named) {
+    uses.set(label, (uses.get(label) ?? 0) + 1);
+  }
+  return new Map(
+    named.map(({ id, term, label }) => [
+      id,
+      (uses.get(label) ?? 0) > 1 ? `${label} (${term.slice(0, term.indexOf(':'))})` : label,
+    ]),
+  );
 };
 
 /** A field as the field filter names it. */

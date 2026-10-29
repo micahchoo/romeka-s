@@ -120,12 +120,12 @@ export const NO_FILTERS: BrowseFilters = {
 
 /** Chip order: the bar's order, the always-shown filters first. */
 export const FILTER_KEYS: readonly FilterKey[] = [
+  'templateId',
   'search',
-  'classId',
   'itemSetId',
   'links',
   'media',
-  'templateId',
+  'classId',
   'field',
   'ownerId',
   'visibility',
@@ -134,7 +134,7 @@ export const FILTER_KEYS: readonly FilterKey[] = [
 ];
 
 /** The filters behind "More filters". */
-export const MORE_KEYS: readonly FilterKey[] = ['templateId', 'field', 'ownerId', 'visibility', 'site'];
+export const MORE_KEYS: readonly FilterKey[] = ['classId', 'field', 'ownerId', 'visibility', 'site'];
 
 export const isSet = (filters: BrowseFilters, key: FilterKey): boolean =>
   key === 'search' ? filters.search !== '' : filters[key] !== null;

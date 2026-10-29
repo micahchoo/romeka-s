@@ -5,12 +5,12 @@
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 import type { Item } from '../../api/types';
-import { classLabelOf } from '../../app/labels';
 import { useTranslator } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
 import { useTermLabels } from '../../i18n/termText';
-import { FilterValue } from './filter-value';
+import { classNamesOf } from './browse-options';
+import { ClassValue, ItemTypeValue } from './item-facts';
 import { PrivateCue } from './PrivateCue';
 import type { ItemsViewProps } from './ItemsTable';
 
@@ -45,6 +45,7 @@ const CardThumb = ({ item }: { readonly item: Item }): ReactElement => {
 export const ItemsGrid = ({
   items,
   options,
+  showClass,
   picked,
   onPick,
   onPickPage,
@@ -53,6 +54,7 @@ export const ItemsGrid = ({
 }: ItemsViewProps): ReactElement => {
   const { t } = useTranslator(common, resources);
   const text = useTermLabels();
+  const classNames = showClass ? classNamesOf(options, text) : null;
   const allPicked = items.length > 0 && items.every((item) => picked.includes(item.id));
   return (
     <>
@@ -71,7 +73,6 @@ export const ItemsGrid = ({
       <ul className="item-grid" aria-label={t('resource.items')}>
         {items.map((item) => {
           const title = item.title ?? t('common.untitled');
-          const className = classLabelOf(options.classNames, item.resourceClass, text);
           return (
             <li key={item.id} className="item-card">
               <CardThumb item={item} />
@@ -88,13 +89,9 @@ export const ItemsGrid = ({
                 {title}
               </a>
               <span className="item-card-facts">
-                {className === null || item.resourceClass === null ? null : (
-                  <FilterValue
-                    label={className}
-                    title={t('browse.onlyClass')}
-                    change={{ classId: item.resourceClass.id }}
-                    onFilter={onFilter}
-                  />
+                <ItemTypeValue item={item} options={options} onFilter={onFilter} />
+                {classNames === null ? null : (
+                  <ClassValue item={item} classNames={classNames} onFilter={onFilter} />
                 )}
                 {item.isPublic ? null : <PrivateCue onFilter={onFilter} />}
               </span>
