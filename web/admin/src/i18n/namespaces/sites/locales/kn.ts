@@ -242,7 +242,7 @@ export const kn: SitesMessages = {
   'layout.iiifPresentation': 'IIIF ಪ್ರಸ್ತುತಿ',
   'layout.iiifImage': 'IIIF ಚಿತ್ರ',
   'layout.asset': 'ಆಸ್ತಿ',
-  'layout.html': 'HTML',
+  'layout.html': 'ಪಠ್ಯ',
   'layout.listOfPages': 'ಪುಟಗಳ ಪಟ್ಟಿ',
   'layout.oembed': 'oEmbed',
   'layout.unknown': 'ಅಪರಿಚಿತ [{name}]',
@@ -359,8 +359,6 @@ export const kn: SitesMessages = {
   'layoutHelp.oembed': 'URL ನಿಂದ ಎಂಬೆಡ್ ಮಾಡಲಾದ ವಿಷಯ, ಉದಾಹರಣೆಗೆ ವಿಡಿಯೋ.',
   'romekaHelp.hero': 'ಶೀರ್ಷಿಕೆ, ಪಠ್ಯ ಮತ್ತು ಹಿನ್ನೆಲೆ ಚಿತ್ರವನ್ನು ಹೊಂದಿರುವ ದೊಡ್ಡ ಬ್ಯಾನರ್.',
   'query.siteMatchCount': 'ಈ ಸೈಟ್‌ನಲ್ಲಿ {count} ಅಂಶಗಳು ಹೊಂದಾಣಿಕೆಯಾಗುತ್ತವೆ.',
-  'query.siteNoMatch':
-    'ಈ ಸೈಟ್‌ನಲ್ಲಿ ಯಾವುದೇ ಅಂಶಗಳು ಹೊಂದಾಣಿಕೆಯಾಗುವುದಿಲ್ಲ, ಆದ್ದರಿಂದ ಬ್ಲಾಕ್ ಏನನ್ನೂ ತೋರಿಸುವುದಿಲ್ಲ. ಬ್ರೌಸ್ ಪ್ರಿವ್ಯೂ ಕೇವಲ ಸೈಟ್‌ನ ಸೇರಿದ ಅಂಶಗಳನ್ನು ಪಟ್ಟಿ ಮಾಡುತ್ತದೆ: ಸೈಟ್ ಸಂಪನ್ಮೂಲಗಳ ಪುಟದಲ್ಲಿ ಅಂಶಗಳನ್ನು ಸೇರಿಸಿ.',
   'editor.widthFit': 'ಫಿಟ್',
   'siteItems.count': 'ಈ ಸೈಟ್‌ನಲ್ಲಿರುವ ಅಂಶಗಳು: {count}',
   'siteItems.counting': 'ಎಣಿಕೆ…',

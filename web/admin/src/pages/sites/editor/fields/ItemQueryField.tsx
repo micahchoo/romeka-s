@@ -4,35 +4,30 @@
  * It reads and writes the ordered pairs `query.ts` owns, so an advanced-search
  * key this builder does not show survives an edit.
  *
- * The match count comes from `Omeka-S-Total-Results` on the list endpoint of
- * the resource the query searches (`/api/items`, `/api/item_sets` or
- * `/api/media`), which the client reads into `ApiPage.total`; the request asks
- * for one row and only uses the header. Only items can be filtered by item set
- * (`QueryFilter::push_item`), so the item set select shows for items alone.
+ * The count line says what the query reaches (`listReach.ts`). A zero on a site
+ * with nothing of the kind links to the site's Items tab, where resources are
+ * added; a zero on a site that has some blames the filter.
  */
 import type { ReactElement } from 'react';
 import { api } from '../../../../api/client';
-import { listMedia } from '../../../../api/media';
-import type { ResourceQuery } from '../../../../api/client';
-import type { ApiPage, ItemSet, ResourceClass, SiteId } from '../../../../api/types';
+import type { ItemSet, ResourceClass, SiteId } from '../../../../api/types';
 import { useAsync } from '../../../../app/useAsync';
-import { useSettled } from '../../../../app/useSettled';
 import { useTranslator } from '../../../../i18n';
 import { useTermLabels } from '../../../../i18n/termText';
 import type { KeyOf, MessageKey } from '../../../../i18n';
 import { useEditorText } from '../messages';
 import type { EditorMessageKey } from '../messages';
 import { Labelled } from '../Labelled';
-import { QUERY_KEYS, formatQuery, parseQuery, queryId, queryValue, withQueryValue } from './query';
+import { siteHref } from '../../SiteFrame';
+import { QUERY_KEYS, formatQuery, parseQuery, queryValue, withQueryValue } from './query';
+import { filtersByItemSet, useListReach } from './listReach';
+import type { ListReach, QueryResource } from './listReach';
 import { propertyName, useProperties } from './useProperties';
 import { common } from '../../../../i18n/namespaces/common';
 import { sites } from '../../../../i18n/namespaces/sites';
 
 /** A message id this file names: the shell's or its namespaces'. */
 type MessageId = MessageKey | KeyOf<typeof common> | KeyOf<typeof sites>;
-
-/** How long the builder waits before it asks for a match count. */
-const COUNT_DELAY_MS = 400;
 
 /** The sort fields `AbstractResourceEntityAdapter` orders items by, and their labels. */
 const SORT_FIELDS: readonly { readonly value: string; readonly label: MessageId | null }[] = [
@@ -42,51 +37,43 @@ const SORT_FIELDS: readonly { readonly value: string; readonly label: MessageId 
   { value: 'id', label: 'query.sort_id' },
 ];
 
-/** The resource types a browse query can search (`browsePreview.resource_type`). */
-export type QueryResource = 'items' | 'item_sets' | 'media';
+/** A count line: a message of the main catalogue or of the editor table. */
+type CountMessage = { readonly main: MessageId } | { readonly editor: EditorMessageKey };
 
-export const isQueryResource = (value: unknown): value is QueryResource =>
-  value === 'items' || value === 'item_sets' || value === 'media';
-
-/** What differs per resource type: the list it counts and what the count says. */
-const RESOURCES: Readonly<
+/** What the count line says per resource type. Items read the main
+ * catalogue's count, which the site's Items page also shows. */
+const COUNT_TEXT: Readonly<
   Record<
     QueryResource,
     {
-      readonly list: (query: ResourceQuery) => Promise<ApiPage<unknown>>;
-      readonly byItemSet: boolean;
-      /** The count line's message: the main catalogue's for items, which the
-       * site's Items page also shows, the editor table's otherwise. */
-      readonly countMessage: (
-        count: number,
-        scoped: boolean,
-      ) => { readonly main: MessageId } | { readonly editor: EditorMessageKey };
+      readonly count: (scoped: boolean) => CountMessage;
+      readonly none: CountMessage;
+      readonly siteEmpty: EditorMessageKey;
+      readonly add: EditorMessageKey;
+      readonly filterEmpty: EditorMessageKey;
     }
   >
 > = {
   items: {
-    list: (query) => api.listItems(query),
-    byItemSet: true,
-    countMessage: (count, scoped) => ({
-      main:
-        count === 0
-          ? scoped
-            ? 'query.siteNoMatch'
-            : 'query.noMatch'
-          : scoped
-            ? 'query.siteMatchCount'
-            : 'query.matchCount',
-    }),
+    count: (scoped) => ({ main: scoped ? 'query.siteMatchCount' : 'query.matchCount' }),
+    none: { main: 'query.noMatch' },
+    siteEmpty: 'query.siteEmptyItems',
+    add: 'query.addItems',
+    filterEmpty: 'query.filterEmptyItems',
   },
   item_sets: {
-    list: (query) => api.listItemSets(query),
-    byItemSet: false,
-    countMessage: () => ({ editor: 'query.itemSetCount' }),
+    count: () => ({ editor: 'query.itemSetCount' }),
+    none: { editor: 'query.itemSetCount' },
+    siteEmpty: 'query.siteEmptyItemSets',
+    add: 'query.addItemSets',
+    filterEmpty: 'query.filterEmptyItemSets',
   },
   media: {
-    list: (query) => listMedia(api, query),
-    byItemSet: false,
-    countMessage: () => ({ editor: 'query.mediaCount' }),
+    count: () => ({ editor: 'query.mediaCount' }),
+    none: { editor: 'query.mediaCount' },
+    siteEmpty: 'query.siteEmptyMedia',
+    add: 'query.addMedia',
+    filterEmpty: 'query.filterEmptyMedia',
   },
 };
 
@@ -132,29 +119,6 @@ const PropertySortOptions = ({ current }: { readonly current: string }): ReactEl
       ))}
     </optgroup>
   );
-};
-
-/** The list request one stored query makes: one row, for the total header. */
-const countQuery = (
-  value: string,
-  siteId: SiteId | undefined,
-  byItemSet: boolean,
-): ResourceQuery => {
-  const pairs = parseQuery(value);
-  const fulltext = queryValue(pairs, QUERY_KEYS.fulltext).trim();
-  const itemSet = queryId(pairs, QUERY_KEYS.itemSet);
-  const resourceClass = queryId(pairs, QUERY_KEYS.resourceClass);
-  const sortBy = queryValue(pairs, QUERY_KEYS.sortBy).trim();
-  const sortOrder = queryValue(pairs, QUERY_KEYS.sortOrder).trim();
-  return {
-    perPage: 1,
-    ...(siteId === undefined ? {} : { site_id: siteId }),
-    ...(fulltext === '' ? {} : { fulltext_search: fulltext }),
-    ...(itemSet === null || !byItemSet ? {} : { item_set_id: itemSet }),
-    ...(resourceClass === null ? {} : { resource_class_id: resourceClass }),
-    ...(sortBy === '' ? {} : { sortBy }),
-    ...(sortOrder === 'asc' || sortOrder === 'desc' ? { sortOrder } : {}),
-  };
 };
 
 /** A select over one id list, keeping a stored id the list does not name. */
@@ -209,11 +173,9 @@ export const ItemQueryField = ({
   const { t } = useTranslator(common, sites);
   const text = useTermLabels();
   const e = useEditorText();
-  const countText = (
-    message: { readonly main: MessageId } | { readonly editor: EditorMessageKey },
-    count: number,
-  ): string => ('main' in message ? t(message.main, { count }) : e(message.editor, { count }));
-  const searched = RESOURCES[resource];
+  const countText = (message: CountMessage, count: number): string =>
+    'main' in message ? t(message.main, { count }) : e(message.editor, { count });
+  const byItemSet = filtersByItemSet(resource);
   const pairs = parseQuery(value);
   const fulltext = queryValue(pairs, QUERY_KEYS.fulltext);
   const itemSet = queryValue(pairs, QUERY_KEYS.itemSet);
@@ -230,16 +192,28 @@ export const ItemQueryField = ({
       classes ?? (await api.listResourceClasses({ perPage: 200, sortBy: 'label' })).items,
     [classes],
   );
-  const counted = useSettled(value, COUNT_DELAY_MS);
-  const matches = useAsync(
-    async () =>
-      showCount
-        ? (await searched.list(countQuery(counted, siteId, searched.byItemSet))).total
-        : 0,
-    [counted, siteId, showCount, searched],
-  );
+  const reach = useListReach(resource, showCount ? value : null, siteId);
   const itemSetOptions = itemSets ?? (itemSetState.status === 'ready' ? itemSetState.data : []);
   const classOptions = classes ?? (classState.status === 'ready' ? classState.data : []);
+
+  const words = COUNT_TEXT[resource];
+  const reachLine = (shown: ListReach): ReactElement | string => {
+    switch (shown.kind) {
+      case 'matches':
+        return countText(words.count(siteId !== undefined), shown.count);
+      case 'none':
+        return countText(words.none, 0);
+      case 'filterEmpty':
+        return e(words.filterEmpty);
+      case 'siteEmpty':
+        return (
+          <>
+            {e(words.siteEmpty)}{' '}
+            {siteId === undefined ? null : <a href={siteHref(siteId, 'resources')}>{e(words.add)}</a>}
+          </>
+        );
+    }
+  };
 
   const set = (key: string, next: string): void => {
     onChange(formatQuery(withQueryValue(pairs, key, next)));
@@ -265,7 +239,7 @@ export const ItemQueryField = ({
           }}
         />
       </Labelled>
-      {searched.byItemSet ? (
+      {byItemSet ? (
         <Labelled id={`${id}-item-set`} label={t('query.itemSet')}>
           <IdSelect
             id={`${id}-item-set`}
@@ -328,11 +302,13 @@ export const ItemQueryField = ({
       ) : null}
       {showCount ? (
         <p className="query-count" role="status">
-          {matches.status === 'loading'
+          {reach.status === 'loading'
             ? t('query.counting')
-            : matches.status === 'error'
+            : reach.status === 'error'
               ? t('query.countError')
-              : countText(searched.countMessage(matches.data, siteId !== undefined), matches.data)}
+              : reach.data === null
+                ? null
+                : reachLine(reach.data)}
         </p>
       ) : null}
     </fieldset>

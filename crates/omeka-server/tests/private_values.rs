@@ -652,7 +652,9 @@ async fn a_title_sort_orders_by_the_title_each_caller_is_shown() {
         };
         let list = read(
             &world.app,
-            &who.uri(&format!("/api/items?id[]={hidden}&id[]={plain}&sort_by=title")),
+            &who.uri(&format!(
+                "/api/items?id[]={hidden}&id[]={plain}&sort_by=title"
+            )),
         )
         .await;
         let got: Vec<u64> = list
@@ -679,8 +681,24 @@ async fn a_media_annotation_container_never_carries_a_hidden_title() {
     .await
     .unwrap();
     let title = PropertyId(u64::try_from(title).unwrap());
-    value(&world.pool, world.media.as_resource(), title, "Mediasecret", None, false).await;
-    value(&world.pool, world.media.as_resource(), title, "Media shown", None, true).await;
+    value(
+        &world.pool,
+        world.media.as_resource(),
+        title,
+        "Mediasecret",
+        None,
+        false,
+    )
+    .await;
+    value(
+        &world.pool,
+        world.media.as_resource(),
+        title,
+        "Media shown",
+        None,
+        true,
+    )
+    .await;
     sqlx::query("UPDATE resource SET title = 'Mediasecret' WHERE id = ?")
         .bind(i64::try_from(world.media.0).unwrap())
         .execute(&world.pool)

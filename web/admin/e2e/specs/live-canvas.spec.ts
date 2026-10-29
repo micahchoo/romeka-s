@@ -105,17 +105,17 @@ test('the preview outlines, selects and inserts, and a re-render keeps the place
 
   // Hovering a block outlines it with its label; nothing is requested.
   await shown(page).getByText('Section 2 heading').hover();
-  await expect(page.locator('.live-outline--hover .live-label')).toHaveText('HTML');
+  await expect(page.locator('.live-outline--hover .live-label')).toHaveText('Text');
 
   // A link-free click selects the block, and the inspector shows its form.
   await shown(page).getByText('Section 2 heading').click();
   await expect(page.locator('.live-outline--selected')).toBeVisible();
-  await expect(inspectorHeading(page)).toHaveText(`HTML, block 2 of ${String(BLOCKS.length)}`);
-  await expect(page.getByRole('textbox', { name: 'HTML' })).toContainText('Section 2 heading');
+  await expect(inspectorHeading(page)).toHaveText(`Text, block 2 of ${String(BLOCKS.length)}`);
+  await expect(page.getByRole('textbox', { name: 'Text', exact: true })).toContainText('Section 2 heading');
 
   // A group member outlines on its own; the group outlines as a group.
   await shown(page).getByText('Member A text').hover();
-  await expect(page.locator('.live-outline--hover .live-label')).toHaveText('HTML');
+  await expect(page.locator('.live-outline--hover .live-label')).toHaveText('Text');
 
   // Scroll the frame, select a block lower down, and edit it.
   const top = (name: string | RegExp) =>
@@ -128,14 +128,14 @@ test('the preview outlines, selects and inserts, and a re-render keeps the place
       element.ownerDocument.defaultView?.scrollTo(0, 900);
     });
   await shown(page).getByText('Section 5 heading').click();
-  await expect(inspectorHeading(page)).toHaveText(`HTML, block 8 of ${String(BLOCKS.length)}`);
+  await expect(inspectorHeading(page)).toHaveText(`Text, block 8 of ${String(BLOCKS.length)}`);
   const before = await top('Section 5 heading');
 
   const rendered = page.waitForResponse(
     (response) => response.url().includes(`/s/${SITE_SLUG}/preview`) && response.request().method() === 'POST',
   );
   // The caret starts at the head of the editor, so the words land before the heading text.
-  await page.getByRole('textbox', { name: 'HTML' }).pressSequentially('Edited ', { delay: 10 });
+  await page.getByRole('textbox', { name: 'Text', exact: true }).pressSequentially('Edited ', { delay: 10 });
   await rendered;
   // The swap waits for the new document's `load`, which waits for its slow
   // image, so the reader is still on the old document for that time.
@@ -144,7 +144,7 @@ test('the preview outlines, selects and inserts, and a re-render keeps the place
   await expect(shown(page).getByText('Edited Section 5 heading')).toHaveCount(1, { timeout: 10_000 });
   expect(Date.now() - answered).toBeGreaterThan(IMAGE_DELAY_MS / 2);
   expect(Math.abs((await top('Edited Section 5 heading')) - before)).toBeLessThan(2);
-  await expect(page.locator('.live-outline--selected .live-label')).toHaveText('HTML');
+  await expect(page.locator('.live-outline--selected .live-label')).toHaveText('Text');
 
   // The insert point before block 2 opens the picker at index 1.
   await shown(page).locator('html').evaluate((element) => {
@@ -192,7 +192,7 @@ test('Fit lays the page out at a desktop width scaled into the panel, and the ou
     expect(Math.abs(drawn[side] - target[side]), side).toBeLessThan(2);
   }
   await shown(page).getByText('Section 2 heading').click();
-  await expect(inspectorHeading(page)).toHaveText(`HTML, block 2 of ${String(BLOCKS.length)}`);
+  await expect(inspectorHeading(page)).toHaveText(`Text, block 2 of ${String(BLOCKS.length)}`);
 });
 
 test('a page set to a grid takes its column count on the outline and in the preview', async ({ page }) => {

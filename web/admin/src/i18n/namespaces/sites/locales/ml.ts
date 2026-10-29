@@ -240,7 +240,7 @@ export const ml: SitesMessages = {
   'layout.iiifPresentation': 'IIIF പ്രസന്റേഷൻ',
   'layout.iiifImage': 'IIIF ചിത്രം',
   'layout.asset': 'അസറ്റ്',
-  'layout.html': 'HTML',
+  'layout.html': 'ടെക്സ്റ്റ്',
   'layout.listOfPages': 'പേജുകളുടെ പട്ടിക',
   'layout.oembed': 'oEmbed',
   'layout.unknown': 'അജ്ഞാതനായ [{name}]',
@@ -358,8 +358,6 @@ export const ml: SitesMessages = {
   'layoutHelp.oembed': 'ഒരു URL-ൽ നിന്നുള്ള ഉള്ളടക്കം, ഉദാഹരണത്തിന് ഒരു വീഡിയോ.',
   'romekaHelp.hero': 'ഒരു തലക്കെട്ടും, ടെക്സ്റ്റും, ബാക്ക്ഗ്രൗണ്ട് ഇമേജും ഉള്ള വലിയ ബാനർ.',
   'query.siteMatchCount': 'ഈ സൈറ്റിൽ {count} ഇനങ്ങൾ പൊരുത്തപ്പെടുന്നു.',
-  'query.siteNoMatch':
-    'ഈ സൈറ്റിൽ ഇനങ്ങൾ ഒന്നുമില്ല, അതിനാൽ ബ്ലോക്ക് ഒന്നും കാണിക്കില്ല. ഒരു ബ്രൗസ് പ്രിവ്യൂ സൈറ്റിലെ ഇനങ്ങൾ മാത്രം പട്ടികപ്പെടുത്തുന്നു: സൈറ്റ് റിസോഴ്‌സ് പേജിൽ ഇനങ്ങൾ ചേർക്കുക.',
   'editor.widthFit': 'പൊരുത്തപ്പെടുത്തുക',
   'siteItems.count': 'ഈ സൈറ്റിലെ ഇനങ്ങൾ: {count}',
   'siteItems.counting': 'എണ്ണുന്നു…',

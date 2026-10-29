@@ -20,10 +20,10 @@ test('the editor adds, moves and saves a block and the public page shows it', as
   // A new HTML block goes in at the end of the page.
   await page.getByRole('button', { name: /Insert block at position/ }).last().click();
   const picker = page.getByRole('dialog', { name: 'Insert a block or template' });
-  await picker.getByRole('button', { name: 'HTML', exact: true }).click();
+  await picker.getByRole('button', { name: 'Text', exact: true }).click();
 
   // The shell selects the new block, so its form is the inspector.
-  const editor = page.getByRole('textbox', { name: 'HTML' });
+  const editor = page.getByRole('textbox', { name: 'Text', exact: true });
   await editor.fill(TYPED);
 
   // Space picks the card up, ArrowUp moves it one position, Space drops it.

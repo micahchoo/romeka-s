@@ -249,7 +249,7 @@ export const ta: SitesMessages = {
   'layout.iiifPresentation': 'IIIF விளக்கக்காட்சி',
   'layout.iiifImage': 'IIIF படம்',
   'layout.asset': 'சொத்து',
-  'layout.html': 'HTML',
+  'layout.html': 'உரை',
   'layout.listOfPages': 'பக்கங்களின் பட்டியல்',
   'layout.oembed': 'oEmbed',
   'layout.unknown': 'அறியப்படாத [{name}]',
@@ -369,8 +369,6 @@ export const ta: SitesMessages = {
   'layoutHelp.oembed': 'ஒரு URL-லிருந்து உள்ளமைக்கப்பட்ட உள்ளடக்கம், உதாரணமாக ஒரு வீடியோ.',
   'romekaHelp.hero': 'தலைப்பு, உரை மற்றும் பின்னணிப் படம் கொண்ட ஒரு பெரிய பேனர்.',
   'query.siteMatchCount': 'இந்தத் தளத்தில் {count} பொருட்கள் பொருந்துகின்றன.',
-  'query.siteNoMatch':
-    'இந்தத் தளத்தில் எந்தப் பொருட்களும் பொருந்தவில்லை, எனவே அந்தத் தொகுதி எதையும் காட்டாது. ஒரு முன்னோட்டப் பட்டியல் அந்தத் தளத்தைச் சேர்ந்த பொருட்களை மட்டுமே பட்டியலிடுகிறது: தள வளங்கள் பக்கத்தில் பொருட்களைச் சேர்க்கவும்.',
   'editor.widthFit': 'பொருத்தம்',
   'siteItems.count': 'இந்தத் தளத்தில் உள்ள பொருட்கள்: {count}',
   'siteItems.counting': 'கணக்கிடப்படுகிறது…',

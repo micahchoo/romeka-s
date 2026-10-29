@@ -140,11 +140,7 @@ export const Inspector = ({
             ))}
           </select>
         </Labelled>
-      ) : (
-        <p className="field-note">
-          {t('editor.romkaBlock', { name: t(romka.label) })} {t('editor.romkaGenerated')}
-        </p>
-      )}
+      ) : null}
       <Suspense fallback={<p role="status">{t('editor.loading')}</p>}>
         {group !== null ? (
           <SectionForm

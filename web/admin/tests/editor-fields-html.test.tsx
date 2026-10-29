@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { BlockForm } from '../src/pages/sites/editor/fields/BlockForm';
 import { actionsOf, dispatchSpy, draftFor, schemaForLayout, SITE_ID, selectAll } from './editor-fields-helpers';
 
-const editor = (): HTMLElement => screen.getByRole('textbox', { name: 'HTML' });
+const editor = (): HTMLElement => screen.getByRole('textbox', { name: 'Text' });
 
 const renderHtml = (html: string) => {
   const block = draftFor('html', { html });

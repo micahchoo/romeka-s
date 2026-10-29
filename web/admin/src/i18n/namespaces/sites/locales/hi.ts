@@ -238,7 +238,7 @@ export const hi: SitesMessages = {
   'layout.iiifPresentation': 'IIIF प्रेजेंटेशन',
   'layout.iiifImage': 'IIIF इमेज',
   'layout.asset': 'एसेट',
-  'layout.html': 'HTML',
+  'layout.html': 'टेक्स्ट',
   'layout.listOfPages': 'पेजों की सूची',
   'layout.oembed': 'oEmbed',
   'layout.unknown': 'अज्ञात [{name}]',
@@ -352,8 +352,6 @@ export const hi: SitesMessages = {
   'layoutHelp.oembed': 'URL से एम्बेडेड सामग्री, जैसे वीडियो।',
   'romekaHelp.hero': 'एक बड़ा बैनर जिसमें शीर्षक, पाठ और पृष्ठभूमि छवि है।',
   'query.siteMatchCount': 'इस साइट पर {count} आइटम मेल खाते हैं।',
-  'query.siteNoMatch':
-    'इस साइट पर कोई भी आइटम मेल नहीं खाता, इसलिए ब्लॉक कुछ नहीं दिखाता। एक ब्राउज़ प्रीव्यू केवल उन आइटमों को सूचीबद्ध करता है जो साइट से संबंधित हैं: साइट संसाधनों पृष्ठ पर आइटम जोड़ें।',
   'editor.widthFit': 'फिट',
   'siteItems.count': 'इस साइट पर आइटम: {count}',
   'siteItems.counting': 'गणना की जा रही है…',

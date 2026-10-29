@@ -67,7 +67,7 @@ describe('site routing', () => {
     render(<Shell />);
 
     expect(await screen.findByLabelText('Title')).toHaveValue('Welcome');
-    expect(await screen.findByRole('listitem', { name: /Block 1: HTML/ })).toBeInTheDocument();
+    expect(await screen.findByRole('listitem', { name: /Block 1: Text/ })).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Admin pages' });
     expect(within(nav).getByRole('link', { name: 'Sites' })).toHaveAttribute(
       'aria-current',

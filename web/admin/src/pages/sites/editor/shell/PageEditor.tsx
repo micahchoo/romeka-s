@@ -408,6 +408,7 @@ export const PageEditor = ({
               <PageCanvas
                 draft={draft}
                 siteSettings={siteSettings}
+                siteId={siteId}
                 selection={selection}
                 onSelect={(key) => {
                   setSelection(key === null ? null : { kind: 'block', key, from: 'outline' });

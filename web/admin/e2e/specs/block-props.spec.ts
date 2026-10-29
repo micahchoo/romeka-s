@@ -96,7 +96,9 @@ test('a padding preset reaches the block on the live preview', async ({ page }) 
   await expect(block).toHaveCSS('padding-left', '32px');
 });
 
-test('a browse preview of item sets counts the item sets in the site', async ({ page }) => {
+test('a browse preview of item sets offers a way on while the site has none, then counts them', async ({
+  page,
+}) => {
   const site = await siteId(page);
   const sets: unknown = await (await page.request.get('/api/item_sets')).json();
   const list: readonly unknown[] = Array.isArray(sets) ? sets : [];
@@ -105,16 +107,34 @@ test('a browse preview of item sets counts the item sets in the site', async ({ 
     page.request.patch(`/api/sites/${String(site)}`, {
       data: { 'o:site_item_set': ids.map((id) => ({ 'o:item_set': { 'o:id': id } })) },
     });
+  await page.goto(await createPage(page, 'block-props-browse'));
+  await insert(page, 'Browse preview');
+  const form = inspector(page);
+  const row = page.getByRole('listitem', { name: /Browse preview/ });
+
+  await expect(form.getByLabel('Item set', { exact: true })).toBeVisible();
+  await form.getByLabel('What to list').selectOption('item_sets');
+  await expect(form.getByText('This site has no item sets yet.')).toBeVisible();
+  await expect(form.getByRole('link', { name: 'Add item sets to this site' })).toHaveAttribute(
+    'href',
+    `#/sites/${String(site)}/resources`,
+  );
+  await expect(row.getByText('Lists nothing yet')).toBeVisible();
+
   const assigned = await assign([idOf(set)]);
   expect(assigned.status(), await assigned.text()).toBe(200);
   try {
-    await page.goto(await createPage(page, 'block-props-browse'));
-    await insert(page, 'Browse preview');
-    const form = inspector(page);
-
-    await expect(form.getByLabel('Item set', { exact: true })).toBeVisible();
-    await form.getByLabel('What to list').selectOption('item_sets');
+    // The count is asked again when the query changes. The seeded set has no
+    // class, so filtering by one matches none of the site's sets; any class
+    // matches the one set again.
+    const classSelect = form.getByLabel('Class', { exact: true });
+    await classSelect.selectOption({ index: 1 });
+    await expect(form.getByText('No item sets on this site match this filter.')).toBeVisible();
+    await expect(form.getByRole('link', { name: 'Add item sets to this site' })).toHaveCount(0);
+    await expect(row.getByText('Lists nothing yet')).toBeVisible();
+    await classSelect.selectOption('');
     await expect(form.getByText('Item sets in this site that match: 1.')).toBeVisible();
+    await expect(row.getByText('Lists nothing yet')).toHaveCount(0);
     await expect(form.getByLabel('Item set', { exact: true })).toHaveCount(0);
   } finally {
     await assign([]);

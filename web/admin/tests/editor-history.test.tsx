@@ -76,7 +76,7 @@ const withHandler = (overrides: Readonly<Record<string, Handler>>): ReturnType<t
 
 const renderEditor = async (): Promise<void> => {
   render(<SitesPage param="1" rest={['1', 'pages', '1']} />);
-  await screen.findByRole('listitem', { name: /Block 1: HTML/ });
+  await screen.findByRole('listitem', { name: /Block 1: Text/ });
 };
 
 const puts = (fetchMock: ReturnType<typeof installFetch>): readonly CapturedRequest[] =>

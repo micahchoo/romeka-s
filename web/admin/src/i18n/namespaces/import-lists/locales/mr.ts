@@ -14,7 +14,8 @@ export const mr: ImportListsMessages = {
   'lists.withFilters': 'या फिल्टर्ससह.',
   'lists.changes.one': 'तुम्ही 1 बदल केला आहे.',
   'lists.changes.count': 'तुम्ही {count} बदल केले आहेत.',
-  'lists.changes.many': 'त्यांपैकी {count} एकाच वेळी अनेक बदलतात. फाईल्स किंवा उत्तरे बदलली तरी सर्व टिकून राहतात.',
+  'lists.changes.many':
+    'त्यांपैकी {count} एकाच वेळी अनेक बदलतात. फाईल्स किंवा उत्तरे बदलली तरी सर्व टिकून राहतात.',
   'lists.changes.undoMany': 'एकाच वेळी अनेक आयटमवर केलेला शेवटचा बदल पूर्ववत करा',
   'lists.chart.caption': 'प्रत्येक घटकामध्ये फाईल्स. चुकीचे गट येथे प्रथम दर्शविले आहेत.',
   'lists.chart.bar': '{files} असलेले {count} आयटम. ते दाखवा.',
