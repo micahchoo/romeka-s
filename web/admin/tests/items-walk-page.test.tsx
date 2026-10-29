@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { isRecord, isUnknownArray } from '../src/api/parse';
 import { ItemsPage } from '../src/pages/items/page';
 import { ItemsList } from '../src/pages/items/list';
+import { classRoutes } from './class-routes';
 import { loadFixture } from './loadFixture';
 import { installFetch, jsonResponse, listResponse, requestsFor, route, urlsFor } from './stub';
 import type { Handler } from './stub';
@@ -33,7 +34,7 @@ const set = (): Record<string, unknown> => {
 
 const OPTIONS: Readonly<Record<string, Handler>> = {
   '/api/users': () => jsonResponse(loadFixture('users-page.json')),
-  '/api/resource_classes': () => jsonResponse(loadFixture('resource-classes-page.json')),
+  ...classRoutes,
   '/api/resource_templates': () => jsonResponse(loadFixture('resource-templates-page.json')),
   '/api/resource_templates/2': () => jsonResponse(loadFixture('resource-template-2.json')),
   '/api/properties': () => jsonResponse(loadFixture('properties-page.json')),

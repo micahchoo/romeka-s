@@ -6,6 +6,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { ItemsPage } from '../src/pages/items/page';
+import { classRoutes } from './class-routes';
 import { loadFixture } from './loadFixture';
 import { installFetch, jsonResponse, requestBody, requestsFor } from './stub';
 
@@ -80,7 +81,7 @@ const ORAL_HISTORY = {
 
 const routes: Readonly<Record<string, () => Response>> = {
   '/api/users': () => jsonResponse(loadFixture('users-page.json')),
-  '/api/resource_classes': () => jsonResponse(loadFixture('resource-classes-page.json')),
+  ...classRoutes,
   '/api/resource_templates': () => jsonResponse([ORAL_HISTORY]),
   '/api/properties': () => jsonResponse(PROPERTIES),
   '/api/item_sets': () => jsonResponse([]),

@@ -5,6 +5,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { isRecord } from '../src/api/parse';
 import { MediaPage } from '../src/pages/media/page';
+import { classRoutes } from './class-routes';
 import { loadFixture } from './loadFixture';
 import { installFetch, jsonResponse, requestBody, requestsFor } from './stub';
 
@@ -18,7 +19,7 @@ const mediaFixture = (): Record<string, unknown> => {
 
 const optionsRoutes: Readonly<Record<string, () => Response>> = {
   '/api/users': () => jsonResponse(loadFixture('users-page.json')),
-  '/api/resource_classes': () => jsonResponse(loadFixture('resource-classes-page.json')),
+  ...classRoutes,
   '/api/resource_templates': () => jsonResponse(loadFixture('resource-templates-page.json')),
   '/api/properties': () => jsonResponse(loadFixture('properties-page.json')),
   '/api/item_sets': () => jsonResponse(loadFixture('item-sets-page.json')),

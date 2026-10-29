@@ -3,7 +3,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, useS
 import { api } from '../../api/client';
 import { listMediaForItem } from '../../api/media';
 import { currentUser, subscribeSession } from '../../api/session';
-import type { ClassId, DataType, Item, ItemId, ItemSetId, Media, MediaId, ResourceTemplate, SiteId, User, UserId } from '../../api/types';
+import type { DataType, Item, ItemId, ItemSetId, Media, MediaId, ResourceTemplate, SiteId, User, UserId } from '../../api/types';
 import { fromBrowserEntry, fromDrop } from '../../app/upload/pick';
 import type { Picked } from '../../app/upload/pick';
 import { formatDateTime } from '../../app/format';
@@ -14,9 +14,10 @@ import { useAsync } from '../../app/useAsync';
 import { writtenItems } from '../../app/written';
 import { hashQuery, useHash } from '../../app/router';
 import { useTranslator } from '../../i18n';
-import { useTermLabels } from '../../i18n/termText';
-import { classLabelOf, classLabels, ownerNameOf, userNames } from './labels';
-import type { TermName } from './labels';
+import { loadClassesAndStandards, namedClasses } from '../../app/class-choices';
+import type { NamedClass } from '../../app/class-choices';
+import { useClassNamesOf } from './browse-options';
+import { ownerNameOf, userNames } from './labels';
 import { ItemValues } from './item-values';
 import { annotateHref, mediaHref } from '../media/annotations/link';
 import { useItemNotes } from './notes/use-item-notes';
@@ -77,13 +78,14 @@ interface ItemReads {
   readonly media: readonly Media[];
   readonly mediaTotal: number;
   readonly ownerNames: ReadonlyMap<UserId, string>;
-  readonly classLabels: ReadonlyMap<ClassId, TermName>;
+  /** Every class, so the record's class is told apart from each namesake. */
+  readonly classes: readonly NamedClass[];
   readonly dataTypes: readonly DataType[];
 }
 
 /** The label maps before their reads answer, so a ref falls back to `#id`. */
 const NO_NAMES: ReadonlyMap<UserId, string> = new Map();
-const NO_CLASSES: ReadonlyMap<ClassId, TermName> = new Map();
+const NO_CLASSES: readonly NamedClass[] = [];
 
 const isFileDrag = (event: DragEvent): boolean =>
   event.dataTransfer !== null && Array.from(event.dataTransfer.types).includes('Files');
@@ -301,7 +303,6 @@ const HistoryFold = ({
 
 export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElement => {
   const { t, locale } = useTranslator(common, resources, annotations);
-  const text = useTermLabels();
   const user = useSyncExternalStore(subscribeSession, currentUser);
   // A create hands its record to this page, so the heading and the fields
   // render without reading the item back.
@@ -313,17 +314,17 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
   // The media and the label lookups are separate reads: the record renders as
   // soon as it is known and these fill in when they answer.
   const readsState = useAsync(async (): Promise<ItemReads> => {
-    const [media, users, classes, dataTypes] = await Promise.all([
+    const [media, users, standards, dataTypes] = await Promise.all([
       listMediaForItem(api, itemId, { perPage: MEDIA_PER_PAGE }),
       api.listUsers({ perPage: 100 }),
-      api.listResourceClasses({ perPage: 100 }),
+      loadClassesAndStandards(),
       api.listDataTypes({ perPage: 100 }),
     ]);
     return {
       media: media.items,
       mediaTotal: media.total,
       ownerNames: userNames(users.items),
-      classLabels: classLabels(classes.items),
+      classes: namedClasses(standards.classes, standards.vocabularies),
       dataTypes: dataTypes.items,
     };
   }, [itemId]);
@@ -335,6 +336,7 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
     () => (shownItem === null ? Promise.resolve(null) : loadPlaces(shownItem)),
     [shownItem],
   );
+  const classNamesById = useClassNamesOf(readsState.status === 'ready' ? readsState.data.classes : NO_CLASSES);
   const [panelOpen, setPanelOpen] = useState(false);
   const [added, setAdded] = useState<readonly Media[]>([]);
   const [outlined, setOutlined] = useState<MediaId | null>(null);
@@ -427,7 +429,10 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
   const reads = readsState.status === 'ready' ? readsState.data : null;
   const item = edited ?? itemState.data;
   const ownerName = ownerNameOf(reads?.ownerNames ?? NO_NAMES, item.owner);
-  const classLabel = classLabelOf(reads?.classLabels ?? NO_CLASSES, item.resourceClass, text);
+  const classLabel =
+    item.resourceClass === null
+      ? null
+      : (classNamesById.get(item.resourceClass.id) ?? `#${String(item.resourceClass.id)}`);
   const adding = mayUpdateItem(item, user);
   const places = placesState.status === 'ready' ? placesState.data : null;
   // A failed read of the names falls back to the ids, so the rows still say where the item is.

@@ -24,6 +24,7 @@ import { MediaPage } from '../src/pages/media/page';
 import { SitesPage } from '../src/pages/sites/page';
 import { UserForm } from '../src/pages/users/form';
 import { editorReads } from './editorStubs';
+import { classRoutes } from './class-routes';
 import { loadFixture } from './loadFixture';
 import {
   detached,
@@ -68,7 +69,7 @@ const mediaFixture = (): unknown => loadFixture('media-951.json');
 /** The reference lists every resource form loads beside its own row. */
 const formOptionsRoutes: Readonly<Record<string, Handler>> = {
   '/api/users': () => jsonResponse(loadFixture('users-page.json')),
-  '/api/resource_classes': () => jsonResponse(loadFixture('resource-classes-page.json')),
+  ...classRoutes,
   '/api/resource_templates': () => jsonResponse(loadFixture('resource-templates-page.json')),
   '/api/properties': () => jsonResponse(loadFixture('properties-page.json')),
   '/api/item_sets': () => jsonResponse(loadFixture('item-sets-page.json')),

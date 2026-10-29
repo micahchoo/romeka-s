@@ -7,6 +7,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { isUnknownArray, itemSetIdFromParam } from '../src/api/parse';
 import { ItemSetForm } from '../src/pages/item-sets/form';
+import { classRoutes } from './class-routes';
 import { loadFixture } from './loadFixture';
 import { first, installFetch, jsonResponse, requestBody, requestsFor } from './stub';
 
@@ -24,7 +25,7 @@ const itemSetFixture = (index: number): unknown => {
 
 const optionsRoutes: Readonly<Record<string, () => Response>> = {
   '/api/users': () => jsonResponse(loadFixture('users-page.json')),
-  '/api/resource_classes': () => jsonResponse(loadFixture('resource-classes-page.json')),
+  ...classRoutes,
   '/api/resource_templates': () => jsonResponse(loadFixture('resource-templates-page.json')),
   '/api/properties': () => jsonResponse(loadFixture('properties-page.json')),
   '/api/item_sets': () => jsonResponse(loadFixture('item-sets-page.json')),

@@ -12,12 +12,17 @@ import type {
   ResourceClass,
   ResourceTemplate,
   User,
+  Vocabulary,
 } from '../api/types';
 import { ALL_PAGES_PER_PAGE as PER_PAGE, allPages } from './all-pages';
+import { classNames, loadClassesAndStandards, namedClasses } from './class-choices';
+import type { ClassName } from './class-choices';
 
 export interface FormOptions {
   readonly users: readonly User[];
   readonly classes: readonly ResourceClass[];
+  /** Every standard, so a class whose label another class shares is named with its standard. */
+  readonly vocabularies: readonly Vocabulary[];
   readonly templates: readonly ResourceTemplate[];
   readonly properties: readonly Property[];
   readonly itemSets: readonly ItemSet[];
@@ -25,15 +30,15 @@ export interface FormOptions {
 }
 
 export const loadFormOptions = async (): Promise<FormOptions> => {
-  const [users, classes, templates, properties, itemSets, dataTypes] = await Promise.all([
+  const [users, { classes, vocabularies }, templates, properties, itemSets, dataTypes] = await Promise.all([
     allPages((page) => api.listUsers({ page, perPage: PER_PAGE, sortBy: 'name' })),
-    allPages((page) => api.listResourceClasses({ page, perPage: PER_PAGE, sortBy: 'label' })),
+    loadClassesAndStandards(),
     allPages((page) => api.listResourceTemplates({ page, perPage: PER_PAGE, sortBy: 'label' })),
     allPages((page) => api.listProperties({ page, perPage: PER_PAGE, sortBy: 'label' })),
     allPages((page) => api.listItemSets({ page, perPage: PER_PAGE, sortBy: 'title' })),
     allPages((page) => api.listDataTypes({ page, perPage: PER_PAGE })),
   ]);
-  return { users, classes, templates, properties, itemSets, dataTypes };
+  return { users, classes, vocabularies, templates, properties, itemSets, dataTypes };
 };
 
 export interface Option<IdT extends number> {
@@ -44,12 +49,22 @@ export interface Option<IdT extends number> {
 export const userOptions = (users: readonly User[]): readonly Option<User['id']>[] =>
   users.map((user) => ({ id: user.id, label: user.name }));
 
-/** Each class by its label in the locale `text` speaks, else its term. */
+/**
+ * Each class by its label in the locale `text` speaks, with its standard when
+ * another class shares that label: "Image (Dublin Core Type)".
+ */
 export const classOptions = (
   classes: readonly ResourceClass[],
+  vocabularies: readonly Vocabulary[],
   text: TermLabels,
-): readonly Option<ResourceClass['id']>[] =>
-  classes.map((entry) => ({ id: entry.id, label: text.label(entry.term, entry.label) ?? entry.term }));
+  words: (name: ClassName) => string,
+): readonly Option<ResourceClass['id']>[] => {
+  const names = classNames(namedClasses(classes, vocabularies), text);
+  return classes.map((entry) => {
+    const name = names.get(entry.id);
+    return { id: entry.id, label: name === undefined ? entry.term : words(name) };
+  });
+};
 
 export const templateOptions = (
   templates: readonly ResourceTemplate[],

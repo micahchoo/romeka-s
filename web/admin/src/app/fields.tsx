@@ -9,6 +9,7 @@ import type { ResourceDraft } from './draft';
 import { ErrorNotice } from './errors';
 import { useLesson } from './lessons/lesson';
 import type { FormOptions, Option } from './options';
+import { useClassNameText } from './class-choices';
 import { classOptions, selectedOption, templateOptions, userOptions } from './options';
 import { plainName } from './plain-terms';
 import type { SaveState } from './save';
@@ -154,6 +155,7 @@ export const ResourceFields = ({
   const user = useSession();
   const describe = useDescribeText();
   const text = useTermLabels();
+  const classNameText = useClassNameText();
   const [open, setOpen] = useState(false);
   const selected = templateById(options.templates, draft.resourceTemplate);
   const typeClass = selected?.resourceClass?.id ?? null;
@@ -215,7 +217,7 @@ export const ResourceFields = ({
         <OptionSelect
           id={`${idPrefix}-class`}
           label={t('field.class')}
-          options={classOptions(options.classes, text)}
+          options={classOptions(options.classes, options.vocabularies, text, classNameText)}
           value={draft.resourceClass}
           onChange={(value) => {
             onChange({ ...draft, resourceClass: value });

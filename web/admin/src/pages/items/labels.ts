@@ -3,8 +3,6 @@
  * `src/app/labels.ts` owns the maps; this module keeps the items-local names.
  */
 export {
-  classLabelOf,
-  classLabels,
   ownerNameOf,
   userNames,
 } from '../../app/labels';

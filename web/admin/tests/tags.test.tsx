@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { isRecord, isUnknownArray } from '../src/api/parse';
 import { ItemsPage } from '../src/pages/items/page';
 import { TermListsPage } from '../src/pages/term-lists/page';
+import { classRoutes } from './class-routes';
 import { loadFixture } from './loadFixture';
 import { first, installFetch, jsonResponse, listResponse, requestBody, requestsFor, requestUrl } from './stub';
 import type { CapturedRequest } from './stub';
@@ -71,6 +72,10 @@ const census = (values: readonly (readonly [string, number])[], distinct: string
 });
 
 const itemRoutes = (url: URL): Response => {
+  const classRoute = classRoutes[url.pathname];
+  if (classRoute !== undefined) {
+    return classRoute(url, undefined);
+  }
   switch (url.pathname) {
     case '/api/items/1':
       return jsonResponse(taggedItem());
@@ -80,8 +85,6 @@ const itemRoutes = (url: URL): Response => {
       return jsonResponse(properties());
     case '/api/users':
       return jsonResponse(loadFixture('users-page.json'));
-    case '/api/resource_classes':
-      return jsonResponse(loadFixture('resource-classes-page.json'));
     case '/api/resource_templates':
       return jsonResponse(loadFixture('resource-templates-page.json'));
     case '/api/item_sets':

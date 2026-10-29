@@ -47,6 +47,7 @@ describe('every page of a long list', () => {
       route({
         '/api/users': empty,
         '/api/resource_classes': paged('resource_classes', CLASS_COUNT),
+        '/api/vocabularies': empty,
         '/api/resource_templates': empty,
         '/api/properties': paged('properties', PROPERTY_COUNT),
         '/api/item_sets': empty,

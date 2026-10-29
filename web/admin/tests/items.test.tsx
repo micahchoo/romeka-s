@@ -10,6 +10,7 @@ import { setSession } from '../src/api/session';
 import type { User } from '../src/api/types';
 import { ItemsList } from '../src/pages/items/list';
 import { ItemsPage } from '../src/pages/items/page';
+import { classRoutes, classesWithTwin, vocabulariesWithSchema } from './class-routes';
 import { loadFixture } from './loadFixture';
 
 const requestUrl = (input: RequestInfo | URL): URL => {
@@ -169,8 +170,9 @@ const detailHandler = (url: URL): Response => {
   if (url.pathname === '/api/users') {
     return jsonResponse(loadFixture('users-page.json'));
   }
-  if (url.pathname === '/api/resource_classes') {
-    return jsonResponse(loadFixture('resource-classes-page.json'));
+  const classRoute = classRoutes[url.pathname];
+  if (classRoute !== undefined) {
+    return classRoute(url, undefined);
   }
   if (url.pathname === '/api/resource_templates/2') {
     return jsonResponse(loadFixture('resource-template-2.json'));
@@ -687,6 +689,21 @@ afterEach(() => {
 });
 
 describe('item detail', () => {
+  it('names a class whose label a class of another standard shares with its standard', async () => {
+    installFetch((url) => {
+      if (url.pathname === '/api/resource_classes') {
+        return jsonResponse(classesWithTwin());
+      }
+      if (url.pathname === '/api/vocabularies') {
+        return jsonResponse(vocabulariesWithSchema());
+      }
+      return detailHandler(url);
+    });
+    render(<ItemsPage param="1" />);
+
+    expect(await screen.findByText('Still Image (Dublin Core Type)')).toBeInTheDocument();
+  });
+
   it('show renders fields, media rows and values', async () => {
     const fetchMock = installFetch(detailHandler);
     render(<ItemsPage param="1" />);

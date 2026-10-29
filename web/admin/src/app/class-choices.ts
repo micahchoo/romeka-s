@@ -18,12 +18,13 @@ import { api } from '../api/client';
 import { placesApi } from '../api/places';
 import type { ClassCount, ClassCountType } from '../api/places';
 import type { ClassId, ResourceClass, Vocabulary, VocabularyId } from '../api/types';
-import { getVocabulary } from '../api/vocabularies';
+import { getVocabulary, listVocabularies } from '../api/vocabularies';
 import { useTranslator } from '../i18n';
 import type { KeyOf } from '../i18n';
 import { classFilter } from '../i18n/namespaces/class-filter';
 import { useTermLabels } from '../i18n/termText';
 import type { TermLabels } from '../i18n/termText';
+import { ALL_PAGES_PER_PAGE, allPages } from './all-pages';
 import { useAsync } from './useAsync';
 
 /** What a class name is built from. */
@@ -78,6 +79,18 @@ export const namedClasses = (
     label: entry.label ?? entry.localName,
     vocabularyLabel: standards.get(entry.vocabulary.id) ?? prefixOf(entry.term),
   }));
+};
+
+/** Every class and every standard, read whole. */
+export const loadClassesAndStandards = async (): Promise<{
+  readonly classes: readonly ResourceClass[];
+  readonly vocabularies: readonly Vocabulary[];
+}> => {
+  const [classes, vocabularies] = await Promise.all([
+    allPages((page) => api.listResourceClasses({ page, perPage: ALL_PAGES_PER_PAGE, sortBy: 'label' })),
+    allPages((page) => listVocabularies(api, { page, perPage: ALL_PAGES_PER_PAGE })),
+  ]);
+  return { classes, vocabularies };
 };
 
 /** The choices, in the order of `counts` (the server's: by label, then standard). */
