@@ -120,6 +120,13 @@ export const MediaDetail = ({
     [itemId],
   );
   const itemTitle = itemState.status === 'ready' ? (itemState.data?.title ?? null) : null;
+  // The media's item type names its fields in the value list, as the form does.
+  const templateId =
+    (edited ?? (state.status === 'ready' ? state.data : null))?.resourceTemplate?.id ?? null;
+  const templateState = useAsync(
+    () => (templateId === null ? Promise.resolve(null) : api.getResourceTemplate(templateId)),
+    [templateId],
+  );
 
   // A copy in flight is the one thing this page reads again on its own. The
   // read replaces the document, so a percentage, a settled copy, or a failure
@@ -267,7 +274,10 @@ export const MediaDetail = ({
       )}
 
       <h2>{t('items.valuesHeading')}</h2>
-      <ValuesList values={media.values} />
+      <ValuesList
+        values={media.values}
+        template={templateState.status === 'ready' ? templateState.data : null}
+      />
 
       <EditPanel label={t('media.editLabel')}>
         <MediaEditForm media={media} onSaved={setEdited} />

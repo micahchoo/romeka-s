@@ -10,6 +10,14 @@ import { getMedia, mediaIdFromParam } from '../src/api/media';
 import { MediaPage } from '../src/pages/media/page';
 import { loadFixture } from './loadFixture';
 import { first, installFetch, jsonResponse, listResponse, route, urlsFor } from './stub';
+import { isRecord, isUnknownArray } from '../src/api/parse';
+
+const record = (value: unknown): Record<string, unknown> => {
+  if (!isRecord(value)) {
+    throw new Error('expected a record');
+  }
+  return value;
+};
 
 const ORIGINAL =
   'http://localhost:8124/files/original/e82cef00da75e9c5661a9ee66155ef419cf89988.jpg';
@@ -109,6 +117,47 @@ describe('media detail', () => {
     expect(screen.getByRole('link', { name: 'Original' })).toHaveAttribute('href', ORIGINAL);
 
     expect(first(urlsFor(fetchMock, '/api/media/951')).pathname).toBe('/api/media/951');
+  });
+
+  it('media_show_names_a_value_as_its_item_type_does', async () => {
+    const media = record(loadFixture('media-951.json'));
+    const templates = loadFixture('resource-templates-page.json');
+    if (!isUnknownArray(templates)) {
+      throw new Error('expected a resource templates page');
+    }
+    const photograph = record(first(templates));
+    installFetch(
+      route({
+        '/api/media/951': () =>
+          jsonResponse({
+            ...media,
+            'o:resource_template': { '@id': 'http://localhost/api/resource_templates/2', 'o:id': 2 },
+            'dcterms:description': [
+              { type: 'literal', property_id: 4, property_label: 'Description', is_public: true, '@value': 'A harbour at dusk' },
+            ],
+          }),
+        '/api/resource_templates/2': () =>
+          jsonResponse({
+            ...photograph,
+            'o:resource_template_property': [
+              {
+                'o:property': { '@id': 'http://localhost/api/properties/4', 'o:id': 4 },
+                'o:alternate_label': 'Caption',
+                'o:alternate_comment': null,
+                'o:is_required': false,
+                'o:is_private': false,
+                'o:data_type': [],
+                'o:default_lang': null,
+              },
+            ],
+          }),
+      }),
+    );
+    render(<MediaPage param="951" />);
+
+    expect(await screen.findByText('A harbour at dusk')).toBeInTheDocument();
+    expect(await screen.findByText('Caption', { selector: '.value-field-name' })).toBeInTheDocument();
+    expect(screen.getByText('dcterms:description', { selector: '.value-field-term' })).toBeInTheDocument();
   });
 
   it('media_show_shows_the_upstream_error_with_its_status', async () => {
