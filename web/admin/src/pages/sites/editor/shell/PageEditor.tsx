@@ -123,6 +123,11 @@ export interface PageEditorProps {
 const startDraft = (page: SitePage | null): PageDraft =>
   page === null ? emptyDraft() : fromApi(page, BLOCK_REGISTRY);
 
+/** Whether `target` is a card in the Outline, or a control inside or around one. */
+const onCardOrControl = (target: EventTarget | null): boolean =>
+  target instanceof Element &&
+  target.closest('.canvas-card, button, a, input, select, textarea, [role="dialog"]') !== null;
+
 export const PageEditor = ({
   siteId,
   pageId,
@@ -146,6 +151,10 @@ export const PageEditor = ({
   const preview = usePreview(draft, site.slug, siteId, pageId, siteWide?.settings ?? null);
   const inspector = useRef<HTMLDivElement | null>(null);
   const canvas = useRef<HTMLDivElement | null>(null);
+  /** Whether the last press in the Outline began on a card or a control. Selecting a card on that
+   * press can move the layout, so its release lands elsewhere and the click fires on a common
+   * parent; that click is not a click on the page. */
+  const pressedOnCard = useRef(false);
   const focusAfter = useRef<'inspector' | 'canvas' | null>(null);
 
   const issues = validate(draft);
@@ -382,12 +391,12 @@ export const PageEditor = ({
             aria-label={t('editor.outline')}
             tabIndex={-1}
             ref={canvas}
+            onPointerDown={(event) => {
+              pressedOnCard.current = onCardOrControl(event.target);
+            }}
             onClick={(event) => {
-              // A click that lands on no card and no control is a click on the page itself.
-              if (
-                event.target instanceof Element &&
-                event.target.closest('.canvas-card, button, a, input, select, textarea, [role="dialog"]') === null
-              ) {
+              // A click that starts and ends on no card and no control is a click on the page itself.
+              if (!pressedOnCard.current && !onCardOrControl(event.target)) {
                 deselect();
               }
             }}
