@@ -7,12 +7,14 @@ import type { ReactElement } from 'react';
 import type { DataType, Property } from '../api/types';
 import { useTranslator } from '../i18n';
 import { useTermText } from '../i18n/termComments';
-import { patchValue, removeValue } from './draft';
+import { TAG_TERM, TAG_TYPE } from '../api/tags';
+import { isTag, patchValue, removeValue } from './draft';
 import type { ResourceDraft, ValueDraft } from './draft';
 import {
   addFieldValue,
   addPropertyValue,
   layoutFields,
+  offerField,
   pickTerm,
   setValueType,
   typeChoices,
@@ -25,6 +27,7 @@ import { valueKindWord } from './value-kind';
 import { useLesson } from './lessons/lesson';
 import { isLocalTerm } from './local-fields';
 import { TermHelp, StandardTermPicker } from './standard-term-picker';
+import { isTagField, otherValueType, SubjectTags } from './tags-field';
 import { common } from '../i18n/namespaces/common';
 
 // Most resources hold no term list value, so the picker loads on first use.
@@ -60,7 +63,8 @@ const ValueRow = ({
   const patch = (next: Partial<ValueDraft>): void => {
     onChange(patchValue(draft, value.key, next));
   };
-  const choices = typeChoices(field, value);
+  // A plain-text Subject value is a tag, shown among the tags, so a row there never becomes one.
+  const choices = isTagField(field) ? typeChoices(field, value).filter((type) => type !== TAG_TYPE) : typeChoices(field, value);
   const input = valueInput(value, dataTypes);
   const named = { field: field.label };
   return (
@@ -223,6 +227,10 @@ const FieldGroup = ({
   const rule = field.rule;
   const required = useLesson('required', lessons.required);
   const local = useLesson('local-field', lessons.local);
+  const tagged = isTagField(field);
+  // The Subject field shows its plain-text values as tags, so "Add value" adds another kind.
+  const rows = tagged ? field.values.filter((value) => !isTag(value)) : field.values;
+  const addType = tagged ? otherValueType(field) : rule?.dataTypes[0];
   return (
     <li className="property-field">
       <p className="property-field-head">
@@ -247,9 +255,9 @@ const FieldGroup = ({
       {local.panel}
       {required.panel}
       {field.comment === null ? null : <p className="property-field-comment">{field.comment}</p>}
-      {field.values.length === 0 ? null : (
+      {rows.length === 0 ? null : (
         <ul className="value-rows">
-          {field.values.map((value) => (
+          {rows.map((value) => (
             <ValueRow
               key={value.key}
               idPrefix={idPrefix}
@@ -263,17 +271,28 @@ const FieldGroup = ({
           ))}
         </ul>
       )}
-      <p>
-        <button
-          type="button"
-          aria-label={t('valueField.addValue', { field: field.label })}
-          onClick={() => {
-            onChange(addFieldValue(draft, field));
-          }}
-        >
-          {t('field.addValue')}
-        </button>
-      </p>
+      {tagged ? (
+        <SubjectTags
+          inputId={`${idPrefix}-tags`}
+          labelId={labelId}
+          field={field}
+          draft={draft}
+          onChange={onChange}
+        />
+      ) : null}
+      {tagged && addType === undefined ? null : (
+        <p>
+          <button
+            type="button"
+            aria-label={t('valueField.addValue', { field: field.label })}
+            onClick={() => {
+              onChange(addFieldValue(draft, field, addType));
+            }}
+          >
+            {t('field.addValue')}
+          </button>
+        </p>
+      )}
     </li>
   );
 };
@@ -332,7 +351,11 @@ export const ValuesEditor = ({
   const [created, setCreated] = useState<readonly Property[]>([]);
   const properties = [...loaded, ...created.filter((entry) => !loaded.some((p) => p.id === entry.id))];
   const text = useTermText();
-  const fields = layoutFields(draft.values, template, properties, text);
+  const fields = offerField(
+    layoutFields(draft.values, template, properties, text),
+    properties.find((property) => property.term === TAG_TERM),
+    text,
+  );
   const lessonsOf = showLessons ? fieldLessons(fields) : () => NO_LESSONS;
   return (
     <fieldset className="values-editor">

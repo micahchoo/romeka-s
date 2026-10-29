@@ -90,7 +90,6 @@ export const ml: CommonMessages = {
   'valueField.addValue': '{field}-ലേക്ക് മൂല്യം ചേർക്കുക',
   'valueField.addField': 'മറ്റൊരു ഫീൽഡ് ചേർക്കുക',
   'valueField.addFieldHint': 'അത് വിവരിക്കുക, അല്ലെങ്കിൽ ഒരു പദം ടൈപ്പ് ചെയ്യുക',
-  'tags.legend': 'ടാഗുകൾ',
   'tags.add': 'ഒരു ടാഗ് ചേർക്കുക',
   'tags.hint':
     'പിന്നീട് കാര്യങ്ങൾ കണ്ടെത്താൻ സൗജന്യ വാക്കുകൾ. Enter അമർത്തുകയോ കോമ ടൈപ്പ് ചെയ്യുകയോ ചെയ്ത് ചേർക്കാം.',

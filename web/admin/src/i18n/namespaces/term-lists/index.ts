@@ -40,7 +40,7 @@ export const en = {
   'termPicker.typeLabel': 'Term list: {list}',
   'tags.title': 'Tags',
   'tags.intro': 'Free words people added while describing. When a few keep coming back, make them a list.',
-  'tags.empty': 'No tags yet. Add them in the Tags field of an item, item set or media.',
+  'tags.empty': 'No tags yet. Add them in the Subject field of an item, item set or media.',
   'termLists.tagsLegend': 'Tags to promote',
   'tags.listName': 'List name',
   'tags.listHint': 'A new list, or the name of a list of words you have, to add the tags to it.',

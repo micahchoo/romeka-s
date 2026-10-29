@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { api } from '../../api/client';
 import { updateMedia } from '../../api/media';
 import type { Media, MediaWrite } from '../../api/types';
-import { allValues, toValueWrites, type ResourceDraft } from '../../app/draft';
+import { toValueWrites, type ResourceDraft } from '../../app/draft';
 import { ErrorNotice, FormErrors } from '../../app/errors';
 import { ResourceFields, SaveStatus, SubmitRow, TextField } from '../../app/fields';
 import { loadFormOptions, type FormOptions } from '../../app/options';
@@ -11,7 +11,6 @@ import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { draftErrors, openDraft, templateById } from '../../app/value-fields';
 import { createLocalField } from '../../app/local-fields';
-import { TagsField } from '../../app/tags-field';
 import { ValuesEditor } from '../../app/values-editor';
 import { useTranslator } from '../../i18n';
 import { useTermText } from '../../i18n/termComments';
@@ -55,7 +54,7 @@ const MediaEditor = ({ media, options, onSaved }: MediaEditorProps): ReactElemen
       resourceClass: draft.resourceClass,
       resourceTemplate: draft.resourceTemplate,
       thumbnail: draft.thumbnail,
-      values: toValueWrites(allValues(draft)),
+      values: toValueWrites(draft.values),
       lang: nullable(lang),
       altText: nullable(altText),
     };
@@ -97,12 +96,6 @@ const MediaEditor = ({ media, options, onSaved }: MediaEditorProps): ReactElemen
         properties={options.properties}
         dataTypes={options.dataTypes}
         createField={createLocalField}
-      />
-      <TagsField
-        idPrefix="media"
-        draft={draft}
-        onChange={setDraft}
-        properties={options.properties}
       />
       <FormErrors errors={formErrors} />
       <SaveStatus state={saveState} />

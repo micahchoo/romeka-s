@@ -2,7 +2,7 @@ import type { ReactElement, SyntheticEvent } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
 import type { ItemSet, ItemSetId, ItemSetWrite } from '../../api/types';
-import { allValues, toValueWrites, type ResourceDraft } from '../../app/draft';
+import { toValueWrites, type ResourceDraft } from '../../app/draft';
 import { CheckboxField, ResourceFields, SaveStatus, SubmitRow } from '../../app/fields';
 import { ErrorNotice, FormErrors } from '../../app/errors';
 import { installation } from '../../app/installation';
@@ -11,7 +11,6 @@ import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { draftErrors, openDraft, templateById } from '../../app/value-fields';
 import { createLocalField } from '../../app/local-fields';
-import { TagsField } from '../../app/tags-field';
 import { ValuesEditor } from '../../app/values-editor';
 import { useTranslator } from '../../i18n';
 import { useTermText } from '../../i18n/termComments';
@@ -70,7 +69,7 @@ const ItemSetEditor = ({
       resourceTemplate: draft.resourceTemplate,
       thumbnail: draft.thumbnail,
       isOpen,
-      values: toValueWrites(allValues(draft)),
+      values: toValueWrites(draft.values),
     };
     save(async () => {
       if (itemSetId === null) {
@@ -107,12 +106,6 @@ const ItemSetEditor = ({
           properties={options.properties}
           dataTypes={options.dataTypes}
           createField={createLocalField}
-        />
-        <TagsField
-          idPrefix="item-set"
-          draft={draft}
-          onChange={setDraft}
-          properties={options.properties}
         />
         <FormErrors errors={formErrors} />
         <SaveStatus state={saveState} />

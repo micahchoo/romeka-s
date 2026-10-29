@@ -13,7 +13,7 @@ import { api } from '../../api/client';
 import { loadItemHistory } from '../../api/item-history';
 import type { HistoryChange, HistoryEntry, HistorySet, HistorySource, HistoryValue } from '../../api/item-history';
 import type { Item, ItemId, ItemWrite } from '../../api/types';
-import { allValues, resourceDraftFrom, toValueWrites } from '../../app/draft';
+import { resourceDraftFrom, toValueWrites } from '../../app/draft';
 import { ErrorNotice } from '../../app/errors';
 import { formatDateTime } from '../../app/format';
 import { toError, useAsync } from '../../app/useAsync';
@@ -36,7 +36,7 @@ export const putBackWrite = (item: Item, change: HistoryChange): ItemWrite => {
     resourceClass: draft.resourceClass,
     resourceTemplate: draft.resourceTemplate,
     thumbnail: draft.thumbnail,
-    values: toValueWrites(allValues(draft)),
+    values: toValueWrites(draft.values),
     itemSets: item.itemSets.map((ref) => ref.id),
     primaryMedia: item.primaryMedia?.id ?? null,
     sites: item.sites.map((ref) => ref.id),

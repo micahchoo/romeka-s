@@ -21,7 +21,6 @@ import type {
 import type { KeyOf, MessageKey, TermText, Translator } from '../i18n';
 import type { common } from '../i18n/namespaces/common';
 import {
-  allValues,
   draftKey,
   emptyResourceDraft,
   isBlank,
@@ -153,25 +152,46 @@ export const layoutFields = (
     }
     listed.add(value.propertyId);
     const property = properties.find((candidate) => candidate.id === value.propertyId);
-    others.push({
-      propertyId: value.propertyId,
-      term: value.term,
-      label: (property === undefined ? null : text.label(property.term, property.label)) ?? value.term,
-      comment: property === undefined ? null : fieldDescription(property, text),
-      property: property ?? { term: value.term, localName: value.term, label: null, comment: null },
-      rule: null,
-      values: valuesOf(value.propertyId),
-    });
+    others.push(looseField(value, property, valuesOf(value.propertyId), text));
   }
   return [...fromTemplate, ...others];
 };
 
-/** `makeNewValue`: the row's first data type, its default language and its visibility. */
+/** A field the template does not list, named and described in the locale. */
+const looseField = (
+  of: Pick<ValueDraft, 'propertyId' | 'term'>,
+  property: Property | undefined,
+  values: readonly ValueDraft[],
+  text: TermText,
+): PropertyField => ({
+  propertyId: of.propertyId,
+  term: of.term,
+  label: (property === undefined ? null : text.label(property.term, property.label)) ?? of.term,
+  comment: property === undefined ? null : fieldDescription(property, text),
+  property: property ?? { term: of.term, localName: of.term, label: null, comment: null },
+  rule: null,
+  values,
+});
+
+/**
+ * The fields with `property` added last, empty, when none of them is it yet:
+ * the form offers that field to every resource, before it has a value.
+ */
+export const offerField = (
+  fields: readonly PropertyField[],
+  property: Property | undefined,
+  text: TermText,
+): readonly PropertyField[] =>
+  property === undefined || fields.some((field) => field.propertyId === property.id)
+    ? fields
+    : [...fields, looseField({ propertyId: property.id, term: property.term }, property, [], text)];
+
+/** `makeNewValue`: the row's first data type unless one is named, its default language and its visibility. */
 const blankValue = (
   property: Pick<Property, 'id' | 'term'>,
   rule: FieldRule | null,
+  type: string = rule?.dataTypes[0] ?? 'literal',
 ): ValueDraft => {
-  const type = rule?.dataTypes[0] ?? 'literal';
   return {
     key: draftKey(),
     propertyId: property.id,
@@ -185,10 +205,10 @@ const blankValue = (
   };
 };
 
-/** One more empty value on a field, with the field's defaults. */
-export const addFieldValue = (draft: ResourceDraft, field: PropertyField): ResourceDraft => ({
+/** One more empty value on a field, with the field's defaults, of `type` when one is named. */
+export const addFieldValue = (draft: ResourceDraft, field: PropertyField, type?: string): ResourceDraft => ({
   ...draft,
-  values: [...draft.values, blankValue({ id: field.propertyId, term: field.term }, field.rule)],
+  values: [...draft.values, blankValue({ id: field.propertyId, term: field.term }, field.rule, type)],
 });
 
 /** An empty value for a property the template does not list. */
@@ -278,7 +298,7 @@ export const draftErrors = (
   text: TermText,
 ): readonly string[] => [
   ...missingRequired(
-    layoutFields(allValues(draft), templateById(templates, draft.resourceTemplate), properties, text),
+    layoutFields(draft.values, templateById(templates, draft.resourceTemplate), properties, text),
   ).map((field) => t('valueField.requiredError', { field: field.label })),
   ...valueErrors(draft.values, t),
 ];

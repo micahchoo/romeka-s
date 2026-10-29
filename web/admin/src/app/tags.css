@@ -1,4 +1,4 @@
-/* The Tags field: the tags as removable chips above the entry. Loaded with
+/* The Subject field's tags: removable chips above the entry. Loaded with
  * `tags-field.tsx`, so the initial stylesheet carries none of it. */
 
 .tag-chips {

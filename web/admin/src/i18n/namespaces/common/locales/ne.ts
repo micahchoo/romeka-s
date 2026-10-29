@@ -90,7 +90,6 @@ export const ne: CommonMessages = {
   'valueField.addValue': '{field} मा मान थप्नुहोस्',
   'valueField.addField': 'अर्को क्षेत्र थप्नुहोस्',
   'valueField.addFieldHint': 'यसलाई वर्णन गर्नुहोस्, वा एउटा शब्द टाइप गर्नुहोस्',
-  'tags.legend': 'ट्यागहरू',
   'tags.add': 'ट्याग थप्नुहोस्',
   'tags.hint':
     'पछि कुराहरू खोज्नका लागि नि:शुल्क शब्दहरू। Enter थिच्नुहोस् वा थप्नका लागि अल्पविराम टाइप गर्नुहोस्।',

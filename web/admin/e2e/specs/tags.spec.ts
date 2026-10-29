@@ -1,5 +1,5 @@
 /**
- * Tags end to end: a reader tags an item in its Tags field and the tags are
+ * Tags end to end: a reader tags an item in its Subject field and the tags are
  * stored as plain `dcterms:subject` text; the Term lists page counts them,
  * merges two spellings of one place after a preview, and promotes two tags
  * into a new list after a preview. The promoted values keep their text on the
@@ -53,11 +53,11 @@ test('tags are added on the form, merged and promoted into a term list', async (
   });
   expect(other.status(), await other.text()).toBe(200);
 
-  // The Tags field: Enter and a comma each add a tag.
+  // The Subject field's tags: Enter and a comma each add a tag.
   await page.goto('/#/items/new');
   await page.getByRole('combobox', { name: 'Type', exact: true }).selectOption({ label: TYPE });
   await page.getByRole('textbox', { name: 'Title', exact: true }).fill('E2E first letter');
-  const tags = page.getByRole('group', { name: 'Tags' });
+  const tags = page.getByRole('group', { name: 'Subject' });
   const entry = tags.getByLabel('Add a tag');
   await entry.fill('E2E emigration');
   await entry.press('Enter');

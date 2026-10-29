@@ -1,5 +1,5 @@
 /**
- * Tags in the admin: the Tags field on the item form, and the Term lists
+ * Tags in the admin: the tags of the Subject field on the item form, and the Term lists
  * page's Tags panel with its promotion and merge flows. Every test runs
  * through the real client and parsers against a stubbed fetch.
  */
@@ -31,22 +31,35 @@ const SUBJECT = {
   'o:vocabulary': { '@id': 'http://localhost/api/vocabularies/1', 'o:id': 1 },
 };
 
+const RELATION = {
+  ...SUBJECT,
+  '@id': 'http://localhost/api/properties/12',
+  'o:id': 12,
+  'o:local_name': 'relation',
+  'o:label': 'Relation',
+  'o:comment': 'A related resource.',
+  'o:term': 'dcterms:relation',
+};
+
 const properties = (): unknown[] => {
   const page = loadFixture('properties-page.json');
   if (!isUnknownArray(page)) {
     throw new Error('expected a properties page');
   }
-  return [...page, SUBJECT];
+  return [...page, SUBJECT, RELATION];
 };
 
-/** The item fixture with a tag beside its URI subject heading. */
+/**
+ * The item fixture with a tag beside its URI subject heading, both under the
+ * Subject property of this file (the shared fixture files it under another id).
+ */
 const taggedItem = (): Record<string, unknown> => {
   const item = record(loadFixture('item-1.json'));
   const subjects = item['dcterms:subject'];
   return {
     ...item,
     'dcterms:subject': [
-      ...(isUnknownArray(subjects) ? subjects : []),
+      ...(isUnknownArray(subjects) ? subjects.map((value) => ({ ...record(value), property_id: 40 })) : []),
       { type: 'literal', property_id: 40, property_label: 'Subject', is_public: true, '@value': 'emigration' },
     ],
   };
@@ -84,16 +97,27 @@ const itemRoutes = (url: URL): Response => {
   }
 };
 
+/** The item with tags as its only Subject values, stored between its Title and its Relation. */
+const onlyTagsRoutes = (url: URL): Response =>
+  url.pathname === '/api/items/1'
+    ? jsonResponse({
+        ...taggedItem(),
+        'dcterms:subject': [
+          { type: 'literal', property_id: 40, property_label: 'Subject', is_public: true, '@value': 'emigration' },
+        ],
+      })
+    : itemRoutes(url);
+
 const posts = (fetchMock: ReturnType<typeof installFetch>, path: string): CapturedRequest[] =>
   requestsFor(fetchMock, path).filter((request) => request.init?.method === 'POST');
 
-describe('Tags field', () => {
+describe('Subject field tags', () => {
   it('shows_plain_subject_text_as_tags_and_writes_new_tags_beside_the_heading', async () => {
     const fetchMock = installFetch(itemRoutes);
     render(<ItemsPage param="1" />);
     fireEvent.click(await screen.findByText('Edit this item'));
 
-    const tags = await screen.findByRole('group', { name: 'Tags' });
+    const tags = await screen.findByRole('group', { name: 'Subject' });
     expect(within(tags).getByText('emigration')).toBeInTheDocument();
     expect(screen.queryByDisplayValue('emigration')).toBeNull();
     expect(screen.getByDisplayValue('http://example.org/subjects/fixtures')).toBeInTheDocument();
@@ -123,7 +147,7 @@ describe('Tags field', () => {
     }
     expect(requestBody(put)['dcterms:subject']).toEqual([
       {
-        property_id: 4,
+        property_id: 40,
         type: 'uri',
         '@id': 'http://example.org/subjects/fixtures',
         'o:label': 'Fixtures',
@@ -131,6 +155,36 @@ describe('Tags field', () => {
       },
       { property_id: 40, type: 'literal', '@value': 'emigration', is_public: true },
       { property_id: 40, type: 'literal', '@value': 'the farm', is_public: true },
+    ]);
+  });
+
+  it('keeps_subject_where_the_read_list_shows_it_on_the_form_and_in_the_write', async () => {
+    const fetchMock = installFetch(onlyTagsRoutes);
+    render(<ItemsPage param="1" />);
+    const read = await screen.findAllByText(/^(Title|Subject|Relation)$/, { selector: '.value-field-name' });
+    expect(read.map((name) => name.textContent)).toEqual(['Title', 'Subject', 'Relation']);
+
+    fireEvent.click(screen.getByText('Edit this item'));
+    const form = await screen.findAllByText(/^(Title|Subject|Relation)$/, { selector: '.property-field-label' });
+    expect(form.map((name) => name.textContent)).toEqual(['Title', 'Subject', 'Relation']);
+    expect(screen.queryByRole('group', { name: 'Tags' })).toBeNull();
+
+    const entry = within(screen.getByRole('group', { name: 'Subject' })).getByLabelText('Add a tag');
+    fireEvent.change(entry, { target: { value: 'wartime,' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => {
+      expect(
+        requestsFor(fetchMock, '/api/items/1').filter((request) => request.init?.method === 'PUT'),
+      ).toHaveLength(1);
+    });
+    const put = requestsFor(fetchMock, '/api/items/1').find((request) => request.init?.method === 'PUT');
+    if (put === undefined) {
+      throw new Error('expected a PUT');
+    }
+    expect(Object.keys(requestBody(put)).filter((key) => key.startsWith('dcterms:'))).toEqual([
+      'dcterms:title',
+      'dcterms:subject',
+      'dcterms:relation',
     ]);
   });
 

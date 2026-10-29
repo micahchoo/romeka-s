@@ -2,7 +2,7 @@ import type { ReactElement, SyntheticEvent } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
 import type { Item, ItemSetId, ItemWrite, Site, SiteId } from '../../api/types';
-import { allValues, toValueWrites, type ResourceDraft } from '../../app/draft';
+import { toValueWrites, type ResourceDraft } from '../../app/draft';
 import { CheckboxField, ResourceFields, SaveStatus, SubmitRow } from '../../app/fields';
 import { ErrorNotice, FormErrors } from '../../app/errors';
 import { loadFormOptions, type FormOptions } from '../../app/options';
@@ -10,7 +10,6 @@ import { useSave } from '../../app/save';
 import { useAsync } from '../../app/useAsync';
 import { draftErrors, openDraft, templateById } from '../../app/value-fields';
 import { createLocalField } from '../../app/local-fields';
-import { TagsField } from '../../app/tags-field';
 import { ValuesEditor } from '../../app/values-editor';
 import { writtenItems } from '../../app/written';
 import { useTranslator } from '../../i18n';
@@ -80,7 +79,7 @@ const ItemEditor = ({ item, options, onSaved, saveNext, onCancel }: ItemEditorPr
       resourceClass: draft.resourceClass,
       resourceTemplate: draft.resourceTemplate,
       thumbnail: draft.thumbnail,
-      values: toValueWrites(allValues(draft)),
+      values: toValueWrites(draft.values),
       itemSets,
       primaryMedia: item?.primaryMedia?.id ?? null,
       // A create naming no site leaves `o:site` out, so the synced sites take the item.
@@ -119,12 +118,6 @@ const ItemEditor = ({ item, options, onSaved, saveNext, onCancel }: ItemEditorPr
       {locationFields(options.sites, options.properties).map((field) => (
         <PlaceField key={field.term} field={field} draft={draft} onChange={setDraft} />
       ))}
-      <TagsField
-        idPrefix="item"
-        draft={draft}
-        onChange={setDraft}
-        properties={options.properties}
-      />
       <fieldset>
         <legend>{t('items.setsLegend')}</legend>
         {options.itemSets.length === 0 ? (

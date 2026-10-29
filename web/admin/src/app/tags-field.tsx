@@ -1,68 +1,83 @@
 /**
- * The Tags field of the item, item set and media forms: free words a reader
- * adds while describing, stored as plain-text `dcterms:subject` values so any
- * Omeka S client shows them. It needs no setup; a comma or Enter adds a tag,
- * and the tags already in the archive are offered as you type.
+ * The tags of the Subject field on the item, item set and media forms: free
+ * words a reader adds while describing, stored as plain-text `dcterms:subject`
+ * values so any Omeka S client shows them. They sit in the Subject field among
+ * its other values, so the form, the read list and the write keep Subject in
+ * one place under one name. A comma or Enter adds a tag, and the tags already
+ * in the archive are offered as you type.
  */
 import type { KeyboardEvent, ReactElement } from 'react';
 import { useId, useState } from 'react';
 import { api } from '../api/client';
 import { TAG_TERM, TAG_TYPE, getCensus } from '../api/tags';
-import type { Property } from '../api/types';
 import { useDescribeText } from './describe-messages';
-import { draftKey } from './draft';
-import type { ResourceDraft } from './draft';
+import { draftKey, isBlank, isTag } from './draft';
+import type { ResourceDraft, ValueDraft } from './draft';
+import { CORE_TYPES, type PropertyField } from './value-fields';
 import './tags.css';
 
-/** The draft with these words added as tags, skipping blanks and repeats. */
-export const addTags = (
-  draft: ResourceDraft,
-  subject: Pick<Property, 'id'>,
-  words: readonly string[],
-): ResourceDraft => {
-  const tags = [...draft.tags];
+/** The field whose plain-text values are tags. */
+export const isTagField = (field: Pick<PropertyField, 'term'>): boolean => field.term === TAG_TERM;
+
+/** The tags of the field: its plain-text values with something typed. */
+export const tagsOf = (field: PropertyField): readonly ValueDraft[] =>
+  field.values.filter((value) => isTag(value) && !isBlank(value));
+
+/**
+ * The type "Add value" gives the field's other values: the first it accepts
+ * that is not plain text, or none when it accepts only plain text.
+ */
+export const otherValueType = (field: PropertyField): string | undefined =>
+  (field.rule === null || field.rule.dataTypes.length === 0 ? CORE_TYPES : field.rule.dataTypes).find(
+    (type) => type !== TAG_TYPE,
+  );
+
+/** The draft with these words added as tags of the field, skipping blanks and repeats. */
+export const addTags = (draft: ResourceDraft, field: PropertyField, words: readonly string[]): ResourceDraft => {
+  const added: ValueDraft[] = [];
+  const known = new Set(tagsOf(field).map((tag) => tag.text));
   for (const word of words.map((entry) => entry.trim())) {
-    if (word !== '' && !tags.some((tag) => tag.text === word)) {
-      tags.push({
+    if (word !== '' && !known.has(word)) {
+      known.add(word);
+      added.push({
         key: draftKey(),
-        propertyId: subject.id,
-        term: TAG_TERM,
+        propertyId: field.propertyId,
+        term: field.term,
         type: TAG_TYPE,
         kind: 'literal',
         text: word,
         label: '',
-        lang: '',
-        isPublic: true,
+        lang: field.rule?.defaultLang ?? '',
+        isPublic: !(field.rule?.isPrivate ?? false),
       });
     }
   }
-  return { ...draft, tags };
+  return added.length === 0 ? draft : { ...draft, values: [...draft.values, ...added] };
 };
 
-export const TagsField = ({
-  idPrefix,
+export const SubjectTags = ({
+  inputId,
+  labelId,
+  field,
   draft,
   onChange,
-  properties,
 }: {
-  readonly idPrefix: string;
+  readonly inputId: string;
+  /** The field's name, which names the group. */
+  readonly labelId: string;
+  readonly field: PropertyField;
   readonly draft: ResourceDraft;
   readonly onChange: (draft: ResourceDraft) => void;
-  readonly properties: readonly Property[];
-}): ReactElement | null => {
+}): ReactElement => {
   const d = useDescribeText();
   const [typed, setTyped] = useState('');
   const [known, setKnown] = useState<readonly string[] | null>(null);
   const listId = useId();
-  const subject = properties.find((property) => property.term === TAG_TERM);
-  if (subject === undefined) {
-    return null;
-  }
-  const inputId = `${idPrefix}-tags`;
   const hintId = `${inputId}-hint`;
+  const tags = tagsOf(field);
 
   const commit = (words: readonly string[]): void => {
-    onChange(addTags(draft, subject, words));
+    onChange(addTags(draft, field, words));
   };
   const loadKnown = (): void => {
     if (known !== null) {
@@ -91,14 +106,13 @@ export const TagsField = ({
     }
     setTyped(rest);
   };
-  const offered = (known ?? []).filter((word) => !draft.tags.some((tag) => tag.text === word));
+  const offered = (known ?? []).filter((word) => !tags.some((tag) => tag.text === word));
 
   return (
-    <fieldset className="tags-field">
-      <legend>{d('tags.legend')}</legend>
-      {draft.tags.length === 0 ? null : (
+    <div className="tags-field" role="group" aria-labelledby={labelId}>
+      {tags.length === 0 ? null : (
         <ul className="tag-chips">
-          {draft.tags.map((tag) => (
+          {tags.map((tag) => (
             <li key={tag.key}>
               <span>{tag.text}</span>
               <button
@@ -106,7 +120,7 @@ export const TagsField = ({
                 className="tag-remove"
                 aria-label={d('tags.remove', { tag: tag.text })}
                 onClick={() => {
-                  onChange({ ...draft, tags: draft.tags.filter((entry) => entry !== tag) });
+                  onChange({ ...draft, values: draft.values.filter((entry) => entry.key !== tag.key) });
                 }}
               >
                 ×
@@ -152,6 +166,6 @@ export const TagsField = ({
       <span id={hintId} className="field-hint">
         {d('tags.hint')}
       </span>
-    </fieldset>
+    </div>
   );
 };

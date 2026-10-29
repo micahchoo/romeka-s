@@ -90,7 +90,6 @@ export const mr: CommonMessages = {
   'valueField.addValue': '{field} मध्ये मूल्य जोडा',
   'valueField.addField': 'दुसरे क्षेत्र जोडा',
   'valueField.addFieldHint': 'त्याचे वर्णन करा, किंवा एखादा शब्द टाईप करा',
-  'tags.legend': 'टॅग्स',
   'tags.add': 'टॅग जोडा',
   'tags.hint':
     'नंतर गोष्टी शोधण्यासाठी मोफत शब्द. शोधण्यासाठी Enter दाबा किंवा एक जोडण्यासाठी स्वल्पविराम टाईप करा.',

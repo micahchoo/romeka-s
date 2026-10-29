@@ -45,12 +45,8 @@ export interface ResourceDraft {
   readonly resourceClass: ClassId | null;
   readonly resourceTemplate: TemplateId | null;
   readonly thumbnail: AssetId | null;
+  /** Every value, in the order they are written; the Subject field shows its tags among them. */
   readonly values: readonly ValueDraft[];
-  /**
-   * The tags: plain-text `dcterms:subject` values, edited in the Tags field
-   * and kept out of `values` so the values editor never shows them twice.
-   */
-  readonly tags: readonly ValueDraft[];
 }
 
 let nextKey = 0;
@@ -122,7 +118,6 @@ export const emptyResourceDraft = (): ResourceDraft => ({
   resourceTemplate: null,
   thumbnail: null,
   values: [],
-  tags: [],
 });
 
 /** A tag: a `dcterms:subject` value typed `literal`. A URI or list value there is not one. */
@@ -143,16 +138,9 @@ export const resourceDraftFrom = (entity: ResourceEntity<number>): ResourceDraft
     resourceClass: entity.resourceClass?.id ?? null,
     resourceTemplate: entity.resourceTemplate?.id ?? null,
     thumbnail: entity.thumbnail?.id ?? null,
-    values: drafts.filter((draft) => !isTag(draft)),
-    tags: drafts.filter(isTag),
+    values: drafts,
   };
 };
-
-/** Every value the draft writes: the values editor's, then the tags. */
-export const allValues = (draft: ResourceDraft): readonly ValueDraft[] => [
-  ...draft.values,
-  ...draft.tags,
-];
 
 const emptyToNull = (text: string): string | null => {
   const trimmed = text.trim();
