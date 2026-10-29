@@ -4,6 +4,7 @@
  */
 import { useMemo } from 'react';
 import { useTranslator } from '../../i18n';
+import type { KeyOf } from '../../i18n/namespace';
 import { FIXITY_JOB_CLASS } from '../../api/fixity';
 import { admin } from '../../i18n/namespaces/admin';
 import { fixity } from '../../i18n/namespaces/fixity';
@@ -26,20 +27,40 @@ export const useJobStatusLabel = (): ((status: string | null) => string | null) 
   );
 };
 
+type ClassKey = Extract<KeyOf<typeof admin>, `jobs.class.${string}`>;
+
 /**
- * Romeka's own job classes and the name each reads as: the first importer's
- * (`docs/archive-import.md`, Jobs) and the run and undo of import v2
- * (`docs/import-v2.md`), which read as the same two names.
+ * Every job class this build registers (`omeka-cli` `jobs::job_for`) and the
+ * name it reads as. The first importer's classes (`docs/archive-import.md`,
+ * Jobs) and the run and undo of import v2 (`docs/import-v2.md`) read as the
+ * same two names. The fixity check takes its name from the fixity namespace.
  */
-const CLASS_TEXT: Readonly<Record<string, 'jobs.class.importArchive' | 'jobs.class.undoImport'>> = {
+const CLASS_TEXT: Readonly<Record<string, ClassKey>> = {
+  'Omeka\\Job\\BatchDelete': 'jobs.class.batchDelete',
+  'Omeka\\Job\\BatchUpdate': 'jobs.class.batchUpdate',
+  'Omeka\\Job\\IndexFulltextSearch': 'jobs.class.indexFulltextSearch',
+  'Omeka\\Job\\UpdateSiteItems': 'jobs.class.updateSiteItems',
+  'Romeka\\Job\\BulkRun': 'jobs.class.bulkRun',
+  'Romeka\\Job\\BulkUndo': 'jobs.class.bulkUndo',
   'Romeka\\Job\\ImportArchive': 'jobs.class.importArchive',
   'Romeka\\Job\\UndoImport': 'jobs.class.undoImport',
   'Romeka\\Job\\ImportRun': 'jobs.class.importArchive',
   'Romeka\\Job\\ImportUndo': 'jobs.class.undoImport',
+  'Romeka\\Job\\ImportScan': 'jobs.class.importScan',
+  'Romeka\\Job\\ImportUnzip': 'jobs.class.importUnzip',
+  'Romeka\\Job\\ImportSweep': 'jobs.class.importSweep',
+  'Romeka\\Job\\MediaDerivatives': 'jobs.class.mediaDerivatives',
 };
 
-/** Every job class whose args name an import; the scan has no name of its own. */
-const IMPORT_CLASSES: ReadonlySet<string> = new Set([...Object.keys(CLASS_TEXT), 'Romeka\\Job\\ImportScan']);
+/** Every job class whose args hold `{ "importId": n }`. */
+const IMPORT_CLASSES: ReadonlySet<string> = new Set([
+  'Romeka\\Job\\ImportArchive',
+  'Romeka\\Job\\UndoImport',
+  'Romeka\\Job\\ImportRun',
+  'Romeka\\Job\\ImportUndo',
+  'Romeka\\Job\\ImportScan',
+  'Romeka\\Job\\ImportUnzip',
+]);
 
 /** The archive import a job works on, from its `{ "importId": n }` args, or `null`. */
 export const importOfJob = (jobClass: string, args: unknown): number | null => {

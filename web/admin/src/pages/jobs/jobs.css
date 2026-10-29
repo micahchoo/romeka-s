@@ -5,3 +5,15 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+.job-class {
+  margin-top: 0;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* An import run's args run to hundreds of lines; open, they scroll like the log. */
+.job-args pre {
+  max-height: 32rem;
+  overflow: auto;
+}

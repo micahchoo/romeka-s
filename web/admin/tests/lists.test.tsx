@@ -113,7 +113,7 @@ describe('jobs page', () => {
     );
     render(<JobsPage />);
 
-    expect(await screen.findByText('Omeka\\Job\\UpdateSiteItems')).toBeInTheDocument();
+    expect(await screen.findByText('Site items update')).toBeInTheDocument();
     expect(screen.getByText('Completed')).toBeInTheDocument();
     expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
     expect(screen.getAllByText('Jan 3, 2024, 11:00 AM')).toHaveLength(2);

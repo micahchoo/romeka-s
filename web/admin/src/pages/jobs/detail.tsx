@@ -1,10 +1,12 @@
 import type { ReactElement } from 'react';
 import { api } from '../../api/client';
-import type { Id } from '../../api/types';
+import type { Id, ResourceRef, UserId } from '../../api/types';
 import { DeleteControl } from '../../app/delete';
 import { ErrorNotice } from '../../app/errors';
 import { EditPanel } from '../../app/fields';
 import { formatDateTime } from '../../app/format';
+import { ownerNameOf } from '../../app/labels';
+import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import { FIXITY_JOB_CLASS } from '../../api/fixity';
 import { FixityResult } from './fixity-result';
@@ -31,6 +33,17 @@ const LogView = ({ log }: { readonly log: JobLog | null }): ReactElement | null 
 };
 
 /**
+ * The owner by name, as the list names them, linked to the user. Read once per
+ * owner, not on every poll; until it arrives, or if it cannot be read, the link
+ * reads `#id` as the list's fallback does.
+ */
+const OwnerLink = ({ owner }: { readonly owner: ResourceRef<UserId> }): ReactElement => {
+  const user = useAsync(() => api.getUser(owner.id), [owner.id]);
+  const names = new Map(user.status === 'ready' ? [[user.data.id, user.data.name]] : []);
+  return <a href={`#/users/${String(owner.id)}`}>{ownerNameOf(names, owner)}</a>;
+};
+
+/**
  * `Admin/JobController::showAction` with `::deleteAction`: one job, its columns,
  * its log, and the update and delete controls. While the job runs the page
  * reads it again every 2 seconds. The update writes no member, and the API
@@ -54,31 +67,20 @@ export const JobDetail = ({ jobId }: { readonly jobId: Id<'JobId'> }): ReactElem
   const importId = importOfJob(job.jobClass, job.args);
   return (
     <section>
-      <h2>{t('jobs.rowName', { id: job.id })}</h2>
+      <h2>{classLabel(job.jobClass)}</h2>
+      {classLabel(job.jobClass) === job.jobClass ? null : (
+        <p className="job-class">
+          <code>{job.jobClass}</code>
+        </p>
+      )}
 
       <dl>
         <dt>{t('column.id')}</dt>
         <dd>{job.id}</dd>
-        <dt>{t('column.class')}</dt>
-        <dd>
-          {classLabel(job.jobClass)}
-          {classLabel(job.jobClass) === job.jobClass ? null : (
-            <>
-              {' '}
-              <code>{job.jobClass}</code>
-            </>
-          )}
-        </dd>
         <dt>{t('column.status')}</dt>
         <dd>{statusLabel(job.status) ?? t('common.unknown')}</dd>
         <dt>{t('column.owner')}</dt>
-        <dd>
-          {job.owner === null ? (
-            t('common.noOwner')
-          ) : (
-            <a href={`#/users/${String(job.owner.id)}`}>{`#${String(job.owner.id)}`}</a>
-          )}
-        </dd>
+        <dd>{job.owner === null ? t('common.noOwner') : <OwnerLink owner={job.owner} />}</dd>
         <dt>{t('column.started')}</dt>
         <dd>{job.started === null ? t('common.never') : formatDateTime(job.started, locale)}</dd>
         <dt>{t('column.ended')}</dt>
@@ -93,8 +95,10 @@ export const JobDetail = ({ jobId }: { readonly jobId: Id<'JobId'> }): ReactElem
 
       {job.jobClass === FIXITY_JOB_CLASS ? <FixityResult job={job} /> : null}
 
-      <h3>{t('jobs.args')}</h3>
-      <pre>{JSON.stringify(job.args, null, 2)}</pre>
+      <details className="job-args">
+        <summary>{t('jobs.args')}</summary>
+        <pre>{JSON.stringify(job.args, null, 2)}</pre>
+      </details>
 
       <h3>{t('jobs.log')}</h3>
       {poll.live ? <p className="query-count" role="status">{t('jobs.refreshing')}</p> : null}
