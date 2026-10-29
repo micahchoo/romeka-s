@@ -75,6 +75,20 @@ a {
   }
 }
 
+/* Signed out there is no nav: the sign-in panel stands alone, at a form's width. */
+.shell.shell--gate {
+  grid-template-areas:
+    "header"
+    "main";
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+}
+
+.shell--gate .app-main {
+  max-width: 32rem;
+  margin-inline: auto;
+}
+
 .app-header {
   grid-area: header;
   display: flex;

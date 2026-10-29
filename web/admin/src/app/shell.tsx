@@ -151,16 +151,9 @@ const useSessionProbe = (): void => {
   }, []);
 };
 
-const NavLink = ({
-  id,
-  active,
-  role,
-}: {
-  readonly id: AdminPageId;
-  readonly active: boolean;
-  readonly role: string | null;
-}): ReactElement | null => {
+const NavLink = ({ id, active }: { readonly id: AdminPageId; readonly active: boolean }): ReactElement | null => {
   const { t } = useTranslator();
+  const role = useSession()?.role ?? null;
   if (!offeredTo(PAGES[id], role)) {
     return null;
   }
@@ -177,13 +170,10 @@ const NavLink = ({
 const NavLinks = ({
   pages,
   activeId,
-  role,
 }: {
   readonly pages: readonly AdminPageId[];
   readonly activeId: AdminPageId | null;
-  readonly role: string | null;
-}): ReactElement[] =>
-  pages.map((id) => <NavLink key={id} id={id} active={activeId === id} role={role} />);
+}): ReactElement[] => pages.map((id) => <NavLink key={id} id={id} active={activeId === id} />);
 
 /** The gap left before a link the strip scrolls to, so it does not touch the edge. */
 const NAV_STRIP_INSET = 16;
@@ -215,8 +205,8 @@ const useActiveLinkInView = (activeId: AdminPageId | null): RefObject<HTMLElemen
       return undefined;
     }
     bringActiveLinkIntoView(nav);
-    // A link shown only once the session answers can land before the active
-    // one after this first pass and push it out of the strip again.
+    // A link that renders after this first pass, such as a saved list, can land
+    // before the active one and push it out of the strip again.
     const observer = new MutationObserver(() => {
       bringActiveLinkIntoView(nav);
     });
@@ -231,19 +221,18 @@ const useActiveLinkInView = (activeId: AdminPageId | null): RefObject<HTMLElemen
 const AdminNav = ({ activeId }: { readonly activeId: AdminPageId | null }): ReactElement => {
   const { t } = useTranslator();
   const ref = useActiveLinkInView(activeId);
-  const role = useSession()?.role ?? null;
   return (
     <nav className="app-nav" aria-label={t('shell.navLabel')} ref={ref}>
       {PAGE_GROUPS.map((group) => (
         <section key={group.id} className="nav-group">
           <h2 className="nav-group-title">{t(group.titleKey)}</h2>
           <ul className="nav-list">
-            <NavLinks pages={group.pages} activeId={activeId} role={role} />
+            <NavLinks pages={group.pages} activeId={activeId} />
             {group.sub === undefined ? null : (
               <li className="nav-sub">
                 <h3 className="nav-sub-title">{t(group.sub.titleKey)}</h3>
                 <ul className="nav-list">
-                  <NavLinks pages={group.sub.pages} activeId={activeId} role={role} />
+                  <NavLinks pages={group.sub.pages} activeId={activeId} />
                 </ul>
               </li>
             )}
@@ -290,7 +279,7 @@ const DocumentTitle = ({ pageTitle }: { readonly pageTitle: string | null }): nu
 const SignInGate = ({ answered }: { readonly answered: boolean }): ReactElement => {
   const { t } = useTranslator();
   return (
-    <div className="shell">
+    <div className="shell shell--gate">
       <header className="app-header">
         <LocaleSwitch />
       </header>
@@ -298,7 +287,7 @@ const SignInGate = ({ answered }: { readonly answered: boolean }): ReactElement 
         <h1>{t('app.title', { title: useInstallation().title })}</h1>
         {answered ? (
           <>
-            <p>{t('auth.gateLead')}</p>
+            <p className="lede">{t('auth.gateLead')}</p>
             <SignInPanel />
           </>
         ) : (

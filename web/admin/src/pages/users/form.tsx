@@ -59,7 +59,7 @@ const UserEditor = ({
 }): ReactElement => {
   const { t } = useTranslator(common, admin);
   const session = useSession();
-  // The server refuses an admin's own role, switch and delete (`IsSelf`).
+  // The server refuses anyone a change to their own role or switch, and a delete of their own account.
   const ownAccount = user !== null && session?.id === user.id;
   const [name, setName] = useState(user?.name ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
