@@ -46,6 +46,7 @@ const VERSION_LIST = [
   {
     'o:version': 3,
     'o:created': at(`${today}T14:02:00+00:00`),
+    'o:origin': 'save',
     'o:user': { 'o:id': 2, 'o:name': 'Ana' },
     'o:author': 'user',
     'o:block_count': 6,
@@ -64,6 +65,7 @@ const VERSION_LIST = [
   {
     'o:version': 2,
     'o:created': at(LOADED),
+    'o:origin': 'save',
     'o:user': null,
     'o:author': 'deleted_user',
     'o:block_count': 1,
@@ -72,6 +74,7 @@ const VERSION_LIST = [
   {
     'o:version': 1,
     'o:created': at('2024-01-01T09:00:00+00:00'),
+    'o:origin': 'before_history',
     'o:user': null,
     'o:author': 'not_recorded',
     'o:block_count': 1,
@@ -158,6 +161,32 @@ describe('the page history panel', () => {
     expect(entries.map((entry) => entry.lastElementChild?.textContent)).toEqual([
       'No changes',
       'Older versions are no longer kept',
+    ]);
+  });
+
+  it('says Created for the version a page create made, with who created it', async () => {
+    const created = [
+      VERSION_LIST[0],
+      {
+        'o:version': 1,
+        'o:created': at('2024-01-01T09:00:00+00:00'),
+        'o:origin': 'create',
+        'o:user': { 'o:id': 3, 'o:name': 'Ben' },
+        'o:author': 'user',
+        'o:block_count': 1,
+        'o:changes': null,
+      },
+    ];
+    withHandler({ [`GET ${VERSIONS}`]: () => jsonResponse(created) });
+    await renderEditor();
+
+    fireEvent.click(screen.getByRole('button', { name: 'History' }));
+
+    const panel = await screen.findByRole('region', { name: 'Page history' });
+    const entries = await within(panel).findAllByRole('button', { name: / · / });
+    expect(Array.from(entries[1]?.children ?? [], (line) => line.textContent)).toEqual([
+      'Jan 1, 2024, 9:00 AM · Ben · 1 block',
+      'Created',
     ]);
   });
 

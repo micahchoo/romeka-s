@@ -9,7 +9,7 @@ import { useEffect, useRef } from 'react';
 import type { PageAuthor } from '../../../../api/types';
 import { useTranslator } from '../../../../i18n';
 import { versionTime } from './versionTime';
-import { editor } from '../../../../i18n/namespaces/editor';
+import { pageHistory } from '../../../../i18n/namespaces/page-history';
 
 export interface ConflictDialogProps {
   /** When the stored page was saved, `null` when the server did not say. */
@@ -30,7 +30,7 @@ export const ConflictDialog = ({
   onKeepMine,
   onClose,
 }: ConflictDialogProps): ReactElement => {
-  const translator = useTranslator(editor);
+  const translator = useTranslator(pageHistory);
   const { t } = translator;
   const first = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {

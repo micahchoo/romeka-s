@@ -2,16 +2,18 @@
 //!
 //! `SitePageAdapter::hydrate` sets the site (on create), the title, slug,
 //! visibility, layout and layout data, then replaces the page's blocks through
-//! `hydrateBlocks`. A new page with no blocks gets one `pageTitle` block. Each
+//! `hydrateBlocks`. A new page with no blocks gets one `pageTitle` block. A
+//! create is one transaction that also records the page as version 1 of its
+//! history ([`omeka_db::repos::PageVersionRepo::create`]). Each
 //! block carries a layout and its data; `JSON_FORCE_OBJECT` semantics mean an
 //! empty data object is stored as an empty array, which
 //! [`crate::write::body::php_json`] reproduces.
 
-use omeka_db::ids::{BlockId, ItemId, MediaId, PageId, ResourceId, SiteId};
-use omeka_db::repos::{ItemRepo, MediaRepo, PageVersionRepo, SiteBlockAttachmentRepo, SiteRepo};
+use omeka_db::ids::{ItemId, MediaId, PageId, ResourceId, SiteId};
+use omeka_db::repos::{ItemRepo, MediaRepo, PageVersionRepo, SiteRepo};
 use omeka_db::rows::{
-    BlockChange, NewPageAttachment, NewPageBlock, NewSiteBlock, NewSiteBlockAttachment,
-    NewSitePage, PageSave, PageSaveOutcome, SitePageRow,
+    BlockChange, NewPageAttachment, NewPageBlock, NewSitePage, PageCreate, PageSave,
+    PageSaveOutcome, SitePageRow,
 };
 use omeka_db::with_db;
 use serde_json::Value;
@@ -106,20 +108,29 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
         .to_string();
     let slug = slug_or_auto(payload, &title);
     validate(api, None, site.id, &title, &slug).await?;
+    let stored = resolve_blocks(api, &blocks).await?;
     let taken = taken_or_db_error("o:slug", messages::slug_taken(&slug));
-    let page = with_db!(api.pool(), |db| SiteRepo::new(db)
-        .add_page(&NewSitePage {
-            site_id: site.id,
-            slug,
-            title,
-            is_public: payload.bool_member("o:is_public", true),
-            layout: payload.str_member("o:layout").map(str::to_string),
-            layout_data: payload.get("o:layout_data").map(php_json),
-            ..NewSitePage::default()
-        })
+    let new = NewSitePage {
+        site_id: site.id,
+        slug,
+        title,
+        is_public: payload.bool_member("o:is_public", true),
+        layout: payload.str_member("o:layout").map(str::to_string),
+        layout_data: payload.get("o:layout_data").map(php_json),
+        ..NewSitePage::default()
+    };
+    let snapshot = crate::read::page_snapshot(api.base());
+    let page = with_db!(api.pool(), |db| PageVersionRepo::new(db)
+        .create(
+            &PageCreate {
+                page: &new,
+                blocks: &stored,
+                user: api.actor().user(),
+            },
+            &snapshot
+        )
         .await)
     .map_err(taken)?;
-    store_blocks(api, page.id, &blocks).await?;
     fulltext::reindex(api, "site_pages", ResourceId(page.id.0)).await?;
     api.read_member("site_pages", &page.id.0.to_string()).await
 }
@@ -368,50 +379,7 @@ fn parse_attachments(object: &serde_json::Map<String, Value>) -> Vec<RawAttachme
         .collect()
 }
 
-async fn store_blocks(api: &Api<'_>, page: PageId, blocks: &[Block]) -> Result<(), ApiError> {
-    for (index, block) in blocks.iter().enumerate() {
-        let row = with_db!(api.pool(), |db| SiteRepo::new(db)
-            .add_block(&NewSiteBlock {
-                page_id: page,
-                layout: block.layout.clone(),
-                data: block.data.clone(),
-                layout_data: block.layout_data.clone(),
-                position: index as i64 + 1,
-            })
-            .await)
-        .map_err(db_error)?;
-        store_attachments(api, row.id, &block.attachments).await?;
-    }
-    Ok(())
-}
-
-/// `SitePageAdapter::hydrateAttachments`: resolve each attachment's item and
-/// media and write the block's rows in input order.
-async fn store_attachments(
-    api: &Api<'_>,
-    block: BlockId,
-    attachments: &[RawAttachment],
-) -> Result<(), ApiError> {
-    for (index, attachment) in resolve_attachments(api, attachments)
-        .await?
-        .into_iter()
-        .enumerate()
-    {
-        with_db!(api.pool(), |db| SiteBlockAttachmentRepo::new(db)
-            .create(&NewSiteBlockAttachment {
-                block_id: block,
-                item_id: attachment.item,
-                media_id: attachment.media,
-                caption: attachment.caption,
-                position: index as i64 + 1,
-            })
-            .await)
-        .map_err(db_error)?;
-    }
-    Ok(())
-}
-
-/// Resolve each attachment's item and media the way `store_attachments` stores
+/// Resolve each attachment's item and media the way a create or save stores
 /// them.
 ///
 /// A missing item is stored as a null reference (upstream catches
