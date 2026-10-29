@@ -73,7 +73,7 @@ test('History states a change and puts the old value back as an edit of its own'
   await newest.getByRole('button', { name: 'Put this value back' }).click();
   await expect(history.getByRole('status')).toHaveText('The value is back. The newest change at the top says so.');
   await expect(newest.getByText('Date: c. 1950 → 1950')).toBeVisible();
-  await expect(page.locator('.table-values').getByText('1950', { exact: true })).toBeVisible();
+  await expect(page.locator('.value-list').getByText('1950', { exact: true })).toBeVisible();
   const item = record(await (await request.get(`/api/items/${String(id)}`)).json(), 'item');
   const dates = item['dcterms:date'];
   expect(isArray(dates) ? dates.map((value) => record(value, 'date')['@value']) : []).toEqual(['1950']);

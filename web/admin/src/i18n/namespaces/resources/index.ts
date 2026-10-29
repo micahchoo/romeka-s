@@ -18,10 +18,6 @@ export const en = {
   'loading.media': 'Loading media...',
   // Value tables.
   'values.none': 'No values.',
-  'values.property': 'Property',
-  'values.type': 'Type',
-  'values.value': 'Value',
-  'values.tableLabel': 'Values for {term}',
   'field.resourceTemplate': 'Resource template',
   'column.modified': 'Modified',
   // Resource pages.

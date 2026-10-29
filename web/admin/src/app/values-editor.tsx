@@ -7,7 +7,6 @@ import type { ReactElement } from 'react';
 import type { DataType, Property } from '../api/types';
 import { useTranslator } from '../i18n';
 import { useTermText } from '../i18n/termComments';
-import type { KeyOf, MessageKey, Translator } from '../i18n';
 import { patchValue, removeValue } from './draft';
 import type { ResourceDraft, ValueDraft } from './draft';
 import {
@@ -22,34 +21,16 @@ import {
   type TemplateLayout,
 } from './value-fields';
 import { useDescribeText } from './describe-messages';
+import { valueKindWord } from './value-kind';
 import { useLesson } from './lessons/lesson';
 import { isLocalTerm } from './local-fields';
 import { TermHelp, StandardTermPicker } from './standard-term-picker';
 import { common } from '../i18n/namespaces/common';
 
-/** A message id this file names: the shell's or its namespaces'. */
-type MessageId = MessageKey | KeyOf<typeof common>;
-
 // Most resources hold no term list value, so the picker loads on first use.
 const TermPicker = lazy(() =>
   import('../pages/term-lists/term-picker').then((module) => ({ default: module.TermPicker })),
 );
-
-const CORE_TYPE_LABELS = {
-  literal: 'field.kindText',
-  uri: 'field.kindUri',
-  resource: 'field.kindResource',
-} as const;
-
-const isCoreType = (type: string): type is keyof typeof CORE_TYPE_LABELS =>
-  type in CORE_TYPE_LABELS;
-
-const typeLabel = (type: string, dataTypes: readonly DataType[], t: Translator<MessageId>['t']): string => {
-  if (isCoreType(type)) {
-    return t(CORE_TYPE_LABELS[type]);
-  }
-  return dataTypes.find((dataType) => dataType.id === type)?.label ?? type;
-};
 
 interface Change {
   readonly draft: ResourceDraft;
@@ -97,7 +78,7 @@ const ValueRow = ({
           >
             {choices.map((type) => (
               <option key={type} value={type}>
-                {typeLabel(type, dataTypes, t)}
+                {valueKindWord(type, dataTypes, t)}
               </option>
             ))}
           </select>

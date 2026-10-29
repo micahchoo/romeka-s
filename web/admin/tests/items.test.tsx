@@ -150,6 +150,9 @@ const detailHandler = (url: URL): Response => {
   if (url.pathname === '/api/resource_templates/2') {
     return jsonResponse(loadFixture('resource-template-2.json'));
   }
+  if (url.pathname === '/api/data_types') {
+    return jsonResponse(loadFixture('data-types-page.json'));
+  }
   // The item names set 4; the page reads it back by id.
   if (url.pathname === '/api/item_sets' && url.searchParams.get('id') === '4') {
     return jsonResponse([{ ...setFixture(0), 'o:id': 4, 'o:title': 'Box 12 letters' }]);
@@ -439,8 +442,8 @@ describe('item detail', () => {
       'http://example.org/subjects/fixtures',
     );
     expect(screen.getByText('Fixture Item Two (items)')).toBeInTheDocument();
-    const langCell = screen.getByText('Fixture Item One', { selector: 'td' });
-    expect(langCell.textContent).toBe('Fixture Item One (en)');
+    const langText = screen.getByText('Fixture Item One', { selector: '.value-text' });
+    expect(langText.textContent).toBe('Fixture Item One (en)');
 
     expect(screen.getByText('Oct 16, 2026, 9:30 AM')).toBeInTheDocument();
     expect(screen.getByText('Oct 16, 2026, 10:15 AM')).toBeInTheDocument();
