@@ -43,6 +43,7 @@ import type {
   PageSaveResult,
   PageVersionAuthor,
   PageVersionChanges,
+  PageVersionOrigin,
   PageVersionSummary,
   SitePage,
   SitePageBlock,
@@ -864,6 +865,21 @@ const parsePageAuthor = (value: unknown, path: Path): PageAuthor => {
   };
 };
 
+const VERSION_ORIGINS: Readonly<Record<string, PageVersionOrigin>> = {
+  before_history: 'beforeHistory',
+  create: 'create',
+  save: 'save',
+};
+
+const parseVersionOrigin = (object: Record<string, unknown>, path: Path): PageVersionOrigin => {
+  const raw = asString(field(object, 'o:origin', path), [...path, 'o:origin']);
+  const origin = VERSION_ORIGINS[raw];
+  if (origin === undefined) {
+    throw new ParseError([...path, 'o:origin'], 'before_history, create or save');
+  }
+  return origin;
+};
+
 const parseVersionAuthor = (object: Record<string, unknown>, path: Path): PageVersionAuthor => {
   const state = asString(field(object, 'o:author', path), [...path, 'o:author']);
   const user = nullableField(object, 'o:user', path, parsePageAuthor);
@@ -920,6 +936,7 @@ export const parsePageVersionSummary: Parser<PageVersionSummary> = (raw, path = 
   return {
     version: asIdNumber(field(object, 'o:version', path), [...path, 'o:version']),
     created: asDateTime(field(object, 'o:created', path), [...path, 'o:created']),
+    origin: parseVersionOrigin(object, path),
     author: parseVersionAuthor(object, path),
     blockCount: asNumber(field(object, 'o:block_count', path), [...path, 'o:block_count']),
     changes: nullableField(object, 'o:changes', path, parseVersionChanges),

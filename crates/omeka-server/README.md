@@ -414,15 +414,18 @@ for most item filters, so a page-by-page stream would repeat that load per page.
 
 ## Page history
 
-Every `PUT` or `PATCH` of a site page is one transaction that also stores the page document it
-makes as a version (`omeka_db::repos::PageVersionRepo::save`). A page's first save also keeps the
-state it replaced, with no user. A page keeps its newest 100 versions, and deleting the page
+Every `POST`, `PUT` or `PATCH` of a site page is one transaction that also stores the page document
+it makes as a version (`omeka_db::repos::PageVersionRepo::create` and `::save`). A create is
+version 1 with `o:origin` `create`. The first save of a page with no version (one made before
+history, or by a site create) also keeps the state it replaced, as `before_history` with no user.
+`o:author` follows `o:origin`: `not_recorded` for `before_history`, else `user`, or `deleted_user`
+once the user is deleted. A page keeps its newest 100 versions, and deleting the page
 deletes them. These routes are a Romeka addition (`src/page_versions.rs`, logic in
 `omeka_api::page_history`):
 
 | Route | Response |
 | --- | --- |
-| `GET /api/site_pages/:id/versions` | 200, newest first: `[{o:version, o:created, o:user: {o:id, o:name} \| null, o:author, o:block_count, o:changes}]`; 403, 404 |
+| `GET /api/site_pages/:id/versions` | 200, newest first: `[{o:version, o:created, o:origin, o:user: {o:id, o:name} \| null, o:author, o:block_count, o:changes}]`; 403, 404 |
 | `GET /api/site_pages/:id/versions/:version` | 200, the page document that version stored; 403, 404 |
 
 The caller must be signed in and able to read the page; anonymous is 403 even for a public page,

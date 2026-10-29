@@ -1,8 +1,8 @@
 //! A site page's version history and its save conflict check (Romeka additions).
 //!
-//! Every save stores the page document it makes as a version
-//! ([`omeka_db::repos::PageVersionRepo::save`]). `GET /api/site_pages/{id}/versions` lists them,
-//! newest first, each with who saved it and what it changed against the version before it
+//! Every create and save stores the page document it makes as a version
+//! ([`omeka_db::repos::PageVersionRepo`]). `GET /api/site_pages/{id}/versions` lists them,
+//! newest first, each with what made it, who, and what it changed against the version before it
 //! ([`crate::page_changes`]), and `GET /api/site_pages/{id}/versions/{version}` answers one
 //! version's document.
 //! Both need a signed-in caller who may read the page.
@@ -14,7 +14,7 @@
 use chrono::{DateTime, NaiveDateTime};
 use omeka_db::ids::{PageId, UserId};
 use omeka_db::repos::{PageVersionRepo, SiteRepo, UserRepo};
-use omeka_db::rows::{PageVersionRow, VersionAuthor};
+use omeka_db::rows::{PageVersionOrigin, PageVersionRow, VersionAuthor};
 use omeka_db::with_db;
 use serde::Serialize;
 use serde_json::Value;
@@ -71,15 +71,36 @@ async fn user_ref(api: &Api<'_>, id: UserId) -> Result<Option<SavedBy>, ApiError
         }))
 }
 
+/// What made a version, as the list names it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum Origin {
+    /// The state the page had before its first recorded save.
+    BeforeHistory,
+    /// The page create.
+    Create,
+    Save,
+}
+
+impl From<PageVersionOrigin> for Origin {
+    fn from(origin: PageVersionOrigin) -> Self {
+        match origin {
+            PageVersionOrigin::BeforeHistory => Self::BeforeHistory,
+            PageVersionOrigin::Create => Self::Create,
+            PageVersionOrigin::Save => Self::Save,
+        }
+    }
+}
+
 /// Whether a version names its author, and why not when it does not.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 enum AuthorState {
-    /// `o:user` names who saved it.
+    /// `o:user` names who made it.
     User,
     /// The state the page had before its first recorded save.
     NotRecorded,
-    /// The user who saved it was deleted.
+    /// The user who made it was deleted.
     DeletedUser,
 }
 
@@ -90,6 +111,8 @@ struct VersionEntry {
     version: u32,
     #[serde(rename = "o:created")]
     created: JsonLdDate,
+    #[serde(rename = "o:origin")]
+    origin: Origin,
     #[serde(rename = "o:user")]
     user: Option<SavedBy>,
     #[serde(rename = "o:author")]
@@ -131,6 +154,7 @@ async fn entry(
     Ok(VersionEntry {
         version: row.version,
         created: jsonld_date(row.created),
+        origin: row.origin.into(),
         user,
         author,
         block_count: row

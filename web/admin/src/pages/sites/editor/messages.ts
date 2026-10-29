@@ -48,11 +48,6 @@ const COUNTED = {
   toolbarIssues: { one: 'editor.issueOne', other: 'editor.issueCount' },
   attachments: { one: 'canvas.attachmentsOne', other: 'canvas.attachments' },
   pages: { one: 'canvas.pagesOne', other: 'canvas.pages' },
-  blocksAdded: { one: 'history.addedOne', other: 'history.added' },
-  blocksRemoved: { one: 'history.removedOne', other: 'history.removed' },
-  blocksChanged: { one: 'history.changedOne', other: 'history.changed' },
-  blocksChangedNamed: { one: 'history.changedNamedOne', other: 'history.changedNamed' },
-  blocksMoved: { one: 'history.movedOne', other: 'history.moved' },
 } as const satisfies Readonly<Record<string, { one: EditorMessageKey; other: EditorMessageKey }>>;
 
 /** The message for `count` of `noun`, with `count` and `params` filled in. */
