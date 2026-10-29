@@ -51,7 +51,7 @@ test('an upstream vocabulary route lands on its Standards tab', async ({ page, d
     'aria-current',
     'page',
   );
-  await expect(page.getByRole('link', { name: 'Standards' })).toHaveAttribute(
+  await expect(page.getByRole('navigation', { name: 'Admin pages' }).getByRole('link', { name: 'Standards' })).toHaveAttribute(
     'aria-current',
     'page',
   );

@@ -71,7 +71,8 @@ test('choosing a template lays out its rows, applies its class and enforces its 
 
   await page.goto('/#/items/new');
   await page.getByRole('combobox', { name: 'Item type', exact: true }).selectOption({ label });
-  await expect(fieldLabels(page)).toHaveText(['Interviewee', 'Title', 'Interview notes']);
+  // Subject follows the template rows: the form offers its tags to every resource.
+  await expect(fieldLabels(page)).toHaveText(['Interviewee', 'Title', 'Interview notes', 'Subject']);
   await expect(page.getByText('Standard class: Sound recording')).toBeVisible();
   await page.locator('summary', { hasText: 'Advanced' }).click();
   await expect(page.getByLabel('Class')).toHaveValue(String(sound));

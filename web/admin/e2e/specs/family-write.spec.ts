@@ -20,13 +20,13 @@ test('a vocabulary is created, renamed and deleted', async ({ page, diagnostics 
   const renamed = `${name} renamed`;
 
   await page.goto('/#/vocabularies');
-  await page.getByRole('link', { name: 'Add vocabulary' }).click();
+  await page.getByRole('link', { name: 'Add standard' }).click();
   await expect(page).toHaveURL(/#\/standards\/vocabularies\/new$/);
 
   await page.locator('#vocabulary-namespace-uri').fill('http://example.org/e2e/');
   await page.locator('#vocabulary-prefix').fill('e2evocab');
   await page.locator('#vocabulary-label').fill(name);
-  await page.getByRole('button', { name: 'Add vocabulary' }).click();
+  await page.getByRole('button', { name: 'Add standard' }).click();
 
   await expect(page).toHaveURL(/#\/standards\/vocabularies\/\d+$/);
   await expect(page.getByRole('heading', { name })).toBeVisible();
@@ -57,7 +57,7 @@ test('a resource class is created, renamed and deleted', async ({ page, diagnost
   const term = `dcterms:${localName}`;
 
   await page.goto('/#/resource-classes');
-  await page.getByRole('link', { name: 'Add resource class' }).click();
+  await page.getByRole('link', { name: 'Add class' }).click();
   await expect(page).toHaveURL(/#\/standards\/classes\/new$/);
 
   await page.locator('#member-resource_classes-vocabulary').selectOption({
@@ -65,20 +65,20 @@ test('a resource class is created, renamed and deleted', async ({ page, diagnost
   });
   await page.locator('#member-resource_classes-local-name').fill(localName);
   await page.locator('#member-resource_classes-label').fill(localName);
-  await page.getByRole('button', { name: 'Add resource class' }).click();
+  await page.getByRole('button', { name: 'Add class' }).click();
 
   await expect(page).toHaveURL(/#\/standards\/classes\/\d+$/);
   await expect(page.getByRole('heading', { name: localName })).toBeVisible();
   await expectClean(diagnostics, 'resource class create');
 
-  await page.getByRole('button', { name: 'Edit this resource class' }).click();
+  await page.getByRole('button', { name: 'Edit this class' }).click();
   await page.locator('#member-resource_classes-label').fill(renamed);
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.locator('[role=status]')).toHaveText('Saved.');
   await expect(page.getByRole('heading', { name: renamed })).toBeVisible();
   await expectClean(diagnostics, 'resource class rename');
 
-  await page.getByRole('button', { name: 'Delete this resource class' }).click();
+  await page.getByRole('button', { name: 'Delete this class' }).click();
   await page.getByRole('button', { name: `Delete ${renamed}` }).click();
 
   await expect(page).toHaveURL(/#\/standards\/classes$/);
@@ -159,7 +159,7 @@ test('a vocabulary edit keeps the properties it already has', async ({ page, dia
   await page.locator('#vocabulary-namespace-uri').fill('http://example.org/keep/');
   await page.locator('#vocabulary-prefix').fill('e2ekeep');
   await page.locator('#vocabulary-label').fill(vocabulary);
-  await page.getByRole('button', { name: 'Add vocabulary' }).click();
+  await page.getByRole('button', { name: 'Add standard' }).click();
   await expect(page).toHaveURL(/#\/standards\/vocabularies\/\d+$/);
   await diagnostics.idle();
   const vocabularyUrl = page.url();
