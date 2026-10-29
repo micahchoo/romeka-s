@@ -1074,3 +1074,40 @@ English).
 **Budget.** No ceiling moves. 1239 B of initial js room is left.
 
 
+
+## Decision 33: the page History words load with History, out of the `editor` catalogue (accepted, no budget change)
+
+**Measured.** The `editor` namespace's Hindi, Malayalam, Tamil and Telugu chunks were over the
+11264 B `catalogueChunkGzipBytes` ceiling: on main at `ca9a10ce` hi 11282 B, ml 11447 B, ta 11494 B,
+te 11315 B. The page-history unit's tree, before this split: hi 11292 B, ml 11462 B, ta 11508 B,
+te 11326 B.
+
+**What moved.** The 37 `history.*` keys, the words of the page History panel, the version view and
+the refused-save dialog, are now the `page-history` namespace (`src/i18n/namespaces/page-history/`).
+`node scripts/split-catalogue.mjs move editor page-history history.` moved each entry and its
+`sources.json` record unchanged; nothing was translated again. Only `HistoryPanel.tsx` and
+`ConflictDialog.tsx` import the namespace, and both are lazy, so its English and locale chunks load
+with the first press of History or the first refused save. The two History words the editor shows
+before either opens stay in `editor`, renamed: the toolbar button (`editor.history`) and the
+refused-save status (`editor.notSaved`).
+
+**After.** One build, `npm run build` then `npm run perf:check`, gzip bytes:
+
+| Locale | `editor` before | `editor` after | `page-history` |
+| --- | --- | --- | --- |
+| es | 9419 | 8865 | 759 |
+| hi | 11292 | 10596 | 1028 |
+| mr | 11056 | 10413 | 950 |
+| ml | 11462 | 10795 | 1024 |
+| ta | 11508 | 10806 | 1053 |
+| kn | 11110 | 10438 | 1057 |
+| te | 11326 | 10621 | 1043 |
+| ne | 11065 | 10396 | 1017 |
+
+The English table is its own 1021 B lazy chunk. The largest catalogue chunk is now the Tamil
+`editor` table, 10806 B, 458 B under the ceiling.
+
+**Cost.** A curator in a translated locale fetches one more chunk, about 1 KB, on the first press of
+History, beside the panel's own chunk. The editor's first paint fetches about 0.7 KB less.
+
+**Budget.** No ceiling moves.

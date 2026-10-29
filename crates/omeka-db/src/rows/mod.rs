@@ -49,8 +49,8 @@ pub use imports::{
 };
 pub use item_history::{FieldChange, HistoryEntryRow, HistorySource, HistoryStamp};
 pub use page_versions::{
-    BlockChange, NewPageAttachment, NewPageBlock, PageImage, PageImageBlock, PageSave,
-    PageSaveOutcome, PageVersionRow, VersionAuthor,
+    BlockChange, NewPageAttachment, NewPageBlock, PageCreate, PageImage, PageImageBlock, PageSave,
+    PageSaveOutcome, PageVersionOrigin, PageVersionRow, VersionAuthor,
 };
 pub use publications::{PublicationRow, PublicationTarget, PublicationVersionRow};
 pub use resources::{
