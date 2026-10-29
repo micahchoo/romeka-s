@@ -6,6 +6,7 @@ import { render, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { PageCanvas } from '../src/pages/sites/editor/canvas';
 import { blockAt, load, rawBlock } from './editor-draft-helpers';
+import { SITE_ID } from './editor-fields-helpers';
 import { loadFixture } from './loadFixture';
 import { installFetch, jsonResponse, listResponse, urlsFor } from './stub';
 
@@ -43,7 +44,7 @@ describe('canvas card thumbnails', () => {
       rawBlock('html', { html: '<p>No image</p>' }),
     ]);
     render(
-      <PageCanvas draft={draft} siteSettings={null} selection={null} onSelect={() => {}} dispatch={() => {}} />,
+      <PageCanvas draft={draft} siteSettings={null} siteId={SITE_ID} selection={null} onSelect={() => {}} dispatch={() => {}} />,
     );
 
     await waitFor(() => {

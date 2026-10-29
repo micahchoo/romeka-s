@@ -241,7 +241,7 @@ export const te: SitesMessages = {
   'layout.iiifPresentation': 'IIIF ప్రెజెంటేషన్',
   'layout.iiifImage': 'IIIF చిత్రం',
   'layout.asset': 'ఆస్తి',
-  'layout.html': 'HTML',
+  'layout.html': 'టెక్స్ట్',
   'layout.listOfPages': 'పేజీల జాబితా',
   'layout.oembed': 'oEmbed',
   'layout.unknown': 'తెలియని [{name}]',
@@ -356,8 +356,6 @@ export const te: SitesMessages = {
   'layoutHelp.oembed': 'URL నుండి పొందుపరచబడిన కంటెంట్, ఉదాహరణకు వీడియో.',
   'romekaHelp.hero': 'హెడ్డింగ్, టెక్స్ట్ మరియు బ్యాక్‌గ్రౌండ్ ఇమేజ్‌తో కూడిన పెద్ద బ్యానర్.',
   'query.siteMatchCount': 'ఈ సైట్‌లో {count} అంశాలు సరిపోలుతున్నాయి.',
-  'query.siteNoMatch':
-    'ఈ సైట్‌లో ఎటువంటి అంశాలు సరిపోలడం లేదు, కాబట్టి బ్లాక్ ఏమీ చూపదు. బ్రౌజ్ ప్రివ్యూ కేవలం సైట్ యొక్క అంశాలకే జాబితాను చూపుతుంది: సైట్ రిసోర్సెస్ పేజీలో అంశాలను జోడించండి.',
   'editor.widthFit': 'ఫిట్',
   'siteItems.count': 'ఈ సైట్‌లోని అంశాలు: {count}',
   'siteItems.counting': 'లెక్కిస్తోంది…',

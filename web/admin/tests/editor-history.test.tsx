@@ -108,7 +108,7 @@ const withHandler = (overrides: Readonly<Record<string, Handler>>): ReturnType<t
 
 const renderEditor = async (): Promise<void> => {
   render(<SitesPage param="1" rest={['1', 'pages', '1']} />);
-  await screen.findByRole('listitem', { name: /Block 1: HTML/ });
+  await screen.findByRole('listitem', { name: /Block 1: Text/ });
 };
 
 const puts = (fetchMock: ReturnType<typeof installFetch>): readonly CapturedRequest[] =>
@@ -135,7 +135,7 @@ describe('the page history panel', () => {
       [
         'Today 2:02 PM · Ana · 6 blocks',
         'Title changed from “Intro” to “Welcome”, 1 block added, ' +
-          '2 blocks changed: Hero banner and HTML, 2 blocks moved',
+          '2 blocks changed: Hero banner and Text, 2 blocks moved',
       ],
       ['Jan 2, 2024, 10:00 AM · Deleted user · 1 block', 'Page settings changed, 3 blocks changed'],
       ['Jan 1, 2024, 9:00 AM · Author not recorded · 1 block', 'First saved version'],

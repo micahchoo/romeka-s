@@ -239,7 +239,7 @@ export const mr: SitesMessages = {
   'layout.iiifPresentation': 'IIIF सादरीकरण',
   'layout.iiifImage': 'IIIF प्रतिमा',
   'layout.asset': 'मालमत्ता',
-  'layout.html': 'HTML',
+  'layout.html': 'मजकूर',
   'layout.listOfPages': 'पृष्ठांची सूची',
   'layout.oembed': 'oEmbed',
   'layout.unknown': 'अज्ञात [{name}]',
@@ -355,8 +355,6 @@ export const mr: SitesMessages = {
   'layoutHelp.oembed': 'URL मधून एम्बेड केलेले मजकूर, जसे की व्हिडिओ.',
   'romekaHelp.hero': 'शीर्ष, मजकूर आणि पार्श्वभूमी प्रतिमा असलेले मोठे बॅनर.',
   'query.siteMatchCount': 'या साइटवर {count} घटक जुळतात.',
-  'query.siteNoMatch':
-    'या साइटवर एकही घटक जुळत नाही, त्यामुळे ब्लॉक काहीही दर्शवत नाही. ब्राउझ प्रिव्ह्यूमध्ये केवळ साइटचे घटक सूचीबद्ध केले जातात: साइट संसाधनांच्या पृष्ठावर घटक जोडा.',
   'editor.widthFit': 'फिट',
   'siteItems.count': 'या साइटवरील घटक: {count}',
   'siteItems.counting': 'मोजणी सुरू आहे…',

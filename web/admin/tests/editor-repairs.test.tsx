@@ -71,7 +71,7 @@ const handler = (url: URL): Response => {
   );
 };
 
-const FIRST = /Block 1: HTML/;
+const FIRST = /Block 1: Text/;
 
 const renderEditor = async (): Promise<void> => {
   installFetch(handler);
@@ -82,7 +82,7 @@ const renderEditor = async (): Promise<void> => {
 const selectFirst = async (): Promise<HTMLElement> => {
   fireEvent.click(screen.getByRole('listitem', { name: FIRST }));
   const inspector = screen.getByRole('region', { name: 'Block inspector' });
-  await within(inspector).findByRole('textbox', { name: 'HTML' });
+  await within(inspector).findByRole('textbox', { name: 'Text' });
   return inspector;
 };
 
@@ -106,7 +106,7 @@ describe('the page settings come back after a selection (R1)', () => {
     const crumb = within(inspector).getByRole('navigation', {
       name: 'Selection',
     });
-    expect(crumb).toHaveTextContent('HTML');
+    expect(crumb).toHaveTextContent('Text');
     fireEvent.click(within(crumb).getByRole('button', { name: 'Page' }));
 
     expect(title()).toHaveValue('Welcome');
@@ -125,7 +125,7 @@ describe('the page settings come back after a selection (R1)', () => {
     await renderEditor();
     const inspector = await selectFirst();
 
-    fireEvent.keyDown(within(inspector).getByRole('textbox', { name: 'HTML' }), { key: 'Escape' });
+    fireEvent.keyDown(within(inspector).getByRole('textbox', { name: 'Text' }), { key: 'Escape' });
 
     expect(pageSettingsShown()).toBe(false);
   });
@@ -230,7 +230,7 @@ describe('the hidden keys', () => {
     fireEvent.keyDown(card, { key: 'Delete' });
 
     expect(screen.queryByText('First block.')).toBeNull();
-    const toast = screen.getByText('Removed HTML.').closest('.editor-toast');
+    const toast = screen.getByText('Removed Text.').closest('.editor-toast');
     if (!(toast instanceof HTMLElement)) {
       throw new Error('no toast');
     }
@@ -238,7 +238,7 @@ describe('the hidden keys', () => {
     fireEvent.click(within(toast).getByRole('button', { name: 'Undo' }));
 
     expect(screen.getByText('First block.')).toBeInTheDocument();
-    expect(screen.queryByText('Removed HTML.')).toBeNull();
+    expect(screen.queryByText('Removed Text.')).toBeNull();
   });
 
   it('drops the toast once a later edit makes its Undo mean something else', async () => {
@@ -246,11 +246,11 @@ describe('the hidden keys', () => {
     fireEvent.keyDown(screen.getByRole('listitem', { name: FIRST }), {
       key: 'Backspace',
     });
-    expect(screen.getByText('Removed HTML.')).toBeInTheDocument();
+    expect(screen.getByText('Removed Text.')).toBeInTheDocument();
 
     fireEvent.change(title(), { target: { value: 'Changed' } });
 
-    expect(screen.queryByText('Removed HTML.')).toBeNull();
+    expect(screen.queryByText('Removed Text.')).toBeNull();
   });
 
   it('gives every card a grab handle', async () => {
@@ -267,7 +267,7 @@ describe('a group lists its blocks as slots (R6)', () => {
     const inspector = screen.getByRole('region', { name: 'Block inspector' });
 
     const slot = await within(inspector).findByRole('button', { name: /Slot 1/ });
-    expect(slot).toHaveTextContent('HTML');
+    expect(slot).toHaveTextContent('Text');
     expect(inspector).toHaveTextContent('1 block');
     expect(within(inspector).queryByRole('spinbutton')).toBeNull();
     expect(within(inspector).queryByLabelText('Blocks in the group')).toBeNull();

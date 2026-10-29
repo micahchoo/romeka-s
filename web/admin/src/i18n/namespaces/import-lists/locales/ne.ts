@@ -14,7 +14,8 @@ export const ne: ImportListsMessages = {
   'lists.withFilters': 'यी फिल्टरहरूका साथ।',
   'lists.changes.one': 'तपाईँले 1 परिवर्तन गर्नुभएको छ।',
   'lists.changes.count': 'तपाईँले {count} परिवर्तनहरू गर्नुभएको छ।',
-  'lists.changes.many': 'तीमध्ये {count} ले एकैपटक धेरै परिवर्तन गर्छन्। फाइल वा उत्तर बदलिँदा पनि सबै रहन्छन्।',
+  'lists.changes.many':
+    'तीमध्ये {count} ले एकैपटक धेरै परिवर्तन गर्छन्। फाइल वा उत्तर बदलिँदा पनि सबै रहन्छन्।',
   'lists.changes.undoMany': 'धेरैमा गरिएको अन्तिम परिवर्तन पूर्ववत गर्नुहोस्',
   'lists.chart.caption': 'प्रत्येक वस्तुमा रहेका फाइलहरू। गलत समूह यहाँ पहिले देखिन्छ।',
   'lists.chart.bar': '{count} वस्तुहरू {files} सँग। तिनीहरूलाई देखाउनुहोस्।',

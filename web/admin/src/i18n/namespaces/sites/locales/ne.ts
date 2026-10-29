@@ -240,7 +240,7 @@ export const ne: SitesMessages = {
   'layout.iiifPresentation': 'IIIF प्रस्तुति',
   'layout.iiifImage': 'IIIF छवि',
   'layout.asset': 'एसेट',
-  'layout.html': 'HTML',
+  'layout.html': 'पाठ',
   'layout.listOfPages': 'पृष्ठहरूको सूची',
   'layout.oembed': 'oEmbed',
   'layout.unknown': 'अज्ञात [{name}]',
@@ -354,8 +354,6 @@ export const ne: SitesMessages = {
   'layoutHelp.oembed': 'URL बाट समावेश गरिएको सामग्री, जस्तै भिडियो।',
   'romekaHelp.hero': 'शीर्षक, पाठ र ब्याकग्राउन्ड इमेज भएको ठुलो ब्यानर।',
   'query.siteMatchCount': 'यस साइटमा {count} वटा वस्तुहरू मेल खान्छन्।',
-  'query.siteNoMatch':
-    'यस साइटमा कुनै पनि वस्तु मेल खाँदैनन्, त्यसैले ब्लकले केही देखाउँदैन। ब्राउज प्रिव्युले केवल साइटका वस्तुहरू सूचीबद्ध गर्दछ: साइट स्रोत पृष्ठमा वस्तुहरू थप्नुहोस्।',
   'editor.widthFit': 'फिट',
   'siteItems.count': 'यस साइटमा रहेका वस्तुहरू: {count}',
   'siteItems.counting': 'गणना गर्दै…',

@@ -27,7 +27,8 @@ import type { ControlProps, FieldOf } from './controlBase';
 import { ColorField } from './ColorField';
 import { issueFor, issueMessage } from './errors';
 import { HtmlEditor } from './HtmlEditor';
-import { ItemQueryField, isQueryResource } from './ItemQueryField';
+import { ItemQueryField } from './ItemQueryField';
+import { isQueryResource } from './listReach';
 import { LinkField } from './LinkField';
 import { ItemListControl, MapViewControl, PropertyControl } from './mapControls';
 import {

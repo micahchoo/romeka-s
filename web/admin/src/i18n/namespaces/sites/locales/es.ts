@@ -211,7 +211,7 @@ export const es: SitesMessages = {
   'layout.iiifPresentation': 'Presentación IIIF',
   'layout.iiifImage': 'Imagen IIIF',
   'layout.asset': 'Recurso',
-  'layout.html': 'HTML',
+  'layout.html': 'Texto',
   'layout.listOfPages': 'Lista de páginas',
   'layout.oembed': 'oEmbed',
   'layout.unknown': 'Desconocido [{name}]',
@@ -325,7 +325,6 @@ export const es: SitesMessages = {
   'layoutHelp.oembed': 'Contenido incrustado desde una URL, como un vídeo.',
   'romekaHelp.hero': 'Un banner grande con un encabezado, texto y una imagen de fondo.',
   'query.siteMatchCount': '{count} elementos de este sitio coinciden.',
-  'query.siteNoMatch': 'Ningún elemento de este sitio coincide, así que el bloque no muestra nada. Una vista previa de navegación solo lista los elementos del propio sitio: añade elementos en la página Elementos del sitio.',
   'editor.widthFit': 'Ajustar',
   // La página Elementos del sitio, el selector de elementos y las acciones de sitio de la lista de elementos.
   'siteItems.count': 'Elementos de este sitio: {count}',

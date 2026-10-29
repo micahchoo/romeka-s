@@ -131,7 +131,7 @@ export const ta: EditorMessages = {
   'fieldHelp.asset.alt_link_title': 'படத்தின் கீழ் உள்ள பக்கத் தலைப்பை மாற்றுகிறது.',
   'blockField.asset.caption': 'தலைப்பு',
   'fieldHelp.asset.caption': 'படத்தின் கீழ் காட்டப்படும்.',
-  'blockField.html.html': 'HTML',
+  'blockField.html.html': 'உரை',
   'fieldHelp.html.html': 'உங்களைப் போன்றே வடிவமைக்கப்பட்ட உரை, படங்கள் மற்றும் இணைப்புகள்.',
   'blockField.listOfPages.pagelist': 'பக்கங்கள்',
   'fieldHelp.listOfPages.pagelist': 'வரிசைப்படுத்தப்பட்ட பட்டியலாகக் காட்டப்படும் பக்கங்கள்.',
@@ -299,6 +299,19 @@ export const ta: EditorMessages = {
   'layoutData.legend': 'தொகுதி வடிவமைப்பு',
   'query.itemSetCount': 'இந்தத் தளத்தில் {count} உருப்படிகள் உள்ளன.',
   'query.mediaCount': 'இந்தத் தளத்தில் {count} ஊடகங்கள் உள்ளன.',
+  'query.siteEmptyItems': 'இந்தத் தளத்தில் இன்னும் உருப்படிகள் எதுவும் இல்லை.',
+  'query.siteEmptyItemSets': 'இந்தத் தளத்தில் இன்னும் உருப்படித் தொகுப்புகள் எதுவும் இல்லை.',
+  'query.siteEmptyMedia': 'இந்தத் தளத்தில் இன்னும் ஊடகங்களைக் கொண்ட உருப்படிகள் எதுவும் இல்லை.',
+  'query.addItems': 'இந்தத் தளத்தில் உருப்படிகளைச் சேர்க்க',
+  'query.addItemSets': 'இந்தத் தளத்தில் உருப்படித் தொகுப்புகளைச் சேர்க்க',
+  'query.addMedia': 'இந்தத் தளத்தில் ஊடகங்களுடன் கூடிய உருப்படிகளைச் சேர்க்க',
+  'query.filterEmptyItems':
+    'இந்தத் தளத்தில் உள்ள எந்த உருப்படிகளும் இந்த வடிகட்டியுடன் பொருந்தவில்லை.',
+  'query.filterEmptyItemSets':
+    'இந்தத் தளத்தில் உள்ள எந்த உருப்படித் தொகுப்பும் இந்த வடிகட்டியுடன் பொருந்தவில்லை.',
+  'query.filterEmptyMedia':
+    'இந்தத் தளத்தில் இந்த வடிகட்டியுடன் பொருந்தக்கூடிய ஊடகங்கள் எதுவும் இல்லை.',
+  'canvas.listsNothing': 'இன்னும் எதையும் பட்டியலிடவில்லை',
   'attachments.mainMedia': 'முதன்மை ஊடகம்',
   'attachments.pick': 'உருப்படிகளைச் சேர்க்கவும் அல்லது நீக்கவும்',
   'layoutData.pageLegend': 'பக்க அமைப்பு',
@@ -377,8 +390,6 @@ export const ta: EditorMessages = {
   'editor.viewPublic': 'பொதுப் பக்கத்தைப் பார்க்கவும்',
   'editor.empty': 'உங்கள் முதல் பிளாக்கைச் சேர்க்கவும்',
   'editor.blockLayout': 'அமைப்பு',
-  'editor.romkaBlock': 'Romeka பிளாக்: {name}',
-  'editor.romkaGenerated': 'இதன் HTML உள்ளடக்கம் இந்த அமைப்புகளிலிருந்து உருவாக்கப்படுகிறது.',
   'editor.unknownLayout':
     'இந்த அமைப்பு பதிவேட்டில் இல்லை, எனவே இதன் தரவு JSON ஆக எடிட் செய்யப்படுகிறது.',
   'editor.unknownData': 'பிளாக் தரவு (JSON)',
@@ -506,6 +517,9 @@ export const ta: EditorMessages = {
   'canvas.section': 'பகுதி, {layout}',
   'canvas.slotEmpty': 'இட {slot} காலியாக உள்ளது. ஒரு தொகுதியை இங்கே இழுக்கவும்.',
   'canvas.pickerSections': 'பகுதிகள்',
+  'sectionTemplate.empty.label': 'காலியான பகுதி',
+  'sectionTemplate.empty.description':
+    'இதில் இன்னும் எந்தத் தொகுதிகளும் இல்லாத ஒரு பகுதி. அவுட்லைனில் தொகுதிகளை இதற்குள் இழுக்கவும்.',
   'sectionTemplate.mediaText.label': 'ஊடகங்கள் மற்றும் உரை',
   'sectionTemplate.mediaText.description': 'இடதுபுறம் ஒரு படம், வலதுபுறம் உரை.',
   'sectionTemplate.textMedia.label': 'உரை மற்றும் ஊடகங்கள்',

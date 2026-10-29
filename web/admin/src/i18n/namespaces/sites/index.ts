@@ -218,7 +218,7 @@ export const en = {
   'layout.iiifPresentation': 'IIIF presentation',
   'layout.iiifImage': 'IIIF image',
   'layout.asset': 'Asset',
-  'layout.html': 'HTML',
+  'layout.html': 'Text',
   'layout.listOfPages': 'List of pages',
   'layout.oembed': 'oEmbed',
   'layout.unknown': 'Unknown [{name}]',
@@ -330,7 +330,6 @@ export const en = {
   'layoutHelp.oembed': 'Content embedded from a URL, such as a video.',
   'romekaHelp.hero': 'A large banner with a heading, text and a background image.',
   'query.siteMatchCount': '{count} items in this site match.',
-  'query.siteNoMatch': 'No items in this site match, so the block shows nothing. A browse preview lists only the items that belong to the site: add items on the site\'s Items page.',
   'editor.widthFit': 'Fit',
   // The site's Items page, the item picker and the Items list's bulk site actions.
   'siteItems.count': 'Items on this site: {count}',

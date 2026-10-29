@@ -12,6 +12,7 @@ import { draftReducer } from '../src/pages/sites/editor/reducer';
 import type { BlockKey, DraftAction, PageDraft } from '../src/pages/sites/editor/draft';
 import { PageCanvas } from '../src/pages/sites/editor/canvas';
 import { blockAt, keyOf, load, rawBlock } from './editor-draft-helpers';
+import { SITE_ID } from './editor-fields-helpers';
 
 const card = (key: string): HTMLElement => {
   const element = document.querySelector(`[data-key="${key}"]`);
@@ -40,6 +41,7 @@ const Harness = ({
     <PageCanvas
       draft={draft}
       siteSettings={null}
+      siteId={SITE_ID}
       selection={selected === null ? null : { kind: 'block', key: selected, from: 'outline' }}
       onSelect={setSelected}
       dispatch={(action) => {
@@ -55,7 +57,7 @@ const renderCanvas = (
 ): { readonly dispatch: ReturnType<typeof vi.fn>; readonly onSelect: ReturnType<typeof vi.fn> } => {
   const dispatch = vi.fn();
   const onSelect = vi.fn();
-  render(<PageCanvas draft={draft} siteSettings={null} selection={null} onSelect={onSelect} dispatch={dispatch} />);
+  render(<PageCanvas draft={draft} siteSettings={null} siteId={SITE_ID} selection={null} onSelect={onSelect} dispatch={dispatch} />);
   return { dispatch, onSelect };
 };
 
@@ -85,7 +87,7 @@ describe('the canvas cards', () => {
     renderCanvas(draft);
 
     const html = card(blockAt(draft.blocks, 0).key);
-    expect(html).toHaveTextContent('HTML');
+    expect(html).toHaveTextContent('Text');
     expect(html).toHaveTextContent('Hello world');
 
     // The pageTitle block renders the page's own title, not a stored field.
@@ -176,7 +178,7 @@ describe('keyboard reorder', () => {
     fireEvent.keyDown(card(first), { key: ' ' });
 
     expect(actions).toEqual([]);
-    expect(screen.getByRole('status')).toHaveTextContent('Picked up HTML');
+    expect(screen.getByRole('status')).toHaveTextContent('Picked up Text');
   });
 });
 

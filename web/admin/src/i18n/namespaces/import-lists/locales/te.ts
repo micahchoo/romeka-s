@@ -14,7 +14,8 @@ export const te: ImportListsMessages = {
   'lists.withFilters': 'ఈ ఫిల్టర్‌లతో.',
   'lists.changes.one': 'మీరు 1 మార్పు చేశారు.',
   'lists.changes.count': 'మీరు {count} మార్పులు చేశారు.',
-  'lists.changes.many': 'వాటిలో {count} ఒకేసారి చాలా వాటిని మారుస్తాయి. ఫైళ్లు లేదా సమాధానాలు మారినా అన్నీ అలాగే ఉంటాయి.',
+  'lists.changes.many':
+    'వాటిలో {count} ఒకేసారి చాలా వాటిని మారుస్తాయి. ఫైళ్లు లేదా సమాధానాలు మారినా అన్నీ అలాగే ఉంటాయి.',
   'lists.changes.undoMany': 'చివరిగా చేసిన మార్పును వెనక్కి తీసుకోండి',
   'lists.chart.caption': 'ప్రతి వస్తువులోని ఫైళ్లు. తప్పుగా సమూహపరచడం ఇక్కడ మొదట కనిపిస్తుంది.',
   'lists.chart.bar': '{files} ఉన్న {count} ఐటమ్‌లు. వాటిని చూపండి.',

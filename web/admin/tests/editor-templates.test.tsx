@@ -109,7 +109,7 @@ describe('the template chooser', () => {
     // The canvas shows the template's four blocks, the hero first.
     await screen.findByRole('listitem', { name: /Block 1: Hero banner/ });
     expect(document.querySelectorAll('li.canvas-card')).toHaveLength(4);
-    expect(screen.getByRole('listitem', { name: /Block 2: HTML/ })).toBeInTheDocument();
+    expect(screen.getByRole('listitem', { name: /Block 2: Text/ })).toBeInTheDocument();
   });
 
   it('opens a blank page from the blank choice', async () => {
@@ -129,7 +129,7 @@ describe('inserting a template', () => {
   it('inserts the template blocks at the index', async () => {
     installFetch(handler);
     render(<SitesPage param="1" rest={['1', 'pages', '1']} />);
-    await screen.findByRole('listitem', { name: /Block 1: HTML/ });
+    await screen.findByRole('listitem', { name: /Block 1: Text/ });
 
     const insertButtons = screen.getAllByRole('button', {
       name: /Insert block at position/,
@@ -201,7 +201,7 @@ describe('saving a template', () => {
   it('writes the romeka_page_templates setting row', async () => {
     const fetchMock = installFetch(handler);
     render(<SitesPage param="1" rest={['1', 'pages', '1']} />);
-    await screen.findByRole('listitem', { name: /Block 1: HTML/ });
+    await screen.findByRole('listitem', { name: /Block 1: Text/ });
 
     fireEvent.click(screen.getByRole('button', { name: 'Save as template' }));
     const dialog = await screen.findByRole('dialog', { name: 'Save as template' });

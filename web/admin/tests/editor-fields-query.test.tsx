@@ -65,13 +65,28 @@ describe('the item query field control', () => {
     );
   });
 
-  it('says why the block shows nothing when no item of the site matches', async () => {
+  it('offers a way to add items when the site has none', async () => {
     installFetch((url) => (url.pathname === '/api/items' ? listResponse([], 0) : handler(url)));
-    renderQuery('');
+    renderQuery('fulltext_search=cat');
 
-    expect(
-      await screen.findByText(/No items in this site match, so the block shows nothing\./),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('This site has no items yet.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Add items to this site' })).toHaveAttribute(
+      'href',
+      `#/sites/${String(SITE_ID)}/resources`,
+    );
+  });
+
+  it('blames the filter, with no add link, when the site has items but none match', async () => {
+    // The filtered count is 0; the site's own count, asked without the filter, is 7.
+    installFetch((url) =>
+      url.pathname === '/api/items' && url.searchParams.has('fulltext_search')
+        ? listResponse([], 0)
+        : handler(url),
+    );
+    renderQuery('fulltext_search=cat');
+
+    expect(await screen.findByText('No items on this site match this filter.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Add items to this site' })).toBeNull();
   });
 
   it('full-text search writes fulltext_search', () => {

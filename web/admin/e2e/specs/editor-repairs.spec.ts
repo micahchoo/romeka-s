@@ -73,7 +73,7 @@ test('the editor deselects, undoes, lists its keys and restores a removed block'
 
   // The crumb names the selection, and its Page button brings the settings back.
   const crumb = page.getByRole('navigation', { name: 'Selection' });
-  await expect(crumb).toContainText('HTML');
+  await expect(crumb).toContainText('Text');
   await crumb.getByRole('button', { name: 'Page' }).click();
   await expect(title).toBeVisible();
 
@@ -115,7 +115,7 @@ test('the editor deselects, undoes, lists its keys and restores a removed block'
   await page.keyboard.press('Delete');
   await expect(cards).toHaveCount(0);
   const toast = page.locator('.editor-toast');
-  await expect(toast).toContainText('Removed HTML.');
+  await expect(toast).toContainText('Removed Text.');
   await toast.getByRole('button', { name: 'Undo' }).click();
   await expect(cards).toHaveCount(1);
   await expect(toast).toBeEmpty();

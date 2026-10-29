@@ -8,6 +8,10 @@
  * The dialog sits over the page at a fixed size and scrolls its own list, so
  * every option is reachable wherever the insertion point is. A template with no
  * blocks inserts nothing, so it is offered only by the new-page chooser.
+ *
+ * A section is a block group (decision D6), so the bare block group is not a
+ * block here: it is the last section, "Empty section", which adds a group
+ * with no blocks.
  */
 import { useEffect, useId, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, ReactElement } from 'react';
@@ -17,6 +21,7 @@ import type { BlockRegistry } from '../../blockSchema';
 import { builtinChoices, savedChoices, savedTemplates } from '../../templates';
 import type { TemplateChoice } from '../../templates';
 import { BUILTIN_SECTIONS, BUILTIN_TEMPLATES } from '../../templateRegistry';
+import { GROUP_LAYOUT } from '../groups';
 import { editor } from '../../../../i18n/namespaces/editor';
 import { sites } from '../../../../i18n/namespaces/sites';
 import './picker.css';
@@ -84,9 +89,16 @@ export const BlockPicker = ({
 }: BlockPickerProps): ReactElement => {
   const { t } = useTranslator(sites, editor);
   const [query, setQuery] = useState('');
-  const options = [...registry.layouts, ...registry.romeka].filter((layout) =>
-    matches(query, t(layout.label), layout.name, t(layout.description)),
+  const options = [...registry.layouts, ...registry.romeka].filter(
+    (layout) =>
+      layout.name !== GROUP_LAYOUT &&
+      matches(query, t(layout.label), layout.name, t(layout.description)),
   );
+  const emptySection = {
+    name: t('sectionTemplate.empty.label'),
+    description: t('sectionTemplate.empty.description'),
+  };
+  const emptySectionShown = matches(query, emptySection.name, emptySection.description);
   const sectionOptions: readonly TemplateChoice[] = BUILTIN_SECTIONS.map((section) => ({
     id: section.id,
     name: t(section.label),
@@ -148,10 +160,13 @@ export const BlockPicker = ({
           />
         </div>
         <div className="canvas-picker-body">
-          {options.length === 0 && templateOptions.length === 0 && sectionOptions.length === 0 ? (
+          {options.length === 0 &&
+          templateOptions.length === 0 &&
+          sectionOptions.length === 0 &&
+          !emptySectionShown ? (
             <p className="canvas-picker-empty">{t('canvas.noMatches')}</p>
           ) : null}
-          {sectionOptions.length === 0 ? null : (
+          {sectionOptions.length === 0 && !emptySectionShown ? null : (
             <>
               <h4 className="canvas-picker-heading">{t('canvas.pickerSections')}</h4>
               <ul className="canvas-picker-list">
@@ -165,6 +180,15 @@ export const BlockPicker = ({
                     }}
                   />
                 ))}
+                {emptySectionShown ? (
+                  <PickerOption
+                    name={emptySection.name}
+                    description={emptySection.description}
+                    onClick={() => {
+                      onChoose(GROUP_LAYOUT, index);
+                    }}
+                  />
+                ) : null}
               </ul>
             </>
           )}
