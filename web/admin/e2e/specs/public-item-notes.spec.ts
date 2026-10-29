@@ -9,6 +9,7 @@ import { join } from 'node:path';
 
 import { expect, expectClean, test } from '../fixtures';
 import { isRecord, numberField, record } from '../harness/json';
+import { settled } from '../harness/preview';
 import { SITE_SLUG } from '../harness/seed';
 import { readHarness, REPO_ROOT } from '../harness/state';
 
@@ -69,24 +70,6 @@ const addMedia = async (
   });
   expect(answer.status(), await answer.text()).toBe(200);
   return numberField(record(await answer.json(), 'media'), 'o:id', 'media');
-};
-
-/** Wait until the derivative worker has settled a media's preview. */
-const settled = async (request: APIRequestContext, media: number): Promise<void> => {
-  const deadline = Date.now() + 30_000;
-  for (;;) {
-    const document: unknown = await (await request.get(`/api/media/${String(media)}`)).json();
-    const preview = record(document, 'media')['o-module-romeka:preview'];
-    const state =
-      typeof preview === 'object' && preview !== null && 'state' in preview ? preview.state : null;
-    if (state === null || state === 'ready' || state === 'none') {
-      return;
-    }
-    if (Date.now() > deadline) {
-      throw new Error(`media ${String(media)} preview stayed ${JSON.stringify(state)}`);
-    }
-    await new Promise((done) => setTimeout(done, 100));
-  }
 };
 
 /** Post one note on a media's whole file, with the harness key in the query. */

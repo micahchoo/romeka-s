@@ -15,6 +15,8 @@ import { en } from '../src/app/lessons/messages';
 import { es } from '../src/i18n/namespaces/lessons/locales/es';
 import { LESSONS, RUNGS } from '../src/app/lessons/registry';
 import type { LessonId } from '../src/app/lessons/registry';
+import { StandardsPage } from '../src/pages/standards/page';
+import { MergePrompts } from '../src/pages/term-lists/merge-prompt';
 import { loadFixture } from './loadFixture';
 import { installFetch, jsonResponse, requestBody, requestsFor } from './stub';
 
@@ -192,6 +194,41 @@ describe('a lesson in place', () => {
     await Promise.resolve();
     expect(screen.queryByRole('button')).toBeNull();
     expect(seenWrites(fetchMock)).toEqual([]);
+  });
+
+  it('merge_prompts_with_no_alike_spellings_hold_no_lesson_back', async () => {
+    const fetchMock = installFetch(() => jsonResponse(userJson()));
+    signIn(null);
+
+    render(
+      <>
+        <MergePrompts scope={{ kind: 'tags' }} groups={[]} version={0} onDone={() => undefined} />
+        <Anchor id="publish" />
+      </>,
+    );
+
+    expect(await screen.findByRole('note', { name: 'Lesson: Addresses that last' })).toBeVisible();
+    await vi.waitFor(() => {
+      expect(seenWrites(fetchMock)).toEqual([['publish']]);
+    });
+  });
+
+  it('a_standards_address_with_no_such_tab_holds_no_lesson_back', async () => {
+    const fetchMock = installFetch(() => jsonResponse(userJson()));
+    signIn(null);
+
+    render(
+      <>
+        <StandardsPage rest={['no-such-tab']} />
+        <Anchor id="publish" />
+      </>,
+    );
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(await screen.findByRole('note', { name: 'Lesson: Addresses that last' })).toBeVisible();
+    await vi.waitFor(() => {
+      expect(seenWrites(fetchMock)).toEqual([['publish']]);
+    });
   });
 
   it('the_switch_off_hides_every_lesson_and_every_question_mark', () => {

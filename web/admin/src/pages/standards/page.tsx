@@ -51,7 +51,7 @@ export const StandardsPage = ({
   const { t } = useTranslator(common, standards);
   const text = useStandardsText();
   const [segment = 'vocabularies', param = null] = rest;
-  const lesson = useLesson('standards', param === null);
+  const lesson = useLesson('standards', param === null && isStandardsTab(segment));
   if (!isStandardsTab(segment)) {
     return <p role="alert">{t('shell.noPage')}</p>;
   }
