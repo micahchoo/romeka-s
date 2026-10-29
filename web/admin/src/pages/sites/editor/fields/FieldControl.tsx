@@ -293,11 +293,12 @@ const ItemQueryControl = ({
         value={asText(value)}
         required={field.required}
         onChange={onChange}
-        siteId={siteId}
+        site={{ id: siteId, attachedOnly: options?.attachedOnly ?? false }}
         resource={isQueryResource(resource) ? resource : 'items'}
         propertySort
         {...(options?.itemSets === undefined ? {} : { itemSets: options.itemSets })}
         {...(options?.classes === undefined ? {} : { classes: options.classes })}
+        {...(options?.classCounts === undefined ? {} : { classCounts: options.classCounts })}
       />
       {error}
     </WithHelp>

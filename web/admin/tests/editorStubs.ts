@@ -17,6 +17,8 @@ export const editorReads = (url: URL): Response | null => {
       return listResponse(loadFixture('item-sets-page.json'), 2);
     case '/api/resource_classes':
       return listResponse(loadFixture('resource-classes-page.json'), 2);
+    case '/api/romeka/classes/counts':
+      return jsonResponse({ classes: [] });
     default:
       return null;
   }

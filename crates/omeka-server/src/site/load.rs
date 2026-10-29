@@ -21,7 +21,7 @@ use omeka_api::annotation::{
 use omeka_api::jsonld::BaseUrl;
 use omeka_api::read::catalog::Catalog;
 use omeka_api::read::params::Params;
-use omeka_api::read::query::SearchQuery;
+use omeka_api::read::query::{SearchQuery, id_matches, item_filter, item_set_filter, media_filter};
 use omeka_core::ids::{BlockId, ItemId, MediaId, PageId, ResourceId, SiteId};
 use omeka_core::resource::{Media, ResourceKind, Timestamp};
 use omeka_core::site::{
@@ -33,10 +33,10 @@ use omeka_db::DbError;
 use omeka_db::DbPool;
 use omeka_db::ids as db;
 use omeka_db::repos::{
-    AssetRepo, ClassRepo, FulltextRepo, ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo,
-    MediaAnnotationRepo, MediaDerivativeRepo, MediaExtentRepo, MediaFilter, MediaRepo,
-    MediaVisibility, Paging, RelationRepo, ResourceRepo, SiteBlockAttachmentRepo, SiteFilter,
-    SiteRepo, TemplateRepo, ValueRepo, compare_opt_text_ci, compare_text_ci,
+    AssetRepo, ClassRepo, FulltextRepo, ItemRepo, ItemSetRepo, MediaAnnotationRepo,
+    MediaDerivativeRepo, MediaExtentRepo, MediaFilter, MediaRepo, MediaVisibility, Paging,
+    RelationRepo, ResourceRepo, SiteBlockAttachmentRepo, SiteFilter, SiteRepo, TemplateRepo,
+    ValueRepo, compare_opt_text_ci, compare_text_ci,
 };
 use omeka_db::rows::{
     AssetRow, DerivativeKind, DerivativeState, ItemRow, ItemSetRow, MediaRow, ResourceRow,
@@ -1332,8 +1332,7 @@ impl<'a> Loader<'a> {
     }
 
     /// Search public resources of one kind, as a block's `$view->api()->search()`
-    /// does. `ItemFilter` carries no `site_id` (`repos/resources.rs`), so a
-    /// preview shows every public resource, not only this site's (gap).
+    /// does: the stored query's filters, the `site_id` the block adds, then its sort.
     pub(crate) async fn search(
         &self,
         kind: ResourceKind,
@@ -1368,8 +1367,10 @@ impl<'a> Loader<'a> {
     /// `Site\ItemController::browseAction` and `BlockLayout\BrowsePreview` both
     /// search through the API with the request query, so the same parameters
     /// the `/api` list endpoints accept apply here: `fulltext_search` against
-    /// the index, the property rows, `site_id`, `in_sites`, `has_media` and the
-    /// item-set membership. An anonymous visitor is the actor, so the media a
+    /// the index, the property rows, `site_id`, `in_sites`, `has_media`, the
+    /// item-set membership, the class, owner, template and visibility filters
+    /// (`item_filter` and its siblings, which the endpoints read too) and the
+    /// `id` list. An anonymous visitor is the actor, so the media a
     /// `has_media` test counts are the public ones.
     async fn filtered(
         &self,
@@ -1392,14 +1393,14 @@ impl<'a> Loader<'a> {
         };
         let rows: Vec<LoadedRow> = match kind {
             ResourceKind::Item => with_db!(self.pool, |db| ItemRepo::new(db)
-                .list_filtered(&ItemFilter::default(), &search.filter, &Paging::default())
+                .list_filtered(&item_filter(&params), &search.filter, &Paging::default())
                 .await)?
             .into_iter()
             .map(LoadedRow::Item)
             .collect(),
             ResourceKind::ItemSet => with_db!(self.pool, |db| ItemSetRepo::new(db)
                 .list_filtered(
-                    &ItemSetFilter::default(),
+                    &item_set_filter(&params),
                     &search.filter,
                     &Paging::default()
                 )
@@ -1408,7 +1409,7 @@ impl<'a> Loader<'a> {
             .map(LoadedRow::ItemSet)
             .collect(),
             ResourceKind::Media => with_db!(self.pool, |db| MediaRepo::new(db)
-                .list_filtered(&MediaFilter::default(), &search.filter, &Paging::default())
+                .list_filtered(&media_filter(&params), &search.filter, &Paging::default())
                 .await)?
             .into_iter()
             .map(|row| LoadedRow::Media(Box::new(row)))
@@ -1424,6 +1425,7 @@ impl<'a> Loader<'a> {
                 self.access
                     .sees_resource(resource.is_public, resource.owner_id)
             })
+            .filter(|row| id_matches(&search.ids, row.resource().id.0))
             .collect();
         let mut rows: Vec<LoadedRow> = match &ranks {
             Some(ranks) => rows

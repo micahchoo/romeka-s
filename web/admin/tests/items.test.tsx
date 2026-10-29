@@ -74,10 +74,21 @@ const typeCounts = (noItemType: number, withClass: number): unknown => ({
   with_class: withClass,
 });
 
+/** `/api/romeka/classes/counts`: the classes items use, with their item counts. */
+const CLASS_COUNTS = {
+  classes: [
+    { id: 51, term: 'bibo:Book', label: 'Book', vocabulary_label: 'Bibliographic Ontology', items: 4 },
+    { id: 13, term: 'dctype:StillImage', label: 'Still Image', vocabulary_label: 'Dublin Core Type', items: 1 },
+  ],
+};
+
 /** Items answer from the fixtures; a query naming `search=nothing` matches no item. */
 const listHandler = (url: URL): Response => {
   if (url.pathname === '/api/romeka/item-types/counts') {
     return jsonResponse(typeCounts(0, 2));
+  }
+  if (url.pathname === '/api/romeka/classes/counts') {
+    return jsonResponse(CLASS_COUNTS);
   }
   if (url.pathname === '/api/items') {
     if (url.searchParams.get('search') === 'nothing') {
@@ -254,7 +265,7 @@ describe('items list', () => {
     const fetchMock = await openList();
     fireEvent.click(screen.getByRole('button', { name: 'More filters' }));
     const classSelect = screen.getByRole('combobox', { name: 'Class' });
-    await within(classSelect).findByRole('option', { name: 'Book' });
+    await within(classSelect).findByRole('option', { name: 'Book · 4 items' });
 
     fireEvent.change(classSelect, { target: { value: '51' } });
 
@@ -554,7 +565,7 @@ describe('items table columns', () => {
     expect(screen.queryByRole('button', { name: 'Still Image' })).not.toBeInTheDocument();
   });
 
-  it('two classes with one name carry their vocabulary prefix, in the select and the chip', async () => {
+  it('two classes with one name carry their vocabulary prefix in the chip', async () => {
     const classes = loadFixture('resource-classes-page.json');
     const twin = {
       ...(isUnknownArray(classes) && isRecord(classes[0]) ? classes[0] : {}),
@@ -568,11 +579,48 @@ describe('items table columns', () => {
       }),
       '#/items?class=60',
     );
-    const classSelect = screen.getByRole('combobox', { name: 'Class' });
-    await within(classSelect).findByRole('option', { name: 'Still Image (schema)' });
-    expect(within(classSelect).getByRole('option', { name: 'Still Image (dctype)' })).toBeInTheDocument();
-    expect(within(classSelect).getByRole('option', { name: 'Book' })).toBeInTheDocument();
     expect(await screen.findByText('Class: Still Image (schema)')).toBeInTheDocument();
+  });
+
+  it('the Class filter offers only the classes items use, each with its count, a shared name with its standard', async () => {
+    const fetchMock = await openWith(
+      overriding({
+        '/api/romeka/classes/counts': () =>
+          jsonResponse({
+            classes: [
+              ...CLASS_COUNTS.classes,
+              { id: 60, term: 'schema:StillImage', label: 'Still Image', vocabulary_label: 'Schema.org', items: 1_250 },
+            ],
+          }),
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'More filters' }));
+    const classSelect = screen.getByRole('combobox', { name: 'Class' });
+    await within(classSelect).findByRole('option', { name: 'Still Image (Schema.org) · 1,250 items' });
+
+    expect(within(classSelect).getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'Any',
+      'Book · 4 items',
+      'Still Image (Dublin Core Type) · 1 item',
+      'Still Image (Schema.org) · 1,250 items',
+    ]);
+    expect(urlsFor(fetchMock, '/api/romeka/classes/counts')).toHaveLength(1);
+  });
+
+  it('a class the URL holds that no item has stays chosen, at 0 items', async () => {
+    await openWith(
+      overriding({
+        '/api/romeka/classes/counts': () => jsonResponse({ classes: [CLASS_COUNTS.classes[0]] }),
+        '/api/resource_classes/13': () => jsonResponse(loadFixture('resource-class-13.json')),
+        '/api/vocabularies/2': () => jsonResponse(loadFixture('vocabulary-2.json')),
+      }),
+      '#/items?class=13',
+    );
+    const classSelect = screen.getByRole('combobox', { name: 'Class' });
+
+    const held = await within(classSelect).findByRole('option', { name: 'Still Image · 0 items' });
+    expect(classSelect).toHaveValue('13');
+    expect(held).toHaveProperty('selected', true);
   });
 });
 

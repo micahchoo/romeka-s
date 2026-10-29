@@ -44,8 +44,19 @@ test('the Media and text section is two columns on a desktop and one on a phone'
   // The section's text block starts empty, with its hint; the curator writes it.
   await section.locator('.canvas-slot').nth(1).getByText('Text', { exact: true }).click();
   const words = page.getByRole('textbox', { name: 'Text', exact: true });
-  await expect(words).toHaveAttribute('data-placeholder', 'Write what visitors read here.');
+  const hint = page
+    .locator('.html-surface')
+    .filter({ has: words })
+    .getByText('Write what visitors read here.', { exact: true });
+  await expect(hint).toBeVisible();
+  // An emptied editor holds `<p><br></p>`: still blank, so the hint stays.
+  await words.evaluate((element) => {
+    element.innerHTML = '<p><br></p>';
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await expect(hint).toBeVisible();
   await words.fill('A line for this part');
+  await expect(hint).toHaveCount(0);
 
   // The page's own settings come back when the selection is cleared.
   await page.getByRole('button', { name: 'Page', exact: true }).click();

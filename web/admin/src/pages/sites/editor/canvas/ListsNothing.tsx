@@ -7,25 +7,30 @@
  * (`blockFields.ts`).
  */
 import type { ReactElement } from 'react';
-import type { SiteId } from '../../../../api/types';
+import type { JsonValue, SiteId } from '../../../../api/types';
 import type { BlockRegistry } from '../../blockSchema';
 import { blockList } from '../blockFields';
 import type { BlockDraft } from '../draft';
-import { useListReach } from '../fields/listReach';
+import { listsAttachedOnly, useListReach } from '../fields/listReach';
 import { useEditorText } from '../messages';
 
 export const ListsNothing = ({
   registry,
   block,
   siteId,
+  siteSettings,
 }: {
   readonly registry: BlockRegistry;
   readonly block: BlockDraft;
   readonly siteId: SiteId;
+  readonly siteSettings: JsonValue | null;
 }): ReactElement | null => {
   const e = useEditorText();
   const list = blockList(registry, block);
-  const reach = useListReach(list?.resource ?? 'items', list?.query ?? null, siteId);
+  const reach = useListReach(list?.resource ?? 'items', list?.query ?? null, {
+    id: siteId,
+    attachedOnly: listsAttachedOnly(siteSettings),
+  });
   return reach.status === 'ready' && reach.data !== null && reach.data.kind !== 'matches' ? (
     <span className="canvas-badge canvas-badge-quiet">{e('canvas.listsNothing')}</span>
   ) : null;

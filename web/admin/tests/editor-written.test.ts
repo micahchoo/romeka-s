@@ -11,13 +11,13 @@ import {
   FORMER_TEXT,
   clearTemplateText,
   foldSpace,
-  isBlankHtml,
   previewHints,
   storedUnwrittenCount,
   templateTextKeys,
   unwrittenCount,
   unwrittenField,
 } from '../src/pages/sites/editor/written';
+import { isBlankHtml } from '../src/pages/sites/editor/blankHtml';
 import { readLayoutData } from '../src/pages/sites/editor/values';
 import { apply, at, blockAt, dataOf, load, parsePage, rawBlock } from './editor-draft-helpers';
 

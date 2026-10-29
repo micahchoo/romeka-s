@@ -225,7 +225,7 @@ export const PageCanvas = ({
         summary={blockSummary(block, draft.title, t)}
         image={imageUrl(block)}
         issues={issuesByBlock.get(block.key) ?? []}
-        listNote={<ListsNothing registry={draft.registry} block={block} siteId={siteId} />}
+        listNote={<ListsNothing registry={draft.registry} block={block} siteId={siteId} siteSettings={siteSettings} />}
         mismatch={romkaState(draft.registry, block) === 'edited'}
         writing={writingOf(draft.registry, block)}
         selected={selected === block.key}

@@ -10,6 +10,7 @@ import { ErrorNotice } from '../../../../app/errors';
 import { useAsync } from '../../../../app/useAsync';
 import { useTranslator } from '../../../../i18n';
 import { useEditorText } from '../messages';
+import { listsAttachedOnly } from '../fields/listReach';
 import { loadEditorOptions } from '../options';
 import type { EditorOptions } from '../options';
 import { PageEditor } from './PageEditor';
@@ -26,7 +27,11 @@ const load = async (siteId: SiteId, pageId: PageId | null): Promise<Loaded> => {
     pageId === null ? Promise.resolve(null) : api.getSitePage(pageId),
   ]);
   const options = await loadEditorOptions(siteId);
-  return { site, page, options: { ...options, themeSettings: site.themeSettings } };
+  return {
+    site,
+    page,
+    options: { ...options, themeSettings: site.themeSettings, attachedOnly: listsAttachedOnly(site.siteSettings) },
+  };
 };
 
 export const SitePageEditor = ({

@@ -4,17 +4,18 @@
  */
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import type { JsonValue } from '../src/api/types';
 import { PageCanvas } from '../src/pages/sites/editor/canvas';
 import type { PageDraft } from '../src/pages/sites/editor/draft';
 import { blockAt, load, rawBlock } from './editor-draft-helpers';
 import { SITE_ID } from './editor-fields-helpers';
 import { installFetch, listResponse, requestsFor } from './stub';
 
-const renderCanvas = (draft: PageDraft): void => {
+const renderCanvas = (draft: PageDraft, siteSettings: JsonValue | null = null): void => {
   render(
     <PageCanvas
       draft={draft}
-      siteSettings={null}
+      siteSettings={siteSettings}
       siteId={SITE_ID}
       selection={null}
       onSelect={() => {}}
@@ -43,6 +44,31 @@ describe('a list block row', () => {
     expect(card(blockAt(draft.blocks, 0).key)).toHaveTextContent('Lists nothing yet');
     const counted = requestsFor(fetchMock, '/api/item_sets');
     expect(counted[0]?.url.searchParams.get('site_id')).toBe(String(SITE_ID));
+  });
+
+  it('counts the whole stored query, and only items placed on pages when the site lists only those', async () => {
+    const fetchMock = installFetch((url) =>
+      listResponse([], url.searchParams.get('property[0][type]') === 'eq' ? 0 : 4),
+    );
+    const draft = load([
+      rawBlock('browsePreview', {
+        resource_type: 'items',
+        query: 'property[0][property]=1&property[0][type]=eq&property[0][text]=harbour',
+        components: [],
+      }),
+    ]);
+    renderCanvas(draft, { browse_attached_items: true });
+
+    expect(await screen.findByText('Lists nothing yet')).toBeInTheDocument();
+    const counted = requestsFor(fetchMock, '/api/items')[0]?.url.searchParams;
+    expect(counted === undefined ? [] : [...counted]).toEqual([
+      ['property[0][property]', '1'],
+      ['property[0][type]', 'eq'],
+      ['property[0][text]', 'harbour'],
+      ['site_attachments_only', 'true'],
+      ['site_id', String(SITE_ID)],
+      ['per_page', '1'],
+    ]);
   });
 
   it('says nothing when the query matches', async () => {

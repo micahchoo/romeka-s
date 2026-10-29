@@ -58,7 +58,7 @@ describe('a field that waits on a sibling', () => {
 });
 
 describe('the browse preview query builder', () => {
-  it('counts item sets, without an item set filter, when the block lists item sets', async () => {
+  it('counts item sets with the whole stored query when the block lists item sets', async () => {
     const fetchMock = installFetch(handler);
     render(
       <BlockFormHarness
@@ -76,8 +76,14 @@ describe('the browse preview query builder', () => {
     const counted = requestsFor(fetchMock, '/api/item_sets').filter(
       (request) => request.url.searchParams.get('per_page') === '1',
     );
-    expect(counted.at(-1)?.url.searchParams.get('site_id')).toBe(String(SITE_ID));
-    expect(counted.at(-1)?.url.searchParams.has('item_set_id')).toBe(false);
+    // The public render sends the stored query to the item sets search as it is; that search
+    // reads no `item_set_id` (`QueryFilter::push_item_set`), so the leftover pair narrows neither.
+    const sent = counted.at(-1)?.url.searchParams;
+    expect(sent === undefined ? [] : [...sent]).toEqual([
+      ['item_set_id', '1'],
+      ['site_id', String(SITE_ID)],
+      ['per_page', '1'],
+    ]);
   });
 
   it('counts media when the block lists media', async () => {

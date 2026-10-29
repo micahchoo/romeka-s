@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslator } from '../../../../i18n';
 import { common } from '../../../../i18n/namespaces/common';
 import { sites } from '../../../../i18n/namespaces/sites';
+import { isBlankHtml } from '../blankHtml';
 
 export interface HtmlEditorProps {
   readonly id: string;
@@ -21,7 +22,7 @@ export interface HtmlEditorProps {
   readonly value: string;
   readonly onChange: (html: string) => void;
   readonly required?: boolean;
-  /** The hint the empty editor shows; the generic "empty" line when absent. */
+  /** The hint the editor shows while its value is blank; the generic "empty" line when absent. */
   readonly placeholder?: string;
 }
 
@@ -65,6 +66,7 @@ export const HtmlEditor = ({
   const saved = useRef<Range | null>(null);
   const [source, setSource] = useState(false);
   const [link, setLink] = useState<string | null>(null);
+  const hint = placeholder ?? t('html.empty');
 
   useEffect(() => {
     const element = editor.current;
@@ -190,21 +192,29 @@ export const HtmlEditor = ({
           }}
         />
       ) : (
-        <div
-          id={id}
-          ref={editor}
-          className="html-editor"
-          role="textbox"
-          aria-label={label}
-          aria-multiline="true"
-          aria-required={required}
-          data-placeholder={placeholder ?? t('html.empty')}
-          contentEditable
-          suppressContentEditableWarning
-          onInput={(event) => {
-            onChange(event.currentTarget.innerHTML);
-          }}
-        />
+        <div className="html-surface">
+          <div
+            id={id}
+            ref={editor}
+            className="html-editor"
+            role="textbox"
+            aria-label={label}
+            aria-multiline="true"
+            aria-required={required}
+            aria-placeholder={hint}
+            contentEditable
+            suppressContentEditableWarning
+            onInput={(event) => {
+              onChange(event.currentTarget.innerHTML);
+            }}
+          />
+          {/* An emptied editor still holds `<p><br></p>`, so CSS `:empty` cannot tell; the row's rule can. */}
+          {isBlankHtml(value) ? (
+            <span className="html-hint" aria-hidden="true">
+              {hint}
+            </span>
+          ) : null}
+        </div>
       )}
     </div>
   );

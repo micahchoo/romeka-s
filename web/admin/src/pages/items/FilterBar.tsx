@@ -5,6 +5,7 @@
  */
 import type { ReactElement, ReactNode, Ref } from 'react';
 import { useId, useState } from 'react';
+import { useClassChoices, useClassOptionText } from '../../app/class-choices';
 import { KIND_FILTERS, KIND_LABEL } from '../../app/media';
 import { useTranslator } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
@@ -12,7 +13,7 @@ import { resources } from '../../i18n/namespaces/resources';
 import { useTermLabels } from '../../i18n/termText';
 import { chosenId, COLUMN_SORTS, isSet, MORE_KEYS, NONE, parseSort, PRESENCES } from './browse';
 import type { BrowseFilters, ColumnSort, ItemBrowse, MediaFilter, Presence, SiteFilter, Sort, View } from './browse';
-import { classNamesOf, fieldChoices } from './browse-options';
+import { fieldChoices } from './browse-options';
 import type { BrowseOptions } from './browse-options';
 import type { OnFilter } from './filter-value';
 import { ItemTypeChips } from './item-type-chips';
@@ -161,9 +162,9 @@ const MoreFilters = ({
   onFilter,
 }: Pick<FilterBarProps, 'options' | 'onFilter'> & { readonly filters: BrowseFilters }): ReactNode => {
   const { t } = useTranslator(common, resources);
-  const text = useTermLabels();
   const any = t('browse.anyValue');
-  const classChoices = choicesOf(classNamesOf(options, text));
+  const classes = useClassChoices(filters.classId);
+  const classOption = useClassOptionText();
   const siteChoices: readonly Choice[] = [
     { value: 'any', label: t('browse.siteAny') },
     { value: 'none', label: t('browse.siteNone') },
@@ -175,9 +176,9 @@ const MoreFilters = ({
         label={t('field.class')}
         value={filters.classId === null ? '' : String(filters.classId)}
         anyLabel={any}
-        choices={classChoices}
+        choices={classes.map((choice) => ({ value: String(choice.id), label: classOption(choice) }))}
         onChoose={(value) => {
-          onFilter({ classId: keyOf(options.classNames, value) });
+          onFilter({ classId: classes.find((choice) => String(choice.id) === value)?.id ?? null });
         }}
       />
       <FieldFilterControl filters={filters} options={options} onFilter={onFilter} />
