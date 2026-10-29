@@ -39,7 +39,8 @@ test('signed out, every admin address shows only the sign-in panel and asks the 
     await expect(page.getByRole('alert')).toHaveCount(0);
   }
   await expectClean(diagnostics, 'signed-out addresses');
-  expect([...new Set(asked)]).toEqual(['/api/me']);
+  // The installation title is the one answer a signed-out caller may read, for the panel's heading.
+  expect([...new Set(asked)].sort()).toEqual(['/api/me', '/api/romeka/installation']);
   const folder = process.env.ACCESS_SCREENSHOTS;
   if (folder !== undefined && folder !== '') {
     await page.screenshot({ path: `${folder}/access-signed-out.png`, fullPage: true });
