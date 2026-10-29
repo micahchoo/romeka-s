@@ -220,6 +220,7 @@
  "server.mediaUploadBusy": "This upload \"{upload}\" is being added right now. Wait for that to finish and try again.",
  "server.mediaUploadIncomplete": "This upload holds {received} of its {length} bytes. Send the rest before you add it.",
  "server.mediaUploadIngester": "A staged upload is added with the upload ingester.",
+ "server.annotationPreviewPending": "This picture's preview is still being made. Try again in a moment.",
  "server.noDerivativeToRetry": "This media has no failed copy to make again.",
  "server.mediaUploadInline": "A staged upload is added with its own media create, not inside an item.",
  "server.uploadTooLarge": "This file is larger than {limit} bytes, the largest file a media upload takes.",

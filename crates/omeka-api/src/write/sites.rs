@@ -129,30 +129,35 @@ pub async fn create(api: &Api<'_>, payload: &Payload) -> Result<ApiResponse, Api
     }
     let first_page = site_defaults::welcome_page(api).await?;
     let taken = taken_or_db_error("o:slug", messages::slug_taken(&slug));
+    let snapshot = crate::read::page_snapshot(api.base());
     let site = with_db!(api.pool(), |db| SiteRepo::new(db)
-        .create_whole(&NewWholeSite {
-            site: NewSite {
-                owner_id: owner,
-                slug,
-                theme,
-                title,
-                summary,
-                navigation,
-                item_pool,
-                thumbnail_id,
-                homepage_id,
-                is_public: payload.bool_member("o:is_public", true),
-                assign_new_items: payload.bool_member("o:assign_new_items", false),
-                ..NewSite::default()
+        .create_whole(
+            &NewWholeSite {
+                site: NewSite {
+                    owner_id: owner,
+                    slug,
+                    theme,
+                    title,
+                    summary,
+                    navigation,
+                    item_pool,
+                    thumbnail_id,
+                    homepage_id,
+                    is_public: payload.bool_member("o:is_public", true),
+                    assign_new_items: payload.bool_member("o:assign_new_items", false),
+                    ..NewSite::default()
+                },
+                first_page,
+                creator: api.actor().user(),
+                navigation_linking_first_page: sent_navigation
+                    .is_none()
+                    .then_some(site_defaults::default_navigation as fn(PageId) -> Value),
+                permissions,
+                item_sets: item_sets.clone(),
+                settings,
             },
-            first_page,
-            navigation_linking_first_page: sent_navigation
-                .is_none()
-                .then_some(site_defaults::default_navigation as fn(PageId) -> Value),
-            permissions,
-            item_sets: item_sets.clone(),
-            settings,
-        })
+            &snapshot
+        )
         .await)
     .map_err(taken)?;
     // Each set joins the new site: a change to the set, as in `apply_item_sets`.

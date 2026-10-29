@@ -148,8 +148,8 @@ async fn migrating_twice_leaves_the_schema_and_the_rows_unchanged() {
             .expect("list migrations");
     assert_eq!(
         applied,
-        [1, 2, 3, 5, 6, 7, 8, 9, 10, 11],
-        "each MySQL migration file applied once; 0004 is SQLite only"
+        mysql_migration_versions(),
+        "each MySQL migration file applied once"
     );
 
     db.cleanup().await;
@@ -1108,6 +1108,7 @@ async fn a_whole_site_create_commits_together_or_not_at_all() {
                 layout_data: None,
             }],
         },
+        creator: None,
         navigation_linking_first_page: Some(link_first_page),
         permissions: vec![(user, "admin".to_string())],
         item_sets: Vec::new(),
@@ -1127,7 +1128,7 @@ async fn a_whole_site_create_commits_together_or_not_at_all() {
     let sites = SiteRepo::<MySql>::new(&db.pool);
 
     let site = sites
-        .create_whole(&new("whole", user.id))
+        .create_whole(&new("whole", user.id), &|_| Ok(json!({})))
         .await
         .expect("create whole site");
     let pages = sites.list_pages(site.id).await.expect("list pages");
@@ -1138,7 +1139,7 @@ async fn a_whole_site_create_commits_together_or_not_at_all() {
 
     assert!(
         sites
-            .create_whole(&new("broken", UserId(999_999)))
+            .create_whole(&new("broken", UserId(999_999)), &|_| Ok(json!({})))
             .await
             .is_err()
     );
@@ -1156,4 +1157,17 @@ async fn a_whole_site_create_commits_together_or_not_at_all() {
             .expect("count rows");
         assert_eq!(rows, 1, "{table} holds only the whole site's row");
     }
+}
+
+/// The version of every file in `migrations-mysql`, in order. Read from the folder, so a new
+/// migration needs no edit here; 0004 is SQLite only and has no file there.
+fn mysql_migration_versions() -> Vec<i64> {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations-mysql");
+    let mut versions: Vec<i64> = std::fs::read_dir(&dir)
+        .expect("read migrations-mysql")
+        .map(|entry| entry.expect("a migration file").file_name())
+        .filter_map(|name| name.to_str()?.split('_').next()?.parse().ok())
+        .collect();
+    versions.sort_unstable();
+    versions
 }

@@ -309,6 +309,8 @@ export const mrServer: ServerCatalogue = {
   'server.mediaUploadIncomplete':
     'या अपलोडमध्ये त्याच्या {length} बाइट्सपैकी {received} बाइट्स आहेत. ते जोडण्यापूर्वी उर्वरित भाग पाठवा.',
   'server.mediaUploadIngester': 'टप्प्याटप्प्याने केलेले अपलोड अपलोड इनगेस्टरसह जोडले जाते.',
+  'server.annotationPreviewPending':
+    'या चित्राचे पूर्वावलोकन अजूनही तयार केले जात आहे. थोड्या वेळात पुन्हा प्रयत्न करा.',
   'server.noDerivativeToRetry': 'या मीडियाचा कोणताही अयशस्वी प्रत तयार करण्याची नाही.',
   'server.mediaUploadInline':
     'टप्प्याटप्प्याने केलेले अपलोड त्याच्या स्वतःच्या मीडिया क्रिएशनसह जोडले जाते, आयटमच्या आत नाही.',

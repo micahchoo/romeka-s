@@ -417,8 +417,10 @@ for most item filters, so a page-by-page stream would repeat that load per page.
 
 Every `POST`, `PUT` or `PATCH` of a site page is one transaction that also stores the page document
 it makes as a version (`omeka_db::repos::PageVersionRepo::create` and `::save`). A create is
-version 1 with `o:origin` `create`. The first save of a page with no version (one made before
-history, or by a site create) also keeps the state it replaced, as `before_history` with no user.
+version 1 with `o:origin` `create`, and so is the Welcome page a site create makes
+(`SiteRepo::create_whole`), by the user who made the site. The first save of a page with no
+version (one made before history, or copied from an Omeka S database) also keeps the state it
+replaced, as `before_history` with no user.
 `o:author` follows `o:origin`: `not_recorded` for `before_history`, else `user`, or `deleted_user`
 once the user is deleted. A page keeps its newest 100 versions, and deleting the page
 deletes them. These routes are a Romeka addition (`src/page_versions.rs`, logic in

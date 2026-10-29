@@ -17,9 +17,10 @@ use common::{
 };
 use omeka_db::ids::{ItemId, MediaId};
 use omeka_db::repos::{
-    Cue, ExtentRow, MediaAnnotationRepo, MediaAnnotationWrite, MediaExtentRepo, MediaRepo,
+    Cue, ExtentRow, MediaAnnotationRepo, MediaAnnotationWrite, MediaDerivativeRepo,
+    MediaExtentRepo, MediaRepo,
 };
-use omeka_db::rows::{NewMedia, NewResource};
+use omeka_db::rows::{DerivativeKind, DerivativeState, NewDerivative, NewMedia, NewResource};
 use omeka_media::store::FileStore;
 use serde_json::{Value, json};
 
@@ -902,6 +903,41 @@ async fn a_video_takes_a_box_over_a_time_range() {
 
 /// A PDF and an audio row on the seeded item: the first has no drawing surface,
 /// the second takes a time range and no box.
+/// A picture whose thumbnails do not exist yet, with its preview row in `state`. Each picture
+/// in one test takes its own extension, which names its stored file. A running row is claimed
+/// as the worker claims it, so make it before any pending one.
+async fn picture_without_preview(
+    pool: &sqlx::SqlitePool,
+    seed: &Seed,
+    (extension, media_type): (&str, &str),
+    state: DerivativeState,
+) -> MediaId {
+    let source = format!("photo.{extension}");
+    let picture = add_media(
+        pool,
+        seed,
+        "A photograph",
+        &source,
+        extension,
+        media_type,
+        false,
+    )
+    .await;
+    let repo = MediaDerivativeRepo::new(pool);
+    let new = NewDerivative {
+        media_id: picture,
+        kind: DerivativeKind::Thumbnail,
+    };
+    if state == DerivativeState::Running {
+        assert!(repo.enqueue(&new).await.unwrap());
+        let claimed = repo.claim_next(&["vips"]).await.unwrap().unwrap();
+        assert_eq!((claimed.media_id, claimed.state), (picture, state));
+    } else {
+        assert!(repo.plan(&new, state, None, None).await.unwrap());
+    }
+    picture
+}
+
 async fn extra_media(pool: &sqlx::SqlitePool, seed: &Seed) -> (MediaId, MediaId) {
     let pdf = add_media(
         pool,
@@ -962,4 +998,60 @@ async fn add_media(
         .await
         .expect("create a media row")
         .id()
+}
+
+#[tokio::test]
+async fn a_region_note_on_a_picture_whose_preview_is_being_made_is_refused_for_now() {
+    let (pool, seed) = common::seeded_pool().await;
+    let app = router(pool.clone());
+    for (file, state) in [
+        (("jpg", "image/jpeg"), DerivativeState::Running),
+        (("png", "image/png"), DerivativeState::Pending),
+    ] {
+        let picture = picture_without_preview(&pool, &seed, file, state).await;
+        let target = canvas(seed.item.0, picture.0);
+        let region = note(&target, "Region", Some(box_selector(0, 0, 10, 10)));
+
+        let refused = create(&app, picture.0, &region, None).await;
+
+        assert_eq!(refused.status, StatusCode::CONFLICT, "{state:?}");
+        assert_eq!(
+            refused.json()["errors"]["error"],
+            "This picture's preview is still being made. Try again in a moment."
+        );
+        assert_eq!(header(&refused, "retry-after"), Some("5"));
+        let whole = create(&app, picture.0, &note(&target, "Whole", None), None).await;
+        assert_eq!(whole.status, StatusCode::CREATED, "{}", whole.body);
+    }
+}
+
+#[tokio::test]
+async fn a_region_note_on_a_picture_with_no_preview_coming_takes_whole_file_notes_only() {
+    let (pool, seed) = common::seeded_pool().await;
+    let app = router(pool.clone());
+    let failed =
+        picture_without_preview(&pool, &seed, ("gif", "image/gif"), DerivativeState::Failed).await;
+    let never_queued = add_media(
+        &pool,
+        &seed,
+        "An old photograph",
+        "old.webp",
+        "webp",
+        "image/webp",
+        false,
+    )
+    .await;
+    for picture in [failed, never_queued] {
+        let target = canvas(seed.item.0, picture.0);
+        let region = note(&target, "Region", Some(box_selector(0, 0, 10, 10)));
+
+        let refused = create(&app, picture.0, &region, None).await;
+
+        assert_eq!(refused.status, StatusCode::BAD_REQUEST, "{}", refused.body);
+        assert_eq!(
+            refused.json()["errors"]["error"],
+            "This media takes notes about the whole file only."
+        );
+        assert_eq!(header(&refused, "retry-after"), None);
+    }
 }

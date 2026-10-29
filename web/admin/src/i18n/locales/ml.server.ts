@@ -317,6 +317,8 @@ export const mlServer: ServerCatalogue = {
   'server.mediaUploadIncomplete':
     'ഈ അപ്‌ലോഡിൽ അതിന്റെ {length} ബൈറ്റുകളിൽ {received} ഉണ്ട്. ഇത് ചേർക്കുന്നതിന് മുമ്പ് ബാക്കി ഭാഗം അയക്കുക.',
   'server.mediaUploadIngester': 'സ്റ്റേജ്ഡ് അപ്‌ലോഡ് അപ്‌ലോഡ് ഇൻഗെസ്റ്റർ ചേർക്കുന്നു.',
+  'server.annotationPreviewPending':
+    'ഈ ചിത്രത്തിന്റെ പ്രിവ്യൂ ഇപ്പോഴും നിർമ്മിക്കപ്പെടുന്നു. കുറച്ചു സമയം കഴിഞ്ഞ് വീണ്ടും ശ്രമിക്കുക.',
   'server.noDerivativeToRetry': 'ഈ മീഡിയയ്ക്ക് വീണ്ടും നിർമ്മിക്കാൻ പരാജയപ്പെട്ട പകർപ്പുകളില്ല.',
   'server.mediaUploadInline':
     'ഒരു സ്റ്റേജ്ഡ് അപ്‌ലോഡ് അതിന്റെ സ്വന്തം മീഡിയ ക്രിയേറ്റ് ചേർക്കുന്നു, ഒരു ഐറ്റത്തിന് ഉള്ളിലല്ല.',

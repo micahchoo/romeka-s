@@ -302,6 +302,8 @@ export const neServer: ServerCatalogue = {
   'server.mediaUploadIncomplete':
     'यो अपलोडमा {length} बाइट्स मध्ये {received} बाइट्स छन्। थप्नु अघि बाँकी भाग पठाउनुहोस्।',
   'server.mediaUploadIngester': 'चरणबद्ध अपलोड अपलोड इन्जेस्टरसँग थपिन्छ।',
+  'server.annotationPreviewPending':
+    'यो चित्रको पूर्वावलोकन अझै बनिरहेको छ। केही समयमा फेरि प्रयास गर्नुहोस्।',
   'server.noDerivativeToRetry': 'यस मिडियामा फेरि बनाउनका लागि कुनै असफल प्रतिलिपि छैन।',
   'server.mediaUploadInline':
     'चरणबद्ध अपलोड यसको आफ्नै मिडिया सिर्जनाको साथ थपिन्छ, वस्तु भित्र होइन।',
