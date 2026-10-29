@@ -12,7 +12,9 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use common::{Answer, KEY_CREDENTIAL, KEY_IDENTITY, send};
 use imports_fixture::{EDITOR, JPEG, SECOND_ADMIN, fixture};
-use omeka_db::repos::{JobRepo, SettingRepo};
+use omeka_db::ids::ImportId;
+use omeka_db::repos::{ImportRepo, JobRepo, SettingRepo};
+use omeka_db::rows::ImportEnding;
 use omeka_db::with_db;
 use serde_json::{Value, json};
 
@@ -515,4 +517,42 @@ async fn delete_removes_an_upload_and_deleting_the_draft_removes_its_files() {
         .await;
     assert_eq!(gone.status, StatusCode::NO_CONTENT, "{}", gone.body);
     assert_eq!(std::fs::read_dir(&staged).unwrap().count(), 0);
+}
+
+/// Discard is for an import that added nothing. Once a run has added, the import
+/// keeps its row and its staged files, and Undo is the way back.
+#[tokio::test]
+async fn an_import_that_added_refuses_discard_and_keeps_its_files() {
+    let fixture = fixture().await;
+    let draft = staging_draft(&fixture).await;
+    let tus = Tus {
+        fixture: &fixture,
+        collection: format!("/api/romeka/imports/{}/uploads", draft["id"]),
+    };
+    tus.whole("b.jpg", JPEG).await;
+    let id = ImportId(draft["id"].as_u64().unwrap());
+    with_db!(&fixture.pool, |db| ImportRepo::new(db)
+        .start_run(id, 0)
+        .await)
+    .unwrap();
+    assert!(
+        with_db!(&fixture.pool, |db| ImportRepo::new(db)
+            .finish(id, ImportEnding::Done)
+            .await)
+        .unwrap()
+    );
+    let uri = format!("/api/romeka/imports/{}", id.0);
+
+    let refused = fixture.call("DELETE", &uri, None).await;
+
+    assert_eq!(refused.status, StatusCode::CONFLICT, "{}", refused.body);
+    assert_eq!(
+        refused.json()["errors"]["error"],
+        "Only an import that is not added yet can be deleted. An import that has run stays in Past imports."
+    );
+    let staged = fixture.files.path().join(format!("staging/{}/files", id.0));
+    assert_eq!(std::fs::read_dir(&staged).unwrap().count(), 1);
+    let kept = fixture.call("GET", &uri, None).await;
+    assert_eq!(kept.status, StatusCode::OK);
+    assert_eq!(kept.json()["status"], "done");
 }

@@ -277,7 +277,8 @@ async fn save(
     )
 }
 
-/// `DELETE /api/romeka/imports/{id}`: delete a draft.
+/// `DELETE /api/romeka/imports/{id}`: discard a draft, an import that added
+/// nothing, with its staged files.
 async fn delete(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -288,18 +289,17 @@ async fn delete(
         async {
             admin(&state, &uri, &headers).await?;
             let id = parse_id(&id)?;
-            // The rows go with the draft, so its bytes go first.
-            if load(&state, &id.0.to_string()).await?.status == omeka_db::rows::ImportStatus::Draft
-            {
-                with_db!(&state.pool, |db| omeka_api::import::staging::remove_all(
-                    db,
-                    &state.store,
-                    id
-                )
-                .await)?;
-            }
+            // The row goes first, in the one statement that checks it is still a
+            // draft, so a run that starts meanwhile never loses its files. The
+            // files go after by folder, which needs no upload row.
             with_db!(&state.pool, |db| draft::delete(db, id).await)
                 .map_err(|error| draft_error(error, id, true))?;
+            with_db!(&state.pool, |db| omeka_api::import::staging::remove_all(
+                db,
+                &state.store,
+                id
+            )
+            .await)?;
             Ok(Response::builder()
                 .status(StatusCode::NO_CONTENT)
                 .body(Body::empty())
