@@ -140,3 +140,62 @@ test('on a private site the check says so first, and counts a media list of a pr
   ).toHaveCount(0);
   await expectClean(diagnostics, 'site check on a private site');
 });
+
+test('the check counts blocks still showing template text as the editor marks them', async ({
+  page,
+  request,
+  diagnostics,
+}) => {
+  const site = await idOf(
+    await request.post('/api/sites', {
+      data: { 'o:title': 'E2E template check', 'o:slug': 'e2e-check-template', 'o:theme': 'default', 'o:is_public': true },
+    }),
+  );
+  const hero = await idOf(
+    await request.post('/api/site_pages', {
+      data: {
+        'o:site': { 'o:id': site },
+        'o:title': 'Hero',
+        'o:slug': 'hero',
+        'o:is_public': true,
+        'o:block': [
+          {
+            'o:layout': 'html',
+            'o:data': { html: '' },
+            'o:layout_data': {
+              romeka: {
+                block: 'hero',
+                v: 2,
+                settings: { heading: 'Your exhibit title', subheading: 'A sentence about what this exhibit holds' },
+              },
+            },
+          },
+          { 'o:layout': 'html', 'o:data': { html: '<p>A line worth remembering.</p>' } },
+          { 'o:layout': 'html', 'o:data': { html: '<p>Our own words.</p>' } },
+        ],
+      },
+    }),
+  );
+
+  const { keyIdentity, keyCredential } = readHarness();
+  await page.addInitScript(
+    (key: { identity: string; credential: string }) => {
+      window.localStorage.setItem('romeka.apiKey', JSON.stringify(key));
+    },
+    { identity: keyIdentity, credential: keyCredential },
+  );
+  await page.goto(`/#/sites/${String(site)}`);
+  await page.getByRole('button', { name: 'Check this site' }).click();
+  const check = page.getByRole('region', { name: 'Before you share this site' });
+  const template = check
+    .getByRole('listitem')
+    .filter({ hasText: '2 blocks still show template text, on 1 public page' });
+  await expect(template).toContainText(
+    'Visitors read this text as written. Clear it or write over it in the page editor.',
+  );
+
+  await template.getByRole('link', { name: 'Hero' }).click();
+  await expect(page).toHaveURL(new RegExp(`#/sites/${String(site)}/pages/${String(hero)}$`));
+  await expect(page.getByText('Template text', { exact: true })).toHaveCount(2);
+  await expectClean(diagnostics, 'site check of template text');
+});

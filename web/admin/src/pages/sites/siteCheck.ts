@@ -20,7 +20,7 @@ import type { ResourceRef } from './editor/blockFields';
 import { listsAttachedOnly, readVisitorCount, readVisitorMediaOfPrivateItems } from './editor/fields/listReach';
 import type { ListSite } from './editor/fields/listReach';
 import { readLayoutData } from './editor/values';
-import { unwrittenField } from './editor/written';
+import { templateTextKeys, unwrittenField } from './editor/written';
 import type { BlockContent } from './editor/written';
 import { homepageOf, linkedPages } from './navigationTree';
 
@@ -31,10 +31,11 @@ export interface CheckPage {
 }
 
 /**
- * What a line counts. `unwritten`, `emptyLists` and `privateResources` count
- * blocks on public pages; `outsideMenu` counts public pages.
+ * What a line counts. `unwritten`, `templateText`, `emptyLists` and
+ * `privateResources` count blocks on public pages; `outsideMenu` counts public
+ * pages.
  */
-export type CheckKind = 'unwritten' | 'emptyLists' | 'privateResources' | 'outsideMenu';
+export type CheckKind = 'unwritten' | 'templateText' | 'emptyLists' | 'privateResources' | 'outsideMenu';
 
 /** One line of the check: a count above zero and the pages it is on. */
 export interface CheckLine {
@@ -202,6 +203,8 @@ export const readSiteCheck = async (siteId: SiteId): Promise<SiteCheckResult> =>
   const unwritten = blocks.filter((found) => unwrittenField(BLOCK_REGISTRY, found.block) !== null);
   // An unwritten block reaches no visitor, so it counts in its own line only.
   const written = blocks.filter((found) => unwrittenField(BLOCK_REGISTRY, found.block) === null);
+  // The editor's "Template text" mark, by the same rule, so the two never disagree.
+  const templateText = written.filter((found) => templateTextKeys(BLOCK_REGISTRY, found.block).length > 0);
   const [lists, hidden] = await Promise.all([
     listsShown({ id: siteId, attachedOnly: listsAttachedOnly(site.siteSettings) }, written),
     privateResources(written),
@@ -217,6 +220,7 @@ export const readSiteCheck = async (siteId: SiteId): Promise<SiteCheckResult> =>
     sitePublic: site.isPublic,
     lines: [
       lineOf('unwritten', unwritten),
+      lineOf('templateText', templateText),
       lineOf('emptyLists', lists.empty),
       lineOf('privateResources', written.filter((found) => pointsToPrivate.includes(found))),
       lineOf('outsideMenu', outside),

@@ -20,6 +20,13 @@ export const te: SiteCheckMessages = {
   'siteCheck.unwrittenOne': '1 బ్లాక్ వ్రాయబడలేదు, 1 పబ్లిక్ పేజీలో',
   'siteCheck.unwrittenOnePage': '{count} బ్లాక్‌లు వ్రాయబడలేదు, 1 పబ్లిక్ పేజీలో',
   'siteCheck.unwritten': '{count} బ్లాక్‌లు వ్రాయబడలేదు, {pages} పబ్లిక్ పేజీలలో',
+  'siteCheck.templateTextOne': '1 బ్లాక్ ఇప్పటికీ 1 పబ్లిక్ పేజీలో టెంప్లేట్ టెక్స్ట్‌ను చూపుతుంది',
+  'siteCheck.templateTextOnePage':
+    '{count} బ్లాక్‌లు ఇప్పటికీ 1 పబ్లిక్ పేజీలో టెంప్లేట్ టెక్స్ట్‌ను చూపుతాయి',
+  'siteCheck.templateText':
+    '{count} బ్లాక్‌లు ఇప్పటికీ {pages} పబ్లిక్ పేజీలలో టెంప్లేట్ టెక్స్ట్‌ను చూపుతాయి',
+  'siteCheck.templateTextNote':
+    'సందర్శకులు ఈ టెక్స్ట్‌ను యథాతథంగా చదువుతారు. పేజీ ఎడిటర్‌లో దీనిని క్లియర్ చేయండి లేదా దానిపై వ్రాయండి.',
   'siteCheck.emptyListsOne': '1 జాబితా సందర్శకులకు ఏమీ చూపదు, 1 పబ్లిక్ పేజీలో',
   'siteCheck.emptyListsOnePage': '{count} జాబితాలు సందర్శకులకు ఏమీ చూపవు, 1 పబ్లిక్ పేజీలో',
   'siteCheck.emptyLists': '{count} జాబితాలు సందర్శకులకు ఏమీ చూపవు, {pages} పబ్లిక్ పేజీలలో',

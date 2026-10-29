@@ -27,6 +27,11 @@ const WORDS: Readonly<Record<CheckKind, { readonly one: Key; readonly onePage: K
     onePage: 'siteCheck.unwrittenOnePage',
     other: 'siteCheck.unwritten',
   },
+  templateText: {
+    one: 'siteCheck.templateTextOne',
+    onePage: 'siteCheck.templateTextOnePage',
+    other: 'siteCheck.templateText',
+  },
   emptyLists: {
     one: 'siteCheck.emptyListsOne',
     onePage: 'siteCheck.emptyListsOnePage',
@@ -46,6 +51,7 @@ const WORDS: Readonly<Record<CheckKind, { readonly one: Key; readonly onePage: K
 };
 
 const NOTES: Readonly<Partial<Record<CheckKind, Key>>> = {
+  templateText: 'siteCheck.templateTextNote',
   privateResources: 'siteCheck.privateNote',
   outsideMenu: 'siteCheck.outsideMenuNote',
 };

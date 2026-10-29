@@ -20,6 +20,13 @@ export const hi: SiteCheckMessages = {
   'siteCheck.unwrittenOne': '1 ब्लॉक नहीं लिखा गया, 1 सार्वजनिक पृष्ठ पर',
   'siteCheck.unwrittenOnePage': '{count} ब्लॉक नहीं लिखे गए, 1 सार्वजनिक पृष्ठ पर',
   'siteCheck.unwritten': '{count} ब्लॉक नहीं लिखे गए, {pages} सार्वजनिक पृष्ठों पर',
+  'siteCheck.templateTextOne': '1 ब्लॉक अभी भी 1 सार्वजनिक पृष्ठ पर टेम्पलेट टेक्स्ट दिखाता है',
+  'siteCheck.templateTextOnePage':
+    '{count} ब्लॉक अभी भी 1 सार्वजनिक पृष्ठ पर टेम्पलेट टेक्स्ट दिखाते हैं',
+  'siteCheck.templateText':
+    '{count} ब्लॉक अभी भी {pages} सार्वजनिक पृष्ठों पर टेम्पलेट टेक्स्ट दिखाते हैं',
+  'siteCheck.templateTextNote':
+    'आगंतुक इस टेक्स्ट को जैसा लिखा है वैसा ही पढ़ते हैं। पेज एडिटर में इसे साफ़ करें या इसके ऊपर लिखें।',
   'siteCheck.emptyListsOne': '1 सूची आगंतुकों को कुछ नहीं दिखाती, 1 सार्वजनिक पृष्ठ पर',
   'siteCheck.emptyListsOnePage':
     '{count} सूचियाँ आगंतुकों को कुछ नहीं दिखाती, 1 सार्वजनिक पृष्ठ पर',
