@@ -29,6 +29,7 @@ export const te: Catalogue = {
   'page.assets': 'ఆస్తులు',
   'loading.page': 'పేజీ లోడ్ అవుతోంది...',
   'auth.panelHeading': 'సైన్ ఇన్',
+  'auth.gateLead': 'ఈ సేకరణను నిర్వహించడానికి సైన్ ఇన్ చేయండి.',
   'auth.email': 'ఈమెయిల్',
   'auth.password': 'పాస్‌వర్డ్',
   'auth.errorEmpty': 'మీ ఈమెయిల్ మరియు పాస్‌వర్డ్‌ను నమోదు చేయండి.',

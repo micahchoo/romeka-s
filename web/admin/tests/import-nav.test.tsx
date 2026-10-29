@@ -1,28 +1,17 @@
 /**
- * The Import link sits in the Content group after Media for whoever may read
- * the import routes (`GET /api/romeka/archive` answers), with or without an
- * archive root, and is hidden from whoever the route refuses. Inside one
- * import, Simple's steps are Structure, Check and Add; the old steps' addresses
- * land on Structure's questions, for a plan of one series too.
+ * The Import link sits in the Content group after Media for the two admin
+ * roles, whom the import routes answer, and is hidden from every other role.
+ * Inside one import, Simple's steps are Structure, Check and Add; the old
+ * steps' addresses land on Structure's questions, for a plan of one series too.
  */
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { asRecord } from '../src/api/parse';
+import { setSession } from '../src/api/session';
 import { Shell } from '../src/app/shell';
 import { ImportPage } from '../src/pages/import/page';
 import { loadFixture } from './loadFixture';
-import { installFetch, jsonResponse, route, urlsFor } from './stub';
-
-const archive = (answer: 'roots' | 'none' | 'refused') =>
-  installFetch(
-    route({
-      '/api/romeka/archive': () =>
-        answer === 'refused'
-          ? jsonResponse({ errors: { error: 'Permission denied.' } }, { status: 403 })
-          : jsonResponse({ roots: answer === 'roots' ? ['archive'] : [], root: answer === 'roots' ? 'archive' : null, path: '', entries: [] }),
-      '/api/me': () => jsonResponse({ errors: { error: 'signed out' } }, { status: 401 }),
-    }),
-  );
+import { installFetch, jsonResponse, route, signedIn } from './stub';
 
 const contentLinks = (): readonly string[] => {
   const nav = screen.getByRole('navigation', { name: 'Admin pages' });
@@ -31,29 +20,27 @@ const contentLinks = (): readonly string[] => {
 };
 
 afterEach(() => {
+  setSession(null);
   window.location.hash = '';
 });
 
 describe('Import nav link', () => {
-  it.each(['roots', 'none'] as const)('follows Media for an admin, archive roots: %s', async (answer) => {
+  it.each(['global_admin', 'site_admin'])('follows Media for a %s', async (role) => {
     window.location.hash = '#/items';
-    archive(answer);
+    installFetch(signedIn(() => jsonResponse({ errors: { error: 'offline' } }, { status: 503 }), role));
     render(<Shell />);
     expect(await screen.findByRole('link', { name: 'Import' })).toHaveAttribute('href', '#/import');
     expect(contentLinks()).toEqual(['Admin dashboard', 'Items', 'Item sets', 'Media', 'Import', 'Sites']);
   });
 
-  it('is hidden from whoever the import routes refuse', async () => {
+  it.each(['editor', 'reviewer', 'author', 'researcher'])('is hidden from a %s', async (role) => {
     window.location.hash = '#/items';
-    const fetchMock = archive('refused');
+    installFetch(signedIn(() => jsonResponse({ errors: { error: 'offline' } }, { status: 503 }), role));
     render(<Shell />);
     await screen.findByRole('navigation', { name: 'Admin pages' });
     await waitFor(() => {
-      expect(urlsFor(fetchMock, '/api/romeka/archive')).toHaveLength(1);
+      expect(contentLinks()).toEqual(['Admin dashboard', 'Items', 'Item sets', 'Media', 'Sites']);
     });
-    // Let the probe's answer settle before reading the nav.
-    await act(async () => {});
-    expect(contentLinks()).toEqual(['Admin dashboard', 'Items', 'Item sets', 'Media', 'Sites']);
   });
 });
 

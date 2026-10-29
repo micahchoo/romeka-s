@@ -29,6 +29,7 @@ export const hi: Catalogue = {
   'page.assets': 'संपत्ति',
   'loading.page': 'पेज लोड हो रहा है...',
   'auth.panelHeading': 'साइन इन करें',
+  'auth.gateLead': 'इस संग्रह को प्रबंधित करने के लिए साइन इन करें।',
   'auth.email': 'ईमेल',
   'auth.password': 'पासवर्ड',
   'auth.errorEmpty': 'अपना ईमेल और पासवर्ड दर्ज करें।',

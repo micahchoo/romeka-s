@@ -24,7 +24,7 @@ import {
 } from '../src/i18n';
 import type { Locale } from '../src/i18n';
 import { Shell } from '../src/app/shell';
-import { jsonResponse } from './stub';
+import { installFetch, jsonResponse, signedIn } from './stub';
 
 const translator = async (locale: Locale) =>
   createTranslator(locale, await CATALOGUE_LOADERS[locale]());
@@ -177,12 +177,7 @@ describe('locale store', () => {
 describe('shell locale switch', () => {
   it('switching_locale_changes_the_rendered_labels_and_persists', async () => {
     window.location.hash = '';
-    vi.stubGlobal(
-      'fetch',
-      vi.fn<typeof fetch>(() =>
-        Promise.resolve(jsonResponse({ errors: { error: 'offline' } }, { status: 503 })),
-      ),
-    );
+    installFetch(signedIn(() => jsonResponse({ errors: { error: 'offline' } }, { status: 503 })));
 
     render(<Shell />);
     await screen.findByText('Romeka S admin');

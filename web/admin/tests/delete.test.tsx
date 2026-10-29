@@ -33,6 +33,7 @@ import {
   listResponse,
   requestBody,
   requestsFor,
+  signedIn,
   type CapturedRequest,
   type Handler,
 } from './stub';
@@ -378,7 +379,7 @@ describe('the list after a successful delete', () => {
   it('item_delete_navigates_to_the_list_reloads_it_and_offers_the_undo', async () => {
     window.location.hash = '#/items/1';
     const trash = trashRoutes(previewed);
-    const fetchMock = installFetch((url, init) => {
+    const fetchMock = installFetch(signedIn((url, init) => {
       if (url.pathname === '/api/items/1') {
         return jsonResponse(itemFixture());
       }
@@ -398,7 +399,7 @@ describe('the list after a successful delete', () => {
       }
       const handler = trash[url.pathname];
       return handler === undefined ? optionOrNotFound(url, init) : handler(url, init);
-    });
+    }));
     render(<Shell />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Delete this item' }));

@@ -16,7 +16,13 @@ import type { ReactElement, SyntheticEvent } from 'react';
 import { api } from '../api/client';
 import { currentKey, parseApiKey, signIn, subscribeKey } from '../api/auth';
 import type { ApiKey, KeyErrors } from '../api/auth';
-import { currentUser, endSession, setSession, subscribeSession } from '../api/session';
+import {
+  currentUser,
+  endSession,
+  sessionAnswered,
+  setSession,
+  subscribeSession,
+} from '../api/session';
 import type { User } from '../api/types';
 import { useTranslator } from '../i18n';
 import { formatError } from './format';
@@ -24,12 +30,16 @@ import { signInReturnPath } from './router';
 import { useSave } from './save';
 
 /** The stored key, tracked so a sign-in or sign-out re-renders the shell. */
-const useApiKey = (): ApiKey | null =>
+export const useApiKey = (): ApiKey | null =>
   useSyncExternalStore(subscribeKey, currentKey, currentKey);
 
 /** The signed-in user, tracked for the same reason. */
 export const useSession = (): User | null =>
   useSyncExternalStore(subscribeSession, currentUser, currentUser);
+
+/** Whether the server has said who is signed in yet (`sessionAnswered`). */
+export const useSessionAnswered = (): boolean =>
+  useSyncExternalStore(subscribeSession, sessionAnswered, sessionAnswered);
 
 export interface SignInProps {
   /**

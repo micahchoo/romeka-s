@@ -59,7 +59,16 @@ Run these from `web/admin`.
 ## Routes
 
 Routes are hash routes, so the server needs no rewrite rules. The sign-in panel is not a route: it
-lives in the shell header, and a page that needs it renders it in place. Each route's page component
+lives in the shell header, and a page that needs it renders it in place. A caller with neither a
+session nor a key gets the panel alone at every admin address: no nav, no page, and no request but
+`GET /api/me`. The address stays as it is, so signing in renders the page it names.
+
+The nav offers each page to the roles in its `offered` row in `src/app/pages.tsx`, which are the roles
+the server lets read what the page shows: Import to the two admin roles (`imports::wire::admin`),
+Settings to a global admin (`settings::authorize_global`), Jobs and Modules to reviewer and up
+(`Api::allow`), every other page to every role. A caller signed in by a key alone has no role the
+admin knows, so the nav offers them only the pages every role may use. The route opens for anyone,
+and the server answers each request for the caller. Each route's page component
 is its own chunk, fetched on the first visit and cached after that; the shell renders the page heading
 from the page table while that chunk loads.
 
@@ -75,6 +84,11 @@ render the header and their own page, with no admin navigation:
 
 - `#/` (or `#/dashboard`) shows the admin dashboard: resource counts and the site list, each site
   name a link to that site (`#/sites/<id>`).
+- `#/users/<id>` edits a user. On your own account the page hides Role, Active and Delete, which the
+  server refuses you, and says another administrator can change them. Under the role select one line
+  says what the chosen role may do, from the permission matrix the API enforces; a site admin is not
+  offered the two admin roles (`change-role-admin`). The page lists the sites the user holds a site
+  role on, each a link to that site's Users tab, read from the sites the reader may see.
 - `#/items` lists items. `#/items/new` creates one. `#/items/<id>` shows one item. Its values are one
   list above the media, each field under the name its item type gives it, with the term as quiet text
   and each value's kind in the form's words (`app/values.tsx`). "Edit this item" at the top swaps that
@@ -181,7 +195,7 @@ render the header and their own page, with no admin navigation:
   `#/resource-classes/new` and `#/resource-templates/new` create one, reached from the list page.
 - `#/import` starts an import (import v2, `docs/import-v2.md`) from a folder under one of the
   server's archive roots or from files uploaded from this computer, and lists the earlier imports.
-  The nav link shows to whoever may read the import routes; the server folder card shows only when
+  The nav link shows to the two admin roles, whom the import routes answer; the server folder card shows only when
   a root is set up for the user. `#/import/<id>/simple/<screen>` is the guided pass (`files`,
   `found`, `list`, `where`, `check`, `add`, with the sub-screens `example`, `all-files`, `pair`
   and `all-items`), and `#/import/<id>/advanced/<screen>` the eight tabs (`files`, `lists`,
@@ -338,8 +352,8 @@ The session half.
 
 - The cookie is `httpOnly` and `SameSite=Lax`, so no script reads it and `localStorage` holds no
   trace of it. `GET /api/me` is the only way the SPA learns who is signed in, and the shell asks once
-  on load. Nothing waits on that answer: the header shows the key's state until the user arrives, and
-  an unreachable API leaves the caller signed out rather than blocking the page.
+  on load. Until it answers, a caller with no key sees a loading line and nothing else; then the
+  shell renders the pages or the sign-in panel. An unreachable API leaves the caller signed out.
 - `src/api/session.ts` holds the answer, and `useSession` in `src/app/auth.tsx` subscribes to it, so
   the header and every sign-out read one value.
 - Sign out posts to the server first, because the session row is the server's to revoke, and then

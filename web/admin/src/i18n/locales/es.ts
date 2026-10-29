@@ -30,6 +30,7 @@ export const es: Catalogue = {
   'page.assets': 'Recursos',
   'loading.page': 'Cargando la página...',
   'auth.panelHeading': 'Iniciar sesión',
+  'auth.gateLead': 'Inicia sesión para gestionar esta colección.',
   'auth.email': 'Correo electrónico',
   'auth.password': 'Contraseña',
   'auth.errorEmpty': 'Introduce tu correo y tu contraseña.',

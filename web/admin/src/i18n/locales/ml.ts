@@ -30,6 +30,7 @@ export const ml: Catalogue = {
   'page.assets': 'ആസ്തികൾ',
   'loading.page': 'പേജ് ലോഡ് ചെയ്യുന്നു...',
   'auth.panelHeading': 'സൈൻ ഇൻ',
+  'auth.gateLead': 'ഈ ശേഖരം നിയന്ത്രിക്കാൻ സൈൻ ഇൻ ചെയ്യുക.',
   'auth.email': 'ഇമെയിൽ',
   'auth.password': 'പാസ്‌വേഡ്',
   'auth.errorEmpty': 'നിങ്ങളുടെ ഇമെയിൽ, പാസ്‌വേഡ് നൽകുക.',

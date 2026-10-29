@@ -17,7 +17,7 @@ import { tableFor } from '../src/i18n';
 import { sites } from '../src/i18n/namespaces/sites';
 import { LOCALES } from '../src/i18n/locale';
 import { loadFixture } from './loadFixture';
-import { first, installFetch, jsonResponse, listResponse, requestBody, requestsFor } from './stub';
+import { first, installFetch, jsonResponse, listResponse, requestBody, requestsFor, signedIn } from './stub';
 
 const site = (): unknown => loadFixture('site-admin.json');
 
@@ -43,7 +43,7 @@ describe('site section routing', () => {
 
   it('shell_routes_a_site_section_url_to_its_editor', async () => {
     window.location.hash = '#/sites/1/resources';
-    installFetch((url) => {
+    installFetch(signedIn((url) => {
       if (url.pathname === '/api/sites/1') {
         return jsonResponse(site());
       }
@@ -54,7 +54,7 @@ describe('site section routing', () => {
         return listResponse(loadFixture('items-page.json'), 7);
       }
       return notFound();
-    });
+    }));
     render(<Shell />);
 
     expect(await screen.findByText('Items on this site: 7')).toBeInTheDocument();

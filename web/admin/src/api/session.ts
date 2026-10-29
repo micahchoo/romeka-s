@@ -18,9 +18,12 @@ type Listener = () => void;
 
 const listeners = new Set<Listener>();
 let current: User | null = null;
+/** Whether the server has answered who is signed in since the page loaded. */
+let answered = false;
 
 const publish = (user: User | null): void => {
   current = user;
+  answered = true;
   for (const listener of listeners) {
     listener();
   }
@@ -28,6 +31,13 @@ const publish = (user: User | null): void => {
 
 /** The signed-in user, or `null` before a session is found and when there is none. */
 export const currentUser = (): User | null => current;
+
+/**
+ * Whether the server has said who is signed in: `GET /api/me` answered, or a
+ * sign-in or sign-out happened. Before that, `currentUser()` is `null` only
+ * because nobody has asked yet.
+ */
+export const sessionAnswered = (): boolean => answered;
 
 /** Subscribe to sign-in and sign-out, for `useSyncExternalStore`. */
 export const subscribeSession = (listener: Listener): (() => void) => {

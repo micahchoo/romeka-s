@@ -30,6 +30,7 @@ export const kn: Catalogue = {
   'page.assets': 'ಆಸ್ತಿಗಳು',
   'loading.page': 'ಪುಟ ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...',
   'auth.panelHeading': 'ಸೈನ್ ಇನ್',
+  'auth.gateLead': 'ಈ ಸಂಗ್ರಹವನ್ನು ನಿರ್ವಹಿಸಲು ಸೈನ್ ಇನ್ ಮಾಡಿ.',
   'auth.email': 'ಇಮೇಲ್',
   'auth.password': 'ಪಾಸ್‌ವರ್ಡ್',
   'auth.errorEmpty': 'ನಿಮ್ಮ ಇಮೇಲ್ ಮತ್ತು ಪಾಸ್‌ವರ್ಡ್ ಅನ್ನು ನಮೂದಿಸಿ.',

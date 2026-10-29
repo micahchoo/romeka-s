@@ -10,7 +10,7 @@ import { parseHash } from '../src/app/router';
 import { Shell } from '../src/app/shell';
 import { StandardsPage } from '../src/pages/standards/page';
 import { loadFixture } from './loadFixture';
-import { first, installFetch, jsonResponse, listResponse, requestBody, requestsFor, route } from './stub';
+import { first, installFetch, jsonResponse, listResponse, requestBody, requestsFor, route, signedIn } from './stub';
 
 afterEach(() => {
   window.location.hash = '';
@@ -54,10 +54,10 @@ describe('standards routes', () => {
 
   it('the_nav_marks_standards_under_describe_for_an_upstream_route', async () => {
     window.location.hash = '#/properties/1';
-    installFetch(() => jsonResponse({ errors: { error: 'offline' } }, { status: 503 }));
+    installFetch(signedIn(() => jsonResponse({ errors: { error: 'offline' } }, { status: 503 })));
     render(<Shell />);
 
-    const nav = screen.getByRole('navigation', { name: 'Admin pages' });
+    const nav = await screen.findByRole('navigation', { name: 'Admin pages' });
     const describe = within(nav).getByRole('heading', { name: 'Describe' }).closest('section');
     if (describe === null) {
       throw new Error('no Describe group');

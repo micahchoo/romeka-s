@@ -33,6 +33,7 @@ export const en = {
   'page.assets': 'Assets',
   'loading.page': 'Loading page...',
   'auth.panelHeading': 'Sign in',
+  'auth.gateLead': 'Sign in to manage this collection.',
   'auth.email': 'Email',
   'auth.password': 'Password',
   'auth.errorEmpty': 'Enter your email and password.',

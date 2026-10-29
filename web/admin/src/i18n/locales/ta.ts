@@ -30,6 +30,7 @@ export const ta: Catalogue = {
   'page.assets': 'சொத்துக்கள்',
   'loading.page': 'பக்கம் ஏற்றப்படுகிறது...',
   'auth.panelHeading': 'உள்நுழையவும்',
+  'auth.gateLead': 'இந்தத் தொகுப்பை நிர்வகிக்க, உள்நுழையவும்.',
   'auth.email': 'மின்னஞ்சல்',
   'auth.password': 'கடவுச்சொல்',
   'auth.errorEmpty': 'உங்கள் மின்னஞ்சல் மற்றும் கடவுச்சொல்லை உள்ளிடவும்.',

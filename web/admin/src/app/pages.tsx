@@ -13,6 +13,8 @@
  */
 import { lazy } from 'react';
 import type { ComponentType } from 'react';
+import { USER_ROLES } from '../api/types';
+import type { UserRole } from '../api/types';
 import type { MessageKey } from '../i18n';
 import type { PageProps } from './router';
 
@@ -43,11 +45,28 @@ export interface AdminPage {
    * width, read from the hash segments after the page id. */
   readonly wide?: (rest: readonly string[]) => boolean;
   /**
-   * Whether the nav offers the page, asked once per signed-in user. A page
-   * without it is always offered; its route works either way.
+   * The roles the nav offers the page to: the roles the server lets read what
+   * the page shows. The route opens for anyone, and the server still answers
+   * each request for the caller.
    */
-  readonly offered?: () => Promise<boolean>;
+  readonly offered: readonly UserRole[];
 }
+
+/** Every role: the page reads only what the API serves any signed-in user. */
+const EVERY_ROLE: readonly UserRole[] = USER_ROLES;
+
+/** `Actor::is_privileged` in `omeka-api`: the roles that read jobs and modules. */
+const PRIVILEGED: readonly UserRole[] = ['global_admin', 'site_admin', 'editor', 'reviewer'];
+
+/**
+ * Whether the nav offers `page` to a caller with `role`. A caller signed in by
+ * an API key alone has no role the admin knows, so only the pages every role
+ * may use are offered to them.
+ */
+export const offeredTo = (page: AdminPage, role: string | null): boolean =>
+  role === null
+    ? page.offered.length === USER_ROLES.length
+    : page.offered.some((offered) => offered === role);
 
 export type PageGroupId = 'content' | 'describe' | 'admin';
 
@@ -92,6 +111,7 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
     element: lazy(() =>
       import('../pages/dashboard/page').then((module) => ({ default: module.DashboardPage })),
     ),
+    offered: EVERY_ROLE,
   },
   items: {
     titleKey: 'page.items',
@@ -99,6 +119,7 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
     element: lazy(() =>
       import('../pages/items/page').then((module) => ({ default: module.ItemsPage })),
     ),
+    offered: EVERY_ROLE,
   },
   'item-sets': {
     titleKey: 'page.itemSets',
@@ -106,6 +127,7 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
     element: lazy(() =>
       import('../pages/item-sets/page').then((module) => ({ default: module.ItemSetsPage })),
     ),
+    offered: EVERY_ROLE,
   },
   media: {
     titleKey: 'page.media',
@@ -113,6 +135,7 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
     element: lazy(() =>
       import('../pages/media/page').then((module) => ({ default: module.MediaPage })),
     ),
+    offered: EVERY_ROLE,
   },
   import: {
     titleKey: 'page.import',
@@ -122,15 +145,8 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
     ),
     // One import's screens hold a side index and wide tables of records.
     wide: (rest) => rest[0] !== undefined,
-    // Offered to whoever may read the import routes (global and site admins).
-    // Uploads need no archive root, so an install without one still offers it.
-    offered: () =>
-      import('../api/import-routes').then(({ importApi }) =>
-        importApi.archive().then(
-          () => true,
-          () => false,
-        ),
-      ),
+    // `imports::wire::admin` in `omeka-server` answers the two admin roles.
+    offered: ['global_admin', 'site_admin'],
   },
   sites: {
     titleKey: 'page.sites',
@@ -141,6 +157,7 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
     // The page editor (`#/sites/<id>/pages/...`) and the Theme page
     // (`#/sites/<id>/theme`) lay a preview beside their controls.
     wide: (rest) => rest[1] === 'pages' || rest[1] === 'theme',
+    offered: EVERY_ROLE,
   },
   'resource-templates': {
     titleKey: 'page.itemTypes',
@@ -150,6 +167,7 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
     ),
     // The item type editor lays a live preview beside its fields.
     wide: (rest) => rest[0] !== undefined,
+    offered: EVERY_ROLE,
   },
   fields: {
     titleKey: 'page.fields',
@@ -157,6 +175,7 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
     element: lazy(() =>
       import('../pages/fields/page').then((module) => ({ default: module.FieldsPage })),
     ),
+    offered: EVERY_ROLE,
   },
   'term-lists': {
     titleKey: 'page.termLists',
@@ -164,6 +183,7 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
     element: lazy(() =>
       import('../pages/term-lists/page').then((module) => ({ default: module.TermListsPage })),
     ),
+    offered: EVERY_ROLE,
   },
   standards: {
     titleKey: 'page.standards',
@@ -172,6 +192,7 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
     element: lazy(() =>
       import('../pages/standards/page').then((module) => ({ default: module.StandardsPage })),
     ),
+    offered: EVERY_ROLE,
   },
   users: {
     titleKey: 'page.users',
@@ -179,6 +200,7 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
     element: lazy(() =>
       import('../pages/users/page').then((module) => ({ default: module.UsersPage })),
     ),
+    offered: EVERY_ROLE,
   },
   jobs: {
     titleKey: 'page.jobs',
@@ -186,6 +208,8 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
     element: lazy(() =>
       import('../pages/jobs/page').then((module) => ({ default: module.JobsPage })),
     ),
+    // `Api::allow` in `omeka-api` reads `jobs` for the privileged roles only.
+    offered: PRIVILEGED,
   },
   settings: {
     titleKey: 'page.settings',
@@ -193,6 +217,8 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
     element: lazy(() =>
       import('../pages/settings/page').then((module) => ({ default: module.SettingsPage })),
     ),
+    // `settings::authorize_global` in `omeka-api`.
+    offered: ['global_admin'],
   },
   assets: {
     titleKey: 'page.assets',
@@ -200,6 +226,7 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
     element: lazy(() =>
       import('../pages/assets/page').then((module) => ({ default: module.AssetsPage })),
     ),
+    offered: EVERY_ROLE,
   },
   system: {
     titleKey: 'page.system',
@@ -208,6 +235,8 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
     element: lazy(() =>
       import('../pages/system/page').then((module) => ({ default: module.SystemPage })),
     ),
+    // `Api::allow` in `omeka-api` reads `modules` for the privileged roles only.
+    offered: PRIVILEGED,
   },
 };
 

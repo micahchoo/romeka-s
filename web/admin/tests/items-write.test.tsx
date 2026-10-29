@@ -9,7 +9,7 @@ import { setSession } from '../src/api/session';
 import { Shell } from '../src/app/shell';
 import { ItemsPage } from '../src/pages/items/page';
 import { loadFixture } from './loadFixture';
-import { installFetch, jsonResponse, requestBody, requestsFor } from './stub';
+import { installFetch, jsonResponse, requestBody, requestsFor, signedIn } from './stub';
 
 const itemFixture = (): Record<string, unknown> => {
   const fixture = loadFixture('item-1.json');
@@ -96,12 +96,12 @@ describe('item create form', () => {
 
 describe('item show page after a create', () => {
   it('item_create_renders_the_new_item_without_reading_it_back', async () => {
-    const fetchMock = installFetch((url, init) => {
+    const fetchMock = installFetch(signedIn((url, init) => {
       if (url.pathname === '/api/items' && init?.method === 'POST') {
         return jsonResponse(itemFixture());
       }
       return detailHandler(url);
-    });
+    }));
     window.location.hash = '#/items/new';
     render(<Shell />);
 
@@ -329,12 +329,12 @@ describe('item sites control', () => {
   });
 
   it('item_create_starts_with_no_site_and_posts_the_ones_chosen', async () => {
-    const fetchMock = installFetch((url, init) => {
+    const fetchMock = installFetch(signedIn((url, init) => {
       if (url.pathname === '/api/items' && init?.method === 'POST') {
         return jsonResponse(itemFixture());
       }
       return detailHandler(url);
-    });
+    }));
     // Through the shell, so the show page the create opens takes the record it returned.
     window.location.hash = '#/items/new';
     render(<Shell />);

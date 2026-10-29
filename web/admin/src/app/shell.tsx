@@ -3,10 +3,10 @@ import type { ReactElement, ReactNode, RefObject } from 'react';
 import { api } from '../api/client';
 import { currentUser, setSession } from '../api/session';
 import { LOCALES, parseLocale, setLocale, useLocale, useTranslator } from '../i18n';
-import { AuthBadge, useSession } from './auth';
+import { AuthBadge, SignInPanel, useApiKey, useSession, useSessionAnswered } from './auth';
 import { loadInstallation, useInstallation } from './installation';
 import { JumpBox } from './jump-box';
-import { PAGE_GROUPS, PAGES } from './pages';
+import { offeredTo, PAGE_GROUPS, PAGES } from './pages';
 import type { AdminPageId } from './pages';
 import { parseAuthRoute, parseHash, useHash } from './router';
 import { SavedListLinks } from './saved-list-links';
@@ -151,13 +151,17 @@ const useSessionProbe = (): void => {
   }, []);
 };
 
-const NavLink = ({ id, active }: { readonly id: AdminPageId; readonly active: boolean }): ReactElement | null => {
+const NavLink = ({
+  id,
+  active,
+  role,
+}: {
+  readonly id: AdminPageId;
+  readonly active: boolean;
+  readonly role: string | null;
+}): ReactElement | null => {
   const { t } = useTranslator();
-  const user = useSession();
-  const { offered } = PAGES[id];
-  // A refused or failed probe hides the link, as an unconfigured feature does.
-  const probe = useAsync(() => (offered === undefined ? Promise.resolve(true) : offered()), [offered, user?.id]);
-  if (offered !== undefined && !(probe.status === 'ready' && probe.data)) {
+  if (!offeredTo(PAGES[id], role)) {
     return null;
   }
   return (
@@ -173,10 +177,13 @@ const NavLink = ({ id, active }: { readonly id: AdminPageId; readonly active: bo
 const NavLinks = ({
   pages,
   activeId,
+  role,
 }: {
   readonly pages: readonly AdminPageId[];
   readonly activeId: AdminPageId | null;
-}): ReactElement[] => pages.map((id) => <NavLink key={id} id={id} active={activeId === id} />);
+  readonly role: string | null;
+}): ReactElement[] =>
+  pages.map((id) => <NavLink key={id} id={id} active={activeId === id} role={role} />);
 
 /** The gap left before a link the strip scrolls to, so it does not touch the edge. */
 const NAV_STRIP_INSET = 16;
@@ -208,8 +215,8 @@ const useActiveLinkInView = (activeId: AdminPageId | null): RefObject<HTMLElemen
       return undefined;
     }
     bringActiveLinkIntoView(nav);
-    // A link shown only once its probe answers (Import) can land before the
-    // active one after this first pass and push it out of the strip again.
+    // A link shown only once the session answers can land before the active
+    // one after this first pass and push it out of the strip again.
     const observer = new MutationObserver(() => {
       bringActiveLinkIntoView(nav);
     });
@@ -224,18 +231,19 @@ const useActiveLinkInView = (activeId: AdminPageId | null): RefObject<HTMLElemen
 const AdminNav = ({ activeId }: { readonly activeId: AdminPageId | null }): ReactElement => {
   const { t } = useTranslator();
   const ref = useActiveLinkInView(activeId);
+  const role = useSession()?.role ?? null;
   return (
     <nav className="app-nav" aria-label={t('shell.navLabel')} ref={ref}>
       {PAGE_GROUPS.map((group) => (
         <section key={group.id} className="nav-group">
           <h2 className="nav-group-title">{t(group.titleKey)}</h2>
           <ul className="nav-list">
-            <NavLinks pages={group.pages} activeId={activeId} />
+            <NavLinks pages={group.pages} activeId={activeId} role={role} />
             {group.sub === undefined ? null : (
               <li className="nav-sub">
                 <h3 className="nav-sub-title">{t(group.sub.titleKey)}</h3>
                 <ul className="nav-list">
-                  <NavLinks pages={group.sub.pages} activeId={activeId} />
+                  <NavLinks pages={group.sub.pages} activeId={activeId} role={role} />
                 </ul>
               </li>
             )}
@@ -274,11 +282,41 @@ const DocumentTitle = ({ pageTitle }: { readonly pageTitle: string | null }): nu
   return null;
 };
 
+/**
+ * What a caller who is not signed in gets at any admin address: the sign-in
+ * panel and nothing the API would answer them. The address stays as it is, so
+ * signing in renders the page it names.
+ */
+const SignInGate = ({ answered }: { readonly answered: boolean }): ReactElement => {
+  const { t } = useTranslator();
+  return (
+    <div className="shell">
+      <header className="app-header">
+        <LocaleSwitch />
+      </header>
+      <main className="app-main">
+        <h1>{t('app.title', { title: useInstallation().title })}</h1>
+        {answered ? (
+          <>
+            <p>{t('auth.gateLead')}</p>
+            <SignInPanel />
+          </>
+        ) : (
+          <p role="status">{t('loading.page')}</p>
+        )}
+      </main>
+    </div>
+  );
+};
+
 export const Shell = (): ReactElement => {
   const { t } = useTranslator();
   const hash = useHash();
   useSessionProbe();
   const settings = useAsync(loadInstallation, []);
+  const user = useSession();
+  const key = useApiKey();
+  const answered = useSessionAnswered();
   const authRoute = parseAuthRoute(hash, window.location.search);
 
   if (authRoute !== null) {
@@ -295,6 +333,10 @@ export const Shell = (): ReactElement => {
         </RouteBoundary>
       </AuthLayout>
     );
+  }
+
+  if (user === null && key === null) {
+    return <SignInGate answered={answered} />;
   }
 
   const route = parseHash(hash);

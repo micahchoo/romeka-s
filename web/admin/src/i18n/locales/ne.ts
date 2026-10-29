@@ -29,6 +29,7 @@ export const ne: Catalogue = {
   'page.assets': 'सम्पत्तिहरू',
   'loading.page': 'पृष्ठ लोड हुँदैछ...',
   'auth.panelHeading': 'साइन इन',
+  'auth.gateLead': 'यो सङ्ग्रह व्यवस्थापन गर्न साइन इन गर्नुहोस्।',
   'auth.email': 'इमेल',
   'auth.password': 'पासवर्ड',
   'auth.errorEmpty': 'आफ्नो इमेल र पासवर्ड प्रविष्ट गर्नुहोस्।',

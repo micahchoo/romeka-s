@@ -11,7 +11,7 @@ import { Shell } from '../src/app/shell';
 import { SitesPage } from '../src/pages/sites/page';
 import { editorReads } from './editorStubs';
 import { loadFixture } from './loadFixture';
-import { first, installFetch, jsonResponse, requestBody, requestsFor } from './stub';
+import { first, installFetch, jsonResponse, requestBody, requestsFor, signedIn } from './stub';
 
 const siteFixture = (index: number): unknown => {
   const page = loadFixture('sites-page.json');
@@ -59,11 +59,11 @@ describe('site routing', () => {
 
   it('shell_routes_a_nested_site_page_url_to_the_page_editor', async () => {
     window.location.hash = '#/sites/1/pages/1';
-    installFetch((url) =>
+    installFetch(signedIn((url) =>
       url.pathname === '/api/site_pages/1'
         ? jsonResponse(pageFixture())
         : (editorReads(url) ?? notFound()),
-    );
+    ));
     render(<Shell />);
 
     expect(await screen.findByLabelText('Title')).toHaveValue('Welcome');

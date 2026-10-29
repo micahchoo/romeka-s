@@ -29,6 +29,7 @@ export const mr: Catalogue = {
   'page.assets': 'मालमत्ता',
   'loading.page': 'पेज लोड होत आहे...',
   'auth.panelHeading': 'साइन इन करा',
+  'auth.gateLead': 'या संग्रहाचे व्यवस्थापन करण्यासाठी साइन इन करा.',
   'auth.email': 'ईमेल',
   'auth.password': 'पासवर्ड',
   'auth.errorEmpty': 'तुमचा ईमेल आणि पासवर्ड प्रविष्ट करा.',

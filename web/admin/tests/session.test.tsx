@@ -144,8 +144,8 @@ describe('the session a reload keeps', () => {
 
     render(<Shell />);
 
-    expect(await screen.findByText('Signed out')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Sign in' })).toBeInTheDocument();
+    expect(await screen.findByRole('form', { name: 'Sign in' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Admin pages' })).not.toBeInTheDocument();
     expect(currentUser()).toBeNull();
   });
 });
