@@ -9,10 +9,10 @@ import type { ReactElement } from 'react';
 import type { ImportId } from '../../api/import-plan';
 import { importApi } from '../../api/import-routes';
 import type { ImportDetail } from '../../api/import-view';
-import { DeleteControl } from '../../app/delete';
 import { ErrorNotice } from '../../app/errors';
 import { useAsync } from '../../app/useAsync';
 import { ADVANCED_BODIES } from './advanced/bodies';
+import { DiscardImport } from './discard';
 import { DraftContext, useDraft } from './draft-context';
 import { FirstLook } from './first-look';
 import { usePreview } from './lists/use-preview';
@@ -112,14 +112,14 @@ const FrameView = ({ store }: { readonly store: PlanStore }): ReactElement => {
         </div>
       </div>
       {detail.status === 'draft' ? (
-        <DeleteControl
-          label={t('shell.delete')}
-          rowName={where}
-          onConfirm={async () => {
-            await importApi.remove(detail.id);
-            window.location.hash = '#/import';
-          }}
-        />
+        <section className="delete-control">
+          <DiscardImport
+            id={detail.id}
+            onDiscarded={() => {
+              window.location.hash = '#/import';
+            }}
+          />
+        </section>
       ) : null}
     </section>
   );

@@ -90,7 +90,11 @@ export const en = {
   'shell.retry': 'Try again',
   'shell.closed': 'This import has started, so its answers cannot change. To change them, make a copy.',
   'shell.copy': 'Make a copy',
-  'shell.delete': 'Delete this import',
+  // Discard: an import that added nothing.
+  'discard.open': 'Discard',
+  'discard.note': 'Nothing was added from this import. Its answers and its uploaded files are removed for good.',
+  'discard.go': 'Discard this import',
+  'discard.busy': 'Discarding...',
   // The status line over each screen.
   'line.items': '{count} items so far.',
   'line.itemsOne': '1 item so far.',

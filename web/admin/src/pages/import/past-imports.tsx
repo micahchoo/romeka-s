@@ -1,14 +1,17 @@
 /**
  * "Past imports": the history, newest first, a page of `PER_PAGE` at a time
  * (`GET /api/romeka/imports?page=&perPage=`). Each row opens its import, and
- * offers a copy, and "Try again" when its run may go again.
+ * offers a copy, "Try again" when its run may go again, and Discard when it
+ * added nothing.
  */
+import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { importApi } from '../../api/import-routes';
 import type { ImportRow } from '../../api/import-view';
 import { ErrorNotice } from '../../app/errors';
 import { formatDateTime } from '../../app/format';
 import type { Column } from '../../app/list';
+import { DiscardImport } from './discard';
 import { useImportText } from './messages';
 import { PagedList } from './paged-list';
 import { importHref, placeHref } from './screens';
@@ -20,6 +23,8 @@ const loadHistory = async (page: number, perPage: number) => importApi.history({
 export const PastImports = (): ReactElement => {
   const { t, locale, number } = useImportText();
   const { state, copy } = useCopy();
+  // A discard reads the history again; the count names the reload for PagedList.
+  const [discards, setDiscards] = useState(0);
   const columns: readonly Column<ImportRow>[] = [
     {
       header: t('home.past.colFiles'),
@@ -58,6 +63,14 @@ export const PastImports = (): ReactElement => {
               {copying ? t('home.past.copying') : t('home.past.copy')}
             </button>
             {canRetry(row) ? <a href={placeHref(row.id, { mode: 'simple', screen: 'add' })}>{t('home.past.retry')}</a> : null}
+            {row.status === 'draft' ? (
+              <DiscardImport
+                id={row.id}
+                onDiscarded={() => {
+                  setDiscards((count) => count + 1);
+                }}
+              />
+            ) : null}
             {state.status === 'failed' && state.from === row.id ? <ErrorNotice error={state.error} /> : null}
           </div>
         );
@@ -71,7 +84,7 @@ export const PastImports = (): ReactElement => {
         label={t('home.past.title')}
         resource={t('home.past.resource')}
         load={loadHistory}
-        deps={[]}
+        deps={[discards]}
         columns={columns}
         rowKey={(row) => String(row.id)}
         empty={<p>{t('home.past.empty')}</p>}

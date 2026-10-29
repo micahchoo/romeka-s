@@ -88,7 +88,11 @@ export const es: ImportMessages = {
   "shell.closed":
     "Esta importación ya ha empezado, así que sus respuestas no pueden cambiar. Para cambiarlas, haz una copia.",
   "shell.copy": "Hacer una copia",
-  "shell.delete": "Eliminar esta importación",
+  "discard.open": "Descartar",
+  "discard.note":
+    "No se añadió nada desde esta importación. Sus respuestas y sus archivos subidos se eliminan para siempre.",
+  "discard.go": "Descartar esta importación",
+  "discard.busy": "Descartando...",
   "line.items": "{count} elementos por ahora.",
   "line.itemsOne": "1 elemento por ahora.",
   "line.left": "{count} se quedan fuera.",

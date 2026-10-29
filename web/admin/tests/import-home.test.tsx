@@ -184,6 +184,62 @@ describe('Past imports', () => {
     expect(window.location.hash).toBe('');
   });
 
+  it('offers Discard only on the import that added nothing, and removes it on confirm', async () => {
+    const history = fixture('history.json');
+    let discarded = false;
+    const fetchMock = installFetch(
+      route({
+        '/api/romeka/archive': archive,
+        '/api/romeka/imports': () => {
+          const items = Array.isArray(history['items']) ? history['items'] : [];
+          const left = discarded ? items.filter((row) => asRecord(row, [])['id'] !== 5) : items;
+          return jsonResponse({ ...history, total: left.length, items: left });
+        },
+        '/api/romeka/imports/5': (_url, init) => {
+          discarded = init?.method === 'DELETE';
+          return new Response(null, { status: 204 });
+        },
+      }),
+    );
+    render(<ImportPage param={null} />);
+    await screen.findByRole('region', { name: 'Past imports' });
+    const rows = within(pastTable()).getAllByRole('row').slice(1);
+    expect(rows.map((row) => within(row).queryByRole('button', { name: 'Discard' }) !== null)).toEqual([false, true, false]);
+
+    fireEvent.click(within(rows[1] ?? document.body).getByRole('button', { name: 'Discard' }));
+    const confirm = await screen.findByRole('group', { name: 'Discard' });
+    expect(confirm).toHaveTextContent('Nothing was added from this import. Its answers and its uploaded files are removed for good.');
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Discard this import' }));
+
+    await waitFor(() => {
+      expect(within(pastTable()).getAllByRole('row')).toHaveLength(3);
+    });
+    expect(requestsFor(fetchMock, '/api/romeka/imports/5').map((request) => request.init?.method)).toEqual(['DELETE']);
+  });
+
+  it('keeps the import when Discard is cancelled, and shows a refusal in its row', async () => {
+    const refused = 'Only an import that is not added yet can be deleted. An import that has run stays in Past imports.';
+    const fetchMock = installFetch(
+      route({
+        '/api/romeka/archive': archive,
+        '/api/romeka/imports': () => jsonResponse(fixture('history.json')),
+        '/api/romeka/imports/5': () => jsonResponse({ errors: { error: refused } }, { status: 409 }),
+      }),
+    );
+    render(<ImportPage param={null} />);
+    await screen.findByRole('region', { name: 'Past imports' });
+    const draft = within(pastTable()).getAllByRole('row')[2] ?? document.body;
+
+    fireEvent.click(within(draft).getByRole('button', { name: 'Discard' }));
+    fireEvent.click(within(draft).getByRole('button', { name: 'Cancel' }));
+    expect(requestsFor(fetchMock, '/api/romeka/imports/5')).toHaveLength(0);
+
+    fireEvent.click(within(draft).getByRole('button', { name: 'Discard' }));
+    fireEvent.click(within(draft).getByRole('button', { name: 'Discard this import' }));
+    expect(await within(draft).findByRole('alert')).toHaveTextContent(refused);
+    expect(within(pastTable()).getAllByRole('row')).toHaveLength(4);
+  });
+
   it('pages the history 50 rows at a time', async () => {
     const fetchMock = installFetch(route({ '/api/romeka/archive': archive, '/api/romeka/imports': longHistory(120) }));
     render(<ImportPage param={null} />);
