@@ -7,12 +7,14 @@ import { describe, expect, it } from 'vitest';
 import { PageCanvas } from '../src/pages/sites/editor/canvas';
 import type { PageDraft } from '../src/pages/sites/editor/draft';
 import { blockAt, load, rawBlock } from './editor-draft-helpers';
+import { SITE_ID } from './editor-fields-helpers';
 
 const renderCanvas = (draft: PageDraft): void => {
   render(
     <PageCanvas
       draft={draft}
       siteSettings={null}
+      siteId={SITE_ID}
       selection={null}
       onSelect={() => {}}
       dispatch={() => {}}

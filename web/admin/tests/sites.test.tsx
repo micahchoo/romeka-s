@@ -67,7 +67,7 @@ describe('site routing', () => {
     render(<Shell />);
 
     expect(await screen.findByLabelText('Title')).toHaveValue('Welcome');
-    expect(await screen.findByRole('listitem', { name: /Block 1: HTML/ })).toBeInTheDocument();
+    expect(await screen.findByRole('listitem', { name: /Block 1: Text/ })).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Admin pages' });
     expect(within(nav).getByRole('link', { name: 'Sites' })).toHaveAttribute(
       'aria-current',
@@ -148,6 +148,13 @@ describe('site browse and create', () => {
     expect(requestsFor(fetchMock, '/api/sites/1/items')).toEqual([]);
     expect(window.location.hash).toBe('#/sites/1');
     window.location.hash = '';
+  });
+
+  it('site_create_offers_no_theme_choice_while_one_theme_is_installed_and_points_at_the_theme_tab', () => {
+    render(<SitesPage param="new" />);
+
+    expect(screen.queryByLabelText('Theme')).toBeNull();
+    expect(screen.getByText('Choose the look after you add the site, on its Theme tab.')).toBeInTheDocument();
   });
 
   it('site_create_keeps_a_slug_the_user_typed', () => {

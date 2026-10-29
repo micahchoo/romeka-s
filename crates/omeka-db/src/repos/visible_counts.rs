@@ -1,6 +1,6 @@
-//! Counts that stand for a list: the items of each item set, the resources whose values point at
-//! one resource, and the items of one template that fill each property, each kept to the rows a
-//! caller may see.
+//! Counts that stand for a list: the items of each item set, the items of each class, the
+//! resources whose values point at one resource, and the items of one template that fill each
+//! property, each kept to the rows a caller may see.
 //!
 //! A count here must equal the `totalResults` of the list it opens for the same caller, so every
 //! counted row passes the same visibility the list applies ([`super::resource_reads`]'s
@@ -16,12 +16,23 @@ use super::value_visibility::push_value_visibility;
 use super::{ItemRepo, ItemSetRepo, MediaVisibility, ValueRepo};
 use crate::DbError;
 use crate::backend::Backend;
-use crate::ids::{ItemSetId, PropertyId, ResourceId, TemplateId};
+use crate::ids::{ClassId, ItemSetId, PropertyId, ResourceId, TemplateId};
 
 /// The items one item set holds, as the caller may see them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SetItemCount {
     pub item_set: ItemSetId,
+    pub items: i64,
+}
+
+/// The items of one class, as the caller may see them, with the names a class filter shows.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClassItemCount {
+    pub class: ClassId,
+    /// `prefix:local_name`.
+    pub term: String,
+    pub label: String,
+    pub vocabulary_label: String,
     pub items: i64,
 }
 
@@ -106,6 +117,62 @@ where
             })
             .collect::<Result<_, DbError>>()?;
         Ok(FieldCounts { total, fields })
+    }
+}
+
+impl<DB: Backend> ItemRepo<'_, DB>
+where
+    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
+    for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
+    usize: ColumnIndex<DB::Row>,
+    for<'x> i64: Decode<'x, DB> + Encode<'x, DB> + Type<DB>,
+    for<'x> String: Decode<'x, DB> + Type<DB>,
+    for<'x> &'x str: ColumnIndex<DB::Row>,
+{
+    /// Every class at least one item that `visibility` keeps has, with how many such items have
+    /// it, in class id order. A class no kept item has is absent.
+    ///
+    /// One grouped scan of `resource` through `ix_resource_resource_class_id`, then one row per
+    /// used class joined to its vocabulary.
+    pub async fn class_counts(
+        &self,
+        visibility: MediaVisibility,
+    ) -> Result<Vec<ClassItemCount>, DbError> {
+        let mut sql = format!(
+            "SELECT resource_class.id AS id, vocabulary.prefix AS prefix, \
+             resource_class.local_name AS local_name, resource_class.label AS label, \
+             vocabulary.label AS vocabulary_label, used.items AS items \
+             FROM (SELECT resource.resource_class_id AS class_id, COUNT(*) AS items{ITEM_FROM} \
+             WHERE resource.resource_class_id IS NOT NULL"
+        );
+        let mut binds = Vec::new();
+        push_visibility(&mut sql, &mut binds, visibility, "resource");
+        sql.push_str(
+            " GROUP BY resource.resource_class_id) used \
+             INNER JOIN resource_class ON resource_class.id = used.class_id \
+             INNER JOIN vocabulary ON vocabulary.id = resource_class.vocabulary_id \
+             ORDER BY resource_class.id",
+        );
+        let mut query = sqlx::query::<DB>(&sql);
+        for bind in &binds {
+            query = query.bind(*bind);
+        }
+        let rows = query.fetch_all(self.pool).await?;
+        rows.iter()
+            .map(|row| {
+                Ok(ClassItemCount {
+                    class: DB::id(row, "id")?,
+                    term: format!(
+                        "{}:{}",
+                        DB::text(row, "prefix")?,
+                        DB::text(row, "local_name")?
+                    ),
+                    label: DB::text(row, "label")?,
+                    vocabulary_label: DB::text(row, "vocabulary_label")?,
+                    items: DB::int(row, "items")?,
+                })
+            })
+            .collect()
     }
 }
 

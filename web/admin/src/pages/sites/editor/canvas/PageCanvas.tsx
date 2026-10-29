@@ -8,9 +8,9 @@
  * gesture state below.
  */
 import { Fragment, useEffect, useRef, useState } from 'react';
-import type { DragEvent, ReactElement } from 'react';
+import type { CSSProperties, DragEvent, ReactElement } from 'react';
 import { useTranslator } from '../../../../i18n';
-import type { JsonValue } from '../../../../api/types';
+import type { JsonValue, SiteId } from '../../../../api/types';
 import type { TemplateChoice } from '../../templates';
 import type { BlockDraft, BlockKey, DraftAction, PageDraft, ValidationIssue } from '../draft';
 import { validate } from '../draft';
@@ -20,6 +20,7 @@ import { emptySlots, gridColumns, sectionOf } from '../sections';
 import type { SectionOf } from '../sections';
 import { BlockPicker, useInsertChoices } from './BlockPicker';
 import { CanvasCard } from './CanvasCard';
+import { ListsNothing } from './ListsNothing';
 import { gridGap, pageColumns } from './grid';
 import { flatIndex, intoGroup } from './move';
 import { counted } from '../messages';
@@ -38,6 +39,8 @@ export interface PageCanvasProps {
   readonly draft: PageDraft;
   /** The site's `o:site_settings`, which carry its saved templates. */
   readonly siteSettings: JsonValue | null;
+  /** The site whose resources a list block counts. */
+  readonly siteId: SiteId;
   /** The shell's selection. A selection made elsewhere scrolls its card into view. */
   readonly selection: Selection | null;
   readonly onSelect: (key: BlockKey | null) => void;
@@ -53,6 +56,13 @@ const writingOf = (registry: PageDraft['registry'], block: BlockDraft): CardWrit
   }
   return unwrittenField(registry, block) === null ? { kind: 'written' } : { kind: 'unwritten' };
 };
+
+/** A section's own columns, which the stylesheet applies where the Outline is wide enough. */
+const sectionColumns = (
+  section: SectionOf,
+): CSSProperties & Readonly<Record<'--section-columns', string>> => ({
+  '--section-columns': gridColumns(section.shape),
+});
 
 interface InsertPointProps {
   readonly index: number;
@@ -115,6 +125,7 @@ const InsertPoint = ({
 export const PageCanvas = ({
   draft,
   siteSettings,
+  siteId,
   selection,
   onSelect,
   dispatch,
@@ -214,6 +225,7 @@ export const PageCanvas = ({
         summary={blockSummary(block, draft.title, t)}
         image={imageUrl(block)}
         issues={issuesByBlock.get(block.key) ?? []}
+        listNote={<ListsNothing registry={draft.registry} block={block} siteId={siteId} />}
         mismatch={romkaState(draft.registry, block) === 'edited'}
         writing={writingOf(draft.registry, block)}
         selected={selected === block.key}
@@ -272,7 +284,7 @@ export const PageCanvas = ({
           </span>
           <ul
             className={section.shape.cards ? 'canvas-slots canvas-slots-cards' : 'canvas-slots'}
-            style={{ gridTemplateColumns: gridColumns(section.shape) }}
+            style={sectionColumns(section)}
           >
             {node.members.map((member, index) => (
               <li

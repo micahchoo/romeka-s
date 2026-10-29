@@ -50,7 +50,7 @@ pub use imports::{
 pub use item_history::{FieldChange, HistoryEntryRow, HistorySource, HistoryStamp};
 pub use page_versions::{
     BlockChange, NewPageAttachment, NewPageBlock, PageImage, PageImageBlock, PageSave,
-    PageSaveOutcome, PageVersionRow,
+    PageSaveOutcome, PageVersionRow, VersionAuthor,
 };
 pub use publications::{PublicationRow, PublicationTarget, PublicationVersionRow};
 pub use resources::{

@@ -14,7 +14,8 @@ export const hi: ImportListsMessages = {
   'lists.withFilters': 'इन फ़िल्टरों के साथ।',
   'lists.changes.one': 'आपने 1 परिवर्तन किया है।',
   'lists.changes.count': 'आपने {count} परिवर्तन किए हैं।',
-  'lists.changes.many': 'उनमें से {count} एक साथ कई बदलते हैं। फ़ाइलें या उत्तर बदलने पर भी सब बने रहते हैं।',
+  'lists.changes.many':
+    'उनमें से {count} एक साथ कई बदलते हैं। फ़ाइलें या उत्तर बदलने पर भी सब बने रहते हैं।',
   'lists.changes.undoMany': 'एक साथ कई पर किया गया अंतिम परिवर्तन पूर्ववत करें',
   'lists.chart.caption': 'प्रत्येक आइटम में फ़ाइलें। गलत समूहन यहाँ पहले दिखाया गया है।',
   'lists.chart.bar': '{count} आइटम {files} के साथ। उन्हें दिखाएँ।',

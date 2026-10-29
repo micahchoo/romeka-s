@@ -12,6 +12,7 @@ import type { BlockKey, PageDraft } from '../src/pages/sites/editor/draft';
 import { PageCanvas } from '../src/pages/sites/editor/canvas';
 import { plainHash } from '../src/pages/sites/editor/romekaHash';
 import { blockAt, load, rawBlock } from './editor-draft-helpers';
+import { SITE_ID } from './editor-fields-helpers';
 
 const Harness = ({ initial }: { readonly initial: PageDraft }): ReactElement => {
   const [draft, dispatch] = useReducer(draftReducer, initial);
@@ -20,6 +21,7 @@ const Harness = ({ initial }: { readonly initial: PageDraft }): ReactElement => 
     <PageCanvas
       draft={draft}
       siteSettings={null}
+      siteId={SITE_ID}
       selection={selected === null ? null : { kind: 'block', key: selected, from: 'outline' }}
       onSelect={setSelected}
       dispatch={dispatch}

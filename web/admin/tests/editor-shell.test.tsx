@@ -72,11 +72,11 @@ const handler =
 
 const renderEditor = async (): Promise<void> => {
   render(<SitesPage param="1" rest={['1', 'pages', '1']} />);
-  await screen.findByRole('listitem', { name: /Block 1: HTML/ });
+  await screen.findByRole('listitem', { name: /Block 1: Text/ });
 };
 
 const htmlEditor = async (): Promise<HTMLElement> =>
-  screen.findByRole('textbox', { name: 'HTML' });
+  screen.findByRole('textbox', { name: 'Text' });
 
 afterEach(() => {
   window.location.hash = '';
@@ -90,10 +90,10 @@ describe('the page editor shell', () => {
     // No selection shows the page settings.
     expect(screen.getByLabelText('Title')).toHaveValue('Welcome');
 
-    fireEvent.click(screen.getByRole('listitem', { name: /Block 1: HTML/ }));
+    fireEvent.click(screen.getByRole('listitem', { name: /Block 1: Text/ }));
 
     const inspector = screen.getByRole('region', { name: 'Block inspector' });
-    expect(await within(inspector).findByRole('textbox', { name: 'HTML' })).toBeInTheDocument();
+    expect(await within(inspector).findByRole('textbox', { name: 'Text' })).toBeInTheDocument();
   });
 
   it('heads the inspector with the block layout and position, not its draft key', async () => {
@@ -101,18 +101,18 @@ describe('the page editor shell', () => {
     await renderEditor();
     const count = screen.getAllByRole('listitem', { name: /^Block \d+: / }).length;
 
-    fireEvent.click(screen.getByRole('listitem', { name: /Block 1: HTML/ }));
+    fireEvent.click(screen.getByRole('listitem', { name: /Block 1: Text/ }));
 
     const inspector = screen.getByRole('region', { name: 'Block inspector' });
     expect(within(inspector).getByRole('heading', { level: 2 })).toHaveTextContent(
-      `HTML, block 1 of ${String(count)}`,
+      `Text, block 1 of ${String(count)}`,
     );
   });
 
   it('posts the changed draft to the preview route after the debounce', async () => {
     const fetchMock = installFetch(handler());
     await renderEditor();
-    fireEvent.click(screen.getByRole('listitem', { name: /Block 1: HTML/ }));
+    fireEvent.click(screen.getByRole('listitem', { name: /Block 1: Text/ }));
 
     const surface = await htmlEditor();
     surface.innerHTML = '<p>Typed words.</p>';
@@ -149,7 +149,7 @@ describe('the page editor shell', () => {
   it('renders the preview answer in a sandboxed frame without a mode switch', async () => {
     installFetch(handler());
     await renderEditor();
-    fireEvent.click(screen.getByRole('listitem', { name: /Block 1: HTML/ }));
+    fireEvent.click(screen.getByRole('listitem', { name: /Block 1: Text/ }));
 
     // Two frames, so a re-render loads behind the one on screen. Both are
     // script-free: `allow-same-origin` and nothing else.
@@ -172,7 +172,7 @@ describe('the page editor shell', () => {
       handler(() => jsonResponse({ errors: { error: 'not found' } }, { status: 404 })),
     );
     await renderEditor();
-    fireEvent.click(screen.getByRole('listitem', { name: /Block 1: HTML/ }));
+    fireEvent.click(screen.getByRole('listitem', { name: /Block 1: Text/ }));
 
     expect(await screen.findByText('Live preview is not available yet.')).toBeInTheDocument();
     expect(screen.queryByTitle('Preview of the page')).toBeNull();
@@ -184,7 +184,7 @@ describe('the page editor shell', () => {
     render(<SitesPage param="1" rest={['1', 'pages', '1']} />);
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Forbidden');
-    expect(await screen.findByRole('listitem', { name: /Block 1: HTML/ })).toBeInTheDocument();
+    expect(await screen.findByRole('listitem', { name: /Block 1: Text/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Outline' })).toBeDisabled();
     window.localStorage.removeItem('romeka.editor.outline');
   });
@@ -204,7 +204,7 @@ describe('the page editor shell', () => {
   it('saves the draft as the write the API takes', async () => {
     const fetchMock = installFetch(handler());
     await renderEditor();
-    fireEvent.click(screen.getByRole('listitem', { name: /Block 1: HTML/ }));
+    fireEvent.click(screen.getByRole('listitem', { name: /Block 1: Text/ }));
 
     const surface = await htmlEditor();
     surface.innerHTML = '<p>Edited.</p>';
@@ -349,14 +349,14 @@ describe('the page editor shell', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Add your first block' }));
 
     const inspector = screen.getByRole('region', { name: 'Block inspector' });
-    expect(await within(inspector).findByRole('textbox', { name: 'HTML' })).toBeInTheDocument();
+    expect(await within(inspector).findByRole('textbox', { name: 'Text' })).toBeInTheDocument();
   });
 
   it('guards a dirty draft against a route change', async () => {
     installFetch(handler());
     window.location.hash = '#/sites/1/pages/1';
     await renderEditor();
-    fireEvent.click(screen.getByRole('listitem', { name: /Block 1: HTML/ }));
+    fireEvent.click(screen.getByRole('listitem', { name: /Block 1: Text/ }));
     const surface = await htmlEditor();
     surface.innerHTML = '<p>Dirty.</p>';
     fireEvent.input(surface);

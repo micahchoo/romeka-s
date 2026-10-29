@@ -56,6 +56,7 @@ const Editor = ({
       <PageCanvas
         draft={draft}
         siteSettings={null}
+        siteId={SITE_ID}
         selection={selected === null ? null : { kind: 'block', key: selected, from: 'outline' }}
         onSelect={setSelected}
         dispatch={dispatch}
@@ -133,8 +134,8 @@ describe('the Section panel', () => {
       'aria-checked',
       'true',
     );
-    expect(within(inspector()).getByRole('button', { name: /Slot 1/ })).toHaveTextContent('HTML');
-    expect(within(inspector()).getByRole('button', { name: /Slot 2/ })).toHaveTextContent('HTML');
+    expect(within(inspector()).getByRole('button', { name: /Slot 1/ })).toHaveTextContent('Text');
+    expect(within(inspector()).getByRole('button', { name: /Slot 2/ })).toHaveTextContent('Text');
     expect(within(inspector()).queryByText(/No layout yet/)).toBeNull();
   });
 
@@ -176,12 +177,12 @@ describe('the Section panel', () => {
 });
 
 describe('the Outline draws a section as its slots', () => {
-  it('lays the slots out in the section columns', () => {
+  it('hands the slots the section columns, which a wide Outline lays them out in', () => {
     const initial = sectionPage({ section: { layout: 'split-40-60' } });
     renderEditor(initial);
     const slots = document.querySelector('.canvas-slots');
     expect(slots).toBeInstanceOf(HTMLElement);
-    expect(slots instanceof HTMLElement ? slots.style.gridTemplateColumns : '').toBe(
+    expect(slots instanceof HTMLElement ? slots.style.getPropertyValue('--section-columns') : '').toBe(
       'minmax(0, 2fr) minmax(0, 3fr)',
     );
     expect(screen.getByRole('listitem', { name: 'Section, Narrow and wide' })).toBeInTheDocument();
@@ -233,6 +234,19 @@ describe('the Outline draws a section as its slots', () => {
   });
 });
 
+describe('a Romeka block in the inspector', () => {
+  it('shows its settings with no line about the HTML they generate', async () => {
+    const editor = renderEditor(load([]));
+    fireEvent.click(screen.getByRole('button', { name: /Insert block/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Hero banner' }));
+    fireEvent.click(card(blockAt(editor.current().blocks, 0).key));
+
+    expect(await within(inspector()).findByLabelText('Heading')).toBeInTheDocument();
+    expect(within(inspector()).queryByText(/Romeka block/)).toBeNull();
+    expect(within(inspector()).queryByText(/generated from these settings/)).toBeNull();
+  });
+});
+
 describe('the section templates in the block picker', () => {
   it('builds Media and text: a 40/60 split holding a media block and an HTML block', () => {
     const editor = renderEditor(load([]));
@@ -263,7 +277,26 @@ describe('the section templates in the block picker', () => {
       'Three featured items',
       'Quote band',
       'Full-width image band',
+      'Empty section',
     ]);
+  });
+
+  it('offers the bare block group only as Empty section, which adds a group with no blocks', () => {
+    const editor = renderEditor(load([]));
+    fireEvent.click(screen.getByRole('button', { name: /Insert block/ }));
+    const blocksList = screen.getByRole('heading', { name: 'Blocks' }).nextElementSibling;
+    expect(blocksList).toBeInstanceOf(HTMLElement);
+    expect(
+      within(blocksList instanceof HTMLElement ? blocksList : document.body).queryByRole('button', {
+        name: 'Block group',
+      }),
+    ).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Empty section' }));
+
+    const blocks = editor.current().blocks;
+    expect(blocks.map((block) => block.layout)).toEqual(['blockGroup']);
+    expect(spanOf(blockAt(blocks, 0))).toBe(0);
   });
 });
 

@@ -408,6 +408,7 @@ export const PageEditor = ({
               <PageCanvas
                 draft={draft}
                 siteSettings={siteSettings}
+                siteId={siteId}
                 selection={selection}
                 onSelect={(key) => {
                   setSelection(key === null ? null : { kind: 'block', key, from: 'outline' });
@@ -495,6 +496,7 @@ export const PageEditor = ({
             ) : history.kind === 'open' && pageId !== null ? (
               <HistoryPanel
                 pageId={pageId}
+                registry={draft.registry}
                 savedAt={saving.loadedModified}
                 viewing={history.viewing?.summary.version ?? null}
                 onView={(version) => {

@@ -8,6 +8,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  container-type: inline-size;
 }
 
 .canvas-toolbar {
@@ -148,6 +149,11 @@
   white-space: nowrap;
 }
 
+.canvas-badge-quiet {
+  background: var(--bg);
+  color: var(--text-muted);
+}
+
 .canvas-menu {
   position: relative;
 }
@@ -257,13 +263,22 @@
 }
 
 /* A section: its blocks in the section's own columns, one slot each, so the
-   Outline shows the row the visitor sees. An empty slot is a drop target. */
+   Outline shows the row the visitor sees. An empty slot is a drop target.
+   Beside the preview the Outline is about 300px wide, too narrow for columns
+   of titles, so there the slots stack and the preview shows the columns. */
 .canvas-slots {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+@container (min-width: 40rem) {
+  .canvas-slots {
+    grid-template-columns: var(--section-columns);
+  }
 }
 
 .canvas-slot {

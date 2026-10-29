@@ -5,6 +5,10 @@
  *
  * A new site holds no items and does not sync: the curator chooses its items
  * and item sets on its Items tab, the one place that changes them.
+ *
+ * The Theme select shows only when more than one theme is installed: with one,
+ * it has nothing to choose, and the look a newcomer means by "theme" is the
+ * preset on the site's Theme tab.
  */
 import type { ReactElement, SyntheticEvent } from 'react';
 import { useState } from 'react';
@@ -13,7 +17,7 @@ import { CheckboxField, SaveStatus, SubmitRow, TextField } from '../../app/field
 import { useSave } from '../../app/save';
 import { useTranslator } from '../../i18n';
 import { Breadcrumb } from './SiteFrame';
-import { ThemeSelect, slugFromTitle } from './siteInfo';
+import { INSTALLED_THEMES, ThemeSelect, slugFromTitle } from './siteInfo';
 import { common } from '../../i18n/namespaces/common';
 import { sites } from '../../i18n/namespaces/sites';
 
@@ -67,7 +71,7 @@ export const SiteCreatePage = (): ReactElement => {
           <TextField id="site-title" label={t('sites.title')} value={title} onChange={setTitle} />
           <TextField id="site-slug" label={t('sites.slug')} value={slug} onChange={setTypedSlug} />
           <p className="field-note">{t('siteHub.slugNote', { url: `/s/${slug}` })}</p>
-          <ThemeSelect value={theme} onChange={setTheme} />
+          {INSTALLED_THEMES.length > 1 ? <ThemeSelect value={theme} onChange={setTheme} /> : null}
           <CheckboxField
             id="site-public"
             label={t('common.public')}
@@ -79,6 +83,7 @@ export const SiteCreatePage = (): ReactElement => {
         <SaveStatus state={saveState} />
         <SubmitRow label={t('sites.add')} busy={saveState.status === 'saving'} />
       </form>
+      <p className="field-note">{t('sites.lookAfterAdd')}</p>
     </div>
   );
 };

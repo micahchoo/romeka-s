@@ -54,6 +54,8 @@ export interface CanvasCardProps {
   /** The thumbnail of the image the block names, `null` when it names none. */
   readonly image: string | null;
   readonly issues: readonly ValidationIssue[];
+  /** What the row says when the block's list is empty (`ListsNothing`). */
+  readonly listNote: ReactElement;
   /** Whether the carrier's stored html was edited outside Romeka. */
   readonly mismatch: boolean;
   readonly writing: CardWriting;
@@ -78,6 +80,7 @@ export const CanvasCard = ({
   summary,
   image,
   issues,
+  listNote,
   mismatch,
   writing,
   selected,
@@ -282,6 +285,7 @@ export const CanvasCard = ({
             </button>
           </>
         ) : null}
+        {listNote}
         {mismatch ? (
           <>
             <span className="canvas-badge canvas-badge-edited">{t('canvas.romkaMismatch')}</span>

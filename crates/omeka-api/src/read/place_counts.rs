@@ -1,7 +1,8 @@
-//! The counts behind a set's place, a record's "Linked from", an item type's fields and the Items
-//! browse's item type chips: Romeka's own reads (`/api/romeka/item-sets/counts`,
-//! `/api/romeka/links/{id}`, `/api/romeka/field-counts`, `/api/romeka/item-types/counts`);
-//! upstream has none of these routes.
+//! The counts behind a set's place, a record's "Linked from", an item type's fields, the Items
+//! browse's item type chips and the item picker's class filter: Romeka's own reads
+//! (`/api/romeka/item-sets/counts`, `/api/romeka/links/{id}`, `/api/romeka/field-counts`,
+//! `/api/romeka/item-types/counts`, `/api/romeka/classes/counts`); upstream has none of these
+//! routes.
 //!
 //! Each count stands for a list the admin opens, so it must equal that list's `totalResults` for
 //! the same caller: a set's count is `GET /api/items?item_set_id=<id>`, a link row's count is the
@@ -217,6 +218,50 @@ pub async fn field_counts(api: &Api<'_>, params: &Params) -> Result<ApiResponse,
             .map(|field| FieldCount {
                 property_id: field.property.0,
                 filled: field.items,
+            })
+            .collect(),
+    })?))
+}
+
+#[derive(Serialize)]
+struct ClassCounts {
+    classes: Vec<ClassCount>,
+}
+
+#[derive(Serialize)]
+struct ClassCount {
+    id: u64,
+    term: String,
+    label: String,
+    vocabulary_label: String,
+    items: i64,
+}
+
+/// `GET /api/romeka/classes/counts`: the item picker's class filter. Each class at least one item
+/// the caller may see has, with the number of items `GET /api/items?resource_class_id=<id>`
+/// answers this caller, ordered by label, then the standard's label, then id. Two classes may
+/// share a label; the standard's label tells them apart.
+pub async fn class_counts(api: &Api<'_>) -> Result<ApiResponse, ApiError> {
+    let mut counts = with_db!(api.pool(), |db| ItemRepo::new(db)
+        .class_counts(media_visibility(api.actor()))
+        .await)
+    .map_err(db_error)?;
+    counts.sort_by(|a, b| {
+        a.label
+            .to_lowercase()
+            .cmp(&b.label.to_lowercase())
+            .then_with(|| a.vocabulary_label.cmp(&b.vocabulary_label))
+            .then(a.class.0.cmp(&b.class.0))
+    });
+    Ok(ApiResponse::document(serialize(&ClassCounts {
+        classes: counts
+            .into_iter()
+            .map(|count| ClassCount {
+                id: count.class.0,
+                term: count.term,
+                label: count.label,
+                vocabulary_label: count.vocabulary_label,
+                items: count.items,
             })
             .collect(),
     })?))

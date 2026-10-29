@@ -91,6 +91,22 @@ describe('the browse preview query builder', () => {
 
     expect(await screen.findByText('Media in this site that match: 5.')).toBeInTheDocument();
   });
+
+  it('offers a way to add item sets when the site has none', async () => {
+    installFetch((url) => (url.pathname === '/api/item_sets' && url.searchParams.get('per_page') === '1' ? listResponse([], 0) : handler(url)));
+    render(
+      <BlockFormHarness
+        layout="browsePreview"
+        data={{ resource_type: 'item_sets', query: '', components: [] }}
+      />,
+    );
+
+    expect(await screen.findByText('This site has no item sets yet.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Add item sets to this site' })).toHaveAttribute(
+      'href',
+      `#/sites/${String(SITE_ID)}/resources`,
+    );
+  });
 });
 
 const HeroHarness = ({ settings }: { readonly settings: object }): ReactElement => {

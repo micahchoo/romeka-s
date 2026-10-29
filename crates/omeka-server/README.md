@@ -354,6 +354,19 @@ while this is above 0). Each is a type's total, not a total under the browse's o
 The answer is `Cache-Control: no-store`. `tests/item_type_counts.rs` holds every count against its
 list for anonymous, an author, an editor and an admin.
 
+A sixth read gives the item picker its class filter:
+
+| Route | Response |
+| --- | --- |
+| `GET /api/romeka/classes/counts` | 200 `{classes: [{id, term, label, vocabulary_label, items}]}` |
+
+Only a class that at least one item the caller may see has is listed. Its `items` is the
+`Omeka-S-Total-Results` of `GET /api/items?resource_class_id=<id>` for the same caller. The rows
+come by label, then by the standard's label, so two classes with one label sit together and the
+standard's label tells them apart. It is one grouped query over `ix_resource_resource_class_id`.
+The answer is `Cache-Control: no-store`. `tests/class_counts.rs` holds every count against its
+list for anonymous, an author, an editor and an admin.
+
 ## Fixity
 
 A check of the stored originals against `media.sha256` (`src/fixity.rs`, logic in
@@ -409,11 +422,20 @@ deletes them. These routes are a Romeka addition (`src/page_versions.rs`, logic 
 
 | Route | Response |
 | --- | --- |
-| `GET /api/site_pages/:id/versions` | 200, newest first: `[{o:version, o:created, o:user: {o:id, o:name} \| null, o:block_count}]`; 403, 404 |
+| `GET /api/site_pages/:id/versions` | 200, newest first: `[{o:version, o:created, o:user: {o:id, o:name} \| null, o:author, o:block_count, o:changes}]`; 403, 404 |
 | `GET /api/site_pages/:id/versions/:version` | 200, the page document that version stored; 403, 404 |
 
 The caller must be signed in and able to read the page; anonymous is 403 even for a public page,
 because a version can hold content the page no longer shows.
+
+`o:author` says why `o:user` is null: `user` names who saved, `not_recorded` is version 1, the
+state the page had before its first recorded save, and `deleted_user` is a save by a user deleted
+since. `o:changes` is what the version changed against the one listed after it, and null for the
+oldest kept: `o:title` (`{o:before, o:after}` or null), `o:settings_changed` (slug, visibility,
+layout or layout data), `o:blocks_added`, `o:blocks_removed`, `o:blocks_changed`,
+`o:blocks_moved`, and `o:changed_blocks`, the `{o:layout, o:layout_data}` of each changed block
+when there are one or two. Blocks have no lasting id, so they are matched by content
+(`omeka_api::page_changes`).
 
 A page write that sends `o:modified` (the `{"@value": ...}` a read answers, or the bare ISO 8601
 text) is checked against the stored page. When they differ the save writes nothing and answers 409
