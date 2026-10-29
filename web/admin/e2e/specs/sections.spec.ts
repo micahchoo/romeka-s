@@ -42,7 +42,7 @@ test('the Media and text section is two columns on a desktop and one on a phone'
   );
 
   // The section's text block starts empty, with its hint; the curator writes it.
-  await section.locator('.canvas-slot').nth(1).locator('.canvas-card').click();
+  await section.locator('.canvas-slot').nth(1).getByText('Text', { exact: true }).click();
   const words = page.getByRole('textbox', { name: 'Text', exact: true });
   await expect(words).toHaveAttribute('data-placeholder', 'Write what visitors read here.');
   await words.fill('A line for this part');
