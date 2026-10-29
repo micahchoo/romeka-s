@@ -25,13 +25,9 @@ export const es: Catalogue = {
   'page.sites': 'Sitios',
   'page.fields': 'Campos',
   'page.users': 'Usuarios',
-  'page.modules': 'Módulos',
   'page.jobs': 'Tareas',
   'page.settings': 'Configuración',
   'page.assets': 'Recursos',
-  'page.systemInfo': 'Información del sistema',
-  'page.columns': 'Columnas de exploración',
-  'page.query': 'Consulta de búsqueda',
   'loading.page': 'Cargando la página...',
   'auth.panelHeading': 'Iniciar sesión',
   'auth.email': 'Correo electrónico',
@@ -66,6 +62,7 @@ export const es: Catalogue = {
   // The Describe nav group and its Advanced > Standards link.
   'group.describe': 'Describir',
   'nav.advanced': 'Avanzado',
+  'page.system': 'Sistema',
   'page.itemTypes': 'Tipos de elemento',
   'page.standards': 'Estándares',
   // The jump-to box in the header and the saved lists under Items.

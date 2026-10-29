@@ -82,8 +82,8 @@ describe('a page in Spanish', () => {
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     try {
       // The route chunk arrives after the switch, so its namespaces are defined in Spanish.
-      const [{ ColumnsPage }, admin, common, commonSpanish] = await Promise.all([
-        import('../src/pages/columns/page'),
+      const [{ SystemPage }, admin, common, commonSpanish] = await Promise.all([
+        import('../src/pages/system/page'),
         import('../src/i18n/namespaces/admin'),
         import('../src/i18n/namespaces/common'),
         import('../src/i18n/namespaces/common/locales/es'),
@@ -91,7 +91,7 @@ describe('a page in Spanish', () => {
       await act(async () => {
         render(
           <Suspense fallback={<p role="status">Cargando…</p>}>
-            <ColumnsPage />
+            <SystemPage rest={['query']} />
           </Suspense>,
         );
         await settle();
@@ -100,8 +100,8 @@ describe('a page in Spanish', () => {
 
       spanishAdmin.open();
       const { es: adminSpanish } = await import('../src/i18n/namespaces/admin/locales/es');
-      expect(await screen.findByText(adminSpanish['columns.legend'])).toBeInTheDocument();
-      expect(screen.getByLabelText(adminSpanish['columns.resourceType'])).toBeInTheDocument();
+      expect(await screen.findByText(adminSpanish['query.idle'])).toBeInTheDocument();
+      expect(screen.getByLabelText(adminSpanish['query.resourceType'])).toBeInTheDocument();
 
       const english = [
         ...englishOnly(admin.en, adminSpanish),

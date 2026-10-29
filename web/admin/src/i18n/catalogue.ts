@@ -28,13 +28,9 @@ export const en = {
   'page.sites': 'Sites',
   'page.fields': 'Fields',
   'page.users': 'Users',
-  'page.modules': 'Modules',
   'page.jobs': 'Jobs',
   'page.settings': 'Settings',
   'page.assets': 'Assets',
-  'page.systemInfo': 'System information',
-  'page.columns': 'Browse columns',
-  'page.query': 'Search query',
   'loading.page': 'Loading page...',
   'auth.panelHeading': 'Sign in',
   'auth.email': 'Email',
@@ -68,9 +64,10 @@ export const en = {
   'locale.ne': 'नेपाली',
   // Term lists (the Custom Vocab module built into core) and the term picker.
   'page.termLists': 'Term lists',
-  // The Describe nav group and its Advanced > Standards link.
+  // The Describe nav group and its Advanced > Standards link; Admin's Advanced > System.
   'group.describe': 'Describe',
   'nav.advanced': 'Advanced',
+  'page.system': 'System',
   'page.itemTypes': 'Item types',
   'page.standards': 'Standards',
   // The jump-to box in the header and the saved lists under Items.

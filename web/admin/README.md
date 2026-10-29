@@ -73,7 +73,8 @@ render the header and their own page, with no admin navigation:
   the app root produces) opens the same page whatever the fragment says.
 - `#/forgot` requests a reset link.
 
-- `#/` (or `#/dashboard`) shows the admin dashboard: resource counts and the site list.
+- `#/` (or `#/dashboard`) shows the admin dashboard: resource counts and the site list, each site
+  name a link to that site (`#/sites/<id>`).
 - `#/items` lists items. `#/items/new` creates one. `#/items/<id>` shows one item, with its values
   and an "Edit this item" panel for values, title, visibility, class, template, owner and item-set
   membership.
@@ -161,7 +162,7 @@ render the header and their own page, with no admin navigation:
 - `#/media` lists media with a preview column. `#/media/<id>` shows one media: the image at full
   width, the parsed fields, the file derivatives, the values, and an "Edit this media" panel for alt
   text, language and visibility. The list title links to it.
-- `#/vocabularies`, `#/properties`, `#/resource-classes`, `#/resource-templates`, `#/modules`,
+- `#/vocabularies`, `#/properties`, `#/resource-classes`, `#/resource-templates`,
   `#/jobs`, `#/assets` list one API resource each.
 - `#/vocabularies/<id>`, `#/properties/<id>`, `#/resource-classes/<id>` and
   `#/resource-templates/<id>` show one row of the vocabulary family: every member it carries and a
@@ -180,12 +181,14 @@ render the header and their own page, with no admin navigation:
 - `#/assets/<id>` shows one asset with its edit and delete controls. `#/jobs/<id>` shows one job with
   its update and delete controls, and its log from `GET /api/romeka/jobs/<id>/log`, read again every
   two seconds while the job runs. There is no create route for either. See "Write requests".
-- `#/query` is the advanced search form. `Preview` runs a real search and lists the matches.
-- `#/columns` edits which browse columns show for a resource type, in page state only.
+- `#/system` is Admin > Advanced > System, one tab each for what upstream shows on three pages:
+  System information (the Omeka S version from the response header and the registered API
+  resource names), `#/system/modules` (the modules list) and `#/system/query` (the advanced search
+  form, whose `Preview` runs a real search and lists the matches). `#/system-info`, `#/modules` and
+  `#/query` open the matching tab. Upstream's Browse columns page is not ported: its choice was
+  never saved, so `#/columns` opens System.
 - `#/settings` renders the global settings form. The port serves no settings endpoint, so it does
   not persist.
-- `#/system-info` reports the Omeka S version from the response header and the registered API
-  resource names.
 - Items, item sets, users and media are the resources with a write form, plus sites and site pages,
   the vocabulary family, and the asset and job detail views. Every resource the API serves `DELETE`
   for offers a delete control: items, item sets, media, assets and jobs on the show page, users, sites,
@@ -603,7 +606,8 @@ The teardown stops both servers and deletes the temporary directory.
 | `e2e/specs/items.spec.ts` | Creates an item with an item set membership, reads the membership back in the edit form, renames it and deletes it. |
 | `e2e/specs/family-write.spec.ts` | Creates, renames and deletes a vocabulary, a resource class, a property and a resource template; renames and deletes the seeded asset; updates and deletes the seeded job. The seeded job carries no status, so the run covers the null `o:status` the wire sends. |
 | `e2e/specs/media.spec.ts` | Asserts the list preview is the square derivative and the show page hero the large one, both under this run's origin and answered as `image/jpeg`, that the browser decodes them, and that the derivative list links the stored original as `image/png`. |
-| `e2e/specs/query.spec.ts` | Runs a search on the query page and checks the matches, then a query that matches nothing. |
+| `e2e/specs/query.spec.ts` | Runs a search on System's Search query tab and checks the matches, then a query that matches nothing. |
+| `e2e/specs/system.spec.ts` | Opens each route System replaced and checks it lands on the matching tab, that the nav names System once under Admin > Advanced and none of the old pages, and that each tab works; then follows a dashboard site name to that site. `SYSTEM_SCREENSHOTS` names a folder for the pictures. |
 | `e2e/specs/locale.spec.ts` | Switches the shell to Spanish, asserts the labels and the nav change and the choice is stored, reloads to see it kept, then switches back to English. |
 | `e2e/specs/public-site.spec.ts` | Reads the site slug off the admin sites table and loads the port's `/s` routes for it. |
 | `e2e/specs/sign-in.spec.ts` | Signs in through the header form with the run's minted key, asserts the key survives a reload and rides on the next `/api` request, signs out and asserts it is gone, then has a malformed key refused with no request. Also signs in with the administrator's email and password, asserts the browser set the `Origin` header the server checks for a write, that the session cookie is not readable from the page, that the reload keeps the session and that a sign-out revokes it. |

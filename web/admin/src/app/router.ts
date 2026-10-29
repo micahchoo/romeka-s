@@ -30,11 +30,17 @@ export const DEFAULT_PAGE: AdminPageId = 'dashboard';
  * Routes that moved, each with the page and the leading segments that now
  * serve it. Upstream's vocabulary family routes open a Standards tab, so a
  * bookmark or a link such as `#/properties/12` still lands on that property.
+ * The pages folded into System open its tabs; Browse columns, which System
+ * dropped, opens its first.
  */
 const MOVED: ReadonlyMap<string, readonly [AdminPageId, string]> = new Map([
   ['vocabularies', ['standards', 'vocabularies']],
   ['properties', ['standards', 'properties']],
   ['resource-classes', ['standards', 'classes']],
+  ['system-info', ['system', 'about']],
+  ['columns', ['system', 'about']],
+  ['modules', ['system', 'modules']],
+  ['query', ['system', 'query']],
 ]);
 
 export const parseHash = (hash: string): RouteMatch | null => {

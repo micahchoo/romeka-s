@@ -1,8 +1,10 @@
 /**
  * The admin page table: one row per controller under
- * `application/src/Controller/Admin/*.php` of omeka-s at 5e413f0, except the
- * vocabulary family, whose three controllers share the Standards page. The nav
- * groups follow the work, not the upstream admin navigation.
+ * `application/src/Controller/Admin/*.php` of omeka-s at 5e413f0, except two
+ * families that share one page: the vocabulary controllers share Standards, and
+ * System information, Modules and Query share System. `ColumnsController` has no
+ * row (see `pages/system/page.tsx`). The nav groups follow the work, not the
+ * upstream admin navigation.
  *
  * Every `element` is a `React.lazy` component, so a route's module is fetched
  * the first time that route opens and the entry bundle carries the shell and
@@ -26,13 +28,10 @@ export type AdminPageId =
   | 'fields'
   | 'standards'
   | 'users'
-  | 'modules'
   | 'jobs'
   | 'settings'
   | 'assets'
-  | 'system-info'
-  | 'columns'
-  | 'query';
+  | 'system';
 
 export interface AdminPage {
   /** The catalogue key the nav and the heading read. */
@@ -56,14 +55,15 @@ export interface PageGroup {
   readonly id: PageGroupId;
   readonly titleKey: MessageKey;
   readonly pages: readonly AdminPageId[];
-  /** A labelled run of links after the group's own, such as Describe's Advanced. */
+  /** A labelled run of links after the group's own, such as an Advanced heading. */
   readonly sub?: { readonly titleKey: MessageKey; readonly pages: readonly AdminPageId[] };
 }
 
 /**
  * The nav, grouped by the work rather than by the tables: Describe is where a
  * collection's item types and fields are shaped, and the raw vocabulary layer
- * sits under its Advanced heading.
+ * sits under its Advanced heading. Admin's Advanced heading holds System, the
+ * installation facts and tools few people open.
  */
 export const PAGE_GROUPS: readonly PageGroup[] = [
   {
@@ -80,7 +80,8 @@ export const PAGE_GROUPS: readonly PageGroup[] = [
   {
     id: 'admin',
     titleKey: 'group.admin',
-    pages: ['users', 'modules', 'jobs', 'settings', 'assets', 'system-info', 'columns', 'query'],
+    pages: ['users', 'jobs', 'settings', 'assets'],
+    sub: { titleKey: 'nav.advanced', pages: ['system'] },
   },
 ];
 
@@ -179,13 +180,6 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
       import('../pages/users/page').then((module) => ({ default: module.UsersPage })),
     ),
   },
-  modules: {
-    titleKey: 'page.modules',
-    upstream: 'Admin/ModuleController.php browseAction',
-    element: lazy(() =>
-      import('../pages/modules/page').then((module) => ({ default: module.ModulesPage })),
-    ),
-  },
   jobs: {
     titleKey: 'page.jobs',
     upstream: 'Admin/JobController.php browseAction',
@@ -207,25 +201,12 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
       import('../pages/assets/page').then((module) => ({ default: module.AssetsPage })),
     ),
   },
-  'system-info': {
-    titleKey: 'page.systemInfo',
-    upstream: 'Admin/SystemInfoController.php browseAction',
+  system: {
+    titleKey: 'page.system',
+    upstream:
+      'Admin/SystemInfoController.php browseAction, Admin/ModuleController.php browseAction, Admin/QueryController.php sidebarEditAction',
     element: lazy(() =>
-      import('../pages/system-info/page').then((module) => ({ default: module.SystemInfoPage })),
-    ),
-  },
-  columns: {
-    titleKey: 'page.columns',
-    upstream: 'Admin/ColumnsController.php columnListAction',
-    element: lazy(() =>
-      import('../pages/columns/page').then((module) => ({ default: module.ColumnsPage })),
-    ),
-  },
-  query: {
-    titleKey: 'page.query',
-    upstream: 'Admin/QueryController.php sidebarEditAction',
-    element: lazy(() =>
-      import('../pages/query/page').then((module) => ({ default: module.QueryPage })),
+      import('../pages/system/page').then((module) => ({ default: module.SystemPage })),
     ),
   },
 };

@@ -27,7 +27,7 @@ import {
 /** The seeded item links, one row per item, sorted the way the list loads them. */
 const ITEM_ROW = 'main table tbody a[href^="#/items/"]';
 const NAV_ITEMS = 'nav.app-nav a.nav-link[href="#/items"]';
-const NAV_SYSTEM_INFO = 'nav.app-nav a.nav-link[href="#/system-info"]';
+const NAV_SETTINGS = 'nav.app-nav a.nav-link[href="#/settings"]';
 const SUBMIT = 'main form button[type="submit"]';
 /** The item title on the show page (`ItemDetail`). */
 const DETAIL_TITLE = 'main section h2';
@@ -46,13 +46,13 @@ test('records the bundle and the user-path timings', async ({ page, baseURL, dia
 
   const fcp = summarize(await measureFcp(page, baseURL, RUNS));
 
-  // The reset page makes no API request of its own, so the only requests inside
-  // the measured span are the ones the list path makes.
+  // System's Search query tab makes no API request until a search runs, so the
+  // only requests inside the measured span are the ones the list path makes.
   const listRender = summarizeProbes(
     await repeat(
       RUNS,
       async () => {
-        await gotoPage('columns', 'Browse columns');
+        await gotoPage('system/query', 'System');
       },
       () => page.evaluate(measureInPage, { action: NAV_ITEMS, ready: ITEM_ROW }),
     ),
@@ -109,13 +109,13 @@ test('records the bundle and the user-path timings', async ({ page, baseURL, dia
     await repeat(
       RUNS,
       async () => {
-        await gotoPage('columns', 'Browse columns');
+        await gotoPage('system/query', 'System');
       },
       () =>
         page.evaluate(measureInPage, {
-          action: NAV_SYSTEM_INFO,
+          action: NAV_SETTINGS,
           ready: PAGE_HEADING,
-          text: 'System information',
+          text: 'Settings',
         }),
     ),
   );

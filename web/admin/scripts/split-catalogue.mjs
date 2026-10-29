@@ -37,7 +37,7 @@ const MARKER = '@machine-translated';
 // editor and the site pages share belongs to `sites`, which loads first.
 const FAMILIES = [
   [/^app\/(forgot|password)\.tsx$/, 'account'],
-  [/^pages\/(assets|columns|dashboard|jobs|modules|query|settings|system-info|users)\//, 'admin'],
+  [/^pages\/(assets|dashboard|jobs|settings|system|users)\//, 'admin'],
   [/^pages\/(items|item-sets|media)\//, 'resources'],
   [/^pages\/sites\/editor\//, 'editor'],
   [/^pages\/sites\//, 'sites'],

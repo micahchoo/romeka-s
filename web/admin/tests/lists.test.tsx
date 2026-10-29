@@ -10,7 +10,7 @@ import { AssetsPage } from '../src/pages/assets/page';
 import { ItemSetsPage } from '../src/pages/item-sets/page';
 import { JobsPage } from '../src/pages/jobs/page';
 import { MediaPage } from '../src/pages/media/page';
-import { ModulesPage } from '../src/pages/modules/page';
+import { ModulesPage } from '../src/pages/system/modules';
 import { PropertiesPage } from '../src/pages/properties/page';
 import { ResourceClassesPage } from '../src/pages/resource-classes/page';
 import { ItemTypesPage } from '../src/pages/item-types/page';

@@ -1,14 +1,13 @@
 /**
- * Dashboard, system info, query, columns and settings page tests. All fetch
+ * Dashboard, system info, query and settings page tests. All fetch
  * stubs serve fixtures through the real typed client; none touch the network.
  */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { ColumnsPage } from '../src/pages/columns/page';
 import { DashboardPage } from '../src/pages/dashboard/page';
-import { QueryPage } from '../src/pages/query/page';
+import { QueryPage } from '../src/pages/system/query';
 import { SettingsPage } from '../src/pages/settings/page';
-import { SystemInfoPage } from '../src/pages/system-info/page';
+import { SystemInfoPage } from '../src/pages/system/about';
 import { loadFixture } from './loadFixture';
 import {
   first,
@@ -111,24 +110,6 @@ describe('query page', () => {
     expect(await screen.findByText('Fixture photo')).toBeInTheDocument();
     const mediaUrl = first(urlsFor(fetchMock, '/api/media'));
     expect(mediaUrl.searchParams.get('search')).toBe('photo');
-  });
-});
-
-describe('columns page', () => {
-  it('columns_toggle_hides_a_browse_column_from_the_preview', () => {
-    render(<ColumnsPage />);
-
-    expect(screen.getByRole('columnheader', { name: 'Created' })).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText('Created'));
-    expect(screen.queryByRole('columnheader', { name: 'Created' })).not.toBeInTheDocument();
-  });
-
-  it('columns_follow_the_selected_resource_type', () => {
-    render(<ColumnsPage />);
-
-    fireEvent.change(screen.getByLabelText('Resource type'), { target: { value: 'media' } });
-    expect(screen.getByRole('columnheader', { name: 'Ingester' })).toBeInTheDocument();
-    expect(screen.queryByRole('columnheader', { name: 'Created' })).not.toBeInTheDocument();
   });
 });
 

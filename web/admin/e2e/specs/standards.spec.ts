@@ -11,8 +11,8 @@ test('on a phone, a short page leaves the header and the nav strip at their own 
   page,
 }) => {
   await page.setViewportSize(PHONE);
-  await page.goto('/#/system-info');
-  await expect(page.getByRole('heading', { name: 'System information' })).toBeVisible();
+  await page.goto('/#/system');
+  await expect(page.getByRole('heading', { name: 'System', level: 1 })).toBeVisible();
 
   for (const selector of ['.app-header', '.app-nav']) {
     const box = page.locator(selector);
@@ -36,9 +36,9 @@ test('on a phone, a short page leaves the header and the nav strip at their own 
 
 test('on a phone, the nav strip scrolls the active link into view', async ({ page }) => {
   await page.setViewportSize(PHONE);
-  await page.goto('/#/query');
+  await page.goto('/#/system/query');
   const link = page.getByRole('navigation', { name: 'Admin pages' }).getByRole('link', {
-    name: 'Search query',
+    name: 'System',
   });
   await expect(link).toHaveAttribute('aria-current', 'page');
   await expect(link).toBeInViewport({ ratio: 1 });

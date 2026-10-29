@@ -36,12 +36,12 @@ describe('shell navigation', () => {
 
 describe('route boundary', () => {
   it('a_route_that_fails_to_load_shows_a_reload_and_keeps_the_nav', async () => {
-    vi.doMock('../src/pages/modules/page', () => {
+    vi.doMock('../src/pages/system/page', () => {
       throw new Error('chunk offline');
     });
     const quiet = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     try {
-      window.location.hash = '#/modules';
+      window.location.hash = '#/system';
       installFetch(() => jsonResponse({ errors: { error: 'offline' } }, { status: 503 }));
       vi.resetModules();
       const { Shell: Fresh } = await import('../src/app/shell');
@@ -55,7 +55,7 @@ describe('route boundary', () => {
       expect(screen.getByRole('navigation', { name: 'Admin pages' })).toBeInTheDocument();
     } finally {
       quiet.mockRestore();
-      vi.doUnmock('../src/pages/modules/page');
+      vi.doUnmock('../src/pages/system/page');
       window.location.hash = '';
     }
   });

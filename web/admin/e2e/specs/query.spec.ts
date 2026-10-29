@@ -1,16 +1,16 @@
 /**
- * The advanced search page runs a real search against the port and lists the
+ * System's Search query tab runs a real search against the port and lists the
  * matches. `Admin/QueryController::sidebarPreviewAction` is the upstream action:
  * the form on the sidebar, the table under it.
  */
 import { expect, expectClean, test } from '../fixtures';
 import { ITEM_TITLES } from '../harness/seed';
 
-test('the query page lists the items a search matches, and nothing for a miss', async ({
+test('the search query tab lists the items a search matches, and nothing for a miss', async ({
   page,
   diagnostics,
 }) => {
-  await page.goto('/#/query');
+  await page.goto('/#/system/query');
 
   await page.locator('#query-resource').selectOption('items');
   await page.locator('#query-search').fill('E2E item');

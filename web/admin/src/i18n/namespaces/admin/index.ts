@@ -113,13 +113,11 @@ export const en = {
   'role.reviewer': 'Reviewer',
   'role.author': 'Author',
   'role.researcher': 'Researcher',
-  // Query and columns pages.
+  // The System page's Search query tab.
   'query.resourceType': 'Resource type',
   'query.search': 'Search',
   'query.idle': 'Enter a query and preview it.',
   'query.empty': 'No resources match the query.',
-  'columns.resourceType': 'Resource type',
-  'columns.legend': 'Browse columns',
   // Settings page.
   'settings.installationTitle': 'Installation title',
   'settings.administratorEmail': 'Administrator email',
@@ -163,7 +161,10 @@ export const en = {
   // `SettingForm` and `UserForm`; "Default" is `LocaleSelectFactory`'s empty option.
   'settings.locale': 'Locale',
   'settings.localeDefault': 'Default',
-  // System information page.
+  // The System page: its tabs, then the System information tab.
+  'system.tabAbout': 'System information',
+  'system.tabModules': 'Modules',
+  'system.tabQuery': 'Search query',
   'systemInfo.omeka': 'Omeka S',
   'systemInfo.version': 'Version',
   'systemInfo.api': 'API',
