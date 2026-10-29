@@ -3,7 +3,7 @@
  * client and parsers against a stubbed fetch, so the requests it makes are the
  * ones the server would get.
  */
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { isRecord } from '../src/api/parse';
 import { SitesPage } from '../src/pages/sites/page';
@@ -30,6 +30,14 @@ const featuredItem = (item: number): Json => ({
   'o:layout': 'html',
   'o:data': { html: '' },
   'o:layout_data': { romeka: { block: 'featuredItem', v: 1, settings: { item } } },
+  'o:attachment': [],
+});
+
+/** A hero block whose words are `settings`, as the editor stores it. */
+const hero = (settings: Readonly<Record<string, string>>): Json => ({
+  'o:layout': 'html',
+  'o:data': { html: '' },
+  'o:layout_data': { romeka: { block: 'hero', v: 2, settings } },
   'o:attachment': [],
 });
 
@@ -278,5 +286,72 @@ describe('the site check', () => {
       '#/sites/1/navigation',
     );
     expect(region).not.toHaveTextContent('not written');
+  });
+
+  it('counts blocks still holding template text on public pages, right after the blocks not written', async () => {
+    const heroPage = sitePage(3, 'Hero', true, [
+      hero({ heading: 'Your exhibit title', subheading: 'A sentence about what this exhibit holds' }),
+      html('<p>A line worth remembering.</p>'),
+      html(''),
+      html('<p>Our own words.</p>'),
+    ]);
+    const draft = sitePage(2, 'Draft', false, [html('<p>A line worth remembering.</p>')]);
+    serve({ pages: [welcome, draft, heroPage] });
+    const region = await runCheck();
+
+    const line = within(region).getByText('2 blocks still show template text, on 1 public page').closest('li');
+    expect(line).not.toBeNull();
+    expect(line).toHaveTextContent('Visitors read this text as written. Clear it or write over it in the page editor.');
+    expect(
+      within(line ?? region)
+        .getAllByRole('link')
+        .map((link) => [link.textContent, link.getAttribute('href')]),
+    ).toEqual([['Hero', '#/sites/1/pages/3']]);
+    const texts = [
+      '1 block not written, on 1 public page',
+      '2 blocks still show template text, on 1 public page',
+      '1 public page is not in the menu',
+    ].map((text) => within(region).getByText(text));
+    const inOrder = texts.every(
+      (text, index) => index === 0 || (texts[index - 1]?.compareDocumentPosition(text) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(inOrder).toBe(true);
+  });
+
+  it('counts template text on a private page in no line', async () => {
+    const draft = sitePage(2, 'Draft', false, [hero({ heading: 'Your exhibit title' })]);
+    serve({ pages: [welcome, draft] });
+    const region = await runCheck();
+
+    expect(await within(region).findByText('Nothing to check.')).toBeInTheDocument();
+    expect(region).not.toHaveTextContent('template text');
+  });
+
+  it('counts a block that is not written and holds template text only as not written', async () => {
+    // Visitors meet no block whose heading is empty, so its old subheading reaches no one.
+    const heroPage = sitePage(3, 'Hero', true, [
+      hero({ heading: '', subheading: 'A sentence about what this exhibit holds' }),
+    ]);
+    serve({ pages: [welcome, heroPage] });
+    const region = await runCheck();
+
+    expect(within(region).getByText('1 block not written, on 1 public page')).toBeInTheDocument();
+    expect(region).not.toHaveTextContent('template text');
+  });
+
+  it('says template text in its one-block and several-page words', async () => {
+    const heroPage = sitePage(3, 'Hero', true, [hero({ heading: 'Your exhibit title' })]);
+    serve({ pages: [welcome, heroPage] });
+    const one = await runCheck();
+    expect(within(one).getByText('1 block still shows template text, on 1 public page')).toBeInTheDocument();
+    cleanup();
+
+    const about = sitePage(4, 'About', true, [
+      html('<p>About this site. Replace this text with the story behind the collection.</p>'),
+      html('<p>A line worth remembering.</p>'),
+    ]);
+    serve({ pages: [welcome, heroPage, about] });
+    const several = await runCheck();
+    expect(within(several).getByText('3 blocks still show template text, on 2 public pages')).toBeInTheDocument();
   });
 });

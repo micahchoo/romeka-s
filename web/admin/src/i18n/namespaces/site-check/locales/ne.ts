@@ -20,6 +20,13 @@ export const ne: SiteCheckMessages = {
   'siteCheck.unwrittenOne': '1 ब्लक लेखिएको छैन, 1 सार्वजनिक पृष्ठमा',
   'siteCheck.unwrittenOnePage': '{count} ब्लकहरू लेखिएको छैन, 1 सार्वजनिक पृष्ठमा',
   'siteCheck.unwritten': '{count} ब्लकहरू {pages} सार्वजनिक पृष्ठहरूमा लेखिएको छैन',
+  'siteCheck.templateTextOne': '1 ब्लकले अझै पनि 1 सार्वजनिक पृष्ठमा टेम्प्लेट पाठ देखाउँछ',
+  'siteCheck.templateTextOnePage':
+    '{count} ब्लकहरूले अझै पनि 1 सार्वजनिक पृष्ठमा टेम्प्लेट पाठ देखाउँछन्',
+  'siteCheck.templateText':
+    '{count} ब्लकहरूले {pages} सार्वजनिक पृष्ठहरूमा अझै पनि टेम्प्लेट पाठ देखाउँछन्',
+  'siteCheck.templateTextNote':
+    'आगन्तुकहरूले यो पाठलाई जस्ताको तस्तै पढ्छन्। पृष्ठ सम्पादकमा यसलाई खाली गर्नुहोस् वा यसमाथि लेख्नुहोस्।',
   'siteCheck.emptyListsOne': '1 सूचीले आगन्तुकहरूलाई केही पनि देखाउँदैन, 1 सार्वजनिक पृष्ठमा',
   'siteCheck.emptyListsOnePage':
     '{count} सूचीहरूले 1 सार्वजनिक पृष्ठमा आगन्तुकहरूलाई केही पनि देखाउँदैनन्',

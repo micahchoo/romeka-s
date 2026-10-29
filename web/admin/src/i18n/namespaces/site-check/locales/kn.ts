@@ -20,6 +20,14 @@ export const kn: SiteCheckMessages = {
   'siteCheck.unwrittenOne': '1 ಸಾರ್ವಜನಿಕ ಪುಟದಲ್ಲಿ 1 ಬ್ಲಾಕ್ ಬರೆಯಲಾಗಿಲ್ಲ',
   'siteCheck.unwrittenOnePage': '1 ಸಾರ್ವಜನಿಕ ಪುಟದಲ್ಲಿ {count} ಬ್ಲಾಕ್‌ಗಳು ಬರೆಯಲಾಗಿಲ್ಲ',
   'siteCheck.unwritten': '{pages} ಸಾರ್ವಜನಿಕ ಪುಟಗಳಲ್ಲಿ {count} ಬ್ಲಾಕ್‌ಗಳು ಬರೆಯಲಾಗಿಲ್ಲ',
+  'siteCheck.templateTextOne':
+    '1 ಸಾರ್ವಜನಿಕ ಪುಟದಲ್ಲಿ 1 ಬ್ಲಾಕ್ ಇನ್ನೂ ಟೆಂಪ್ಲೇಟ್ ಪಠ್ಯವನ್ನು ತೋರಿಸುತ್ತದೆ',
+  'siteCheck.templateTextOnePage':
+    '1 ಸಾರ್ವಜನಿಕ ಪುಟದಲ್ಲಿ {count} ಬ್ಲಾಕ್‌ಗಳು ಇನ್ನೂ ಟೆಂಪ್ಲೇಟ್ ಪಠ್ಯವನ್ನು ತೋರಿಸುತ್ತವೆ',
+  'siteCheck.templateText':
+    '{pages} ಸಾರ್ವಜನಿಕ ಪುಟಗಳಲ್ಲಿ {count} ಬ್ಲಾಕ್‌ಗಳು ಇನ್ನೂ ಟೆಂಪ್ಲೇಟ್ ಪಠ್ಯವನ್ನು ತೋರಿಸುತ್ತವೆ',
+  'siteCheck.templateTextNote':
+    'ಸಂದರ್ಶಕರು ಈ ಪಠ್ಯವನ್ನು ಬರೆದಂತೆಯೇ ಓದುತ್ತಾರೆ. ಪುಟ ಎಡಿಟರ್‌ನಲ್ಲಿ ಇದನ್ನು ಅಳಿಸಿ ಅಥವಾ ಅದರ ಮೇಲೆ ಬರೆಯಿರಿ.',
   'siteCheck.emptyListsOne': '1 ಸಾರ್ವಜನಿಕ ಪುಟದಲ್ಲಿ 1 ಪಟ್ಟಿಯು ಸಂದರ್ಶಕರಿಗೆ ಏನನ್ನೂ ತೋರಿಸುವುದಿಲ್ಲ',
   'siteCheck.emptyListsOnePage':
     '1 ಸಾರ್ವಜನಿಕ ಪುಟದಲ್ಲಿ {count} ಪಟ್ಟಿಗಳು ಸಂದರ್ಶಕರಿಗೆ ಏನನ್ನೂ ತೋರಿಸುವುದಿಲ್ಲ',

@@ -21,6 +21,14 @@ export const ml: SiteCheckMessages = {
   'siteCheck.unwrittenOne': '1 ബ്ലോക്ക് എഴുതപ്പെട്ടിട്ടില്ല, 1 പൊതു പേജിൽ',
   'siteCheck.unwrittenOnePage': '{count} ബ്ലോക്കുകൾ എഴുതപ്പെട്ടിട്ടില്ല, 1 പൊതു പേജിൽ',
   'siteCheck.unwritten': '{count} ബ്ലോക്കുകൾ എഴുതപ്പെട്ടിട്ടില്ല, {pages} പൊതു പേജുകളിൽ',
+  'siteCheck.templateTextOne':
+    '1 ബ്ലോക്ക് ഇപ്പോഴും 1 പൊതു പേജിൽ ടെംപ്ലേറ്റ് ടെക്സ്റ്റ് കാണിക്കുന്നു',
+  'siteCheck.templateTextOnePage':
+    '{count} ബ്ലോക്കുകൾ ഇപ്പോഴും 1 പൊതു പേജിൽ ടെംപ്ലേറ്റ് ടെക്സ്റ്റ് കാണിക്കുന്നു',
+  'siteCheck.templateText':
+    '{count} ബ്ലോക്കുകൾ ഇപ്പോഴും {pages} പൊതു പേജുകളിൽ ടെംപ്ലേറ്റ് ടെക്സ്റ്റ് കാണിക്കുന്നു',
+  'siteCheck.templateTextNote':
+    'സന്ദർശകർ ഈ വാചകം എഴുതിയതുപോലെ വായിക്കുന്നു. പേജ് എഡിറ്ററിൽ ഇത് നീക്കം ചെയ്യുക, അല്ലെങ്കിൽ ഇതിന് മുകളിൽ എഴുതുക.',
   'siteCheck.emptyListsOne': '1 പട്ടിക സന്ദർശകർക്ക് ഒന്നും കാണിക്കുന്നില്ല, 1 പൊതു പേജിൽ',
   'siteCheck.emptyListsOnePage':
     '{count} പട്ടികകൾ സന്ദർശകർക്ക് ഒന്നും കാണിക്കുന്നില്ല, 1 പൊതു പേജിൽ',

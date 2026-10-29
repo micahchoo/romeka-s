@@ -21,6 +21,14 @@ export const ta: SiteCheckMessages = {
   'siteCheck.unwrittenOne': '1 தொகுதி எழுதப்படவில்லை, 1 பொதுப் பக்கத்தில்',
   'siteCheck.unwrittenOnePage': '{count} தொகுதிகள் எழுதப்படவில்லை, 1 பொதுப் பக்கத்தில்',
   'siteCheck.unwritten': '{count} தொகுதிகள் எழுதப்படவில்லை, {pages} பொதுப் பக்கங்களில்',
+  'siteCheck.templateTextOne':
+    '1 தொகுதி இன்னும் 1 பொதுப் பக்கத்தில் வார்ப்புரு உரையைக் காட்டுகிறது',
+  'siteCheck.templateTextOnePage':
+    '{count} தொகுதிகள் இன்னும் 1 பொதுப் பக்கத்தில் வார்ப்புரு உரையைக் காட்டுகின்றன',
+  'siteCheck.templateText':
+    '{count} தொகுதிகள் இன்னும் {pages} பொதுப் பக்கங்களில் வார்ப்புரு உரையைக் காட்டுகின்றன',
+  'siteCheck.templateTextNote':
+    'பார்வையாளர்கள் இந்த உரையை அப்படியே வாசிக்கிறார்கள். பக்க எடிட்டரில் இதை நீக்கவும் அல்லது இதன் மேல் எழுதவும்.',
   'siteCheck.emptyListsOne':
     '1 பட்டியலில் பார்வையாளர்களுக்குக் காட்ட எதுவும் இல்லை, 1 பொதுப் பக்கத்தில்',
   'siteCheck.emptyListsOnePage':
