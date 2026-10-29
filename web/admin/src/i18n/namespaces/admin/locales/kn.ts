@@ -117,6 +117,27 @@ export const kn: AdminMessages = {
   'role.reviewer': 'ವಿಮರ್ಶಕ',
   'role.author': 'ಲೇಖಕ',
   'role.researcher': 'ಸಂಶೋಧಕ',
+  'users.ownRole': 'ನಿಮ್ಮ ಪಾತ್ರ {role} ಆಗಿದೆ.',
+  'users.ownAccount':
+    'ನೀವು ನಿಮ್ಮ ಸ್ವಂತ ಪಾತ್ರವನ್ನು ಬದಲಾಯಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ ಅಥವಾ ನಿಮ್ಮನ್ನು ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ. ಮತ್ತೊಬ್ಬ ನಿರ್ವಾಹಕರು ಮಾಡಬಹುದು.',
+  'users.sitesHeading': 'ಸೈಟ್‌ಗಳು',
+  'users.sitesLoading': 'ಸೈಟ್‌ಗಳನ್ನು ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...',
+  'users.noSites': 'ಈ ಬಳಕೆದಾರನು ನೀವು ನೋಡಬಹುದಾದ ಯಾವುದೇ ಸೈಟ್‌ನಲ್ಲಿ ಯಾವುದೇ ಪಾತ್ರವನ್ನು ಹೊಂದಿಲ್ಲ.',
+  'users.siteColumn': 'ಸೈಟ್',
+  'users.siteRoleViewer': 'ವೀಕ್ಷಕ',
+  'users.siteRoleEditor': 'ಸೃಷ್ಟಿಕರ್ತ',
+  'users.siteRoleAdmin': 'ವ್ಯವಸ್ಥಾಪಕ',
+  'roleHelp.globalAdmin':
+    'ಎಲ್ಲದರ settings, ಬಳಕೆದಾರರು, ಸೈಟ್‌ಗಳು ಮತ್ತು ಪ್ರತಿಯೊಂದು ದಾಖಲೆಯನ್ನು ಮಾಡಬಹುದು.',
+  'roleHelp.siteAdmin':
+    'ಪ್ರತಿ ದಾಖಲೆಯನ್ನು, ಸೈಟ್ ಮತ್ತು ಬಳಕೆದಾರರನ್ನು ಬದಲಾಯಿಸಬಹುದು. ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ಅಥವಾ ಮತ್ತೊಬ್ಬ ನಿರ್ವಾಹಕರ ಖಾತೆಯನ್ನು ಬದಲಾಯಿಸಬಹುದು, ಮತ್ತು ಇದು ನಿರ್ವಾಹಕರ ಪಾತ್ರವನ್ನು ನೀಡದಿರಬಹುದು.',
+  'roleHelp.editor':
+    'ಪ್ರತಿಯೊಂದು item, item set, media ಮತ್ತು item type ಅನ್ನು ಸೇರಿಸಬಹುದು, ಬದಲಾಯಿಸಬಹುದು ಮತ್ತು ಅಳಿಸಬಹುದು, private records ನೋಡಬಹುದು ಮತ್ತು sites ಮಾಡಬಹುದು.',
+  'roleHelp.reviewer':
+    'ಪ್ರತಿಯೊಂದು item, item set ಮತ್ತು media ಅನ್ನು ಸೇರಿಸಬಹುದು ಮತ್ತು ಬದಲಾಯಿಸಬಹುದು, ಮತ್ತು private records ನೋಡಬಹುದು. ಕೇವಲ ತಮಗೆ ಸೇರಿದದ್ದನ್ನು ಮಾತ್ರ ಅಳಿಸಬಹುದು.',
+  'roleHelp.author':
+    'item, item set, media ಮತ್ತು item type ಸೇರಿಸಬಹುದು. ತಮಗೆ ಸೇರಿದದ್ದನ್ನು ಮಾತ್ರ ಬದಲಾಯಿಸಬಹುದು ಮತ್ತು ಅಳಿಸಬಹುದು.',
+  'roleHelp.researcher': 'public records ಓದಬಹುದು. ಕೇವಲ ತಮ್ಮದೇ account ಬದಲಾಯಿಸಬಹುದು.',
   'query.resourceType': 'ಸಂಪನ್ಮೂಲದ ವಿಧ',
   'query.search': 'ಹುಡುಕಿ',
   'query.idle': 'ಒಂದು ಪ್ರಶ್ನೆಯನ್ನು ನಮೂದಿಸಿ ಮತ್ತು ಅದನ್ನು ಮುನ್ನೋಟ (preview) ಮಾಡಿ.',

@@ -500,6 +500,15 @@ export interface SitePermission {
   readonly role: string;
 }
 
+/** The global roles `Omeka\Permissions\Acl` registers, highest first (`Acl.php:10-15`). */
+export const USER_ROLES = ['global_admin', 'site_admin', 'editor', 'reviewer', 'author', 'researcher'] as const;
+
+/** A global role as `o:role` carries it. */
+export type UserRole = (typeof USER_ROLES)[number];
+
+export const isUserRole = (value: string): value is UserRole =>
+  USER_ROLES.some((role) => role === value);
+
 /** The site roles `SiteAdmin/IndexController::usersAction` offers. */
 export const SITE_ROLES = ['viewer', 'editor', 'admin'] as const;
 

@@ -1,7 +1,9 @@
 import type { ReactElement, SyntheticEvent } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
-import type { PasswordLink, User, UserId, UserWrite } from '../../api/types';
+import { isUserRole } from '../../api/types';
+import type { PasswordLink, User, UserId, UserRole, UserWrite } from '../../api/types';
+import { useSession } from '../../app/auth';
 import { DeleteControl } from '../../app/delete';
 import { CheckboxField, SaveStatus, SubmitRow, TextField } from '../../app/fields';
 import { ErrorNotice } from '../../app/errors';
@@ -13,23 +15,40 @@ import { toError, useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import type { KeyOf, MessageKey } from '../../i18n';
 import { PasswordLinkPanel } from './link';
+import { UserSites } from './sites';
 import { common } from '../../i18n/namespaces/common';
 import { admin } from '../../i18n/namespaces/admin';
 
 /** A message id this file names: the shell's or its namespaces'. */
 type MessageId = MessageKey | KeyOf<typeof common> | KeyOf<typeof admin>;
 
-/** `Omeka\Permissions\Acl` role ids and labels, in upstream rank order. */
-const ROLES: readonly { readonly value: string; readonly labelKey: MessageId }[] = [
-  { value: 'global_admin', labelKey: 'role.globalAdmin' },
-  { value: 'site_admin', labelKey: 'role.siteAdmin' },
-  { value: 'editor', labelKey: 'role.editor' },
-  { value: 'reviewer', labelKey: 'role.reviewer' },
-  { value: 'author', labelKey: 'role.author' },
-  { value: 'researcher', labelKey: 'role.researcher' },
+/**
+ * Each role's label and the line on what it may do, in upstream rank order.
+ * The lines state the `omeka-core` permission matrix as the API enforces it.
+ */
+const ROLES: readonly {
+  readonly value: UserRole;
+  readonly labelKey: MessageId;
+  readonly helpKey: MessageId;
+}[] = [
+  { value: 'global_admin', labelKey: 'role.globalAdmin', helpKey: 'roleHelp.globalAdmin' },
+  { value: 'site_admin', labelKey: 'role.siteAdmin', helpKey: 'roleHelp.siteAdmin' },
+  { value: 'editor', labelKey: 'role.editor', helpKey: 'roleHelp.editor' },
+  { value: 'reviewer', labelKey: 'role.reviewer', helpKey: 'roleHelp.reviewer' },
+  { value: 'author', labelKey: 'role.author', helpKey: 'roleHelp.author' },
+  { value: 'researcher', labelKey: 'role.researcher', helpKey: 'roleHelp.researcher' },
 ];
 
-const isRole = (value: string): boolean => ROLES.some((role) => role.value === value);
+const ADMIN_ROLES: ReadonlySet<string> = new Set(['global_admin', 'site_admin']);
+
+/**
+ * The roles a caller may choose: a site admin may not give an admin role
+ * (`change-role-admin`), so those stay only as the user's current role.
+ */
+const rolesFor = (callerRole: string | null, current: string): typeof ROLES =>
+  callerRole === 'site_admin'
+    ? ROLES.filter((role) => !ADMIN_ROLES.has(role.value) || role.value === current)
+    : ROLES;
 
 const UserEditor = ({
   userId,
@@ -39,6 +58,9 @@ const UserEditor = ({
   readonly user: User | null;
 }): ReactElement => {
   const { t } = useTranslator(common, admin);
+  const session = useSession();
+  // The server refuses an admin's own role, switch and delete (`IsSelf`).
+  const ownAccount = user !== null && session?.id === user.id;
   const [name, setName] = useState(user?.name ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
   const [role, setRole] = useState(user?.role ?? '');
@@ -52,6 +74,8 @@ const UserEditor = ({
   const [minting, setMinting] = useState(false);
   const [linkError, setLinkError] = useState<Error | null>(null);
   const { state: saveState, save } = useSave();
+  const roleEntry = ROLES.find((entry) => entry.value === role);
+  const roleHelp = roleEntry?.helpKey;
 
   const submit = (event: SyntheticEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -124,31 +148,46 @@ const UserEditor = ({
             value={email}
             onChange={setEmail}
           />
-          <p>
-            <label htmlFor="user-role">{t('users.role')}</label>
-            <select
-              id="user-role"
-              value={role}
-              onChange={(event) => {
-                if (isRole(event.target.value)) {
-                  setRole(event.target.value);
-                }
-              }}
-            >
-              <option value="">{t('users.selectRole')}</option>
-              {ROLES.map((entry) => (
-                <option key={entry.value} value={entry.value}>
-                  {t(entry.labelKey)}
-                </option>
-              ))}
-            </select>
-          </p>
-          <CheckboxField
-            id="user-active"
-            label={t('users.active')}
-            checked={isActive}
-            onChange={setIsActive}
-          />
+          {ownAccount ? (
+            <>
+              <p>{t('users.ownRole', { role: roleEntry === undefined ? role : t(roleEntry.labelKey) })}</p>
+              <p className="field-note">{t('users.ownAccount')}</p>
+            </>
+          ) : (
+            <>
+              <p>
+                <label htmlFor="user-role">{t('users.role')}</label>
+                <select
+                  id="user-role"
+                  value={role}
+                  aria-describedby={roleHelp === undefined ? undefined : 'user-role-help'}
+                  onChange={(event) => {
+                    if (isUserRole(event.target.value)) {
+                      setRole(event.target.value);
+                    }
+                  }}
+                >
+                  <option value="">{t('users.selectRole')}</option>
+                  {rolesFor(session?.role ?? null, user?.role ?? '').map((entry) => (
+                    <option key={entry.value} value={entry.value}>
+                      {t(entry.labelKey)}
+                    </option>
+                  ))}
+                </select>
+              </p>
+              {roleHelp === undefined ? null : (
+                <p id="user-role-help" className="field-note">
+                  {t(roleHelp)}
+                </p>
+              )}
+              <CheckboxField
+                id="user-active"
+                label={t('users.active')}
+                checked={isActive}
+                onChange={setIsActive}
+              />
+            </>
+          )}
         </fieldset>
         {/* Upstream's `addAction` removes the user-settings fieldset, so only an
             existing user has one. */}
@@ -184,7 +223,8 @@ const UserEditor = ({
           ) : null}
         </>
       )}
-      {user === null ? null : (
+      {user === null ? null : <UserSites userId={user.id} />}
+      {user === null || ownAccount ? null : (
         <DeleteControl
           label={t('users.deleteLabel')}
           rowName={user.name}

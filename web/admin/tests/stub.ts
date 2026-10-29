@@ -119,3 +119,25 @@ export const linkHeader = (rels: ReadonlyArray<readonly [string, number]>): stri
   rels
     .map(([rel, page]) => `<http://localhost/api/x?page=${String(page)}>; rel="${rel}"`)
     .join(', ');
+
+/** The user `GET /api/me` answers in `signedIn`: Ada, user 3, as the users fixture names her. */
+export const meJson = (role = 'global_admin'): Record<string, unknown> => ({
+  '@context': 'http://localhost/api-context',
+  '@id': 'http://localhost/api/users/3',
+  '@type': 'o:User',
+  'o:created': '2026-10-15T08:00:00+00:00',
+  'o:email': 'ada@example.org',
+  'o:id': 3,
+  'o:is_active': true,
+  'o:name': 'Ada Lovelace',
+  'o:role': role,
+});
+
+/**
+ * `handler` with the session probe answering a signed-in user, so the shell
+ * renders its pages instead of the sign-in panel.
+ */
+export const signedIn =
+  (handler: Handler, role = 'global_admin'): Handler =>
+  (url, init) =>
+    url.pathname === '/api/me' ? jsonResponse(meJson(role)) : handler(url, init);

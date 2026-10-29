@@ -115,6 +115,25 @@ export const es: AdminMessages = {
   'role.reviewer': 'Revisor',
   'role.author': 'Autor',
   'role.researcher': 'Investigador',
+  'users.ownRole': 'Tu rol es {role}.',
+  'users.ownAccount': 'No puedes cambiar tu propio rol ni desactivarte. Otro administrador puede hacerlo.',
+  'users.sitesHeading': 'Sitios',
+  'users.sitesLoading': 'Cargando sitios...',
+  'users.noSites': 'Este usuario no tiene un rol en ningún sitio que puedas ver.',
+  'users.siteColumn': 'Sitio',
+  'users.siteRoleViewer': 'Lector',
+  'users.siteRoleEditor': 'Creador',
+  'users.siteRoleAdmin': 'Gestor',
+  'roleHelp.globalAdmin': 'Puede hacerlo todo: la configuración, los usuarios, los sitios y todos los registros.',
+  'roleHelp.siteAdmin':
+    'Puede cambiar todos los registros, sitios y usuarios. No puede cambiar la configuración ni la cuenta de otro administrador, ni dar un rol de administrador.',
+  'roleHelp.editor':
+    'Puede añadir, cambiar y eliminar todos los elementos, conjuntos de elementos, medios y tipos de elemento, ver los registros privados y crear sitios.',
+  'roleHelp.reviewer':
+    'Puede añadir y cambiar todos los elementos, conjuntos de elementos y medios, y ver los registros privados. Solo puede eliminar lo que es suyo.',
+  'roleHelp.author':
+    'Puede añadir elementos, conjuntos de elementos, medios y tipos de elemento. Solo puede cambiar y eliminar lo que es suyo.',
+  'roleHelp.researcher': 'Puede leer los registros públicos. Solo puede cambiar su propia cuenta.',
   'query.resourceType': 'Tipo de recurso',
   'query.search': 'Buscar',
   'query.idle': 'Introduzca una consulta y previsualícela.',

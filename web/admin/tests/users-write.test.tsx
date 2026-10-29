@@ -10,6 +10,7 @@ import {
   first,
   installFetch,
   jsonResponse,
+  listResponse,
   requestBody,
   requestsFor,
 } from './stub';
@@ -136,6 +137,9 @@ describe('user invite', () => {
       if (url.pathname === '/api/users/3') {
         return jsonResponse(userFixture(0));
       }
+      if (url.pathname === '/api/sites') {
+        return listResponse([], 0);
+      }
       return jsonResponse({ errors: { error: 'unexpected' } }, { status: 404 });
     });
     render(<UsersPage param="3" />);
@@ -156,6 +160,9 @@ describe('user invite', () => {
       }
       if (url.pathname === '/api/users/3') {
         return jsonResponse(userFixture(0));
+      }
+      if (url.pathname === '/api/sites') {
+        return listResponse([], 0);
       }
       return jsonResponse({ errors: { error: 'unexpected' } }, { status: 404 });
     });
@@ -178,6 +185,9 @@ describe('user edit form', () => {
       }
       if (url.pathname === '/api/users/3') {
         return jsonResponse(userFixture(0));
+      }
+      if (url.pathname === '/api/sites') {
+        return listResponse([], 0);
       }
       return jsonResponse({ errors: { error: 'unexpected' } }, { status: 404 });
     });
@@ -294,6 +304,9 @@ describe('user edit form', () => {
       }
       if (url.pathname === '/api/users/3') {
         return jsonResponse(userFixture(0));
+      }
+      if (url.pathname === '/api/sites') {
+        return listResponse([], 0);
       }
       return jsonResponse({ errors: { error: 'unexpected' } }, { status: 404 });
     });

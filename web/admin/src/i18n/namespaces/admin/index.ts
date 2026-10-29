@@ -123,6 +123,24 @@ export const en = {
   'role.reviewer': 'Reviewer',
   'role.author': 'Author',
   'role.researcher': 'Researcher',
+  'users.ownRole': 'Your role is {role}.',
+  'users.ownAccount': "You can't change your own role or deactivate yourself. Another administrator can.",
+  'users.sitesHeading': 'Sites',
+  'users.sitesLoading': 'Loading sites...',
+  'users.noSites': 'This user has no role on any site you can see.',
+  'users.siteColumn': 'Site',
+  'users.siteRoleViewer': 'Viewer',
+  'users.siteRoleEditor': 'Creator',
+  'users.siteRoleAdmin': 'Manager',
+  'roleHelp.globalAdmin': 'May do everything: the settings, the users, the sites and every record.',
+  'roleHelp.siteAdmin':
+    "May change every record, site and user. May not change the settings or another administrator's account, and may not give an administrator role.",
+  'roleHelp.editor':
+    'May add, change and delete every item, item set, media and item type, see private records and make sites.',
+  'roleHelp.reviewer':
+    'May add and change every item, item set and media, and see private records. May delete only what they own.',
+  'roleHelp.author': 'May add items, item sets, media and item types. May change and delete only what they own.',
+  'roleHelp.researcher': 'May read public records. May change only their own account.',
   // The System page's Search query tab.
   'query.resourceType': 'Resource type',
   'query.search': 'Search',
