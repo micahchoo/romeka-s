@@ -10,18 +10,17 @@ import { defineNamespace } from '../../namespace';
 import type { Table } from '../../namespace';
 
 export const en = {
-  "type.label": "Type",
-  "type.none": "No type",
+  "type.label": "Item type",
+  "type.none": "No item type",
   "value.kind": "Kind",
   "type.classLine": "Standard class: {name}",
   "advanced.summary": "Advanced",
-  "advanced.classDiffers": "This class is not the one its type suggests.",
+  "advanced.classDiffers": "This class is not the one its item type suggests.",
   "help.what": "What is {name}?",
   "help.none": "No definition is stored for this term.",
   "picker.matches": "Matches for “{query}”",
   "picker.none": "Nothing matches “{query}”.",
   "picker.create": "Create a new field “{name}”",
-  'page.vocabularies': 'Vocabularies',
   // Shared words and fallback markers.
   'common.yes': 'Yes',
   'common.no': 'No',
@@ -93,7 +92,7 @@ export const en = {
   'valueField.requiredError': 'The following field is required: {field}',
   'valueField.required': 'Required',
   'valueField.private': 'Private',
-  'valueField.privateHint': 'The template makes new values of this field private.',
+  'valueField.privateHint': 'The item type makes new values of this field private.',
   'valueField.dataType': '{field} data type',
   'valueField.uri': '{field} URI',
   'valueField.uriLabel': '{field} URI label',

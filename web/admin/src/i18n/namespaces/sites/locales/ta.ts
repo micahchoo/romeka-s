@@ -102,7 +102,7 @@ export const ta: SitesMessages = {
     'உருப்படி பக்கங்கள், அந்த உருப்படி தோன்றும் தளப் பக்கங்களுக்கான இணைப்புகளுடன் முடிவடையும்.',
   'siteSetting.propertyLabelInformation': 'பண்பு லேபிள் தகவல்',
   'siteSetting.propertyLabelInformationHelp':
-    'உருப்படி பக்கங்கள், ஒவ்வொரு புலப் பெயருக்கு அருகிலும் கலைச்சொல் அல்லது தொழில்நுட்பச் சொல்லைக் காட்டும்.',
+    'உருப்படிப் பக்கங்கள் ஒவ்வொரு புலப் பெயருக்கு அருகிலும் தரநிலை அல்லது தொழில்நுட்பச் சொல்லைக் காட்டுகின்றன.',
   'siteSetting.iiifViewerTheme': 'IIIF பார்வையாளர் தீம்',
   'siteSetting.iiifViewerThemeHelp':
     'IIIF பார்வையாளருக்கு, தொகுதிகளாகவும் உருப்படிப் பக்கங்களிலும், வெளிர் அல்லது அடர் பின்னணி.',
@@ -175,7 +175,7 @@ export const ta: SitesMessages = {
   'siteSettingChoice.show_user_bar.0': 'உள்நுழைந்த பிறகு மட்டுமே',
   'siteSettingChoice.show_user_bar.1': 'எப்போதும்',
   'siteSettingChoice.property_label_information.none': 'எதுவுமில்லை',
-  'siteSettingChoice.property_label_information.vocab': 'சொல்லகராதி பெயர்',
+  'siteSettingChoice.property_label_information.vocab': 'தரநிலை பெயர்',
   'siteSettingChoice.property_label_information.term': 'தொழில்நுட்பச் சொல், உதாரணமாக dcterms:title',
   'resourcePage.title': 'வளப் பக்கங்கள்',
   'resourcePage.hint':
@@ -210,7 +210,7 @@ export const ta: SitesMessages = {
     'உருப்படியின் கோப்புகளின் பட்டியல், ஒவ்வொன்றும் அதன் தலைப்பைக் கொண்ட ஒரு சிறிய முன்னோட்டம்.',
   'resourcePageBlock.mediaRender': 'ஊடக ரெண்டர்',
   'resourcePageBlock.mediaRenderHelp': 'கோப்பு என்பதே அது: படம், பிளேயர் அல்லது ஆவணம்.',
-  'resourcePageBlock.resourceClass': 'வள வகுப்பு',
+  'resourcePageBlock.resourceClass': 'வகுப்பு',
   'resourcePageBlock.resourceClassHelp':
     'இது என்ன வகையான விஷயம், உதாரணமாக ஒரு உரை அல்லது ஒரு படம்.',
   'resourcePageBlock.sitePages': 'தளப் பக்கங்கள்',
@@ -273,7 +273,7 @@ export const ta: SitesMessages = {
   'asset.empty': 'இன்னும் சொத்துகள் எதுவும் சேமிக்கப்படவில்லை. ஒன்றை பதிவேற்றவும்.',
   'query.fulltext': 'முழு-உரை தேடல்',
   'query.itemSet': 'உருப்படித் தொகுப்பு',
-  'query.resourceClass': 'வள வகுப்பு',
+  'query.resourceClass': 'வகுப்பு',
   'query.sort': 'வரிசைப்படுத்து',
   'query.sortOrder': 'வரிசை முறை',
   'query.any': '[ஏதேனும்]',

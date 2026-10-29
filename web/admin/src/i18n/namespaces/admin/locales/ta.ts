@@ -15,7 +15,6 @@ export const ta: AdminMessages = {
   'jobs.status.completed': 'நிறைவுற்றது',
   'jobs.status.stopped': 'நிறுத்தப்பட்டது',
   'jobs.status.error': 'பிழை',
-  'page.resourceTemplates': 'வள வார்ப்புருக்கள்',
   'common.sameOrigin': '[ஒரே தோற்றம்]',
   'action.preview': 'முன்னோட்டம்',
   'loading.dashboard': 'டேஷ்போர்டு ஏற்றப்படுகிறது...',

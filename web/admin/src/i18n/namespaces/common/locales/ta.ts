@@ -9,18 +9,17 @@
 import type { CommonMessages } from '../index';
 
 export const ta: CommonMessages = {
-  'type.label': 'வகை',
-  'type.none': 'வகை இல்லை',
+  'type.label': 'உருப்படி வகை',
+  'type.none': 'உருப்படி வகை இல்லை',
   'value.kind': 'வகை',
   'type.classLine': 'தரநிலை வகுப்பு: {name}',
   'advanced.summary': 'மேம்பட்ட',
-  'advanced.classDiffers': 'இந்த வகுப்பு அதன் வகைப் பரிந்துரையில் உள்ள வகுப்பிலிருந்து மாறுபட்டது.',
+  'advanced.classDiffers': 'இந்த வகுப்பு அதன் உருப்படி வகை உணர்த்தும் வகையல்ல.',
   'help.what': '{name} என்றால் என்ன?',
   'help.none': 'இந்தச் சொல்லிற்கு வரையறை எதுவும் சேமிக்கப்படவில்லை.',
   'picker.matches': '“{query}” க்கான பொருத்தங்கள்',
   'picker.none': '“{query}” க்கான பொருத்தங்கள் எதுவும் இல்லை.',
   'picker.create': '“{name}” என்ற புதிய புலத்தை உருவாக்கவும்',
-  'page.vocabularies': 'சொல்லகராதிகள்',
   'common.yes': 'ஆம்',
   'common.no': 'இல்லை',
   'common.public': 'பொது',
@@ -81,7 +80,7 @@ export const ta: CommonMessages = {
   'valueField.required': 'தேவை',
   'valueField.private': 'தனிப்பட்ட',
   'valueField.privateHint':
-    'வார்ப்புரு இந்த புலத்தின் புதிய மதிப்புகளைத் தனிப்பட்டதாக மாற்றுகிறது.',
+    'உருப்படி வகை இந்த புலத்தின் புதிய மதிப்புகளைத் தனிப்பட்டதாக மாற்றுகிறது.',
   'valueField.dataType': '{field} தரவு வகை',
   'valueField.uri': '{field} URI',
   'valueField.uriLabel': '{field} URI லேபிள்',

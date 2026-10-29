@@ -38,8 +38,8 @@ describe('dashboard page', () => {
       '#/items',
     );
     expect(screen.getByRole('link', { name: 'Item sets (2)' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Vocabularies (2)' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Resource templates (2)' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Standards (2)' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Item types (2)' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'My Site' })).toHaveAttribute('href', '#/sites/1');
     expect(screen.getByRole('link', { name: 'Second Site' })).toHaveAttribute('href', '#/sites/2');
   });

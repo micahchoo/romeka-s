@@ -98,7 +98,7 @@ export const mr: SitesMessages = {
     'आयटम पेजवर जिथे आयटम दिसतो त्या साइट पेजच्या लिंक्ससह शेवट होतो.',
   'siteSetting.propertyLabelInformation': 'प्रॉपर्टी लेबल माहिती',
   'siteSetting.propertyLabelInformationHelp':
-    'आयटम पेजवर प्रत्येक फील्ड नावाच्या शेजारी शब्दसंग्रह किंवा तांत्रिक संज्ञा दर्शविली जाते.',
+    'घटक पृष्ठे प्रत्येक क्षेत्र नावाच्या शेजारी मानक किंवा तांत्रिक संज्ञा दर्शवतात.',
   'siteSetting.iiifViewerTheme': 'IIIF व्ह्यूअर थीम',
   'siteSetting.iiifViewerThemeHelp':
     'IIIF व्ह्यूअरसाठी, आयटम पेजेसवर ब्लॉक्समध्ये आणि आयटम पेजेसवर हलके किंवा गडद पार्श्वभूमी.',
@@ -169,7 +169,7 @@ export const mr: SitesMessages = {
   'siteSettingChoice.show_user_bar.0': 'केवळ साइन इन केल्यावर',
   'siteSettingChoice.show_user_bar.1': 'नेहमी',
   'siteSettingChoice.property_label_information.none': 'काहीही नाही',
-  'siteSettingChoice.property_label_information.vocab': 'शब्दसंग्रह नाव',
+  'siteSettingChoice.property_label_information.vocab': 'मानक नाव',
   'siteSettingChoice.property_label_information.term': 'तांत्रिक संज्ञा, जसे की dcterms:title',
   'resourcePage.title': 'रिसोर्स पेजेस',
   'resourcePage.hint':
@@ -202,7 +202,7 @@ export const mr: SitesMessages = {
     'आयटमच्या फाईल्सची यादी, प्रत्येक एक लहान थंबनेल आणि त्याचे शीर्षक.',
   'resourcePageBlock.mediaRender': 'मीडिया रेंडर',
   'resourcePageBlock.mediaRenderHelp': 'फाईल स्वतः: प्रतिमा, प्लेयर किंवा दस्तऐवज.',
-  'resourcePageBlock.resourceClass': 'रिसोर्स क्लास',
+  'resourcePageBlock.resourceClass': 'वर्ग',
   'resourcePageBlock.resourceClassHelp': 'हे कोणत्या प्रकारचे आहे, उदाहरणार्थ मजकूर किंवा प्रतिमा.',
   'resourcePageBlock.sitePages': 'साइट पेजेस',
   'resourcePageBlock.sitePagesHelp': 'या साइटच्या अशा पृष्ठांच्या लिंक्स ज्या आयटम दर्शवतात.',
@@ -262,7 +262,7 @@ export const mr: SitesMessages = {
   'asset.empty': 'अद्याप कोणतीही मालमत्ता साठवलेली नाही. एक मालमत्ता अपलोड करा.',
   'query.fulltext': 'पूर्ण-मजकूर शोध',
   'query.itemSet': 'आयटम सेट',
-  'query.resourceClass': 'संसाधन वर्ग',
+  'query.resourceClass': 'वर्ग',
   'query.sort': 'क्रमवारी लावा',
   'query.sortOrder': 'क्रम',
   'query.any': '[कोणतेही]',

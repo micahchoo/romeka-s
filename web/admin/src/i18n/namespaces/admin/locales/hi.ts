@@ -15,7 +15,6 @@ export const hi: AdminMessages = {
   'jobs.status.completed': 'पूर्ण',
   'jobs.status.stopped': 'रोका गया',
   'jobs.status.error': 'त्रुटि',
-  'page.resourceTemplates': 'संसाधन टेम्पलेट',
   'common.sameOrigin': '[समान मूल]',
   'action.preview': 'पूर्वावलोकन',
   'loading.dashboard': 'डैशबोर्ड लोड हो रहा है...',

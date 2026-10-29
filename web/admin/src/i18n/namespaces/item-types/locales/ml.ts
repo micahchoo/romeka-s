@@ -23,8 +23,8 @@ export const ml: ItemTypesMessages = {
   'ask.question': 'ഇത് ഏത് തരം വസ്തുവാണ്?',
   'ask.placeholder': 'ഉദാഹരണത്തിന്: കത്ത്',
   'ask.hint':
-    'ഒരു കാര്യം പറയുക, മുഴുവൻ ശേഖരവും പറയരുത്. ഓരോ തരം വസ്തുക്കൾക്കും പ്രത്യേകം തരം ഉണ്ടാക്കുക.',
-  'ask.known': 'ഈ ഫീൽഡുകൾ ഉപയോഗിച്ച് ഒരു {name} തരം തുടങ്ങുക',
+    'ഒരു കാര്യം പറയുക, മുഴുവൻ ശേഖരവുമല്ല. ഓരോ തരം കാര്യങ്ങൾക്കും പ്രത്യേകം ഇനം തരം ഉണ്ടാക്കുക.',
+  'ask.known': 'ഈ ഫീൽഡുകൾ ഉപയോഗിച്ച് ഒരു {name} ഇനം തരം തുടങ്ങുക',
   'ask.unknown': 'ഈ ഫീൽഡുകൾ ഉപയോഗിച്ച് “{name}” ഒരു ഭൗതിക വസ്തുവായി തുടങ്ങുക',
   'ask.useFields': 'ഈ ഫീൽഡുകൾ ഉപയോഗിക്കുക',
   'ask.start': 'തുടങ്ങുക',
@@ -85,7 +85,7 @@ export const ml: ItemTypesMessages = {
   'use.itemSets': 'ഐറ്റം സെറ്റുകൾ',
   'use.media': 'മീഡിയ',
   'use.note':
-    'ഈ ബ്രൗസറിൽ മാത്രം ടൈപ്പ് ലിസ്റ്റ് ചുരുക്കുന്നു, ഈ ഫോമുകളിൽ. ടൈപ്പ് എല്ലായിടത്തും ഉപയോഗിക്കാം.',
+    'ഈ ബ്രൗസറിൽ, ആ ഫോമുകളിലെ ഇനം തരം പട്ടിക മാത്രം ചുരുക്കുന്നു. ഇനം തരം എല്ലായിടത്തും ഉപയോഗിക്കാം.',
   'itemTypes.advancedSummary': 'അഡ്വാൻസ്ഡ്',
   'advanced.title': 'ടൈറ്റിൽ വരുന്നത്',
   'advanced.titleDefault': 'ടൈറ്റിൽ (ഡിഫോൾട്ട്)',
@@ -106,6 +106,6 @@ export const ml: ItemTypesMessages = {
   'fieldsPage.calledIn': '{type}-ൽ “{label}”',
   'fieldsPage.used': 'ഇത് ഉപയോഗിക്കുന്ന ഐറ്റം ടൈപ്പുകൾ: {count}',
   'fieldsPage.unused': 'ഇതുവരെ ഉപയോഗിച്ചിട്ടില്ല',
-  'loading.resourceTemplate': 'റിസോഴ്സ് ടെംപ്ലേറ്റ് ലോഡ് ചെയ്യുന്നു...',
-  'route.invalidTemplateId': '"{param}" എന്നത് സാധുവായ ഒരു റിസോഴ്സ് ടെംപ്ലേറ്റ് ഐഡി അല്ല.',
+  'loading.resourceTemplate': 'ഇനം തരം ലോഡ് ചെയ്യുന്നു...',
+  'route.invalidTemplateId': '“{param}” ഒരു ശരിയായ ഇനം തരം ഐഡി അല്ല.',
 };

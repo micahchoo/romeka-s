@@ -15,7 +15,6 @@ export const te: AdminMessages = {
   'jobs.status.completed': 'పూర్తయింది',
   'jobs.status.stopped': 'ఆగిపోయింది',
   'jobs.status.error': 'లోపం',
-  'page.resourceTemplates': 'వనరుల నమూనాలు',
   'common.sameOrigin': '[ఒకే మూలం]',
   'action.preview': 'ముందస్తు వీక్షణ',
   'loading.dashboard': 'డ్యాష్‌బోర్డ్ లోడ్ అవుతోంది...',

@@ -16,7 +16,7 @@ export const ta: ResourcesMessages = {
   'loading.itemSet': 'உருப்படித் தொகுப்பு ஏற்றப்படுகிறது...',
   'loading.media': 'ஊடகம் ஏற்றப்படுகிறது...',
   'values.none': 'மதிப்புகள் இல்லை.',
-  'field.resourceTemplate': 'வளம் வார்ப்புரு',
+  'field.resourceTemplate': 'உருப்படி வகை',
   'column.modified': 'மாற்றப்பட்டது',
   'items.add': 'உருப்படியைச் சேர்க்கவும்',
   'items.mediaHeading': 'ஊடகம் ({count})',

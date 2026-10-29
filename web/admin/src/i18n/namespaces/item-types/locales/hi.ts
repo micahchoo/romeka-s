@@ -22,8 +22,9 @@ export const hi: ItemTypesMessages = {
   'list.class': 'मानक वर्ग',
   'ask.question': 'यह क्या चीज़ है?',
   'ask.placeholder': 'उदाहरण: पत्र',
-  'ask.hint': 'एक चीज़ का नाम दें, पूरी कलेक्शन नहीं। आप हर तरह के लिए एक अलग प्रकार बनाते हैं।',
-  'ask.known': 'इन फ़ील्ड्स के साथ एक {name} प्रकार शुरू करें',
+  'ask.hint':
+    'एक चीज़ का नाम बताएं, पूरी कलेक्शन नहीं। आप प्रत्येक प्रकार के लिए एक अलग आइटम प्रकार बनाते हैं।',
+  'ask.known': 'इन फ़ील्ड्स के साथ एक {name} आइटम प्रकार शुरू करें',
   'ask.unknown': 'इन फ़ील्ड्स के साथ “{name}” को एक भौतिक वस्तु के रूप में शुरू करें',
   'ask.useFields': 'इन फ़ील्ड्स का उपयोग करें',
   'ask.start': 'शुरू करें',
@@ -85,7 +86,7 @@ export const hi: ItemTypesMessages = {
   'use.itemSets': 'आइटम सेट',
   'use.media': 'मीडिया',
   'use.note':
-    'केवल इस ब्राउज़र में उन फ़ॉर्म पर Type सूची को संकुचित करता है, अन्यत्र उपयोग योग्य रहता है।',
+    'यह केवल इन फ़ॉर्म्स पर आइटम प्रकार की सूची को संकुचित करता है, इस ब्राउज़र में। आइटम प्रकार हर जगह उपयोग योग्य रहता है।',
   'itemTypes.advancedSummary': 'उन्नत',
   'advanced.title': 'शीर्षक यहाँ से आता है',
   'advanced.titleDefault': 'शीर्षक (डिफ़ॉल्ट)',
@@ -106,6 +107,6 @@ export const hi: ItemTypesMessages = {
   'fieldsPage.calledIn': '“{label}” {type} में',
   'fieldsPage.used': 'आइटम प्रकार जो इसका उपयोग करते हैं: {count}',
   'fieldsPage.unused': 'अभी तक उपयोग नहीं किया गया',
-  'loading.resourceTemplate': 'रिसोर्स टेम्पलेट लोड हो रहा है...',
-  'route.invalidTemplateId': '"{param}" एक वैध रिसोर्स टेम्पलेट आईडी नहीं है।',
+  'loading.resourceTemplate': 'आइटम प्रकार लोड हो रहा है...',
+  'route.invalidTemplateId': '“{param}” एक वैध आइटम प्रकार आईडी नहीं है।',
 };

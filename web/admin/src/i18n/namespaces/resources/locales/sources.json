@@ -5,7 +5,7 @@
  "loading.itemSet": "Loading item set...",
  "loading.media": "Loading media...",
  "values.none": "No values.",
- "field.resourceTemplate": "Resource template",
+ "field.resourceTemplate": "Item type",
  "column.modified": "Modified",
  "items.add": "Add item",
  "items.mediaHeading": "Media ({count})",

@@ -14,7 +14,7 @@ export const es: ResourcesMessages = {
   'loading.itemSet': 'Cargando el conjunto de elementos...',
   'loading.media': 'Cargando el medio...',
   'values.none': 'No hay valores.',
-  'field.resourceTemplate': 'Plantilla de recurso',
+  'field.resourceTemplate': 'Tipo de elemento',
   'column.modified': 'Modificado',
   'items.add': 'Añadir elemento',
   'items.mediaHeading': 'Medios ({count})',

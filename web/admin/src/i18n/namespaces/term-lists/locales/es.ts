@@ -37,7 +37,7 @@ export const es: TermListMessages = {
   'termPicker.typeLabel': 'Lista de términos: {list}',
   'tags.title': 'Etiquetas',
   'tags.intro': 'Palabras libres que se añadieron al describir. Cuando algunas se repiten, conviértalas en una lista.',
-  'tags.empty': 'Todavía no hay etiquetas. Añádalas en el campo Etiquetas de un elemento, un conjunto de elementos o un medio.',
+  'tags.empty': 'Todavía no hay etiquetas. Añádalas en el campo Materia de un elemento, un conjunto de elementos o un medio.',
   'termLists.tagsLegend': 'Etiquetas que pasan a una lista',
   'tags.listName': 'Nombre de la lista',
   'tags.listHint': 'Una lista nueva, o el nombre de una lista de palabras que ya tenga, para añadirle las etiquetas.',

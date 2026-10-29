@@ -14,7 +14,7 @@ export const en = {
   'publish.ledeTermList':
     'Publishing gives this list and each of its terms a permanent web address that people and programs can read.',
   'publish.ledeVocabulary':
-    'Publishing gives this vocabulary and each of its terms a permanent web address that people and programs can read.',
+    'Publishing gives this standard and each of its terms a permanent web address that people and programs can read.',
   'publish.loading': 'Loading the publication...',
   'publish.stateDraft': 'Draft. Not published yet.',
   'publish.statePublished': 'Published. Version {version}, {date}.',

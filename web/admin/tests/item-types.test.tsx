@@ -422,7 +422,7 @@ describe('a new item type', () => {
       target: { value: 'Letter' },
     });
     expect(
-      screen.getByRole('heading', { name: 'Start a Letter type with these fields' }),
+      screen.getByRole('heading', { name: 'Start a Letter item type with these fields' }),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Use these fields' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Create item type' }));

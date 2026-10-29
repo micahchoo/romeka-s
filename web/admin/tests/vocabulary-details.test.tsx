@@ -66,8 +66,8 @@ describe('vocabulary detail', () => {
     render(<VocabulariesPage param="1" />);
 
     expect(await screen.findByText('Dublin Core')).toBeInTheDocument();
-    expect(screen.getByText('This vocabulary has no properties.')).toBeInTheDocument();
-    expect(screen.getByText('This vocabulary has no classes.')).toBeInTheDocument();
+    expect(screen.getByText('This standard has no properties.')).toBeInTheDocument();
+    expect(screen.getByText('This standard has no classes.')).toBeInTheDocument();
   });
 });
 
@@ -143,17 +143,17 @@ describe('vocabulary family browse rows', () => {
   });
 
   it.each([
-    ['vocabularies', () => <VocabulariesPage param="abc" />, '"abc" is not a valid vocabulary id.'],
+    ['vocabularies', () => <VocabulariesPage param="abc" />, '"abc" is not a valid standard id.'],
     ['properties', () => <PropertiesPage param="abc" />, '"abc" is not a valid property id.'],
     [
       'resource classes',
       () => <ResourceClassesPage param="abc" />,
-      '"abc" is not a valid resource class id.',
+      '"abc" is not a valid class id.',
     ],
     [
       'resource templates',
       () => <ItemTypesPage param="abc" />,
-      '"abc" is not a valid resource template id.',
+      '"abc" is not a valid item type id.',
     ],
   ] as const)('%s detail reports an unparseable id', (_name, Page, message) => {
     installFetch(() => jsonResponse({ errors: { error: 'unexpected' } }, { status: 404 }));

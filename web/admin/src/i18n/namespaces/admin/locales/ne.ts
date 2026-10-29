@@ -15,7 +15,6 @@ export const ne: AdminMessages = {
   'jobs.status.completed': 'पुरा भयो',
   'jobs.status.stopped': 'रोकियो',
   'jobs.status.error': 'त्रुटि',
-  'page.resourceTemplates': 'संसाधन टेम्प्लेटहरू',
   'common.sameOrigin': '[एउटै मूल]',
   'action.preview': 'पूर्वावलोकन',
   'loading.dashboard': 'ड्यासबोर्ड लोड हुँदैछ...',

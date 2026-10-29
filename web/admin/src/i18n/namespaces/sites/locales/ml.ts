@@ -99,7 +99,7 @@ export const ml: SitesMessages = {
     'ഐറ്റം പേജുകൾ സൈറ്റ് പേജുകളിലേക്കുള്ള ലിങ്കുകളോടെ അവസാനിക്കുന്നു, അവിടെ ഇനം കാണപ്പെടുന്നു.',
   'siteSetting.propertyLabelInformation': 'പ്രോപ്പർട്ടി ലേബൽ വിവരങ്ങൾ',
   'siteSetting.propertyLabelInformationHelp':
-    'ഐറ്റം പേജുകൾ ഓരോ ഫീൽഡ് നാമത്തിന് അടുത്തും വൊക്കാബുലറി അല്ലെങ്കിൽ ടെക്നിക്കൽ ടേം കാണിക്കുന്നു.',
+    'ഇനം പേജുകൾ ഓരോ ഫീൽഡ് നാമത്തിന് അടുത്തും മാനദണ്ഡം അല്ലെങ്കിൽ ടെക്നിക്കൽ പദം കാണിക്കുന്നു.',
   'siteSetting.iiifViewerTheme': 'IIIF വ്യൂവർ തീം',
   'siteSetting.iiifViewerThemeHelp':
     'IIIF വ്യൂവറിനായി ഒരു ലൈറ്റ് അല്ലെങ്കിൽ ഡാർക്ക് ബാക്ക്ഗ്രൗണ്ട്, ബ്ലോക്കുകളിലും ഐറ്റം പേജുകളിലും.',
@@ -171,7 +171,7 @@ export const ml: SitesMessages = {
   'siteSettingChoice.show_user_bar.0': 'സൈൻ-ഇൻ ചെയ്യുമ്പോൾ മാത്രം',
   'siteSettingChoice.show_user_bar.1': 'എപ്പോഴും',
   'siteSettingChoice.property_label_information.none': 'ഒന്നുമില്ല',
-  'siteSettingChoice.property_label_information.vocab': 'പദാവലി പേര്',
+  'siteSettingChoice.property_label_information.vocab': 'മാനദണ്ഡത്തിന്റെ പേര്',
   'siteSettingChoice.property_label_information.term': 'സാങ്കേതിക പദം, ഉദാഹരണത്തിന് dcterms:title',
   'resourcePage.title': 'റിസോഴ്സ് പേജുകൾ',
   'resourcePage.hint':
@@ -205,7 +205,7 @@ export const ml: SitesMessages = {
     'ഇനത്തിന്റെ ഫയലുകളുടെ പട്ടിക, ഓരോന്നും അതിന്റെ തലക്കെട്ടുള്ള ചെറിയ തംബ്‌നെയിൽ.',
   'resourcePageBlock.mediaRender': 'മീഡിയ റെൻഡർ',
   'resourcePageBlock.mediaRenderHelp': 'ഫയൽ തന്നെ: ചിത്രം, പ്ലെയർ അല്ലെങ്കിൽ ഡോക്യുമെന്റ്.',
-  'resourcePageBlock.resourceClass': 'റിസോഴ്‌സ് ക്ലാസ്',
+  'resourcePageBlock.resourceClass': 'ക്ലാസ്',
   'resourcePageBlock.resourceClassHelp':
     'ഇത് ഏത് തരത്തിലുള്ള കാര്യമാണ്, ഉദാഹരണത്തിന് ഒരു ടെക്സ്റ്റ് അല്ലെങ്കിൽ ഒരു ചിത്രം.',
   'resourcePageBlock.sitePages': 'സൈറ്റ് പേജുകൾ',
@@ -264,7 +264,7 @@ export const ml: SitesMessages = {
   'asset.empty': 'അസറ്റുകൾ ഒന്നും സംഭരിച്ചിട്ടില്ല. ഒന്ന് അപ്‌ലോഡ് ചെയ്യുക.',
   'query.fulltext': 'പൂർണ്ണ-വാചക തിരയൽ',
   'query.itemSet': 'ഐറ്റം സെറ്റ്',
-  'query.resourceClass': 'റിസോഴ്സ് ക്ലാസ്',
+  'query.resourceClass': 'ക്ലാസ്',
   'query.sort': 'ക്രമീകരിക്കുക',
   'query.sortOrder': 'ക്രമീകരണ ക്രമം',
   'query.any': '[ഏതെങ്കിലും]',

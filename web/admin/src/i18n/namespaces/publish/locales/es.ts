@@ -11,7 +11,7 @@ export const es: PublishMessages = {
   'publish.ledeTermList':
     'Publicar da a esta lista y a cada uno de sus términos una dirección web permanente que pueden leer las personas y los programas.',
   'publish.ledeVocabulary':
-    'Publicar da a este vocabulario y a cada uno de sus términos una dirección web permanente que pueden leer las personas y los programas.',
+    'Publicar da a este estándar y a cada uno de sus términos una dirección web permanente que pueden leer las personas y los programas.',
   'publish.loading': 'Cargando la publicación...',
   'publish.stateDraft': 'Borrador. Aún no se ha publicado.',
   'publish.statePublished': 'Publicado. Versión {version}, {date}.',

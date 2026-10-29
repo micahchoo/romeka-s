@@ -70,7 +70,7 @@ test('choosing a template lays out its rows, applies its class and enforces its 
   });
 
   await page.goto('/#/items/new');
-  await page.getByRole('combobox', { name: 'Type', exact: true }).selectOption({ label });
+  await page.getByRole('combobox', { name: 'Item type', exact: true }).selectOption({ label });
   await expect(fieldLabels(page)).toHaveText(['Interviewee', 'Title', 'Interview notes']);
   await expect(page.getByText('Standard class: Sound recording')).toBeVisible();
   await page.locator('summary', { hasText: 'Advanced' }).click();

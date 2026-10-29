@@ -93,7 +93,7 @@ describe('standards tabs', () => {
       'href',
       '#/standards/vocabularies/1',
     );
-    expect(screen.getByRole('link', { name: 'Vocabularies' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Standards' })).toHaveAttribute(
       'aria-current',
       'page',
     );
@@ -206,8 +206,8 @@ describe('vocabulary creator', () => {
     );
     render(<StandardsPage rest={['vocabularies', '1']} />);
 
-    expect(await screen.findByText('This vocabulary has no properties.')).toBeInTheDocument();
+    expect(await screen.findByText('This standard has no properties.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add property' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Add resource class' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add class' })).toBeNull();
   });
 });

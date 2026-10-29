@@ -15,7 +15,6 @@ export const ml: AdminMessages = {
   'jobs.status.completed': 'പൂർത്തിയായി',
   'jobs.status.stopped': 'നിർത്തലാക്കി',
   'jobs.status.error': 'പിശക്',
-  'page.resourceTemplates': 'റിസോഴ്സ് ടെംപ്ലേറ്റുകൾ',
   'common.sameOrigin': '[ഒരേ ഉത്ഭവം]',
   'action.preview': 'പ്രിവ്യൂ',
   'loading.dashboard': 'ഡാഷ്‌ബോർഡ് ലോഡ് ചെയ്യുന്നു...',

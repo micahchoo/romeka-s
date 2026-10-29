@@ -5,7 +5,6 @@
  "jobs.status.completed": "Completed",
  "jobs.status.stopped": "Stopped",
  "jobs.status.error": "Error",
- "page.resourceTemplates": "Resource templates",
  "common.sameOrigin": "[Same origin]",
  "action.preview": "Preview",
  "loading.dashboard": "Loading the dashboard...",

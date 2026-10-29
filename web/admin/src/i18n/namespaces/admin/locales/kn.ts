@@ -15,7 +15,6 @@ export const kn: AdminMessages = {
   'jobs.status.completed': 'ಪೂರ್ಣಗೊಂಡಿದೆ',
   'jobs.status.stopped': 'ನಿಲ್ಲಿಸಲಾಗಿದೆ',
   'jobs.status.error': 'ದೋಷ',
-  'page.resourceTemplates': 'ಸಂಪನ್ಮೂಲ ಟೆಂಪ್ಲೇಟ್‌ಗಳು',
   'common.sameOrigin': '[ಒಂದೇ ಮೂಲ]',
   'action.preview': 'ಮುನ್ನೋಟ',
   'loading.dashboard': 'ಡ್ಯಾಶ್‌ಬೋರ್ಡ್ ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...',

@@ -16,7 +16,7 @@ export const te: ResourcesMessages = {
   'loading.itemSet': 'ఐటమ్ సెట్ లోడ్ అవుతోంది...',
   'loading.media': 'మీడియా లోడ్ అవుతోంది...',
   'values.none': 'విలువలు లేవు.',
-  'field.resourceTemplate': 'వనరుల టెంప్లేట్',
+  'field.resourceTemplate': 'అంశం రకం',
   'column.modified': 'మార్చబడిన',
   'items.add': 'ఐటమ్ జోడించండి',
   'items.mediaHeading': 'మీడియా ({count})',

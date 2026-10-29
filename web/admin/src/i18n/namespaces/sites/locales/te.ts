@@ -99,7 +99,7 @@ export const te: SitesMessages = {
     'ఐటమ్ పేజీలు సైట్ పేజీలలో ఎక్కడ కనిపిస్తాయో ఆ లింక్‌లతో ముగుస్తాయి.',
   'siteSetting.propertyLabelInformation': 'ప్రాపర్టీ లేబుల్ సమాచారం',
   'siteSetting.propertyLabelInformationHelp':
-    'ఐటమ్ పేజీలు ప్రతి ఫీల్డ్ పేరు పక్కన పదజాలం లేదా సాంకేతిక పదాన్ని చూపుతాయి.',
+    'ఐటమ్ పేజీలు ప్రతి ఫీల్డ్ పేరు పక్కన ప్రామాణిక లేదా సాంకేతిక పదాన్ని చూపుతాయి.',
   'siteSetting.iiifViewerTheme': 'IIIF వ్యూయర్ థీమ్',
   'siteSetting.iiifViewerThemeHelp':
     'IIIF వ్యూయర్ కోసం, బ్లాక్‌లలో మరియు ఐటమ్ పేజీలలో లేత లేదా ముదురు నేపథ్యం.',
@@ -170,7 +170,7 @@ export const te: SitesMessages = {
   'siteSettingChoice.show_user_bar.0': 'సైన్ ఇన్ చేసినప్పుడు మాత్రమే',
   'siteSettingChoice.show_user_bar.1': 'ఎల్లప్పుడూ',
   'siteSettingChoice.property_label_information.none': 'ఏమీ లేవు',
-  'siteSettingChoice.property_label_information.vocab': 'పదజాలం పేరు',
+  'siteSettingChoice.property_label_information.vocab': 'ప్రమాణం పేరు',
   'siteSettingChoice.property_label_information.term': 'సాంకేతిక పదం, ఉదాహరణకు dcterms:title',
   'resourcePage.title': 'రిసోర్స్ పేజీలు',
   'resourcePage.hint':
@@ -205,7 +205,7 @@ export const te: SitesMessages = {
     'ఈ వస్తువు యొక్క ఫైళ్ల జాబితా, ప్రతిదీ దాని శీర్షికతో కూడిన చిన్న థంబ్‌నెయిల్.',
   'resourcePageBlock.mediaRender': 'మీడియా రెండరింగ్',
   'resourcePageBlock.mediaRenderHelp': 'ఫైల్ స్వయంగా: చిత్రం, ప్లేయర్ లేదా పత్రం.',
-  'resourcePageBlock.resourceClass': 'రిసోర్స్ క్లాస్',
+  'resourcePageBlock.resourceClass': 'తరగతి',
   'resourcePageBlock.resourceClassHelp': 'ఇది ఏ రకమైన వస్తువు, ఉదాహరణకు పాఠ్యం లేదా చిత్రం.',
   'resourcePageBlock.sitePages': 'సైట్ పేజీలు',
   'resourcePageBlock.sitePagesHelp': 'ఈ వస్తువును ప్రదర్శించే సైట్ పేజీలకు లింకులు.',
@@ -264,7 +264,7 @@ export const te: SitesMessages = {
   'asset.empty': 'ఇంకా ఏ ఆస్తి నిల్వ చేయబడలేదు. ఒకదాన్ని అప్‌లోడ్ చేయండి.',
   'query.fulltext': 'పూర్తి-పాఠ్య శోధన',
   'query.itemSet': 'ఐటమ్ సెట్',
-  'query.resourceClass': 'రిసోర్స్ క్లాస్',
+  'query.resourceClass': 'తరగతి',
   'query.sort': 'దీని ద్వారా క్రమబద్ధీకరించండి',
   'query.sortOrder': 'క్రమబద్ధీకరణ క్రమం',
   'query.any': '[ఏదైనా]',

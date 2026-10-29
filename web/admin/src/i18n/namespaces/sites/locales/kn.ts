@@ -99,7 +99,7 @@ export const kn: SitesMessages = {
     'ಐಟಂ ಪುಟಗಳು ಆ ಐಟಂ ಕಾಣಿಸಿಕೊಳ್ಳುವ ಸೈಟ್ ಪುಟಗಳಿಗೆ ಲಿಂಕ್‌ಗಳೊಂದಿಗೆ ಕೊನೆಗೊಳ್ಳುತ್ತವೆ.',
   'siteSetting.propertyLabelInformation': 'ಪ್ರಾಪರ್ಟಿ ಲೇಬಲ್ ಮಾಹಿತಿ',
   'siteSetting.propertyLabelInformationHelp':
-    'ಐಟಂ ಪುಟಗಳು ಪ್ರತಿ ಕ್ಷೇತ್ರದ ಹೆಸರಿನ ಪಕ್ಕದಲ್ಲಿ ಶಬ್ದಕೋಶ ಅಥವಾ ತಾಂತ್ರಿಕ ಪದವನ್ನು ತೋರಿಸುತ್ತವೆ.',
+    'ಐಟಂ ಪುಟಗಳು ಪ್ರತಿ ಕ್ಷೇತ್ರದ ಹೆಸರಿನ ಪಕ್ಕದಲ್ಲಿ ಮಾನದಂಡ ಅಥವಾ ತಾಂತ್ರಿಕ ಪದವನ್ನು ತೋರಿಸುತ್ತವೆ.',
   'siteSetting.iiifViewerTheme': 'IIIF ವ್ಯೂಯರ್ ಥೀಮ್',
   'siteSetting.iiifViewerThemeHelp':
     'IIIF ವೀಕ್ಷಕಕ್ಕಾಗಿ, ಬ್ಲಾಕ್‌ಗಳಲ್ಲಿ ಮತ್ತು ಐಟಂ ಪುಟಗಳಲ್ಲಿ ತಿಳಿ ಅಥವಾ ಗಾಢ ಹಿನ್ನೆಲೆ.',
@@ -171,7 +171,7 @@ export const kn: SitesMessages = {
   'siteSettingChoice.show_user_bar.0': 'ಸೈನ್ ಇನ್ ಮಾಡಿದಾಗ ಮಾತ್ರ',
   'siteSettingChoice.show_user_bar.1': 'ಯಾವಾಗಲೂ',
   'siteSettingChoice.property_label_information.none': 'ಯಾವುದೂ ಇಲ್ಲ',
-  'siteSettingChoice.property_label_information.vocab': 'ಶಬ್ದಕೋಶದ ಹೆಸರು',
+  'siteSettingChoice.property_label_information.vocab': 'ಮಾನದಂಡ ಹೆಸರು',
   'siteSettingChoice.property_label_information.term': 'ತಾಂತ್ರಿಕ ಪದ, ಉದಾಹರಣೆಗೆ dcterms:title',
   'resourcePage.title': 'ಸಂಪನ್ಮೂಲ ಪುಟಗಳು',
   'resourcePage.hint':
@@ -207,7 +207,7 @@ export const kn: SitesMessages = {
     'ಐಟಂನ ಫೈಲ್‌ಗಳ ಪಟ್ಟಿ, ಪ್ರತಿಯೊಂದೂ ಅದರ ಶೀರ್ಷಿಕೆಯೊಂದಿಗೆ ಸಣ್ಣ ಥಂಬ್‌ನೇಲ್ ಆಗಿದೆ.',
   'resourcePageBlock.mediaRender': 'ಮೀಡಿಯಾ ರೆಂಡರ್',
   'resourcePageBlock.mediaRenderHelp': 'ಫೈಲ್ ಸ್ವತಃ: ಚಿತ್ರ, ಪ್ಲೇಯರ್ ಅಥವಾ ದಾಖಲೆ.',
-  'resourcePageBlock.resourceClass': 'ಸಂಪನ್ಮೂಲ ವರ್ಗ',
+  'resourcePageBlock.resourceClass': 'ವರ್ಗ',
   'resourcePageBlock.resourceClassHelp': 'ಇದು ಯಾವ ರೀತಿಯ ವಿಷಯ, ಉದಾಹರಣೆಗೆ ಪಠ್ಯ ಅಥವಾ ಚಿತ್ರ.',
   'resourcePageBlock.sitePages': 'ಸೈಟ್ ಪುಟಗಳು',
   'resourcePageBlock.sitePagesHelp': 'ಈ ಸೈಟ್‌ನ ಪುಟಗಳಿಗೆ ಲಿಂಕ್‌ಗಳು, ಅವು ಐಟಂ ಅನ್ನು ತೋರಿಸುತ್ತವೆ.',
@@ -266,7 +266,7 @@ export const kn: SitesMessages = {
   'asset.empty': 'ಇನ್ನೂ ಯಾವುದೇ ಆಸ್ತಿಗಳನ್ನು ಸಂಗ್ರಹಿಸಲಾಗಿಲ್ಲ. ಒಂದನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡಿ.',
   'query.fulltext': 'ಪೂರ್ಣ-ಪಠ್ಯ ಹುಡುಕಾಟ',
   'query.itemSet': 'ಐಟಂ ಸೆಟ್',
-  'query.resourceClass': 'ಸಂಪನ್ಮೂಲ ವರ್ಗ',
+  'query.resourceClass': 'ವರ್ಗ',
   'query.sort': 'ವಿಂಗಡಿಸಿ',
   'query.sortOrder': 'ವಿಂಗಡಣೆಯ ಕ್ರಮ',
   'query.any': '[ಯಾವುದೇ]',

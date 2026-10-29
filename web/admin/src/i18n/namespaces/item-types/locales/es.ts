@@ -20,8 +20,8 @@ export const es: ItemTypesMessages = {
   'list.class': 'Clase estándar',
   'ask.question': '¿Qué clase de cosa es?',
   'ask.placeholder': 'Por ejemplo: Carta',
-  'ask.hint': 'Nombra una cosa, no toda la colección. Harás un tipo distinto para cada clase.',
-  'ask.known': 'Empezar un tipo {name} con estos campos',
+  'ask.hint': 'Nombra una cosa, no toda la colección. Harás un tipo de elemento distinto para cada clase.',
+  'ask.known': 'Empezar un tipo de elemento {name} con estos campos',
   'ask.unknown': 'Empezar «{name}» como objeto físico con estos campos',
   'ask.useFields': 'Usar estos campos',
   'ask.start': 'Empezar',
@@ -82,7 +82,7 @@ export const es: ItemTypesMessages = {
   'use.itemSets': 'Conjuntos de elementos',
   'use.media': 'Multimedia',
   'use.note':
-    'Solo acota la lista de tipos en esos formularios, en este navegador. El tipo sigue disponible en todas partes.',
+    'Solo acota la lista Tipo de elemento en esos formularios, en este navegador. El tipo de elemento sigue disponible en todas partes.',
   'itemTypes.advancedSummary': 'Avanzado',
   'advanced.title': 'El título sale de',
   'advanced.titleDefault': 'Título (por defecto)',
@@ -103,6 +103,6 @@ export const es: ItemTypesMessages = {
   'fieldsPage.calledIn': '«{label}» en {type}',
   'fieldsPage.used': 'Tipos de elemento que lo usan: {count}',
   'fieldsPage.unused': 'Aún sin usar',
-  'loading.resourceTemplate': 'Cargando la plantilla de recurso...',
-  'route.invalidTemplateId': '"{param}" no es un id de plantilla de recurso válido.',
+  'loading.resourceTemplate': 'Cargando el tipo de elemento...',
+  'route.invalidTemplateId': '"{param}" no es un id de tipo de elemento válido.',
 };

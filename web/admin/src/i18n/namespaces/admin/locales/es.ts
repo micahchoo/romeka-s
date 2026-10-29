@@ -13,7 +13,6 @@ export const es: AdminMessages = {
   'jobs.status.completed': 'Completado',
   'jobs.status.stopped': 'Parado',
   'jobs.status.error': 'Error',
-  'page.resourceTemplates': 'Plantillas de recurso',
   'common.sameOrigin': '[Mismo origen]',
   'action.preview': 'Vista previa',
   'loading.dashboard': 'Cargando el panel...',

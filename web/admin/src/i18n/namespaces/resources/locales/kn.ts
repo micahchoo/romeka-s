@@ -16,7 +16,7 @@ export const kn: ResourcesMessages = {
   'loading.itemSet': 'ಐಟಂ ಸೆಟ್ ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...',
   'loading.media': 'ಮೀಡಿಯಾ ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...',
   'values.none': 'ಯಾವುದೇ ಮೌಲ್ಯಗಳಿಲ್ಲ.',
-  'field.resourceTemplate': 'ಸಂಪನ್ಮೂಲ ಟೆಂಪ್ಲೇಟ್',
+  'field.resourceTemplate': 'ಅಂಶದ ವಿಧ',
   'column.modified': 'ಮಾರ್ಪಡಿಸಲಾಗಿದೆ',
   'items.add': 'ಐಟಂ ಸೇರಿಸಿ',
   'items.mediaHeading': 'ಮಾಧ್ಯಮ ({count})',

@@ -97,7 +97,7 @@ export const hi: SitesMessages = {
     'आइटम पेज साइट पृष्ठों के लिंक के साथ समाप्त होते हैं जहाँ आइटम दिखाई देता है।',
   'siteSetting.propertyLabelInformation': 'प्रॉपर्टी लेबल जानकारी',
   'siteSetting.propertyLabelInformationHelp':
-    'आइटम पेज प्रत्येक फ़ील्ड नाम के बगल में शब्दावली या तकनीकी शब्द दिखाते हैं।',
+    'आइटम पेज प्रत्येक फ़ील्ड नाम के बगल में मानक या तकनीकी शब्द दिखाते हैं।',
   'siteSetting.iiifViewerTheme': 'IIIF व्यूअर थीम',
   'siteSetting.iiifViewerThemeHelp':
     'IIIF व्यूअर के लिए, ब्लॉक में और आइटम पेजों पर लाइट या डार्क बैकग्राउंड।',
@@ -168,7 +168,7 @@ export const hi: SitesMessages = {
   'siteSettingChoice.show_user_bar.0': 'केवल साइन इन करने पर',
   'siteSettingChoice.show_user_bar.1': 'हमेशा',
   'siteSettingChoice.property_label_information.none': 'कोई नहीं',
-  'siteSettingChoice.property_label_information.vocab': 'शब्दावली का नाम',
+  'siteSettingChoice.property_label_information.vocab': 'मानक नाम',
   'siteSettingChoice.property_label_information.term': 'तकनीकी शब्द, जैसे dcterms:title',
   'resourcePage.title': 'रिसोर्स पेज',
   'resourcePage.hint':
@@ -202,7 +202,7 @@ export const hi: SitesMessages = {
     'आइटम की फ़ाइलों की सूची, प्रत्येक एक छोटा थंबनेल और उसका शीर्षक।',
   'resourcePageBlock.mediaRender': 'मीडिया रेंडर',
   'resourcePageBlock.mediaRenderHelp': 'स्वयं फ़ाइल: छवि, प्लेयर या दस्तावेज़।',
-  'resourcePageBlock.resourceClass': 'संसाधन वर्ग',
+  'resourcePageBlock.resourceClass': 'क्लास',
   'resourcePageBlock.resourceClassHelp': 'यह क्या है, उदाहरण के लिए एक पाठ या एक छवि।',
   'resourcePageBlock.sitePages': 'साइट पेज',
   'resourcePageBlock.sitePagesHelp': 'इस साइट के उन पृष्ठों के लिंक जो आइटम दिखाते हैं।',
@@ -262,7 +262,7 @@ export const hi: SitesMessages = {
   'asset.empty': 'अभी तक कोई एसेट संग्रहीत नहीं है। एक एसेट अपलोड करें।',
   'query.fulltext': 'पूर्ण-पाठ खोज',
   'query.itemSet': 'आइटम सेट',
-  'query.resourceClass': 'रिसोर्स क्लास',
+  'query.resourceClass': 'क्लास',
   'query.sort': 'सॉर्ट करें',
   'query.sortOrder': 'सॉर्ट ऑर्डर',
   'query.any': '[कोई भी]',

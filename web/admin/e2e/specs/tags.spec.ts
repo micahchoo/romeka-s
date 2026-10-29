@@ -55,7 +55,7 @@ test('tags are added on the form, merged and promoted into a term list', async (
 
   // The Subject field's tags: Enter and a comma each add a tag.
   await page.goto('/#/items/new');
-  await page.getByRole('combobox', { name: 'Type', exact: true }).selectOption({ label: TYPE });
+  await page.getByRole('combobox', { name: 'Item type', exact: true }).selectOption({ label: TYPE });
   await page.getByRole('textbox', { name: 'Title', exact: true }).fill('E2E first letter');
   const tags = page.getByRole('group', { name: 'Subject' });
   const entry = tags.getByLabel('Add a tag');

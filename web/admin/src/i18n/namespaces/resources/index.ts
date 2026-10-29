@@ -18,7 +18,7 @@ export const en = {
   'loading.media': 'Loading media...',
   // Value tables.
   'values.none': 'No values.',
-  'field.resourceTemplate': 'Resource template',
+  'field.resourceTemplate': 'Item type',
   'column.modified': 'Modified',
   // Resource pages.
   'items.add': 'Add item',

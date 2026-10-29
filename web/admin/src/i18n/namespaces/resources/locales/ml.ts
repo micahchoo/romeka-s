@@ -16,7 +16,7 @@ export const ml: ResourcesMessages = {
   'loading.itemSet': 'ഐറ്റം സെറ്റ് ലോഡ് ചെയ്യുന്നു...',
   'loading.media': 'മീഡിയ ലോഡ് ചെയ്യുന്നു...',
   'values.none': 'മൂല്യങ്ങളില്ല.',
-  'field.resourceTemplate': 'റിസോഴ്സ് ടെംപ്ലേറ്റ്',
+  'field.resourceTemplate': 'ഇനം തരം',
   'column.modified': 'പരിഷ്കരിച്ചത്',
   'items.add': 'ഐറ്റം ചേർക്കുക',
   'items.mediaHeading': 'മീഡിയ ({count})',

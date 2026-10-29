@@ -88,7 +88,7 @@ test('an item type field accepts a term list and its value renders on the site',
 
   // An item of that type picks its place from the list.
   await page.goto('/#/items/new');
-  await page.getByRole('combobox', { name: 'Type', exact: true }).selectOption({ label: TYPE });
+  await page.getByRole('combobox', { name: 'Item type', exact: true }).selectOption({ label: TYPE });
   await page.getByRole('textbox', { name: 'Title', exact: true }).fill(ITEM);
   const picker = page.getByRole('combobox', { name: `Spatial Coverage Term list: ${LIST}` });
   await picker.fill('laog');

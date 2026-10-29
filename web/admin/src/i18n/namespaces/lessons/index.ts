@@ -36,22 +36,22 @@ export const en = {
     'You changed the name people see on the form. The value is still saved under the same standard term, so search, exports and other archives read it as before.',
   'fieldsPage.title': 'Shared fields',
   'fieldsPage.body':
-    'Every field here is a term from a shared vocabulary, most often Dublin Core. When two archives both save a creator as dcterms:creator, their records can be searched and merged together.',
+    'Every field here is a term from a shared standard, most often Dublin Core. When two archives both save a creator as dcterms:creator, their records can be searched and merged together.',
   'required.title': 'Required fields',
   'required.body':
-    'This item type marks the field as required, so every item of this type has a value here. A collection where every record has it can be sorted and searched with no gaps.',
+    'This item type marks the field as required, so every item of this item type has a value here. A collection where every record has it can be sorted and searched with no gaps.',
   'typeClass.title': 'Standard classes',
   'typeClass.body':
-    'The name is for people. The standard class, such as bibo:Letter, tells software what kind of thing each item is, so a search for that class, here or in another archive, finds every item of this type.',
+    'The name is for people. The standard class, such as bibo:Letter, tells software what kind of thing each item is, so a search for that class, here or in another archive, finds every item of this item type.',
   'typePick.title': 'Item types',
   'typePick.body':
-    'A type lays out the fields for one kind of thing and saves the item with its standard class. Items of one type share the same fields, so they are easy to compare and to find together.',
+    'An item type lays out the fields for one kind of thing and saves the item with its standard class. Items of one item type share the same fields, so they are easy to compare and to find together.',
   'standards.title': 'Linked data',
   'standards.body':
-    'These are the vocabularies behind every field and class. Each term has a web address, such as http://purl.org/dc/terms/title, so a value saved here means the same thing wherever it is read.',
-  'localField.title': 'Your own vocabulary',
+    'These are the standards behind every field and class. Each term has a web address, such as http://purl.org/dc/terms/title, so a value saved here means the same thing wherever it is read.',
+  'localField.title': 'Your own standard',
   'localField.body':
-    'Its name starts with local: because no shared standard had this field, so it is a term in this archive’s own vocabulary. Its address is on this site, so other archives can still read the value and look up what it means.',
+    'Its name starts with local: because no shared standard had this field, so it is a term in this archive’s own standard. Its address is on this site, so other archives can still read the value and look up what it means.',
   'termMerge.title': 'One spelling',
   'termMerge.body':
     'Merging changes every value written another way into the one spelling you keep. With one spelling for each thing, a search or a list of values finds every record, not only the ones typed the same way.',

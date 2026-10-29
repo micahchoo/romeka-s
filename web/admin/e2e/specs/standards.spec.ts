@@ -70,11 +70,11 @@ test('a vocabulary is created and given a property and a class on its own page',
   const label = 'E2E built vocabulary';
 
   await page.goto('/#/standards');
-  await page.getByRole('link', { name: 'Add vocabulary' }).click();
+  await page.getByRole('link', { name: 'Add standard' }).click();
   await page.locator('#vocabulary-namespace-uri').fill('http://example.org/built/');
   await page.locator('#vocabulary-prefix').fill('e2ebuilt');
   await page.locator('#vocabulary-label').fill(label);
-  await page.getByRole('button', { name: 'Add vocabulary' }).click();
+  await page.getByRole('button', { name: 'Add standard' }).click();
   await expect(page).toHaveURL(/#\/standards\/vocabularies\/\d+$/);
   const vocabularyUrl = page.url();
 
@@ -84,7 +84,7 @@ test('a vocabulary is created and given a property and a class on its own page',
   await page.locator('#member-properties-local-name').press('Enter');
   await expect(page.getByRole('link', { name: 'Shelf mark' })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Add resource class', expanded: false }).click();
+  await page.getByRole('button', { name: 'Add class', expanded: false }).click();
   await page.locator('#member-resource_classes-local-name').fill('Ledger');
   await page.locator('#member-resource_classes-label').fill('Ledger');
   await page.locator('#member-resource_classes-local-name').press('Enter');
@@ -97,7 +97,7 @@ test('a vocabulary is created and given a property and a class on its own page',
   await expect(page.getByText('e2ebuilt:shelfMark')).toBeVisible();
   await expect(page.getByText('e2ebuilt:Ledger')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Delete this vocabulary' }).click();
+  await page.getByRole('button', { name: 'Delete this standard' }).click();
   await page.getByRole('button', { name: `Delete ${label}` }).click();
   await expect(page).toHaveURL(/#\/standards\/vocabularies$/);
   await expectClean(diagnostics, 'built vocabulary delete');

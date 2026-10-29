@@ -32,18 +32,18 @@ test('a vocabulary is created, renamed and deleted', async ({ page, diagnostics 
   await expect(page.getByRole('heading', { name })).toBeVisible();
   await expectClean(diagnostics, 'vocabulary create');
 
-  await page.getByRole('button', { name: 'Edit this vocabulary' }).click();
+  await page.getByRole('button', { name: 'Edit this standard' }).click();
   await page.locator('#vocabulary-label').fill(renamed);
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.locator('[role=status]')).toHaveText('Saved.');
   await expect(page.getByRole('heading', { name: renamed })).toBeVisible();
   await expectClean(diagnostics, 'vocabulary rename');
 
-  await page.getByRole('link', { name: 'Vocabularies' }).click();
+  await page.getByRole('navigation', { name: 'Standards' }).getByRole('link', { name: 'Standards' }).click();
   await expect(page.getByRole('link', { name: renamed })).toBeVisible();
 
   await page.getByRole('link', { name: renamed }).click();
-  await page.getByRole('button', { name: 'Delete this vocabulary' }).click();
+  await page.getByRole('button', { name: 'Delete this standard' }).click();
   await page.getByRole('button', { name: `Delete ${renamed}` }).click();
 
   await expect(page).toHaveURL(/#\/standards\/vocabularies$/);
@@ -179,7 +179,7 @@ test('a vocabulary edit keeps the properties it already has', async ({ page, dia
 
   // The edit is a PATCH, so it must not carry the member lists a full PUT
   // would have to repeat. A full write that omits them removes every member.
-  await page.getByRole('button', { name: 'Edit this vocabulary' }).click();
+  await page.getByRole('button', { name: 'Edit this standard' }).click();
   await page.locator('#vocabulary-label').fill('E2E keep vocabulary renamed');
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.locator('[role=status]')).toHaveText('Saved.');
@@ -189,7 +189,7 @@ test('a vocabulary edit keeps the properties it already has', async ({ page, dia
   await expect(page.getByRole('link', { name: propertyLabel })).toBeVisible();
   await expectClean(diagnostics, 'vocabulary edit keeps its members');
 
-  await page.getByRole('button', { name: 'Delete this vocabulary' }).click();
+  await page.getByRole('button', { name: 'Delete this standard' }).click();
   await page.getByRole('button', { name: 'Delete E2E keep vocabulary renamed' }).click();
   await expect(page).toHaveURL(/#\/standards\/vocabularies$/);
 });

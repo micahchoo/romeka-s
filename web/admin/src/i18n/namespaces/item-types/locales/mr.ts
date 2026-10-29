@@ -23,8 +23,8 @@ export const mr: ItemTypesMessages = {
   'ask.question': 'हे कोणत्या प्रकारचे आहे?',
   'ask.placeholder': 'उदाहरण: पत्र',
   'ask.hint':
-    'एक गोष्ट सांगा, संपूर्ण संग्रहाचे नाव देऊ नका. प्रत्येक प्रकारासाठी स्वतंत्र प्रकार तयार करा.',
-  'ask.known': 'या क्षेत्रांसह {name} प्रकार सुरू करा',
+    'संपूर्ण संग्रहाऐवजी एक गोष्ट सांगा. तुम्ही प्रत्येक प्रकारासाठी स्वतंत्र घटक प्रकार तयार करा.',
+  'ask.known': 'या क्षेत्रांसह {name} घटक प्रकार सुरू करा',
   'ask.unknown': 'या क्षेत्रांसह “{name}” ला भौतिक वस्तू म्हणून सुरू करा',
   'ask.useFields': 'या क्षेत्रांचा वापर करा',
   'ask.start': 'सुरू करा',
@@ -86,7 +86,7 @@ export const mr: ItemTypesMessages = {
   'use.itemSets': 'वस्तूंचा संच',
   'use.media': 'मीडिया',
   'use.note':
-    'केवळ या ब्राउझरमधील त्या फॉर्म्सवर Type सूची मर्यादित करते, परंतु सर्वत्र वापरण्यायोग्य राहते.',
+    'या ब्राउझरमध्ये त्या फॉर्म्सवर घटक प्रकारांची सूची मर्यादित करते. घटक प्रकार सर्वत्र वापरण्यायोग्य राहतो.',
   'itemTypes.advancedSummary': 'प्रगत',
   'advanced.title': 'शीर्षक येथून येते',
   'advanced.titleDefault': 'शीर्षक (डीफॉल्ट)',
@@ -107,6 +107,6 @@ export const mr: ItemTypesMessages = {
   'fieldsPage.calledIn': '“{label}” {type} मध्ये',
   'fieldsPage.used': '{count} आयटम प्रकार वापरत आहेत:',
   'fieldsPage.unused': 'अद्याप वापरले नाही',
-  'loading.resourceTemplate': 'संसाधन नमुना लोड होत आहे...',
-  'route.invalidTemplateId': '"{param}" ही वैध रिसोर्स टेम्पलेट आयडी नाही.',
+  'loading.resourceTemplate': 'घटक प्रकार लोड होत आहे...',
+  'route.invalidTemplateId': '“{param}” ही वैध घटक प्रकार आयडी नाही.',
 };

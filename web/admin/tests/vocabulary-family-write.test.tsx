@@ -68,7 +68,7 @@ describe('vocabulary create', () => {
     });
     fireEvent.change(screen.getByLabelText('Prefix'), { target: { value: 'ex' } });
     fireEvent.change(screen.getByLabelText('Label'), { target: { value: 'Example' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add vocabulary' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add standard' }));
 
     const post = await waitFor(() => sent(fetchMock, '/api/vocabularies', 'POST'));
     const body = requestBody(post);
@@ -85,7 +85,7 @@ describe('vocabulary create', () => {
     const fetchMock = installFetch(withFixture(referenceRoutes));
     render(<VocabulariesPage param="new" />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Add vocabulary' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Add standard' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('The label cannot be empty.');
     expect(requestsFor(fetchMock, '/api/vocabularies')).toHaveLength(0);
@@ -108,7 +108,7 @@ describe('vocabulary create', () => {
     });
     fireEvent.change(screen.getByLabelText('Prefix'), { target: { value: 'bibo' } });
     fireEvent.change(screen.getByLabelText('Label'), { target: { value: 'Bibliographic' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add vocabulary' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add standard' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'The prefix "bibo" is already taken. (HTTP 422)',
@@ -133,7 +133,7 @@ describe('vocabulary edit and delete', () => {
     );
     render(<VocabulariesPage param="3" />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit this vocabulary' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit this standard' }));
     fireEvent.change(await screen.findByLabelText('Label'), {
       target: { value: 'Bibliographic Ontology revised' },
     });
@@ -167,7 +167,7 @@ describe('vocabulary edit and delete', () => {
     );
     render(<VocabulariesPage param="3" />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Delete this vocabulary' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete this standard' }));
     fireEvent.click(
       await screen.findByRole('button', { name: 'Delete Bibliographic Ontology' }),
     );
@@ -193,8 +193,8 @@ describe('vocabulary edit and delete', () => {
     render(<VocabulariesPage param="1" />);
 
     expect(await screen.findByRole('heading', { name: 'Dublin Core' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Edit this vocabulary' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Delete this vocabulary' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Edit this standard' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Delete this standard' })).toBeNull();
   });
 });
 
@@ -208,7 +208,7 @@ describe('property create, edit and delete', () => {
     );
     render(<PropertiesPage param="new" />);
 
-    fireEvent.change(await screen.findByLabelText('Vocabulary'), {
+    fireEvent.change(await screen.findByLabelText('Standard'), {
       target: { value: '2' },
     });
     fireEvent.change(screen.getByLabelText('Local name'), { target: { value: 'isbn' } });
@@ -235,7 +235,7 @@ describe('property create, edit and delete', () => {
     fireEvent.change(screen.getByLabelText('Label'), { target: { value: 'ISBN' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add property' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('A vocabulary must be set.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('A standard must be set.');
     expect(requestsFor(fetchMock, '/api/properties')).toHaveLength(0);
   });
 
@@ -327,10 +327,10 @@ describe('resource class create, edit and delete', () => {
     );
     render(<ResourceClassesPage param="new" />);
 
-    fireEvent.change(await screen.findByLabelText('Vocabulary'), { target: { value: '2' } });
+    fireEvent.change(await screen.findByLabelText('Standard'), { target: { value: '2' } });
     fireEvent.change(screen.getByLabelText('Local name'), { target: { value: 'Photograph' } });
     fireEvent.change(screen.getByLabelText('Label'), { target: { value: 'Photograph' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add resource class' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add class' }));
 
     const post = await waitFor(() => sent(fetchMock, '/api/resource_classes', 'POST'));
     const body = requestBody(post);
@@ -350,7 +350,7 @@ describe('resource class create, edit and delete', () => {
     );
     render(<ResourceClassesPage param="13" />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit this resource class' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit this class' }));
     fireEvent.change(await screen.findByLabelText('Label'), { target: { value: 'Photograph' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -381,7 +381,7 @@ describe('resource class create, edit and delete', () => {
     );
     render(<ResourceClassesPage param="13" />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Delete this resource class' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete this class' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Delete Still Image' }));
 
     await waitFor(() => {

@@ -16,7 +16,6 @@ export const en = {
   'jobs.status.completed': 'Completed',
   'jobs.status.stopped': 'Stopped',
   'jobs.status.error': 'Error',
-  'page.resourceTemplates': 'Resource templates',
   'common.sameOrigin': '[Same origin]',
   'action.preview': 'Preview',
   // Loading states that are not a resource list.

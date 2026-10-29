@@ -16,7 +16,7 @@ export const hi: ResourcesMessages = {
   'loading.itemSet': 'आइटम सेट लोड हो रहा है...',
   'loading.media': 'मीडिया लोड हो रहा है...',
   'values.none': 'कोई मान नहीं।',
-  'field.resourceTemplate': 'संसाधन टेम्पलेट',
+  'field.resourceTemplate': 'आइटम प्रकार',
   'column.modified': 'संशोधित',
   'items.add': 'आइटम जोड़ें',
   'items.mediaHeading': 'मीडिया ({count})',

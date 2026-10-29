@@ -16,7 +16,7 @@ export const ne: ResourcesMessages = {
   'loading.itemSet': 'वस्तु सेट लोड हुँदैछ...',
   'loading.media': 'मिडिया लोड हुँदैछ...',
   'values.none': 'कुनै मानहरू छैनन्।',
-  'field.resourceTemplate': 'संसाधन टेम्प्लेट',
+  'field.resourceTemplate': 'वस्तुको प्रकार',
   'column.modified': 'परिमार्जित',
   'items.add': 'वस्तु थप्नुहोस्',
   'items.mediaHeading': 'मिडिया ({count})',

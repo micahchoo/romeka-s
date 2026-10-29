@@ -1,5 +1,5 @@
 /**
- * Advanced > Standards > Vocabularies: import a published vocabulary from a
+ * Advanced > Standards: import a published standard from a
  * file, then update it from a newer copy, reviewing the diff before it is
  * applied. The file is upstream's own SKOS copy under the importer's fixtures.
  */
@@ -20,14 +20,14 @@ test('a vocabulary file is imported, then updated from a newer copy after review
   diagnostics,
 }) => {
   await page.goto('/#/standards');
-  await page.getByRole('link', { name: 'Import a vocabulary' }).click();
-  await expect(page.getByRole('heading', { name: 'Import a vocabulary' })).toBeVisible();
+  await page.getByRole('link', { name: 'Import a standard' }).click();
+  await expect(page.getByRole('heading', { name: 'Import a standard' })).toBeVisible();
 
   const help = page.getByRole('button', { name: 'What Namespace URI means' });
   await help.click();
   await expect(page.getByText('Only the terms under it are imported.')).toBeVisible();
 
-  await page.getByLabel('Vocabulary file').setInputFiles({
+  await page.getByLabel('Standard file').setInputFiles({
     name: 'skos.rdf',
     mimeType: 'application/rdf+xml',
     buffer: skos(),
@@ -36,7 +36,7 @@ test('a vocabulary file is imported, then updated from a newer copy after review
   await page.getByRole('textbox', { name: 'Prefix' }).fill('skos');
   await page.getByRole('textbox', { name: 'Label', exact: true }).fill('SKOS');
   await expectAxeBudget(page, 'vocabulary import form');
-  await page.getByRole('button', { name: 'Import vocabulary' }).click();
+  await page.getByRole('button', { name: 'Import standard' }).click();
 
   await expect(page).toHaveURL(/#\/standards\/vocabularies\/\d+$/);
   await expect(page.getByRole('heading', { name: 'SKOS', level: 2 })).toBeVisible();
@@ -50,7 +50,7 @@ test('a vocabulary file is imported, then updated from a newer copy after review
     .replace('<rdfs:label xml:lang="en">preferred label</rdfs:label>', '<rdfs:label xml:lang="en">preferred name</rdfs:label>')
     .replace(/<rdf:Description rdf:about="#OrderedCollection">[\s\S]*?<\/rdf:Description>/, '');
   await page.getByRole('button', { name: 'Update from a file or web address' }).click();
-  await page.getByLabel('Vocabulary file').setInputFiles({
+  await page.getByLabel('Standard file').setInputFiles({
     name: 'skos-newer.rdf',
     mimeType: 'application/rdf+xml',
     buffer: Buffer.from(newer),
@@ -79,7 +79,7 @@ test('a vocabulary file is imported, then updated from a newer copy after review
 
 test('a file with nothing in the namespace is refused with the reason', async ({ page }) => {
   await page.goto('/#/standards/vocabularies/import');
-  await page.getByLabel('Vocabulary file').setInputFiles({
+  await page.getByLabel('Standard file').setInputFiles({
     name: 'skos.rdf',
     mimeType: 'application/rdf+xml',
     buffer: skos(),
@@ -87,7 +87,7 @@ test('a file with nothing in the namespace is refused with the reason', async ({
   await page.getByRole('textbox', { name: 'Namespace URI' }).fill('http://example.org/not-skos#');
   await page.getByRole('textbox', { name: 'Prefix' }).fill('notskos');
   await page.getByRole('textbox', { name: 'Label', exact: true }).fill('Not SKOS');
-  await page.getByRole('button', { name: 'Import vocabulary' }).click();
+  await page.getByRole('button', { name: 'Import standard' }).click();
   await expect(
     page.getByText(
       'No classes or properties found. Are you sure you used the correct namespace URI?',

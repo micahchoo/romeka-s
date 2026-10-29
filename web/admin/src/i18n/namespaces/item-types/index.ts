@@ -24,8 +24,8 @@ export const en = {
   "ask.question": "What kind of thing is this?",
   "ask.placeholder": "For example: Letter",
   "ask.hint":
-    "Name one thing, not the whole collection. You make a separate type for each kind.",
-  "ask.known": "Start a {name} type with these fields",
+    "Name one thing, not the whole collection. You make a separate item type for each kind.",
+  "ask.known": "Start a {name} item type with these fields",
   "ask.unknown": "Start “{name}” as a physical object with these fields",
   "ask.useFields": "Use these fields",
   "ask.start": "Start",
@@ -86,7 +86,7 @@ export const en = {
   "use.itemSets": "Item sets",
   "use.media": "Media",
   "use.note":
-    "Only narrows the Type list on those forms, in this browser. The type stays usable everywhere.",
+    "Only narrows the Item type list on those forms, in this browser. The item type stays usable everywhere.",
   "itemTypes.advancedSummary": "Advanced",
   "advanced.title": "Title comes from",
   "advanced.titleDefault": "Title (the default)",
@@ -107,8 +107,8 @@ export const en = {
   "fieldsPage.calledIn": "“{label}” in {type}",
   "fieldsPage.used": "Item types using it: {count}",
   "fieldsPage.unused": "Not used yet",
-  'loading.resourceTemplate': 'Loading resource template...',
-  'route.invalidTemplateId': '"{param}" is not a valid resource template id.',
+  'loading.resourceTemplate': 'Loading item type...',
+  'route.invalidTemplateId': '"{param}" is not a valid item type id.',
 } as const;
 
 /** A complete table of this namespace, in one locale. */

@@ -65,10 +65,10 @@ const Manage = (): ReactElement => {
           <a href="#/item-sets">{t('dashboard.count', { resource: t('page.itemSets'), count: view.itemSetCount })}</a>
         </li>
         <li>
-          <a href="#/vocabularies">{t('dashboard.count', { resource: t('page.vocabularies'), count: view.vocabularyCount })}</a>
+          <a href="#/standards">{t('dashboard.count', { resource: t('page.standards'), count: view.vocabularyCount })}</a>
         </li>
         <li>
-          <a href="#/resource-templates">{t('dashboard.count', { resource: t('page.resourceTemplates'), count: view.resourceTemplateCount })}</a>
+          <a href="#/resource-templates">{t('dashboard.count', { resource: t('page.itemTypes'), count: view.resourceTemplateCount })}</a>
         </li>
       </ul>
       <h2>{t('dashboard.manageSites')}</h2>

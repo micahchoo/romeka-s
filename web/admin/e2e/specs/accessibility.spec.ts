@@ -118,7 +118,7 @@ test("the admin vocabulary, standards and item type surfaces meet the axe budget
   await diagnostics.idle();
   await expectAxeBudget(page, "admin vocabulary show");
 
-  await page.getByRole("button", { name: "Edit this vocabulary" }).click();
+  await page.getByRole("button", { name: "Edit this standard" }).click();
   await expect(page.locator("#vocabulary-label")).toBeVisible();
   await diagnostics.idle();
   await expectAxeBudget(page, "admin vocabulary edit");

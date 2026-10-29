@@ -122,7 +122,7 @@ describe('the item query field control', () => {
     const { dispatch, key } = renderQuery('');
     await screen.findByText('7 items in this site match.');
 
-    fireEvent.change(screen.getByLabelText('Resource class'), { target: { value: '13' } });
+    fireEvent.change(screen.getByLabelText('Class'), { target: { value: '13' } });
 
     expect(queryAction(dispatch)).toEqual({
       type: 'setField',

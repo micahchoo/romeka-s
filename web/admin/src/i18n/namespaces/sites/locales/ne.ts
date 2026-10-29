@@ -98,7 +98,7 @@ export const ne: SitesMessages = {
     'वस्तु पृष्ठहरू ती साइट पृष्ठहरूमा लिङ्कहरूका साथ समाप्त हुन्छन् जहाँ वस्तु देखा पर्दछ।',
   'siteSetting.propertyLabelInformation': 'प्रोपर्टी लेबल जानकारी',
   'siteSetting.propertyLabelInformationHelp':
-    'वस्तु पृष्ठहरूले प्रत्येक क्षेत्रको नामको छेउमा शब्दावली वा प्राविधिक शब्द देखाउँछन्।',
+    'वस्तु पृष्ठहरूले प्रत्येक क्षेत्रको नामको छेउमा मानक वा प्राविधिक शब्द देखाउँछन्।',
   'siteSetting.iiifViewerTheme': 'IIIF भ्युअर थिम',
   'siteSetting.iiifViewerThemeHelp':
     'IIIF भ्युअरका लागि हल्का वा गाढा पृष्ठभूमि, ब्लकहरूमा र वस्तु पृष्ठहरूमा।',
@@ -169,7 +169,7 @@ export const ne: SitesMessages = {
   'siteSettingChoice.show_user_bar.0': 'साइन इन गर्दा मात्र',
   'siteSettingChoice.show_user_bar.1': 'सधैँ',
   'siteSettingChoice.property_label_information.none': 'केही पनि छैन',
-  'siteSettingChoice.property_label_information.vocab': 'शब्दावलीको नाम',
+  'siteSettingChoice.property_label_information.vocab': 'मानक नाम',
   'siteSettingChoice.property_label_information.term': 'प्राविधिक शब्द, जस्तै dcterms:title',
   'resourcePage.title': 'संसाधन पृष्ठहरू',
   'resourcePage.hint':
@@ -202,7 +202,7 @@ export const ne: SitesMessages = {
     'वस्तुको फाइलहरूको सूची, जसमा प्रत्येकमा सानो थम्बनेल र शीर्षक हुन्छ।',
   'resourcePageBlock.mediaRender': 'मिडिया रेन्डर',
   'resourcePageBlock.mediaRenderHelp': 'फाइल आफैँ: तस्बिर, प्लेयर वा कागजात।',
-  'resourcePageBlock.resourceClass': 'संसाधन वर्ग',
+  'resourcePageBlock.resourceClass': 'वर्ग',
   'resourcePageBlock.resourceClassHelp': 'यो कस्तो प्रकारको वस्तु हो, उदाहरणका लागि पाठ वा तस्बिर।',
   'resourcePageBlock.sitePages': 'साइट पृष्ठहरू',
   'resourcePageBlock.sitePagesHelp': 'साइटका ती पृष्ठहरूको लिङ्कहरू जसले वस्तु देखाउँछन्।',
@@ -263,7 +263,7 @@ export const ne: SitesMessages = {
   'asset.empty': 'अहिलेसम्म कुनै एसेट भण्डारण गरिएको छैन। एउटा अपलोड गर्नुहोस्।',
   'query.fulltext': 'पूर्ण-पाठ खोज',
   'query.itemSet': 'वस्तु समूह',
-  'query.resourceClass': 'संसाधन वर्ग',
+  'query.resourceClass': 'वर्ग',
   'query.sort': 'द्वारा क्रमबद्ध गर्नुहोस्',
   'query.sortOrder': 'क्रमबद्ध क्रम',
   'query.any': '[कुनै पनि]',

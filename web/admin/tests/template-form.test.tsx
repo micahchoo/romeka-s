@@ -109,7 +109,7 @@ const fieldNamed = (label: string): HTMLElement => {
 };
 
 const chooseTemplate = async (): Promise<void> => {
-  fireEvent.change(await screen.findByRole('combobox', { name: 'Type' }), { target: { value: '5' } });
+  fireEvent.change(await screen.findByRole('combobox', { name: 'Item type' }), { target: { value: '5' } });
 };
 
 describe('an item form with a template', () => {
@@ -145,7 +145,7 @@ describe('an item form with a template', () => {
     await chooseTemplate();
     expect(screen.getByRole('textbox', { name: 'Description' })).toHaveValue('Recorded in 1972');
 
-    fireEvent.change(screen.getByRole('combobox', { name: 'Type' }), { target: { value: '' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Item type' }), { target: { value: '' } });
     expect(screen.getByRole('textbox', { name: 'Description' })).toHaveValue('Recorded in 1972');
     // Without the template the creator row keeps its value and its own label.
     expect(screen.getByRole('textbox', { name: 'Creator' })).toBeInTheDocument();
@@ -248,14 +248,14 @@ describe('an item form with a template', () => {
     expect(fold).not.toHaveAttribute('open');
     fireEvent.change(screen.getByLabelText('Class'), { target: { value: '51' } });
     expect(fold).toHaveAttribute('open');
-    expect(screen.getByText('This class is not the one its type suggests.')).toBeInTheDocument();
+    expect(screen.getByText('This class is not the one its item type suggests.')).toBeInTheDocument();
   });
 
   it('offers a type only on the forms its "Used for" hint names, and always the one in use', async () => {
     window.localStorage.setItem('romeka.itemTypeUse', JSON.stringify({ 5: ['media'] }));
     install();
     render(<ItemsPage param="new" />);
-    const picker = await screen.findByRole('combobox', { name: 'Type' });
+    const picker = await screen.findByRole('combobox', { name: 'Item type' });
     expect(within(picker).queryByRole('option', { name: 'Oral history' })).toBeNull();
     window.localStorage.clear();
   });

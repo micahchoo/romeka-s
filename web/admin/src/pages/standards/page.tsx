@@ -26,7 +26,7 @@ interface Tab {
 }
 
 const TABS: Readonly<Record<StandardsTab, Tab>> = {
-  vocabularies: { labelKey: 'page.vocabularies', element: VocabulariesPage },
+  vocabularies: { labelKey: 'page.standards', element: VocabulariesPage },
   properties: { labelKey: 'page.properties', element: PropertiesPage },
   classes: { labelKey: 'detail.classes', element: ResourceClassesPage },
 };

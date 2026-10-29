@@ -33,22 +33,22 @@ export const es: LessonsMessages = {
     'Has cambiado el nombre que la gente ve en el formulario. El valor se sigue guardando con el mismo término estándar, así que la búsqueda, las exportaciones y otros archivos lo leen como antes.',
   'fieldsPage.title': 'Campos compartidos',
   'fieldsPage.body':
-    'Cada campo de esta lista es un término de un vocabulario compartido, casi siempre Dublin Core. Cuando dos archivos guardan un creador como dcterms:creator, sus registros se pueden buscar y unir.',
+    'Cada campo de esta lista es un término de un estándar compartido, casi siempre Dublin Core. Cuando dos archivos guardan un creador como dcterms:creator, sus registros se pueden buscar y unir.',
   'required.title': 'Campos obligatorios',
   'required.body':
-    'Este tipo de elemento marca el campo como obligatorio, así que cada elemento de este tipo tiene un valor aquí. Una colección en la que todos los registros lo tienen se puede ordenar y buscar sin huecos.',
+    'Este tipo de elemento marca el campo como obligatorio, así que cada elemento de este tipo de elemento tiene un valor aquí. Una colección en la que todos los registros lo tienen se puede ordenar y buscar sin huecos.',
   'typeClass.title': 'Clases estándar',
   'typeClass.body':
-    'El nombre es para las personas. La clase estándar, como bibo:Letter, dice al software qué clase de cosa es cada elemento, así que una búsqueda de esa clase, aquí o en otro archivo, encuentra todos los elementos de este tipo.',
+    'El nombre es para las personas. La clase estándar, como bibo:Letter, dice al software qué clase de cosa es cada elemento, así que una búsqueda de esa clase, aquí o en otro archivo, encuentra todos los elementos de este tipo de elemento.',
   'typePick.title': 'Tipos de elemento',
   'typePick.body':
-    'Un tipo organiza los campos de una clase de cosa y guarda el elemento con su clase estándar. Los elementos de un mismo tipo comparten los mismos campos, así que es fácil compararlos y encontrarlos juntos.',
+    'Un tipo de elemento organiza los campos de una clase de cosa y guarda el elemento con su clase estándar. Los elementos de un mismo tipo de elemento comparten los mismos campos, así que es fácil compararlos y encontrarlos juntos.',
   'standards.title': 'Datos enlazados',
   'standards.body':
-    'Estos son los vocabularios detrás de cada campo y cada clase. Cada término tiene una dirección web, como http://purl.org/dc/terms/title, así que un valor guardado aquí significa lo mismo dondequiera que se lea.',
-  'localField.title': 'Tu propio vocabulario',
+    'Estos son los estándares detrás de cada campo y cada clase. Cada término tiene una dirección web, como http://purl.org/dc/terms/title, así que un valor guardado aquí significa lo mismo dondequiera que se lea.',
+  'localField.title': 'Tu propio estándar',
   'localField.body':
-    'Su nombre empieza por local: porque ningún estándar compartido tenía este campo, así que es un término del vocabulario propio de este archivo. Su dirección está en este sitio, así que otros archivos pueden leer el valor y consultar qué significa.',
+    'Su nombre empieza por local: porque ningún estándar compartido tenía este campo, así que es un término del estándar propio de este archivo. Su dirección está en este sitio, así que otros archivos pueden leer el valor y consultar qué significa.',
   'termMerge.title': 'Una sola grafía',
   'termMerge.body':
     'Al fusionar, cada valor escrito de otra forma pasa a la grafía que conservas. Con una sola grafía para cada cosa, una búsqueda o una lista de valores encuentra todos los registros, no solo los que se escribieron igual.',
