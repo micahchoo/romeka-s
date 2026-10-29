@@ -9,7 +9,7 @@ import { parseHash } from '../src/app/router';
 import { Shell } from '../src/app/shell';
 import { SystemPage } from '../src/pages/system/page';
 import { loadFixture } from './loadFixture';
-import { installFetch, jsonResponse, listResponse, route } from './stub';
+import { installFetch, jsonResponse, listResponse, route, signedIn } from './stub';
 
 afterEach(() => {
   window.location.hash = '';
@@ -26,10 +26,10 @@ describe('system routes', () => {
 
   it('the_nav_offers_system_under_admin_advanced_and_none_of_the_old_pages', async () => {
     window.location.hash = '#/modules';
-    installFetch(() => jsonResponse({ errors: { error: 'offline' } }, { status: 503 }));
+    installFetch(signedIn(() => jsonResponse({ errors: { error: 'offline' } }, { status: 503 })));
     render(<Shell />);
 
-    const nav = screen.getByRole('navigation', { name: 'Admin pages' });
+    const nav = await screen.findByRole('navigation', { name: 'Admin pages' });
     const admin = within(nav).getByRole('heading', { name: 'Admin' }).closest('section');
     if (admin === null) {
       throw new Error('no Admin group');

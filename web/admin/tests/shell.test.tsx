@@ -156,7 +156,7 @@ describe('signed out', () => {
 });
 
 describe('the nav by role', () => {
-  const ADMIN_ONLY = ['Import', 'Settings', 'Modules', 'Jobs'];
+  const ADMIN_ONLY = ['Import', 'Settings', 'System', 'Jobs'];
 
   it.each([
     ['global_admin', []],
