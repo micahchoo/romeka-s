@@ -5,12 +5,15 @@
 
 mod common;
 
+use omeka_db::DbError;
 use omeka_db::ids::{PageId, UserId};
 use omeka_db::repos::SiteSettingRepo;
-use omeka_db::repos::{ItemRepo, ItemSetRepo, ItemSiteRepo, SiteFilter, SiteRepo, UserRepo};
+use omeka_db::repos::{
+    ItemRepo, ItemSetRepo, ItemSiteRepo, PageVersionRepo, SiteFilter, SiteRepo, UserRepo,
+};
 use omeka_db::rows::{
     ItemSiteRow, NewFirstPage, NewFirstPageBlock, NewItem, NewItemSet, NewSite, NewSiteBlock,
-    NewSitePage, NewUser, NewWholeSite,
+    NewSitePage, NewUser, NewWholeSite, PageImage, PageVersionOrigin,
 };
 use sqlx::SqlitePool;
 
@@ -396,6 +399,16 @@ fn link_first_page(page: PageId) -> serde_json::Value {
     serde_json::json!([{ "type": "page", "data": { "id": page.0 }, "links": [] }])
 }
 
+fn layouts(image: &PageImage) -> Result<serde_json::Value, DbError> {
+    Ok(serde_json::json!(
+        image
+            .blocks
+            .iter()
+            .map(|entry| entry.block.layout.clone())
+            .collect::<Vec<_>>()
+    ))
+}
+
 fn whole_site(slug: &str, permissions: Vec<(UserId, String)>) -> NewWholeSite {
     NewWholeSite {
         site: NewSite {
@@ -421,6 +434,7 @@ fn whole_site(slug: &str, permissions: Vec<(UserId, String)>) -> NewWholeSite {
                 },
             ],
         },
+        creator: None,
         navigation_linking_first_page: Some(link_first_page),
         permissions,
         item_sets: Vec::new(),
@@ -455,9 +469,10 @@ async fn create_whole_stores_the_site_with_its_first_page_and_rows() {
         .unwrap();
     let mut new = whole_site("whole", vec![(user.id, "admin".to_string())]);
     new.item_sets = vec![item_set.id()];
+    new.creator = Some(user.id);
     let sites = SiteRepo::new(&pool);
 
-    let site = sites.create_whole(&new).await.unwrap();
+    let site = sites.create_whole(&new, &layouts).await.unwrap();
 
     let stored = sites.get(site.id).await.unwrap().unwrap();
     assert_eq!(stored, site);
@@ -472,6 +487,31 @@ async fn create_whole_stores_the_site_with_its_first_page_and_rows() {
         .map(|block| (block.layout.as_str(), block.position))
         .collect();
     assert_eq!(shape, [("html", 1), ("browsePreview", 2)]);
+    let versions: Vec<_> = PageVersionRepo::new(&pool)
+        .list(pages[0].id)
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|row| {
+            (
+                row.version,
+                row.origin,
+                row.user_id,
+                row.created,
+                row.snapshot,
+            )
+        })
+        .collect();
+    assert_eq!(
+        versions,
+        [(
+            1,
+            PageVersionOrigin::Create,
+            Some(user.id),
+            pages[0].created,
+            serde_json::json!(["html", "browsePreview"]),
+        )]
+    );
     assert_eq!(
         blocks[1].layout_data,
         Some(serde_json::json!({ "class": "wide" }))
@@ -504,12 +544,18 @@ async fn create_whole_leaves_nothing_when_a_later_row_fails() {
     let pool = common::memory().await;
     let new = whole_site("broken", vec![(UserId(999), "admin".to_string())]);
 
-    assert!(SiteRepo::new(&pool).create_whole(&new).await.is_err());
+    assert!(
+        SiteRepo::new(&pool)
+            .create_whole(&new, &layouts)
+            .await
+            .is_err()
+    );
 
     for table in [
         "site",
         "site_page",
         "site_page_block",
+        "romeka_site_page_version",
         "site_permission",
         "site_setting",
     ] {

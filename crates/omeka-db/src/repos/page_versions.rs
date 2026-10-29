@@ -7,6 +7,7 @@
 //!
 //! [`PageVersionRepo::create`] is the whole of a page create the same way: the page row, its
 //! blocks and attachments, and version 1 with origin `create` and the creating user.
+//! [`super::SiteRepo::create_whole`] records its first page's version 1 the same way.
 //!
 //! Each version holds a state as it went live. A page with no version yet (made before 0007, or
 //! by a write that keeps none) has its first save also record the state it replaces, with origin
@@ -64,22 +65,9 @@ where
         let mut tx = self.pool.begin_with(DB::begin_write()).await?;
         let page = insert_page::<DB>(&mut tx, create.page).await?;
         insert_blocks::<DB>(&mut tx, page.id, create.blocks).await?;
-        let created = page.created;
-        let made = image::<DB>(&mut tx, page).await?;
-        insert_version::<DB>(
-            &mut tx,
-            made.page.id,
-            Version {
-                number: 1,
-                created,
-                user: create.user,
-                origin: PageVersionOrigin::Create,
-            },
-            &snapshot(&made)?,
-        )
-        .await?;
+        let page = insert_created_version::<DB>(&mut tx, page, create.user, snapshot).await?;
         tx.commit().await?;
-        Ok(made.page)
+        Ok(page)
     }
 
     /// Save a page and record the state it now has as its next version.
@@ -265,6 +253,41 @@ where
         blocks.push(PageImageBlock { block, attachments });
     }
     Ok(PageImage { page, blocks })
+}
+
+/// Record a just-made page, with the blocks and attachments it has in `tx`, as its version 1:
+/// origin `create`, by `user`, dated when the page was created. A page create and a site create
+/// both call this inside their own transaction, so a page made in Romeka starts with a history.
+pub(crate) async fn insert_created_version<DB: Backend>(
+    tx: &mut Transaction<'static, DB>,
+    page: SitePageRow,
+    user: Option<UserId>,
+    snapshot: Snapshot<'_>,
+) -> Result<SitePageRow, DbError>
+where
+    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
+    for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
+    usize: ColumnIndex<DB::Row>,
+    for<'x> i64: Encode<'x, DB> + Type<DB>,
+    for<'x> Option<i64>: Encode<'x, DB> + Type<DB>,
+    for<'x> String: Encode<'x, DB> + Type<DB>,
+    for<'x> &'x str: Encode<'x, DB> + Type<DB> + ColumnIndex<DB::Row>,
+{
+    let created = page.created;
+    let made = image::<DB>(tx, page).await?;
+    insert_version::<DB>(
+        tx,
+        made.page.id,
+        Version {
+            number: 1,
+            created,
+            user,
+            origin: PageVersionOrigin::Create,
+        },
+        &snapshot(&made)?,
+    )
+    .await?;
+    Ok(made.page)
 }
 
 /// The columns of one version row beside its page and snapshot.

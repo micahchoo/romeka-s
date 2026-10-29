@@ -406,7 +406,10 @@ def annotations_section(out: list[str]) -> None:
         'A 400 carries the annotation service\'s plain English sentence in the upstream error '
         'document, `{"errors": {"error": "…"}}`: "This media takes notes about the whole file only." '
         "for a selector the media's surface does not take, and the matching sentence for a box "
-        "outside the canvas, a time range past the duration, or a document that is not an annotation."
+        "outside the canvas, a time range past the duration, or a document that is not an annotation. "
+        "A region note on a picture whose preview is queued or being made answers 409 with "
+        '`Retry-After: 5` and "This picture\'s preview is still being made. Try again in a moment.", '
+        "because the picture takes a region once its thumbnails exist."
     )
     out.append("")
 

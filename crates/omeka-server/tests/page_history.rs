@@ -488,3 +488,72 @@ async fn a_page_created_over_the_api_starts_its_history_with_a_created_version_b
         [json!([1, "create", "deleted_user", null, 1, null])]
     );
 }
+
+#[tokio::test]
+async fn a_new_sites_welcome_page_starts_its_history_with_a_created_version_by_its_creator() {
+    let scenario = scenario().await;
+    let gil = actor(&scenario.pool, "Gil", "global_admin").await;
+    let site = send(
+        scenario.app.clone(),
+        json_request(
+            "POST",
+            &gil.uri("/api/sites"),
+            &json!({ "o:title": "Fresh", "o:slug": "fresh", "o:theme": "default" }).to_string(),
+        ),
+    )
+    .await;
+    assert_eq!(site.status, StatusCode::OK, "{}", site.body);
+    let site_id = site.json()["o:id"].as_u64().unwrap();
+    let page = format!("/api/site_pages/{}", site.json()["o:page"][0]["o:id"]);
+    let welcome = scenario.get(Some(&gil), &page).await;
+    assert_eq!(welcome.status, StatusCode::OK, "{}", welcome.body);
+    assert_eq!(welcome.json()["o:slug"], "welcome");
+    let blocks = welcome.json()["o:block"].as_array().unwrap().len();
+    let summary = |answer: &common::Answer| -> Vec<Value> {
+        assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
+        answer
+            .json()
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|entry| {
+                json!([
+                    entry["o:version"],
+                    entry["o:origin"],
+                    entry["o:user"]["o:name"],
+                    entry["o:block_count"],
+                ])
+            })
+            .collect()
+    };
+    let versions = format!("{page}/versions");
+
+    assert_eq!(
+        summary(&scenario.get(Some(&gil), &versions).await),
+        [json!([1, "create", "Gil", blocks])]
+    );
+
+    let saved = send(
+        scenario.app.clone(),
+        json_request(
+            "PUT",
+            &gil.uri(&page),
+            &json!({
+                "o:site": { "o:id": site_id },
+                "o:title": "Welcome",
+                "o:slug": "welcome",
+                "o:block": [{ "o:layout": "html", "o:data": { "html": "hello" } }],
+            })
+            .to_string(),
+        ),
+    )
+    .await;
+    assert_eq!(saved.status, StatusCode::OK, "{}", saved.body);
+    assert_eq!(
+        summary(&scenario.get(Some(&gil), &versions).await),
+        [
+            json!([2, "save", "Gil", 1]),
+            json!([1, "create", "Gil", blocks]),
+        ]
+    );
+}

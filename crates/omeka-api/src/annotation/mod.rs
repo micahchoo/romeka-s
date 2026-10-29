@@ -14,6 +14,7 @@
 
 mod access;
 mod model;
+mod preview;
 mod search;
 pub mod tracks;
 mod undo;
@@ -214,6 +215,10 @@ pub enum AnnotationError {
     Forbidden,
     #[error("{0}")]
     Invalid(Problem),
+    /// A region note on a picture whose preview is queued or being made: the same note is
+    /// taken once the thumbnails exist.
+    #[error("{}", crate::messages::ANNOTATION_PREVIEW_PENDING)]
+    PreviewPending,
     #[error("the annotation document is larger than 64 KiB")]
     TooLarge,
     #[error("the request body is a type this route does not serve")]
@@ -507,7 +512,7 @@ impl<'a> Annotations<'a> {
         if rights != Rights::ReadWrite {
             return Err(AnnotationError::Forbidden);
         }
-        let draft = wadm::parse(doc, &media_ref, iris)?;
+        let draft = self.parse(doc, &media_ref, iris).await?;
         let stored = wadm::stored(&draft);
         let write = write_of(&draft, &stored);
         let outcome = with_db!(self.pool, |db| MediaAnnotationRepo::new(db)
@@ -542,7 +547,7 @@ impl<'a> Annotations<'a> {
         iris: &Iris,
     ) -> Result<Annotation, AnnotationError> {
         let current = self.writable(id, if_match).await?;
-        let draft = wadm::parse(doc, &current.media, iris)?;
+        let draft = self.parse(doc, &current.media, iris).await?;
         if draft == current.draft {
             return Ok(current);
         }
