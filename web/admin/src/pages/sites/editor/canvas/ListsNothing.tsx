@@ -6,11 +6,11 @@
  * more for the site's own total. A block with no query field asks nothing.
  */
 import type { ReactElement } from 'react';
-import type { SiteId } from '../../../../api/types';
+import type { JsonValue, SiteId } from '../../../../api/types';
 import type { BlockRegistry } from '../../blockSchema';
 import type { BlockDraft } from '../draft';
 import { asText } from '../fields/controlBase';
-import { isQueryResource, useListReach } from '../fields/listReach';
+import { isQueryResource, listsAttachedOnly, useListReach } from '../fields/listReach';
 import type { QueryResource } from '../fields/listReach';
 import { useEditorText } from '../messages';
 import { romkaFor, settingsOf } from '../romeka';
@@ -41,14 +41,19 @@ export const ListsNothing = ({
   registry,
   block,
   siteId,
+  siteSettings,
 }: {
   readonly registry: BlockRegistry;
   readonly block: BlockDraft;
   readonly siteId: SiteId;
+  readonly siteSettings: JsonValue | null;
 }): ReactElement | null => {
   const e = useEditorText();
   const list = blockList(registry, block);
-  const reach = useListReach(list?.resource ?? 'items', list?.query ?? null, siteId);
+  const reach = useListReach(list?.resource ?? 'items', list?.query ?? null, {
+    id: siteId,
+    attachedOnly: listsAttachedOnly(siteSettings),
+  });
   return reach.status === 'ready' && reach.data !== null && reach.data.kind !== 'matches' ? (
     <span className="canvas-badge canvas-badge-quiet">{e('canvas.listsNothing')}</span>
   ) : null;

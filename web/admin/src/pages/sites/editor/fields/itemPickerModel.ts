@@ -4,7 +4,6 @@
  * filters make, and the text a row and the peek show from a list response.
  */
 import type { ResourceQuery } from '../../../../api/client';
-import type { ClassCount } from '../../../../api/places';
 import type {
   ClassId,
   Item,
@@ -217,26 +216,3 @@ export const valueRows = (
 /** The item's class term from its JSON-LD types (`o:Item` comes first). */
 export const classTerm = (item: Item): string | null =>
   item.types.find((type) => type !== 'o:Item') ?? null;
-
-/** A used class as the class filter names it: its label, and its standard when the label is shared. */
-export interface ClassChoice {
-  readonly id: ClassId;
-  readonly label: string;
-  /** The standard's label, present only when another used class has the same label. */
-  readonly standard: string | null;
-  readonly items: number;
-}
-
-/** The class filter's choices, in the order the server gives them. */
-export const classChoices = (counts: readonly ClassCount[]): readonly ClassChoice[] => {
-  const uses = new Map<string, number>();
-  for (const { label } of counts) {
-    uses.set(label, (uses.get(label) ?? 0) + 1);
-  }
-  return counts.map(({ id, label, vocabularyLabel, items }) => ({
-    id,
-    label,
-    standard: (uses.get(label) ?? 0) > 1 ? vocabularyLabel : null,
-    items,
-  }));
-};

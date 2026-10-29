@@ -1454,9 +1454,16 @@ fieldset.block-field {
   overflow-wrap: anywhere;
 }
 
-.html-editor:empty::before {
-  content: attr(data-placeholder);
+/* The hint sits over the editor's first line and lets every press through to it. */
+.html-surface {
+  position: relative;
+}
+
+.html-hint {
+  position: absolute;
+  inset: calc(var(--space-2) + 1px) calc(var(--space-3) + 1px) auto;
   color: var(--text-muted);
+  pointer-events: none;
 }
 
 /* The asset picker: a current-asset line, then a thumbnail grid. */

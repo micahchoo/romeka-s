@@ -173,6 +173,56 @@ async fn a_browse_preview_sorts_by_a_property() {
     assert!(order.windows(2).all(|pair| pair[0] < pair[1]), "{order:?}");
 }
 
+/// A browse preview searches with every filter the items endpoint reads, as
+/// upstream's `$this->api()->search('items', $query)` does: the class, the
+/// owner and the `id` list narrow it, not only the advanced-search rows. The
+/// editor's count asks the endpoint with the same stored query, so the two
+/// agree.
+#[tokio::test]
+async fn a_browse_preview_applies_the_class_owner_and_id_filters() {
+    let (pool, seed) = site_pool().await;
+    let chart = dated_item(&pool, &seed, "Unclassed chart", None).await;
+    let class = seed.class.0;
+    let user = seed.user.0;
+    for (slug, query) in [
+        ("by-class", format!("resource_class_id={class}")),
+        (
+            "by-owner",
+            format!("owner_id={user}&resource_class_id={class}"),
+        ),
+        ("by-id", format!("id[]={}", chart.0)),
+    ] {
+        page_with(
+            &pool,
+            &seed,
+            slug,
+            "browsePreview",
+            json!({"resource_type": "items", "query": query}),
+            None,
+        )
+        .await;
+    }
+    let app = router(pool);
+
+    for slug in ["by-class", "by-owner"] {
+        let page = send(app.clone(), get(&format!("/s/museum/page/{slug}"), false)).await;
+        assert_eq!(page.status, StatusCode::OK);
+        assert!(
+            page.body.contains("A picture of a cat"),
+            "{slug}: {}",
+            page.body
+        );
+        assert!(
+            !page.body.contains("Unclassed chart"),
+            "{slug}: {}",
+            page.body
+        );
+    }
+    let page = send(app, get("/s/museum/page/by-id", false)).await;
+    assert!(page.body.contains("Unclassed chart"), "{}", page.body);
+    assert!(!page.body.contains("A picture of a cat"), "{}", page.body);
+}
+
 /// A preview whose search matches nothing, on a site that holds items, says
 /// nothing matches rather than that the site is empty.
 #[tokio::test]

@@ -7,18 +7,23 @@
  * Each count is `Omeka-S-Total-Results` on the list endpoint of the resource
  * searched (`/api/items`, `/api/item_sets` or `/api/media`), which the client
  * reads into `ApiPage.total`; a request asks for one row and uses only the
- * header. The site's own total is asked only after a zero, with `site_id`
- * alone, so a count above zero costs one request. Only items can be filtered
- * by item set (`QueryFilter::push_item`), so only their count carries it.
+ * header. It sends the whole stored query, every pair in its stored order,
+ * then what the public render adds (`browse_preview.rs::search`): the
+ * attached-items test when the site lists only items placed on its pages, and
+ * `site_id`. The public render searches with the same parameters the list
+ * endpoints read, so the count is the block's own total. The site's own total
+ * is asked only after a zero, with `site_id` alone (`site_items_probe`), so a
+ * count above zero costs one request.
  */
 import { api } from '../../../../api/client';
 import type { ResourceQuery } from '../../../../api/client';
 import { listMedia } from '../../../../api/media';
-import type { ApiPage, SiteId } from '../../../../api/types';
+import type { ApiPage, JsonValue, SiteId } from '../../../../api/types';
 import { useAsync } from '../../../../app/useAsync';
 import type { AsyncState } from '../../../../app/useAsync';
 import { useSettled } from '../../../../app/useSettled';
-import { QUERY_KEYS, parseQuery, queryId, queryValue } from './query';
+import { isJsonObject } from '../values';
+import { parseQuery } from './query';
 
 /** The resource types a browse query can search (`browsePreview.resource_type`). */
 export type QueryResource = 'items' | 'item_sets' | 'media';
@@ -53,40 +58,50 @@ const LISTS: Readonly<
 /** Whether the resource's builder offers the item set filter. */
 export const filtersByItemSet = (resource: QueryResource): boolean => LISTS[resource].byItemSet;
 
-/** The list request one stored query makes: one row, for the total header. */
-const countQuery = (value: string, siteId: SiteId | undefined, byItemSet: boolean): ResourceQuery => {
-  const pairs = parseQuery(value);
-  const fulltext = queryValue(pairs, QUERY_KEYS.fulltext).trim();
-  const itemSet = queryId(pairs, QUERY_KEYS.itemSet);
-  const resourceClass = queryId(pairs, QUERY_KEYS.resourceClass);
-  const sortBy = queryValue(pairs, QUERY_KEYS.sortBy).trim();
-  const sortOrder = queryValue(pairs, QUERY_KEYS.sortOrder).trim();
-  return {
-    perPage: 1,
-    ...(siteId === undefined ? {} : { site_id: siteId }),
-    ...(fulltext === '' ? {} : { fulltext_search: fulltext }),
-    ...(itemSet === null || !byItemSet ? {} : { item_set_id: itemSet }),
-    ...(resourceClass === null ? {} : { resource_class_id: resourceClass }),
-    ...(sortBy === '' ? {} : { sortBy }),
-    ...(sortOrder === 'asc' || sortOrder === 'desc' ? { sortOrder } : {}),
-  };
+/** The site a block lists on, as the public render reads it. */
+export interface ListSite {
+  readonly id: SiteId;
+  /** The site setting "Only items placed on pages" (`browse_attached_items`). */
+  readonly attachedOnly: boolean;
+}
+
+/** The site setting "Only items placed on pages", read as the server's `SiteSettings` reads it. */
+export const listsAttachedOnly = (siteSettings: JsonValue | null): boolean =>
+  isJsonObject(siteSettings) && siteSettings['browse_attached_items'] === true;
+
+/** The stored pairs in order; a repeated name keeps every value, in order, for the server to read. */
+const storedQuery = (value: string): Record<string, string | readonly string[]> => {
+  const query: Record<string, string | readonly string[]> = {};
+  for (const pair of parseQuery(value)) {
+    const prior = query[pair.key];
+    query[pair.key] = prior === undefined ? pair.value : [...(typeof prior === 'string' ? [prior] : prior), pair.value];
+  }
+  return query;
 };
 
-/** Asks the server what `value` reaches, scoped to `siteId` when given. */
+/** The list request one stored query makes: the block's own search, one row, for the total header. */
+const countQuery = (value: string, site: ListSite | undefined): ResourceQuery => ({
+  ...storedQuery(value),
+  ...(site?.attachedOnly === true ? { site_attachments_only: 'true' } : {}),
+  ...(site === undefined ? {} : { site_id: site.id }),
+  perPage: 1,
+});
+
+/** Asks the server what `value` reaches, scoped to `site` when given. */
 export const readReach = async (
   resource: QueryResource,
   value: string,
-  siteId: SiteId | undefined,
+  site: ListSite | undefined,
 ): Promise<ListReach> => {
-  const { list, byItemSet } = LISTS[resource];
-  const count = (await list(countQuery(value, siteId, byItemSet))).total;
+  const { list } = LISTS[resource];
+  const count = (await list(countQuery(value, site))).total;
   if (count > 0) {
     return { kind: 'matches', count };
   }
-  if (siteId === undefined) {
+  if (site === undefined) {
     return { kind: 'none' };
   }
-  const onSite = (await list({ perPage: 1, site_id: siteId })).total;
+  const onSite = (await list({ perPage: 1, site_id: site.id })).total;
   return onSite === 0 ? { kind: 'siteEmpty' } : { kind: 'filterEmpty' };
 };
 
@@ -97,11 +112,16 @@ const COUNT_DELAY_MS = 400;
 export const useListReach = (
   resource: QueryResource,
   value: string | null,
-  siteId: SiteId | undefined,
+  site: ListSite | undefined,
 ): AsyncState<ListReach | null> => {
   const settled = useSettled(value, COUNT_DELAY_MS);
+  const siteId = site?.id;
+  const attachedOnly = site?.attachedOnly ?? false;
   return useAsync(
-    async () => (settled === null ? null : readReach(resource, settled, siteId)),
-    [resource, settled, siteId],
+    async () =>
+      settled === null
+        ? null
+        : readReach(resource, settled, siteId === undefined ? undefined : { id: siteId, attachedOnly }),
+    [resource, settled, siteId, attachedOnly],
   );
 };

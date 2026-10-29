@@ -3,7 +3,7 @@
  * the advanced-search pairs a `browsePreview` block stores, keeps a pair it does
  * not show, and reads the match count from `Omeka-S-Total-Results`.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { DraftAction } from '../src/pages/sites/editor/draft';
 import {
@@ -18,10 +18,21 @@ import { installFetch, jsonResponse, listResponse, requestsFor } from './stub';
 
 const TOTAL = 7;
 
+/** `/api/romeka/classes/counts`: the classes items use, with their item counts. */
+const CLASS_COUNTS = {
+  classes: [
+    { id: 51, term: 'bibo:Book', label: 'Book', vocabulary_label: 'Bibliographic Ontology', items: 4 },
+    { id: 21, term: 'dctype:Image', label: 'Image', vocabulary_label: 'Dublin Core Type', items: 3 },
+    { id: 41, term: 'schema:Image', label: 'Image', vocabulary_label: 'Schema.org', items: 1 },
+  ],
+};
+
 const handler = (url: URL): Response => {
   switch (url.pathname) {
     case '/api/items':
       return listResponse([], TOTAL);
+    case '/api/romeka/classes/counts':
+      return jsonResponse(CLASS_COUNTS);
     case '/api/item_sets':
       return jsonResponse(loadFixture('item-sets-page.json'));
     case '/api/resource_classes':
@@ -137,14 +148,87 @@ describe('the item query field control', () => {
     const { dispatch, key } = renderQuery('');
     await screen.findByText('7 items in this site match.');
 
-    fireEvent.change(screen.getByLabelText('Class'), { target: { value: '13' } });
+    const classSelect = screen.getByLabelText('Class');
+    await within(classSelect).findByRole('option', { name: 'Book · 4 items' });
+    fireEvent.change(classSelect, { target: { value: '41' } });
 
     expect(queryAction(dispatch)).toEqual({
       type: 'setField',
       blockKey: key,
       field: 'query',
-      value: 'resource_class_id=13',
+      value: 'resource_class_id=41',
     });
+  });
+
+  it('the class select offers only the classes items use, each with its count, a shared name with its standard', async () => {
+    const fetchMock = installFetch(handler);
+    renderQuery('');
+    const classSelect = screen.getByLabelText('Class');
+
+    await within(classSelect).findByRole('option', { name: 'Book · 4 items' });
+    expect(within(classSelect).getAllByRole('option').map((option) => option.textContent)).toEqual([
+      '[Any]',
+      'Book · 4 items',
+      'Image (Dublin Core Type) · 3 items',
+      'Image (Schema.org) · 1 item',
+    ]);
+    expect(requestsFor(fetchMock, '/api/resource_classes'), 'no list of every class').toEqual([]);
+  });
+
+  it('a stored class no item uses stays selected, at 0 items', async () => {
+    installFetch((url) => {
+      switch (url.pathname) {
+        case '/api/resource_classes/13':
+          return jsonResponse(loadFixture('resource-class-13.json'));
+        case '/api/vocabularies/2':
+          return jsonResponse(loadFixture('vocabulary-2.json'));
+        default:
+          return handler(url);
+      }
+    });
+    renderQuery('resource_class_id=13');
+    const classSelect = screen.getByLabelText('Class');
+
+    const held = await within(classSelect).findByRole('option', { name: 'Still Image · 0 items' });
+    expect(held).toHaveProperty('selected', true);
+    expect(classSelect).toHaveValue('13');
+  });
+
+  it('counts with the whole stored query, so a property filter the builder does not show narrows the count', async () => {
+    const stored =
+      'property%5B0%5D%5Bproperty%5D=1&property%5B0%5D%5Btype%5D=eq&property%5B0%5D%5Btext%5D=harbour&owner_id=2&fulltext_search=cat';
+    const fetchMock = installFetch((url) =>
+      url.pathname === '/api/items' && url.searchParams.get('property[0][type]') === 'eq'
+        ? listResponse([], 3)
+        : handler(url),
+    );
+    renderQuery(stored);
+
+    expect(await screen.findByText('3 items in this site match.')).toBeInTheDocument();
+    const counted = requestsFor(fetchMock, '/api/items')[0]?.url.searchParams;
+    expect(counted === undefined ? [] : [...counted]).toEqual([
+      ['property[0][property]', '1'],
+      ['property[0][type]', 'eq'],
+      ['property[0][text]', 'harbour'],
+      ['owner_id', '2'],
+      ['fulltext_search', 'cat'],
+      ['site_id', String(SITE_ID)],
+      ['per_page', '1'],
+    ]);
+  });
+
+  it('for item sets, the class select lists every class, since the counts count items', async () => {
+    installFetch((url) => (url.pathname === '/api/item_sets' ? listResponse([], 2) : handler(url)));
+    render(
+      <BlockFormHarness
+        layout="browsePreview"
+        data={{ resource_type: 'item_sets', query: '', components: [] }}
+      />,
+    );
+    const classSelect = screen.getByLabelText('Class');
+
+    await within(classSelect).findByRole('option', { name: 'Still Image' });
+    expect(within(classSelect).getByRole('option', { name: 'Book' })).toBeInTheDocument();
   });
 
   it('the sort selects write sort_by and sort_order', () => {

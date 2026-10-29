@@ -17,8 +17,8 @@ use chrono::{NaiveDate, NaiveDateTime};
 use indexmap::IndexMap;
 use omeka_db::ids::{ItemSetId, PropertyId, SiteId};
 use omeka_db::repos::{
-    FulltextRepo, Joiner, MatchKind, MediaVisibility, OthersChanges, QueryFilter, ValueQuery,
-    WorkFilters,
+    FulltextRepo, ItemFilter, ItemSetFilter, Joiner, MatchKind, MediaFilter, MediaVisibility,
+    OthersChanges, QueryFilter, ValueQuery, WorkFilters,
 };
 use omeka_db::with_db;
 
@@ -174,6 +174,46 @@ pub fn id_filter(params: &Params) -> Option<Vec<i64>> {
         return None;
     }
     Some(values.iter().map(|value| php_int_cast(value)).collect())
+}
+
+/// The [`ItemFilter`] half of an items query: the parameters that predate
+/// [`SearchQuery`]. The items endpoint and the public site's searches (a
+/// browse preview, the item browse) both read it, so a block lists what its
+/// query's API search lists.
+pub fn item_filter(params: &Params) -> ItemFilter {
+    ItemFilter {
+        owner_id: params.id("owner_id"),
+        resource_class_id: params.id("resource_class_id"),
+        resource_template_id: params.id("resource_template_id"),
+        is_public: params.bool("is_public"),
+        ..ItemFilter::default()
+    }
+}
+
+/// The [`ItemSetFilter`] half of an item sets query, as [`item_filter`] is for items.
+pub fn item_set_filter(params: &Params) -> ItemSetFilter {
+    ItemSetFilter {
+        owner_id: params.id("owner_id"),
+        resource_class_id: params.id("resource_class_id"),
+        resource_template_id: params.id("resource_template_id"),
+        is_public: params.bool("is_public"),
+        is_open: params.bool("is_open"),
+    }
+}
+
+/// The [`MediaFilter`] half of a media query, as [`item_filter`] is for items.
+pub fn media_filter(params: &Params) -> MediaFilter {
+    MediaFilter {
+        item_id: params.id("item_id"),
+        ingester: params.get("ingester").map(str::to_string),
+        renderer: params.get("renderer").map(str::to_string),
+        media_type: params.get("media_type").map(str::to_string),
+        kinds: kind_names(params.list("romeka_kind")),
+        owner_id: params.id("owner_id"),
+        resource_class_id: params.id("resource_class_id"),
+        resource_template_id: params.id("resource_template_id"),
+        is_public: params.bool("is_public"),
+    }
 }
 
 /// Whether a row's id survives the request's `id` filter.

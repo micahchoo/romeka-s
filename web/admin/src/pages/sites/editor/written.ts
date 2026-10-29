@@ -7,8 +7,8 @@
  * (`crates/omeka-site/src/blocks/written.rs`). This module is the one place
  * the admin decides it, for the editor's block list (live on the draft) and
  * for the site hub's page list (on the stored pages), so the two counts
- * cannot differ. `blocks.json` carries the server's blank-HTML samples, and a
- * test holds `isBlankHtml` to them.
+ * cannot differ. Blank HTML is `blankHtml.ts`'s rule, which the html field's
+ * hint reads too.
  *
  * It also finds the text earlier templates laid down
  * (`former-template-text.json`) on a page saved before the templates left
@@ -17,6 +17,7 @@
 import type { JsonValue, SitePageBlock } from '../../../api/types';
 import formerText from '../../../generated/former-template-text.json';
 import { BLOCK_REGISTRY } from '../blockRegistry';
+import { isBlankHtml } from './blankHtml';
 import type { BlockField, BlockRegistry } from '../blockSchema';
 import type { BlockKey, DraftAction, LayoutData } from './draft';
 import { romekaKey } from './layoutPaths';
@@ -34,36 +35,6 @@ export interface BlockContent {
 }
 
 type JsonRecord = Readonly<Record<string, JsonValue>>;
-
-/** The tags a rich editor leaves in an emptied field. Any other tag is content. */
-const EMPTY_TAGS = new Set(['p', 'br', 'div', 'span']);
-
-const isBlankText = (text: string): boolean =>
-  text.replaceAll('&nbsp;', ' ').replaceAll('&#160;', ' ').trim() === '';
-
-/**
- * Whether HTML holds no words and no element a visitor would see: only
- * whitespace, non-breaking spaces and the empty wrappers a rich editor leaves
- * (`<p><br></p>`). The same scan as the server's `is_blank_html`.
- */
-export const isBlankHtml = (html: string): boolean => {
-  let rest = html;
-  for (let start = rest.indexOf('<'); start !== -1; start = rest.indexOf('<')) {
-    if (!isBlankText(rest.slice(0, start))) {
-      return false;
-    }
-    const end = rest.indexOf('>', start);
-    if (end === -1) {
-      return false;
-    }
-    const name = /^\/?([A-Za-z0-9]*)/.exec(rest.slice(start + 1, end))?.[1] ?? '';
-    if (!EMPTY_TAGS.has(name.toLowerCase())) {
-      return false;
-    }
-    rest = rest.slice(end + 1);
-  }
-  return isBlankText(rest);
-};
 
 const isBlank = (field: BlockField, value: JsonValue | undefined): boolean => {
   if (value === undefined || value === null) {

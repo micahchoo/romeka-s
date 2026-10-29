@@ -6,7 +6,18 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { BlockForm } from '../src/pages/sites/editor/fields/BlockForm';
-import { actionsOf, dispatchSpy, draftFor, schemaForLayout, SITE_ID, selectAll } from './editor-fields-helpers';
+import {
+  actionsOf,
+  BlockFormHarness,
+  dispatchSpy,
+  draftFor,
+  schemaForLayout,
+  SITE_ID,
+  selectAll,
+} from './editor-fields-helpers';
+
+/** The html block's own hint (`fieldExample.html.html`). */
+const HINT = 'Write what visitors read here.';
 
 const editor = (): HTMLElement => screen.getByRole('textbox', { name: 'Text' });
 
@@ -129,6 +140,29 @@ describe('the html field control', () => {
     expect(actionsOf(dispatch)).toEqual([
       { type: 'setField', blockKey: block.key, field: 'html', value: '<p>Raw</p>' },
     ]);
+  });
+
+  it.each(['', '<p><br></p>', '<p>&nbsp;</p>', '<div><br></div>'])(
+    'shows its hint while the value %j is blank, as the row\'s "Not written yet" reads it',
+    (html) => {
+      renderHtml(html);
+
+      expect(screen.getByText(HINT)).toBeInTheDocument();
+    },
+  );
+
+  it('hides its hint once the text has words, and shows it again when emptied', () => {
+    render(<BlockFormHarness layout="html" data={{ html: '' }} />);
+    const surface = editor();
+    expect(screen.getByText(HINT)).toBeInTheDocument();
+
+    surface.innerHTML = '<p>Hi</p>';
+    fireEvent.input(surface);
+    expect(screen.queryByText(HINT)).toBeNull();
+
+    surface.innerHTML = '<p><br></p>';
+    fireEvent.input(surface);
+    expect(screen.getByText(HINT)).toBeInTheDocument();
   });
 
   it('the source toggle reports its pressed state', () => {

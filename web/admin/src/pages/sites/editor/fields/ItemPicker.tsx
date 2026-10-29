@@ -15,8 +15,8 @@
 import type { KeyboardEvent, ReactElement } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../../../api/client';
-import { placesApi } from '../../../../api/places';
 import type { ClassId, Item, ItemId, ItemSet, ItemSetId } from '../../../../api/types';
+import { useClassChoices, useClassOptionText } from '../../../../app/class-choices';
 import { KIND_LABEL } from '../../../../app/media';
 import { useAsync } from '../../../../app/useAsync';
 import { useSettled } from '../../../../app/useSettled';
@@ -25,13 +25,12 @@ import { common } from '../../../../i18n/namespaces/common';
 import { resources } from '../../../../i18n/namespaces/resources';
 import { sites } from '../../../../i18n/namespaces/sites';
 import type { FieldAccepts } from '../../blockSchema';
-import type { ClassChoice, Filters, ItemPickerProps, MediaNarrowing, Source } from './itemPickerModel';
+import type { Filters, ItemPickerProps, MediaNarrowing, Source } from './itemPickerModel';
 import {
   ALL_ITEMS,
   HAS_CHOICES,
   NO_FILTERS,
   NO_NARROWING,
-  classChoices,
   classTerm,
   hasChoiceOf,
   isFiltered,
@@ -198,8 +197,8 @@ export const ItemPicker = (props: ItemPickerProps): ReactElement => {
   const setsState = useAsync(() => api.listItemSets({ perPage: SET_LIMIT, sortBy: 'title' }), []);
   const sets = setsState.status === 'ready' ? setsState.data.items : [];
   const counts = useSourceCounts(sets);
-  const classesState = useAsync(() => placesApi.classCounts(), []);
-  const classes = classesState.status === 'ready' ? classChoices(classesState.data) : [];
+  const classes = useClassChoices(classId);
+  const classOption = useClassOptionText();
 
   const picked = pickedList(props);
   const setPicks = props.mode === 'many' ? props.sets : undefined;
@@ -274,13 +273,6 @@ export const ItemPicker = (props: ItemPickerProps): ReactElement => {
 
   const setTitle = new Map(sets.map((set) => [set.id, set.title ?? t('common.untitled')]));
   const classLabel = new Map(classes.map((entry) => [entry.id, entry.label]));
-  const classOption = (entry: ClassChoice): string => {
-    const label =
-      entry.standard === null ? entry.label : t('itemPicker.classIn', { label: entry.label, standard: entry.standard });
-    return entry.items === 1
-      ? t('itemPicker.classOptionOne', { label })
-      : t('itemPicker.classOption', { label, count: number(entry.items) });
-  };
   const titleOf = (item: ItemId): string => {
     const found = known.get(item);
     return found === undefined
