@@ -89,9 +89,9 @@ Each area below links to the page that describes it in full.
   them from it. [`docs/user-guide.md`](docs/user-guide.md), The admin pages.
 - **Describe.** Item types (resource templates) have an editor with a live preview of the item
   form. The template sets the rows, labels, required values and data types of the item, item set
-  and media forms. Term lists are the Custom Vocab module built into core. A Tags field writes plain
-  `dcterms:subject` values. A vocabulary can be imported or updated from an RDF file or URL, with a
-  diff before an update. A term list or a vocabulary can be published at `/vocab/<slug>/` in Turtle,
+  and media forms. Term lists are the Custom Vocab module built into core. The Subject field takes
+  tags, written as plain `dcterms:subject` values. A standard (vocabulary) can be imported or updated
+  from an RDF file or URL, with a diff before an update. A term list or a standard can be published at `/vocab/<slug>/` in Turtle,
   JSON-LD, RDF/XML, N-Triples or HTML. [`CHANGELOG.md`](CHANGELOG.md), Unreleased.
 - **Archive import.** The Import page turns a folder on the server, or files and ZIP archives sent
   from the browser, into items, item sets and media. It reads spreadsheet lists (CSV, TSV, XLSX,
