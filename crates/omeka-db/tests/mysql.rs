@@ -1108,6 +1108,7 @@ async fn a_whole_site_create_commits_together_or_not_at_all() {
                 layout_data: None,
             }],
         },
+        creator: None,
         navigation_linking_first_page: Some(link_first_page),
         permissions: vec![(user, "admin".to_string())],
         item_sets: Vec::new(),
@@ -1127,7 +1128,7 @@ async fn a_whole_site_create_commits_together_or_not_at_all() {
     let sites = SiteRepo::<MySql>::new(&db.pool);
 
     let site = sites
-        .create_whole(&new("whole", user.id))
+        .create_whole(&new("whole", user.id), &|_| Ok(json!({})))
         .await
         .expect("create whole site");
     let pages = sites.list_pages(site.id).await.expect("list pages");
@@ -1138,7 +1139,7 @@ async fn a_whole_site_create_commits_together_or_not_at_all() {
 
     assert!(
         sites
-            .create_whole(&new("broken", UserId(999_999)))
+            .create_whole(&new("broken", UserId(999_999)), &|_| Ok(json!({})))
             .await
             .is_err()
     );

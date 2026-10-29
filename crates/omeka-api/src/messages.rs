@@ -593,6 +593,8 @@ messages! {
     fn media_upload_incomplete(received, length) = "This upload holds {received} of its {length} bytes. Send the rest before you add it.";
     /// A media create naming a staged upload with an ingester other than upload.
     const MEDIA_UPLOAD_INGESTER = "A staged upload is added with the upload ingester.";
+    /// A region note on a picture whose thumbnails the derivative worker has not made yet.
+    const ANNOTATION_PREVIEW_PENDING = "This picture's preview is still being made. Try again in a moment.";
     /// A retry on a media whose playable copy has nothing to make again.
     const NO_DERIVATIVE_TO_RETRY = "This media has no failed copy to make again.";
     /// An inline `o:media` entry naming a staged upload.

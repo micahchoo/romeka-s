@@ -9,6 +9,7 @@
 
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Sqlite, Type};
 
+use super::page_versions::{Snapshot, insert_created_version};
 use super::settings::SiteSettingRepo;
 use super::{
     Paging, Statement, bind_id, bind_opt_id, fetch_rows, insert_id, json_text, push_paging,
@@ -62,8 +63,13 @@ where
 
     /// Create a site with its first page, blocks, permissions, item sets and settings, in one
     /// transaction: a failing row leaves none of the others. `modified` equals `created`, as
-    /// upstream's `updateTimestamps` stores them on create.
-    pub async fn create_whole(&self, new: &NewWholeSite) -> Result<SiteRow, DbError> {
+    /// upstream's `updateTimestamps` stores them on create. The first page gets version 1, by
+    /// `new.creator`, as [`super::PageVersionRepo::create`] gives a page made on its own.
+    pub async fn create_whole(
+        &self,
+        new: &NewWholeSite,
+        snapshot: Snapshot<'_>,
+    ) -> Result<SiteRow, DbError> {
         let mut tx = self.pool.begin().await?;
         let mut site = Self::insert_site(&mut tx, &new.site).await?;
         let page = insert_page::<DB>(
@@ -91,6 +97,7 @@ where
             )
             .await?;
         }
+        let page = insert_created_version::<DB>(&mut tx, page, new.creator, snapshot).await?;
         if let Some(linking) = new.navigation_linking_first_page {
             site.navigation = linking(page.id);
             sqlx::query("UPDATE site SET navigation = ? WHERE id = ?")

@@ -117,6 +117,10 @@ pub(crate) fn annotated(mut response: Response) -> Response {
     response
 }
 
+/// The seconds a client waits before it sends a refused region note again. A hint only: the
+/// worker's queue decides when the preview exists, and the server does not predict it.
+const PREVIEW_RETRY_AFTER_SECS: &str = "5";
+
 /// One status for an [`AnnotationError`]. The 400 sentence is the service's own
 /// plain English (a `Problem`); the rest reuse upstream's registry text.
 pub(crate) fn wap_error(error: AnnotationError, iris: &Iris) -> Response {
@@ -129,6 +133,17 @@ pub(crate) fn wap_error(error: AnnotationError, iris: &Iris) -> Response {
         ),
         AnnotationError::Invalid(problem) => {
             error_document(StatusCode::BAD_REQUEST, &problem.to_string())
+        }
+        AnnotationError::PreviewPending => {
+            // 409, as the API answers a resource whose current state refuses a request that will
+            // succeed later (an upload still arriving); 503 is the whole server's readiness.
+            let mut response =
+                error_document(StatusCode::CONFLICT, messages::ANNOTATION_PREVIEW_PENDING);
+            response.headers_mut().insert(
+                axum::http::header::RETRY_AFTER,
+                axum::http::HeaderValue::from_static(PREVIEW_RETRY_AFTER_SECS),
+            );
+            response
         }
         AnnotationError::TooLarge => {
             error_document(StatusCode::PAYLOAD_TOO_LARGE, messages::BODY_TOO_LARGE)

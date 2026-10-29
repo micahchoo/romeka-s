@@ -98,6 +98,9 @@ impl Default for NewSite {
 pub struct NewWholeSite {
     pub site: NewSite,
     pub first_page: NewFirstPage,
+    /// Who makes the site: the first page's version 1 names them. `None` for a write with no
+    /// signed-in user.
+    pub creator: Option<UserId>,
     /// When set, the site stores this function of the first page's id as its
     /// navigation in place of `site.navigation`. The page id exists only once
     /// the page row does, and the page row needs the site's id first.
