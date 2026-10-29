@@ -31,7 +31,7 @@ import {
 } from './draft';
 import type { ResourceDraft, ValueDraft, ValueKind } from './draft';
 import type { TermChoice } from '../pages/term-lists/term-picker';
-import type { Termed } from './plain-terms';
+import { fieldDescription, type Termed } from './plain-terms';
 
 /** What one template row says about its property's values. */
 export interface FieldRule {
@@ -139,7 +139,7 @@ export const layoutFields = (
       propertyId: row.property.id,
       term: row.property.term,
       label: row.label ?? text.label(row.property.term, row.property.label) ?? row.property.term,
-      comment: row.comment ?? text.comment(row.property.term, row.property.comment),
+      comment: row.comment ?? fieldDescription(row.property, text),
       property: row.property,
       rule: row.rule,
       values: valuesOf(row.property.id),
@@ -157,7 +157,7 @@ export const layoutFields = (
       propertyId: value.propertyId,
       term: value.term,
       label: (property === undefined ? null : text.label(property.term, property.label)) ?? value.term,
-      comment: property === undefined ? null : text.comment(property.term, property.comment),
+      comment: property === undefined ? null : fieldDescription(property, text),
       property: property ?? { term: value.term, localName: value.term, label: null, comment: null },
       rule: null,
       values: valuesOf(value.propertyId),

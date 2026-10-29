@@ -163,10 +163,13 @@ describe('the template lays out the value fields', () => {
       comment: 'What the picture shows.',
       term: 'dcterms:description',
     });
-    expect(fieldOf(fields, 'dcterms:title')).toMatchObject({
-      label: 'Title',
-      comment: 'A name given to the resource.',
-    });
+    expect(fieldOf(fields, 'dcterms:title')).toMatchObject({ label: 'Title' });
+  });
+
+  it('describes a field without its own help text as the Fields page does', () => {
+    const fields = layoutFields(storedDraft().values, portrait, PROPERTIES, ENGLISH);
+    expect(fieldOf(fields, 'dcterms:title').comment).toBe('The name you give it');
+    expect(fieldOf(fields, 'dcterms:date').comment).toBe('A date connected to it');
     expect(fieldOf(fields, 'dcterms:date')).toMatchObject({ label: 'Date', rule: null });
   });
 

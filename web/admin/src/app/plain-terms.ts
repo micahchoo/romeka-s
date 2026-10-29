@@ -651,6 +651,14 @@ export const plainHint = (term: string, locale: Locale): string | null =>
   plainOf(term, locale)?.[1] ?? null;
 
 /**
+ * A field's description wherever the admin shows one: the curated hint, else
+ * the definition. The Fields page and the form both read it, so one field is
+ * never described two ways.
+ */
+export const fieldDescription = (entry: Termed, text: TermText): string | null =>
+  plainHint(entry.term, text.locale) ?? termComment(entry, text);
+
+/**
  * Words a query carries little meaning in. They still count a little, so "who
  * wrote it" prefers the creator over every property whose words hold "wrote".
  */

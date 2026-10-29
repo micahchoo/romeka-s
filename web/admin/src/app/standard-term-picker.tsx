@@ -6,11 +6,10 @@
  */
 import { useId, useState } from 'react';
 import type { ReactElement } from 'react';
-import { useLocale } from '../i18n';
 import { useTermText } from '../i18n/termComments';
 import { useDescribeText } from './describe-messages';
 import './describe.css';
-import { plainHint, plainName, searchTerms, termComment, type Termed } from './plain-terms';
+import { fieldDescription, plainName, searchTerms, termComment, type Termed } from './plain-terms';
 
 /** "?": the term's `rdfs:comment`, shown under the control that asks. */
 export const TermHelp = ({ entry }: { readonly entry: Termed }): ReactElement => {
@@ -62,7 +61,6 @@ export const StandardTermPicker = <T extends Termed>({
   autoFocus,
 }: StandardTermPickerProps<T>): ReactElement => {
   const t = useDescribeText();
-  const locale = useLocale();
   const text = useTermText();
   const inputId = useId();
   const [query, setQuery] = useState('');
@@ -114,7 +112,7 @@ export const StandardTermPicker = <T extends Termed>({
               >
                 <span className="term-match-name">{plainName(entry, text)}</span>
                 <span className="term-match-hint">
-                  {plainHint(entry.term, locale) ?? termComment(entry, text) ?? ''}
+                  {fieldDescription(entry, text) ?? ''}
                 </span>
                 <code className="term-match-term">{entry.term}</code>
               </button>

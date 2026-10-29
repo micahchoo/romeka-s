@@ -11,6 +11,7 @@ import { useTermText } from '../../i18n/termComments';
 import type { DataType, Property } from '../../api/types';
 import { useLesson } from '../../app/lessons/lesson';
 import { TermHelp, StandardTermPicker } from '../../app/standard-term-picker';
+import { fieldDescription } from '../../app/plain-terms';
 import { isTermListName } from '../../api/term-lists';
 import { acceptChoices, acceptGroups, CORE_ACCEPTS, isCoreAccepts, isInstalled } from './accepts';
 import { useItemTypesText, type ItemTypesText } from './messages';
@@ -250,7 +251,7 @@ const FlagsLine = ({ field, property, name: shownName, patch }: SettingsProps): 
           <input
             id={`${id}-help`}
             type="text"
-            placeholder={(property === undefined ? null : text.comment(property.term, property.comment)) ?? ''}
+            placeholder={(property === undefined ? null : fieldDescription(property, text)) ?? ''}
             value={field.alternateComment ?? ''}
             onChange={(event) => {
               patch({ alternateComment: textOrNull(event.target.value) });

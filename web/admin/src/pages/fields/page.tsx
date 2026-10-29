@@ -11,10 +11,10 @@ import type { Property, ResourceTemplate } from '../../api/types';
 import { ALL_PAGES_PER_PAGE as PER_PAGE, allPages } from '../../app/all-pages';
 import { ErrorNotice } from '../../app/errors';
 import { useLesson } from '../../app/lessons/lesson';
-import { PLAIN_TERMS, plainHint, plainName, searchTerms, termComment } from '../../app/plain-terms';
+import { PLAIN_TERMS, fieldDescription, plainName, searchTerms } from '../../app/plain-terms';
 import { TermHelp } from '../../app/standard-term-picker';
 import { useAsync } from '../../app/useAsync';
-import { useLocale, useTranslator, type TermLabels } from '../../i18n';
+import { useTranslator, type TermLabels } from '../../i18n';
 import { useTermText } from '../../i18n/termComments';
 import '../item-types/item-types.css';
 import { useItemTypesText } from '../item-types/messages';
@@ -64,7 +64,6 @@ const FieldEntry = ({
   readonly uses: readonly Use[];
 }): ReactElement => {
   const t = useItemTypesText();
-  const locale = useLocale();
   const text = useTermText();
   const name = plainName(property, text);
   const renamed = uses.filter((use) => use.label !== null && use.label !== name);
@@ -85,7 +84,7 @@ const FieldEntry = ({
           <TermHelp entry={property} />
         </p>
         <p className="fields-entry-hint">
-          {plainHint(property.term, locale) ?? termComment(property, text) ?? ''}
+          {fieldDescription(property, text) ?? ''}
         </p>
         <a className="property-field-term" href={standardsHref('properties', property.id)}>
           {property.term}
