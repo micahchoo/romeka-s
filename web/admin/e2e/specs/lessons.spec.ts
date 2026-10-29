@@ -117,7 +117,7 @@ test('the Show lessons switch hides every lesson and every Lesson chip', async (
   await expect(page.getByText('Saved.')).toBeVisible();
 
   await page.goto('/#/standards');
-  await expect(page.getByText('The shared vocabularies your fields')).toBeVisible();
+  await expect(page.getByText('The shared standards your fields')).toBeVisible();
   // The lessons wait for the session; once it is known, none may show.
   await expect(page.getByText(/^Signed in as/u)).toBeVisible();
   await expect(page.getByRole('note', { name: /^Lesson:/u })).toHaveCount(0);
@@ -125,7 +125,7 @@ test('the Show lessons switch hides every lesson and every Lesson chip', async (
   await expectClean(diagnostics, 'switched off');
 
   await page.reload();
-  await expect(page.getByText('The shared vocabularies your fields')).toBeVisible();
+  await expect(page.getByText('The shared standards your fields')).toBeVisible();
   await expect(page.getByText(/^Signed in as/u)).toBeVisible();
   await expect(page.getByRole('button', { name: /^Show the lesson/u })).toHaveCount(0);
 
