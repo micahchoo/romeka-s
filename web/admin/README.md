@@ -75,9 +75,11 @@ render the header and their own page, with no admin navigation:
 
 - `#/` (or `#/dashboard`) shows the admin dashboard: resource counts and the site list, each site
   name a link to that site (`#/sites/<id>`).
-- `#/items` lists items. `#/items/new` creates one. `#/items/<id>` shows one item, with its values
-  and an "Edit this item" panel for values, title, visibility, class, template, owner and item-set
-  membership.
+- `#/items` lists items. `#/items/new` creates one. `#/items/<id>` shows one item. Its values are one
+  list above the media, each field under the name its item type gives it, with the term as quiet text
+  and each value's kind in the form's words (`app/values.tsx`). "Edit this item" at the top swaps that
+  list for the form in the same place (`pages/items/item-values.tsx`); Save or Cancel brings the list
+  back there. `?edit=1` opens the page at the form.
 - `#/item-sets` lists item sets. `#/item-sets/new` creates one. `#/item-sets/<id>` opens the set's place: it
   replaces its own history entry with `#/items?set=<id>`, the Items screen filtered to the set. Whenever the
   Items screen has a set filter, the set's card heads the results (`pages/items/set-card.tsx`): its item

@@ -3,23 +3,21 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, useS
 import { api } from '../../api/client';
 import { listMediaForItem } from '../../api/media';
 import { currentUser, subscribeSession } from '../../api/session';
-import type { ClassId, Item, ItemId, ItemSetId, Media, MediaId, SiteId, User, UserId } from '../../api/types';
+import type { ClassId, DataType, Item, ItemId, ItemSetId, Media, MediaId, ResourceTemplate, SiteId, User, UserId } from '../../api/types';
 import { fromBrowserEntry, fromDrop } from '../../app/upload/pick';
 import type { Picked } from '../../app/upload/pick';
 import { formatDateTime } from '../../app/format';
 import { ErrorNotice } from '../../app/errors';
-import { EditPanel } from '../../app/fields';
 import { MediaImage, MediaKindBadge } from '../../app/media-image';
 import { mediaName, previewImageUrl, previewLinkUrl } from '../../app/media';
 import { useAsync } from '../../app/useAsync';
-import { ValuesList } from '../../app/values';
 import { writtenItems } from '../../app/written';
 import { hashQuery, useHash } from '../../app/router';
 import { useTranslator } from '../../i18n';
 import { useTermLabels } from '../../i18n/termText';
 import { classLabelOf, classLabels, ownerNameOf, userNames } from './labels';
 import type { TermName } from './labels';
-import { ItemEditForm } from './form';
+import { ItemValues } from './item-values';
 import { annotateHref, mediaHref } from '../media/annotations/link';
 import { useItemNotes } from './notes/use-item-notes';
 import { previewHref, previewIdOf } from './preview/url';
@@ -80,6 +78,7 @@ interface ItemReads {
   readonly mediaTotal: number;
   readonly ownerNames: ReadonlyMap<UserId, string>;
   readonly classLabels: ReadonlyMap<ClassId, TermName>;
+  readonly dataTypes: readonly DataType[];
 }
 
 /** The label maps before their reads answer, so a ref falls back to `#id`. */
@@ -90,10 +89,11 @@ const isFileDrag = (event: DragEvent): boolean =>
   event.dataTransfer !== null && Array.from(event.dataTransfer.types).includes('Files');
 
 const NO_MEDIA: readonly Media[] = [];
+const NO_DATA_TYPES: readonly DataType[] = [];
 
 /** The names of what the item points at, each read as the caller: a ref it may not read is left out. */
 interface ItemPlaces {
-  readonly templateName: string | null;
+  readonly template: ResourceTemplate | null;
   readonly sets: readonly { readonly id: ItemSetId; readonly title: string | null }[];
   readonly sites: readonly { readonly id: SiteId; readonly title: string }[];
 }
@@ -111,7 +111,7 @@ const loadPlaces = async (item: Item): Promise<ItemPlaces> => {
       : api.listSites({ id: idList(item.sites), perPage: item.sites.length }).then((page) => page.items),
   ]);
   return {
-    templateName: template?.label ?? null,
+    template,
     sets: sets.map((set) => ({ id: set.id, title: set.title })),
     sites: sites.map((site) => ({ id: site.id, title: site.title })),
   };
@@ -313,16 +313,18 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
   // The media and the label lookups are separate reads: the record renders as
   // soon as it is known and these fill in when they answer.
   const readsState = useAsync(async (): Promise<ItemReads> => {
-    const [media, users, classes] = await Promise.all([
+    const [media, users, classes, dataTypes] = await Promise.all([
       listMediaForItem(api, itemId, { perPage: MEDIA_PER_PAGE }),
       api.listUsers({ perPage: 100 }),
       api.listResourceClasses({ perPage: 100 }),
+      api.listDataTypes({ perPage: 100 }),
     ]);
     return {
       media: media.items,
       mediaTotal: media.total,
       ownerNames: userNames(users.items),
       classLabels: classLabels(classes.items),
+      dataTypes: dataTypes.items,
     };
   }, [itemId]);
   // A save replaces the read view without a refetch, so the editor and the
@@ -378,7 +380,22 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
   const [preview, setPreview] = useState<MediaId | null>(() => previewIdOf(window.location.hash));
   const query = hashQuery(hash);
   const walk = useWalk(itemId, parseWalk(query));
-  const [editing] = useState(() => query.get('edit') === '1');
+  const [openedToEdit] = useState(() => query.get('edit') === '1');
+  const [editing, setEditing] = useState(openedToEdit);
+  const [justSaved, setJustSaved] = useState(false);
+  const editButton = useRef<HTMLButtonElement>(null);
+  const closeEditor = useCallback(() => {
+    setEditing(false);
+    editButton.current?.focus();
+  }, []);
+  const onEditorSaved = useCallback(
+    (saved: Item) => {
+      setEdited(saved);
+      setJustSaved(true);
+      closeEditor();
+    },
+    [closeEditor],
+  );
   const lastPreview = useRef<MediaId | null>(null);
   useEffect(() => {
     setPreview(previewIdOf(hash));
@@ -418,7 +435,7 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
   const templateText =
     item.resourceTemplate === null
       ? t('common.none')
-      : (places?.templateName ?? (failed || places !== null ? `#${String(item.resourceTemplate.id)}` : '…'));
+      : (places?.template?.label ?? (failed || places !== null ? `#${String(item.resourceTemplate.id)}` : '…'));
   const setLinks = failed
     ? item.itemSets.map((ref) => ({ key: ref.id, href: setPlaceHref(ref.id), text: `#${String(ref.id)}` }))
     : (places?.sets.map((set) => ({ key: set.id, href: setPlaceHref(set.id), text: set.title ?? t('common.untitled') })) ?? null);
@@ -447,8 +464,22 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
   return (
     <section>
       {walk === null ? null : <WalkLine found={walk} />}
-      <h2>{item.title ?? t('common.untitled')}</h2>
-      <dl>
+      <div className="item-head">
+        <h2>{item.title ?? t('common.untitled')}</h2>
+        <button
+          type="button"
+          ref={editButton}
+          className="edit-toggle"
+          aria-expanded={editing}
+          onClick={() => {
+            setJustSaved(false);
+            setEditing(!editing);
+          }}
+        >
+          {t('items.editLabel')}
+        </button>
+      </div>
+      <dl className="item-facts">
         <dt>{t('column.id')}</dt>
         <dd>{item.id}</dd>
         <dt>{t('media.visibility')}</dt>
@@ -472,6 +503,18 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
         <dt>{t('column.modified')}</dt>
         <dd>{item.modified === null ? t('common.never') : formatDateTime(item.modified, locale)}</dd>
       </dl>
+
+      <ItemValues
+        item={item}
+        template={places?.template ?? null}
+        dataTypes={reads?.dataTypes ?? NO_DATA_TYPES}
+        editing={editing}
+        justSaved={justSaved}
+        openedToEdit={openedToEdit}
+        onSaved={onEditorSaved}
+        onCancel={closeEditor}
+        saveNext={walk === null ? null : saveNextHref(walk)}
+      />
 
       {readsState.status === 'error' ? (
         <ErrorNotice error={readsState.error} />
@@ -567,19 +610,12 @@ export const ItemDetail = ({ itemId }: { readonly itemId: ItemId }): ReactElemen
         </Suspense>
       )}
 
-      <h2>{t('items.valuesHeading')}</h2>
-      <ValuesList values={item.values} />
-
       <h2>{t('linkedFrom.heading')}</h2>
       <Suspense fallback={<p role="status">{t('linkedFrom.loading')}</p>}>
         <LinkedFrom target={item.id} />
       </Suspense>
 
       {adding ? <HistoryFold item={item.id} onSaved={setEdited} /> : null}
-
-      <EditPanel label={t('items.editLabel')} initiallyOpen={editing}>
-        <ItemEditForm item={item} onSaved={setEdited} saveNext={walk === null ? null : saveNextHref(walk)} />
-      </EditPanel>
 
       <TrashOpener
         label={t('items.deleteLabel')}

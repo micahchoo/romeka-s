@@ -27,6 +27,8 @@ interface ItemEditorProps {
   readonly onSaved: (item: Item) => void;
   /** The next item's edit address in the list this item was opened from, or null when none follows. */
   readonly saveNext: string | null;
+  /** Leaves the form unsaved; absent on the create form, which has nowhere to return to. */
+  readonly onCancel?: () => void;
 }
 
 /** The shared form lists, plus the sites this user may add items to. */
@@ -42,7 +44,7 @@ const loadItemOptions = async (): Promise<ItemOptions> => {
 /** The submit button that sends the walk on to the next item. */
 const SAVE_NEXT = 'next';
 
-const ItemEditor = ({ item, options, onSaved, saveNext }: ItemEditorProps): ReactElement => {
+const ItemEditor = ({ item, options, onSaved, saveNext, onCancel }: ItemEditorProps): ReactElement => {
   const { t } = useTranslator(common, resources);
   const text = useTermText();
   const [draft, setDraft] = useState<ResourceDraft>(() =>
@@ -154,11 +156,18 @@ const ItemEditor = ({ item, options, onSaved, saveNext }: ItemEditorProps): Reac
         label={item === null ? t('items.add') : t('action.save')}
         busy={saveState.status === 'saving'}
         also={
-          saveNext === null ? null : (
-            <button type="submit" value={SAVE_NEXT} disabled={saveState.status === 'saving'}>
-              {t('walk.saveNext')}
-            </button>
-          )
+          <>
+            {saveNext === null ? null : (
+              <button type="submit" value={SAVE_NEXT} disabled={saveState.status === 'saving'}>
+                {t('walk.saveNext')}
+              </button>
+            )}
+            {onCancel === undefined ? null : (
+              <button type="button" onClick={onCancel} disabled={saveState.status === 'saving'}>
+                {t('action.cancel')}
+              </button>
+            )}
+          </>
         }
       />
     </form>
@@ -200,17 +209,19 @@ export const ItemForm = (): ReactElement => (
   </OptionsState>
 );
 
-/** The edit half of the item show page, which already has the item loaded. */
+/** The item page's values form, in place of the read list, with the item already loaded. */
 export const ItemEditForm = ({
   item,
   onSaved,
+  onCancel,
   saveNext,
 }: {
   readonly item: Item;
   readonly onSaved: (item: Item) => void;
+  readonly onCancel: () => void;
   readonly saveNext: string | null;
 }): ReactElement => (
   <OptionsState load={loadItemOptions}>
-    {(options) => <ItemEditor item={item} options={options} onSaved={onSaved} saveNext={saveNext} />}
+    {(options) => <ItemEditor item={item} options={options} onSaved={onSaved} onCancel={onCancel} saveNext={saveNext} />}
   </OptionsState>
 );
