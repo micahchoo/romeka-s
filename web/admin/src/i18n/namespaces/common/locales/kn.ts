@@ -73,7 +73,6 @@ export const kn: CommonMessages = {
   'column.item': 'ಐಟಂ',
   'column.source': 'ಮೂಲ',
   'column.ingester': 'ಇಂಜೆಸ್ಟರ್',
-  'column.resourceClass': 'ಸಂಪನ್ಮೂಲ ವರ್ಗ',
   'resource.itemSets': 'ಐಟಂ ಸೆಟ್‌ಗಳು',
   'resource.media': 'ಮಾಧ್ಯಮ',
   'resource.items': 'ಐಟಂಗಳು',

@@ -73,7 +73,6 @@ export const hi: CommonMessages = {
   'column.item': 'आइटम',
   'column.source': 'स्रोत',
   'column.ingester': 'इनगेस्टर',
-  'column.resourceClass': 'रिसोर्स क्लास',
   'resource.itemSets': 'आइटम सेट्स',
   'resource.media': 'मीडिया',
   'resource.items': 'आइटम्स',

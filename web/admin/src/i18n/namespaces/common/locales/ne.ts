@@ -73,7 +73,6 @@ export const ne: CommonMessages = {
   'column.item': 'वस्तु',
   'column.source': 'स्रोत',
   'column.ingester': 'इन्जेस्टर',
-  'column.resourceClass': 'संसाधन वर्ग',
   'resource.itemSets': 'वस्तु सेटहरू',
   'resource.media': 'मिडिया',
   'resource.items': 'वस्तुहरू',

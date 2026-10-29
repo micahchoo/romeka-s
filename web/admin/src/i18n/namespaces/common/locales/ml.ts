@@ -73,7 +73,6 @@ export const ml: CommonMessages = {
   'column.item': 'ഇനം',
   'column.source': 'സ്രോതസ്സ്',
   'column.ingester': 'ഇൻഗെസ്റ്റർ',
-  'column.resourceClass': 'റിസോഴ്സ് ക്ലാസ്',
   'resource.itemSets': 'ഐറ്റം സെറ്റുകൾ',
   'resource.media': 'മീഡിയ',
   'resource.items': 'ഇനങ്ങൾ',

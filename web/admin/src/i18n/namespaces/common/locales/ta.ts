@@ -73,7 +73,6 @@ export const ta: CommonMessages = {
   'column.item': 'உருப்படி',
   'column.source': 'மூலம்',
   'column.ingester': 'உள்ளீட்டாளர்',
-  'column.resourceClass': 'வள வகுப்பு',
   'resource.itemSets': 'உருப்படித் தொகுப்புகள்',
   'resource.media': 'ஊடகங்கள்',
   'resource.items': 'உருப்படிகள்',

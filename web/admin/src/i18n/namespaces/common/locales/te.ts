@@ -73,7 +73,6 @@ export const te: CommonMessages = {
   'column.item': 'అంశం',
   'column.source': 'మూలం',
   'column.ingester': 'ఇంజెస్టర్',
-  'column.resourceClass': 'రిసోర్స్ క్లాస్',
   'resource.itemSets': 'ఐటమ్ సెట్లు',
   'resource.media': 'మీడియా',
   'resource.items': 'అంశాలు',

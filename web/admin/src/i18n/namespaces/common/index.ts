@@ -83,7 +83,6 @@ export const en = {
   'column.item': 'Item',
   'column.source': 'Source',
   'column.ingester': 'Ingester',
-  'column.resourceClass': 'Resource class',
   'resource.itemSets': 'item sets',
   'resource.media': 'media',
   'resource.items': 'items',

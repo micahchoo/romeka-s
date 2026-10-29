@@ -73,7 +73,6 @@ export const mr: CommonMessages = {
   'column.item': 'घटक',
   'column.source': 'स्रोत',
   'column.ingester': 'इनगेस्टर',
-  'column.resourceClass': 'संसाधन वर्ग',
   'resource.itemSets': 'आयटम संच',
   'resource.media': 'मीडिया',
   'resource.items': 'आयटम्स',

@@ -71,7 +71,6 @@ export const es: CommonMessages = {
   'column.item': 'Elemento',
   'column.source': 'Origen',
   'column.ingester': 'Importador',
-  'column.resourceClass': 'Clase de recurso',
   'resource.itemSets': 'conjuntos de elementos',
   'resource.media': 'medios',
   'resource.items': 'elementos',
