@@ -1,6 +1,6 @@
 /**
- * The reads behind a set's place, a record's "Linked from", an item type's field counts and the
- * Items browse's item type chips:
+ * The reads behind a set's place, a record's "Linked from", an item type's field counts, the
+ * Items browse's item type chips and the item picker's class filter:
  * Romeka's own count routes (`crates/omeka-api/src/read/place_counts.rs`), the one-record read
  * that names a link target, and the property searches the counts open (`res` for a link row,
  * `ex` and `nex` for a field). Every read runs as the caller, so a count
@@ -11,7 +11,7 @@ import { api } from './client';
 import type { ResourceQuery } from './client';
 import { asCount, list, member, oneOf, strict } from './import-read';
 import { ParseError, asIdNumber, asRecord, asString, brandId, isUnknownArray } from './parse';
-import type { ItemId, ItemSetId, MediaId, Parser, Path, PropertyId, ResourceId, TemplateId } from './types';
+import type { ClassId, ItemId, ItemSetId, MediaId, Parser, Path, PropertyId, ResourceId, TemplateId } from './types';
 
 /** The most set ids one counts request may name (`MOST_SET_IDS`). */
 export const MOST_SET_IDS = 200;
@@ -147,6 +147,31 @@ export const fieldQuery = (property: PropertyId, presence: 'empty' | 'filled'): 
   'property[1][type]': presence === 'empty' ? 'nex' : 'ex',
 });
 
+/** A class at least one item the caller may see has, with how many such items have it. */
+export interface ClassCount {
+  readonly id: ClassId;
+  readonly term: string;
+  /** The class's stored label; two classes of different standards may share it. */
+  readonly label: string;
+  readonly vocabularyLabel: string;
+  readonly items: number;
+}
+
+const parseClassCount = (raw: unknown, path: Path): ClassCount => {
+  const object = strict(raw, path, ['id', 'term', 'label', 'vocabulary_label', 'items']);
+  return {
+    id: brandId<'ClassId'>(member(object, 'id', path, asIdNumber)),
+    term: member(object, 'term', path, asString),
+    label: member(object, 'label', path, asString),
+    vocabularyLabel: member(object, 'vocabulary_label', path, asString),
+    items: member(object, 'items', path, asCount),
+  };
+};
+
+/** The used classes, in the server's order: by label, then the standard's label. */
+export const parseClassCounts: Parser<readonly ClassCount[]> = (raw, path = []) =>
+  member(strict(raw, path, ['classes']), 'classes', path, list(parseClassCount));
+
 /** How many items of one type the caller may see, and how many of them fill each field. */
 export interface FieldCounts {
   readonly total: number;
@@ -188,6 +213,9 @@ export const placesApi = {
   },
   async itemTypeCounts(): Promise<ItemTypeCounts> {
     return parseItemTypeCounts(await api.requestJson('/api/romeka/item-types/counts'));
+  },
+  async classCounts(): Promise<readonly ClassCount[]> {
+    return parseClassCounts(await api.requestJson('/api/romeka/classes/counts'));
   },
   async record(id: ResourceId): Promise<RecordSummary> {
     return parseRecordSummary(await api.requestJson(`/api/resources/${String(id)}`));
