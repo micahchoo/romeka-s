@@ -26,6 +26,8 @@ export const ta: SitesMessages = {
   'sites.defaultThemeLabel': 'இயல்புநிலை',
   'sites.errorNoTitle': 'ஒரு தளத்திற்குத் தலைப்பு இருக்க வேண்டும்.',
   'sites.add': 'தளத்தைச் சேர்க்கவும்',
+  'sites.lookAfterAdd':
+    'தளத்தைச் சேர்த்த பிறகு, அதன் கருப்பொருள் தாவலில் அதன் தோற்றத்தைத் தேர்ந்தெடுக்கவும்.',
   'sites.deleteLabel': 'இந்தத் தளத்தை நீக்கவும்',
   'sites.sectionsLabel': 'தளப் பிரிவுகள்',
   'sites.usersLegend': 'பயனர் அனுமதிகள்',
@@ -423,6 +425,9 @@ export const ta: SitesMessages = {
   'itemPicker.pickSetLabel': 'முழுத் தொகுப்பை {title} தேர்ந்தெடுக்கவும்',
   'itemPicker.class': 'வகுப்பு',
   'itemPicker.anyClass': 'எந்த வகுப்பு',
+  'itemPicker.classOption': '{label} · {count} உருப்படிகள்',
+  'itemPicker.classOptionOne': '{label} · 1 உருப்படி',
+  'itemPicker.classIn': '{label} ({standard})',
   'itemPicker.hasMedia': 'ஊடகங்களைக் கொண்டுள்ளது',
   'itemPicker.onlyImages': 'படங்களைக் கொண்ட உருப்படிகள் மட்டும்',
   'itemPicker.has': 'உள்ளது',

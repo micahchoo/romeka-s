@@ -57,6 +57,16 @@ const LETTER = itemJson(9, 'Letter home', literal('dcterms:identifier', 'Identif
 const many = (count: number): Record<string, unknown>[] =>
   Array.from({ length: count }, (_, at) => itemJson(100 - at, `Item ${String(100 - at)}`));
 
+/** `/api/romeka/classes/counts`: the classes items use, by label, as the server orders them. */
+const CLASS_COUNTS = {
+  classes: [
+    { id: 40, term: 'schema:Event', label: 'Event', vocabulary_label: 'Schema.org', items: 1 },
+    { id: 21, term: 'dctype:Image', label: 'Image', vocabulary_label: 'Dublin Core Type', items: 3 },
+    { id: 41, term: 'schema:Image', label: 'Image', vocabulary_label: 'Schema.org', items: 2 },
+    { id: 13, term: 'dctype:StillImage', label: 'Still Image', vocabulary_label: 'Dublin Core Type', items: 2 },
+  ],
+};
+
 interface Archive {
   /** Every item the archive holds, for counts and lookups by id. */
   readonly rows: readonly Record<string, unknown>[];
@@ -72,8 +82,8 @@ const archive =
     switch (url.pathname) {
       case '/api/item_sets':
         return listResponse(loadFixture('item-sets-page.json'), 2);
-      case '/api/resource_classes':
-        return listResponse(loadFixture('resource-classes-page.json'), 2);
+      case '/api/romeka/classes/counts':
+        return jsonResponse(CLASS_COUNTS);
       case '/api/media':
         return listResponse([], 0);
       case '/api/items': {
@@ -159,6 +169,28 @@ describe('ItemPicker', () => {
       fetchMock.mock.calls.some(([input]) => requestUrl(input).pathname.startsWith('/api/items/')),
       'no row reads its item one by one',
     ).toBe(false);
+  });
+
+  it('offers only the classes items use, each with its item count, and a shared label with its standard', async () => {
+    const fetchMock = installFetch(archive({ rows: [MAP, LETTER] }));
+    render(<Many picks={noPicks()} />);
+
+    const select = screen.getByRole('combobox', { name: 'Class' });
+    await waitFor(() => {
+      expect(within(select).getAllByRole('option').map((option) => option.textContent)).toEqual([
+        'Any class',
+        'Event · 1 item',
+        'Image (Dublin Core Type) · 3 items',
+        'Image (Schema.org) · 2 items',
+        'Still Image · 2 items',
+      ]);
+    });
+    expect(requestsFor(fetchMock, '/api/resource_classes'), 'no list of every class').toEqual([]);
+
+    fireEvent.change(select, { target: { value: '41' } });
+    await waitFor(() => {
+      expect(requestsFor(fetchMock, '/api/items').at(-1)?.url.searchParams.get('resource_class_id')).toBe('41');
+    });
   });
 
   it('moves with the arrows, picks with Space, and steps into the peek and the sources', async () => {

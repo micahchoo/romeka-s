@@ -18,8 +18,9 @@ import { sites } from '../../i18n/namespaces/sites';
 /**
  * The bundled theme (`crates/omeka-site/src/theme/default.rs`). No API endpoint
  * lists themes, so the select offers the port's one theme plus the stored value.
+ * The look of a site (its preset) is chosen on its Theme tab, not here.
  */
-const THEME_OPTIONS = ['default'];
+export const INSTALLED_THEMES: readonly string[] = ['default'];
 
 export interface SiteInfo {
   readonly title: string;
@@ -59,7 +60,7 @@ export const ThemeSelect = ({
   readonly onChange: (value: string) => void;
 }): ReactElement => {
   const { t } = useTranslator(common, sites);
-  const options = THEME_OPTIONS.includes(value) ? THEME_OPTIONS : [...THEME_OPTIONS, value];
+  const options = INSTALLED_THEMES.includes(value) ? INSTALLED_THEMES : [...INSTALLED_THEMES, value];
   return (
     <p>
       <label htmlFor="site-theme">{t('sites.theme')}</label>

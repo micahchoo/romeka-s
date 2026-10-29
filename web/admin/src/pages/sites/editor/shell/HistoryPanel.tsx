@@ -12,6 +12,9 @@ import { ErrorNotice } from '../../../../app/errors';
 import { toError, useAsync } from '../../../../app/useAsync';
 import { useTranslator } from '../../../../i18n';
 import { counted } from '../messages';
+import type { BlockRegistry } from '../../blockSchema';
+import { sites } from '../../../../i18n/namespaces/sites';
+import { authorText, changesText } from './versionChanges';
 import { previewRequest, requestPreview } from '../preview';
 import { contentFromApi } from '../wire';
 import { versionTime } from './versionTime';
@@ -27,6 +30,8 @@ export interface ViewedVersion {
 
 export interface HistoryPanelProps {
   readonly pageId: PageId;
+  /** Names the changed blocks a version lists. */
+  readonly registry: BlockRegistry;
   /** Changes after every save, so the list reloads and shows the new version. */
   readonly savedAt: string | null;
   readonly viewing: number | null;
@@ -36,12 +41,13 @@ export interface HistoryPanelProps {
 
 export const HistoryPanel = ({
   pageId,
+  registry,
   savedAt,
   viewing,
   onView,
   onClose,
 }: HistoryPanelProps): ReactElement => {
-  const translator = useTranslator(common, ...EDITOR_NAMESPACES);
+  const translator = useTranslator(common, sites, ...EDITOR_NAMESPACES);
   const { t } = translator;
   const versions = useAsync(() => api.listPageVersions(pageId), [pageId, savedAt]);
   const [opening, setOpening] = useState<number | null>(null);
@@ -65,7 +71,7 @@ export const HistoryPanel = ({
   const label = (summary: PageVersionSummary): string =>
     t('history.entry', {
       time: versionTime(summary.created, translator.locale, (time) => t('history.today', { time })),
-      name: summary.author?.name ?? t('history.unknownAuthor'),
+      name: authorText(summary, t),
       blocks: counted(t, 'blocks', summary.blockCount),
     });
 
@@ -94,7 +100,10 @@ export const HistoryPanel = ({
                   open(summary);
                 }}
               >
-                {label(summary)}
+                <span className="history-entry">{label(summary)}</span>
+                <span className="history-changes">
+                  {changesText(summary, registry, translator.locale, t)}
+                </span>
               </button>
               {index === 0 ? <span className="history-live">{t('history.live')}</span> : null}
             </li>

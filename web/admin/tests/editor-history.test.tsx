@@ -32,18 +32,50 @@ const today = new Date().toISOString().slice(0, 10);
 const LOADED = '2024-01-02T10:00:00+00:00';
 const THEIRS = '2024-01-02T11:00:00+00:00';
 
+const NOTHING = {
+  'o:title': null,
+  'o:settings_changed': false,
+  'o:blocks_added': 0,
+  'o:blocks_removed': 0,
+  'o:blocks_changed': 0,
+  'o:blocks_moved': 0,
+  'o:changed_blocks': [],
+};
+
 const VERSION_LIST = [
   {
     'o:version': 3,
     'o:created': at(`${today}T14:02:00+00:00`),
     'o:user': { 'o:id': 2, 'o:name': 'Ana' },
+    'o:author': 'user',
     'o:block_count': 6,
+    'o:changes': {
+      ...NOTHING,
+      'o:title': { 'o:before': 'Intro', 'o:after': 'Welcome' },
+      'o:blocks_added': 1,
+      'o:blocks_changed': 2,
+      'o:blocks_moved': 2,
+      'o:changed_blocks': [
+        { 'o:layout': 'html', 'o:layout_data': { romeka: { block: 'hero', v: 1, settings: {} } } },
+        { 'o:layout': 'html', 'o:layout_data': null },
+      ],
+    },
   },
   {
     'o:version': 2,
     'o:created': at(LOADED),
     'o:user': null,
+    'o:author': 'deleted_user',
     'o:block_count': 1,
+    'o:changes': { ...NOTHING, 'o:settings_changed': true, 'o:blocks_changed': 3 },
+  },
+  {
+    'o:version': 1,
+    'o:created': at('2024-01-01T09:00:00+00:00'),
+    'o:user': null,
+    'o:author': 'not_recorded',
+    'o:block_count': 1,
+    'o:changes': null,
   },
 ];
 
@@ -89,7 +121,7 @@ afterEach(() => {
 });
 
 describe('the page history panel', () => {
-  it('lists the versions newest first with when, who and how many blocks', async () => {
+  it('lists the versions newest first with when, who, how many blocks and what changed', async () => {
     withHandler({});
     await renderEditor();
 
@@ -97,11 +129,36 @@ describe('the page history panel', () => {
 
     const panel = await screen.findByRole('region', { name: 'Page history' });
     const entries = await within(panel).findAllByRole('button', { name: / · / });
-    expect(entries.map((entry) => entry.textContent)).toEqual([
-      'Today 2:02 PM · Ana · 6 blocks',
-      'Jan 2, 2024, 10:00 AM · Unknown author · 1 block',
+    expect(
+      entries.map((entry) => Array.from(entry.children, (line) => line.textContent)),
+    ).toEqual([
+      [
+        'Today 2:02 PM · Ana · 6 blocks',
+        'Title changed from “Intro” to “Welcome”, 1 block added, ' +
+          '2 blocks changed: Hero banner and HTML, 2 blocks moved',
+      ],
+      ['Jan 2, 2024, 10:00 AM · Deleted user · 1 block', 'Page settings changed, 3 blocks changed'],
+      ['Jan 1, 2024, 9:00 AM · Author not recorded · 1 block', 'First saved version'],
     ]);
     expect(within(panel).getByText('Live now')).toBeInTheDocument();
+  });
+
+  it('says when a save changed nothing, and when older versions are gone', async () => {
+    const kept = [
+      { ...VERSION_LIST[0], 'o:changes': NOTHING },
+      { ...VERSION_LIST[1], 'o:version': 7, 'o:changes': null },
+    ];
+    withHandler({ [`GET ${VERSIONS}`]: () => jsonResponse(kept) });
+    await renderEditor();
+
+    fireEvent.click(screen.getByRole('button', { name: 'History' }));
+
+    const panel = await screen.findByRole('region', { name: 'Page history' });
+    const entries = await within(panel).findAllByRole('button', { name: / · / });
+    expect(entries.map((entry) => entry.lastElementChild?.textContent)).toEqual([
+      'No changes',
+      'Older versions are no longer kept',
+    ]);
   });
 
   it('shows a version through the preview route and restores it as an undoable edit', async () => {
@@ -111,7 +168,7 @@ describe('the page history panel', () => {
     });
     await renderEditor();
     fireEvent.click(screen.getByRole('button', { name: 'History' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Unknown author/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Deleted user/ }));
 
     const banner = await screen.findByText('Viewing the version from Jan 2, 2024, 10:00 AM');
     expect(banner).toBeInTheDocument();
@@ -146,7 +203,7 @@ describe('the page history panel', () => {
     });
     await renderEditor();
     fireEvent.click(screen.getByRole('button', { name: 'History' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Unknown author/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Deleted user/ }));
     await screen.findByText(/Viewing the version from/);
 
     fireEvent.click(screen.getByRole('button', { name: 'Back to the current draft' }));
