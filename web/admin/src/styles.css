@@ -2086,6 +2086,34 @@ td > .badge:first-child {
   font-weight: 500;
 }
 
+/* The site check: counts with the pages they are on, in the text colour. */
+.site-check {
+  margin: var(--space-4) 0 0;
+}
+
+.site-check h4 {
+  margin: 0 0 var(--space-1);
+}
+
+.site-check-note {
+  margin: 0 0 var(--space-2);
+  color: var(--text-muted);
+}
+
+.site-check-lines {
+  margin: 0 0 var(--space-3);
+  padding-left: var(--space-4);
+}
+
+.site-check-lines > li + li {
+  margin-top: var(--space-2);
+}
+
+.site-check-pages {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-4);
+}
+
 .row-actions {
   display: flex;
   flex-wrap: wrap;

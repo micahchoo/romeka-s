@@ -158,7 +158,7 @@ export const MergePrompts = ({
   readonly onDone: (message: string) => void;
 }): ReactElement | null => {
   const tl = useTermListText();
-  const lesson = useLesson('term-merge');
+  const lesson = useLesson('term-merge', groups.length > 0);
   if (groups.length === 0) {
     return null;
   }

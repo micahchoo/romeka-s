@@ -97,7 +97,9 @@ test('the items list narrows by search, an item set and media, and the URL keeps
   if (first === undefined || second === undefined) {
     throw new Error('the seed names fewer than two items');
   }
-  await page.goto('/#/items');
+  // The seeded items are the oldest. Newest first, the items the specs before
+  // this one created push them off the first page.
+  await page.goto('/#/items?sort=oldest');
   const search = page.getByRole('searchbox', { name: 'Search' });
   await expect(page.getByRole('link', { name: first, exact: true })).toBeVisible();
 

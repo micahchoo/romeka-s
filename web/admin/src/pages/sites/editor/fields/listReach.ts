@@ -105,6 +105,20 @@ export const readReach = async (
   return onSite === 0 ? { kind: 'siteEmpty' } : { kind: 'filterEmpty' };
 };
 
+/**
+ * How many resources `value` shows a visitor of the site: the same count with
+ * `is_public=1`, one request. The site check asks this, not [`readReach`], so
+ * a list that matches only private items counts as showing nothing.
+ */
+export const readVisitorCount = async (
+  resource: QueryResource,
+  value: string,
+  site: ListSite,
+): Promise<number> => {
+  const { list } = LISTS[resource];
+  return (await list({ ...countQuery(value, site), is_public: 1 })).total;
+};
+
 /** How long a typed query waits before it is counted. */
 const COUNT_DELAY_MS = 400;
 

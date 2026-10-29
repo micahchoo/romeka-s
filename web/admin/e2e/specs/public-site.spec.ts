@@ -13,6 +13,7 @@ import { expectAxeBudget } from '../harness/axe';
 import { isArray, numberField, record } from '../harness/json';
 import { SITE_SLUG, SITE_TITLE, WELCOME_SLUG } from '../harness/seed';
 import { png } from '../harness/png';
+import { settled } from '../harness/preview';
 import { readHarness } from '../harness/state';
 
 test('a media page shows the whole file, never a 4:3 crop of it', async ({ page }) => {
@@ -76,7 +77,7 @@ test('the public site renders the page the admin shows', async ({ page }) => {
   await expect(page.getByText('Powered by Romeka S')).toBeVisible();
 });
 
-/** An item with one uploaded 1600 by 1000 picture, created through the API. */
+/** An item with one uploaded 1600 by 1000 picture, created through the API, its preview made. */
 const createPicture = async (page: Page): Promise<{ item: number; media: number }> => {
   const created = await page.request.post('/api/items', {
     multipart: {
@@ -93,10 +94,11 @@ const createPicture = async (page: Page): Promise<{ item: number; media: number 
   if (!isArray(files) || files.length === 0) {
     throw new Error('the created item returned no media');
   }
-  return {
-    item: numberField(document, 'o:id', 'item'),
-    media: numberField(record(files[0], 'media'), 'o:id', 'media'),
-  };
+  const media = numberField(record(files[0], 'media'), 'o:id', 'media');
+  // A note on a region needs the picture's canvas, which exists once the
+  // derivative worker has made its preview.
+  await settled(page.request, media);
+  return { item: numberField(document, 'o:id', 'item'), media };
 };
 
 /** Write one image note through the Web Annotation Protocol, as the admin's key does. */

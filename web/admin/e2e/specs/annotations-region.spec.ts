@@ -17,6 +17,7 @@ import { join } from 'node:path';
 
 import { expect, expectClean, test } from '../fixtures';
 import { isRecord, numberField, record } from '../harness/json';
+import { settled } from '../harness/preview';
 import { readHarness, REPO_ROOT } from '../harness/state';
 
 /** The upright canvas of `image.jpg`, from the corpus README. */
@@ -40,7 +41,7 @@ type Shape = Rect | Polygon;
 const corpus = (name: string): Buffer =>
   readFileSync(join(REPO_ROOT, 'fixtures', 'media-kinds', name));
 
-/** Upload one corpus file as the only media of a new public item. */
+/** Upload one corpus file as the only media of a new public item, its preview settled. */
 const uploadItem = async (
   request: APIRequestContext,
   name: string,
@@ -57,7 +58,10 @@ const uploadItem = async (
     },
   });
   expect(answer.status(), await answer.text()).toBe(200);
-  return firstMediaId(await answer.json(), name);
+  const media = firstMediaId(await answer.json(), name);
+  // The drawing tools come with the picture's canvas, made with its preview.
+  await settled(request, media);
+  return media;
 };
 
 const firstMediaId = (item: unknown, what: string): number => {

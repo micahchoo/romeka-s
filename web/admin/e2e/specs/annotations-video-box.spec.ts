@@ -14,6 +14,7 @@ import { join } from 'node:path';
 
 import { expect, expectClean, test } from '../fixtures';
 import { isRecord, numberField, record } from '../harness/json';
+import { settled } from '../harness/preview';
 import { SITE_SLUG } from '../harness/seed';
 import { readHarness, REPO_ROOT } from '../harness/state';
 
@@ -54,19 +55,8 @@ const uploadVideo = async (request: APIRequestContext): Promise<number> => {
     throw new Error('the created item names no media');
   }
   const id = numberField(media[0], 'o:id', 'media');
-  const deadline = Date.now() + 30_000;
-  for (;;) {
-    const read: unknown = await (await request.get(`/api/media/${String(id)}`)).json();
-    const preview = record(read, 'media')['o-module-romeka:preview'];
-    const state = isRecord(preview) ? preview['state'] : null;
-    if (state === null || state === undefined || state === 'ready' || state === 'none') {
-      return id;
-    }
-    if (Date.now() > deadline) {
-      throw new Error(`media ${String(id)} preview stayed ${JSON.stringify(state)}`);
-    }
-    await new Promise((done) => setTimeout(done, 100));
-  }
+  await settled(request, id);
+  return id;
 };
 
 const signIn = async (page: Page, baseURL: string): Promise<void> => {

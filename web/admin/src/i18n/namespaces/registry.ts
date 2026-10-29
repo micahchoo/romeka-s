@@ -46,4 +46,5 @@ export const NAMESPACES: readonly NamespaceRecord[] = [
   { id: 'page-history', what: 'page history messages', type: 'PageHistoryMessages' },
   { id: 'finding', what: 'jump-to box and saved list messages', type: 'FindingMessages' },
   { id: 'class-filter', what: 'class filter messages', type: 'ClassFilterMessages' },
+  { id: 'site-check', what: 'site check messages', type: 'SiteCheckMessages' },
 ];

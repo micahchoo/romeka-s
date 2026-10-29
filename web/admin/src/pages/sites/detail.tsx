@@ -18,7 +18,8 @@ import { useSave } from '../../app/save';
 import { TableScroll } from '../../app/table-scroll';
 import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
-import { firstLinkedPage, linkedPages, pageLinkJson } from './navigationTree';
+import { homepageOf, linkedPages, pageLinkJson } from './navigationTree';
+import { SiteCheck } from './SiteCheck';
 import { AccessNote, publicUrl, siteHref, themeLabel, useSiteAccess } from './SiteFrame';
 import type { SiteCapability } from './siteAccess';
 import { common } from '../../i18n/namespaces/common';
@@ -65,10 +66,6 @@ const load = async (siteId: SiteId): Promise<Loaded> => {
   });
   return { site, pages, items: items.total };
 };
-
-/** The page `/s/<slug>` opens: the homepage, else the first page in the menu. */
-const homepageOf = (site: Site): PageId | null =>
-  site.homepage?.id ?? firstLinkedPage(site.navigation);
 
 const PageRow = ({
   site,
@@ -281,6 +278,7 @@ const AboutSection = ({
           </>
         )}
       </dl>
+      {access.has('editPages') ? <SiteCheck siteId={site.id} /> : null}
     </section>
   );
 };
