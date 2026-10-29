@@ -77,6 +77,8 @@ const placeHandler = ({ set, count, narrowed = 0 }: PlaceServer): Handler =>
     '/api/sites': () => listResponse(sites(), 2),
     '/api/users': () => jsonResponse(loadFixture('users-page.json')),
     '/api/resource_classes': () => jsonResponse(loadFixture('resource-classes-page.json')),
+    '/api/vocabularies': () => jsonResponse(loadFixture('vocabularies-page.json')),
+    '/api/romeka/classes/counts': () => jsonResponse({ classes: [] }),
     '/api/item_sets': () => jsonResponse(loadFixture('item-sets-page.json')),
     '/api/resource_templates': () => jsonResponse(loadFixture('resource-templates-page.json')),
     '/api/properties': () => jsonResponse(loadFixture('properties-page.json')),

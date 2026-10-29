@@ -33,6 +33,7 @@ import {
 } from './browse';
 import type { BrowseFilters, ItemBrowse, View } from './browse';
 import { loadBrowseOptions, NO_OPTIONS } from './browse-options';
+import type { BrowseOptions } from './browse-options';
 import { CsvDownload } from './csv-download';
 import { FilterBar } from './FilterBar';
 import { FilterChips, useFilterWords } from './FilterChips';
@@ -212,10 +213,16 @@ export const ItemsList = (): ReactElement => {
   useSlashFocus(searchRef);
 
   const optionsState = useAsync(loadBrowseOptions, []);
-  const options = optionsState.status === 'ready' ? optionsState.data : NO_OPTIONS;
   const query = browseQuery(state);
   /** Bumped when a bulk change ends, so the page shows what it wrote. */
   const [revision, setRevision] = useState(0);
+  // A bulk change can change classes, so the used classes follow the revision.
+  const usedClassesState = useAsync(() => placesApi.classCounts('items'), [revision]);
+  const usedClasses = useLastPage(usedClassesState);
+  const options: BrowseOptions = {
+    ...(optionsState.status === 'ready' ? optionsState.data : NO_OPTIONS),
+    usedClasses,
+  };
   const itemsState = useAsync(() => api.listItems(query), [JSON.stringify(query), revision]);
   const shown: ApiPage<Item> | null = useLastPage(itemsState);
   // A bulk change can move items between types, so the counts follow the revision.

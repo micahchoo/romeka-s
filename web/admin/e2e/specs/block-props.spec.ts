@@ -107,6 +107,12 @@ test('a browse preview of item sets offers a way on while the site has none, the
     page.request.patch(`/api/sites/${String(site)}`, {
       data: { 'o:site_item_set': ids.map((id) => ({ 'o:item_set': { 'o:id': id } })) },
     });
+  // An item set outside the site, of a class: the class filter offers the classes item sets use.
+  const collection = idOf(first(await (await page.request.get('/api/resource_classes?term=dctype:Collection')).json()));
+  const outside = await page.request.post('/api/item_sets', {
+    data: { 'o:is_public': true, 'o:resource_class': { 'o:id': collection } },
+  });
+  expect(outside.status(), await outside.text()).toBe(200);
   await page.goto(await createPage(page, 'block-props-browse'));
   await insert(page, 'Browse preview');
   const form = inspector(page);
@@ -124,11 +130,12 @@ test('a browse preview of item sets offers a way on while the site has none, the
   const assigned = await assign([idOf(set)]);
   expect(assigned.status(), await assigned.text()).toBe(200);
   try {
-    // The count is asked again when the query changes. The seeded set has no
-    // class, so filtering by one matches none of the site's sets; any class
-    // matches the one set again.
+    // The count is asked again when the query changes. The class select offers
+    // the classes item sets use: the one set outside the site has a class, so
+    // filtering by it matches none of the site's sets; any class matches the
+    // site's one set again.
     const classSelect = form.getByLabel('Class', { exact: true });
-    await classSelect.selectOption({ index: 1 });
+    await classSelect.selectOption(String(collection));
     await expect(form.getByText('No item sets on this site match this filter.')).toBeVisible();
     await expect(form.getByRole('link', { name: 'Add item sets to this site' })).toHaveCount(0);
     await expect(row.getByText('Lists nothing yet')).toBeVisible();
@@ -138,5 +145,6 @@ test('a browse preview of item sets offers a way on while the site has none, the
     await expect(form.getByLabel('Item set', { exact: true })).toHaveCount(0);
   } finally {
     await assign([]);
+    await page.request.delete(`/api/item_sets/${String(idOf(await outside.json()))}`);
   }
 });

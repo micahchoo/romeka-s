@@ -11,5 +11,9 @@ import type { ClassFilterMessages } from '../index';
 export const ml: ClassFilterMessages = {
   'classFilter.option': '{label} · {count} ഇനങ്ങൾ',
   'classFilter.optionOne': '{label} · 1 ഇനം',
+  'classFilter.optionItemSets': '{label} · {count} ഐറ്റം സെറ്റുകൾ',
+  'classFilter.optionItemSetOne': '{label} · 1 ഐറ്റം സെറ്റ്',
+  'classFilter.optionMedia': '{label} · {count} മീഡിയ',
+  'classFilter.optionMediaOne': '{label} · 1 മീഡിയ',
   'classFilter.standard': '{label} ({standard})',
 };

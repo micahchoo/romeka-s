@@ -2,7 +2,8 @@
  * The site check: what a visitor meets on a site's public pages that a curator
  * may not mean them to, each line an exact count from the stored pages and the
  * server's answers, with the pages it is on. A private page reaches no
- * visitor, so it counts in no line.
+ * visitor, so it counts in no line. A private site reaches no visitor at all;
+ * the check says so and still counts its lines, which hold once it is public.
  *
  * The hub's check panel loads this module and runs it only when the curator
  * presses the check, never on hub load: a list block costs one request. Lists
@@ -16,7 +17,7 @@ import type { ItemId, MediaId, PageId, SiteId, SitePage, SitePageBlock } from '.
 import { BLOCK_REGISTRY } from './blockRegistry';
 import { blockList, blockRefs } from './editor/blockFields';
 import type { ResourceRef } from './editor/blockFields';
-import { listsAttachedOnly, readVisitorCount } from './editor/fields/listReach';
+import { listsAttachedOnly, readVisitorCount, readVisitorMediaOfPrivateItems } from './editor/fields/listReach';
 import type { ListSite } from './editor/fields/listReach';
 import { readLayoutData } from './editor/values';
 import { unwrittenField } from './editor/written';
@@ -40,6 +41,12 @@ export interface CheckLine {
   readonly kind: CheckKind;
   readonly count: number;
   readonly pages: readonly CheckPage[];
+}
+
+/** The check's answer: whether visitors reach the site at all, and its lines. */
+export interface SiteCheckResult {
+  readonly sitePublic: boolean;
+  readonly lines: readonly CheckLine[];
 }
 
 const PAGES_PER_REQUEST = 200;
@@ -104,26 +111,47 @@ const chunks = <T>(values: readonly T[]): readonly (readonly T[])[] =>
     values.slice(index * ID_BATCH, (index + 1) * ID_BATCH),
   );
 
-/** The written blocks whose list shows a visitor nothing. */
-const emptyLists = async (site: ListSite, blocks: readonly Found[]): Promise<readonly Found[]> => {
+/** What a visitor meets in one list: how many resources, and of those media how many belong to a private item. */
+interface ListShown {
+  readonly count: number;
+  readonly mediaOfPrivateItems: number;
+}
+
+/**
+ * The written list blocks a visitor meets nothing in (`empty`), and those that
+ * show a visitor media of a private item (`privateMedia`). Each distinct list
+ * costs one request, and a media list that shows something one more.
+ */
+const listsShown = async (
+  site: ListSite,
+  blocks: readonly Found[],
+): Promise<{ readonly empty: readonly Found[]; readonly privateMedia: readonly Found[] }> => {
   const lists = blocks.flatMap((found) => {
     const list = blockList(BLOCK_REGISTRY, found.block);
     return list === null ? [] : [{ found, key: `${list.resource}\n${list.query}`, list }];
   });
   const distinct = [...new Map(lists.map((entry) => [entry.key, entry.list])).entries()];
-  const counts = new Map(
-    await mapLimited(distinct, LIST_REQUESTS_AT_ONCE, async ([key, list]) => {
+  const shown = new Map(
+    await mapLimited(distinct, LIST_REQUESTS_AT_ONCE, async ([key, list]): Promise<readonly [string, ListShown]> => {
       const count = await readVisitorCount(list.resource, list.query, site);
-      return [key, count] as const;
+      const mediaOfPrivateItems =
+        list.resource === 'media' && count > 0 ? await readVisitorMediaOfPrivateItems(list.query, site) : 0;
+      return [key, { count, mediaOfPrivateItems }];
     }),
   );
-  return lists.filter((entry) => counts.get(entry.key) === 0).map((entry) => entry.found);
+  return {
+    empty: lists.filter((entry) => shown.get(entry.key)?.count === 0).map((entry) => entry.found),
+    privateMedia: lists
+      .filter((entry) => (shown.get(entry.key)?.mediaOfPrivateItems ?? 0) > 0)
+      .map((entry) => entry.found),
+  };
 };
 
 /**
- * The written blocks that show an item or media a visitor cannot see: a
+ * The written blocks that name an item or media a visitor cannot see: a
  * private item, a private media, or a media of a private item. An id the
- * server no longer has is not counted.
+ * server no longer has is not counted. A media list showing media of a private
+ * item counts in the same line (`listsShown`).
  */
 const privateResources = async (blocks: readonly Found[]): Promise<readonly Found[]> => {
   const refs = blocks.map((found) => ({ found, refs: blockRefs(BLOCK_REGISTRY, found.block, found.attachments) }));
@@ -166,24 +194,32 @@ const lineOf = (kind: CheckKind, found: readonly Pick<Found, 'page'>[]): CheckLi
   pages: [...new Map(found.map((entry) => [entry.page.id, entry.page])).values()],
 });
 
-/** Reads the site and its pages and answers the check's lines with a count above zero. */
-export const readSiteCheck = async (siteId: SiteId): Promise<readonly CheckLine[]> => {
+/** Reads the site and its pages and answers whether it is public, and its lines with a count above zero. */
+export const readSiteCheck = async (siteId: SiteId): Promise<SiteCheckResult> => {
   const site = await api.getSite(siteId);
   const pages = (await readPages(siteId, site.pages.map((ref) => ref.id))).filter((page) => page.isPublic);
   const blocks = pages.flatMap((page) => page.blocks.map((block) => foundOn(page, block)));
   const unwritten = blocks.filter((found) => unwrittenField(BLOCK_REGISTRY, found.block) !== null);
   // An unwritten block reaches no visitor, so it counts in its own line only.
   const written = blocks.filter((found) => unwrittenField(BLOCK_REGISTRY, found.block) === null);
-  const [lists, hidden] = await Promise.all([emptyLists({ id: siteId, attachedOnly: listsAttachedOnly(site.siteSettings) }, written), privateResources(written)]);
+  const [lists, hidden] = await Promise.all([
+    listsShown({ id: siteId, attachedOnly: listsAttachedOnly(site.siteSettings) }, written),
+    privateResources(written),
+  ]);
+  // A block that both names a private record and lists media of a private item counts once.
+  const pointsToPrivate = [...new Set([...hidden, ...lists.privateMedia])];
   const homepage = homepageOf(site);
   const inMenu = linkedPages(site.navigation);
   const outside = pages
     .filter((page) => page.id !== homepage && !inMenu.has(page.id))
     .map((page) => ({ page: { id: page.id, title: page.title } }));
-  return [
-    lineOf('unwritten', unwritten),
-    lineOf('emptyLists', lists),
-    lineOf('privateResources', hidden),
-    lineOf('outsideMenu', outside),
-  ].filter((line) => line.count > 0);
+  return {
+    sitePublic: site.isPublic,
+    lines: [
+      lineOf('unwritten', unwritten),
+      lineOf('emptyLists', lists.empty),
+      lineOf('privateResources', written.filter((found) => pointsToPrivate.includes(found))),
+      lineOf('outsideMenu', outside),
+    ].filter((line) => line.count > 0),
+  };
 };

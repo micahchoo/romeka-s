@@ -15,7 +15,8 @@ use std::collections::BTreeSet;
 
 use omeka_db::ids::{ItemSetId, ResourceId, TemplateId};
 use omeka_db::repos::{
-    ItemRepo, ItemSetRepo, MediaVisibility, RelationRepo, SetItemCount, TemplateRepo, ValueRepo,
+    ClassCounted, ItemRepo, ItemSetRepo, MediaVisibility, RelationRepo, ResourceRepo, SetItemCount,
+    TemplateRepo, ValueRepo,
 };
 use omeka_db::rows::resource_type;
 use omeka_db::with_db;
@@ -234,16 +235,23 @@ struct ClassCount {
     term: String,
     label: String,
     vocabulary_label: String,
-    items: i64,
+    count: i64,
 }
 
-/// `GET /api/romeka/classes/counts`: the item picker's class filter. Each class at least one item
-/// the caller may see has, with the number of items `GET /api/items?resource_class_id=<id>`
-/// answers this caller, ordered by label, then the standard's label, then id. Two classes may
-/// share a label; the standard's label tells them apart.
-pub async fn class_counts(api: &Api<'_>) -> Result<ApiResponse, ApiError> {
-    let mut counts = with_db!(api.pool(), |db| ItemRepo::new(db)
-        .class_counts(media_visibility(api.actor()))
+/// `GET /api/romeka/classes/counts?resource_type=<type>`: a class filter's choices. `type` is
+/// `items` (the default), `item_sets` or `media`; any other value is a 400. Each class at least
+/// one resource of that type the caller may see has, with the number `GET
+/// /api/<type>?resource_class_id=<id>` answers this caller, ordered by label, then the standard's
+/// label, then id. Two classes may share a label; the standard's label tells them apart.
+pub async fn class_counts(api: &Api<'_>, params: &Params) -> Result<ApiResponse, ApiError> {
+    let kind = match params.get("resource_type") {
+        None | Some("items") => ClassCounted::Items,
+        Some("item_sets") => ClassCounted::ItemSets,
+        Some("media") => ClassCounted::Media,
+        Some(_) => return Err(ApiError::bad_request(messages::BAD_REQUEST)),
+    };
+    let mut counts = with_db!(api.pool(), |db| ResourceRepo::new(db)
+        .class_counts(kind, media_visibility(api.actor()))
         .await)
     .map_err(db_error)?;
     counts.sort_by(|a, b| {
@@ -261,7 +269,7 @@ pub async fn class_counts(api: &Api<'_>) -> Result<ApiResponse, ApiError> {
                 term: count.term,
                 label: count.label,
                 vocabulary_label: count.vocabulary_label,
-                items: count.items,
+                count: count.count,
             })
             .collect(),
     })?))

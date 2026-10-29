@@ -16,7 +16,7 @@ import type { KeyboardEvent, ReactElement } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../../../api/client';
 import type { ClassId, Item, ItemId, ItemSet, ItemSetId } from '../../../../api/types';
-import { useClassChoices, useClassOptionText } from '../../../../app/class-choices';
+import { useClassChoices, useClassNameText, useClassOptionText } from '../../../../app/class-choices';
 import { KIND_LABEL } from '../../../../app/media';
 import { useAsync } from '../../../../app/useAsync';
 import { useSettled } from '../../../../app/useSettled';
@@ -199,6 +199,7 @@ export const ItemPicker = (props: ItemPickerProps): ReactElement => {
   const counts = useSourceCounts(sets);
   const classes = useClassChoices(classId);
   const classOption = useClassOptionText();
+  const classNameText = useClassNameText();
 
   const picked = pickedList(props);
   const setPicks = props.mode === 'many' ? props.sets : undefined;
@@ -272,7 +273,7 @@ export const ItemPicker = (props: ItemPickerProps): ReactElement => {
   };
 
   const setTitle = new Map(sets.map((set) => [set.id, set.title ?? t('common.untitled')]));
-  const classLabel = new Map(classes.map((entry) => [entry.id, entry.label]));
+  const classLabel = new Map(classes.map((entry) => [entry.id, classNameText(entry)]));
   const titleOf = (item: ItemId): string => {
     const found = known.get(item);
     return found === undefined

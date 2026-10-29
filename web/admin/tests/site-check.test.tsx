@@ -46,9 +46,9 @@ const mediaBlock = (item: number, media: number): Json => ({
   ],
 });
 
-const browsePreview = (query: string): Json => ({
+const browsePreview = (query: string, resource = 'items'): Json => ({
   'o:layout': 'browsePreview',
-  'o:data': { resource_type: 'items', query, limit: 12 },
+  'o:data': { resource_type: resource, query, limit: 12 },
   'o:layout_data': null,
   'o:attachment': [],
 });
@@ -65,8 +65,9 @@ const sitePage = (id: number, title: string, isPublic: boolean, blocks: readonly
 });
 
 /** The fixture site holding `pages` in that order; Welcome (1) is its homepage and its menu. */
-const siteWith = (pages: readonly Json[]): Json => ({
+const siteWith = (pages: readonly Json[], isPublic = true): Json => ({
   ...record(loadFixture('site-admin.json')),
+  'o:is_public': isPublic,
   'o:page': pages.map((page) => ({ '@id': page['@id'], 'o:id': page['o:id'] })),
 });
 
@@ -93,17 +94,28 @@ interface Stub {
   readonly media?: readonly Json[];
   /** How many items a list query matches for visitors, by its fulltext search. */
   readonly listed?: Readonly<Record<string, number>>;
+  /**
+   * A media list's visitor count by its fulltext search: every public media it
+   * matches, and how many of those belong to a private item.
+   */
+  readonly listedMedia?: Readonly<Record<string, { readonly shown: number; readonly ofPrivateItems: number }>>;
+  readonly sitePublic?: boolean;
 }
 
 /** The server for one site, answering the hub's reads and the check's. */
-const serve = ({ pages, items = [], media: files = [], listed = {} }: Stub) =>
+const serve = ({ pages, items = [], media: files = [], listed = {}, listedMedia = {}, sitePublic = true }: Stub) =>
   installFetch((url) => {
     switch (url.pathname) {
       case '/api/sites/1':
-        return jsonResponse(siteWith(pages));
+        return jsonResponse(siteWith(pages, sitePublic));
       case '/api/site_pages':
         return listResponse(pages, pages.length);
       case '/api/media': {
+        const fulltext = url.searchParams.get('fulltext_search');
+        if (fulltext !== null) {
+          const counts = listedMedia[fulltext] ?? { shown: 0, ofPrivateItems: 0 };
+          return listResponse([], url.searchParams.get('romeka_item_is_public') === '0' ? counts.ofPrivateItems : counts.shown);
+        }
         const found = files.filter((entry) => ids(url).includes(Number(entry['o:id'])));
         return listResponse(found, found.length);
       }
@@ -207,6 +219,52 @@ describe('the site check', () => {
     expect(within(region).getByRole('link', { name: 'Shelf' })).toHaveAttribute('href', '#/sites/1/pages/3');
     expect(urlsFor(fetchMock, '/api/media')).toHaveLength(1);
     expect(urlsFor(fetchMock, '/api/items').filter((url) => url.searchParams.has('id[]'))).toHaveLength(1);
+  });
+
+  it('counts a media list whose public media belong to a private item, as visitors cannot open them', async () => {
+    const shelf = sitePage(3, 'Shelf', true, [
+      browsePreview('fulltext_search=hidden', 'media'),
+      browsePreview('fulltext_search=open', 'media'),
+      browsePreview('fulltext_search=none', 'media'),
+    ]);
+    const fetchMock = serve({
+      pages: [welcome, shelf],
+      listedMedia: { hidden: { shown: 3, ofPrivateItems: 1 }, open: { shown: 2, ofPrivateItems: 0 } },
+    });
+    const region = await runCheck();
+
+    expect(within(region).getByText('1 list shows nothing to visitors, on 1 public page')).toBeInTheDocument();
+    expect(
+      within(region).getByText('1 block points to private items or media, on 1 public page'),
+    ).toBeInTheDocument();
+    const asked = urlsFor(fetchMock, '/api/media').filter((url) => url.searchParams.get('romeka_item_is_public') === '0');
+    // A list that shows a visitor nothing has no media to ask about.
+    expect(asked.map((url) => url.searchParams.get('fulltext_search')).sort()).toEqual(['hidden', 'open']);
+    expect(asked.every((url) => url.searchParams.get('is_public') === '1')).toBe(true);
+  });
+
+  it('on a private site says first that visitors see none of it, and keeps the other lines', async () => {
+    const about = sitePage(3, 'About', true, [html('')]);
+    serve({ pages: [welcome, about], sitePublic: false });
+    const region = await runCheck();
+
+    const first = within(region).getAllByRole('listitem')[0];
+    expect(first).toHaveTextContent('This site is private: visitors see none of it.');
+    expect(within(first ?? region).getByRole('link', { name: 'Site settings' })).toHaveAttribute(
+      'href',
+      '#/sites/1/settings',
+    );
+    expect(within(region).getByText('Once the site is public, visitors meet these:')).toBeInTheDocument();
+    expect(within(region).getByText('1 block not written, on 1 public page')).toBeInTheDocument();
+  });
+
+  it('on a private site with nothing else to check says only that it is private', async () => {
+    serve({ pages: [welcome], sitePublic: false });
+    const region = await runCheck();
+
+    expect(within(region).getByText('This site is private: visitors see none of it.', { exact: false })).toBeInTheDocument();
+    expect(region).not.toHaveTextContent('Nothing to check.');
+    expect(region).not.toHaveTextContent('Once the site is public');
   });
 
   it('counts public pages outside the menu, not the homepage and not private pages', async () => {

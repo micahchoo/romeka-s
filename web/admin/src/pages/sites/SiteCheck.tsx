@@ -1,9 +1,10 @@
 /**
  * The site check panel on the site hub: one short list a curator reads before
  * sharing the site's link. Each line is a count from `siteCheck.ts`, shown only
- * above zero, with links to where it is fixed. The check runs when the curator
- * presses it, and again on "Check again", so the hub's own load asks nothing
- * more of the server.
+ * above zero, with links to where it is fixed. A private site's check first
+ * says visitors see none of it, and the counts follow as what visitors meet
+ * once it is public. The check runs when the curator presses it, and again on
+ * "Check again", so the hub's own load asks nothing more of the server.
  */
 import { useState } from 'react';
 import type { ReactElement } from 'react';
@@ -13,8 +14,9 @@ import { useAsync } from '../../app/useAsync';
 import { useTranslator } from '../../i18n';
 import type { KeyOf } from '../../i18n';
 import { siteCheck } from '../../i18n/namespaces/site-check';
+import { sites } from '../../i18n/namespaces/sites';
 import { siteHref } from './SiteFrame';
-import type { CheckKind, CheckLine } from './siteCheck';
+import type { CheckKind, CheckLine, SiteCheckResult } from './siteCheck';
 
 type Key = KeyOf<typeof siteCheck>;
 
@@ -77,20 +79,54 @@ const Lines = ({
 }: {
   readonly siteId: SiteId;
   readonly lines: readonly CheckLine[];
+}): ReactElement => (
+  <ul className="site-check-lines">
+    {lines.map((line) => (
+      <Line key={line.kind} siteId={siteId} line={line} />
+    ))}
+  </ul>
+);
+
+const Result = ({
+  siteId,
+  result,
+  settings,
+}: {
+  readonly siteId: SiteId;
+  readonly result: SiteCheckResult;
+  /** The curator may open Site settings, where the site is made public. */
+  readonly settings: boolean;
 }): ReactElement => {
-  const { t } = useTranslator(siteCheck);
-  return lines.length === 0 ? (
-    <p>{t('siteCheck.nothing')}</p>
-  ) : (
-    <ul className="site-check-lines">
-      {lines.map((line) => (
-        <Line key={line.kind} siteId={siteId} line={line} />
-      ))}
-    </ul>
+  const { t } = useTranslator(siteCheck, sites);
+  if (result.sitePublic) {
+    return result.lines.length === 0 ? <p>{t('siteCheck.nothing')}</p> : <Lines siteId={siteId} lines={result.lines} />;
+  }
+  return (
+    <>
+      <ul className="site-check-lines">
+        <li>
+          {t('siteCheck.privateSite')}{' '}
+          {settings ? <a href={siteHref(siteId, 'settings')}>{t('page.siteSettings')}</a> : null}
+        </li>
+      </ul>
+      {result.lines.length === 0 ? null : (
+        <>
+          <p className="site-check-note">{t('siteCheck.oncePublic')}</p>
+          <Lines siteId={siteId} lines={result.lines} />
+        </>
+      )}
+    </>
   );
 };
 
-export const SiteCheck = ({ siteId }: { readonly siteId: SiteId }): ReactElement => {
+export const SiteCheck = ({
+  siteId,
+  settings,
+}: {
+  readonly siteId: SiteId;
+  /** The curator may open Site settings, so a private site's line links there. */
+  readonly settings: boolean;
+}): ReactElement => {
   const { t } = useTranslator(siteCheck);
   const [run, setRun] = useState(0);
   const state = useAsync(
@@ -104,7 +140,7 @@ export const SiteCheck = ({ siteId }: { readonly siteId: SiteId }): ReactElement
       <p className="site-check-note">{t('siteCheck.intro')}</p>
       {running ? <p role="status">{t('siteCheck.running')}</p> : null}
       {state.status === 'error' ? <ErrorNotice error={state.error} /> : null}
-      {state.status === 'ready' && state.data !== null ? <Lines siteId={siteId} lines={state.data} /> : null}
+      {state.status === 'ready' && state.data !== null ? <Result siteId={siteId} result={state.data} settings={settings} /> : null}
       {running ? null : (
         <button
           type="button"

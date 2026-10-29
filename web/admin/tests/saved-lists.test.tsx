@@ -50,6 +50,8 @@ const installServer = (initial: readonly SavedList[]) => {
       '/api/items': () => listResponse(loadFixture('items-page.json'), 2),
       '/api/users': fixture('users-page.json'),
       '/api/resource_classes': fixture('resource-classes-page.json'),
+      '/api/vocabularies': fixture('vocabularies-page.json'),
+      '/api/romeka/classes/counts': () => jsonResponse({ classes: [] }),
       '/api/item_sets': fixture('item-sets-page.json'),
       '/api/resource_templates': fixture('resource-templates-page.json'),
       '/api/sites': fixture('sites-page.json'),

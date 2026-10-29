@@ -1,5 +1,9 @@
 {
  "classFilter.option": "{label} · {count} items",
  "classFilter.optionOne": "{label} · 1 item",
+ "classFilter.optionItemSets": "{label} · {count} item sets",
+ "classFilter.optionItemSetOne": "{label} · 1 item set",
+ "classFilter.optionMedia": "{label} · {count} media",
+ "classFilter.optionMediaOne": "{label} · 1 media",
  "classFilter.standard": "{label} ({standard})"
 }

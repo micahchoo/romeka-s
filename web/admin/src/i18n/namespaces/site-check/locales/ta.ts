@@ -16,6 +16,8 @@ export const ta: SiteCheckMessages = {
   'siteCheck.again': 'மீண்டும் சரிபார்க்கவும்',
   'siteCheck.running': 'தளத்தைச் சரிபார்க்கிறது…',
   'siteCheck.nothing': 'சரிபார்க்க எதுவும் இல்லை.',
+  'siteCheck.privateSite': 'இந்தத் தளம் தனிப்பட்டது: பார்வையாளர்கள் எதையும் காண்பதில்லை.',
+  'siteCheck.oncePublic': 'தளம் பொதுவானதாக மாறியவுடன், பார்வையாளர்கள் இதைக் காண்பார்கள்:',
   'siteCheck.unwrittenOne': '1 தொகுதி எழுதப்படவில்லை, 1 பொதுப் பக்கத்தில்',
   'siteCheck.unwrittenOnePage': '{count} தொகுதிகள் எழுதப்படவில்லை, 1 பொதுப் பக்கத்தில்',
   'siteCheck.unwritten': '{count} தொகுதிகள் எழுதப்படவில்லை, {pages} பொதுப் பக்கங்களில்',
@@ -31,7 +33,8 @@ export const ta: SiteCheckMessages = {
     '{count} தொகுதிகள் தனிப்பட்ட உருப்படிகள் அல்லது ஊடகங்களைக் குறிக்கின்றன, 1 பொதுப் பக்கத்தில்',
   'siteCheck.private':
     '{count} தொகுதிகள் தனிப்பட்ட உருப்படிகள் அல்லது ஊடகங்களைக் குறிக்கின்றன, {pages} பொதுப் பக்கங்களில்',
-  'siteCheck.privateNote': 'பார்வையாளர்கள் தனிப்பட்ட உருப்படிகள் அல்லது ஊடகங்களைக் காண முடியாது.',
+  'siteCheck.privateNote':
+    'பார்வையாளர்கள் தனிப்பட்ட உருப்படிகள் அல்லது ஊடகங்களை, அல்லது தனிப்பட்ட உருப்படிகளில் உள்ள ஊடகக் கோப்புகளைக் காண முடியாது.',
   'siteCheck.outsideMenuOne': '1 பொதுப் பக்கம் மெனுவில் இல்லை',
   'siteCheck.outsideMenu': '{count} பொதுப் பக்கங்கள் மெனுவில் இல்லை',
   'siteCheck.outsideMenuNote':

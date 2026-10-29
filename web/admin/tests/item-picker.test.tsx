@@ -60,10 +60,10 @@ const many = (count: number): Record<string, unknown>[] =>
 /** `/api/romeka/classes/counts`: the classes items use, by label, as the server orders them. */
 const CLASS_COUNTS = {
   classes: [
-    { id: 40, term: 'schema:Event', label: 'Event', vocabulary_label: 'Schema.org', items: 1 },
-    { id: 21, term: 'dctype:Image', label: 'Image', vocabulary_label: 'Dublin Core Type', items: 3 },
-    { id: 41, term: 'schema:Image', label: 'Image', vocabulary_label: 'Schema.org', items: 2 },
-    { id: 13, term: 'dctype:StillImage', label: 'Still Image', vocabulary_label: 'Dublin Core Type', items: 2 },
+    { id: 40, term: 'schema:Event', label: 'Event', vocabulary_label: 'Schema.org', count: 1 },
+    { id: 21, term: 'dctype:Image', label: 'Image', vocabulary_label: 'Dublin Core Type', count: 3 },
+    { id: 41, term: 'schema:Image', label: 'Image', vocabulary_label: 'Schema.org', count: 2 },
+    { id: 13, term: 'dctype:StillImage', label: 'Still Image', vocabulary_label: 'Dublin Core Type', count: 2 },
   ],
 };
 

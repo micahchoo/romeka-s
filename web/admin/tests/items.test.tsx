@@ -58,6 +58,7 @@ const linkHeader = (rels: ReadonlyArray<readonly [string, number]>): string =>
 const OPTION_FIXTURES: Readonly<Record<string, string>> = {
   '/api/users': 'users-page.json',
   '/api/resource_classes': 'resource-classes-page.json',
+  '/api/vocabularies': 'vocabularies-page.json',
   '/api/item_sets': 'item-sets-page.json',
   '/api/resource_templates': 'resource-templates-page.json',
   '/api/sites': 'sites-page.json',
@@ -77,8 +78,8 @@ const typeCounts = (noItemType: number, withClass: number): unknown => ({
 /** `/api/romeka/classes/counts`: the classes items use, with their item counts. */
 const CLASS_COUNTS = {
   classes: [
-    { id: 51, term: 'bibo:Book', label: 'Book', vocabulary_label: 'Bibliographic Ontology', items: 4 },
-    { id: 13, term: 'dctype:StillImage', label: 'Still Image', vocabulary_label: 'Dublin Core Type', items: 1 },
+    { id: 51, term: 'bibo:Book', label: 'Book', vocabulary_label: 'Bibliographic Ontology', count: 4 },
+    { id: 13, term: 'dctype:StillImage', label: 'Still Image', vocabulary_label: 'Dublin Core Type', count: 1 },
   ],
 };
 
@@ -565,21 +566,63 @@ describe('items table columns', () => {
     expect(screen.queryByRole('button', { name: 'Still Image' })).not.toBeInTheDocument();
   });
 
-  it('two classes with one name carry their vocabulary prefix in the chip', async () => {
+  it('two classes with one name carry their standard in the chip and the rows, as the Class filter names them', async () => {
+    const classes = loadFixture('resource-classes-page.json');
+    const vocabularies = loadFixture('vocabularies-page.json');
+    const schema = {
+      ...(isUnknownArray(vocabularies) && isRecord(vocabularies[0]) ? vocabularies[0] : {}),
+      'o:id': 9,
+      'o:prefix': 'schema',
+      'o:label': 'Schema.org',
+    };
+    const twin = {
+      ...(isUnknownArray(classes) && isRecord(classes[0]) ? classes[0] : {}),
+      'o:id': 60,
+      'o:term': 'schema:StillImage',
+      'o:local_name': 'StillImage',
+      'o:vocabulary': { '@id': 'http://localhost/api/vocabularies/9', 'o:id': 9 },
+    };
+    await openWith(
+      overriding({
+        '/api/resource_classes': () => jsonResponse([...(isUnknownArray(classes) ? classes : []), twin]),
+        '/api/vocabularies': () => jsonResponse([...(isUnknownArray(vocabularies) ? vocabularies : []), schema]),
+        '/api/romeka/classes/counts': () =>
+          jsonResponse({
+            classes: [
+              ...CLASS_COUNTS.classes,
+              { id: 60, term: 'schema:StillImage', label: 'Still Image', vocabulary_label: 'Schema.org', count: 2 },
+            ],
+          }),
+      }),
+      '#/items?class=60',
+    );
+    expect(await screen.findByText('Class: Still Image (Schema.org)')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Still Image (Dublin Core Type)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Book' })).toBeInTheDocument();
+    const classSelect = screen.getByRole('combobox', { name: 'Class' });
+    expect(
+      await within(classSelect).findByRole('option', { name: 'Still Image (Schema.org) · 2 items' }),
+    ).toHaveProperty('selected', true);
+  });
+
+  it('a class whose name no class the items use shares keeps its plain name in the chip', async () => {
     const classes = loadFixture('resource-classes-page.json');
     const twin = {
       ...(isUnknownArray(classes) && isRecord(classes[0]) ? classes[0] : {}),
       'o:id': 60,
       'o:term': 'schema:StillImage',
       'o:local_name': 'StillImage',
+      'o:vocabulary': { '@id': 'http://localhost/api/vocabularies/9', 'o:id': 9 },
     };
+    // Only Book is in use: the two Still Images share a name, but the filter offers neither.
     await openWith(
       overriding({
         '/api/resource_classes': () => jsonResponse([...(isUnknownArray(classes) ? classes : []), twin]),
+        '/api/romeka/classes/counts': () => jsonResponse({ classes: [CLASS_COUNTS.classes[0]] }),
       }),
-      '#/items?class=60',
+      '#/items?class=13',
     );
-    expect(await screen.findByText('Class: Still Image (schema)')).toBeInTheDocument();
+    expect(await screen.findByText('Class: Still Image')).toBeInTheDocument();
   });
 
   it('the Class filter offers only the classes items use, each with its count, a shared name with its standard', async () => {
@@ -589,7 +632,7 @@ describe('items table columns', () => {
           jsonResponse({
             classes: [
               ...CLASS_COUNTS.classes,
-              { id: 60, term: 'schema:StillImage', label: 'Still Image', vocabulary_label: 'Schema.org', items: 1_250 },
+              { id: 60, term: 'schema:StillImage', label: 'Still Image', vocabulary_label: 'Schema.org', count: 1_250 },
             ],
           }),
       }),

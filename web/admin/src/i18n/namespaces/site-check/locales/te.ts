@@ -15,6 +15,8 @@ export const te: SiteCheckMessages = {
   'siteCheck.again': 'మళ్ళీ తనిఖీ చేయండి',
   'siteCheck.running': 'సైట్‌ను తనిఖీ చేస్తున్నాము…',
   'siteCheck.nothing': 'తనిఖీ చేయడానికి ఏమీ లేదు.',
+  'siteCheck.privateSite': 'ఈ సైట్ ప్రైవేట్‌గా ఉంది: సందర్శకులు ఇందులో ఏదీ చూడలేరు.',
+  'siteCheck.oncePublic': 'సైట్ పబ్లిక్‌గా మారిన తర్వాత, సందర్శకులు వీటిని చూస్తారు:',
   'siteCheck.unwrittenOne': '1 బ్లాక్ వ్రాయబడలేదు, 1 పబ్లిక్ పేజీలో',
   'siteCheck.unwrittenOnePage': '{count} బ్లాక్‌లు వ్రాయబడలేదు, 1 పబ్లిక్ పేజీలో',
   'siteCheck.unwritten': '{count} బ్లాక్‌లు వ్రాయబడలేదు, {pages} పబ్లిక్ పేజీలలో',
@@ -22,9 +24,12 @@ export const te: SiteCheckMessages = {
   'siteCheck.emptyListsOnePage': '{count} జాబితాలు సందర్శకులకు ఏమీ చూపవు, 1 పబ్లిక్ పేజీలో',
   'siteCheck.emptyLists': '{count} జాబితాలు సందర్శకులకు ఏమీ చూపవు, {pages} పబ్లిక్ పేజీలలో',
   'siteCheck.privateOne': '1 బ్లాక్ ప్రైవేట్ అంశాలు లేదా మీడియాను సూచిస్తుంది, 1 పబ్లిక్ పేజీలో',
-  'siteCheck.privateOnePage': '{count} బ్లాక్‌లు ప్రైవేట్ అంశాలు లేదా మీడియాను సూచిస్తాయి, 1 పబ్లిక్ పేజీలో',
-  'siteCheck.private': '{count} బ్లాక్‌లు ప్రైవేట్ అంశాలు లేదా మీడియాను సూచిస్తాయి, {pages} పబ్లిక్ పేజీలలో',
-  'siteCheck.privateNote': 'సందర్శకులు ప్రైవేట్ అంశాలు లేదా మీడియాలను చూడరు.',
+  'siteCheck.privateOnePage':
+    '{count} బ్లాక్‌లు ప్రైవేట్ అంశాలు లేదా మీడియాను సూచిస్తాయి, 1 పబ్లిక్ పేజీలో',
+  'siteCheck.private':
+    '{count} బ్లాక్‌లు ప్రైవేట్ అంశాలు లేదా మీడియాను సూచిస్తాయి, {pages} పబ్లిక్ పేజీలలో',
+  'siteCheck.privateNote':
+    'సందర్శకులు ప్రైవేట్ అంశాలు లేదా మీడియాను, లేదా ప్రైవేట్ అంశంలోని ఫైల్‌లను చూడలేరు.',
   'siteCheck.outsideMenuOne': '1 పబ్లిక్ పేజీ మెనూలో లేదు',
   'siteCheck.outsideMenu': '{count} పబ్లిక్ పేజీలు మెనూలో లేవు',
   'siteCheck.outsideMenuNote':

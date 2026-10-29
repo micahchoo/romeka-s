@@ -7,6 +7,7 @@ import type { BulkPreview } from '../../../api/bulk';
 import { useTranslator } from '../../../i18n';
 import { bulk } from '../../../i18n/namespaces/bulk';
 import { useTermLabels } from '../../../i18n/termText';
+import { useClassNamesOf } from '../browse-options';
 import type { BrowseOptions } from '../browse-options';
 import { fieldValueWords, fieldWords } from './words';
 
@@ -38,6 +39,7 @@ export const PreviewStep = ({
 }): ReactElement => {
   const { t, number } = useTranslator(bulk);
   const text = useTermLabels();
+  const classNames = useClassNamesOf(options.classes);
   const changing = preview.total - preview.unchanged - preview.denied;
   return (
     <div className="bulk-preview">
@@ -63,7 +65,7 @@ export const PreviewStep = ({
           </thead>
           <tbody>
             {preview.samples.map((sample) => {
-              const words = fieldWords({ t, options, text }, sample.before, sample.after);
+              const words = fieldWords({ t, options, classNames }, sample.before, sample.after);
               const fields = sample.values.map((change) => ({
                 name: text.label(change.term, change.label),
                 change,

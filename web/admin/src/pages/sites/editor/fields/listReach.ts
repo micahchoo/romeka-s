@@ -119,6 +119,15 @@ export const readVisitorCount = async (
   return (await list({ ...countQuery(value, site), is_public: 1 })).total;
 };
 
+/**
+ * How many of the media `value` shows a visitor of the site belong to a
+ * private item: [`readVisitorCount`]'s count with `romeka_item_is_public=0`.
+ * The public site lists such a media, but a visitor can open neither its files
+ * nor its item.
+ */
+export const readVisitorMediaOfPrivateItems = async (value: string, site: ListSite): Promise<number> =>
+  (await listMedia(api, { ...countQuery(value, site), is_public: 1, romeka_item_is_public: 0 })).total;
+
 /** How long a typed query waits before it is counted. */
 const COUNT_DELAY_MS = 400;
 

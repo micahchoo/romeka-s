@@ -11,5 +11,9 @@ import type { ClassFilterMessages } from '../index';
 export const hi: ClassFilterMessages = {
   'classFilter.option': '{label} · {count} आइटम',
   'classFilter.optionOne': '{label} · 1 आइटम',
+  'classFilter.optionItemSets': '{label} · {count} आइटम सेट',
+  'classFilter.optionItemSetOne': '{label} · 1 आइटम सेट',
+  'classFilter.optionMedia': '{label} · {count} मीडिया',
+  'classFilter.optionMediaOne': '{label} · 1 मीडिया',
   'classFilter.standard': '{label} ({standard})',
 };

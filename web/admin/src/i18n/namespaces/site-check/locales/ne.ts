@@ -15,6 +15,8 @@ export const ne: SiteCheckMessages = {
   'siteCheck.again': 'यसलाई फेरि जाँच गर्नुहोस्',
   'siteCheck.running': 'साइट जाँच गर्दै…',
   'siteCheck.nothing': 'जाँच गर्न केही छैन।',
+  'siteCheck.privateSite': 'यो साइट निजी छ: आगन्तुकहरूले यसको कुनै पनि अंश देख्न पाउँदैनन्।',
+  'siteCheck.oncePublic': 'साइट सार्वजनिक भएपछि, आगन्तुकहरूले यी भेट्छन्:',
   'siteCheck.unwrittenOne': '1 ब्लक लेखिएको छैन, 1 सार्वजनिक पृष्ठमा',
   'siteCheck.unwrittenOnePage': '{count} ब्लकहरू लेखिएको छैन, 1 सार्वजनिक पृष्ठमा',
   'siteCheck.unwritten': '{count} ब्लकहरू {pages} सार्वजनिक पृष्ठहरूमा लेखिएको छैन',
@@ -28,7 +30,8 @@ export const ne: SiteCheckMessages = {
     '{count} ब्लकहरूले 1 सार्वजनिक पृष्ठमा निजी वस्तुहरू वा मिडियालाई सङ्केत गर्छन्',
   'siteCheck.private':
     '{count} ब्लकहरूले {pages} सार्वजनिक पृष्ठहरूमा निजी वस्तुहरू वा मिडियालाई सङ्केत गर्छन्',
-  'siteCheck.privateNote': 'आगन्तुकहरूले निजी वस्तुहरू वा मिडिया देख्दैनन्।',
+  'siteCheck.privateNote':
+    'आगन्तुकहरूले निजी वस्तुहरू वा मिडिया, वा निजी वस्तुको मिडियाका फाइलहरू देख्दैनन्।',
   'siteCheck.outsideMenuOne': '1 सार्वजनिक पृष्ठ मेनुमा छैन',
   'siteCheck.outsideMenu': '{count} सार्वजनिक पृष्ठहरू मेनुमा छैनन्',
   'siteCheck.outsideMenuNote': 'आगन्तुकहरूले लिङ्क मार्फत मात्र मेनु बाहिरको पृष्ठमा पुग्न सक्छन्।',

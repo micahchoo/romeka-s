@@ -354,14 +354,15 @@ while this is above 0). Each is a type's total, not a total under the browse's o
 The answer is `Cache-Control: no-store`. `tests/item_type_counts.rs` holds every count against its
 list for anonymous, an author, an editor and an admin.
 
-A sixth read gives the item picker its class filter:
+A sixth read gives the class filters their choices:
 
 | Route | Response |
 | --- | --- |
-| `GET /api/romeka/classes/counts` | 200 `{classes: [{id, term, label, vocabulary_label, items}]}` |
+| `GET /api/romeka/classes/counts?resource_type=..` | 200 `{classes: [{id, term, label, vocabulary_label, count}]}` |
 
-Only a class that at least one item the caller may see has is listed. Its `items` is the
-`Omeka-S-Total-Results` of `GET /api/items?resource_class_id=<id>` for the same caller. The rows
+`resource_type` is `items` (the default), `item_sets` or `media`; any other value is a 400. Only a
+class that at least one resource of that type the caller may see has is listed. Its `count` is the
+`Omeka-S-Total-Results` of `GET /api/<type>?resource_class_id=<id>` for the same caller. The rows
 come by label, then by the standard's label, so two classes with one label sit together and the
 standard's label tells them apart. It is one grouped query over `ix_resource_resource_class_id`.
 The answer is `Cache-Control: no-store`. `tests/class_counts.rs` holds every count against its

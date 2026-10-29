@@ -3,9 +3,9 @@
  * on the item-query match count. A control that receives the lists makes no
  * request of its own, and a typed query asks for one count.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { parseItemSet, parseResourceClass } from '../src/api/parse';
+import { brandId, parseItemSet } from '../src/api/parse';
 import type { EditorOptions } from '../src/pages/sites/editor/options';
 import { BlockFormHarness } from './editor-fields-helpers';
 import { loadFixture } from './loadFixture';
@@ -21,7 +21,9 @@ const rowsOf = (name: string): readonly unknown[] => {
 const options = (): EditorOptions => ({
   pages: [],
   itemSets: rowsOf('item-sets-page.json').slice(0, 2).map((row) => parseItemSet(row)),
-  classes: rowsOf('resource-classes-page.json').slice(0, 2).map((row) => parseResourceClass(row)),
+  classCounts: [
+    { id: brandId<'ClassId'>(51), term: 'bibo:Book', label: 'Book', vocabularyLabel: 'Bibliographic Ontology', count: 4 },
+  ],
 });
 
 const handler = (url: URL): Response => {
@@ -41,13 +43,14 @@ const renderQuery = (lists: EditorOptions) =>
   );
 
 describe("the editor's shared option lists", () => {
-  it('reads the item sets and classes the editor supplies and requests neither', async () => {
+  it('reads the item sets and class counts the editor supplies and requests neither', async () => {
     const fetchMock = installFetch(handler);
     renderQuery(options());
 
     await screen.findByText('7 items in this site match.');
     expect(requestsFor(fetchMock, '/api/item_sets')).toHaveLength(0);
-    expect(requestsFor(fetchMock, '/api/resource_classes')).toHaveLength(0);
+    expect(requestsFor(fetchMock, '/api/romeka/classes/counts')).toHaveLength(0);
+    expect(within(screen.getByLabelText('Class')).getByRole('option', { name: 'Book · 4 items' })).toBeInTheDocument();
     const itemSet = screen.getByLabelText('Item set');
     expect(itemSet.querySelectorAll('option').length).toBeGreaterThan(1);
   });

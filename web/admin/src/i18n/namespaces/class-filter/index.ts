@@ -1,6 +1,6 @@
 /**
- * The class filter's words, wherever items are filtered by class: the Items
- * browse, the item picker and a block's item query (`src/app/class-choices.ts`).
+ * The class filter's words, wherever resources are filtered by class: the Items
+ * browse, the item picker and a block's query (`src/app/class-choices.ts`).
  *
  * English is here, in the chunk of the routes that import it; every other
  * locale is its own chunk under `locales/`, fetched the first time a route in
@@ -13,6 +13,10 @@ import type { Table } from '../../namespace';
 export const en = {
   'classFilter.option': '{label} · {count} items',
   'classFilter.optionOne': '{label} · 1 item',
+  'classFilter.optionItemSets': '{label} · {count} item sets',
+  'classFilter.optionItemSetOne': '{label} · 1 item set',
+  'classFilter.optionMedia': '{label} · {count} media',
+  'classFilter.optionMediaOne': '{label} · 1 media',
   'classFilter.standard': '{label} ({standard})',
 } as const;
 

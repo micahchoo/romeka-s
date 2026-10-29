@@ -13,7 +13,7 @@ import { resources } from '../../i18n/namespaces/resources';
 import { useTermLabels } from '../../i18n/termText';
 import { activeFilters, chosenId, NONE } from './browse';
 import type { BrowseFilters, FilterKey } from './browse';
-import { classNamesOf, fieldName } from './browse-options';
+import { fieldName, useItemClassNames } from './browse-options';
 import type { BrowseOptions } from './browse-options';
 import { fieldName as linkFieldName, recordName } from './links-card';
 import type { LinksPlace } from './links-card';
@@ -22,9 +22,6 @@ type Translate = Translator<MessageKey | KeyOf<typeof common> | KeyOf<typeof res
 
 const nameIn = <K extends number>(map: ReadonlyMap<K, string>, id: K): string =>
   map.get(id) ?? `#${String(id)}`;
-
-const className = (options: BrowseOptions, id: ClassId, text: TermLabels): string =>
-  classNamesOf(options, text).get(id) ?? `#${String(id)}`;
 
 /** The chip's words for one set filter. */
 const chipText = (
@@ -35,12 +32,15 @@ const chipText = (
   text: TermLabels,
   linksPlace: LinksPlace,
   locale: Locale,
+  classNames: ReadonlyMap<ClassId, string>,
 ): string => {
   switch (key) {
     case 'search':
       return t('browse.chipSearch', { text: filters.search });
     case 'classId':
-      return t('browse.chipClass', { name: filters.classId === null ? '' : className(options, filters.classId, text) });
+      return t('browse.chipClass', {
+        name: filters.classId === null ? '' : (classNames.get(filters.classId) ?? `#${String(filters.classId)}`),
+      });
     case 'itemSetId': {
       const set = chosenId(filters.itemSetId);
       if (set === null) {
@@ -101,7 +101,11 @@ export interface FilterWords {
 export const useFilterWords = (filters: BrowseFilters, options: BrowseOptions, linksPlace: LinksPlace): readonly FilterWords[] => {
   const { t, locale } = useTranslator(common, resources);
   const text = useTermLabels();
-  return activeFilters(filters).map((key) => ({ key, label: chipText(key, filters, options, t, text, linksPlace, locale) }));
+  const classNames = useItemClassNames(options, filters.classId);
+  return activeFilters(filters).map((key) => ({
+    key,
+    label: chipText(key, filters, options, t, text, linksPlace, locale, classNames),
+  }));
 };
 
 export interface FilterChipsProps {

@@ -629,6 +629,7 @@ List parameters (`GET /api/media`).
 | `resource_template_id` | table id | `media_filter (query.rs)` |
 | `romeka_fixity` | string | `listed_media (resources.rs)` |
 | `romeka_fixity_job` | string | `listed_media (resources.rs)` |
+| `romeka_item_is_public` | boolean | `media_filter (query.rs)` |
 | `romeka_kind` | list | `media_filter (query.rs)` |
 | `search` | string | `SearchQuery::parse (query.rs)` |
 | `site_attachments_only` | boolean | `SearchQuery::parse (query.rs)` |

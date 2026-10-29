@@ -1,11 +1,13 @@
 /**
- * What the Items browse filters offer and what its rows name: every class,
- * item set, template (with its fields), user, site and property. Each list
- * loads every page once, when the screen opens, so a page change or a filter
- * change costs one request.
+ * What the Items browse filters offer and what its rows name: every class
+ * (with its standard), the classes items use, item set, template (with its
+ * fields), user, site and property. Each list loads every page once, when the
+ * screen opens, so a page change or a filter change costs one request.
  */
 import { api } from '../../api/client';
 import type { ResourceQuery } from '../../api/client';
+import type { ClassCount } from '../../api/places';
+import { listVocabularies } from '../../api/vocabularies';
 import type {
   ApiPage,
   ClassId,
@@ -17,8 +19,11 @@ import type {
   UserId,
 } from '../../api/types';
 import { ALL_PAGES_PER_PAGE, allPages } from '../../app/all-pages';
-import { classLabels, userNames } from '../../app/labels';
+import { classNames, namedClasses, useClassNameText } from '../../app/class-choices';
+import type { NamedClass } from '../../app/class-choices';
+import { userNames } from '../../app/labels';
 import type { TermName } from '../../app/labels';
+import { useTermLabels } from '../../i18n/termText';
 import type { TermLabels } from '../../i18n/termText';
 
 /** One field of an item type: its property and the name the type gives it, if any. */
@@ -28,7 +33,14 @@ export interface TypeField {
 }
 
 export interface BrowseOptions {
-  readonly classNames: ReadonlyMap<ClassId, TermName>;
+  /** Every class, with its standard's label: what a bulk edit can assign. */
+  readonly classes: readonly NamedClass[];
+  /**
+   * The classes items use, with their counts: what the Class filter offers.
+   * The list reads them apart from the rest, again after a bulk change, and
+   * `null` stands until they answer.
+   */
+  readonly usedClasses: readonly ClassCount[] | null;
   readonly itemSets: ReadonlyMap<ItemSetId, string>;
   readonly templates: ReadonlyMap<TemplateId, string>;
   readonly templateFields: ReadonlyMap<TemplateId, readonly TypeField[]>;
@@ -39,7 +51,8 @@ export interface BrowseOptions {
 
 /** No names yet: the rows show `#id` until the lists arrive. */
 export const NO_OPTIONS: BrowseOptions = {
-  classNames: new Map(),
+  classes: [],
+  usedClasses: null,
   itemSets: new Map(),
   templates: new Map(),
   templateFields: new Map(),
@@ -55,8 +68,9 @@ const propertyNames = (properties: readonly Property[]): ReadonlyMap<PropertyId,
   new Map(properties.map((property) => [property.id, { term: property.term, label: property.label ?? property.term }]));
 
 export const loadBrowseOptions = async (): Promise<BrowseOptions> => {
-  const [classes, sets, templates, users, sites, properties] = await Promise.all([
+  const [classes, vocabularies, sets, templates, users, sites, properties] = await Promise.all([
     every((query) => api.listResourceClasses(query)),
+    every((query) => listVocabularies(api, query)),
     every((query) => api.listItemSets(query)),
     every((query) => api.listResourceTemplates(query)),
     every((query) => api.listUsers(query)),
@@ -64,7 +78,8 @@ export const loadBrowseOptions = async (): Promise<BrowseOptions> => {
     every((query) => api.listProperties(query)),
   ]);
   return {
-    classNames: classLabels(classes),
+    classes: namedClasses(classes, vocabularies),
+    usedClasses: null,
     itemSets: new Map(sets.map((set) => [set.id, set.title ?? `#${String(set.id)}`])),
     templates: new Map(templates.map((template) => [template.id, template.label])),
     templateFields: new Map(
@@ -79,22 +94,26 @@ export const loadBrowseOptions = async (): Promise<BrowseOptions> => {
   };
 };
 
+/** Each class of `classes` in words, told apart from the others of `classes` that share its label. */
+export const useClassNamesOf = (classes: readonly NamedClass[]): ReadonlyMap<ClassId, string> => {
+  const text = useTermLabels();
+  const words = useClassNameText();
+  return new Map([...classNames(classes, text)].map(([id, name]) => [id, words(name)]));
+};
+
 /**
- * Each class by its name in the reader's language. A name two classes share carries each one's
- * vocabulary prefix, so the choices tell them apart: "Image (dctype)", "Image (schema)".
+ * Each class as the Items screen names it in rows and chips: told apart within
+ * the classes the Class filter offers (those items use, and `held`), so a row,
+ * a chip and the filter's choice say the same. A class outside them is told
+ * apart within every class.
  */
-export const classNamesOf = (options: BrowseOptions, text: TermLabels): ReadonlyMap<ClassId, string> => {
-  const named = [...options.classNames].map(([id, name]) => ({ id, term: name.term, label: text.label(name.term, name.label) }));
-  const uses = new Map<string, number>();
-  for (const { label } of named) {
-    uses.set(label, (uses.get(label) ?? 0) + 1);
-  }
-  return new Map(
-    named.map(({ id, term, label }) => [
-      id,
-      (uses.get(label) ?? 0) > 1 ? `${label} (${term.slice(0, term.indexOf(':'))})` : label,
-    ]),
-  );
+export const useItemClassNames = (options: BrowseOptions, held: ClassId | null): ReadonlyMap<ClassId, string> => {
+  const used = options.usedClasses ?? [];
+  const heldClass =
+    held === null || used.some((entry) => entry.id === held) ? [] : options.classes.filter((entry) => entry.id === held);
+  const offered = useClassNamesOf([...used, ...heldClass]);
+  const every = useClassNamesOf(options.classes);
+  return new Map([...every, ...offered]);
 };
 
 /** A field as the field filter names it. */

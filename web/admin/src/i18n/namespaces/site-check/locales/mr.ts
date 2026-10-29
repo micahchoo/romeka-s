@@ -15,19 +15,24 @@ export const mr: SiteCheckMessages = {
   'siteCheck.again': 'पुन्हा तपासा',
   'siteCheck.running': 'संकेतस्थळाची तपासणी करत आहे…',
   'siteCheck.nothing': 'तपासण्यासाठी काहीही नाही.',
+  'siteCheck.privateSite': 'ही साईट खाजगी आहे: अभ्यागत त्यातील काहीही पाहत नाहीत.',
+  'siteCheck.oncePublic': 'एकदा साईट सार्वजनिक झाली की, अभ्यागत या गोष्टींना भेट देतील:',
   'siteCheck.unwrittenOne': '1 ब्लॉक न लिहिलेला, 1 सार्वजनिक पृष्ठावर',
   'siteCheck.unwrittenOnePage': '{count} ब्लॉक न लिहिलेले, 1 सार्वजनिक पृष्ठावर',
   'siteCheck.unwritten': '{count} ब्लॉक न लिहिलेले, {pages} सार्वजनिक पृष्ठांवर',
   'siteCheck.emptyListsOne': '1 सूची अभ्यागतांना काहीही दाखवत नाही, 1 सार्वजनिक पृष्ठावर',
-  'siteCheck.emptyListsOnePage': '{count} सूची अभ्यागतांना काहीही दाखवत नाहीत, 1 सार्वजनिक पृष्ठावर',
-  'siteCheck.emptyLists': '{count} सूची अभ्यागतांना काहीही दाखवत नाहीत, {pages} सार्वजनिक पृष्ठांवर',
+  'siteCheck.emptyListsOnePage':
+    '{count} सूची अभ्यागतांना काहीही दाखवत नाहीत, 1 सार्वजनिक पृष्ठावर',
+  'siteCheck.emptyLists':
+    '{count} सूची अभ्यागतांना काहीही दाखवत नाहीत, {pages} सार्वजनिक पृष्ठांवर',
   'siteCheck.privateOne':
     '1 ब्लॉक खाजगी वस्तूंना किंवा माध्यमांना निर्देशित करतो, 1 सार्वजनिक पृष्ठावर',
   'siteCheck.privateOnePage':
     '{count} ब्लॉक खाजगी वस्तूंना किंवा माध्यमांना निर्देशित करतात, 1 सार्वजनिक पृष्ठावर',
   'siteCheck.private':
     '{count} ब्लॉक खाजगी वस्तूंना किंवा माध्यमांना निर्देशित करतात, {pages} सार्वजनिक पृष्ठांवर',
-  'siteCheck.privateNote': 'अभ्यागतांना खाजगी वस्तूंना किंवा माध्यमांना पाहता येत नाही.',
+  'siteCheck.privateNote':
+    'अभ्यागत खाजगी वस्तूंना किंवा माध्यमांना, किंवा खाजगी वस्तूंमधील माध्यमांच्या फाईल्सना पाहत नाहीत.',
   'siteCheck.outsideMenuOne': '1 सार्वजनिक पृष्ठ मेनूमध्ये नाही',
   'siteCheck.outsideMenu': '{count} सार्वजनिक पृष्ठे मेनूमध्ये नाहीत',
   'siteCheck.outsideMenuNote': 'अभ्यागत मेनूबाहेरील पृष्ठावर फक्त त्याच्या लिंकद्वारे पोहोचतात.',

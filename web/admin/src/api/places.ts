@@ -147,24 +147,30 @@ export const fieldQuery = (property: PropertyId, presence: 'empty' | 'filled'): 
   'property[1][type]': presence === 'empty' ? 'nex' : 'ex',
 });
 
-/** A class at least one item the caller may see has, with how many such items have it. */
+/** The resource types a class count counts: each is a list endpoint. */
+export type ClassCountType = 'items' | 'item_sets' | 'media';
+
+/**
+ * A class at least one resource of the counted type the caller may see has, with how many such
+ * resources have it: the total of `GET /api/<type>?resource_class_id=<id>`.
+ */
 export interface ClassCount {
   readonly id: ClassId;
   readonly term: string;
   /** The class's stored label; two classes of different standards may share it. */
   readonly label: string;
   readonly vocabularyLabel: string;
-  readonly items: number;
+  readonly count: number;
 }
 
 const parseClassCount = (raw: unknown, path: Path): ClassCount => {
-  const object = strict(raw, path, ['id', 'term', 'label', 'vocabulary_label', 'items']);
+  const object = strict(raw, path, ['id', 'term', 'label', 'vocabulary_label', 'count']);
   return {
     id: brandId<'ClassId'>(member(object, 'id', path, asIdNumber)),
     term: member(object, 'term', path, asString),
     label: member(object, 'label', path, asString),
     vocabularyLabel: member(object, 'vocabulary_label', path, asString),
-    items: member(object, 'items', path, asCount),
+    count: member(object, 'count', path, asCount),
   };
 };
 
@@ -214,8 +220,9 @@ export const placesApi = {
   async itemTypeCounts(): Promise<ItemTypeCounts> {
     return parseItemTypeCounts(await api.requestJson('/api/romeka/item-types/counts'));
   },
-  async classCounts(): Promise<readonly ClassCount[]> {
-    return parseClassCounts(await api.requestJson('/api/romeka/classes/counts'));
+  async classCounts(resourceType: ClassCountType = 'items'): Promise<readonly ClassCount[]> {
+    const params = new URLSearchParams({ resource_type: resourceType });
+    return parseClassCounts(await api.requestJson('/api/romeka/classes/counts', params));
   },
   async record(id: ResourceId): Promise<RecordSummary> {
     return parseRecordSummary(await api.requestJson(`/api/resources/${String(id)}`));

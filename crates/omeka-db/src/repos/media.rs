@@ -30,6 +30,9 @@ pub struct MediaFilter {
     pub resource_class_id: Option<ClassId>,
     pub resource_template_id: Option<TemplateId>,
     pub is_public: Option<bool>,
+    /// `romeka_item_is_public`: media whose item has this visibility. The public site lists a
+    /// public media of a private item, and the file route refuses a visitor its files.
+    pub item_is_public: Option<bool>,
 }
 
 const MEDIA_COLUMNS: &str = "SELECT resource.*, media.item_id, media.ingester, media.renderer,
@@ -321,6 +324,14 @@ where
         if let Some(is_public) = filter.is_public {
             statement.push(" AND resource.is_public = ");
             statement.bind(is_public)?;
+        }
+        if let Some(item_is_public) = filter.item_is_public {
+            statement.push(
+                " AND EXISTS (SELECT 1 FROM resource item_resource \
+                 WHERE item_resource.id = media.item_id AND item_resource.is_public = ",
+            );
+            statement.bind(item_is_public)?;
+            statement.push(")");
         }
         query.push_media(&mut statement)?;
         // Upstream orders media within an item by `position` (`Entity/Item.php`, `@OrderBy`); MySQL

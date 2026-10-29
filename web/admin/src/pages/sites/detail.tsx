@@ -278,7 +278,7 @@ const AboutSection = ({
           </>
         )}
       </dl>
-      {access.has('editPages') ? <SiteCheck siteId={site.id} /> : null}
+      {access.has('editPages') ? <SiteCheck siteId={site.id} settings={access.has('changeSite')} /> : null}
     </section>
   );
 };
