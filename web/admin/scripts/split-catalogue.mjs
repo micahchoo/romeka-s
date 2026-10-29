@@ -6,6 +6,7 @@
  *   node scripts/split-catalogue.mjs copy [namespace ...]
  *   node scripts/split-catalogue.mjs fold <table> <namespace> [old=new ...]
  *   node scripts/split-catalogue.mjs prune
+ *   node scripts/split-catalogue.mjs move <from> <to> <prefix>
  *
  * `plan` prints where each shell catalogue key belongs, read from the route
  * graph: the shell's own keys stay, a key one route family renders goes to
@@ -14,7 +15,9 @@
  * namespace, creating the namespace's files when they are missing, and leaves
  * the catalogue as it is. `fold` copies a page table (`messages.ts` beside a
  * page) into a namespace, renaming the keys given. `prune` deletes from the
- * catalogue every key a namespace holds, and the dead keys.
+ * catalogue every key a namespace holds, and the dead keys. `move` moves every
+ * key of namespace `from` that starts with `prefix` into namespace `to`, for a
+ * panel whose words should load with the panel's own chunk.
  *
  * Every entry moves as its source text, with the comment above it, so a hand
  * correction moves with it. Each key's `sources.json` record moves with it as
@@ -319,6 +322,25 @@ const prune = () => {
   writeJson(CATALOGUE.sources, Object.fromEntries(Object.entries(sources).filter(([key]) => !gone(key))));
 };
 
+// ---- moving between namespaces ----
+
+/** Move the keys of namespace `fromId` under `prefix` into namespace `id`. */
+const move = (fromId, id, prefix) => {
+  const from = namespaceTable(fromId);
+  const keys = entriesOf(from.english.path, 'en').map((entry) => entry.key).filter((key) => key.startsWith(prefix));
+  if (!keys.length) {
+    console.log(`${fromId}: no key starts with ${prefix}`);
+    return;
+  }
+  copy(from, id, keys.map((key) => [key, key]));
+  const gone = new Set(keys);
+  for (const side of [from.english, ...LOCALES.map((tag) => from.locale(tag))]) {
+    writeEntries(side.path, side.name, entriesOf(side.path, side.name).filter((entry) => !gone.has(entry.key)));
+  }
+  writeJson(from.sources, Object.fromEntries(Object.entries(readJson(from.sources)).filter(([key]) => !gone.has(key))));
+  console.log(`${fromId}: ${keys.length} removed`);
+};
+
 // ---- commands ----
 
 const [command, ...args] = process.argv.slice(2);
@@ -342,7 +364,10 @@ if (command === 'plan') {
   copy(table, id, keys.map((key) => [key, rename.get(key) ?? key]));
 } else if (command === 'prune') {
   prune();
+} else if (command === 'move') {
+  const [from, id, prefix] = args;
+  move(from, id, prefix);
 } else {
-  console.error('usage: split-catalogue.mjs plan | copy [namespace ...] | fold <table> <namespace> [old=new ...] | prune');
+  console.error('usage: split-catalogue.mjs plan | copy [namespace ...] | fold <table> <namespace> [old=new ...] | prune | move <from> <to> <prefix>');
   process.exitCode = 2;
 }

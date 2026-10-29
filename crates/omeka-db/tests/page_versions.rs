@@ -1,6 +1,7 @@
-//! `romeka_site_page_version` behaviour: a save records the state it makes, the first save also
-//! keeps the state it replaced, a stale save writes nothing, a failing row rolls the whole save
-//! back, a page keeps its newest 100 versions, and deleting a page deletes its history.
+//! `romeka_site_page_version` behaviour: a create records the page it makes as version 1, a save
+//! records the state it makes, the first save of a page with no version also keeps the state it
+//! replaced, a stale save writes nothing, a failing row rolls the whole create or save back, a
+//! page keeps its newest 100 versions, and deleting a page deletes its history.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
@@ -11,7 +12,8 @@ use omeka_db::ids::{ItemId, PageId, UserId};
 use omeka_db::repos::{PageVersionRepo, SiteRepo, UserRepo};
 use omeka_db::rows::{
     BlockChange, NewPageAttachment, NewPageBlock, NewSite, NewSiteBlock, NewSitePage, NewUser,
-    PageImage, PageSave, PageSaveOutcome, SitePageRow,
+    PageCreate, PageImage, PageSave, PageSaveOutcome, PageVersionOrigin, SitePageRow,
+    VersionAuthor,
 };
 use serde_json::{Value, json};
 use sqlx::SqlitePool;
@@ -157,19 +159,21 @@ async fn the_first_save_keeps_the_replaced_state_and_records_the_new_one() {
     let versions = PageVersionRepo::new(&pool).list(page.id).await.unwrap();
     let kept: Vec<_> = versions
         .iter()
-        .map(|row| (row.version, row.user_id, row.snapshot.clone()))
+        .map(|row| (row.version, row.origin, row.author(), row.snapshot.clone()))
         .collect();
     assert_eq!(
         kept,
         [
             (
                 2,
-                Some(ana),
+                PageVersionOrigin::Save,
+                VersionAuthor::User(ana),
                 json!({"title": "Welcome", "blocks": ["second", "third"], "attachments": 0})
             ),
             (
                 1,
-                None,
+                PageVersionOrigin::BeforeHistory,
+                VersionAuthor::NotRecorded,
                 json!({"title": "Intro", "blocks": ["first"], "attachments": 0})
             ),
         ]
@@ -408,4 +412,179 @@ async fn deleting_the_user_keeps_their_versions_without_a_name() {
         .unwrap();
     assert_eq!(newest.user_id, None);
     assert_eq!(newest.snapshot["title"], "Ana's");
+}
+
+async fn site(pool: &SqlitePool) -> omeka_db::ids::SiteId {
+    SiteRepo::new(pool)
+        .create(&NewSite {
+            slug: "created".to_string(),
+            theme: "default".to_string(),
+            title: "Created".to_string(),
+            ..NewSite::default()
+        })
+        .await
+        .unwrap()
+        .id
+}
+
+fn new_page(site: omeka_db::ids::SiteId) -> NewSitePage {
+    NewSitePage {
+        site_id: site,
+        slug: "made".to_string(),
+        title: "Made".to_string(),
+        is_public: true,
+        ..NewSitePage::default()
+    }
+}
+
+async fn create(
+    pool: &SqlitePool,
+    page: &NewSitePage,
+    blocks: &[NewPageBlock],
+    user: Option<UserId>,
+) -> Result<SitePageRow, DbError> {
+    PageVersionRepo::new(pool)
+        .create(&PageCreate { page, blocks, user }, &summary)
+        .await
+}
+
+#[tokio::test]
+async fn a_create_records_the_page_it_makes_as_version_one_by_its_creator() {
+    let pool = common::memory().await;
+    let ana = user(&pool, "Ana").await;
+    let site = site(&pool).await;
+
+    let page = create(&pool, &new_page(site), &[html("a"), html("b")], Some(ana))
+        .await
+        .unwrap();
+
+    assert_eq!(block_texts(&pool, page.id).await, [json!("a"), json!("b")]);
+    let versions = PageVersionRepo::new(&pool).list(page.id).await.unwrap();
+    let kept: Vec<_> = versions
+        .iter()
+        .map(|row| (row.version, row.origin, row.author(), row.snapshot.clone()))
+        .collect();
+    assert_eq!(
+        kept,
+        [(
+            1,
+            PageVersionOrigin::Create,
+            VersionAuthor::User(ana),
+            json!({"title": "Made", "blocks": ["a", "b"], "attachments": 0})
+        )]
+    );
+    assert_eq!(versions[0].created, page.created);
+    assert_eq!(page.modified, Some(page.created));
+}
+
+#[tokio::test]
+async fn the_first_save_of_a_created_page_adds_one_version() {
+    let pool = common::memory().await;
+    let ana = user(&pool, "Ana").await;
+    let site = site(&pool).await;
+    let page = create(&pool, &new_page(site), &[html("a")], Some(ana))
+        .await
+        .unwrap();
+
+    save(
+        &pool,
+        &titled(&page, "Again"),
+        BlockChange::Keep,
+        None,
+        None,
+    )
+    .await;
+
+    let origins: Vec<_> = PageVersionRepo::new(&pool)
+        .list(page.id)
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|row| (row.version, row.origin, row.author()))
+        .collect();
+    assert_eq!(
+        origins,
+        [
+            (2, PageVersionOrigin::Save, VersionAuthor::Deleted),
+            (1, PageVersionOrigin::Create, VersionAuthor::User(ana)),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn a_create_whose_attachment_fails_leaves_no_page_block_or_version() {
+    let pool = common::memory().await;
+    let site = site(&pool).await;
+    let broken = NewPageBlock {
+        attachments: vec![NewPageAttachment {
+            item_id: Some(ItemId(999_999)),
+            media_id: None,
+            caption: String::new(),
+        }],
+        ..html("broken")
+    };
+
+    let failed = create(&pool, &new_page(site), &[html("kept?"), broken], None).await;
+
+    assert!(failed.unwrap_err().is_foreign_key_violation());
+    for table in [
+        "site_page",
+        "site_page_block",
+        "site_block_attachment",
+        "romeka_site_page_version",
+    ] {
+        let count: i64 = sqlx::query_scalar(&format!("SELECT count(*) FROM {table}"))
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(count, 0, "{table} keeps no row");
+    }
+}
+
+#[tokio::test]
+async fn deleting_the_creator_keeps_the_created_version_as_a_deleted_users() {
+    let pool = common::memory().await;
+    let ana = user(&pool, "Ana").await;
+    let site = site(&pool).await;
+    let page = create(&pool, &new_page(site), &[], Some(ana))
+        .await
+        .unwrap();
+
+    UserRepo::new(&pool).delete(ana).await.unwrap();
+
+    let first = PageVersionRepo::new(&pool)
+        .get(page.id, 1)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        (first.origin, first.author()),
+        (PageVersionOrigin::Create, VersionAuthor::Deleted)
+    );
+}
+
+#[tokio::test]
+async fn the_trim_takes_a_created_pages_create_version_like_any_other() {
+    let pool = common::memory().await;
+    let site = site(&pool).await;
+    let page = create(&pool, &new_page(site), &[], None).await.unwrap();
+
+    for n in 1..=100 {
+        save(
+            &pool,
+            &titled(&page, &format!("Save {n}")),
+            BlockChange::Keep,
+            None,
+            None,
+        )
+        .await;
+    }
+
+    let versions = PageVersionRepo::new(&pool).list(page.id).await.unwrap();
+    assert_eq!(versions.len(), 100);
+    assert_eq!(versions[0].version, 101);
+    assert_eq!(
+        (versions[99].version, versions[99].origin),
+        (2, PageVersionOrigin::Save)
+    );
 }

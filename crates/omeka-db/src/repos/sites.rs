@@ -66,7 +66,7 @@ where
     pub async fn create_whole(&self, new: &NewWholeSite) -> Result<SiteRow, DbError> {
         let mut tx = self.pool.begin().await?;
         let mut site = Self::insert_site(&mut tx, &new.site).await?;
-        let page = Self::insert_page(
+        let page = insert_page::<DB>(
             &mut tx,
             &NewSitePage {
                 site_id: site.id,
@@ -259,39 +259,7 @@ where
 
     pub async fn add_page(&self, new: &NewSitePage) -> Result<SitePageRow, DbError> {
         let mut conn = self.pool.acquire().await?;
-        Self::insert_page(&mut conn, new).await
-    }
-
-    async fn insert_page(
-        conn: &mut DB::Connection,
-        new: &NewSitePage,
-    ) -> Result<SitePageRow, DbError> {
-        let created = new.created.unwrap_or_else(time::now);
-        let query = sqlx::query(
-            "INSERT INTO site_page
-                 (site_id, slug, title, is_public, layout, layout_data, created, modified)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        )
-        .bind(bind_id(new.site_id))
-        .bind(&new.slug)
-        .bind(&new.title)
-        .bind(new.is_public)
-        .bind(&new.layout)
-        .bind(new.layout_data.as_ref().map(json_text).transpose()?)
-        .bind(time::format(created))
-        .bind(time::format(created));
-        let id = insert_id(query, conn).await?;
-        Ok(SitePageRow {
-            id: PageId::from(id),
-            site_id: new.site_id,
-            slug: new.slug.clone(),
-            title: new.title.clone(),
-            is_public: new.is_public,
-            layout: new.layout.clone(),
-            layout_data: new.layout_data.clone(),
-            created,
-            modified: Some(created),
-        })
+        insert_page::<DB>(&mut conn, new).await
     }
 
     pub async fn get_page(&self, id: PageId) -> Result<Option<SitePageRow>, DbError> {
@@ -584,4 +552,46 @@ where
         .await?;
         Ok(found > 0)
     }
+}
+
+/// Insert a page row; `modified` equals `created`, as upstream's `updateTimestamps` stores them on
+/// create. On the caller's connection, so a create can join a larger transaction.
+pub(crate) async fn insert_page<DB: Backend>(
+    conn: &mut DB::Connection,
+    new: &NewSitePage,
+) -> Result<SitePageRow, DbError>
+where
+    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
+    for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
+    for<'x> i64: Encode<'x, DB> + Type<DB>,
+    for<'x> bool: Encode<'x, DB> + Type<DB>,
+    for<'x> String: Encode<'x, DB> + Type<DB>,
+    for<'x> Option<String>: Encode<'x, DB> + Type<DB>,
+{
+    let created = new.created.unwrap_or_else(time::now);
+    let query = sqlx::query(
+        "INSERT INTO site_page
+             (site_id, slug, title, is_public, layout, layout_data, created, modified)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(bind_id(new.site_id))
+    .bind(&new.slug)
+    .bind(&new.title)
+    .bind(new.is_public)
+    .bind(&new.layout)
+    .bind(new.layout_data.as_ref().map(json_text).transpose()?)
+    .bind(time::format(created))
+    .bind(time::format(created));
+    let id = insert_id(query, conn).await?;
+    Ok(SitePageRow {
+        id: PageId::from(id),
+        site_id: new.site_id,
+        slug: new.slug.clone(),
+        title: new.title.clone(),
+        is_public: new.is_public,
+        layout: new.layout.clone(),
+        layout_data: new.layout_data.clone(),
+        created,
+        modified: Some(created),
+    })
 }

@@ -318,3 +318,12 @@ holds the media's rows alone, a set's the set's rows, its items' memberships, an
 SET NULL` column named the record (`site_block_attachment`, `item.primary_media_id`,
 `custom_vocab.item_set_id`) are kept as `emptied`, and an undo fills each column again if it is
 still empty.
+
+`0015_site_page_version_origin.sql` adds `romeka_site_page_version.origin`, what made a version:
+`before_history` (the state a page had before its first recorded save, version 1, no user),
+`create` (the page create, version 1) or `save`. The backfill is exact because before 0015 the
+page create recorded no version: version 1 with no user was the state before history, and every
+other row a save. The author follows the origin, so a create or save whose user was deleted reads
+as a deleted user, never "not recorded". SQLite's `CHECK` refuses a `create` or `before_history`
+row that is not version 1, and a `before_history` row with a user; MySQL 8 refuses a `CHECK` on
+`user_id` (its foreign key sets it to NULL), so there `PageVersionRepo` keeps that rule.

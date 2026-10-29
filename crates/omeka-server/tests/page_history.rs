@@ -387,19 +387,25 @@ async fn each_listed_version_says_what_it_changed_and_why_an_author_is_missing()
         .await;
     assert_eq!(list.status, StatusCode::OK, "{}", list.body);
     let entries = list.json();
-    let authors: Vec<(Value, Value)> = entries
+    let authors: Vec<(Value, Value, Value)> = entries
         .as_array()
         .unwrap()
         .iter()
-        .map(|entry| (entry["o:author"].clone(), entry["o:user"]["o:name"].clone()))
+        .map(|entry| {
+            (
+                entry["o:origin"].clone(),
+                entry["o:author"].clone(),
+                entry["o:user"]["o:name"].clone(),
+            )
+        })
         .collect();
     assert_eq!(
         authors,
         [
-            (json!("deleted_user"), Value::Null),
-            (json!("user"), json!("Ben")),
-            (json!("deleted_user"), Value::Null),
-            (json!("not_recorded"), Value::Null),
+            (json!("save"), json!("deleted_user"), Value::Null),
+            (json!("save"), json!("user"), json!("Ben")),
+            (json!("save"), json!("deleted_user"), Value::Null),
+            (json!("before_history"), json!("not_recorded"), Value::Null),
         ]
     );
     let edited = json!({
@@ -424,4 +430,61 @@ async fn each_listed_version_says_what_it_changed_and_why_an_author_is_missing()
         .map(|entry| entry["o:changes"].clone())
         .collect();
     assert_eq!(changes, [edited, moved, first, Value::Null]);
+}
+
+#[tokio::test]
+async fn a_page_created_over_the_api_starts_its_history_with_a_created_version_by_its_creator() {
+    let scenario = scenario().await;
+    let created = send(
+        scenario.app.clone(),
+        json_request(
+            "POST",
+            &scenario.ana.uri("/api/site_pages"),
+            &json!({
+                "o:site": { "o:id": scenario.site.0 },
+                "o:title": "Made",
+                "o:slug": "made",
+                "o:block": [{ "o:layout": "html", "o:data": { "html": "a" } }],
+            })
+            .to_string(),
+        ),
+    )
+    .await;
+    assert_eq!(created.status, StatusCode::OK, "{}", created.body);
+    let versions = format!("/api/site_pages/{}/versions", created.json()["o:id"]);
+    let summary = |answer: &common::Answer| -> Vec<Value> {
+        assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
+        answer
+            .json()
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|entry| {
+                json!([
+                    entry["o:version"],
+                    entry["o:origin"],
+                    entry["o:author"],
+                    entry["o:user"]["o:name"],
+                    entry["o:block_count"],
+                    entry["o:changes"],
+                ])
+            })
+            .collect()
+    };
+
+    assert_eq!(
+        summary(&scenario.get(Some(&scenario.ben), &versions).await),
+        [json!([1, "create", "user", "Ana", 1, null])]
+    );
+
+    assert!(
+        UserRepo::new(&scenario.pool)
+            .delete(scenario.ana.id)
+            .await
+            .unwrap()
+    );
+    assert_eq!(
+        summary(&scenario.get(Some(&scenario.ben), &versions).await),
+        [json!([1, "create", "deleted_user", null, 1, null])]
+    );
 }

@@ -5,20 +5,25 @@
 //! retention trim. A failing row rolls back all of it, so a save never leaves a page with only some
 //! of its blocks. No statement here updates a version row.
 //!
-//! Each version holds a state as it went live. A page's first save also records the state it
-//! replaces, with no user, so the content a page had before history began is kept too.
+//! [`PageVersionRepo::create`] is the whole of a page create the same way: the page row, its
+//! blocks and attachments, and version 1 with origin `create` and the creating user.
+//!
+//! Each version holds a state as it went live. A page with no version yet (made before 0007, or
+//! by a write that keeps none) has its first save also record the state it replaces, with origin
+//! `before_history` and no user, so that content is kept too.
 
 use chrono::NaiveDateTime;
 use serde_json::Value;
 use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Pool, Sqlite, Transaction, Type};
 
+use super::sites::insert_page;
 use super::{bind_id, bind_opt_id, insert_id, json_text};
 use crate::DbError;
 use crate::backend::Backend;
 use crate::ids::{BlockId, PageId, UserId};
 use crate::rows::{
-    BlockChange, NewPageBlock, PageImage, PageImageBlock, PageSave, PageSaveOutcome,
-    PageVersionRow, SiteBlockAttachmentRow, SiteBlockRow, SitePageRow,
+    BlockChange, NewPageBlock, PageCreate, PageImage, PageImageBlock, PageSave, PageSaveOutcome,
+    PageVersionOrigin, PageVersionRow, SiteBlockAttachmentRow, SiteBlockRow, SitePageRow,
 };
 use crate::time;
 
@@ -49,6 +54,34 @@ where
         Self { pool }
     }
 
+    /// Create a page with its blocks and record the state it has as version 1, made by
+    /// `create.user`. A failing row rolls back all of it, so a create leaves a whole page or none.
+    pub async fn create(
+        &self,
+        create: &PageCreate<'_>,
+        snapshot: Snapshot<'_>,
+    ) -> Result<SitePageRow, DbError> {
+        let mut tx = self.pool.begin_with(DB::begin_write()).await?;
+        let page = insert_page::<DB>(&mut tx, create.page).await?;
+        insert_blocks::<DB>(&mut tx, page.id, create.blocks).await?;
+        let created = page.created;
+        let made = image::<DB>(&mut tx, page).await?;
+        insert_version::<DB>(
+            &mut tx,
+            made.page.id,
+            Version {
+                number: 1,
+                created,
+                user: create.user,
+                origin: PageVersionOrigin::Create,
+            },
+            &snapshot(&made)?,
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(made.page)
+    }
+
     /// Save a page and record the state it now has as its next version.
     pub async fn save(
         &self,
@@ -76,9 +109,12 @@ where
             insert_version::<DB>(
                 &mut tx,
                 save.page.id,
-                version,
-                created,
-                None,
+                Version {
+                    number: version,
+                    created,
+                    user: None,
+                    origin: PageVersionOrigin::BeforeHistory,
+                },
                 &snapshot(&before)?,
             )
             .await?;
@@ -103,9 +139,12 @@ where
         insert_version::<DB>(
             &mut tx,
             save.page.id,
-            version,
-            now,
-            save.user,
+            Version {
+                number: version,
+                created: now,
+                user: save.user,
+                origin: PageVersionOrigin::Save,
+            },
             &snapshot(&after)?,
         )
         .await?;
@@ -228,12 +267,18 @@ where
     Ok(PageImage { page, blocks })
 }
 
+/// The columns of one version row beside its page and snapshot.
+struct Version {
+    number: u32,
+    created: NaiveDateTime,
+    user: Option<UserId>,
+    origin: PageVersionOrigin,
+}
+
 async fn insert_version<DB: Backend>(
     tx: &mut Transaction<'static, DB>,
     page: PageId,
-    version: u32,
-    created: NaiveDateTime,
-    user: Option<UserId>,
+    version: Version,
     snapshot: &Value,
 ) -> Result<(), DbError>
 where
@@ -242,15 +287,18 @@ where
     for<'x> i64: Encode<'x, DB> + Type<DB>,
     for<'x> Option<i64>: Encode<'x, DB> + Type<DB>,
     for<'x> String: Encode<'x, DB> + Type<DB>,
+    for<'x> &'x str: Encode<'x, DB> + Type<DB>,
 {
     sqlx::query(
-        "INSERT INTO romeka_site_page_version (page_id, version, created, user_id, snapshot)
-         VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO romeka_site_page_version
+             (page_id, version, created, user_id, origin, snapshot)
+         VALUES (?, ?, ?, ?, ?, ?)",
     )
     .bind(bind_id(page))
-    .bind(i64::from(version))
-    .bind(time::format(created))
-    .bind(bind_opt_id(user))
+    .bind(i64::from(version.number))
+    .bind(time::format(version.created))
+    .bind(bind_opt_id(version.user))
+    .bind(version.origin.as_str())
     .bind(json_text(snapshot)?)
     .execute(&mut **tx)
     .await?;

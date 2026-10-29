@@ -1,8 +1,10 @@
 /**
- * Page history in a real browser against the real server: two saves become
- * versions, each saying what it changed, the first one renders through the preview route, Restore puts it in
- * the draft and the next Save stores it; and a save made from a page someone
- * else saved since is refused with their name, and Keep mine saves over theirs.
+ * Page history in a real browser against the real server: a page create is
+ * the first version, named Created with who created it; two saves become
+ * versions, each saying what it changed, the first one renders through the
+ * preview route, Restore puts it in the draft and the next Save stores it; and
+ * a save made from a page someone else saved since is refused with their name,
+ * and Keep mine saves over theirs.
  */
 import type { APIRequestContext, Page } from '@playwright/test';
 import { expect, test } from '../fixtures';
@@ -67,6 +69,18 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
+test('a created page starts its history with Created, by who created it', async ({ page }) => {
+  const { site, id } = await newPage(page, 'history-created');
+  await page.goto(`/#/sites/${String(site)}/pages/${String(id)}`);
+
+  await page.getByRole('region', { name: 'Editor actions' }).getByRole('button', { name: 'History' }).click();
+  const entries = page.getByRole('region', { name: 'Page history' }).getByRole('button', { name: / · / });
+  await expect(entries).toHaveCount(1);
+  await expect(entries.first()).toContainText('E2E Admin · 1 block');
+  await expect(entries.first()).toContainText('Created');
+  await expect(entries.first()).not.toContainText('Author not recorded');
+});
+
 test('two saves are versions; the first one restores and saves again', async ({ page }) => {
   const { site, id } = await newPage(page, 'history-restore');
   await page.goto(`/#/sites/${String(site)}/pages/${String(id)}`);
@@ -82,8 +96,8 @@ test('two saves are versions; the first one restores and saves again', async ({ 
   await expect(entries.first()).toContainText('E2E Admin · 1 block');
   await expect(entries.first()).toContainText('Title changed from “First save” to “Second save”');
   await expect(entries.nth(1)).toContainText('Title changed from “Opening title” to “First save”');
-  await expect(entries.nth(2)).toContainText('Author not recorded · 1 block');
-  await expect(entries.nth(2)).toContainText('First saved version');
+  await expect(entries.nth(2)).toContainText('E2E Admin · 1 block');
+  await expect(entries.nth(2)).toContainText('Created');
 
   // The middle entry is the first save.
   const rendered = page.waitForResponse(
