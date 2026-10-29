@@ -8,6 +8,12 @@ semantic versioning.
 
 ## [Unreleased]
 
+### Security
+
+- `PUT /api/users/<id>` checks `update`, `change-role`, `change-role-admin` and `activate-user` as upstream's
+  `UserAdapter` does. Before, any signed-in user could set their own `o:role` (to `global_admin` too) or
+  `o:is_active`, and a site admin could edit a global admin's account.
+
 ## [0.2.1] - 2026-10-24
 
 ### Changed
