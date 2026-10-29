@@ -15,6 +15,7 @@
 import type { KeyboardEvent, ReactElement } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../../../api/client';
+import { placesApi } from '../../../../api/places';
 import type { ClassId, Item, ItemId, ItemSet, ItemSetId } from '../../../../api/types';
 import { KIND_LABEL } from '../../../../app/media';
 import { useAsync } from '../../../../app/useAsync';
@@ -24,12 +25,13 @@ import { common } from '../../../../i18n/namespaces/common';
 import { resources } from '../../../../i18n/namespaces/resources';
 import { sites } from '../../../../i18n/namespaces/sites';
 import type { FieldAccepts } from '../../blockSchema';
-import type { Filters, ItemPickerProps, MediaNarrowing, Source } from './itemPickerModel';
+import type { ClassChoice, Filters, ItemPickerProps, MediaNarrowing, Source } from './itemPickerModel';
 import {
   ALL_ITEMS,
   HAS_CHOICES,
   NO_FILTERS,
   NO_NARROWING,
+  classChoices,
   classTerm,
   hasChoiceOf,
   isFiltered,
@@ -47,7 +49,6 @@ const SEARCH_DELAY_MS = 300;
 /** How long the results may take before skeleton rows hold their place. */
 const SLOW_MS = 1000;
 const SET_LIMIT = 100;
-const CLASS_LIMIT = 500;
 const SKELETON_ROWS = 6;
 
 /** `true` once `on` has held for `delay`, and `false` as soon as it drops. */
@@ -197,11 +198,8 @@ export const ItemPicker = (props: ItemPickerProps): ReactElement => {
   const setsState = useAsync(() => api.listItemSets({ perPage: SET_LIMIT, sortBy: 'title' }), []);
   const sets = setsState.status === 'ready' ? setsState.data.items : [];
   const counts = useSourceCounts(sets);
-  const classesState = useAsync(
-    () => api.listResourceClasses({ perPage: CLASS_LIMIT, sortBy: 'label' }),
-    [],
-  );
-  const classes = classesState.status === 'ready' ? classesState.data.items : [];
+  const classesState = useAsync(() => placesApi.classCounts(), []);
+  const classes = classesState.status === 'ready' ? classChoices(classesState.data) : [];
 
   const picked = pickedList(props);
   const setPicks = props.mode === 'many' ? props.sets : undefined;
@@ -275,7 +273,14 @@ export const ItemPicker = (props: ItemPickerProps): ReactElement => {
   };
 
   const setTitle = new Map(sets.map((set) => [set.id, set.title ?? t('common.untitled')]));
-  const classLabel = new Map(classes.map((entry) => [entry.id, entry.label ?? entry.term]));
+  const classLabel = new Map(classes.map((entry) => [entry.id, entry.label]));
+  const classOption = (entry: ClassChoice): string => {
+    const label =
+      entry.standard === null ? entry.label : t('itemPicker.classIn', { label: entry.label, standard: entry.standard });
+    return entry.items === 1
+      ? t('itemPicker.classOptionOne', { label })
+      : t('itemPicker.classOption', { label, count: number(entry.items) });
+  };
   const titleOf = (item: ItemId): string => {
     const found = known.get(item);
     return found === undefined
@@ -317,7 +322,7 @@ export const ItemPicker = (props: ItemPickerProps): ReactElement => {
             <option value="">{t('itemPicker.anyClass')}</option>
             {classes.map((entry) => (
               <option key={String(entry.id)} value={String(entry.id)}>
-                {entry.label ?? entry.term}
+                {classOption(entry)}
               </option>
             ))}
           </select>
