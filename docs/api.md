@@ -400,18 +400,18 @@ List parameters (`GET /api/item_sets`).
 | `has_media` | boolean | `SearchQuery::parse (query.rs)` |
 | `has_media_kind` | list | `SearchQuery::parse (query.rs)` |
 | `in_sites` | boolean | `SearchQuery::parse (query.rs)` |
-| `is_open` | boolean | `search_item_sets (resources.rs)` |
-| `is_public` | boolean | `search_item_sets (resources.rs)` |
+| `is_open` | boolean | `item_set_filter (query.rs)` |
+| `is_public` | boolean | `item_set_filter (query.rs)` |
 | `item_set_id` | list | `SearchQuery::parse (query.rs)` |
 | `limit` | string | `Limit::from_params (paging.rs)` |
 | `not_item_set_id` | list | `SearchQuery::parse (query.rs)` |
 | `offset` | string | `Limit::from_params (paging.rs)` |
-| `owner_id` | table id | `search_item_sets (resources.rs)` |
+| `owner_id` | table id | `item_set_filter (query.rs)` |
 | `page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
 | `per_page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
 | `property` | table rows | `SearchQuery::parse (query.rs)`, `search_item_sets (resources.rs)` |
-| `resource_class_id` | table id | `search_item_sets (resources.rs)` |
-| `resource_template_id` | table id | `search_item_sets (resources.rs)` |
+| `resource_class_id` | table id | `item_set_filter (query.rs)` |
+| `resource_template_id` | table id | `item_set_filter (query.rs)` |
 | `search` | string | `SearchQuery::parse (query.rs)` |
 | `site_attachments_only` | boolean | `SearchQuery::parse (query.rs)` |
 | `site_id` | table id | `SearchQuery::parse (query.rs)` |
@@ -477,17 +477,17 @@ List parameters (`GET /api/items`).
 | `has_media` | boolean | `SearchQuery::parse (query.rs)` |
 | `has_media_kind` | list | `SearchQuery::parse (query.rs)` |
 | `in_sites` | boolean | `SearchQuery::parse (query.rs)` |
-| `is_public` | boolean | `item_filter (resources.rs)` |
+| `is_public` | boolean | `item_filter (query.rs)` |
 | `item_set_id` | list | `SearchQuery::parse (query.rs)` |
 | `limit` | string | `Limit::from_params (paging.rs)` |
 | `not_item_set_id` | list | `SearchQuery::parse (query.rs)` |
 | `offset` | string | `Limit::from_params (paging.rs)` |
-| `owner_id` | table id | `item_filter (resources.rs)` |
+| `owner_id` | table id | `item_filter (query.rs)` |
 | `page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
 | `per_page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
 | `property` | table rows | `SearchQuery::parse (query.rs)`, `item_search (resources.rs)` |
-| `resource_class_id` | table id | `item_filter (resources.rs)` |
-| `resource_template_id` | table id | `item_filter (resources.rs)` |
+| `resource_class_id` | table id | `item_filter (query.rs)` |
+| `resource_template_id` | table id | `item_filter (query.rs)` |
 | `romeka_changed_by_others_since` | string | `work_filters (query.rs)` |
 | `romeka_has_resource_class` | boolean | `work_filters (query.rs)` |
 | `romeka_no_item_set` | boolean | `work_filters (query.rs)` |
@@ -612,24 +612,24 @@ List parameters (`GET /api/media`).
 | `has_media` | boolean | `SearchQuery::parse (query.rs)` |
 | `has_media_kind` | list | `SearchQuery::parse (query.rs)` |
 | `in_sites` | boolean | `SearchQuery::parse (query.rs)` |
-| `ingester` | string | `listed_media (resources.rs)` |
-| `is_public` | boolean | `listed_media (resources.rs)` |
-| `item_id` | table id | `listed_media (resources.rs)` |
+| `ingester` | string | `media_filter (query.rs)` |
+| `is_public` | boolean | `media_filter (query.rs)` |
+| `item_id` | table id | `media_filter (query.rs)` |
 | `item_set_id` | list | `SearchQuery::parse (query.rs)` |
 | `limit` | string | `Limit::from_params (paging.rs)` |
-| `media_type` | string | `listed_media (resources.rs)` |
+| `media_type` | string | `media_filter (query.rs)` |
 | `not_item_set_id` | list | `SearchQuery::parse (query.rs)` |
 | `offset` | string | `Limit::from_params (paging.rs)` |
-| `owner_id` | table id | `listed_media (resources.rs)` |
+| `owner_id` | table id | `media_filter (query.rs)` |
 | `page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
 | `per_page` | integer, string | `Limit::from_params (paging.rs)`, `Window::from_params (paging.rs)` |
 | `property` | table rows | `SearchQuery::parse (query.rs)`, `listed_media (resources.rs)` |
-| `renderer` | string | `listed_media (resources.rs)` |
-| `resource_class_id` | table id | `listed_media (resources.rs)` |
-| `resource_template_id` | table id | `listed_media (resources.rs)` |
+| `renderer` | string | `media_filter (query.rs)` |
+| `resource_class_id` | table id | `media_filter (query.rs)` |
+| `resource_template_id` | table id | `media_filter (query.rs)` |
 | `romeka_fixity` | string | `listed_media (resources.rs)` |
 | `romeka_fixity_job` | string | `listed_media (resources.rs)` |
-| `romeka_kind` | list | `listed_media (resources.rs)` |
+| `romeka_kind` | list | `media_filter (query.rs)` |
 | `search` | string | `SearchQuery::parse (query.rs)` |
 | `site_attachments_only` | boolean | `SearchQuery::parse (query.rs)` |
 | `site_id` | table id | `SearchQuery::parse (query.rs)` |
