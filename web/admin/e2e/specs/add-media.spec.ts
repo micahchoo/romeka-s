@@ -99,14 +99,15 @@ test('the item page adds an image, a video and a link, and a researcher sees no 
     ],
     harness.workDir,
   );
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  // Leave the administrator's session; signed out, the item address shows the
+  // sign-in panel, and signing in opens the item again.
+  await page.context().clearCookies();
+  await page.reload();
   const form = page.getByRole('form', { name: 'Sign in' });
   await form.getByLabel('Email').fill('e2e-researcher@example.com');
   await form.getByLabel('Password').fill('e2e-password');
   await form.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.getByText('Signed in as E2E Researcher')).toBeVisible();
-  // The shell probes the archive route for the Import page, which a researcher
-  // may not read; that answer belongs to the sign-in, not to this item page.
   diagnostics.reset();
   await page.goto(itemUrl);
   await expect(page.getByRole('heading', { name: 'Media (3)', level: 2 })).toBeVisible();

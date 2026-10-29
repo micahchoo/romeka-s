@@ -11,6 +11,7 @@ import type { APIRequestContext } from '@playwright/test';
 import { expect, expectClean, test } from '../fixtures';
 import { isArray, numberField, record, stringField } from '../harness/json';
 import { TITLE_TERM } from '../harness/seed';
+import { unsetAdminLocale } from '../harness/session';
 
 const SLUG = 'e2e-spanish-labels';
 const MBOX = 'archive@example.org';
@@ -19,6 +20,12 @@ const propertyOf = async (request: APIRequestContext, term: string): Promise<Rec
   const found: unknown = await (await request.get(`/api/properties?term=${term}`)).json();
   return record(isArray(found) ? found[0] : null, term);
 };
+
+
+// The switch to Spanish is also the shared administrator's `locale` setting.
+test.afterEach(async ({ page }) => {
+  await unsetAdminLocale(page.request);
+});
 
 test('foaf:mbox shows as "buzón personal" on the admin and on a Spanish site', async ({ page, diagnostics }) => {
   const mbox = await propertyOf(page.request, 'foaf:mbox');

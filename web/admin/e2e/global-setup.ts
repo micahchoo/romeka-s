@@ -17,7 +17,8 @@ import { archiveRoot, writeArchive } from './harness/archive';
 import { ensureCli, mintKey, runCli } from './harness/cli';
 import { freePort, startProxy } from './harness/proxy';
 import { seedData, seedSystem, storeRoot } from './harness/seed';
-import { APP_ROOT, DIST_ROOT, stateFile, writeHarness } from './harness/state';
+import { writeAdminSession } from './harness/session';
+import { APP_ROOT, DIST_ROOT, ensureStateDir, sessionStateFile, stateFile, writeHarness } from './harness/state';
 
 const ADMIN_EMAIL = 'e2e-admin@example.com';
 const ADMIN_NAME = 'E2E Admin';
@@ -157,11 +158,14 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     await stopServer();
     rmSync(workDir, { recursive: true, force: true });
     rmSync(stateFile(), { force: true });
+    rmSync(sessionStateFile(), { force: true });
   };
 
   try {
     await waitForHealth(serverUrl);
     const seeded = await seedData(proxy.url);
+    ensureStateDir();
+    proxy.shareSession(await writeAdminSession(proxy.url, ADMIN_EMAIL, ADMIN_PASSWORD));
     writeHarness({
       baseUrl: proxy.url,
       serverUrl,

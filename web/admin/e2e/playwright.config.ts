@@ -8,6 +8,8 @@
  */
 import { defineConfig, devices } from '@playwright/test';
 
+import { sessionStateFile } from './harness/state';
+
 export default defineConfig({
   testDir: './specs',
   globalSetup: './global-setup.ts',
@@ -20,6 +22,8 @@ export default defineConfig({
   reporter: [['list']],
   use: {
     ...devices['Desktop Chrome'],
+    // Every context starts signed in as the administrator (`harness/session.ts`).
+    storageState: sessionStateFile(),
     // Traces are off by default. Recording one for every test wrote files that
     // were still being closed when the run ended, which failed a spec with
     // `browserContext.close: ENOENT` and made the gate flaky. Set PW_TRACE=1 to

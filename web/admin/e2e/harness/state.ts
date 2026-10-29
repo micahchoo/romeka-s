@@ -57,8 +57,15 @@ const stateDir = (): string => {
 
 export const stateFile = (): string => join(stateDir(), 'harness.json');
 
-export const writeHarness = (harness: Harness): void => {
+/** The administrator's session as a Playwright storage state (`session.ts`). */
+export const sessionStateFile = (): string => join(stateDir(), 'admin-session.json');
+
+export const ensureStateDir = (): void => {
   mkdirSync(stateDir(), { recursive: true });
+};
+
+export const writeHarness = (harness: Harness): void => {
+  ensureStateDir();
   writeFileSync(stateFile(), JSON.stringify(harness, null, 2));
 };
 

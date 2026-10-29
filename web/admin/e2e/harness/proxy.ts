@@ -52,7 +52,37 @@ export interface ProxyOptions {
 export interface RunningProxy {
   readonly url: string;
   readonly close: () => Promise<void>;
+  /** Name the administrator session every context starts with (`session.ts`). */
+  readonly shareSession: (token: string) => void;
 }
+
+const SESSION_COOKIE = 'romeka_session';
+
+/**
+ * The `Cookie` header with the shared administrator session left out where a
+ * spec acts as itself. A sign-in or sign-out never sees it, so neither rotates
+ * nor revokes the session every other context holds; once a spec has signed
+ * in, its own session is the one the port reads, because the shared cookie's
+ * `/api` path would otherwise put it first; and a write with no `Origin` comes
+ * from a spec's script, not the page, so it stays keyed as it always was
+ * rather than failing the port's same-origin check for a session write.
+ */
+const ownCookies = (req: IncomingMessage, pathname: string, shared: string | null): string | undefined => {
+  const header = req.headers.cookie;
+  if (header === undefined || shared === null) {
+    return header;
+  }
+  const pairs = header.split(/;\s*/u);
+  const sharedPair = `${SESSION_COOKIE}=${shared}`;
+  const sessions = pairs.filter((pair) => pair.startsWith(`${SESSION_COOKIE}=`));
+  const signingInOrOut = pathname === '/api/login' || pathname === '/api/logout';
+  const scriptWrite = !['GET', 'HEAD'].includes(req.method ?? 'GET') && req.headers.origin === undefined;
+  if (!pairs.includes(sharedPair) || (!signingInOrOut && !scriptWrite && sessions.length < 2)) {
+    return header;
+  }
+  const kept = pairs.filter((pair) => pair !== sharedPair);
+  return kept.length === 0 ? undefined : kept.join('; ');
+};
 
 /**
  * Paths the port answers: the API, its context, health, the public site, its
@@ -174,6 +204,7 @@ const forward = (
   req: IncomingMessage,
   res: ServerResponse,
   options: ProxyOptions,
+  shared: string | null,
 ): void => {
   if (apiPaths(url.pathname)) {
     url.searchParams.set('key_identity', options.identity);
@@ -181,6 +212,12 @@ const forward = (
   }
   const headers = { ...req.headers };
   delete headers.host;
+  const cookie = ownCookies(req, url.pathname, shared);
+  if (cookie === undefined) {
+    delete headers.cookie;
+  } else {
+    headers.cookie = cookie;
+  }
   const upstream = httpRequest(
     new URL(`${url.pathname}${url.search}`, options.target),
     { method: req.method ?? 'GET', headers },
@@ -202,6 +239,7 @@ const forward = (
  * the theme's assets behind it.
  */
 export const startProxy = async (options: ProxyOptions, port = 0): Promise<RunningProxy> => {
+  let shared: string | null = null;
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url ?? '/', 'http://harness.local');
     if (url.pathname.startsWith('/files/')) {
@@ -211,7 +249,7 @@ export const startProxy = async (options: ProxyOptions, port = 0): Promise<Runni
       return;
     }
     if (portPaths(url.pathname)) {
-      forward(url, req, res, options);
+      forward(url, req, res, options, shared);
       return;
     }
     if (serveStatic(req, options.distRoot, url.pathname, res, '/index.html')) {
@@ -221,7 +259,7 @@ export const startProxy = async (options: ProxyOptions, port = 0): Promise<Runni
     // `deploy/Caddyfile` arranges: a file the bundle ships wins, and every
     // other path under the prefix is the port's theme route.
     if (url.pathname.startsWith('/assets/')) {
-      forward(url, req, res, options);
+      forward(url, req, res, options, shared);
       return;
     }
     notFound(res);
@@ -247,6 +285,9 @@ export const startProxy = async (options: ProxyOptions, port = 0): Promise<Runni
           done();
         });
       });
+    },
+    shareSession: (token: string): void => {
+      shared = token;
     },
   };
 };

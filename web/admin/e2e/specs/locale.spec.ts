@@ -3,6 +3,12 @@
  * language, stores the choice, and the next load reads it back.
  */
 import { expect, expectClean, test } from '../fixtures';
+import { unsetAdminLocale } from '../harness/session';
+
+// The switch is also the shared administrator's `locale` setting.
+test.afterEach(async ({ page }) => {
+  await unsetAdminLocale(page.request);
+});
 
 test('the locale switch re-renders the shell and survives a reload', async ({
   page,
@@ -50,8 +56,14 @@ test('only the chosen language downloads, and a reload in Spanish never paints E
   await diagnostics.idle();
   const english = new Set(scripts);
 
+  // Signed in, the switch is also stored as the user's setting; that write
+  // finishes before the reload, which would otherwise cut it off.
+  const stored = page.waitForResponse(
+    (response) => response.request().method() === 'PATCH' && new URL(response.url()).pathname.startsWith('/api/users/'),
+  );
   await page.getByLabel('Language').selectOption('es');
   await expect(page.getByText('Administración de Romeka S')).toBeVisible();
+  expect((await stored).status()).toBe(200);
   const spanishOnly = [...scripts].filter((url) => !english.has(url));
   // The switch fetched only Spanish tables the English page never asked for:
   // the shell catalogue and one per namespace the open page reads.

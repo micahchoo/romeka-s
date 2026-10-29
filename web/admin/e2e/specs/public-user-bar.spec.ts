@@ -14,7 +14,12 @@ import type { APIRequestContext, Page } from '@playwright/test';
 import { expect, test } from '../fixtures';
 import { expectAxeBudget } from '../harness/axe';
 import { SITE_SLUG, WELCOME_SLUG } from '../harness/seed';
+import { SIGNED_OUT } from '../harness/session';
 import { readHarness } from '../harness/state';
+
+// The public site's own sign-in and logout are the subject, so no spec here
+// starts with the administrator's session.
+test.use({ storageState: SIGNED_OUT });
 
 /** The bundled theme's presets (`crates/omeka-site/src/theme/presets.rs`). */
 const PRESETS = ['exhibit', 'catalogue', 'gallery', 'journal', 'community'] as const;

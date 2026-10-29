@@ -606,8 +606,18 @@ stale `debug/romeka` never serves the specs. Set `ROMEKA_BIN` to use a prebuilt 
 The harness origin is a small HTTP server, not the coordinator's proxy. It serves the build, serves the
 file store under `/files`, and forwards `/health`, `/api-context`, `/api` and `/s/` to the port. Every
 `/api` request leaves it with `key_identity` and `key_credential` appended, which is how a reverse
-proxy presents an API key to upstream. The browser is signed out in these specs, so the app sends no
-key of its own and the origin's pair is the only one on the request. Nothing binds a fixed port.
+proxy presents an API key to upstream. The app sends no key of its own, so the origin's pair is the
+only one on the request. Nothing binds a fixed port.
+
+The admin shows a signed-out caller only the sign-in panel, so every context starts signed in as the
+administrator. `globalSetup` signs in once and writes the session cookie, scoped to `/api`, as the
+Playwright storage state (`e2e/harness/session.ts`); the public site under `/s/` stays anonymous.
+The origin keeps that shared session out of every sign-in and sign-out, out of any request that
+carries a session of its own, and out of a write with no `Origin` (a spec's script), so a spec that
+signs in as someone else acts as them and never ends the session the other specs hold. A spec that
+needs the signed-out admin starts with `test.use({ storageState: SIGNED_OUT })`. The shared administrator's
+lessons are off, so which lesson opens never depends on the specs run before; `lessons.spec.ts`
+signs in its own users.
 
 The origin serves a copy of `dist` in the run's temporary directory, made right after the build. A
 `npm run build` started while a run is live empties `dist` before it writes it again; a page load in
@@ -639,7 +649,8 @@ The teardown stops both servers and deletes the temporary directory.
 | `e2e/specs/system.spec.ts` | Opens each route System replaced and checks it lands on the matching tab, that the nav names System once under Admin > Advanced and none of the old pages, and that each tab works; then follows a dashboard site name to that site. `SYSTEM_SCREENSHOTS` names a folder for the pictures. |
 | `e2e/specs/locale.spec.ts` | Switches the shell to Spanish, asserts the labels and the nav change and the choice is stored, reloads to see it kept, then switches back to English. |
 | `e2e/specs/public-site.spec.ts` | Reads the site slug off the admin sites table and loads the port's `/s` routes for it. |
-| `e2e/specs/sign-in.spec.ts` | Signs in through the header form with the run's minted key, asserts the key survives a reload and rides on the next `/api` request, signs out and asserts it is gone, then has a malformed key refused with no request. Also signs in with the administrator's email and password, asserts the browser set the `Origin` header the server checks for a write, that the session cookie is not readable from the page, that the reload keeps the session and that a sign-out revokes it. |
+| `e2e/specs/access.spec.ts` | Opens your own account and asserts Role, Active and Delete are hidden with the line why, and that a save still works; opens another user, reads the role line for two roles and the site the user has a role on, and follows its link to the site's Users tab; signs a researcher in and asserts the nav offers no Import, Settings, Jobs or Modules. |
+| `e2e/specs/sign-in.spec.ts` | Opens five admin addresses signed out and asserts each shows only the sign-in panel and asks the API for nothing but `GET /api/me`; signs in from `#/users` and lands on Users. Signs in through the panel's key form with the run's minted key, asserts the key survives a reload and rides on the next `/api` request, signs out and asserts it is gone, then has a malformed key refused with no request. Also signs in with the administrator's email and password, asserts the browser set the `Origin` header the server checks for a write, that the session cookie is not readable from the page, that the reload keeps the session and that a sign-out revokes it. |
 | `e2e/specs/finding.spec.ts` | Jumps from the header box to an identifier, to a `#<id>` set and to a title two items share, and has a miss said and cleared. Saves a searched, title-ordered Items list, opens it from the nav of a second browser, renames it and deletes it. |
 | `e2e/specs/password.spec.ts` | Invites a user from the users page, follows the link the mint answered, sets a password, then reuses the link and asserts the one-time key is refused with the server's message. Then opens a keyless password link, follows the reset form and asserts the request answers for an address that has no account. |
 

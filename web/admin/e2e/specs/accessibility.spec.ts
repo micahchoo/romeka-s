@@ -10,6 +10,7 @@
  */
 import { expect, test } from "../fixtures";
 import { expectAxeBudget } from "../harness/axe";
+import { SIGNED_OUT } from "../harness/session";
 import { ASSET_SPARE_NAME, SITE_SLUG } from "../harness/seed";
 import { adminPageIds } from "../harness/table";
 
@@ -216,20 +217,23 @@ test("the admin asset and job surfaces meet the axe budget", async ({
   await expectAxeBudget(page, "admin job update");
 });
 
-test("the sign-in forms meet the axe budget", async ({ page, diagnostics }) => {
-  await page.goto("/#/items");
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("form", { name: "Sign in" })).toBeVisible();
-  await diagnostics.idle();
-  await expectAxeBudget(page, "admin sign in");
+test.describe("signed out", () => {
+  test.use({ storageState: SIGNED_OUT });
 
-  // The key form, which is folded away until it is asked for.
-  await page.getByText("Use an API key").click();
-  await expect(
-    page.getByRole("form", { name: "Sign in with an API key" }),
-  ).toBeVisible();
-  await diagnostics.idle();
-  await expectAxeBudget(page, "admin sign in with a key");
+  test("the sign-in forms meet the axe budget", async ({ page, diagnostics }) => {
+    await page.goto("/#/items");
+    await expect(page.getByRole("form", { name: "Sign in" })).toBeVisible();
+    await diagnostics.idle();
+    await expectAxeBudget(page, "admin sign in");
+
+    // The key form, which is folded away until it is asked for.
+    await page.getByText("Use an API key").click();
+    await expect(
+      page.getByRole("form", { name: "Sign in with an API key" }),
+    ).toBeVisible();
+    await diagnostics.idle();
+    await expectAxeBudget(page, "admin sign in with a key");
+  });
 });
 
 test("the set-password, forgot and invite surfaces meet the axe budget", async ({
