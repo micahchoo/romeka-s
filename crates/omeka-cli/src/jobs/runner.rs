@@ -80,9 +80,11 @@ impl<'a> Runner<'a> {
         };
         match job.perform(&context).await {
             Ok(()) => {
-                let stored = with_db!(self.pool, |db| JobRepo::new(db).status(id).await)?
-                    .as_deref()
-                    .and_then(JobStatus::parse);
+                let Some(stored) = with_db!(self.pool, |db| JobRepo::new(db).get(id).await)? else {
+                    // The job forgot its own row (`JobContext::forget`): nothing to end.
+                    return Ok(JobStatus::Completed);
+                };
+                let stored = stored.status.as_deref().and_then(JobStatus::parse);
                 let status = stored.unwrap_or(JobStatus::Starting).ending();
                 with_db!(self.pool, |db| JobRepo::new(db)
                     .finish(id, status.as_str())

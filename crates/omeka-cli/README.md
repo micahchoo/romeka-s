@@ -450,7 +450,9 @@ synchronous strategy), and records `completed`, `stopped` or `error`. Jobs read
   needs, then starts one `MediaDerivatives` worker when derivative rows are
   queued and none is active (not while an import runs or undoes). `romeka serve`
   starts it at boot and then every hour, so a pending preview never waits for
-  the next media create.
+  the next media create. A run that removed nothing and started no worker
+  deletes its own row (`JobContext::forget`), so the jobs list shows only the
+  sweeps that did something. Rows that earlier idle runs left stay.
 - `Romeka\Job\MediaDerivatives` (Romeka's own): no arguments. It drains the
   `romeka_media_derivative` queue, one row at a time, and settles each `ready`,
   `failed` or `none`. One worker runs per install: the server composes a new job

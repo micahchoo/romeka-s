@@ -65,6 +65,17 @@ impl JobContext<'_> {
             .await)?;
         Ok(())
     }
+
+    /// Delete the job's own row, for a job that found nothing to do: an hourly
+    /// timer's idle tick would otherwise bury the jobs that did work. The runner
+    /// then writes no ending. Call it last, after the job's final write.
+    ///
+    /// # Errors
+    /// A database error while deleting the row.
+    pub async fn forget(&self) -> Result<(), JobError> {
+        with_db!(self.pool, |db| JobRepo::new(db).delete(self.job_id).await)?;
+        Ok(())
+    }
 }
 
 /// Compose a `job` row in `starting` status, as `Dispatcher::dispatch` does.

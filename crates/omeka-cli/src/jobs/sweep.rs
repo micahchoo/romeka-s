@@ -13,10 +13,14 @@
 //! hold the sweep for the length of the film. Nothing starts while an archive
 //! import is running or undoing: the derivative worker's own yield rule applies
 //! here first, and the next tick tries again.
+//!
+//! A run that removed nothing and started no worker deletes its own row
+//! ([`JobContext::forget`]), so the jobs list keeps only the sweeps that did
+//! something. A run that fails keeps its row, with the reason.
 
 use async_trait::async_trait;
 use omeka_api::derivatives::queue_worker;
-use omeka_api::import::sweep::{Retention, SWEEP_JOB, sweep};
+use omeka_api::import::sweep::{Retention, SWEEP_JOB, Swept, sweep};
 use omeka_api::messages;
 use omeka_db::repos::{ImportRepo, JobRepo};
 use omeka_db::with_db;
@@ -43,9 +47,12 @@ impl Job for ImportSweep {
         .await)?;
         // The import sweep's log is written first, so a failed user-upload sweep
         // below cannot lose the record of work the import sweep already did.
-        context
-            .log(&messages::import_sweep_done(swept.imports, swept.uploads))
-            .await?;
+        let removed_staging = swept != Swept::default();
+        if removed_staging {
+            context
+                .log(&messages::import_sweep_done(swept.imports, swept.uploads))
+                .await?;
+        }
         let uploads = with_db!(context.pool, |db| omeka_api::uploads::sweep(
             db,
             &context.env.store,
@@ -57,7 +64,13 @@ impl Job for ImportSweep {
                 .log(&messages::media_upload_sweep_done(uploads))
                 .await?;
         }
-        start_derivatives(context).await
+        let started = start_derivatives(context).await?;
+        // An hourly tick that changed nothing leaves no row, so the jobs list
+        // shows the work that happened instead of a page of idle sweeps.
+        if !removed_staging && uploads == 0 && !started {
+            context.forget().await?;
+        }
+        Ok(())
     }
 }
 
@@ -69,12 +82,15 @@ impl Job for ImportSweep {
 /// cap the media route uses. The row is handed to a child process rather than
 /// run here, because a transcode outlasts this run: the sweep would be held
 /// open for the length of a film.
-async fn start_derivatives(context: &JobContext<'_>) -> Result<(), JobError> {
+///
+/// True when it composed a worker row, which it then logs whether or not the
+/// worker could start.
+async fn start_derivatives(context: &JobContext<'_>) -> Result<bool, JobError> {
     if with_db!(context.pool, |db| ImportRepo::new(db).busy_id().await)?.is_some() {
-        return Ok(());
+        return Ok(false);
     }
     let Some(worker) = queue_worker(context.pool, None).await? else {
-        return Ok(());
+        return Ok(false);
     };
     let Some(jobs) = &context.env.jobs else {
         context
@@ -84,7 +100,7 @@ async fn start_derivatives(context: &JobContext<'_>) -> Result<(), JobError> {
                 worker.0
             ))
             .await?;
-        return Ok(());
+        return Ok(true);
     };
     match jobs.spawn(worker) {
         Ok(mut child) => {
@@ -116,5 +132,65 @@ async fn start_derivatives(context: &JobContext<'_>) -> Result<(), JobError> {
                 .await?;
         }
     }
-    Ok(())
+    Ok(true)
+}
+
+#[cfg(test)]
+mod tests {
+    use omeka_db::ids::JobId;
+
+    use super::*;
+    use crate::jobs::{JobEnv, JobStatus, Runner};
+    use crate::testing::{TempDb, compose, seeded_db};
+
+    async fn run_sweep(db: &TempDb, store: &tempfile::TempDir) -> (JobId, JobStatus) {
+        let job = compose(&db.db_pool, &ImportSweep, serde_json::json!({})).await;
+        let env = JobEnv {
+            store: omeka_server::local_store(store.path()),
+            ..JobEnv::default()
+        };
+        let status = Runner::with_env(&db.db_pool, env)
+            .run(job)
+            .await
+            .expect("sweep ran");
+        (job, status)
+    }
+
+    #[tokio::test]
+    async fn a_sweep_that_removed_nothing_leaves_no_job() {
+        let db = seeded_db().await;
+        let store = tempfile::tempdir().expect("store");
+
+        let (job, status) = run_sweep(&db, &store).await;
+
+        assert_eq!(status, JobStatus::Completed);
+        assert_eq!(JobRepo::new(&db.pool).get(job).await.expect("read"), None);
+    }
+
+    #[tokio::test]
+    async fn a_sweep_that_removed_an_upload_keeps_its_job_and_says_what_went() {
+        let db = seeded_db().await;
+        let store = tempfile::tempdir().expect("store");
+        sqlx::query(
+            "INSERT INTO romeka_user_upload (user_id, id, path, length, created, expires)
+             VALUES (1, 'old', 'old.jpg', 4, '2026-01-01 00:00:00', '2026-01-02 00:00:00')",
+        )
+        .execute(&db.pool)
+        .await
+        .expect("an expired upload");
+
+        let (job, status) = run_sweep(&db, &store).await;
+
+        assert_eq!(status, JobStatus::Completed);
+        let row = JobRepo::new(&db.pool)
+            .get(job)
+            .await
+            .expect("read")
+            .expect("the sweep that removed an upload stays");
+        assert_eq!(row.status.as_deref(), Some("completed"));
+        assert_eq!(
+            row.log.as_deref(),
+            Some(format!("{}\n", messages::media_upload_sweep_done(1)).as_str())
+        );
+    }
 }
