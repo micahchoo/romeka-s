@@ -20,7 +20,7 @@ const renderSettings = (page: Readonly<Record<string, unknown>> = {}, dispatch =
       issues={[]}
       pageId={null}
       siteId={SITE_ID}
-      options={{ pages: [], itemSets: [], classes: [] }}
+      options={{ pages: [], itemSets: [] }}
       onDeleted={vi.fn()}
       onOpenSaveTemplate={vi.fn()}
       onSelectRegion={vi.fn()}

@@ -297,7 +297,6 @@ const ItemQueryControl = ({
         resource={isQueryResource(resource) ? resource : 'items'}
         propertySort
         {...(options?.itemSets === undefined ? {} : { itemSets: options.itemSets })}
-        {...(options?.classes === undefined ? {} : { classes: options.classes })}
         {...(options?.classCounts === undefined ? {} : { classCounts: options.classCounts })}
       />
       {error}

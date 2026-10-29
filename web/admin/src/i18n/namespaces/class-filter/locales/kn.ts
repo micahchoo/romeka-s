@@ -11,5 +11,9 @@ import type { ClassFilterMessages } from '../index';
 export const kn: ClassFilterMessages = {
   'classFilter.option': '{label} · {count} ಅಂಶಗಳು',
   'classFilter.optionOne': '{label} · 1 ಅಂಶ',
+  'classFilter.optionItemSets': '{label} · {count} ಐಟಂ ಸೆಟ್‌ಗಳು',
+  'classFilter.optionItemSetOne': '{label} · 1 ಐಟಂ ಸೆಟ್',
+  'classFilter.optionMedia': '{label} · {count} ಮಾಧ್ಯಮ',
+  'classFilter.optionMediaOne': '{label} · 1 ಮಾಧ್ಯಮ',
   'classFilter.standard': '{label} ({standard})',
 };

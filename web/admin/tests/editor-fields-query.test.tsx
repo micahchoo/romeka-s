@@ -21,9 +21,9 @@ const TOTAL = 7;
 /** `/api/romeka/classes/counts`: the classes items use, with their item counts. */
 const CLASS_COUNTS = {
   classes: [
-    { id: 51, term: 'bibo:Book', label: 'Book', vocabulary_label: 'Bibliographic Ontology', items: 4 },
-    { id: 21, term: 'dctype:Image', label: 'Image', vocabulary_label: 'Dublin Core Type', items: 3 },
-    { id: 41, term: 'schema:Image', label: 'Image', vocabulary_label: 'Schema.org', items: 1 },
+    { id: 51, term: 'bibo:Book', label: 'Book', vocabulary_label: 'Bibliographic Ontology', count: 4 },
+    { id: 21, term: 'dctype:Image', label: 'Image', vocabulary_label: 'Dublin Core Type', count: 3 },
+    { id: 41, term: 'schema:Image', label: 'Image', vocabulary_label: 'Schema.org', count: 1 },
   ],
 };
 
@@ -217,18 +217,35 @@ describe('the item query field control', () => {
     ]);
   });
 
-  it('for item sets, the class select lists every class, since the counts count items', async () => {
-    installFetch((url) => (url.pathname === '/api/item_sets' ? listResponse([], 2) : handler(url)));
-    render(
-      <BlockFormHarness
-        layout="browsePreview"
-        data={{ resource_type: 'item_sets', query: '', components: [] }}
-      />,
+  it('for item sets and media, the class select offers the classes they use, counted in their own words', async () => {
+    const asked: string[] = [];
+    installFetch((url) => {
+      if (url.pathname === '/api/romeka/classes/counts') {
+        const type = url.searchParams.get('resource_type') ?? '';
+        asked.push(type);
+        const counts: Record<string, unknown> = {
+          item_sets: { classes: [{ id: 51, term: 'bibo:Book', label: 'Book', vocabulary_label: 'Bibliographic Ontology', count: 2 }] },
+          media: { classes: [{ id: 21, term: 'dctype:Image', label: 'Image', vocabulary_label: 'Dublin Core Type', count: 1 }] },
+        };
+        return jsonResponse(counts[type] ?? { classes: [] });
+      }
+      return url.pathname === '/api/item_sets' || url.pathname === '/api/media' ? listResponse([], 2) : handler(url);
+    });
+    const { unmount } = render(
+      <BlockFormHarness layout="browsePreview" data={{ resource_type: 'item_sets', query: '', components: [] }} />,
     );
-    const classSelect = screen.getByLabelText('Class');
+    const setClasses = screen.getByLabelText('Class');
+    await within(setClasses).findByRole('option', { name: 'Book · 2 item sets' });
+    expect(within(setClasses).getAllByRole('option').map((option) => option.textContent)).toEqual([
+      '[Any]',
+      'Book · 2 item sets',
+    ]);
+    unmount();
 
-    await within(classSelect).findByRole('option', { name: 'Still Image' });
-    expect(within(classSelect).getByRole('option', { name: 'Book' })).toBeInTheDocument();
+    render(<BlockFormHarness layout="browsePreview" data={{ resource_type: 'media', query: '', components: [] }} />);
+    const mediaClasses = screen.getByLabelText('Class');
+    await within(mediaClasses).findByRole('option', { name: 'Image · 1 media' });
+    expect(asked).toEqual(['item_sets', 'media']);
   });
 
   it('the sort selects write sort_by and sort_order', () => {

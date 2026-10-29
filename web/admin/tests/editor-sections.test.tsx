@@ -22,7 +22,7 @@ import { SECTION_SHAPES } from '../src/pages/sites/editor/sections';
 import { blockAt, load, rawBlock, spanOf } from './editor-draft-helpers';
 import { SITE_ID } from './editor-fields-helpers';
 
-const OPTIONS = { pages: [], itemSets: [], classes: [] };
+const OPTIONS = { pages: [], itemSets: [] };
 
 const stored = (block: BlockDraft, path: string): JsonValue | undefined =>
   readPath(layoutDataObject(block), path);

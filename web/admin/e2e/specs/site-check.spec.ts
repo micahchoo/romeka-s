@@ -86,3 +86,57 @@ test('the site check counts an unwritten block and a private featured item, and 
   );
   await expectClean(diagnostics, 'site check');
 });
+
+test('on a private site the check says so first, and counts a media list of a private item', async ({
+  page,
+  request,
+  diagnostics,
+}) => {
+  const site = await idOf(
+    await request.post('/api/sites', {
+      data: { 'o:title': 'E2E private check', 'o:slug': 'e2e-check-private', 'o:theme': 'default', 'o:is_public': false },
+    }),
+  );
+  // A private item on the site, holding one public media: the public site lists the media, but a
+  // visitor can open neither its file nor its item.
+  await idOf(
+    await request.post('/api/items', {
+      data: {
+        'o:is_public': false,
+        'o:site': [{ 'o:id': site }],
+        'o:media': [{ 'o:ingester': 'html', html: '<p>A note</p>', 'o:is_public': true }],
+      },
+    }),
+  );
+  await idOf(
+    await request.post('/api/site_pages', {
+      data: {
+        'o:site': { 'o:id': site },
+        'o:title': 'Notes',
+        'o:slug': 'notes',
+        'o:is_public': true,
+        'o:block': [{ 'o:layout': 'browsePreview', 'o:data': { resource_type: 'media', query: '', limit: 12 } }],
+      },
+    }),
+  );
+
+  await page.goto(`/#/sites/${String(site)}`);
+  await page.getByRole('button', { name: 'Check this site' }).click();
+  const check = page.getByRole('region', { name: 'Before you share this site' });
+  const first = check.getByRole('listitem').first();
+  await expect(first).toContainText('This site is private: visitors see none of it.');
+  await expect(first.getByRole('link', { name: 'Site settings' })).toHaveAttribute(
+    'href',
+    `#/sites/${String(site)}/settings`,
+  );
+  await expect(check.getByText('Once the site is public, visitors meet these:')).toBeVisible();
+  const hidden = check
+    .getByRole('listitem')
+    .filter({ hasText: '1 block points to private items or media, on 1 public page' });
+  await expect(hidden.getByRole('link', { name: 'Notes' })).toBeVisible();
+  // The media list shows a visitor one media, so it is not among the lists that show nothing.
+  await expect(
+    check.getByRole('listitem').filter({ hasText: /shows? nothing to visitors/ }).getByRole('link', { name: 'Notes' }),
+  ).toHaveCount(0);
+  await expectClean(diagnostics, 'site check on a private site');
+});

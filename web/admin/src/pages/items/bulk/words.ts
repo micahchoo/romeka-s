@@ -5,7 +5,7 @@
 import type { BulkEdit, BulkFields } from '../../../api/bulk';
 import type { FieldChange, NewValue, ShownValue, ValueOp } from '../../../api/bulk-values';
 import type { ClassId } from '../../../api/types';
-import type { KeyOf, TermLabels, Translator } from '../../../i18n';
+import type { KeyOf, Translator } from '../../../i18n';
 import type { bulk } from '../../../i18n/namespaces/bulk';
 import type { BrowseOptions } from '../browse-options';
 
@@ -14,7 +14,8 @@ export type BulkTranslate = Translator<KeyOf<typeof bulk>>['t'];
 export interface Namer {
   readonly t: BulkTranslate;
   readonly options: BrowseOptions;
-  readonly text: TermLabels;
+  /** Every class in words (`useClassNamesOf(options.classes)`). */
+  readonly classNames: ReadonlyMap<ClassId, string>;
 }
 
 const nameIn = <K extends number>(map: ReadonlyMap<K, string>, id: K): string => map.get(id) ?? `#${String(id)}`;
@@ -22,10 +23,7 @@ const nameIn = <K extends number>(map: ReadonlyMap<K, string>, id: K): string =>
 const namesIn = <K extends number>(map: ReadonlyMap<K, string>, ids: readonly K[]): string =>
   ids.map((id) => nameIn(map, id)).join(', ');
 
-export const classNameOf = ({ options, text }: Namer, id: ClassId): string => {
-  const name = options.classNames.get(id);
-  return name === undefined ? `#${String(id)}` : text.label(name.term, name.label);
-};
+export const classNameOf = ({ classNames }: Namer, id: ClassId): string => classNames.get(id) ?? `#${String(id)}`;
 
 const sameIds = (a: readonly number[], b: readonly number[]): boolean =>
   a.length === b.length && a.every((id, at) => id === b[at]);

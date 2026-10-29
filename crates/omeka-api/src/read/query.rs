@@ -213,6 +213,7 @@ pub fn media_filter(params: &Params) -> MediaFilter {
         resource_class_id: params.id("resource_class_id"),
         resource_template_id: params.id("resource_template_id"),
         is_public: params.bool("is_public"),
+        item_is_public: params.bool("romeka_item_is_public"),
     }
 }
 

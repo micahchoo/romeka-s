@@ -15,6 +15,8 @@ export const hi: SiteCheckMessages = {
   'siteCheck.again': 'फिर से जाँचें',
   'siteCheck.running': 'साइट की जाँच की जा रही है…',
   'siteCheck.nothing': 'जाँचने के लिए कुछ नहीं है।',
+  'siteCheck.privateSite': 'यह साइट निजी है: आगंतुक इसमें से कुछ भी नहीं देख पाते।',
+  'siteCheck.oncePublic': 'एक बार साइट सार्वजनिक हो जाने पर, आगंतुक ये देखते हैं:',
   'siteCheck.unwrittenOne': '1 ब्लॉक नहीं लिखा गया, 1 सार्वजनिक पृष्ठ पर',
   'siteCheck.unwrittenOnePage': '{count} ब्लॉक नहीं लिखे गए, 1 सार्वजनिक पृष्ठ पर',
   'siteCheck.unwritten': '{count} ब्लॉक नहीं लिखे गए, {pages} सार्वजनिक पृष्ठों पर',
@@ -29,7 +31,8 @@ export const hi: SiteCheckMessages = {
     '{count} ब्लॉक निजी वस्तुओं या मीडिया की ओर संकेत करते हैं, 1 सार्वजनिक पृष्ठ पर',
   'siteCheck.private':
     '{count} ब्लॉक निजी वस्तुओं या मीडिया की ओर संकेत करते हैं, {pages} सार्वजनिक पृष्ठों पर',
-  'siteCheck.privateNote': 'आगंतुक निजी वस्तुओं या मीडिया को नहीं देखते हैं।',
+  'siteCheck.privateNote':
+    'आगंतुक निजी वस्तुओं या मीडिया को, या निजी वस्तु की मीडिया फ़ाइलों को नहीं देख पाते।',
   'siteCheck.outsideMenuOne': '1 सार्वजनिक पृष्ठ मेनू में नहीं है',
   'siteCheck.outsideMenu': '{count} सार्वजनिक पृष्ठ मेनू में नहीं हैं',
   'siteCheck.outsideMenuNote':

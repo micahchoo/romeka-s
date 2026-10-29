@@ -16,6 +16,8 @@ export const ml: SiteCheckMessages = {
   'siteCheck.again': 'വീണ്ടും പരിശോധിക്കുക',
   'siteCheck.running': 'സൈറ്റ് പരിശോധിക്കുന്നു…',
   'siteCheck.nothing': 'പരിശോധിക്കാൻ ഒന്നുമില്ല.',
+  'siteCheck.privateSite': 'ഈ സൈറ്റ് സ്വകാര്യമാണ്: സന്ദർശകർ ഇതിന്റെ ഒന്നും കാണുന്നില്ല.',
+  'siteCheck.oncePublic': 'സൈറ്റ് പൊതുവായാൽ, സന്ദർശകർ ഇവ കാണുന്നു:',
   'siteCheck.unwrittenOne': '1 ബ്ലോക്ക് എഴുതപ്പെട്ടിട്ടില്ല, 1 പൊതു പേജിൽ',
   'siteCheck.unwrittenOnePage': '{count} ബ്ലോക്കുകൾ എഴുതപ്പെട്ടിട്ടില്ല, 1 പൊതു പേജിൽ',
   'siteCheck.unwritten': '{count} ബ്ലോക്കുകൾ എഴുതപ്പെട്ടിട്ടില്ല, {pages} പൊതു പേജുകളിൽ',
@@ -30,7 +32,8 @@ export const ml: SiteCheckMessages = {
     '{count} ബ്ലോക്കുകൾ സ്വകാര്യ ഇനങ്ങളിലേക്കോ മാധ്യമങ്ങളിലേക്കോ വിരൽ ചൂണ്ടുന്നു, 1 പൊതു പേജിൽ',
   'siteCheck.private':
     '{count} ബ്ലോക്കുകൾ സ്വകാര്യ ഇനങ്ങളിലേക്കോ മാധ്യമങ്ങളിലേക്കോ വിരൽ ചൂണ്ടുന്നു, {pages} പൊതു പേജുകളിൽ',
-  'siteCheck.privateNote': 'സന്ദർശകർ സ്വകാര്യ ഇനങ്ങളോ മാധ്യമങ്ങളോ കാണുന്നില്ല.',
+  'siteCheck.privateNote':
+    'സന്ദർശകർ സ്വകാര്യ ഇനങ്ങളോ മാധ്യമങ്ങളോ, അല്ലെങ്കിൽ സ്വകാര്യ ഇനങ്ങളിലെ മാധ്യമ ഫയലുകളോ കാണുന്നില്ല.',
   'siteCheck.outsideMenuOne': '1 പൊതു പേജ് മെനുവിൽ ഇല്ല',
   'siteCheck.outsideMenu': '{count} പൊതു പേജുകൾ മെനുവിൽ ഇല്ല',
   'siteCheck.outsideMenuNote': 'സന്ദർശകർ ലിങ്ക് വഴി മാത്രം മെനുവിന് പുറത്തുള്ള ഒരു പേജ് എത്തുന്നു.',

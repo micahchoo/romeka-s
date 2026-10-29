@@ -1,4 +1,4 @@
-//! Counts that stand for a list: the items of each item set, the items of each class, the
+//! Counts that stand for a list: the items of each item set, the resources of each class, the
 //! resources whose values point at one resource, and the items of one template that fill each
 //! property, each kept to the rows a caller may see.
 //!
@@ -13,7 +13,7 @@ use sqlx::{ColumnIndex, Decode, Encode, Executor, IntoArguments, Type};
 use super::resource_reads::{push_list, push_visibility};
 use super::resources::ITEM_FROM;
 use super::value_visibility::push_value_visibility;
-use super::{ItemRepo, ItemSetRepo, MediaVisibility, ValueRepo};
+use super::{ItemRepo, ItemSetRepo, MediaVisibility, ResourceRepo, ValueRepo};
 use crate::DbError;
 use crate::backend::Backend;
 use crate::ids::{ClassId, ItemSetId, PropertyId, ResourceId, TemplateId};
@@ -25,15 +25,35 @@ pub struct SetItemCount {
     pub items: i64,
 }
 
-/// The items of one class, as the caller may see them, with the names a class filter shows.
+/// The kind of resource a class count counts: the rows one list endpoint answers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClassCounted {
+    Items,
+    ItemSets,
+    Media,
+}
+
+impl ClassCounted {
+    /// The `FROM` of that kind's list, so a count reads the rows the list reads.
+    fn list_from(self) -> &'static str {
+        match self {
+            Self::Items => ITEM_FROM,
+            Self::ItemSets => " FROM item_set JOIN resource ON resource.id = item_set.id",
+            Self::Media => " FROM media JOIN resource ON resource.id = media.id",
+        }
+    }
+}
+
+/// The resources of one kind that have one class, as the caller may see them, with the names a
+/// class filter shows.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ClassItemCount {
+pub struct ClassCount {
     pub class: ClassId,
     /// `prefix:local_name`.
     pub term: String,
     pub label: String,
     pub vocabulary_label: String,
-    pub items: i64,
+    pub count: i64,
 }
 
 /// The resources of one kind whose values on one property point at a resource.
@@ -120,7 +140,7 @@ where
     }
 }
 
-impl<DB: Backend> ItemRepo<'_, DB>
+impl<DB: Backend> ResourceRepo<'_, DB>
 where
     for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
     for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
@@ -129,20 +149,22 @@ where
     for<'x> String: Decode<'x, DB> + Type<DB>,
     for<'x> &'x str: ColumnIndex<DB::Row>,
 {
-    /// Every class at least one item that `visibility` keeps has, with how many such items have
-    /// it, in class id order. A class no kept item has is absent.
+    /// Every class at least one resource of `kind` that `visibility` keeps has, with how many such
+    /// resources have it, in class id order. A class no kept resource has is absent.
     ///
     /// One grouped scan of `resource` through `ix_resource_resource_class_id`, then one row per
     /// used class joined to its vocabulary.
     pub async fn class_counts(
         &self,
+        kind: ClassCounted,
         visibility: MediaVisibility,
-    ) -> Result<Vec<ClassItemCount>, DbError> {
+    ) -> Result<Vec<ClassCount>, DbError> {
+        let from = kind.list_from();
         let mut sql = format!(
             "SELECT resource_class.id AS id, vocabulary.prefix AS prefix, \
              resource_class.local_name AS local_name, resource_class.label AS label, \
-             vocabulary.label AS vocabulary_label, used.items AS items \
-             FROM (SELECT resource.resource_class_id AS class_id, COUNT(*) AS items{ITEM_FROM} \
+             vocabulary.label AS vocabulary_label, used.resources AS resources \
+             FROM (SELECT resource.resource_class_id AS class_id, COUNT(*) AS resources{from} \
              WHERE resource.resource_class_id IS NOT NULL"
         );
         let mut binds = Vec::new();
@@ -160,7 +182,7 @@ where
         let rows = query.fetch_all(self.pool).await?;
         rows.iter()
             .map(|row| {
-                Ok(ClassItemCount {
+                Ok(ClassCount {
                     class: DB::id(row, "id")?,
                     term: format!(
                         "{}:{}",
@@ -169,7 +191,7 @@ where
                     ),
                     label: DB::text(row, "label")?,
                     vocabulary_label: DB::text(row, "vocabulary_label")?,
-                    items: DB::int(row, "items")?,
+                    count: DB::int(row, "resources")?,
                 })
             })
             .collect()

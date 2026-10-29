@@ -19,7 +19,7 @@ import { toError } from '../../../app/useAsync';
 import { useTranslator } from '../../../i18n';
 import { bulk } from '../../../i18n/namespaces/bulk';
 import { bulkDelete } from '../../../i18n/namespaces/bulk-delete';
-import { useTermLabels } from '../../../i18n/termText';
+import { useClassNamesOf } from '../browse-options';
 import type { BrowseOptions } from '../browse-options';
 import { editWords } from './words';
 
@@ -145,7 +145,7 @@ export const RecentStep = ({
   const note = emptied === null ? null : <EmptiedNote emptied={emptied} />;
   const translator = useTranslator(bulk);
   const { t, number, locale } = translator;
-  const text = useTermLabels();
+  const classNames = useClassNamesOf(options.classes);
   if (runs === null) {
     return <p role="status">{t('bulk.recent.loading')}</p>;
   }
@@ -178,7 +178,7 @@ export const RecentStep = ({
         {runs.map((run) => (
           <tr key={String(run.id)}>
             <td>{formatDateTime(run.created, locale)}</td>
-            <td>{run.kind === 'delete' ? t(DELETE_WORDS[run.of]) : editWords({ t, options, text }, run.change)}</td>
+            <td>{run.kind === 'delete' ? t(DELETE_WORDS[run.of]) : editWords({ t, options, classNames }, run.change)}</td>
             <td>{run.purged === null ? t(`bulk.status.${run.status}`) : t('bulk.status.purged')}</td>
             <td>{t('bulk.recent.count', { done: number(run.done), total: number(run.total) })}</td>
             <td>

@@ -112,7 +112,9 @@ pub use terms::{ClassTerm, PropertyTerm, TermRepo, TermScope};
 pub use user_uploads::UserUploadRepo;
 pub use users::{ApiKeyRepo, UserFilter, UserRepo};
 pub use values::{SortValue, ValueRepo};
-pub use visible_counts::{ClassItemCount, FieldCount, FieldCounts, LinkCount, SetItemCount};
+pub use visible_counts::{
+    ClassCount, ClassCounted, FieldCount, FieldCounts, LinkCount, SetItemCount,
+};
 pub use vocabularies::{
     ClassFilter, ClassRepo, PropertyFilter, PropertyRepo, VocabularyFilter, VocabularyRepo,
 };

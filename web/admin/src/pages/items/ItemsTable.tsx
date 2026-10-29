@@ -10,8 +10,7 @@ import { TableScroll } from '../../app/table-scroll';
 import { useTranslator } from '../../i18n';
 import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
-import { useTermLabels } from '../../i18n/termText';
-import { classNamesOf } from './browse-options';
+import { useItemClassNames } from './browse-options';
 import type { BrowseOptions } from './browse-options';
 import { FilterValue } from './filter-value';
 import type { OnFilter } from './filter-value';
@@ -114,8 +113,8 @@ export const ItemsTable = ({
   hrefOf,
 }: ItemsViewProps): ReactElement => {
   const { t } = useTranslator(common, resources);
-  const text = useTermLabels();
-  const classNames = showClass ? classNamesOf(options, text) : null;
+  const names = useItemClassNames(options, null);
+  const classNames = showClass ? names : null;
   const allPicked = items.length > 0 && items.every((item) => picked.includes(item.id));
   return (
     <TableScroll label={t('list.tableLabel', { resource: t('resource.items') })}>

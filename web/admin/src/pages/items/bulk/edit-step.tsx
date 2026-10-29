@@ -9,7 +9,7 @@ import type { Assign, BulkEdit, Membership } from '../../../api/bulk';
 import { namesSomething } from '../../../api/bulk';
 import { useTranslator } from '../../../i18n';
 import { bulk } from '../../../i18n/namespaces/bulk';
-import { useTermLabels } from '../../../i18n/termText';
+import { useClassNamesOf } from '../browse-options';
 import type { BrowseOptions } from '../browse-options';
 import type { Draft } from './model';
 import { ScopeChoice } from './scope-choice';
@@ -134,15 +134,15 @@ export const EditStep = ({
   readonly onCancel: () => void;
 }): ReactElement => {
   const { t } = useTranslator(bulk);
-  const text = useTermLabels();
+  const classNames = useClassNamesOf(options.classes);
   const { edit } = draft;
   const [composer, setComposer] = useState<Composer>(NEW_COMPOSER);
   const set = (change: Partial<BulkEdit>): void => {
     onDraft({ ...draft, edit: { ...edit, ...change } });
   };
   const keep: Choice = { value: KEEP, label: t('bulk.choice.keep') };
-  const classChoices = [...options.classNames.keys()]
-    .map((id) => ({ value: String(id), label: classNameOf({ t, options, text }, id) }))
+  const classChoices = [...classNames.keys()]
+    .map((id) => ({ value: String(id), label: classNameOf({ t, options, classNames }, id) }))
     .sort(byLabel);
   const writing = isWriting(composer);
   const ready = !writing && namesSomething(edit) && (draft.scope === 'ticked' ? reach.ticked > 0 : reach.canMatchAll);
@@ -186,7 +186,7 @@ export const EditStep = ({
           value={assignValue(edit.class)}
           choices={[keep, { value: CLEAR, label: t('bulk.choice.noClass') }, ...classChoices]}
           onChoose={(value) => {
-            set({ class: assignOf(options.classNames, value) });
+            set({ class: assignOf(classNames, value) });
           }}
         />
         <Row

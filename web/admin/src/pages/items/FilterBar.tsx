@@ -163,7 +163,7 @@ const MoreFilters = ({
 }: Pick<FilterBarProps, 'options' | 'onFilter'> & { readonly filters: BrowseFilters }): ReactNode => {
   const { t } = useTranslator(common, resources);
   const any = t('browse.anyValue');
-  const classes = useClassChoices(filters.classId);
+  const classes = useClassChoices(filters.classId, 'items', options.usedClasses);
   const classOption = useClassOptionText();
   const siteChoices: readonly Choice[] = [
     { value: 'any', label: t('browse.siteAny') },

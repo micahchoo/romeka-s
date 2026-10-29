@@ -38,7 +38,7 @@ const classCounts = async (request: APIRequestContext) => {
   const classes = answer.classes;
   return (isArray(classes) ? classes : []).map((entry, at) => {
     const row = record(entry, `classes[${String(at)}]`);
-    return { id: numberField(row, 'id', 'class'), items: numberField(row, 'items', 'class') };
+    return { id: numberField(row, 'id', 'class'), items: numberField(row, 'count', 'class') };
   });
 };
 
