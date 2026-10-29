@@ -309,6 +309,8 @@ export const kn: SitesMessages = {
   'siteHub.slugNote': 'ಸಾರ್ವಜನಿಕ ವಿಳಾಸವು {url} ಆಗಿರುತ್ತದೆ.',
   'siteHub.homepage': 'ಮುಖಪುಟ',
   'siteHub.inNavigation': 'ನ್ಯಾವಿಗೇಷನ್‌ನಲ್ಲಿ',
+  'siteHub.unwrittenOne': '1 ಬ್ಲಾಕ್ ಬರೆಯಲಾಗಿಲ್ಲ',
+  'siteHub.unwritten': '{count} ಬ್ಲಾಕ್‌ಗಳು ಬರೆಯಲಾಗಿಲ್ಲ',
   'siteHub.addToNavigation': 'ನ್ಯಾವಿಗೇಷನ್‌ಗೆ ಸೇರಿಸಿ',
   'siteHub.edit': 'ಎಡಿಟ್',
   'siteHub.view': 'ವೀಕ್ಷಿಸಿ',

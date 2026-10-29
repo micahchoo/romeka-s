@@ -47,6 +47,7 @@ const COUNTED = {
   pageIssues: { one: 'canvas.pageIssuesOne', other: 'canvas.pageIssues' },
   toolbarIssues: { one: 'editor.issueOne', other: 'editor.issueCount' },
   attachments: { one: 'canvas.attachmentsOne', other: 'canvas.attachments' },
+  pages: { one: 'canvas.pagesOne', other: 'canvas.pages' },
 } as const satisfies Readonly<Record<string, { one: EditorMessageKey; other: EditorMessageKey }>>;
 
 /** The message for `count` of `noun`, with `count` and `params` filled in. */

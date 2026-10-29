@@ -21,6 +21,8 @@ export interface HtmlEditorProps {
   readonly value: string;
   readonly onChange: (html: string) => void;
   readonly required?: boolean;
+  /** The hint the empty editor shows; the generic "empty" line when absent. */
+  readonly placeholder?: string;
 }
 
 type Wrap = (range: Range) => Element | null;
@@ -56,6 +58,7 @@ export const HtmlEditor = ({
   value,
   onChange,
   required = false,
+  placeholder,
 }: HtmlEditorProps): ReactElement => {
   const { t } = useTranslator(common, sites);
   const editor = useRef<HTMLDivElement | null>(null);
@@ -181,6 +184,7 @@ export const HtmlEditor = ({
           aria-label={label}
           rows={6}
           value={value}
+          {...(placeholder === undefined ? {} : { placeholder })}
           onChange={(event) => {
             onChange(event.target.value);
           }}
@@ -194,7 +198,7 @@ export const HtmlEditor = ({
           aria-label={label}
           aria-multiline="true"
           aria-required={required}
-          data-placeholder={t('html.empty')}
+          data-placeholder={placeholder ?? t('html.empty')}
           contentEditable
           suppressContentEditableWarning
           onInput={(event) => {

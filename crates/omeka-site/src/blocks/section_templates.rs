@@ -2,9 +2,10 @@
 //! blocks that fill its slots, for the shapes curators build most.
 //!
 //! The block picker offers them beside the blocks, and inserting one lays down
-//! the group and its members in one edit. Each is a starting point: its text is
-//! a placeholder and its media and asset blocks are empty until the curator
-//! picks an item or an asset. [`super::templates::template_registry`] carries
+//! the group and its members in one edit. Each is a starting point: its text
+//! blocks are empty and show their hints, and its media and asset blocks are
+//! empty until the curator picks an item or an asset. A section none of whose
+//! blocks is written reaches no visitor. [`super::templates::template_registry`] carries
 //! them to the admin in `templates.json`.
 
 use serde_json::{Value as JsonValue, json};
@@ -57,38 +58,35 @@ fn media() -> TemplateBlock {
     )
 }
 
-/// An HTML block with placeholder text.
-fn html(text: &str) -> TemplateBlock {
-    layout_block("html", json!({ "html": text }))
+/// An empty HTML block, which shows its hint until the curator writes it.
+fn html() -> TemplateBlock {
+    layout_block("html", json!({ "html": "" }))
 }
 
 /// The built-in section templates, in the order the block picker lists them.
 #[must_use]
 pub fn section_templates() -> Vec<SectionTemplate> {
-    let words = "<h2>A heading for this part</h2><p>Say what the image shows and why it matters. \
-                 Every word here is yours to change.</p>";
-    let card = |title: &str| html(&format!("<h3>{title}</h3><p>One line about it.</p>"));
     vec![
         SectionTemplate {
             id: "media-text",
             label: "sectionTemplate.mediaText.label",
             description: "sectionTemplate.mediaText.description",
             settings: json!({ "section": { "layout": "split-40-60", "align": "center" } }),
-            members: vec![media(), html(words)],
+            members: vec![media(), html()],
         },
         SectionTemplate {
             id: "text-media",
             label: "sectionTemplate.textMedia.label",
             description: "sectionTemplate.textMedia.description",
             settings: json!({ "section": { "layout": "split-60-40", "align": "center" } }),
-            members: vec![html(words), media()],
+            members: vec![html(), media()],
         },
         SectionTemplate {
             id: "three-cards",
             label: "sectionTemplate.threeCards.label",
             description: "sectionTemplate.threeCards.description",
             settings: json!({ "section": { "layout": "cards-3" } }),
-            members: vec![card("First card"), card("Second card"), card("Third card")],
+            members: vec![html(), html(), html()],
         },
         SectionTemplate {
             id: "featured-items",
@@ -109,8 +107,8 @@ pub fn section_templates() -> Vec<SectionTemplate> {
             members: vec![romka_block(
                 &Quote,
                 json!({
-                    "text": "<p>A line worth remembering.</p>",
-                    "attribution": "Who said it",
+                    "text": "",
+                    "attribution": "",
                     "style": "large",
                 }),
             )],

@@ -28,10 +28,36 @@ const plainText = (html: string): string =>
 const clip = (text: string): string =>
   text.length > MAX_SUMMARY ? `${text.slice(0, MAX_SUMMARY - 1)}...` : text;
 
+/** How many pages a stored `pagelist` tree names, `null` when it is not a tree. */
+const pageCount = (pagelist: string): number | null => {
+  const count = (nodes: unknown): number =>
+    Array.isArray(nodes)
+      ? nodes.reduce<number>(
+          (total, node: unknown) =>
+            total +
+            1 +
+            (typeof node === 'object' && node !== null && 'children' in node
+              ? count(node.children)
+              : 0),
+          0,
+        )
+      : 0;
+  if (pagelist.trim() === '') {
+    return 0;
+  }
+  try {
+    const nodes: unknown = JSON.parse(pagelist);
+    return Array.isArray(nodes) ? count(nodes) : null;
+  } catch {
+    return null;
+  }
+};
+
 /** The message lookup a card reads its labels through. */
 export type Translate = Translator<MessageKey | KeyOf<typeof sites> | EditorMessageKey>['t'];
 
-/** The card's content summary: HTML text, the page title, or an attachment count. */
+/** The card's content summary: HTML text, the page title, the pages a list
+ * names, or an attachment count. */
 export const blockSummary = (
   block: BlockDraft,
   pageTitle: string,
@@ -49,6 +75,15 @@ export const blockSummary = (
     const text = clip(plainText(asText(data.html)));
     if (text !== '') {
       return text;
+    }
+  }
+  if (block.layout === 'listOfPages') {
+    const pages = pageCount(asText(data.pagelist));
+    if (pages === 0) {
+      return t('canvas.noPagesChosen');
+    }
+    if (pages !== null) {
+      return counted(t, 'pages', pages);
     }
   }
   if (block.layout === 'pageTitle') {

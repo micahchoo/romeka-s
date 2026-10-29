@@ -68,6 +68,7 @@ export const en = {
   'romekaChoice.button.large': 'Large',
   'romekaField.quote.text': 'Quotation',
   'fieldHelp.quote.text': 'The words quoted, without quotation marks.',
+  'fieldExample.quote.text': 'e.g. That brain of mine is something more than merely mortal.',
   'romekaField.quote.attribution': 'Said by',
   'fieldHelp.quote.attribution': 'The person or work the words come from.',
   'fieldExample.quote.attribution': 'Ada Lovelace, 1843',

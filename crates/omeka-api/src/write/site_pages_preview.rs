@@ -206,14 +206,20 @@ async fn validate_draft(
 }
 
 /// The members a preview body may carry: the write's control list plus
-/// `o:id`, which names the page being edited, and `o:theme_settings`, the theme
-/// tokens to render with instead of the site's stored ones (never stored).
+/// `o:id`, which names the page being edited, `o:theme_settings`, the theme
+/// tokens to render with instead of the site's stored ones (never stored), and
+/// [`HINTS_MEMBER`], the hint text an empty field shows in the frame.
 fn preview_control() -> Vec<&'static str> {
     let mut control: Vec<&'static str> = CONTROL.to_vec();
     control.push("o:id");
     control.push("o:theme_settings");
+    control.push(HINTS_MEMBER);
     control
 }
+
+/// The preview body member that maps each hint key to its text in the
+/// admin's locale. It is read for the render only and never stored.
+pub const HINTS_MEMBER: &str = "romeka_hints";
 
 /// The check before a resource page renders under a draft theme: the theme
 /// settings are a site write, so the caller needs what a site update needs.

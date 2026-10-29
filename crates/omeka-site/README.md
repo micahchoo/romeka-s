@@ -189,8 +189,18 @@ members a form does not present (`oembed.url_old`, `oembed.oembed`) are not fiel
 Three kinds are this product's own controls over upstream's keys. `Color` is a `<hex-color>`, the only
 colour the renderer keeps. `Sides { keys }` edits the four `padding_*` keys as one control. `Link
 { url_key }` writes a page under the field's key or a URL under `url_key`, never both, because the
-hero renderer prefers the page. A `Text` field may name a `placeholder` example and an `ItemQuery`
-the sibling choice that names its resource type (`resource_from`).
+hero renderer prefers the page. A `Text`, `Html` or `PageList` field may name a `placeholder` hint
+and an `ItemQuery` the sibling choice that names its resource type (`resource_from`).
+
+A field may be `primary`: it holds the block's own words (the hero's heading, an HTML block's text, a
+quote, a list's pages). `blocks::written` owns the rule. While the primary field is empty the block is
+not written: `render_page_blocks` leaves it out for visitors, wrapper included, and a group whose every
+member is unwritten renders no wrapper. The plain rendering of an unwritten Romeka block is empty, so
+an upstream reader sees nothing there either. The preview render shows the field's hint, greyed
+(`.romeka-hint`), where the words go; the hint text arrives in the preview body as `romeka_hints`,
+resolved by the admin in its own locale. Unlike `required`, `primary` never blocks a save, because a
+template lays the block down empty. `blocks.json` carries `blankHtml`, the samples the admin's
+blank-HTML check is tested against.
 
 Every field also carries a `help` catalogue key: the one line under its control that says what the
 visitor sees. `when` shows a control only while a sibling holds a value (`When::equals`) or any value
@@ -257,9 +267,15 @@ rendering. A test keeps the file byte-identical and checks every block against t
 layout block's `o:data` parses, a Romeka block's settings name schema fields and carry their kinds,
 and every `o:data` key names a field its layout declares (the `asset` layout's index keys excepted).
 
+A template writes no words for the curator. A text field it cannot fill with a real value is empty
+and shows its hint; real values stay (the welcome hero's "Welcome", its link to the items, a browse
+preview's heading). `blocks::templates::FORMER_TEXT` is the text earlier templates laid down, written to
+`web/admin/src/generated/former-template-text.json`, so the editor can mark it on a page saved before
+and offer to clear it. The server never hides it.
+
 `blocks::templates::welcome_blocks` is the first page a site created through the API starts with (a hero,
-an introduction and a preview of the latest items), stored by `omeka-api`'s site create in place of upstream's
-style sampler. The chooser does not offer it. The about and gallery templates open with a `pageTitle` block;
+an introduction left for the curator to write and a preview of the latest items), stored by
+`omeka-api`'s site create in place of upstream's style sampler. The chooser does not offer it. The about and gallery templates open with a `pageTitle` block;
 the hero templates do not, because the hero's heading is the page's visible title.
 
 A site's own templates are not stored here. They are one `site_setting` row,

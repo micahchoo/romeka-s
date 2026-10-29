@@ -390,9 +390,16 @@ pub fn needs_plain(carrier: &RomkaCarrier, stored_html: &str) -> bool {
 
 /// The plain rendering for a carrier, purified, `None` when the carrier names
 /// no registered block.
+///
+/// A block that is not written ([`super::written`]) has an empty plain
+/// rendering, so an upstream reader sees nothing where a Romeka visitor sees
+/// nothing (`docs/compat.md`, the one-way rule).
 #[must_use]
 pub fn plain_for(carrier: &RomkaCarrier, refs: &PlainRefs) -> Option<String> {
     let definition = block(carrier.block.as_str())?;
+    if super::written::settings_unwritten(definition, &carrier.settings) {
+        return Some(String::new());
+    }
     Some(omeka_core::purify::purify(
         &definition.plain(&carrier.settings, refs),
     ))

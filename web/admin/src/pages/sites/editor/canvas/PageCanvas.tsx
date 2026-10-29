@@ -27,6 +27,8 @@ import { romkaState } from '../romekaHash';
 import { selectedKey } from '../shell/selection';
 import type { Selection } from '../shell/selection';
 import { blockSummary, layoutLabel, sectionLabel } from './summary';
+import type { CardWriting } from './CanvasCard';
+import { clearTemplateText, unwrittenField } from '../written';
 import { blockImage, imageKey, useThumbnails } from './thumbnails';
 import { EDITOR_NAMESPACES } from '../messages';
 import { sites } from '../../../../i18n/namespaces/sites';
@@ -41,6 +43,16 @@ export interface PageCanvasProps {
   readonly onSelect: (key: BlockKey | null) => void;
   readonly dispatch: (action: DraftAction) => void;
 }
+
+/** What the card says of the block's words. Former template text wins, since
+ * it offers the one action. */
+const writingOf = (registry: PageDraft['registry'], block: BlockDraft): CardWriting => {
+  const clear = clearTemplateText(registry, block);
+  if (clear !== null) {
+    return { kind: 'templateText', clear };
+  }
+  return unwrittenField(registry, block) === null ? { kind: 'written' } : { kind: 'unwritten' };
+};
 
 interface InsertPointProps {
   readonly index: number;
@@ -203,6 +215,7 @@ export const PageCanvas = ({
         image={imageUrl(block)}
         issues={issuesByBlock.get(block.key) ?? []}
         mismatch={romkaState(draft.registry, block) === 'edited'}
+        writing={writingOf(draft.registry, block)}
         selected={selected === block.key}
         picked={pickedKey === block.key}
         grid={grid}

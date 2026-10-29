@@ -58,6 +58,7 @@ pub mod style;
 pub mod table_of_contents;
 pub mod templates;
 pub mod timeline;
+pub mod written;
 
 use std::collections::BTreeSet;
 
@@ -179,6 +180,10 @@ pub fn render_block(block: &SiteBlock, ctx: &RenderContext<'_>) -> String {
 /// A block's Romeka anchor becomes the wrapper's `id` the first time the page
 /// names it; a later block with the same anchor renders without one, so the
 /// page never carries two elements with one id.
+///
+/// A block that is not written ([`written::unwritten`]) renders nothing for a
+/// visitor, wrapper included, and a group whose every member is unwritten
+/// renders no wrapper either. The preview shows such a block with its hint.
 #[must_use]
 pub fn render_page_blocks(page: &SitePage, ctx: &RenderContext<'_>) -> String {
     let mut ordered: Vec<&SiteBlock> = page.blocks.iter().collect();
@@ -186,56 +191,111 @@ pub fn render_page_blocks(page: &SitePage, ctx: &RenderContext<'_>) -> String {
 
     let columns = page.layout_data.grid_columns.unwrap_or(0);
     let mut out = layout::page_open(page.layout, &page.layout_data);
-    let mut in_group = false;
-    let mut span = 0_i64;
-    let mut counted = 0_i64;
+    let mut group: Option<OpenGroup> = None;
     let mut anchors = BTreeSet::new();
     for block in ordered {
-        let anchor = style::RomekaStyle::parse(&block.layout_data)
-            .anchor
-            .filter(|anchor| anchors.insert(anchor.clone()));
         if block.layout == LayoutId::BlockGroup {
-            if in_group {
-                // Blocks may not overlap, so a group inside a group closes the
-                // open one first.
-                out.push_str("</div>");
+            // Blocks may not overlap, so a group inside a group closes the
+            // open one first.
+            if let Some(open) = group.take() {
+                open.close_into(&mut out);
             }
-            in_group = true;
-            span = group_span(block);
-            counted = 0;
-            out.push_str(&layout::group_open(
-                block,
-                page.layout,
-                columns,
-                anchor.as_deref(),
-                ctx,
-            ));
-        } else {
-            let classes = layout::block_classes(block, page.layout, columns);
-            let styles = layout::block_inline_styles(block, ctx);
-            let body = render_block(block, ctx);
-            out.push_str(&layout::block_wrapper(
-                &classes,
-                &styles,
+            let anchor = anchor_of(block, &mut anchors);
+            let open = OpenGroup {
+                open: layout::group_open(block, page.layout, columns, anchor.as_deref(), ctx),
+                body: String::new(),
+                span: group_span(block),
+                counted: 0,
+                shown: 0,
+                omitted: 0,
+            };
+            if open.span == 0 {
+                open.close_into(&mut out);
+            } else {
+                group = Some(open);
+            }
+            continue;
+        }
+        let shown = shown_block(block, ctx).map(|body| {
+            let anchor = anchor_of(block, &mut anchors);
+            layout::block_wrapper(
+                &layout::block_classes(block, page.layout, columns),
+                &layout::block_inline_styles(block, ctx),
                 anchor.as_deref(),
                 ctx.block_marker(block.id),
                 &body,
-            ));
-        }
-        if in_group {
-            if counted == span {
-                out.push_str("</div>");
-                in_group = false;
-            } else {
-                counted += 1;
+            )
+        });
+        match group.as_mut() {
+            Some(open) => {
+                match shown {
+                    Some(wrapped) => {
+                        open.body.push_str(&wrapped);
+                        open.shown += 1;
+                    }
+                    None => open.omitted += 1,
+                }
+                open.counted += 1;
+                if open.counted == open.span
+                    && let Some(open) = group.take()
+                {
+                    open.close_into(&mut out);
+                }
             }
+            None => out.push_str(&shown.unwrap_or_default()),
         }
     }
-    if in_group {
-        out.push_str("</div>");
+    // A group whose span runs past the last block closes at the end.
+    if let Some(open) = group.take() {
+        open.close_into(&mut out);
     }
     out.push_str("</div>");
     out
+}
+
+/// A `blockGroup` wrapper still taking members.
+struct OpenGroup {
+    /// The wrapper's opening tag.
+    open: String,
+    /// The members rendered so far.
+    body: String,
+    /// How many members the group takes.
+    span: i64,
+    /// How many members it has taken.
+    counted: i64,
+    /// How many members rendered.
+    shown: usize,
+    /// How many members were left out as unwritten.
+    omitted: usize,
+}
+
+impl OpenGroup {
+    /// Writes the group, unless every member it took was left out.
+    fn close_into(self, out: &mut String) {
+        if self.omitted > 0 && self.shown == 0 {
+            return;
+        }
+        out.push_str(&self.open);
+        out.push_str(&self.body);
+        out.push_str("</div>");
+    }
+}
+
+/// The block's Romeka anchor, the first time the page names it.
+fn anchor_of(block: &SiteBlock, anchors: &mut BTreeSet<String>) -> Option<String> {
+    style::RomekaStyle::parse(&block.layout_data)
+        .anchor
+        .filter(|anchor| anchors.insert(anchor.clone()))
+}
+
+/// What a block shows inside its wrapper: its render when written, its hint
+/// in the preview, and nothing for a visitor when it is not written.
+fn shown_block(block: &SiteBlock, ctx: &RenderContext<'_>) -> Option<String> {
+    match written::unwritten(block) {
+        None => Some(render_block(block, ctx)),
+        Some(unwritten) if ctx.is_preview() => Some(written::render_hinted(block, &unwritten, ctx)),
+        Some(_) => None,
+    }
 }
 
 /// `(int) $block->dataValue('span')`: a missing or non-numeric span is 0.

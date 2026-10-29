@@ -1,6 +1,8 @@
 //! The welcome page a site created through the API starts with: the port's
-//! starter (a banner, an introduction, the latest items) in place of
-//! upstream's style sampler, stored in blocks upstream can render.
+//! starter (a banner, an introduction for the curator to write, the latest
+//! items) in place of upstream's style sampler, stored in blocks upstream can
+//! render. The starter writes no filler: the unwritten introduction reaches no
+//! visitor.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
@@ -39,7 +41,7 @@ async fn a_new_site_welcome_page_is_the_starter() {
     let banner = &document["o:block"][0];
     assert_eq!(
         banner["o:data"]["html"],
-        "<h2>Welcome</h2><p>A new collection, ready for its first visitors.</p>\
+        "<h2>Welcome</h2>\
          <a href=\"../item\" rel=\"noreferrer noopener\">Explore the collection</a>"
     );
     assert!(banner["o:layout_data"]["romeka"]["plain_hash"].is_string());
@@ -58,7 +60,19 @@ async fn a_new_site_welcome_page_is_the_starter() {
         "{}",
         page.body
     );
-    assert!(page.body.contains("This is the first page of your site."));
+    assert!(!page.body.contains("This is the first page of your site."));
+    assert!(
+        !page
+            .body
+            .contains("A new collection, ready for its first visitors.")
+    );
+    assert_eq!(document["o:block"][1]["o:data"]["html"], "");
+    assert_eq!(
+        page.body.matches("class=\"block block-html").count(),
+        1,
+        "the unwritten introduction leaves no wrapper: {}",
+        page.body
+    );
     assert!(
         page.body.contains("<h2>Recently added</h2>"),
         "{}",

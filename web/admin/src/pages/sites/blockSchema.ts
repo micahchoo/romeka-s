@@ -69,7 +69,14 @@ interface FieldBase {
   readonly help: EditorMessageKey;
   /** The value a form starts from, or `null` for an empty control. */
   readonly default: FieldDefault | null;
+  /** Whether the editor refuses to save while the field is empty. */
   readonly required: boolean;
+  /**
+   * Whether the field holds the block's own words: while it is empty the block
+   * is not written, reaches no visitor and shows its hint in the preview
+   * (`editor/written.ts`). It never blocks a save.
+   */
+  readonly primary: boolean;
   /** The sibling test that shows the control, or `null` to always show it. */
   readonly when: FieldCondition | null;
   /** The styling form section, layout data only. */
@@ -85,7 +92,11 @@ export type BlockField =
       /** An example the empty input shows. */
       readonly placeholder: EditorMessageKey | null;
     })
-  | (FieldBase & { readonly type: 'html' })
+  | (FieldBase & {
+      readonly type: 'html';
+      /** The hint the empty editor shows. */
+      readonly placeholder: EditorMessageKey | null;
+    })
   | (FieldBase & {
       readonly type: 'integer';
       /** The smallest accepted value, or `null` for no bound. */
@@ -129,7 +140,11 @@ export type BlockField =
     })
   | (FieldBase & { readonly type: 'attachments'; readonly media: boolean })
   | (FieldBase & { readonly type: 'repeat'; readonly fields: readonly BlockField[] })
-  | (FieldBase & { readonly type: 'pageList' })
+  | (FieldBase & {
+      readonly type: 'pageList';
+      /** The hint an empty tree shows in the preview. */
+      readonly placeholder: EditorMessageKey | null;
+    })
   | (FieldBase & {
       /** A hex colour under `key`, or a theme colour role under `tokenKey`. */
       readonly type: 'color';
@@ -214,6 +229,14 @@ export interface BlockRegistry {
   /** A block group's section, under `o:layout_data.romeka.settings.section`. */
   readonly sectionLayoutData: LayoutSchema;
   readonly colorTokens: readonly ColorToken[];
+  /** The cases `editor/written.ts` tests its blank-HTML check against. */
+  readonly blankHtml: readonly BlankSample[];
+}
+
+/** One stored HTML value and whether the renderer calls it empty. */
+export interface BlankSample {
+  readonly html: string;
+  readonly blank: boolean;
 }
 
 const parseString = (value: unknown, path: Path): string => {
@@ -369,6 +392,7 @@ const parseField = (value: unknown, path: Path): BlockField => {
     help: parseFieldText(value.help, [...path, 'help']),
     default: parseDefault(value.default, [...path, 'default']),
     required: parseFlag(value.required, [...path, 'required']),
+    primary: parseFlag(value.primary, [...path, 'primary']),
     when: parseCondition(value.when, [...path, 'when']),
     group: parseGroup(value.group, [...path, 'group']),
     advanced: parseFlag(value.advanced, [...path, 'advanced']),
@@ -407,7 +431,11 @@ const parseField = (value: unknown, path: Path): BlockField => {
     case 'propertyList':
       return { ...base, type: 'propertyList' };
     case 'html':
-      return { ...base, type: 'html' };
+      return {
+        ...base,
+        type: 'html',
+        placeholder: parseOptionalLabel(value.placeholder, [...path, 'placeholder']),
+      };
     case 'boolean':
       return { ...base, type: 'boolean' };
     case 'pageRef':
@@ -440,7 +468,11 @@ const parseField = (value: unknown, path: Path): BlockField => {
         resourceKey: parseOptionalString(value.resourceKey, [...path, 'resourceKey']),
       };
     case 'pageList':
-      return { ...base, type: 'pageList' };
+      return {
+        ...base,
+        type: 'pageList',
+        placeholder: parseOptionalLabel(value.placeholder, [...path, 'placeholder']),
+      };
     case 'integer':
       return {
         ...base,
@@ -517,6 +549,16 @@ const parseRomkaHash = (value: unknown, path: Path): RomkaHash => {
   };
 };
 
+const parseBlankSample = (value: unknown, path: Path): BlankSample => {
+  if (!isRecord(value)) {
+    throw new ParseError(path, 'an object');
+  }
+  return {
+    html: parseString(value.html, [...path, 'html']),
+    blank: parseFlag(value.blank, [...path, 'blank']),
+  };
+};
+
 /** Narrows the generated `blocks.json` into the typed registry. */
 export const parseBlockRegistry: (raw: unknown) => BlockRegistry = (raw) => {
   if (!isRecord(raw)) {
@@ -531,5 +573,6 @@ export const parseBlockRegistry: (raw: unknown) => BlockRegistry = (raw) => {
     pageLayoutData: parseSchema(raw.pageLayoutData, ['pageLayoutData']),
     sectionLayoutData: parseSchema(raw.sectionLayoutData, ['sectionLayoutData']),
     colorTokens: parseListOf(parseOption)(raw.colorTokens, ['colorTokens']),
+    blankHtml: parseListOf(parseBlankSample)(raw.blankHtml, ['blankHtml']),
   };
 };

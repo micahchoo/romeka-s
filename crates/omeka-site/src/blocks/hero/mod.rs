@@ -71,7 +71,7 @@ const SCHEMA: LayoutSchema = LayoutSchema {
             "fieldHelp.hero.heading",
         )
         .placeholder("fieldExample.hero.heading")
-        .required(),
+        .primary(),
         choice(
             "heading_level",
             "romekaField.hero.heading_level",
@@ -83,7 +83,8 @@ const SCHEMA: LayoutSchema = LayoutSchema {
             "subheading",
             "romekaField.hero.subheading",
             "fieldHelp.hero.subheading",
-        ),
+        )
+        .placeholder("fieldExample.hero.subheading"),
         html("body", "romekaField.hero.body", "fieldHelp.hero.body"),
         choice(
             "background_source",

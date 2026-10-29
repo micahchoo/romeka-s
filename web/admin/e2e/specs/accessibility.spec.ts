@@ -282,7 +282,7 @@ test("the public site pages meet the axe budget", async ({ page }) => {
   const welcome = await page.goto(`/s/${SITE_SLUG}/page/welcome`);
   expect(welcome?.status()).toBe(200);
   await expect(
-    page.getByText("This is the first page of your site."),
+    page.getByRole("heading", { name: "Welcome", exact: true }),
   ).toBeVisible();
   await expectAxeBudget(page, "public welcome page");
 

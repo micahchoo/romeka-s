@@ -8,9 +8,14 @@
 //! when it offers a starting point for a new page. A test keeps that file
 //! byte-identical and checks every block against the registries.
 //!
-//! A template is a starting point, not a finished page: its blocks carry
-//! placeholder settings and no attachments, and a Romeka block's plain
-//! rendering is generated on the first save.
+//! A template is a starting point, not a finished page: its blocks carry no
+//! attachments, and a Romeka block's plain rendering is generated on the first
+//! save. A template writes no words for the curator. A text field it cannot
+//! fill with a real value is empty and shows its schema hint where the words
+//! go ([`super::schema::Field::placeholder`]), and a block whose primary field
+//! is empty reaches no visitor ([`super::written`]). The text the templates
+//! used to lay down is [`FORMER_TEXT`], so the editor can find it on a page
+//! saved before.
 
 use omeka_core::site::PageLayout;
 use serde::Serialize;
@@ -134,8 +139,8 @@ pub fn templates() -> Vec<Template> {
                 romka_block(
                     &Hero,
                     json!({
-                        "heading": "Your exhibit title",
-                        "subheading": "A sentence about what this exhibit holds",
+                        "heading": "",
+                        "subheading": "",
                         "overlay": "medium",
                         "alignment": "left",
                     }),
@@ -143,7 +148,7 @@ pub fn templates() -> Vec<Template> {
                 layout_block(
                     "html",
                     json!({
-                        "html": "<p>Introduce the exhibit here. This page came from a template, so every block is yours to edit or remove.</p>",
+                        "html": "",
                     }),
                 ),
                 layout_block(
@@ -168,8 +173,8 @@ pub fn templates() -> Vec<Template> {
                 romka_block(
                     &Hero,
                     json!({
-                        "heading": "Collection highlight",
-                        "subheading": "One object, up close",
+                        "heading": "",
+                        "subheading": "",
                         "overlay": "medium",
                         "alignment": "left",
                     }),
@@ -197,7 +202,7 @@ pub fn templates() -> Vec<Template> {
                 layout_block(
                     "html",
                     json!({
-                        "html": "<p>About this site. Replace this text with the story behind the collection.</p>",
+                        "html": "",
                     }),
                 ),
                 layout_block(
@@ -268,9 +273,11 @@ pub fn templates() -> Vec<Template> {
     ]
 }
 
-/// The blocks of the first page a new site is born with: a banner, a line of
-/// introduction and the latest items, so the site looks finished before a
-/// curator edits it. The chooser does not offer them; the site create stores
+/// The blocks of the first page a new site is born with: a banner that
+/// welcomes visitors, an introduction for the curator to write and the latest
+/// items. The banner's words and the item list are real values, so the page
+/// shows something true before a curator edits it; the empty introduction
+/// reaches no visitor until it is written. The chooser does not offer them; the site create stores
 /// them once ([`welcome_blocks`]).
 ///
 /// The call to action is a relative URL because a page's own URL is always
@@ -282,7 +289,7 @@ fn welcome() -> Vec<TemplateBlock> {
             &Hero,
             json!({
                 "heading": "Welcome",
-                "subheading": "A new collection, ready for its first visitors.",
+                "subheading": "",
                 "overlay": "medium",
                 "alignment": "left",
                 "cta_label": "Explore the collection",
@@ -292,7 +299,7 @@ fn welcome() -> Vec<TemplateBlock> {
         layout_block(
             "html",
             json!({
-                "html": "<p>This is the first page of your site. Change these words, give the banner a background image, or start a new page from a template. Everything here is yours to edit.</p>",
+                "html": "",
             }),
         ),
         layout_block(
@@ -315,6 +322,30 @@ fn welcome() -> Vec<TemplateBlock> {
 pub fn welcome_blocks() -> Vec<TemplateBlockEntry> {
     welcome().iter().map(block_entry).collect()
 }
+
+/// The text the templates laid down before they left their fields empty,
+/// exactly as they stored it. `web/admin/src/generated/former-template-text.json`
+/// carries it beside `templates.json`, in a file of its own so the editor's
+/// block list reads it without loading every template. A page saved from a template before then still
+/// holds it, and the editor marks a field whose value equals one of these,
+/// after whitespace folds, as template text the curator can clear. The server
+/// never hides it: a curator may have meant to keep a sentence.
+pub const FORMER_TEXT: &[&str] = &[
+    "Your exhibit title",
+    "A sentence about what this exhibit holds",
+    "<p>Introduce the exhibit here. This page came from a template, so every block is yours to edit or remove.</p>",
+    "Collection highlight",
+    "One object, up close",
+    "<p>About this site. Replace this text with the story behind the collection.</p>",
+    "A new collection, ready for its first visitors.",
+    "<p>This is the first page of your site. Change these words, give the banner a background image, or start a new page from a template. Everything here is yours to edit.</p>",
+    "<h2>A heading for this part</h2><p>Say what the image shows and why it matters. Every word here is yours to change.</p>",
+    "<h3>First card</h3><p>One line about it.</p>",
+    "<h3>Second card</h3><p>One line about it.</p>",
+    "<h3>Third card</h3><p>One line about it.</p>",
+    "<p>A line worth remembering.</p>",
+    "Who said it",
+];
 
 /// The whole template registry, as `templates.json` holds it.
 #[derive(Debug, Serialize)]
@@ -482,26 +513,42 @@ mod tests {
         "/../../web/admin/src/generated/templates.json"
     );
 
+    /// Where the admin reads the former template text.
+    const FORMER_FILE: &str = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../web/admin/src/generated/former-template-text.json"
+    );
+
     /// The admin's file is the registry's serialisation, byte for byte. A
     /// difference fails with the command that rewrites it, so the two cannot
     /// drift.
     #[test]
     fn generated_registry_matches_the_admin_file() {
+        matches_generated(ADMIN_FILE, &template_registry());
+    }
+
+    /// The former template text, byte for byte, the same way.
+    #[test]
+    fn generated_former_text_matches_the_admin_file() {
+        matches_generated(FORMER_FILE, &FORMER_TEXT);
+    }
+
+    fn matches_generated(file: &str, value: &impl Serialize) {
         let rendered = format!(
             "{}\n",
-            serde_json::to_string_pretty(&template_registry()).expect("the registry serialises")
+            serde_json::to_string_pretty(value).expect("the value serialises")
         );
         if std::env::var_os("UPDATE_GENERATED").is_some() {
-            let path = std::path::Path::new(ADMIN_FILE);
+            let path = std::path::Path::new(file);
             std::fs::create_dir_all(path.parent().expect("the file has a parent"))
                 .expect("the generated directory exists");
-            std::fs::write(path, &rendered).expect("the registry file is writable");
+            std::fs::write(path, &rendered).expect("the generated file is writable");
             return;
         }
-        let current = std::fs::read_to_string(ADMIN_FILE).unwrap_or_default();
+        let current = std::fs::read_to_string(file).unwrap_or_default();
         assert_eq!(
             current, rendered,
-            "run UPDATE_GENERATED=1 cargo test -p omeka-site to rewrite {ADMIN_FILE}"
+            "run UPDATE_GENERATED=1 cargo test -p omeka-site to rewrite {file}"
         );
     }
 
@@ -613,8 +660,8 @@ mod tests {
     fn kind_accepts(field: &Field, key: &str, value: &JsonValue) -> bool {
         match field.kind {
             FieldKind::Text { .. }
-            | FieldKind::Html
-            | FieldKind::PageList
+            | FieldKind::Html { .. }
+            | FieldKind::PageList { .. }
             | FieldKind::Color { .. }
             | FieldKind::Anchor
             | FieldKind::ManifestSource
@@ -648,6 +695,46 @@ mod tests {
             .is_some_and(|text| text.trim().parse::<i64>().is_ok())
     }
 
+    /// No template lays down the text earlier templates did: a field the
+    /// template cannot fill with a real value is empty and shows its hint.
+    #[test]
+    fn no_template_lays_down_former_text() {
+        let registry = serde_json::to_value(template_registry()).expect("the registry serialises");
+        let mut found = Vec::new();
+        collect_strings(&registry["templates"], &mut found);
+        collect_strings(&registry["sections"], &mut found);
+        for block in welcome_blocks() {
+            collect_strings(&block.data, &mut found);
+            collect_strings(&block.layout_data, &mut found);
+        }
+        for text in FORMER_TEXT {
+            assert!(!found.contains(&(*text).to_string()), "{text}");
+        }
+    }
+
+    fn collect_strings(value: &JsonValue, out: &mut Vec<String>) {
+        match value {
+            JsonValue::String(text) => out.push(text.clone()),
+            JsonValue::Array(items) => items.iter().for_each(|item| collect_strings(item, out)),
+            JsonValue::Object(map) => map.values().for_each(|item| collect_strings(item, out)),
+            _ => {}
+        }
+    }
+
+    /// The welcome page keeps the words that are true of any new site: the
+    /// banner's greeting and its link to the items, and the latest items.
+    #[test]
+    fn the_welcome_page_keeps_only_real_values() {
+        let blocks = welcome_blocks();
+        let hero = &blocks[0].layout_data["romeka"]["settings"];
+        assert_eq!(hero["heading"], json!("Welcome"));
+        assert_eq!(hero["cta_label"], json!("Explore the collection"));
+        assert_eq!(hero["cta_url"], json!("../item"));
+        assert_eq!(hero["subheading"], json!(""));
+        assert_eq!(blocks[1].data, json!({ "html": "" }));
+        assert_eq!(blocks[2].data["heading"], json!("Recently added"));
+    }
+
     /// The generated entries carry the carrier expansion the admin's draft model
     /// builds a block from.
     #[test]
@@ -671,7 +758,7 @@ mod tests {
         );
         assert_eq!(
             hero.layout_data.pointer("/romeka/settings/heading"),
-            Some(&json!("Your exhibit title"))
+            Some(&json!(""))
         );
     }
 }

@@ -60,9 +60,16 @@ pub struct Field {
     /// The value a form starts from, or absent for an empty control.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default: Option<FieldDefault>,
-    /// Whether the control is required (`oembed.url`).
+    /// Whether the control is required (`oembed.url`): the editor refuses to
+    /// save the block while it is empty.
     #[serde(skip_serializing_if = "is_false")]
     pub required: bool,
+    /// Whether the field holds the block's own words: while it is empty the
+    /// block is not written, renders nothing for visitors and shows its hint
+    /// in the preview ([`super::written`]). Unlike `required`, it never
+    /// blocks a save, because a template lays the block down empty.
+    #[serde(skip_serializing_if = "is_false")]
+    pub primary: bool,
     /// The sibling value the control depends on; absent for a control that
     /// always shows. A hidden control keeps its stored value.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -199,7 +206,11 @@ pub enum FieldKind {
         placeholder: Option<&'static str>,
     },
     /// A rich-text HTML input (upstream's WYSIWYG).
-    Html,
+    Html {
+        /// The catalogue key for the hint shown in the empty editor.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        placeholder: Option<&'static str>,
+    },
     /// A number input, with a lower bound where upstream sets one.
     Integer {
         /// The smallest accepted value (`min`), if any.
@@ -274,7 +285,11 @@ pub enum FieldKind {
         fields: &'static [Field],
     },
     /// The `listOfPages` page tree, stored as a JSON string.
-    PageList,
+    PageList {
+        /// The catalogue key for the hint an empty tree shows.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        placeholder: Option<&'static str>,
+    },
     /// A `<hex-color>` (`#rgb` or `#rrggbb`) under the field's `key`, or,
     /// when `token_key` is set, one of the theme's colour roles under that key
     /// ([`Registry::color_tokens`]). The control writes one and clears the
@@ -369,6 +384,7 @@ const fn field(
         kind,
         default: None,
         required: false,
+        primary: false,
         when: None,
         group: None,
         advanced: false,
@@ -382,7 +398,7 @@ pub const fn text(key: &'static str, label: &'static str, help: &'static str) ->
 
 /// A rich-text HTML input.
 pub const fn html(key: &'static str, label: &'static str, help: &'static str) -> Field {
-    field(key, label, help, FieldKind::Html)
+    field(key, label, help, FieldKind::Html { placeholder: None })
 }
 
 /// A number input with no bound.
@@ -563,7 +579,7 @@ pub const fn records(
 
 /// The `listOfPages` page tree.
 pub const fn page_list(key: &'static str, label: &'static str, help: &'static str) -> Field {
-    field(key, label, help, FieldKind::PageList)
+    field(key, label, help, FieldKind::PageList { placeholder: None })
 }
 
 /// A IIIF manifest, as a URL or as an item of this site.
@@ -718,17 +734,42 @@ impl Field {
         }
     }
 
-    /// Shows the catalogue example `key` in the empty text input. Only a text
-    /// field has one, so any other kind fails the build.
+    /// Marks the field as the block's own words ([`Field::primary`]).
+    pub const fn primary(self) -> Self {
+        Self {
+            primary: true,
+            ..self
+        }
+    }
+
+    /// Shows the catalogue hint `key` where the text goes: in the empty text
+    /// input, the empty rich editor or the empty page tree, and, for a primary
+    /// field, in the preview frame. Only those kinds have one, so any other
+    /// kind fails the build.
     pub const fn placeholder(self, key: &'static str) -> Self {
-        match self.kind {
-            FieldKind::Text { .. } => Self {
-                kind: FieldKind::Text {
-                    placeholder: Some(key),
-                },
-                ..self
+        let kind = match self.kind {
+            FieldKind::Text { .. } => FieldKind::Text {
+                placeholder: Some(key),
             },
-            _ => panic!("only a text field has a placeholder"),
+            FieldKind::Html { .. } => FieldKind::Html {
+                placeholder: Some(key),
+            },
+            FieldKind::PageList { .. } => FieldKind::PageList {
+                placeholder: Some(key),
+            },
+            _ => panic!("only a text, rich-text or page-tree field has a placeholder"),
+        };
+        Self { kind, ..self }
+    }
+
+    /// The catalogue key of the hint the field shows while empty, if any.
+    #[must_use]
+    pub const fn hint(&self) -> Option<&'static str> {
+        match self.kind {
+            FieldKind::Text { placeholder }
+            | FieldKind::Html { placeholder }
+            | FieldKind::PageList { placeholder } => placeholder,
+            _ => None,
         }
     }
 
@@ -873,6 +914,10 @@ pub struct Registry {
     /// The theme colour roles a colour field may store, with their label keys.
     #[serde(rename = "colorTokens")]
     pub color_tokens: Vec<ColorToken>,
+    /// The cases the admin tests its blank-HTML check against, so it calls a
+    /// block unwritten exactly when the renderer leaves it out.
+    #[serde(rename = "blankHtml")]
+    pub blank_html: &'static [super::written::BlankSample],
 }
 
 /// One theme colour role as the admin offers it.
@@ -928,6 +973,7 @@ pub fn registry() -> Registry {
                 label: format!("colorToken.{}", role.key()),
             })
             .collect(),
+        blank_html: super::written::BLANK_HTML_SAMPLES,
     }
 }
 

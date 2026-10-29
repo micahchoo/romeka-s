@@ -305,6 +305,8 @@ export const ne: SitesMessages = {
   'siteHub.slugNote': 'सार्वजनिक ठेगाना {url} हुनेछ।',
   'siteHub.homepage': 'मुख्य पृष्ठ',
   'siteHub.inNavigation': 'नेभिगेसनमा',
+  'siteHub.unwrittenOne': '1 ब्लक लेखिएको छैन',
+  'siteHub.unwritten': '{count} ब्लकहरू लेखिएका छैनन्',
   'siteHub.addToNavigation': 'नेभिगेसनमा थप्नुहोस्',
   'siteHub.edit': 'सम्पादन',
   'siteHub.view': 'हेर्नुहोस्',

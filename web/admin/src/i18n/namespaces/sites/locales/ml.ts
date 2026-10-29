@@ -307,6 +307,8 @@ export const ml: SitesMessages = {
   'siteHub.slugNote': 'പൊതു വിലാസം {url} ആയിരിക്കും.',
   'siteHub.homepage': 'ഹോംപേജ്',
   'siteHub.inNavigation': 'നാവിഗേഷനിൽ',
+  'siteHub.unwrittenOne': '1 ബ്ലോക്ക് എഴുതിയിട്ടില്ല',
+  'siteHub.unwritten': '{count} ബ്ലോക്കുകൾ എഴുതിയിട്ടില്ല',
   'siteHub.addToNavigation': 'നാവിഗേഷനിൽ ചേർക്കുക',
   'siteHub.edit': 'എഡിറ്റ് ചെയ്യുക',
   'siteHub.view': 'കാണുക',

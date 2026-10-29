@@ -23,9 +23,15 @@
 //! or media page instead, under the body's `o:theme_settings`, so the Theme
 //! page shows a draft section order on a real record ([`run_resource`]).
 //!
+//! A body may carry `romeka_hints`, a map from hint key to the hint text in
+//! the admin's locale. An empty primary field shows its hint, greyed, in the
+//! frame ([`parse_hints`], `omeka_site::blocks::written`).
+//!
 //! The answer carries `Cache-Control: no-store`, `X-Robots-Tag: noindex` and a
 //! script-free CSP, because the editor renders it in a sandboxed iframe and
 //! nothing here should be cached or indexed.
+
+use std::collections::BTreeMap;
 
 use axum::body::Body;
 use axum::http::{HeaderMap, StatusCode, Uri, header};
@@ -128,6 +134,7 @@ pub(crate) async fn run(
         .theme_settings
         .as_ref()
         .map(ThemeSettings::from_value);
+    let hints = parse_hints(payload.get(site_pages_preview::HINTS_MEMBER));
     match dispatch::render_preview(
         state,
         uri,
@@ -138,6 +145,7 @@ pub(crate) async fn run(
             created,
             modified,
             theme_settings: theme_override.as_ref(),
+            hints: &hints,
         },
     )
     .await
@@ -208,6 +216,28 @@ async fn run_resource(
         Ok(Outcome::NotFound(_)) | Err(SiteError::NotFound) => not_found(),
         Err(SiteError::Internal(_) | SiteError::Storage(_)) => crate::empty_internal_error(),
     }
+}
+
+/// The most hints a preview body may carry, and the longest hint, in
+/// characters. The admin sends a handful of short ones.
+const MAX_HINTS: usize = 64;
+const MAX_HINT_CHARS: usize = 300;
+
+/// The body's hint map: each string member under a string key, within the
+/// limits. Anything else is dropped rather than refused, because a missing
+/// hint only means the block previews as it is.
+fn parse_hints(value: Option<&Value>) -> BTreeMap<String, String> {
+    let Some(Value::Object(members)) = value else {
+        return BTreeMap::new();
+    };
+    members
+        .iter()
+        .filter_map(|(key, value)| {
+            let text = value.as_str()?;
+            (text.chars().count() <= MAX_HINT_CHARS).then(|| (key.clone(), text.to_string()))
+        })
+        .take(MAX_HINTS)
+        .collect()
 }
 
 /// The page a [`Preview`] describes, in the shape `omeka-site` renders.

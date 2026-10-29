@@ -765,6 +765,7 @@ mod tests {
             "romeka-quote-text",
             "romeka-quote-attribution",
             "romeka-quote-empty",
+            "romeka-hint",
             "romeka-accordion",
             "romeka-accordion-item",
             "romeka-accordion-heading",

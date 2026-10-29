@@ -68,11 +68,11 @@ test('the public site renders the page the admin shows', async ({ page }) => {
   expect(index?.status()).toBe(200);
   expect(index?.headers()['content-type']).toBe('text/html; charset=utf-8');
 
-  // The welcome page the port builds on create renders its blocks and footer.
+  // The welcome page renders its banner; its unwritten introduction reaches no visitor.
   const welcome = await page.goto(`/s/${SITE_SLUG}/page/${WELCOME_SLUG}`);
   expect(welcome?.status()).toBe(200);
-  await expect(page).toHaveTitle(/Welcome/);
-  await expect(page.getByText('This is the first page of your site.')).toBeVisible();
+  await expect(page.locator('.romeka-hero-heading')).toHaveText('Welcome');
+  await expect(page.getByText('This is the first page of your site.')).toHaveCount(0);
   await expect(page.getByText('Powered by Romeka S')).toBeVisible();
 });
 

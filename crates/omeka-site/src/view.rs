@@ -9,6 +9,8 @@
 //! resource's display title and description, its thumbnail, its item sets and
 //! its media, and a site entry for the list-of-sites block.
 
+use std::collections::BTreeMap;
+
 use omeka_core::ids::{AssetId, BlockId, ItemId, MediaId, PageId, ResourceId, SiteId, UserId};
 use omeka_core::permissions::RoleSet;
 use omeka_core::resource::{ResourceKind, Timestamp};
@@ -761,6 +763,9 @@ pub struct RenderContext<'a> {
     /// [`RenderContext::with_preview_markers`], which clippy confines to the
     /// preview route.
     pub(crate) block_markers: BlockMarkers,
+    /// The hint text for each hint key, in the admin's locale, which only the
+    /// preview request carries ([`RenderContext::with_hints`]).
+    pub(crate) hints: BTreeMap<String, String>,
 }
 
 impl<'a> RenderContext<'a> {
@@ -786,6 +791,7 @@ impl<'a> RenderContext<'a> {
             noindex: false,
             resources,
             block_markers: BlockMarkers::Off,
+            hints: BTreeMap::new(),
         }
     }
 
@@ -795,6 +801,27 @@ impl<'a> RenderContext<'a> {
     pub fn with_preview_markers(mut self) -> Self {
         self.block_markers = BlockMarkers::Preview;
         self
+    }
+
+    /// The same context with the hint text the preview shows in an empty
+    /// field, keyed by the field's hint key. The admin resolves the keys in
+    /// its own locale, which the server does not know, so the frame's hint
+    /// reads as the inspector's placeholder does. Only a preview render reads
+    /// them.
+    #[must_use]
+    pub fn with_hints(mut self, hints: BTreeMap<String, String>) -> Self {
+        self.hints = hints;
+        self
+    }
+
+    /// The hint text for `key` in a preview render, `None` elsewhere or when
+    /// the request carried none for it.
+    #[must_use]
+    pub(crate) fn hint(&self, key: &str) -> Option<&str> {
+        if !self.is_preview() {
+            return None;
+        }
+        self.hints.get(key).map(String::as_str)
     }
 
     /// Whether this render is the admin preview: a block that needs a script

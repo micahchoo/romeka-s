@@ -67,7 +67,9 @@ const SCHEMA: LayoutSchema = LayoutSchema {
             "pagelist",
             "blockField.listOfPages.pagelist",
             "fieldHelp.listOfPages.pagelist",
-        ),
+        )
+        .placeholder("fieldExample.listOfPages.pagelist")
+        .primary(),
         choice(
             "romeka.display",
             "blockField.listOfPages.display",

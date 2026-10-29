@@ -822,7 +822,9 @@
           "key": "html",
           "label": "blockField.html.html",
           "help": "fieldHelp.html.html",
-          "type": "html"
+          "type": "html",
+          "placeholder": "fieldExample.html.html",
+          "primary": true
         }
       ]
     },
@@ -835,7 +837,9 @@
           "key": "pagelist",
           "label": "blockField.listOfPages.pagelist",
           "help": "fieldHelp.listOfPages.pagelist",
-          "type": "pageList"
+          "type": "pageList",
+          "placeholder": "fieldExample.listOfPages.pagelist",
+          "primary": true
         },
         {
           "key": "romeka.display",
@@ -923,7 +927,7 @@
           "help": "fieldHelp.hero.heading",
           "type": "text",
           "placeholder": "fieldExample.hero.heading",
-          "required": true
+          "primary": true
         },
         {
           "key": "heading_level",
@@ -946,7 +950,8 @@
           "key": "subheading",
           "label": "romekaField.hero.subheading",
           "help": "fieldHelp.hero.subheading",
-          "type": "text"
+          "type": "text",
+          "placeholder": "fieldExample.hero.subheading"
         },
         {
           "key": "body",
@@ -1493,7 +1498,8 @@
           "label": "romekaField.quote.text",
           "help": "fieldHelp.quote.text",
           "type": "html",
-          "required": true
+          "placeholder": "fieldExample.quote.text",
+          "primary": true
         },
         {
           "key": "attribution",
@@ -2113,6 +2119,48 @@
     {
       "value": "link",
       "label": "colorToken.link"
+    }
+  ],
+  "blankHtml": [
+    {
+      "html": "",
+      "blank": true
+    },
+    {
+      "html": "  \n ",
+      "blank": true
+    },
+    {
+      "html": "<p></p>",
+      "blank": true
+    },
+    {
+      "html": "<p><br></p>",
+      "blank": true
+    },
+    {
+      "html": "<p>&nbsp;</p><div class=\"x\"> <br/> </div>",
+      "blank": true
+    },
+    {
+      "html": "<p>Words</p>",
+      "blank": false
+    },
+    {
+      "html": "Plain words",
+      "blank": false
+    },
+    {
+      "html": "<p><img src=\"/files/asset/a.png\" alt=\"\"></p>",
+      "blank": false
+    },
+    {
+      "html": "<hr>",
+      "blank": false
+    },
+    {
+      "html": "<p>&amp;</p>",
+      "blank": false
     }
   ]
 }

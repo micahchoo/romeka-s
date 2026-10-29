@@ -30,6 +30,8 @@ interface HubPage {
   readonly title: string | null;
   readonly slug: string | null;
   readonly isPublic: boolean | null;
+  /** How many of its stored blocks are not written yet, `null` when unknown. */
+  readonly unwritten: number | null;
 }
 
 interface Loaded {
@@ -41,16 +43,25 @@ interface Loaded {
 
 /** The pages in the site's own order (`o:page`), with what the page list says of each. */
 const load = async (siteId: SiteId): Promise<Loaded> => {
-  const [site, list, items] = await Promise.all([
+  // The block registry is the editor's, so the count's module loads beside
+  // the hub rather than inside its chunk.
+  const [site, list, items, { storedUnwrittenCount }] = await Promise.all([
     api.getSite(siteId),
     api.listSitePages({ siteId, perPage: 200 }),
     api.listItems({ siteId, perPage: 1 }),
+    import('./editor/written'),
   ]);
   const pages = site.pages.map((ref): HubPage => {
     const page = list.items.find((entry) => entry.id === ref.id);
     return page === undefined
-      ? { id: ref.id, title: null, slug: null, isPublic: null }
-      : { id: page.id, title: page.title, slug: page.slug, isPublic: page.isPublic };
+      ? { id: ref.id, title: null, slug: null, isPublic: null, unwritten: null }
+      : {
+          id: page.id,
+          title: page.title,
+          slug: page.slug,
+          isPublic: page.isPublic,
+          unwritten: storedUnwrittenCount(page.blocks),
+        };
   });
   return { site, pages, items: items.total };
 };
@@ -93,6 +104,13 @@ const PageRow = ({
       <th scope="row">
         {canEdit ? <a href={editHref}>{title}</a> : title}
         {isHomepage ? <span className="badge badge-accent">{t('siteHub.homepage')}</span> : null}
+        {page.unwritten === null || page.unwritten === 0 ? null : (
+          <span className="badge badge-muted page-unwritten">
+            {page.unwritten === 1
+              ? t('siteHub.unwrittenOne')
+              : t('siteHub.unwritten', { count: page.unwritten })}
+          </span>
+        )}
       </th>
       <td>
         <span className="site-slug">{page.slug ?? ''}</span>

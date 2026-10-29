@@ -129,8 +129,10 @@ export const te: EditorMessages = {
   'blockField.html.html': 'HTML',
   'fieldHelp.html.html':
     'మీరు వాటిని ఫార్మాట్ చేసినట్లుగా, టెక్స్ట్, చిత్రాలు మరియు లింక్‌లను చూపిస్తుంది.',
+  'fieldExample.html.html': 'సందర్శకులు ఇక్కడ ఏమి చదువుతారో అది వ్రాయండి.',
   'blockField.listOfPages.pagelist': 'పేజీలు',
   'fieldHelp.listOfPages.pagelist': 'వరుస క్రమంలో జాబితా చేయబడిన పేజీలు.',
+  'fieldExample.listOfPages.pagelist': 'పేజీలు ఎంచుకోలేదు. బ్లాకు సెట్టింగ్‌లలో జాబితా చేయడానికి పేజీలను ఎంచుకోండి.',
   'blockField.browsePreview.cards': 'కార్డ్ శైలి',
   'fieldHelp.browsePreview.cards':
     'ఇక్కడ ప్రతి ఫలితం కనిపించే విధానం. ఒక క్యారౌసెల్ పక్కకు స్క్రోల్ అవుతుంది.',
@@ -203,6 +205,8 @@ export const te: EditorMessages = {
   'fieldExample.hero.heading': 'ఉదాహరణకు, సేకరణకు స్వాగతం',
   'romekaField.hero.subheading': 'ఉపశీర్షిక',
   'fieldHelp.hero.subheading': 'శీర్షిక కింద ఒక లైన్.',
+  'fieldExample.hero.subheading':
+    'ఉదాహరణకు, హార్బర్ నుండి, 1890 నుండి 1950 వరకు గల లేఖలు మరియు ఛాయాచిత్రాలు',
   'romekaField.hero.body': 'టెక్స్ట్',
   'fieldHelp.hero.body': 'ఉపశీర్షిక కింద ఐచ్ఛిక పేరాలు.',
   'romekaField.hero.background': 'నేపథ్య చిత్రం',
@@ -318,6 +322,13 @@ export const te: EditorMessages = {
   'canvas.romkaMismatch': 'రోమ్కాలో సవరించబడింది',
   'canvas.romkaUse': 'రోమ్కా వెర్షన్‌ను ఉపయోగించండి',
   'canvas.romkaRestored': 'బ్లాక్ {label} రోమ్కా వెర్షన్‌కు పునరుద్ధరించబడింది',
+  'canvas.notWritten': 'ఇంకా వ్రాయబడలేదు',
+  'canvas.templateText': 'టెంప్లేట్ టెక్స్ట్',
+  'canvas.clearTemplateText': 'దీనిని క్లియర్ చేయండి',
+  'canvas.templateTextCleared': '{label} నుండి టెంప్లేట్ టెక్స్ట్ క్లియర్ చేయబడింది',
+  'canvas.noPagesChosen': 'పేజీలు ఎంచుకోలేదు',
+  'canvas.pagesOne': '1 పేజీ',
+  'canvas.pages': '{count} పేజీలు',
   'canvas.outOfGroup': 'గ్రూప్ నుండి తరలించండి',
   'canvas.group': 'గ్రూప్, {count} బ్లాక్‌లు',
   'canvas.groupDrop': 'ఈ గ్రూపులోకి డ్రాప్ చేయండి',

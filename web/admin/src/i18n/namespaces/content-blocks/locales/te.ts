@@ -74,6 +74,7 @@ export const te: ContentBlockMessages = {
   'romekaChoice.button.large': 'పెద్దవి',
   'romekaField.quote.text': 'ఉల్లేఖన',
   'fieldHelp.quote.text': 'ఉల్లేఖించిన పదాలు, కోట్స్ లేకుండా.',
+  'fieldExample.quote.text': 'ఉదాహరణకు, ఆ మెదడు నాది కేవలం మర్త్యమైనది మాత్రమే కాదు.',
   'romekaField.quote.attribution': 'చెప్పిన వారు',
   'fieldHelp.quote.attribution': 'ఉల్లేఖించిన వ్యక్తి లేదా పని.',
   'fieldExample.quote.attribution': 'ఆడా లవ్‌లేస్, 1843',

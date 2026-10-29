@@ -76,6 +76,8 @@ export const ta: ContentBlockMessages = {
   'romekaChoice.button.large': 'பெரிய',
   'romekaField.quote.text': 'மேற்கோள்',
   'fieldHelp.quote.text': 'மேற்கோள் குறிகள் இன்றி, நேரடியாக மேற்கோள் காட்டப்பட்ட சொற்கள்.',
+  'fieldExample.quote.text':
+    'எ.கா. அந்த மூளை என்னிடம் உள்ளது, அது வெறும் மனிதர்களுக்குரியது மட்டுமல்ல.',
   'romekaField.quote.attribution': 'சொன்னவர்',
   'fieldHelp.quote.attribution': 'சொற்கள் வந்த நபர் அல்லது படைப்பு.',
   'fieldExample.quote.attribution': 'அடா லவ்லேஸ், 1843',
