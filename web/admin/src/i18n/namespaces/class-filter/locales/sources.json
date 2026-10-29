@@ -1,0 +1,5 @@
+{
+ "classFilter.option": "{label} · {count} items",
+ "classFilter.optionOne": "{label} · 1 item",
+ "classFilter.standard": "{label} ({standard})"
+}

@@ -16,7 +16,8 @@ import type { ItemId, MediaId, PageId, SiteId, SitePage, SitePageBlock } from '.
 import { BLOCK_REGISTRY } from './blockRegistry';
 import { blockList, blockRefs } from './editor/blockFields';
 import type { ResourceRef } from './editor/blockFields';
-import { readVisitorCount } from './editor/fields/listReach';
+import { listsAttachedOnly, readVisitorCount } from './editor/fields/listReach';
+import type { ListSite } from './editor/fields/listReach';
 import { readLayoutData } from './editor/values';
 import { unwrittenField } from './editor/written';
 import type { BlockContent } from './editor/written';
@@ -104,7 +105,7 @@ const chunks = <T>(values: readonly T[]): readonly (readonly T[])[] =>
   );
 
 /** The written blocks whose list shows a visitor nothing. */
-const emptyLists = async (siteId: SiteId, blocks: readonly Found[]): Promise<readonly Found[]> => {
+const emptyLists = async (site: ListSite, blocks: readonly Found[]): Promise<readonly Found[]> => {
   const lists = blocks.flatMap((found) => {
     const list = blockList(BLOCK_REGISTRY, found.block);
     return list === null ? [] : [{ found, key: `${list.resource}\n${list.query}`, list }];
@@ -112,7 +113,7 @@ const emptyLists = async (siteId: SiteId, blocks: readonly Found[]): Promise<rea
   const distinct = [...new Map(lists.map((entry) => [entry.key, entry.list])).entries()];
   const counts = new Map(
     await mapLimited(distinct, LIST_REQUESTS_AT_ONCE, async ([key, list]) => {
-      const count = await readVisitorCount(list.resource, list.query, siteId);
+      const count = await readVisitorCount(list.resource, list.query, site);
       return [key, count] as const;
     }),
   );
@@ -173,7 +174,7 @@ export const readSiteCheck = async (siteId: SiteId): Promise<readonly CheckLine[
   const unwritten = blocks.filter((found) => unwrittenField(BLOCK_REGISTRY, found.block) !== null);
   // An unwritten block reaches no visitor, so it counts in its own line only.
   const written = blocks.filter((found) => unwrittenField(BLOCK_REGISTRY, found.block) === null);
-  const [lists, hidden] = await Promise.all([emptyLists(siteId, written), privateResources(written)]);
+  const [lists, hidden] = await Promise.all([emptyLists({ id: siteId, attachedOnly: listsAttachedOnly(site.siteSettings) }, written), privateResources(written)]);
   const homepage = homepageOf(site);
   const inMenu = linkedPages(site.navigation);
   const outside = pages

@@ -65,6 +65,9 @@ const handler = (url: URL): Response => {
   if (url.pathname === '/api/resource_classes') {
     return listResponse(loadFixture('resource-classes-page.json'), 2);
   }
+  if (url.pathname === '/api/romeka/classes/counts') {
+    return jsonResponse({ classes: [] });
+  }
   return jsonResponse(
     { errors: { error: `Unexpected request to ${url.pathname}` } },
     { status: 404 },

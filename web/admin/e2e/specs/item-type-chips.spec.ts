@@ -32,6 +32,16 @@ const total = async (request: APIRequestContext, query: string): Promise<number>
   return Number(response.headers()['omeka-s-total-results']);
 };
 
+/** The class counts route: each class some item has, with its item count. */
+const classCounts = async (request: APIRequestContext) => {
+  const answer = record(await (await request.get('/api/romeka/classes/counts')).json(), 'class counts');
+  const classes = answer.classes;
+  return (isArray(classes) ? classes : []).map((entry, at) => {
+    const row = record(entry, `classes[${String(at)}]`);
+    return { id: numberField(row, 'id', 'class'), items: numberField(row, 'items', 'class') };
+  });
+};
+
 /** The chip counts route, as `{type id: items}`, `no_item_type` and `with_class`. */
 const counts = async (request: APIRequestContext) => {
   const answer = record(await (await request.get('/api/romeka/item-types/counts')).json(), 'counts');
@@ -108,7 +118,16 @@ test('a chip lists the items of its type, keeps it in the URL, and the walk coun
   await page.goBack();
 
   await page.getByRole('button', { name: 'More filters' }).click();
-  await expect(page.getByRole('combobox', { name: 'Class' })).toBeVisible();
+  const classSelect = page.getByRole('combobox', { name: 'Class' });
+  await expect(classSelect).toBeVisible();
+  // The Class select offers only the classes some item has, each with the total its filter lists.
+  const used = await classCounts(page.request);
+  await expect(classSelect.getByRole('option')).toHaveCount(used.length + 1);
+  for (const { id, items } of used) {
+    const option = classSelect.locator(`option[value="${String(id)}"]`);
+    await expect(option).toHaveText(items === 1 ? / · 1 item$/ : new RegExp(` · ${items.toLocaleString('en')} items$`));
+    expect(items, `class ${String(id)}`).toBe(await total(page.request, `resource_class_id=${String(id)}`));
+  }
   await expect(page.getByRole('combobox', { name: 'Item type' })).toHaveCount(0);
   await shoot(page, 'more-filters');
 

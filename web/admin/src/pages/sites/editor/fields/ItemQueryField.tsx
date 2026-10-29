@@ -4,13 +4,20 @@
  * It reads and writes the ordered pairs `query.ts` owns, so an advanced-search
  * key this builder does not show survives an edit.
  *
+ * A query over items offers the classes items use, each with its count
+ * (`app/class-choices.ts`). Those counts count items, so a query over item
+ * sets or media offers every class instead.
+ *
  * The count line says what the query reaches (`listReach.ts`). A zero on a site
  * with nothing of the kind links to the site's Items tab, where resources are
  * added; a zero on a site that has some blames the filter.
  */
 import type { ReactElement } from 'react';
 import { api } from '../../../../api/client';
-import type { ItemSet, ResourceClass, SiteId } from '../../../../api/types';
+import { brandId } from '../../../../api/parse';
+import type { ClassCount } from '../../../../api/places';
+import type { ClassId, ItemSet, ResourceClass } from '../../../../api/types';
+import { useClassChoices, useClassOptionText } from '../../../../app/class-choices';
 import { useAsync } from '../../../../app/useAsync';
 import { useTranslator } from '../../../../i18n';
 import { useTermLabels } from '../../../../i18n/termText';
@@ -19,9 +26,9 @@ import { useEditorText } from '../messages';
 import type { EditorMessageKey } from '../messages';
 import { Labelled } from '../Labelled';
 import { siteHref } from '../../SiteFrame';
-import { QUERY_KEYS, formatQuery, parseQuery, queryValue, withQueryValue } from './query';
+import { QUERY_KEYS, formatQuery, parseQuery, queryId, queryValue, withQueryValue } from './query';
 import { filtersByItemSet, useListReach } from './listReach';
-import type { ListReach, QueryResource } from './listReach';
+import type { ListReach, ListSite, QueryResource } from './listReach';
 import { propertyName, useProperties } from './useProperties';
 import { common } from '../../../../i18n/namespaces/common';
 import { sites } from '../../../../i18n/namespaces/sites';
@@ -86,9 +93,10 @@ export interface ItemQueryFieldProps {
   /** The lists when the editor already loaded them; the control then makes no request. */
   readonly itemSets?: readonly ItemSet[];
   readonly classes?: readonly ResourceClass[];
-  /** The site whose items a block shows. The count is scoped to it, because the
-   * public render adds `site_id` to the stored query. */
-  readonly siteId?: SiteId;
+  readonly classCounts?: readonly ClassCount[];
+  /** The site whose items a block shows. The count is scoped to it, as the
+   * public render scopes the stored query (`listReach.ts`). */
+  readonly site?: ListSite;
   /** False for a query that selects a set rather than lists one, such as a
    * site's item pool: no order applies, so the sort row is left out. */
   readonly sortable?: boolean;
@@ -156,6 +164,64 @@ const IdSelect = ({
   );
 };
 
+/** The stored class id, typed. */
+const classId = (id: number | null): ClassId | null => (id === null ? null : brandId<'ClassId'>(id));
+
+/** The class select of a query over items: the classes items use, and the stored one. */
+const UsedClassSelect = ({
+  id,
+  value,
+  held,
+  counts,
+  onChange,
+}: {
+  readonly id: string;
+  readonly value: string;
+  readonly held: ClassId | null;
+  readonly counts: readonly ClassCount[] | undefined;
+  readonly onChange: (value: string) => void;
+}): ReactElement => {
+  const choices = useClassChoices(held, counts);
+  const optionText = useClassOptionText();
+  return (
+    <IdSelect
+      id={id}
+      value={value}
+      onChange={onChange}
+      options={choices.map((choice) => ({ id: choice.id, label: optionText(choice) }))}
+    />
+  );
+};
+
+/** The class select of a query over item sets or media: every class. */
+const EveryClassSelect = ({
+  id,
+  value,
+  classes,
+  onChange,
+}: {
+  readonly id: string;
+  readonly value: string;
+  readonly classes: readonly ResourceClass[] | undefined;
+  readonly onChange: (value: string) => void;
+}): ReactElement => {
+  const text = useTermLabels();
+  const state = useAsync(
+    async (): Promise<readonly ResourceClass[]> =>
+      classes ?? (await api.listResourceClasses({ perPage: 200, sortBy: 'label' })).items,
+    [classes],
+  );
+  const options = classes ?? (state.status === 'ready' ? state.data : []);
+  return (
+    <IdSelect
+      id={id}
+      value={value}
+      onChange={onChange}
+      options={options.map((entry) => ({ id: entry.id, label: text.label(entry.term, entry.label) ?? entry.term }))}
+    />
+  );
+};
+
 export const ItemQueryField = ({
   id,
   label,
@@ -164,14 +230,14 @@ export const ItemQueryField = ({
   required = false,
   itemSets,
   classes,
-  siteId,
+  classCounts,
+  site,
   sortable = true,
   showCount = true,
   resource = 'items',
   propertySort = false,
 }: ItemQueryFieldProps): ReactElement => {
   const { t } = useTranslator(common, sites);
-  const text = useTermLabels();
   const e = useEditorText();
   const countText = (message: CountMessage, count: number): string =>
     'main' in message ? t(message.main, { count }) : e(message.editor, { count });
@@ -187,20 +253,15 @@ export const ItemQueryField = ({
       itemSets ?? (await api.listItemSets({ perPage: 200, sortBy: 'title' })).items,
     [itemSets],
   );
-  const classState = useAsync(
-    async (): Promise<readonly ResourceClass[]> =>
-      classes ?? (await api.listResourceClasses({ perPage: 200, sortBy: 'label' })).items,
-    [classes],
-  );
-  const reach = useListReach(resource, showCount ? value : null, siteId);
+  const reach = useListReach(resource, showCount ? value : null, site);
   const itemSetOptions = itemSets ?? (itemSetState.status === 'ready' ? itemSetState.data : []);
-  const classOptions = classes ?? (classState.status === 'ready' ? classState.data : []);
+  const siteId = site?.id;
 
   const words = COUNT_TEXT[resource];
   const reachLine = (shown: ListReach): ReactElement | string => {
     switch (shown.kind) {
       case 'matches':
-        return countText(words.count(siteId !== undefined), shown.count);
+        return countText(words.count(site !== undefined), shown.count);
       case 'none':
         return countText(words.none, 0);
       case 'filterEmpty':
@@ -255,17 +316,26 @@ export const ItemQueryField = ({
         </Labelled>
       ) : null}
       <Labelled id={`${id}-class`} label={t('query.resourceClass')}>
-        <IdSelect
-          id={`${id}-class`}
-          value={resourceClass}
-          onChange={(next) => {
-            set(QUERY_KEYS.resourceClass, next);
-          }}
-          options={classOptions.map((entry) => ({
-            id: entry.id,
-            label: text.label(entry.term, entry.label) ?? entry.term,
-          }))}
-        />
+        {resource === 'items' ? (
+          <UsedClassSelect
+            id={`${id}-class`}
+            value={resourceClass}
+            held={classId(queryId(pairs, QUERY_KEYS.resourceClass))}
+            counts={classCounts}
+            onChange={(next) => {
+              set(QUERY_KEYS.resourceClass, next);
+            }}
+          />
+        ) : (
+          <EveryClassSelect
+            id={`${id}-class`}
+            value={resourceClass}
+            classes={classes}
+            onChange={(next) => {
+              set(QUERY_KEYS.resourceClass, next);
+            }}
+          />
+        )}
       </Labelled>
       {sortable ? (
         <Labelled id={`${id}-sort-by`} label={t('query.sort')}>

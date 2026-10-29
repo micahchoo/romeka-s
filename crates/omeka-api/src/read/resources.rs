@@ -7,8 +7,7 @@
 
 use omeka_db::ids::{AssetId, ClassId, ItemId, ItemSetId, MediaId, ResourceId};
 use omeka_db::repos::{
-    ItemFilter, ItemRepo, ItemSetFilter, ItemSetRepo, MediaFilter, MediaRepo, MediaVisibility,
-    Paging, ResourceRepo,
+    ItemFilter, ItemRepo, ItemSetRepo, MediaRepo, MediaVisibility, Paging, ResourceRepo,
 };
 use omeka_db::rows::{AssetRow, ItemRow, ItemSetRow, MediaRow, ValueAnnotationRow, resource_type};
 use omeka_db::with_db;
@@ -20,8 +19,8 @@ use super::order::{ResourceSort, order_page};
 use super::paging::{Limit, Window, ordered_page};
 use super::params::Sort;
 use super::query::{
-    SearchQuery, fulltext_matches, id_filter, id_matches, media_visibility, relevance_page,
-    work_filters,
+    SearchQuery, fulltext_matches, id_filter, id_matches, item_filter, item_set_filter,
+    media_filter, media_visibility, relevance_page, work_filters,
 };
 use super::relations::{Page, Relations};
 use super::response::link_header;
@@ -91,18 +90,6 @@ async fn in_memory_page(
             |row| hits.get(&row.id().0).copied().unwrap_or(0.0),
         )),
         _ => order_page(api, rows, sort, limit, |row| &row.resource).await,
-    }
-}
-
-/// The [`ItemFilter`] half of an item query: the parameters that predate
-/// [`SearchQuery`].
-fn item_filter(params: &Params) -> ItemFilter {
-    ItemFilter {
-        owner_id: params.id("owner_id"),
-        resource_class_id: params.id("resource_class_id"),
-        resource_template_id: params.id("resource_template_id"),
-        is_public: params.bool("is_public"),
-        ..ItemFilter::default()
     }
 }
 
@@ -315,13 +302,7 @@ pub async fn search_item_sets(api: &Api<'_>, params: &Params) -> Result<ApiRespo
     let window = Window::from_params(params);
     let limit = Limit::from_params(params);
     let sort = ResourceSort::read(api, params).await?;
-    let filter = ItemSetFilter {
-        owner_id: params.id("owner_id"),
-        resource_class_id: params.id("resource_class_id"),
-        resource_template_id: params.id("resource_template_id"),
-        is_public: params.bool("is_public"),
-        is_open: params.bool("is_open"),
-    };
+    let filter = item_set_filter(params);
     if !params.rows("property").is_empty() {
         // A `property[i][property]` row names a term the page's own rows need
         // not name, so the term table is loaded before the query resolves it.
@@ -540,17 +521,7 @@ pub(crate) async fn listed_media(
     api: &Api<'_>,
     params: &Params,
 ) -> Result<(Vec<MediaRow>, Option<std::collections::BTreeMap<u64, f64>>), ApiError> {
-    let filter = MediaFilter {
-        item_id: params.id("item_id"),
-        ingester: params.get("ingester").map(str::to_string),
-        renderer: params.get("renderer").map(str::to_string),
-        media_type: params.get("media_type").map(str::to_string),
-        kinds: super::query::kind_names(params.list("romeka_kind")),
-        owner_id: params.id("owner_id"),
-        resource_class_id: params.id("resource_class_id"),
-        resource_template_id: params.id("resource_template_id"),
-        is_public: params.bool("is_public"),
-    };
+    let filter = media_filter(params);
     if !params.rows("property").is_empty() {
         // A `property[i][property]` row names a term the page's own rows need
         // not name, so the term table is loaded before the query resolves it.
