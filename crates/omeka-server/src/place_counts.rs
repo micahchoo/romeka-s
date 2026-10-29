@@ -1,5 +1,5 @@
-//! The count routes behind a set's place, a record's "Linked from", an item type's fields and the
-//! dashboard.
+//! The count routes behind a set's place, a record's "Linked from", an item type's fields, the
+//! item picker's class filter and the dashboard.
 //! Upstream has none of them.
 //!
 //! | Route | Answer |
@@ -8,6 +8,7 @@
 //! | `GET /api/romeka/links/{id}` | `{links: [{kind, property_id, term, label, count}]}` |
 //! | `GET /api/romeka/field-counts?resource_template_id=..` | `{total, fields: [{property_id, filled}]}` |
 //! | `GET /api/romeka/item-types/counts` | `{item_types: [{id, items}], no_item_type, with_class}` |
+//! | `GET /api/romeka/classes/counts` | `{classes: [{id, term, label, vocabulary_label, items}]}` |
 //! | `GET /api/romeka/dashboard` | `{no_item_set, no_resource_template, changed_by_others: {since, items}}` |
 //!
 //! The rules live in `omeka_api::read::place_counts`; these handlers authenticate and copy the
@@ -28,12 +29,20 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/api/romeka/links/{id}", get(links))
         .route("/api/romeka/field-counts", get(field_counts))
         .route("/api/romeka/item-types/counts", get(item_type_counts))
+        .route("/api/romeka/classes/counts", get(class_counts))
         .route("/api/romeka/dashboard", get(dashboard))
 }
 
 async fn item_type_counts(State(state): State<AppState>, uri: Uri, headers: HeaderMap) -> Response {
     match crate::open(&state, &uri, &headers).await {
         Ok(api) => no_store(crate::finish(place_counts::item_type_counts(&api).await)),
+        Err(error) => crate::error_response(error),
+    }
+}
+
+async fn class_counts(State(state): State<AppState>, uri: Uri, headers: HeaderMap) -> Response {
+    match crate::open(&state, &uri, &headers).await {
+        Ok(api) => no_store(crate::finish(place_counts::class_counts(&api).await)),
         Err(error) => crate::error_response(error),
     }
 }

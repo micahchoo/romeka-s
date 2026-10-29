@@ -150,6 +150,13 @@ describe('site browse and create', () => {
     window.location.hash = '';
   });
 
+  it('site_create_offers_no_theme_choice_while_one_theme_is_installed_and_points_at_the_theme_tab', () => {
+    render(<SitesPage param="new" />);
+
+    expect(screen.queryByLabelText('Theme')).toBeNull();
+    expect(screen.getByText('Choose the look after you add the site, on its Theme tab.')).toBeInTheDocument();
+  });
+
   it('site_create_keeps_a_slug_the_user_typed', () => {
     render(<SitesPage param="new" />);
 

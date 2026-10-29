@@ -66,6 +66,9 @@ test('a new site starts empty, and its Items tab picks, syncs and replaces items
   diagnostics,
 }) => {
   await page.goto('/#/sites/new');
+  // One theme is installed, so the form offers no theme choice and points at the Theme tab.
+  await expect(page.getByLabel('Theme')).toHaveCount(0);
+  await expect(page.getByText('Choose the look after you add the site, on its Theme tab.')).toBeVisible();
   await page.getByLabel('Title').fill(SITE);
   await expect(page.getByText(/starts with all public items/)).toHaveCount(0);
   await page.getByRole('button', { name: 'Add site' }).click();
@@ -83,6 +86,20 @@ test('a new site starts empty, and its Items tab picks, syncs and replaces items
   await expect(sync).toBeDisabled();
   await expect(sync).toHaveAccessibleDescription('Pick an item set to keep this site in sync with it.');
   await expectClean(diagnostics, 'a new site holds no items');
+
+  // The class filter offers only the classes items use, each with its item count.
+  const sound = numberField(record((await apiList(page, '/api/resource_classes?term=dctype:Sound'))[0], 'Sound'), 'o:id', 'Sound');
+  await apiSend(page, 'POST', '/api/items', {
+    'o:is_public': true,
+    'o:resource_class': { 'o:id': sound },
+    'dcterms:title': [{ property_id: await titleId(page), type: 'literal', '@value': 'E2E classed sound' }],
+  });
+  await page.reload();
+  const classFilter = page.getByRole('combobox', { name: 'Class' });
+  await expect(classFilter.getByRole('option', { name: /^Sound · \d+ items?$/ })).toHaveCount(1);
+  const classChoices = await classFilter.getByRole('option').allTextContents();
+  expect(classChoices[0]).toBe('Any class');
+  expect(classChoices.slice(1).filter((choice) => !/ · \d+ items?$/.test(choice)), 'every class names its count').toEqual([]);
 
   // One item by searching its title.
   const [firstTitle] = ITEM_TITLES;
