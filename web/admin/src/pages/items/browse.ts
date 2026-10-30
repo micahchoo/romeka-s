@@ -7,7 +7,7 @@
  */
 import type { ResourceQuery } from '../../api/client';
 import { brandId } from '../../api/parse';
-import { fieldQuery, linksQuery } from '../../api/places';
+import { fieldIsQuery, fieldQuery, linksQuery } from '../../api/places';
 import type { LinkTarget } from '../../api/places';
 import type { ClassId, ItemId, ItemSetId, PropertyId, ResourceId, SiteId, TemplateId, UserId } from '../../api/types';
 import { isFilterKind, serverKindsOf } from '../../app/media';
@@ -39,11 +39,10 @@ export interface LinksFilter {
 export type Presence = 'empty' | 'filled';
 export const PRESENCES: readonly Presence[] = ['empty', 'filled'];
 
-/** Items whose one field is empty, or has a value. */
-export interface FieldFilter {
-  readonly property: PropertyId;
-  readonly presence: Presence;
-}
+/** Items whose one field is empty, has a value, or holds one exact text. */
+export type FieldFilter =
+  | { readonly property: PropertyId; readonly presence: Presence }
+  | { readonly property: PropertyId; readonly presence: 'is'; readonly text: string };
 
 /** An order the server keeps by a column of the item. */
 export type ColumnSort = 'newest' | 'oldest' | 'modified' | 'title';
@@ -181,15 +180,28 @@ const parseLinks = (links: string | null, via: string | null): LinksFilter | nul
 const oneOf = <T extends string>(choices: readonly T[], text: string | null): T | null =>
   choices.find((choice) => choice === text) ?? null;
 
-/** `field=<property id>:empty` or `:filled`. */
+/** `field=<property id>:empty`, `:filled`, or `:is:<text>`, whose text may hold colons. */
 const parseField = (text: string | null): FieldFilter | null => {
   const [id = null, presenceText = null, ...rest] = text?.split(':') ?? [];
   const property = propertyIdOf(id);
+  if (property === null) {
+    return null;
+  }
+  if (presenceText === 'is') {
+    const exact = rest.join(':');
+    return exact.trim() === '' ? null : { property, presence: 'is', text: exact };
+  }
   const presence = oneOf(PRESENCES, presenceText);
-  return property === null || presence === null || rest.length > 0 ? null : { property, presence };
+  return presence === null || rest.length > 0 ? null : { property, presence };
 };
 
-const fieldText = (field: FieldFilter): string => `${String(field.property)}:${field.presence}`;
+const fieldText = (field: FieldFilter): string =>
+  field.presence === 'is'
+    ? `${String(field.property)}:is:${field.text}`
+    : `${String(field.property)}:${field.presence}`;
+
+const fieldFilterQuery = (field: FieldFilter): ResourceQuery =>
+  field.presence === 'is' ? fieldIsQuery(field.property, field.text) : fieldQuery(field.property, field.presence);
 
 /** `set=` or `template=`: an id, or `none`. */
 const idOrNone =
@@ -349,7 +361,7 @@ export const everyMatchQuery = (state: ItemBrowse): ResourceQuery => {
     ...setQuery(filters.itemSetId),
     ...(filters.links === null ? {} : linksQuery(filters.links.target, filters.links.via)),
     ...templateQuery(filters.templateId),
-    ...(filters.field === null ? {} : fieldQuery(filters.field.property, filters.field.presence)),
+    ...(filters.field === null ? {} : fieldFilterQuery(filters.field)),
     ...(filters.ownerId === null ? {} : { ownerId: filters.ownerId }),
     ...(filters.visibility === null ? {} : { isPublic: filters.visibility === 'public' ? 1 : 0 }),
     ...siteQuery(filters.site),

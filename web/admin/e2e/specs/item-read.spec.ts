@@ -100,7 +100,7 @@ test('the item page lists its values once by field name and edits them in the sa
   await expect(subjectRow.getByText('Private', { exact: true })).toBeVisible();
   const sourceRow = values.locator('.value-field').filter({ hasText: 'Source' });
   await expect(sourceRow.getByRole('link', { name: 'Catalogue entry' })).toHaveAttribute('href', 'https://example.org/lamp');
-  await expect(sourceRow.getByText('URI', { exact: true })).toBeVisible();
+  await expect(sourceRow.getByText('Web address', { exact: true })).toBeVisible();
   await expect(sourceRow.getByText('Private', { exact: true })).toHaveCount(0);
 
   // Edit sits at the top of the page, and the values come before the media.

@@ -27,7 +27,6 @@ export const te: ItemHistoryMessages = {
   'itemHistory.public': 'బహిరంగ',
   'itemHistory.private': 'ప్రైవేటు',
   'itemHistory.none': '(ఏదీ లేదు)',
-  'itemHistory.untitled': 'పేరు లేని {id}',
   'itemHistory.inTrash': '{name} (ట్రాష్‌లో)',
   'itemHistory.deletedSet': 'తొలగించబడిన అంశం సెట్ {id}',
   'itemHistory.privateValue': '{value} (ప్రైవేటు)',

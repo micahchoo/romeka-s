@@ -14,6 +14,7 @@ import type { KeyOf, MessageKey, TermLabels } from '../../i18n';
 import { AssetPicker } from './editor/fields/AssetPicker';
 import type { SiteSettingDraft, SiteSettingSpec } from './siteSettingsSchema';
 import { sites } from '../../i18n/namespaces/sites';
+import { plainName } from '../../app/plain-terms';
 
 /** A message id this file names: the shell's or its namespaces'. */
 type MessageId = MessageKey | KeyOf<typeof sites>;
@@ -39,10 +40,7 @@ const orderLabels = (
     ? { asc: 'siteSettingSort.titleAsc', desc: 'siteSettingSort.titleDesc' }
     : { asc: 'siteSettingSort.dateAsc', desc: 'siteSettingSort.dateDesc' };
 
-const propertyName = (property: Property, text: TermLabels): string => {
-  const label = text.label(property.term, property.label);
-  return label === null ? property.term : `${label} (${property.term})`;
-};
+const propertyName = (property: Property, text: TermLabels): string => `${plainName(property, text)} (${property.term})`;
 
 const matches = (property: Property, query: string, text: TermLabels): boolean => {
   const needle = query.trim().toLowerCase();
@@ -50,7 +48,7 @@ const matches = (property: Property, query: string, text: TermLabels): boolean =
     needle === '' ||
     property.term.toLowerCase().includes(needle) ||
     (property.label ?? '').toLowerCase().includes(needle) ||
-    (text.label(property.term, property.label) ?? '').toLowerCase().includes(needle)
+    plainName(property, text).toLowerCase().includes(needle)
   );
 };
 

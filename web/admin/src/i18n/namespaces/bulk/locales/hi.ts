@@ -103,7 +103,7 @@ export const hi: BulkMessages = {
   'bulk.word.removeSets': '{names} से हटाएँ',
   'bulk.word.addSites': 'साइट {names} में जोड़ें',
   'bulk.word.removeSites': 'साइट {names} से हटाएँ',
-  'bulk.word.untitled': 'आइटम {id}',
+  'bulk.word.item': 'आइटम {id}',
   'bulk.word.fieldValues': '{field}: {values}',
   'bulk.word.fieldEmpty': '{field}: कोई मान नहीं',
   'bulk.word.valueIn': '{text} ({lang})',

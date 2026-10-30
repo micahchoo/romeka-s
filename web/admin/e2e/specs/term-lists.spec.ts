@@ -60,9 +60,9 @@ test('an item type field accepts a term list and its value renders on the site',
 
   // The Accepts picker groups the term lists under their own legend, by label.
   await page.goto(`/#/resource-templates/${String(typeId)}`);
-  await page.getByRole('button', { name: 'Change what Spatial Coverage accepts' }).click();
+  await page.getByRole('button', { name: 'Change what Place accepts' }).click();
   const accepted = page
-    .getByRole('group', { name: 'What Spatial Coverage accepts' })
+    .getByRole('group', { name: 'What Place accepts' })
     .getByRole('group', { name: 'Term lists' });
   await accepted.getByRole('checkbox', { name: LIST }).check();
   await expect(page.locator('.type-field-accepts').nth(1)).toContainText(`Accepts: Term list: ${LIST}`);
@@ -70,7 +70,7 @@ test('an item type field accepts a term list and its value renders on the site',
   // The live preview is the item form, so the field already shows the picker.
   const preview = page.getByRole('form', { name: `Preview of the form for a new ${TYPE}` });
   await expect(
-    preview.getByRole('combobox', { name: `Spatial Coverage Term list: ${LIST}` }),
+    preview.getByRole('combobox', { name: `Place Term list: ${LIST}` }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Save item type' }).click();
   await expect(page.locator('[role=status]').filter({ hasText: 'Saved.' })).toBeVisible();
@@ -90,7 +90,7 @@ test('an item type field accepts a term list and its value renders on the site',
   await page.goto('/#/items/new');
   await page.getByRole('combobox', { name: 'Item type', exact: true }).selectOption({ label: TYPE });
   await page.getByRole('textbox', { name: 'Title', exact: true }).fill(ITEM);
-  const picker = page.getByRole('combobox', { name: `Spatial Coverage Term list: ${LIST}` });
+  const picker = page.getByRole('combobox', { name: `Place Term list: ${LIST}` });
   await picker.fill('laog');
   await expect(page.locator('.term-picker').getByRole('option')).toHaveText(['Dún Laoghaire']);
   await picker.press('ArrowDown');

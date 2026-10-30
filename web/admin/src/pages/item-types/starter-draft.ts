@@ -10,6 +10,7 @@ import { type Locale } from "../../i18n";
 import { termLabels } from "../../i18n/termText";
 import { fieldKey, type FieldDraft, type TypeDraft } from "./model";
 import { starterLabel } from "./starter-text";
+import { storedDefaultName } from "../../app/plain-terms";
 
 const fold = (text: string): string =>
   text.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
@@ -44,7 +45,7 @@ export const draftFromStarter = (
       return [];
     }
     const label = starterLabel(entry, locale);
-    const own = termLabels(locale).label(property.term, property.label);
+    const own = storedDefaultName(property, termLabels(locale));
     return [
       {
         key: fieldKey(),

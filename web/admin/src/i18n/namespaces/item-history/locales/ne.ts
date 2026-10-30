@@ -27,7 +27,6 @@ export const ne: ItemHistoryMessages = {
   'itemHistory.public': 'सार्वजनिक',
   'itemHistory.private': 'निजी',
   'itemHistory.none': '(छैन)',
-  'itemHistory.untitled': 'शीर्षकविहीन {id}',
   'itemHistory.inTrash': '{name} (फोहोर टोकरीमा)',
   'itemHistory.deletedSet': 'मेटिएको वस्तु सेट {id}',
   'itemHistory.privateValue': '{value} (निजी)',

@@ -16,6 +16,7 @@ import { isTermListName } from '../../api/term-lists';
 import { acceptChoices, acceptGroups, CORE_ACCEPTS, isCoreAccepts, isInstalled } from './accepts';
 import { useItemTypesText, type ItemTypesText } from './messages';
 import { patchField, textOrNull, toggleDataType, type FieldDraft, type TypeDraft } from './model';
+import { plainName } from '../../app/plain-terms';
 
 export const acceptLabel = (
   type: string,
@@ -288,7 +289,7 @@ const FieldSettings = (props: SettingsProps): ReactElement => {
           className="type-field-name"
           type="text"
           aria-label={t('field.name', { term })}
-          placeholder={(property === undefined ? null : text.label(property.term, property.label)) ?? term}
+          placeholder={property === undefined ? term : plainName(property, text)}
           value={field.alternateLabel ?? ''}
           onChange={(event) => {
             setRenamed(true);

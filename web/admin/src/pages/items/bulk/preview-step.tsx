@@ -10,6 +10,8 @@ import { useTermLabels } from '../../../i18n/termText';
 import { useClassNamesOf } from '../browse-options';
 import type { BrowseOptions } from '../browse-options';
 import { fieldValueWords, fieldWords } from './words';
+import { plainName } from '../../../app/plain-terms';
+import { common } from '../../../i18n/namespaces/common';
 
 const Lines = ({ lines }: { readonly lines: readonly string[] }): ReactElement => (
   <ul className="bulk-lines">
@@ -37,7 +39,7 @@ export const PreviewStep = ({
   readonly onPreviewAgain: () => void;
   readonly onBack: () => void;
 }): ReactElement => {
-  const { t, number } = useTranslator(bulk);
+  const { t, number } = useTranslator(bulk, common);
   const text = useTermLabels();
   const classNames = useClassNamesOf(options.classes);
   const changing = preview.total - preview.unchanged - preview.denied;
@@ -67,7 +69,7 @@ export const PreviewStep = ({
             {preview.samples.map((sample) => {
               const words = fieldWords({ t, options, classNames }, sample.before, sample.after);
               const fields = sample.values.map((change) => ({
-                name: text.label(change.term, change.label),
+                name: plainName(change, text),
                 change,
               }));
               const before = [...words.before, ...fields.map(({ name, change }) => fieldValueWords(t, name, change.before))];
@@ -76,7 +78,7 @@ export const PreviewStep = ({
                 <tr key={String(sample.id)}>
                   <th scope="row">
                     <a href={`#/items/${String(sample.id)}`}>
-                      {sample.title ?? t('bulk.word.untitled', { id: String(sample.id) })}
+                      {sample.title ?? t('common.untitledNumber', { id: String(sample.id) })}
                     </a>
                   </th>
                   <td>

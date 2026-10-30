@@ -28,7 +28,7 @@ import { siteHref } from '../../SiteFrame';
 import { QUERY_KEYS, formatQuery, parseQuery, queryId, queryValue, withQueryValue } from './query';
 import { filtersByItemSet, useListReach } from './listReach';
 import type { ListReach, ListSite, QueryResource } from './listReach';
-import { propertyName, useProperties } from './useProperties';
+import { usePropertyName, useProperties } from './useProperties';
 import { common } from '../../../../i18n/namespaces/common';
 import { sites } from '../../../../i18n/namespaces/sites';
 
@@ -114,6 +114,7 @@ export interface ItemQueryFieldProps {
 const PropertySortOptions = ({ current }: { readonly current: string }): ReactElement => {
   const e = useEditorText();
   const state = useProperties();
+  const propertyName = usePropertyName();
   const properties = state.status === 'ready' ? state.data : [];
   const listed = !current.includes(':') || properties.some((property) => property.term === current);
   return (

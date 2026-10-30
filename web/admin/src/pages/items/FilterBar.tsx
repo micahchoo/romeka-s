@@ -120,7 +120,51 @@ const PRESENCE_LABEL = {
   filled: 'browse.fieldFilled',
 } as const satisfies Readonly<Record<Presence, string>>;
 
-/** A field, then whether it is empty or has a value; the second control waits for the first. */
+/** What the second field control offers: empty, has a value, or one exact text. */
+type FieldMatch = Presence | 'is';
+
+/** The exact text to look for, sent on Enter or when the box loses focus. */
+const ExactTextFilter = ({
+  label,
+  text,
+  onCommit,
+}: {
+  readonly label: string;
+  readonly text: string;
+  readonly onCommit: (text: string) => void;
+}): ReactElement => {
+  const id = useId();
+  const [draft, setDraft] = useState(text);
+  const commit = (): void => {
+    if (draft.trim() !== '' && draft !== text) {
+      onCommit(draft);
+    }
+  };
+  return (
+    <span className="filter-field">
+      <label htmlFor={id}>{label}</label>
+      <input
+        id={id}
+        type="text"
+        value={draft}
+        onChange={(event) => {
+          setDraft(event.target.value);
+        }}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            commit();
+          }
+        }}
+      />
+    </span>
+  );
+};
+
+/**
+ * A field, then whether it is empty, has a value, or holds one exact text; the second control
+ * waits for the first, and "is exactly" waits for its text before it narrows the list.
+ */
 const FieldFilterControl = ({
   filters,
   options,
@@ -129,7 +173,9 @@ const FieldFilterControl = ({
   const { t } = useTranslator(common, resources);
   const text = useTermLabels();
   const { field } = filters;
+  const [askingText, setAskingText] = useState(false);
   const choices = fieldChoices(options, chosenId(filters.templateId), field?.property ?? null, text);
+  const match: FieldMatch | null = field === null ? null : askingText ? 'is' : field.presence;
   return (
     <>
       <SelectFilter
@@ -139,19 +185,39 @@ const FieldFilterControl = ({
         choices={choices.map((choice) => ({ value: String(choice.property), label: choice.name }))}
         onChoose={(value) => {
           const property = choices.find((choice) => String(choice.property) === value)?.property ?? null;
-          onFilter({ field: property === null ? null : { property, presence: field?.presence ?? 'empty' } });
+          setAskingText(false);
+          onFilter({ field: property === null ? null : field === null ? { property, presence: 'empty' } : { ...field, property } });
         }}
       />
-      {field === null ? null : (
+      {field === null || match === null ? null : (
         <SelectFilter
           label={t('browse.fieldIs')}
-          value={field.presence}
-          choices={PRESENCES.map((presence) => ({ value: presence, label: t(PRESENCE_LABEL[presence]) }))}
+          value={match}
+          choices={[
+            ...PRESENCES.map((presence) => ({ value: presence, label: t(PRESENCE_LABEL[presence]) })),
+            { value: 'is', label: t('browse.fieldIsExactly') },
+          ]}
           onChoose={(value) => {
+            if (value === 'is') {
+              setAskingText(field.presence !== 'is');
+              return;
+            }
+            setAskingText(false);
             onFilter({ field: { property: field.property, presence: value === 'filled' ? 'filled' : 'empty' } });
           }}
         />
       )}
+      {field !== null && match === 'is' ? (
+        <ExactTextFilter
+          key={field.presence === 'is' ? field.text : ''}
+          label={t('browse.fieldText')}
+          text={field.presence === 'is' ? field.text : ''}
+          onCommit={(exact) => {
+            setAskingText(false);
+            onFilter({ field: { property: field.property, presence: 'is', text: exact } });
+          }}
+        />
+      ) : null}
     </>
   );
 };

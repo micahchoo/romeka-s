@@ -6,7 +6,7 @@
 import type { ReactElement } from 'react';
 import { useEditorText } from '../messages';
 import { Labelled, helpId } from '../Labelled';
-import { propertyName, useProperties } from './useProperties';
+import { usePropertyName, useProperties } from './useProperties';
 
 export interface PropertySelectProps {
   readonly id: string;
@@ -25,6 +25,7 @@ export const PropertySelect = ({
 }: PropertySelectProps): ReactElement => {
   const t = useEditorText();
   const state = useProperties();
+  const propertyName = usePropertyName();
   const properties = state.status === 'ready' ? state.data : [];
   const listed = value === '' || properties.some((property) => property.term === value);
   return (

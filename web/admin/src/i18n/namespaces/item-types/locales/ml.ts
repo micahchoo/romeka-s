@@ -105,6 +105,7 @@ export const ml: ItemTypesMessages = {
   'fieldsPage.called': '· {names} എന്ന് വിളിക്കപ്പെടുന്നു',
   'fieldsPage.calledIn': '{type}-ൽ “{label}”',
   'fieldsPage.used': 'ഇത് ഉപയോഗിക്കുന്ന ഐറ്റം ടൈപ്പുകൾ: {count}',
+  'fieldsPage.values': 'ഇതിന്റെ മൂല്യങ്ങൾ',
   'fieldsPage.unused': 'ഇതുവരെ ഉപയോഗിച്ചിട്ടില്ല',
   'loading.resourceTemplate': 'ഇനം തരം ലോഡ് ചെയ്യുന്നു...',
   'route.invalidTemplateId': '“{param}” ഒരു ശരിയായ ഇനം തരം ഐഡി അല്ല.',

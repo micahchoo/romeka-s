@@ -8,12 +8,16 @@ import type { Property } from '../../../../api/types';
 import { ALL_PAGES_PER_PAGE, allPages } from '../../../../app/all-pages';
 import { useAsync } from '../../../../app/useAsync';
 import type { AsyncState } from '../../../../app/useAsync';
+import { plainName } from '../../../../app/plain-terms';
+import { useTermLabels } from '../../../../i18n/termText';
 
 const loadProperties = (): Promise<readonly Property[]> =>
   allPages((page) => api.listProperties({ page, perPage: ALL_PAGES_PER_PAGE, sortBy: 'label' }));
 
 export const useProperties = (): AsyncState<readonly Property[]> => useAsync(loadProperties, []);
 
-/** A property's name in a select: its label and its term. */
-export const propertyName = (property: Property): string =>
-  `${property.label ?? property.term} (${property.term})`;
+/** A property's name in a select: its plain name, as every admin screen names a field, and its term. */
+export const usePropertyName = (): ((property: Property) => string) => {
+  const text = useTermLabels();
+  return (property) => `${plainName(property, text)} (${property.term})`;
+};

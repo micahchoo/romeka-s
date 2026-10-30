@@ -91,7 +91,7 @@
  "bulk.word.removeSets": "Remove from {names}",
  "bulk.word.addSites": "Add to site {names}",
  "bulk.word.removeSites": "Remove from site {names}",
- "bulk.word.untitled": "Item {id}",
+ "bulk.word.item": "Item {id}",
  "bulk.word.fieldValues": "{field}: {values}",
  "bulk.word.fieldEmpty": "{field}: no value",
  "bulk.word.valueIn": "{text} ({lang})",

@@ -27,7 +27,6 @@ export const kn: ItemHistoryMessages = {
   'itemHistory.public': 'ಸಾರ್ವಜನಿಕ',
   'itemHistory.private': 'ಖಾಸಗಿ',
   'itemHistory.none': '(ಯಾವುದೂ ಇಲ್ಲ)',
-  'itemHistory.untitled': 'ಹೆಸರಿಲ್ಲದ {id}',
   'itemHistory.inTrash': '{name} (ಟ್ರಾಶ್‌ನಲ್ಲಿ)',
   'itemHistory.deletedSet': 'ಅಳಿಸಲಾದ ಐಟಂ ಸೆಟ್ {id}',
   'itemHistory.privateValue': '{value} (ಖಾಸಗಿ)',

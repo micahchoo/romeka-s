@@ -8,6 +8,28 @@ semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- A values board for each field (Fields › "Its values", `#/fields/<id>`): every text the field holds on
+  items, item sets and media, with counts. Drag a text to another field's column, or use "Move to", to move it
+  on every record you may change. The move is checked first, names the item types whose form lacks the
+  field, records item history, and can be undone for the last move of the visit. New routes
+  `GET /api/romeka/field-values/{property}` and `POST /api/romeka/field-values/move`.
+- The Items field filter can match one exact text (`field=<id>:is:<text>`), besides empty and filled.
+
+### Changed
+
+- A field has one name on every admin screen outside Standards: the item type's own name for it, else
+  its plain name ("Place", "Reference number"), else its vocabulary label. The item record, the item
+  form, History, Linked from, the Items filters, the bulk preview and the site editor's field pickers
+  used the vocabulary label ("Spatial Coverage", "Identifier") while the Fields page and item types used
+  the plain name. A lint rule now refuses a page that reads a field's vocabulary label itself. Only the
+  displayed name changed: property labels and item type field names are stored as before.
+- The item form names value kinds as item types do: "Web address" for URI and "Link to a record" for
+  Resource, with "Record number" for the linked record's id.
+- A record with no title is "[Untitled] #12" wherever a number tells it apart; the bulk preview, bulk
+  delete, History and the values board each worded it differently.
+
 ### Security
 
 - `PUT /api/users/<id>` checks `update`, `change-role`, `change-role-admin` and `activate-user` as upstream's

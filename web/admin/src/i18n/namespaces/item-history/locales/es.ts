@@ -25,7 +25,6 @@ export const es: ItemHistoryMessages = {
   'itemHistory.public': 'Público',
   'itemHistory.private': 'Privado',
   'itemHistory.none': '(ninguno)',
-  'itemHistory.untitled': 'Sin título {id}',
   'itemHistory.inTrash': '{name} (en la papelera)',
   'itemHistory.deletedSet': 'Conjunto de elementos eliminado {id}',
   'itemHistory.privateValue': '{value} (privado)',

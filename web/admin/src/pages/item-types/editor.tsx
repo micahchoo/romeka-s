@@ -29,6 +29,7 @@ import {
 import type { TypeOptions } from './options';
 import { TypePreview } from './preview';
 import { ClassLine, TypeSettings } from './type-settings';
+import { plainName } from '../../app/plain-terms';
 
 type Tab = 'fields' | 'preview';
 
@@ -167,12 +168,7 @@ const FieldList = ({
   const text = useTermText();
   const nameOf = (field: TypeDraft['fields'][number]): string => {
     const property = properties.find((entry) => entry.id === field.propertyId);
-    return (
-      field.alternateLabel ??
-      (property === undefined ? null : text.label(property.term, property.label)) ??
-      property?.term ??
-      `#${String(field.propertyId)}`
-    );
+    return property === undefined ? (field.alternateLabel ?? `#${String(field.propertyId)}`) : plainName(property, text, field.alternateLabel);
   };
   const reorder = useReorderable({
     items: draft.fields,

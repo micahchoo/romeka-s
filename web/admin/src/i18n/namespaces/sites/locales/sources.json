@@ -410,7 +410,7 @@
  "siteSettingGroup.maps": "Maps",
  "siteSettingGroup.mapsIntro": "Where an item's place is stored, and the background every map draws.",
  "siteSetting.romekaLocationProperty": "Location field",
- "siteSetting.romekaLocationPropertyHelp": "The property whose \"lat, lng\" values place an item on a map, for example Spatial Coverage. The item form offers a small map for it.",
+ "siteSetting.romekaLocationPropertyHelp": "The field whose \"lat, lng\" values place an item on a map, for example Place. The item form offers a small map for it.",
  "siteSetting.romekaMapTiles": "Map tiles",
  "siteSetting.romekaMapTilesHelp": "A tile address with {z}, {x} and {y}. The default is OpenStreetMap, whose usage policy requires the credit line and forbids heavy use.",
  "siteSetting.romekaMapAttribution": "Map credit",

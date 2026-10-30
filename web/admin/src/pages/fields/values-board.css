@@ -1,0 +1,174 @@
+/* The values board: the field's values in the first column, the fields they can move to beside it. */
+.values-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  align-items: center;
+}
+
+.values-add,
+.values-search {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  align-items: center;
+}
+
+.values-search input {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+.values-columns {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.values-column {
+  flex: 1 0 14rem;
+  max-width: 22rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+}
+
+.values-column-source {
+  flex: 1.4 0 18rem;
+  max-width: 30rem;
+  background: var(--surface);
+}
+
+.values-column-over {
+  border: 2px dashed var(--accent);
+  background: var(--accent-soft);
+}
+
+.values-column-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.values-column-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.values-remove {
+  margin-left: auto;
+  min-width: 1.75rem;
+  min-height: 1.75rem;
+}
+
+.values-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* The source list scrolls inside its column, so the field columns stay in view while a value is dragged. */
+.values-column-source .values-cards {
+  max-height: 65vh;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.values-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.4rem;
+}
+
+.values-card[draggable='true'] {
+  cursor: grab;
+}
+
+.values-card-chosen {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.values-card-head {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.values-grip {
+  color: var(--text-muted);
+}
+
+.values-text {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.values-count,
+.values-note,
+.values-empty {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.values-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  align-items: center;
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.values-peek ul {
+  margin: 0.25rem 0;
+  padding-left: 1.25rem;
+  font-size: 0.875rem;
+}
+
+.values-check {
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 0.75rem 1rem;
+  margin: 0.75rem 0;
+}
+
+.values-check h3 {
+  margin-top: 0;
+  font-size: 1rem;
+}
+
+.values-check-move p {
+  margin: 0.25rem 0;
+}
+
+.values-warning {
+  border-left: 3px solid var(--danger);
+  padding-left: 0.5rem;
+}
+
+.values-done {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 0.5rem 0.75rem;
+}
+
+.values-history {
+  margin-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.values-history h3 {
+  font-size: 1rem;
+}
+
+.fields-entry-values {
+  font-size: 0.875rem;
+}

@@ -103,7 +103,7 @@ export const ml: BulkMessages = {
   'bulk.word.removeSets': '{names}-ൽ നിന്ന് നീക്കം ചെയ്യുക',
   'bulk.word.addSites': 'സൈറ്റ് {names}-ലേക്ക് ചേർക്കുക',
   'bulk.word.removeSites': 'സൈറ്റ് {names}-ൽ നിന്ന് നീക്കം ചെയ്യുക',
-  'bulk.word.untitled': 'ഇനം {id}',
+  'bulk.word.item': 'ഇനം {id}',
   'bulk.word.fieldValues': '{field}: {values}',
   'bulk.word.fieldEmpty': '{field}: മൂല്യം ഇല്ല',
   'bulk.word.valueIn': '{text} ({lang})',

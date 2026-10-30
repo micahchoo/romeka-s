@@ -103,7 +103,7 @@ export const mr: BulkMessages = {
   'bulk.word.removeSets': '{names} मधून काढून टाका',
   'bulk.word.addSites': 'संकेतस्थळ {names} मध्ये जोडा',
   'bulk.word.removeSites': 'संकेतस्थळ {names} मधून काढून टाका',
-  'bulk.word.untitled': 'वस्तू {id}',
+  'bulk.word.item': 'वस्तू {id}',
   'bulk.word.fieldValues': '{field}: {values}',
   'bulk.word.fieldEmpty': '{field}: कोणतेही मूल्य नाही',
   'bulk.word.valueIn': '{text} ({lang})',

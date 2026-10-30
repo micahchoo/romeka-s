@@ -7,6 +7,7 @@ import type { TemplateLayout } from './value-fields';
 import { valueKindWord } from './value-kind';
 import { common } from '../i18n/namespaces/common';
 import { resources } from '../i18n/namespaces/resources';
+import { plainName } from './plain-terms';
 
 /** One field of the read list: the name the form gives it, its term, its values. */
 interface ReadField {
@@ -14,8 +15,6 @@ interface ReadField {
   readonly name: string;
   readonly values: readonly Value[];
 }
-
-const nonEmpty = (text: string | null): string | null => (text === null || text.trim() === '' ? null : text);
 
 /**
  * The fields in the form's order and under the form's names (`layoutFields`): the template's
@@ -31,7 +30,7 @@ const readFields = (
     const propertyId = entries[0]?.propertyId;
     const row = rows.findIndex((entry) => entry.property.id === propertyId);
     const name =
-      nonEmpty(rows[row]?.alternateLabel ?? null) ?? nonEmpty(text.label(term, entries[0]?.propertyLabel ?? null)) ?? term;
+      plainName({ term, label: entries[0]?.propertyLabel ?? null }, text, rows[row]?.alternateLabel ?? null);
     return { field: { term, name, values: entries }, order: row === -1 ? rows.length : row };
   });
   return fields.sort((a, b) => a.order - b.order).map(({ field }) => field);

@@ -104,7 +104,7 @@ export const kn: BulkMessages = {
   'bulk.word.removeSets': '{names} ನಿಂದ ತೆಗೆದುಹಾಕಿ',
   'bulk.word.addSites': 'ಸೈಟ್ {names} ಗೆ ಸೇರಿಸಿ',
   'bulk.word.removeSites': 'ಸೈಟ್ {names} ನಿಂದ ತೆಗೆದುಹಾಕಿ',
-  'bulk.word.untitled': 'ಐಟಂ {id}',
+  'bulk.word.item': 'ಐಟಂ {id}',
   'bulk.word.fieldValues': '{field}: {values}',
   'bulk.word.fieldEmpty': '{field}: ಯಾವುದೇ ಮೌಲ್ಯವಿಲ್ಲ',
   'bulk.word.valueIn': '{text} ({lang})',

@@ -129,7 +129,7 @@ describe('an item form with a template', () => {
     const labels = screen
       .getAllByText(/.+/, { selector: '.property-field-label' })
       .map((node) => node.textContent);
-    expect(labels).toEqual(['Interviewee', 'Title', 'Interview notes', 'Relation']);
+    expect(labels).toEqual(['Interviewee', 'Title', 'Interview notes', 'Related to']);
     const interviewee = fieldNamed('Interviewee');
     expect(within(interviewee).getByText('dcterms:creator', { selector: '.property-field-term' })).toBeInTheDocument();
     expect(within(interviewee).getByText('The person who tells the story.')).toBeInTheDocument();
@@ -217,13 +217,13 @@ describe('an item form with a template', () => {
     install();
     render(<ItemsPage param="new" />);
     await chooseTemplate();
-    const choice = screen.getByLabelText('Relation data type');
+    const choice = screen.getByLabelText('Related to data type');
     expect(within(choice).getAllByRole('option').map((option) => option.getAttribute('value'))).toEqual([
       'resource:item',
       'customvocab:3',
     ]);
     fireEvent.change(choice, { target: { value: 'customvocab:3' } });
-    expect(screen.getByRole('textbox', { name: 'Relation' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Related to' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Title data type')).toBeNull();
   });
 
@@ -233,7 +233,7 @@ describe('an item form with a template', () => {
     const search = await screen.findByLabelText('Add another field');
     fireEvent.change(search, { target: { value: 'foaf' } });
     fireEvent.click(screen.getByRole('button', { name: /foaf:name$/ }));
-    expect(screen.getByRole('textbox', { name: 'name' })).toHaveValue('');
+    expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue('');
 
     fireEvent.change(search, { target: { value: 'who wrote it' } });
     const matches = screen.getByRole('list', { name: 'Matches for “who wrote it”' });

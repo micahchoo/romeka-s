@@ -7,7 +7,6 @@ import type {
   Vocabulary,
   VocabularyId,
 } from '../api/types';
-import type { TermLabels } from '../i18n';
 
 /**
  * A vocabulary, class or property as a list names it: its term (the prefix for
@@ -43,16 +42,3 @@ export const ownerNameOf = (
   ref: ResourceRef<UserId> | null,
 ): string | null => (ref === null ? null : (names.get(ref.id) ?? missing(ref)));
 
-/** The label in the locale `text` speaks, or `#id` when the row was not fetched. */
-const termLabelOf =
-  <IdT extends number>() =>
-  (labels: ReadonlyMap<IdT, TermName>, ref: ResourceRef<IdT> | null, text: TermLabels): string | null => {
-    if (ref === null) {
-      return null;
-    }
-    const name = labels.get(ref.id);
-    return name === undefined ? missing(ref) : text.label(name.term, name.label);
-  };
-
-export const vocabularyLabelOf = termLabelOf<VocabularyId>();
-export const propertyLabelOf = termLabelOf<PropertyId>();

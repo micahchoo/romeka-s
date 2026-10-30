@@ -104,7 +104,7 @@ export const ta: BulkMessages = {
   'bulk.word.removeSets': '{names} இலிருந்து நீக்கவும்',
   'bulk.word.addSites': 'தளத்தில் {names} ஐச் சேர்க்கவும்',
   'bulk.word.removeSites': 'தளத்திலிருந்து {names} ஐ நீக்கவும்',
-  'bulk.word.untitled': 'உருப்படி {id}',
+  'bulk.word.item': 'உருப்படி {id}',
   'bulk.word.fieldValues': '{field}: {values}',
   'bulk.word.fieldEmpty': '{field}: மதிப்பு இல்லை',
   'bulk.word.valueIn': '{text} ({lang})',
