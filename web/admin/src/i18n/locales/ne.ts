@@ -23,7 +23,6 @@ export const ne: Catalogue = {
   'page.import': 'आयात',
   'page.sites': 'साइटहरू',
   'page.fields': 'क्षेत्रहरू',
-  'page.values': 'मानहरू',
   'page.users': 'प्रयोगकर्ताहरू',
   'page.jobs': 'कार्यहरू',
   'page.settings': 'सेटिङहरू',

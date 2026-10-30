@@ -24,7 +24,6 @@ export const kn: Catalogue = {
   'page.import': 'ಆಮದು',
   'page.sites': 'ಸೈಟ್‌ಗಳು',
   'page.fields': 'ಕ್ಷೇತ್ರಗಳು',
-  'page.values': 'ಮೌಲ್ಯಗಳು',
   'page.users': 'ಬಳಕೆದಾರರು',
   'page.jobs': 'ಕೆಲಸಗಳು',
   'page.settings': 'ಸೆಟ್ಟಿಂಗ್‌ಗಳು',

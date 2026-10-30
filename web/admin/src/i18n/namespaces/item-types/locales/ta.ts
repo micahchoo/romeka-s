@@ -106,7 +106,6 @@ export const ta: ItemTypesMessages = {
   'fieldsPage.called': '· {names} என்று அழைக்கப்படுகிறது',
   'fieldsPage.calledIn': '“{label}” {type}-இல்',
   'fieldsPage.used': 'இதைப் பயன்படுத்தும் உருப்படி வகைகள்: {count}',
-  'fieldsPage.values': 'அதன் மதிப்புகள்',
   'fieldsPage.unused': 'இன்னும் பயன்படுத்தப்படவில்லை',
   'loading.resourceTemplate': 'உருப்படி வகையை ஏற்றுகிறது...',
   'route.invalidTemplateId': '“{param}” என்பது சரியான உருப்படி வகை அடையாள எண் அல்ல.',

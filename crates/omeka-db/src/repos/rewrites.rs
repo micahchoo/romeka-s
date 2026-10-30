@@ -16,8 +16,8 @@ use crate::DbError;
 use crate::backend::Backend;
 use crate::ids::{CustomVocabId, PropertyId, TemplateId};
 use crate::rows::{
-    HistoryStamp, MergeWrite, MoveWrite, PromoteList, PromoteWrite, PublicationTarget,
-    TextValueRow, resource_type,
+    HistoryStamp, MergeWrite, PromoteList, PromoteWrite, PublicationTarget, TextValueRow,
+    resource_type,
 };
 
 /// Bulk rewrites over `value`.
@@ -172,58 +172,6 @@ where
             .bind(bind_id(*list))
             .execute(&mut *tx)
             .await?;
-        }
-        retitle::<DB>(&mut tx, &write.resources, write.default_title_property).await?;
-        record_each::<DB>(&mut tx, &before, stamp).await?;
-        touch_modified::<DB>(&mut tx, &write.resources).await?;
-        tx.commit().await?;
-        Ok(())
-    }
-
-    /// Write one move. Each item it changes gains a history entry under `stamp`.
-    pub async fn move_values(
-        &self,
-        write: &MoveWrite,
-        stamp: &HistoryStamp,
-    ) -> Result<(), DbError> {
-        let table = DB::quote_identifier("value");
-        let still = "property_id = ? AND type = 'literal' AND value = ?";
-        let mut tx = self.pool.begin_with(DB::begin_write()).await?;
-        let before = images_before::<DB>(&mut tx, &write.resources).await?;
-        let retarget = format!("UPDATE {table} SET property_id = ? WHERE id = ? AND {still}");
-        for value in &write.retarget {
-            sqlx::query(&retarget)
-                .bind(bind_id(write.to))
-                .bind(bind_id(*value))
-                .bind(bind_id(write.from))
-                .bind(&write.text)
-                .execute(&mut *tx)
-                .await?;
-        }
-        let delete = format!("DELETE FROM {table} WHERE id = ? AND {still}");
-        for value in &write.delete {
-            sqlx::query(&delete)
-                .bind(bind_id(*value))
-                .bind(bind_id(write.from))
-                .bind(&write.text)
-                .execute(&mut *tx)
-                .await?;
-        }
-        let copy = format!(
-            "INSERT INTO {table}
-                 (resource_id, property_id, value_resource_id, value_annotation_id, type, lang,
-                  value, uri, is_public)
-             SELECT resource_id, ?, NULL, NULL, type, lang, value, NULL, is_public
-             FROM {table} WHERE id = ? AND {still}"
-        );
-        for value in &write.copy {
-            sqlx::query(&copy)
-                .bind(bind_id(write.to))
-                .bind(bind_id(*value))
-                .bind(bind_id(write.from))
-                .bind(&write.text)
-                .execute(&mut *tx)
-                .await?;
         }
         retitle::<DB>(&mut tx, &write.resources, write.default_title_property).await?;
         record_each::<DB>(&mut tx, &before, stamp).await?;

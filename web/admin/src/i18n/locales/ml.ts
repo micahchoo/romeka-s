@@ -24,7 +24,6 @@ export const ml: Catalogue = {
   'page.import': 'ഇറക്കുമതി',
   'page.sites': 'സൈറ്റുകൾ',
   'page.fields': 'ഫീൽഡുകൾ',
-  'page.values': 'മൂല്യങ്ങൾ',
   'page.users': 'ഉപയോക്താക്കൾ',
   'page.jobs': 'ജോലികൾ',
   'page.settings': 'ക്രമീകരണങ്ങൾ',

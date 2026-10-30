@@ -28,7 +28,6 @@ export type AdminPageId =
   | 'resource-templates'
   | 'term-lists'
   | 'fields'
-  | 'values'
   | 'standards'
   | 'users'
   | 'jobs'
@@ -94,7 +93,7 @@ export const PAGE_GROUPS: readonly PageGroup[] = [
   {
     id: 'describe',
     titleKey: 'group.describe',
-    pages: ['resource-templates', 'term-lists', 'fields', 'values'],
+    pages: ['resource-templates', 'term-lists', 'fields'],
     sub: { titleKey: 'nav.advanced', pages: ['standards'] },
   },
   {
@@ -175,14 +174,6 @@ export const PAGES: Readonly<Record<AdminPageId, AdminPage>> = {
     upstream: 'Admin/PropertyController.php browseAction',
     element: lazy(() =>
       import('../pages/fields/page').then((module) => ({ default: module.FieldsPage })),
-    ),
-    offered: EVERY_ROLE,
-  },
-  values: {
-    titleKey: 'page.values',
-    upstream: 'Romeka: GET /api/romeka/field-values/{property}, POST /api/romeka/field-values/move',
-    element: lazy(() =>
-      import('../pages/fields/values-page').then((module) => ({ default: module.ValuesPage })),
     ),
     offered: EVERY_ROLE,
   },
