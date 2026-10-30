@@ -23,6 +23,7 @@ export const te: Catalogue = {
   'page.import': 'దిగుమతి',
   'page.sites': 'సైట్లు',
   'page.fields': 'ఫీల్డ్‌లు',
+  'page.values': 'విలువలు',
   'page.users': 'వినియోగదారులు',
   'page.jobs': 'ఉద్యోగాలు',
   'page.settings': 'సెట్టింగ్‌లు',
