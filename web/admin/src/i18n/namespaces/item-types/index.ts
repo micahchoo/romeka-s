@@ -106,7 +106,6 @@ export const en = {
   "fieldsPage.called": "· called {names}",
   "fieldsPage.calledIn": "“{label}” in {type}",
   "fieldsPage.used": "Item types using it: {count}",
-  "fieldsPage.values": "Its values",
   "fieldsPage.unused": "Not used yet",
   'loading.resourceTemplate': 'Loading item type...',
   'route.invalidTemplateId': '"{param}" is not a valid item type id.',

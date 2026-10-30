@@ -104,23 +104,3 @@ pub struct MergeWrite {
     /// The title property of a resource whose template names none (`dcterms:title`).
     pub default_title_property: Option<PropertyId>,
 }
-
-/// One move of a text from one property to another, planned by the caller. Each statement
-/// re-checks that the value still sits on `from` with the text `text`, so a value another writer
-/// changed after the read is left as that writer left it.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MoveWrite {
-    pub from: PropertyId,
-    pub to: PropertyId,
-    pub text: String,
-    /// Values whose property becomes `to`.
-    pub retarget: Vec<ValueId>,
-    /// Values deleted because their resource already holds the text on `to`.
-    pub delete: Vec<ValueId>,
-    /// Values that stay on `from` and gain a copy on `to`, with their language and visibility.
-    pub copy: Vec<ValueId>,
-    /// The resources whose `modified` moves and whose title is read again.
-    pub resources: Vec<ResourceId>,
-    /// The title property of a resource whose template names none (`dcterms:title`).
-    pub default_title_property: Option<PropertyId>,
-}

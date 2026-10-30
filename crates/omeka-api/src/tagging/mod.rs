@@ -393,7 +393,7 @@ fn words_of(row: &CustomVocabRow) -> Option<Vec<String>> {
 
 /// Bring the search index up to date for each changed resource (`Module::saveFulltext`); a
 /// media's text is part of its item's, so the item follows.
-pub(crate) async fn reindex(
+async fn reindex(
     api: &Api<'_>,
     rows: &[TextValueRow],
     changed: &[ResourceId],

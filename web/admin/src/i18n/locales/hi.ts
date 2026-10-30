@@ -23,7 +23,6 @@ export const hi: Catalogue = {
   'page.import': 'आयात',
   'page.sites': 'साइट्स',
   'page.fields': 'फ़ील्ड',
-  'page.values': 'मान',
   'page.users': 'उपयोगकर्ता',
   'page.jobs': 'कार्य',
   'page.settings': 'सेटिंग्स',

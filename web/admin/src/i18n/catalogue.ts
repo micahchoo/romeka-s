@@ -27,7 +27,6 @@ export const en = {
   'page.import': 'Import',
   'page.sites': 'Sites',
   'page.fields': 'Fields',
-  'page.values': 'Values',
   'page.users': 'Users',
   'page.jobs': 'Jobs',
   'page.settings': 'Settings',

@@ -105,7 +105,6 @@ export const kn: ItemTypesMessages = {
   'fieldsPage.called': '· {names} ಎಂದು ಕರೆಯುತ್ತಾರೆ',
   'fieldsPage.calledIn': '“{label}” {type} ನಲ್ಲಿ',
   'fieldsPage.used': 'ಇದನ್ನು ಬಳಸುವ ಐಟಂ ಪ್ರಕಾರಗಳು: {count}',
-  'fieldsPage.values': 'ಅದರ ಮೌಲ್ಯಗಳು',
   'fieldsPage.unused': 'ಇನ್ನೂ ಬಳಸಲಾಗಿಲ್ಲ',
   'loading.resourceTemplate': 'ಅಂಶದ ವಿಧವನ್ನು ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...',
   'route.invalidTemplateId': '“{param}” ಮಾನ್ಯವಾದ ಅಂಶದ ವಿಧದ ಐಡಿ ಅಲ್ಲ.',

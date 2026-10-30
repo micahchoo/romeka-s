@@ -45,7 +45,6 @@ mod assets;
 mod bulk;
 mod config;
 mod config_store;
-mod field_values;
 mod files_allow;
 mod fixity;
 mod http;
@@ -234,7 +233,6 @@ fn build_app(pool: DbPool, services: Services, config: &Config) -> Router {
         .merge(imports::router())
         .merge(uploads::router())
         .merge(media_add::router())
-        .merge(field_values::router())
         .merge(tags::router())
         .merge(vocab_import::router())
         .merge(settings::router())

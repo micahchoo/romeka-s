@@ -312,8 +312,6 @@ A third read states how complete an item type's fields are:
 | Route | Response |
 | --- | --- |
 | `GET /api/romeka/field-counts?resource_template_id=<id>` | 200 `{total, fields: [{property_id, filled}]}`; 400 without the id; 404 |
-| `GET /api/romeka/field-values/{property}` | 200 `{property, values: [{value, items, media, item_sets, editable}]}`, most used first; 404 for an unknown property |
-| `POST /api/romeka/field-values/move` | 200 `{changed, skipped, moved, merged, copied, not_in_form}` for `{value, from, to, dry_run?, only?, copy?}`; 400 for one field twice or an empty text; 404 for an unknown property |
 
 `total` is the `Omeka-S-Total-Results` of `GET /api/items?resource_template_id=<id>` for the same
 caller. A field's `filled` is that of the same list with `property[i][property]=<property_id>&

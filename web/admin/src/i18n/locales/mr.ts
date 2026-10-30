@@ -23,7 +23,6 @@ export const mr: Catalogue = {
   'page.import': 'आयात',
   'page.sites': 'संकेतस्थळे',
   'page.fields': 'क्षेत्रे',
-  'page.values': 'मूल्ये',
   'page.users': 'वापरकर्ते',
   'page.jobs': 'कामे',
   'page.settings': 'सेटिंग्ज',

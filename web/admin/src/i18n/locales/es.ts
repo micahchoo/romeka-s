@@ -24,7 +24,6 @@ export const es: Catalogue = {
   'page.import': 'Importar',
   'page.sites': 'Sitios',
   'page.fields': 'Campos',
-  'page.values': 'Valores',
   'page.users': 'Usuarios',
   'page.jobs': 'Tareas',
   'page.settings': 'Configuración',

@@ -24,7 +24,6 @@ export const ta: Catalogue = {
   'page.import': 'இறக்குமதி',
   'page.sites': 'தளங்கள்',
   'page.fields': 'புலங்கள்',
-  'page.values': 'மதிப்புகள்',
   'page.users': 'பயனர்கள்',
   'page.jobs': 'பணிகள்',
   'page.settings': 'அமைப்புகள்',

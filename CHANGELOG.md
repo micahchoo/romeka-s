@@ -10,11 +10,6 @@ semantic versioning.
 
 ### Added
 
-- A values board for each field (Describe › Values, or Fields › "Its values"; `#/values/<id>`, and `#/fields/<id>` still opens it): every text the field holds on
-  items, item sets and media, with counts. Drag a text to another field's column, or use "Move to", to move it
-  on every record you may change. The move is checked first, names the item types whose form lacks the
-  field, records item history, and can be undone for the last move of the visit. New routes
-  `GET /api/romeka/field-values/{property}` and `POST /api/romeka/field-values/move`.
 - The Items field filter can match one exact text (`field=<id>:is:<text>`), besides empty and filled.
 - The admin shell (`index.html`) is sent with `Cache-Control: no-cache`, so a browser open across a deploy loads the new
   admin at its next load instead of a cached shell that names the old files.
@@ -30,7 +25,7 @@ semantic versioning.
 - The item form names value kinds as item types do: "Web address" for URI and "Link to a record" for
   Resource, with "Record number" for the linked record's id.
 - A record with no title is "[Untitled] #12" wherever a number tells it apart; the bulk preview, bulk
-  delete, History and the values board each worded it differently.
+  delete and History each worded it differently.
 
 ### Security
 
