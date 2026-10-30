@@ -8,6 +8,16 @@ import type { FieldValuesMessages } from '../index';
 
 export const es: FieldValuesMessages = {
   'values.title': 'Valores de {field}',
+  'values.chooseIntro':
+    'Elija un campo para ver cada texto que contiene en sus elementos y medios, y mover un texto al campo al que pertenece.',
+  'values.inUse': 'Campos que usan sus tipos de elemento',
+  'values.noneInUse': 'Ningún tipo de elemento tiene campos todavía. Busque un campo abajo.',
+  'values.usedByOne': 'en 1 tipo de elemento',
+  'values.usedBy': 'en {count} tipos de elemento',
+  'values.findOther': 'Buscar otro campo',
+  'values.findOtherHint': 'Descríbalo, por ejemplo «dónde se hizo»',
+  'values.matches': 'Coincidencias para «{text}»',
+  'values.noFieldMatch': 'Ningún campo coincide con «{text}».',
   'values.allFields': 'Todos los campos',
   'values.intro':
     'Cada texto que contiene este campo, en elementos, conjuntos de elementos y medios, del más usado al menos usado. Arrastre un valor a otro campo, o use «Mover a», y se mueve en cada registro que lo contiene.',

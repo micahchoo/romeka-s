@@ -150,14 +150,18 @@
 
 	# Everything else is the admin SPA. A path that names a file is served or
 	# 404s; a path with no extension falls back to the shell, so a reload of an
-	# SPA route lands on the app rather than a 404.
+	# SPA route lands on the app rather than a 404. The shell is revalidated on
+	# every load (no-cache), so a deploy reaches an open browser at its next
+	# load; the hashed files under /assets it names may stay cached.
 	handle {
 		@extensionless not path_regexp extension \.[^/]+$
 		handle @extensionless {
+			header Cache-Control "no-cache"
 			try_files {path} /index.html
 			file_server
 		}
 		handle {
+			header /index.html Cache-Control "no-cache"
 			file_server
 		}
 	}

@@ -551,7 +551,7 @@ const Board = ({ source, loaded }: { readonly source: Property; readonly loaded:
   return (
     <section className="values-board">
       <p>
-        <a href="#/fields">{t('values.allFields')}</a>
+        <a href="#/values">{t('values.allFields')}</a>
       </p>
       <h2>{t('values.title', { field: plainName(source, text) })}</h2>
       <p className="type-lede">{t('values.intro')}</p>

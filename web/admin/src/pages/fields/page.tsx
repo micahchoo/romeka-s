@@ -58,12 +58,13 @@ const FieldEntry = ({
         </p>
         <a className="property-field-term" href={standardsHref('properties', property.id)}>
           {property.term}
-        </a>{' '}
-        <a className="fields-entry-values" href={valuesHref(property.id)}>
-          {t('fieldsPage.values')}
         </a>
       </div>
       <p className="fields-entry-use">
+        <a className="button-link fields-entry-values" href={valuesHref(property.id)}>
+          {t('fieldsPage.values')}
+        </a>
+        <br />
         {uses.length === 0 ? (
           t('fieldsPage.unused')
         ) : (

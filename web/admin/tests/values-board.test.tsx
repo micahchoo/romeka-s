@@ -6,6 +6,8 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { isRecord } from '../src/api/parse';
 import { FieldsPage } from '../src/pages/fields/page';
+import { ValuesPage } from '../src/pages/fields/values-page';
+import { PAGE_GROUPS } from '../src/app/pages';
 import { installFetch, jsonResponse, listResponse, requestBody, requestsFor, route } from './stub';
 
 const property = (id: number, term: string, label: string): Record<string, unknown> => ({
@@ -33,6 +35,29 @@ const moved = {
   merged: [12],
   copied: [],
   not_in_form: [{ template: 7, label: 'Photo Narrative', resources: 70 }],
+};
+
+const template = {
+  '@id': 'http://localhost/api/resource_templates/7',
+  '@context': 'http://localhost/api-context',
+  '@type': ['o:ResourceTemplate'],
+  'o:id': 7,
+  'o:label': 'Photo Narrative',
+  'o:owner': null,
+  'o:resource_class': null,
+  'o:title_property': null,
+  'o:description_property': null,
+  'o:resource_template_property': [
+    {
+      'o:property': { '@id': 'http://localhost/api/properties/3', 'o:id': 3 },
+      'o:alternate_label': null,
+      'o:alternate_comment': null,
+      'o:data_type': [],
+      'o:default_lang': null,
+      'o:is_required': false,
+      'o:is_private': false,
+    },
+  ],
 };
 
 const routes = (state: { placed: boolean }) =>
@@ -97,3 +122,48 @@ describe('the values board', () => {
     expect(await screen.findByText('No field has the number 999.')).toBeTruthy();
   });
 });
+
+describe('the way to the values board', () => {
+  it('is a Values page under Describe, after Fields', () => {
+    const describe = PAGE_GROUPS.find((group) => group.id === 'describe');
+    expect(describe?.pages).toEqual(['resource-templates', 'term-lists', 'fields', 'values']);
+  });
+
+  it('lists the fields item types use, each opening its board, and finds any other field', async () => {
+    installFetch(
+      route({
+        '/api/properties': () => listResponse(PROPERTIES, PROPERTIES.length),
+        '/api/resource_templates': () => listResponse([template], 1),
+      }),
+    );
+    render(<ValuesPage param={null} />);
+    const used = await screen.findByRole('list', { name: 'Fields your item types use' });
+    const subject = within(used).getByRole('link', { name: /^Subject/ });
+    expect(subject.getAttribute('href')).toBe('#/values/3');
+    expect(within(used).queryByRole('link', { name: /^Place/ })).toBeNull();
+
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Find another field' }), { target: { value: 'where' } });
+    const found = await screen.findByRole('list', { name: 'Matches for “where”' });
+    expect(within(found).getByRole('link', { name: /^Place/ }).getAttribute('href')).toBe('#/values/40');
+  });
+
+  it('opens the board of the field its number names', async () => {
+    installFetch(routes({ placed: false }));
+    render(<ValuesPage param="3" />);
+    expect(await screen.findByRole('heading', { name: 'Values of Subject' })).toBeTruthy();
+  });
+
+  it('is a button on each Fields row', async () => {
+    installFetch(
+      route({
+        '/api/properties': () => listResponse(PROPERTIES, PROPERTIES.length),
+        '/api/resource_templates': () => listResponse([template], 1),
+      }),
+    );
+    render(<FieldsPage param={null} />);
+    const links = await screen.findAllByRole('link', { name: 'Its values' });
+    expect(links.map((link) => link.getAttribute('href'))).toContain('#/values/3');
+    expect(links[0]?.className).toContain('button-link');
+  });
+});
+
