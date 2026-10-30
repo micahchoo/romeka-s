@@ -33,7 +33,7 @@ const ItemLinks = ({ items }: { readonly items: readonly ItemId[] }): ReactEleme
     <ul className="bulk-items">
       {items.map((item) => (
         <li key={String(item)}>
-          <a href={`#/items/${String(item)}`}>{t('bulk.word.untitled', { id: String(item) })}</a>
+          <a href={`#/items/${String(item)}`}>{t('bulk.word.item', { id: String(item) })}</a>
         </li>
       ))}
     </ul>
@@ -49,7 +49,7 @@ const FailureList = ({ failures }: { readonly failures: readonly BulkFailure[] }
     <ul className="bulk-items">
       {failures.map((failure) => (
         <li key={String(failure.item)}>
-          <a href={`#/items/${String(failure.item)}`}>{t('bulk.word.untitled', { id: String(failure.item) })}</a>
+          <a href={`#/items/${String(failure.item)}`}>{t('bulk.word.item', { id: String(failure.item) })}</a>
           {failure.message === null ? null : <>: {translate(failure.message)}</>}
         </li>
       ))}

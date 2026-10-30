@@ -243,7 +243,7 @@ describe('a stored item type', () => {
 
   it('removes a field and changes the term behind another from a plain-words search', async () => {
     const fetchMock = await openPhotograph();
-    fireEvent.click(screen.getByRole('button', { name: 'Remove Relation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Related to' }));
     fireEvent.click(screen.getByRole('button', { name: 'Change the standard term of Caption' }));
     fireEvent.change(screen.getByRole('searchbox', { name: 'Find a standard term' }), {
       target: { value: 'who wrote it' },
@@ -270,11 +270,11 @@ describe('a stored item type', () => {
     const preview = screen.getByRole('form', { name: 'Preview of the form for a new Photograph' });
     const labels = () =>
       Array.from(preview.querySelectorAll('.property-field-label')).map((node) => node.textContent);
-    expect(labels()).toEqual(['Title', 'Caption', 'Relation']);
+    expect(labels()).toEqual(['Title', 'Caption', 'Related to']);
     fireEvent.change(screen.getByRole('textbox', { name: 'Name on the form for dcterms:title' }), {
       target: { value: 'Headline' },
     });
-    expect(labels()).toEqual(['Headline', 'Caption', 'Relation']);
+    expect(labels()).toEqual(['Headline', 'Caption', 'Related to']);
     expect(within(preview).getByText('Required')).toBeInTheDocument();
   });
 
@@ -346,8 +346,8 @@ describe("an item type's field counts", () => {
     );
     expect(within(rowOf('Title')).getByText('690 of 690 items have a value.')).toBeInTheDocument();
     expect(within(rowOf('Title')).queryByRole('link', { name: /without a value/ })).not.toBeInTheDocument();
-    expect(within(rowOf('Relation')).getByText('0 of 690 items have a value.')).toBeInTheDocument();
-    expect(within(rowOf('Relation')).getByRole('link', { name: 'Open the 690 without a value' })).toHaveAttribute(
+    expect(within(rowOf('Related to')).getByText('0 of 690 items have a value.')).toBeInTheDocument();
+    expect(within(rowOf('Related to')).getByRole('link', { name: 'Open the 690 without a value' })).toHaveAttribute(
       'href',
       '#/items?template=2&field=13%3Aempty',
     );
@@ -356,8 +356,8 @@ describe("an item type's field counts", () => {
   it('words one item and one empty item in the singular', async () => {
     await openPhotograph({ '/api/romeka/field-counts': fieldCounts(1, [[1, 1]]) });
     expect(await within(rowOf('Title')).findByText('1 of 1 item has a value.')).toBeInTheDocument();
-    expect(within(rowOf('Relation')).getByText('0 of 1 item has a value.')).toBeInTheDocument();
-    expect(within(rowOf('Relation')).getByRole('link', { name: 'Open the 1 without a value' })).toBeInTheDocument();
+    expect(within(rowOf('Related to')).getByText('0 of 1 item has a value.')).toBeInTheDocument();
+    expect(within(rowOf('Related to')).getByRole('link', { name: 'Open the 1 without a value' })).toBeInTheDocument();
   });
 
   it('states nothing for a type with no items the reader may see, or when the counts cannot be read', async () => {

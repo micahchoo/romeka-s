@@ -25,6 +25,7 @@ import { userNames } from '../../app/labels';
 import type { TermName } from '../../app/labels';
 import { useTermLabels } from '../../i18n/termText';
 import type { TermLabels } from '../../i18n/termText';
+import { plainName } from '../../app/plain-terms';
 
 /** One field of an item type: its property and the name the type gives it, if any. */
 export interface TypeField {
@@ -123,8 +124,8 @@ export interface FieldChoice {
 }
 
 /**
- * A field's name: the one the filtered item type gives it, else its vocabulary label in the
- * reader's language, else `#id` until the lists arrive.
+ * A field's name: the one the filtered item type gives it, else its plain name (`plainName`),
+ * else `#id` until the lists arrive.
  */
 export const fieldName = (
   options: BrowseOptions,
@@ -135,11 +136,8 @@ export const fieldName = (
   const own = template === null
     ? null
     : options.templateFields.get(template)?.find((field) => field.property === property)?.alternateLabel ?? null;
-  if (own !== null) {
-    return own;
-  }
   const stored = options.properties.get(property);
-  return stored === undefined ? `#${String(property)}` : text.label(stored.term, stored.label);
+  return stored === undefined ? (own ?? `#${String(property)}`) : plainName(stored, text, own);
 };
 
 /**

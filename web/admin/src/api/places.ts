@@ -147,6 +147,13 @@ export const fieldQuery = (property: PropertyId, presence: 'empty' | 'filled'): 
   'property[1][type]': presence === 'empty' ? 'nex' : 'ex',
 });
 
+/** The search that lists the resources whose `property` holds exactly `text` (`eq`). */
+export const fieldIsQuery = (property: PropertyId, text: string): ResourceQuery => ({
+  'property[1][property]': String(property),
+  'property[1][type]': 'eq',
+  'property[1][text]': text,
+});
+
 /** The resource types a class count counts: each is a list endpoint. */
 export type ClassCountType = 'items' | 'item_sets' | 'media';
 

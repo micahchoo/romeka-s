@@ -105,6 +105,7 @@ export const te: ItemTypesMessages = {
   'fieldsPage.called': '· {names} అని పిలవబడుతుంది',
   'fieldsPage.calledIn': '{type}లో “{label}”',
   'fieldsPage.used': 'దీనిని ఉపయోగిస్తున్న ఐటమ్ రకాలు: {count}',
+  'fieldsPage.values': 'దీని విలువలు',
   'fieldsPage.unused': 'ఇంకా ఉపయోగించబడలేదు',
   'loading.resourceTemplate': 'అంశం రకాన్ని లోడ్ చేస్తోంది...',
   'route.invalidTemplateId': '“{param}” అనేది సరైన అంశం రకం ఐడి కాదు.',

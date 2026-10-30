@@ -1,5 +1,5 @@
 /**
- * Shelf order: a set whose items have identifiers offers "Identifier" first in the sort list.
+ * Shelf order: a set whose items have identifiers offers "Reference number" first in the sort list.
  * Choosing it puts the rows in number order (SB_1, SB_2, SB_10, then the item with none), keeps
  * the order in the address, and the walk follows it: row 2 says "2 of 4" and Next opens SB_10.
  * `SORT_SCREENSHOTS` names a folder for the pictures.
@@ -71,8 +71,8 @@ test('a set with identifiers offers shelf order first, and the walk follows it',
   const rows = page.locator('.items-results tbody tr');
   await expect(rows).toHaveCount(4);
   const sort = page.getByRole('combobox', { name: 'Sort', exact: true });
-  await expect(sort.locator('option').first()).toHaveText('Identifier');
-  await sort.selectOption({ label: 'Identifier' });
+  await expect(sort.locator('option').first()).toHaveText('Reference number');
+  await sort.selectOption({ label: 'Reference number' });
 
   await expect(page).toHaveURL(/sort=dcterms%3Aidentifier/);
   for (const [index, name] of SHELF_ORDER.entries()) {

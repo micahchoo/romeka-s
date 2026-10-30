@@ -106,6 +106,7 @@ export const hi: ItemTypesMessages = {
   'fieldsPage.called': '· {names} कहा जाता है',
   'fieldsPage.calledIn': '“{label}” {type} में',
   'fieldsPage.used': 'आइटम प्रकार जो इसका उपयोग करते हैं: {count}',
+  'fieldsPage.values': 'इसके मान',
   'fieldsPage.unused': 'अभी तक उपयोग नहीं किया गया',
   'loading.resourceTemplate': 'आइटम प्रकार लोड हो रहा है...',
   'route.invalidTemplateId': '“{param}” एक वैध आइटम प्रकार आईडी नहीं है।',

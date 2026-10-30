@@ -167,7 +167,7 @@ describe('item edit form', () => {
     expect(titleInput).toHaveValue('Fixture Item One');
     expect(screen.getByDisplayValue('http://example.org/subjects/fixtures')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Fixtures')).toBeInTheDocument();
-    expect(screen.getByLabelText('dcterms:relation resource ID')).toHaveValue('9');
+    expect(screen.getByLabelText('dcterms:relation record number')).toHaveValue('9');
 
     fireEvent.change(titleInput, { target: { value: 'Fixture Item One edited' } });
     // The "Photograph" template names dcterms:description "Caption", in English.

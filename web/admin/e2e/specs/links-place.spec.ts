@@ -164,7 +164,7 @@ test('a record others link to opens as a place, and a bulk change there reaches 
   const toggle = setCard.getByRole('button', { name: 'Linked from' });
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   await toggle.click();
-  await expect(setCard.getByRole('link', { name: 'Is Part Of · 1 item' })).toHaveAttribute(
+  await expect(setCard.getByRole('link', { name: 'Part of · 1 item' })).toHaveAttribute(
     'href',
     `#/items?links=${String(letterSet)}&via=${String(isPartOf)}`,
   );

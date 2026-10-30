@@ -22,6 +22,7 @@ import { ErrorNotice } from '../../../app/errors';
 import { toError } from '../../../app/useAsync';
 import type { Locale } from '../../../i18n';
 import { useTranslator } from '../../../i18n';
+import { common } from '../../../i18n/namespaces/common';
 import { bulk } from '../../../i18n/namespaces/bulk';
 import { bulkDelete } from '../../../i18n/namespaces/bulk-delete';
 import type { Scope } from './model';
@@ -126,7 +127,7 @@ const Confirm = ({
   readonly onPreviewAgain: () => void;
   readonly onBack: () => void;
 }): ReactElement => {
-  const { t, number, locale } = useTranslator(bulk, bulkDelete);
+  const { t, number, locale } = useTranslator(bulk, bulkDelete, common);
   const inputId = useId();
   const { preview } = state;
   const goes = preview.total - preview.denied;
@@ -153,7 +154,7 @@ const Confirm = ({
           <ul className="bulk-items">
             {preview.samples.map((sample) => (
               <li key={String(sample.id)}>
-                <a href={`#/items/${String(sample.id)}`}>{sample.title ?? t('bulk.word.untitled', { id: String(sample.id) })}</a>
+                <a href={`#/items/${String(sample.id)}`}>{sample.title ?? t('common.untitledNumber', { id: String(sample.id) })}</a>
               </li>
             ))}
           </ul>

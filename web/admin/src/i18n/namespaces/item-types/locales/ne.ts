@@ -105,6 +105,7 @@ export const ne: ItemTypesMessages = {
   'fieldsPage.called': '· {names} भनिन्छ',
   'fieldsPage.calledIn': '“{label}” {type} मा',
   'fieldsPage.used': '{count} वस्तु प्रकारहरू यसको प्रयोग गर्छन्:',
+  'fieldsPage.values': 'यसका मानहरू',
   'fieldsPage.unused': 'अहिलेसम्म प्रयोग नभएको',
   'loading.resourceTemplate': 'वस्तु प्रकार लोड हुँदैछ...',
   'route.invalidTemplateId': '“{param}” मान्य वस्तु प्रकार id होइन।',

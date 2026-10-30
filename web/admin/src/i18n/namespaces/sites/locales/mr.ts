@@ -466,7 +466,7 @@ export const mr: SitesMessages = {
   'siteSettingGroup.mapsIntro': 'घटकाचे स्थान आणि नकाशाद्वारे रेखाटली जाणारी पार्श्वभूमी.',
   'siteSetting.romekaLocationProperty': 'स्थान क्षेत्र',
   'siteSetting.romekaLocationPropertyHelp':
-    '"lat, lng" मूल्ये असलेला गुणधर्म, जो घटकाला नकाशावर स्थान देतो, उदाहरणार्थ अवकाशीय व्याप्ती. घटकाचे स्वरूप याला एक लहान नकाशा प्रदान करते.',
+    '"lat, lng" मूल्ये असलेला क्षेत्र, जे घटकाला नकाशावर स्थान देते, उदाहरणार्थ Place. घटकाचा फॉर्म त्यासाठी लहान नकाशा देतो.',
   'siteSetting.romekaMapTiles': 'नकाशाचे टायल्स',
   'siteSetting.romekaMapTilesHelp':
     '{z}, {x} आणि {y} सह टायल्सचा पत्ता. डीफॉल्ट OpenStreetMap आहे, ज्याची वापर धोरण क्रेडिट ओळीची आवश्यकता असते आणि जड वापरास प्रतिबंध करते.',

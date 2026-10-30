@@ -13,7 +13,7 @@ import {
 import { useTranslator } from '../../../../i18n';
 import { editor } from '../../../../i18n/namespaces/editor';
 import { Help, helpId } from '../Labelled';
-import { propertyName, useProperties } from './useProperties';
+import { usePropertyName, useProperties } from './useProperties';
 
 export interface PropertyListFieldProps {
   readonly id: string;
@@ -32,6 +32,7 @@ export const PropertyListField = ({
 }: PropertyListFieldProps): ReactElement => {
   const { t } = useTranslator(editor);
   const state = useProperties();
+  const propertyName = usePropertyName();
   const properties = state.status === 'ready' ? state.data : [];
   const nameOf = (term: string): string => {
     const found = properties.find((property) => property.term === term);

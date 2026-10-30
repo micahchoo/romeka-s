@@ -106,6 +106,7 @@ export const mr: ItemTypesMessages = {
   'fieldsPage.called': '· {names} नावाने ओळखले जाणारे',
   'fieldsPage.calledIn': '“{label}” {type} मध्ये',
   'fieldsPage.used': '{count} आयटम प्रकार वापरत आहेत:',
+  'fieldsPage.values': 'याची मूल्ये',
   'fieldsPage.unused': 'अद्याप वापरले नाही',
   'loading.resourceTemplate': 'घटक प्रकार लोड होत आहे...',
   'route.invalidTemplateId': '“{param}” ही वैध घटक प्रकार आयडी नाही.',

@@ -22,6 +22,8 @@ import type { MessageParams } from '../../i18n/catalogue';
 import { en, itemHistory } from '../../i18n/namespaces/item-history';
 import { useTermLabels } from '../../i18n/termText';
 import './history.css';
+import { plainName } from '../../app/plain-terms';
+import { common } from '../../i18n/namespaces/common';
 
 const ENTRIES_PER_PAGE = 20;
 
@@ -107,12 +109,12 @@ const valueWords = (values: readonly HistoryValue[], t: Translate): string =>
 
 /** The field's name and its two sides, in words. */
 const useChangeWords = (): ((change: HistoryChange) => readonly [string, string, string]) => {
-  const { t } = useTranslator(itemHistory);
+  const { t } = useTranslator(itemHistory, common);
   const terms = useTermLabels();
   const named = (side: { readonly id: number; readonly label: string | null } | null): string =>
-    side === null ? t('itemHistory.none') : (side.label ?? t('itemHistory.untitled', { id: String(side.id) }));
+    side === null ? t('itemHistory.none') : (side.label ?? t('common.untitledNumber', { id: String(side.id) }));
   const titled = (sides: readonly { readonly id: number; readonly title: string | null }[]): string =>
-    joined(sides.map((side) => side.title ?? t('itemHistory.untitled', { id: String(side.id) })), t);
+    joined(sides.map((side) => side.title ?? t('common.untitledNumber', { id: String(side.id) })), t);
   const setWords = (sets: readonly HistorySet[]): string =>
     joined(
       sets.map((set) => {
@@ -120,7 +122,7 @@ const useChangeWords = (): ((change: HistoryChange) => readonly [string, string,
         if (set.gone === 'deleted') {
           return t('itemHistory.deletedSet', { id });
         }
-        const name = set.title ?? t('itemHistory.untitled', { id });
+        const name = set.title ?? t('common.untitledNumber', { id });
         return set.gone === 'trash' ? t('itemHistory.inTrash', { name }) : name;
       }),
       t,
@@ -128,7 +130,7 @@ const useChangeWords = (): ((change: HistoryChange) => readonly [string, string,
   return (change) => {
     switch (change.field) {
       case 'values':
-        return [terms.label(change.term, change.label), valueWords(change.before, t), valueWords(change.after, t)];
+        return [plainName(change, terms), valueWords(change.before, t), valueWords(change.after, t)];
       case 'visibility': {
         const word = (open: boolean): string => (open ? t('itemHistory.public') : t('itemHistory.private'));
         return [

@@ -469,7 +469,7 @@ export const ne: SitesMessages = {
     'वस्तुको स्थान कहाँ भण्डारण गरिएको छ, र प्रत्येक म्यापले कुन पृष्ठभूमि खिच्दछ।',
   'siteSetting.romekaLocationProperty': 'स्थान क्षेत्र',
   'siteSetting.romekaLocationPropertyHelp':
-    'गुण जसको "lat, lng" मानहरूले म्यापमा वस्तु राख्दछ, उदाहरणका लागि Spatial Coverage। वस्तु फारमले यसका लागि सानो म्याप प्रदान गर्दछ।',
+    '"lat, lng" मानहरू भएको क्षेत्र, जसले वस्तुलाई नक्सामा राख्छ, उदाहरणका लागि Place। वस्तुको फारमले यसका लागि एउटा सानो नक्सा प्रदान गर्दछ।',
   'siteSetting.romekaMapTiles': 'म्याप टाइल्स',
   'siteSetting.romekaMapTilesHelp':
     '{z}, {x} र {y} सहितको टाइल ठेगाना। डिफल्ट OpenStreetMap हो, जसको प्रयोग नीतिले क्रेडिट लाइन आवश्यक पर्दछ र भारी प्रयोग निषेध गर्दछ।',

@@ -4,57 +4,27 @@
  * a field from how people describe it; with no query the list shows the
  * fields in use first, then the common standard ones, then the rest.
  */
-import { useId, useState } from 'react';
+import { lazy, Suspense, useId, useState } from 'react';
 import type { ReactElement } from 'react';
-import { api } from '../../api/client';
-import type { Property, ResourceTemplate } from '../../api/types';
-import { ALL_PAGES_PER_PAGE as PER_PAGE, allPages } from '../../app/all-pages';
+import { brandId } from '../../api/parse';
+import type { Property } from '../../api/types';
 import { ErrorNotice } from '../../app/errors';
 import { useLesson } from '../../app/lessons/lesson';
-import { PLAIN_TERMS, fieldDescription, plainName, searchTerms } from '../../app/plain-terms';
+import type { PageProps } from '../../app/router';
+import { fieldDescription, plainName, searchTerms } from '../../app/plain-terms';
 import { TermHelp } from '../../app/standard-term-picker';
 import { useAsync } from '../../app/useAsync';
-import { useTranslator, type TermLabels } from '../../i18n';
+import { useTranslator } from '../../i18n';
 import { useTermText } from '../../i18n/termComments';
 import '../item-types/item-types.css';
 import { useItemTypesText } from '../item-types/messages';
 import { standardsHref } from '../standards/routes';
 import { common } from '../../i18n/namespaces/common';
+import { browseOrder, load, usesOf } from './field-order';
+import type { Loaded, Use } from './field-order';
+import { valuesHref } from './routes';
 
-interface Use {
-  readonly template: ResourceTemplate;
-  /** The type's own name for the field, when it renames it. */
-  readonly label: string | null;
-}
-
-interface Loaded {
-  readonly properties: readonly Property[];
-  readonly templates: readonly ResourceTemplate[];
-}
-
-const load = async (): Promise<Loaded> => {
-  const [properties, templates] = await Promise.all([
-    allPages((page) => api.listProperties({ page, perPage: PER_PAGE, sortBy: 'label' })),
-    allPages((page) => api.listResourceTemplates({ page, perPage: PER_PAGE, sortBy: 'label' })),
-  ]);
-  return { properties, templates };
-};
-
-const usesOf = (templates: readonly ResourceTemplate[], property: Property): readonly Use[] =>
-  templates.flatMap((template) =>
-    template.properties
-      .filter((row) => row.property.id === property.id)
-      .map((row) => ({ template, label: row.alternateLabel })),
-  );
-
-/** In use first (most used first), then the curated common fields, then by name. */
-const browseOrder = (loaded: Loaded, text: TermLabels): readonly Property[] => {
-  const rank = (property: Property): number =>
-    usesOf(loaded.templates, property).length * 10 + (property.term in PLAIN_TERMS ? 1 : 0);
-  return [...loaded.properties].sort(
-    (a, b) => rank(b) - rank(a) || plainName(a, text).localeCompare(plainName(b, text), text.locale),
-  );
-};
+const ValuesBoard = lazy(() => import('./values-board').then((module) => ({ default: module.ValuesBoard })));
 
 const FieldEntry = ({
   property,
@@ -88,6 +58,9 @@ const FieldEntry = ({
         </p>
         <a className="property-field-term" href={standardsHref('properties', property.id)}>
           {property.term}
+        </a>{' '}
+        <a className="fields-entry-values" href={valuesHref(property.id)}>
+          {t('fieldsPage.values')}
         </a>
       </div>
       <p className="fields-entry-use">
@@ -157,7 +130,20 @@ const FieldsList = ({ loaded }: { readonly loaded: Loaded }): ReactElement => {
   );
 };
 
-export const FieldsPage = (): ReactElement => {
+/** `#/fields` lists the fields; `#/fields/<id>` is one field's values board. */
+export const FieldsPage = ({ param }: PageProps): ReactElement => {
+  const property = param === null || !/^[1-9]\d*$/.test(param) ? null : brandId<'PropertyId'>(Number(param));
+  if (property !== null) {
+    return (
+      <Suspense fallback={null}>
+        <ValuesBoard property={property} />
+      </Suspense>
+    );
+  }
+  return <FieldsBrowse />;
+};
+
+const FieldsBrowse = (): ReactElement => {
   const { t } = useTranslator(common);
   const state = useAsync(load, []);
   if (state.status === 'loading') {

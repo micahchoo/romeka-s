@@ -17,6 +17,7 @@ import { common } from '../../i18n/namespaces/common';
 import { resources } from '../../i18n/namespaces/resources';
 import { useTermLabels } from '../../i18n/termText';
 import type { LinksFilter } from './browse';
+import { plainName } from '../../app/plain-terms';
 
 /** The field the items link through, by term so its label translates. */
 interface FieldName {
@@ -96,13 +97,13 @@ export const recordName = (links: LinksFilter, place: LinksPlace, t: Translate):
   return place.facts.record.title ?? t('common.untitled');
 };
 
-/** The field's name: its translated label, or its id when it is not known (yet). */
+/** The field's name: its plain name (`plainName`), or its id when it is not known (yet). */
 export const fieldName = (links: LinksFilter, place: LinksPlace, text: TermLabels): string | null => {
   if (links.via === null) {
     return null;
   }
   const field = place.status === 'ready' ? place.facts.field : null;
-  return field === null ? `#${String(links.via)}` : (text.label(field.term, field.label) ?? field.term);
+  return field === null ? `#${String(links.via)}` : plainName(field, text);
 };
 
 export interface LinksCardProps {

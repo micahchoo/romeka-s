@@ -41,7 +41,7 @@ describe('the Items sort fields', () => {
   it('offer Identifier when any item type has it, and no other field until a type is chosen', () => {
     const withIdentifier = options(new Map([[ARTIFACT, [DATE, IDENTIFIER]], [LETTER, [DATE]]]));
     expect(sortFields(withIdentifier, { template: null, chosen: 'newest', setHasIdentifier: false }, text)).toEqual([
-      { term: 'dcterms:identifier', name: 'Identifier' },
+      { term: 'dcterms:identifier', name: 'Reference number' },
     ]);
     const without = options(new Map([[LETTER, [DATE]]]));
     expect(sortFields(without, { template: null, chosen: 'newest', setHasIdentifier: false }, text)).toEqual([]);
@@ -50,7 +50,7 @@ describe('the Items sort fields', () => {
   it('offer Identifier first, then the chosen type’s own fields by the names the type gives them', () => {
     const shelf = options(new Map([[ARTIFACT, [DATE, BOX, IDENTIFIER]]]));
     expect(sortFields(shelf, { template: ARTIFACT, chosen: 'newest', setHasIdentifier: false }, text)).toEqual([
-      { term: 'dcterms:identifier', name: 'Identifier' },
+      { term: 'dcterms:identifier', name: 'Reference number' },
       { term: 'bibo:locator', name: 'Box' },
       { term: 'dcterms:date', name: 'Date' },
     ]);

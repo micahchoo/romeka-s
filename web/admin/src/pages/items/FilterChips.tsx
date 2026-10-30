@@ -69,6 +69,9 @@ const chipText = (
         return '';
       }
       const field = fieldName(options, chosenId(filters.templateId), filters.field.property, text);
+      if (filters.field.presence === 'is') {
+        return t('browse.chipFieldIs', { field, text: filters.field.text });
+      }
       return t(filters.field.presence === 'empty' ? 'browse.chipFieldEmpty' : 'browse.chipFieldFilled', { field });
     }
     case 'ownerId':

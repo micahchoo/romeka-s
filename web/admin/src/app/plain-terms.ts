@@ -630,10 +630,23 @@ const plainOf = (term: string, locale: Locale): Plain | undefined => {
 };
 
 /**
- * The plain name in `text`'s locale: the curated one, else the label (a
- * built-in term's translation, any other label as stored), else the term.
+ * A field's name, the one every screen outside Standards shows: the item
+ * type's own name for it (`own`) when the screen shows one item type's field,
+ * else the curated plain name (English where `text`'s locale has none), else
+ * the label (a built-in
+ * term's translation, any other label as stored), else the term. Standards
+ * shows the vocabulary's own labels; nothing else calls `text.label` on a
+ * property, which the lint rule `romeka/field-names` in `eslint.config.js`
+ * enforces.
  */
-export const plainName = (entry: Termed, text: TermLabels): string => {
+export const plainName = (
+  entry: Pick<Termed, 'term' | 'label'>,
+  text: TermLabels,
+  own: string | null = null,
+): string => {
+  if (own !== null && own.trim() !== '') {
+    return own;
+  }
   const curated = plainOf(entry.term, text.locale)?.[0];
   if (curated !== undefined) {
     return curated;
@@ -641,6 +654,15 @@ export const plainName = (entry: Termed, text: TermLabels): string => {
   const label = text.label(entry.term, entry.label);
   return label === null || label === "" ? entry.term : label;
 };
+
+/**
+ * The name upstream Omeka, the public site and exports show for a field an item
+ * type does not rename: its vocabulary label in `text`'s locale. Only a choice
+ * about what to store reads it (a starter keeps its own name whenever it differs
+ * from this one); a screen names a field with `plainName`.
+ */
+export const storedDefaultName = (entry: Pick<Termed, 'term' | 'label'>, text: TermLabels): string | null =>
+  text.label(entry.term, entry.label);
 
 /** The definition in `text`'s locale: a built-in term's translation, any other as stored. */
 export const termComment = (entry: Termed, text: TermText): string | null =>

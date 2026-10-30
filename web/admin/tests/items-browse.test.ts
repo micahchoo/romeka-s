@@ -216,6 +216,41 @@ describe('the field filter', () => {
     });
   });
 
+  it('names one exact text, colons and all, and reads back to the same URL', () => {
+    expect(parse('field=7:is:Bidar').filters.field).toEqual({ property: 7, presence: 'is', text: 'Bidar' });
+    expect(parse('field=7:is:Time: 10:30').filters.field).toEqual({
+      property: 7,
+      presence: 'is',
+      text: 'Time: 10:30',
+    });
+    const query = 'q=map&field=7%3Ais%3AOld+City';
+    expect(formatBrowse(parse(query)).toString()).toBe(query);
+  });
+
+  it('drops an exact text filter with no text', () => {
+    for (const query of ['field=7:is', 'field=7:is:', 'field=7:is:%20']) {
+      expect(parse(query)).toEqual(PLAIN);
+    }
+  });
+
+  it('sends an exact text as the eq property search', () => {
+    expect(browseQuery(parse('field=7:is:Bidar'))).toMatchObject({
+      'property[1][property]': '7',
+      'property[1][type]': 'eq',
+      'property[1][text]': 'Bidar',
+    });
+  });
+
+  it('a field value opens the Items list that holds that exact text', () => {
+    const href = itemsHref({ field: { property: brandId<'PropertyId'>(7), presence: 'is', text: 'Old City' } });
+    expect(href).toBe('#/items?field=7%3Ais%3AOld+City');
+    expect(parse(href.slice('#/items?'.length)).filters.field).toEqual({
+      property: 7,
+      presence: 'is',
+      text: 'Old City',
+    });
+  });
+
   it("an item type's missing count opens the address the URL reads back", () => {
     const href = fieldPlaceHref(brandId<'TemplateId'>(2), brandId<'PropertyId'>(7));
     expect(href).toBe('#/items?template=2&field=7%3Aempty');

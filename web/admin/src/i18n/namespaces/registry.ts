@@ -47,4 +47,5 @@ export const NAMESPACES: readonly NamespaceRecord[] = [
   { id: 'finding', what: 'jump-to box and saved list messages', type: 'FindingMessages' },
   { id: 'class-filter', what: 'class filter messages', type: 'ClassFilterMessages' },
   { id: 'site-check', what: 'site check messages', type: 'SiteCheckMessages' },
+  { id: 'field-values', what: 'values board messages', type: 'FieldValuesMessages' },
 ];

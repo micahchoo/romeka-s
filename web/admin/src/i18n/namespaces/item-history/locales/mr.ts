@@ -27,7 +27,6 @@ export const mr: ItemHistoryMessages = {
   'itemHistory.public': 'सार्वजनिक',
   'itemHistory.private': 'खाजगी',
   'itemHistory.none': '(काहीही नाही)',
-  'itemHistory.untitled': 'शीर्षक नसलेले {id}',
   'itemHistory.inTrash': '{name} (ट्रॅशमध्ये)',
   'itemHistory.deletedSet': 'हटवलेला वस्तू संच {id}',
   'itemHistory.privateValue': '{value} (खाजगी)',

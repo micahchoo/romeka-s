@@ -103,7 +103,7 @@ export const te: BulkMessages = {
   'bulk.word.removeSets': '{names} నుండి తొలగించండి',
   'bulk.word.addSites': 'సైట్‌కు {names} జోడించండి',
   'bulk.word.removeSites': 'సైట్‌లోని {names} తొలగించండి',
-  'bulk.word.untitled': 'అంశం {id}',
+  'bulk.word.item': 'అంశం {id}',
   'bulk.word.fieldValues': '{field}: {values}',
   'bulk.word.fieldEmpty': '{field}: విలువ లేదు',
   'bulk.word.valueIn': '{text} ({lang})',

@@ -203,7 +203,7 @@ test('an item with values outside its template saves unchanged from the admin', 
     'Date',
     'Creator',
     'Subject',
-    'Relation',
+    'Related to',
     'annotates',
   ]);
   await page.getByRole('button', { name: 'Save' }).click();

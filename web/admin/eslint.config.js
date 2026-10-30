@@ -63,4 +63,31 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // A field has one name on every admin screen: `plainName` in `src/app/plain-terms.ts` (the item
+    // type's own name, then the curated plain name, then the label). Only Standards shows the
+    // vocabularies' own labels, and the class picker names classes; nothing else reads a term's label.
+    files: ['src/**/*.{ts,tsx}', 'tests/lint/field-name-*.ts'],
+    ignores: [
+      'src/app/plain-terms.ts',
+      'src/app/class-choices.ts',
+      'src/pages/standards/**',
+      'src/pages/vocabularies/**',
+      'src/pages/properties/**',
+      'src/pages/resource-classes/**',
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "CallExpression[callee.property.name='label'][arguments.0.property.name='term']",
+          message: 'Name a field with plainName (src/app/plain-terms.ts), so every screen calls it the same.',
+        },
+        {
+          selector: "CallExpression[callee.property.name='label'][arguments.0.name='term']",
+          message: 'Name a field with plainName (src/app/plain-terms.ts), so every screen calls it the same.',
+        },
+      ],
+    },
+  },
 );

@@ -25,6 +25,7 @@ import { setPlaceHref } from '../item-sets/facts';
 import { mediaHref } from '../media/annotations/link';
 import { linksPlaceHref } from './browse';
 import './linked-from.css';
+import { plainName } from '../../app/plain-terms';
 
 const RECORDS_PER_PAGE = 5;
 
@@ -112,7 +113,7 @@ export const useLinkRowWords = (): ((row: LinkRow) => string) => {
   return (row) => {
     const [one, many] = COUNT_WORDS[row.kind];
     const count = row.count === 1 ? t(one) : t(many, { count: number(row.count) });
-    return t('linkedFrom.row', { field: text.label(row.term, row.label), count });
+    return t('linkedFrom.row', { field: plainName(row, text), count });
   };
 };
 

@@ -429,7 +429,7 @@ export const es: SitesMessages = {
   'siteSettingGroup.maps': 'Mapas',
   'siteSettingGroup.mapsIntro': 'Dónde se guarda el lugar de un elemento y el fondo que dibuja cada mapa.',
   'siteSetting.romekaLocationProperty': 'Campo de ubicación',
-  'siteSetting.romekaLocationPropertyHelp': 'La propiedad cuyos valores "lat, lng" sitúan un elemento en un mapa, por ejemplo Cobertura espacial. El formulario del elemento ofrece un mapa pequeño para ella.',
+  'siteSetting.romekaLocationPropertyHelp': 'El campo cuyos valores "lat, lng" sitúan un elemento en un mapa, por ejemplo Lugar. El formulario del elemento ofrece un mapa pequeño para él.',
   'siteSetting.romekaMapTiles': 'Teselas del mapa',
   'siteSetting.romekaMapTilesHelp': 'Una dirección de teselas con {z}, {x} e {y}. La predeterminada es OpenStreetMap, cuya política de uso exige la línea de créditos y prohíbe el uso intensivo.',
   'siteSetting.romekaMapAttribution': 'Créditos del mapa',

@@ -164,12 +164,12 @@ describe('Subject field tags', () => {
   it('keeps_subject_where_the_read_list_shows_it_on_the_form_and_in_the_write', async () => {
     const fetchMock = installFetch(onlyTagsRoutes);
     render(<ItemsPage param="1" />);
-    const read = await screen.findAllByText(/^(Title|Subject|Relation)$/, { selector: '.value-field-name' });
-    expect(read.map((name) => name.textContent)).toEqual(['Title', 'Subject', 'Relation']);
+    const read = await screen.findAllByText(/^(Title|Subject|Related to)$/, { selector: '.value-field-name' });
+    expect(read.map((name) => name.textContent)).toEqual(['Title', 'Subject', 'Related to']);
 
     fireEvent.click(screen.getByText('Edit this item'));
-    const form = await screen.findAllByText(/^(Title|Subject|Relation)$/, { selector: '.property-field-label' });
-    expect(form.map((name) => name.textContent)).toEqual(['Title', 'Subject', 'Relation']);
+    const form = await screen.findAllByText(/^(Title|Subject|Related to)$/, { selector: '.property-field-label' });
+    expect(form.map((name) => name.textContent)).toEqual(['Title', 'Subject', 'Related to']);
     expect(screen.queryByRole('group', { name: 'Tags' })).toBeNull();
 
     const entry = within(screen.getByRole('group', { name: 'Subject' })).getByLabelText('Add a tag');

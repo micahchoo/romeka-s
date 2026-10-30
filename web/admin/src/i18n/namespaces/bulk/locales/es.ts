@@ -100,7 +100,7 @@ export const es: BulkMessages = {
   'bulk.word.removeSets': 'Quitar de {names}',
   'bulk.word.addSites': 'Añadir al sitio {names}',
   'bulk.word.removeSites': 'Quitar del sitio {names}',
-  'bulk.word.untitled': 'Elemento {id}',
+  'bulk.word.item': 'Elemento {id}',
   'bulk.word.fieldValues': '{field}: {values}',
   'bulk.word.fieldEmpty': '{field}: sin valor',
   'bulk.word.valueIn': '{text} ({lang})',
