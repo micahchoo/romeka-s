@@ -57,7 +57,7 @@ pub use resources::{
     ItemRow, ItemSetRow, MediaRow, NewItem, NewItemSet, NewMedia, NewResource, NewWholeItem,
     ResourceRow, ValueAnnotationRow, resource_type,
 };
-pub use rewrites::{MergeWrite, PromoteList, PromoteWrite, TextValueRow};
+pub use rewrites::{MergeWrite, MoveWrite, PromoteList, PromoteWrite, TextValueRow};
 pub use sites::{
     NewFirstPage, NewFirstPageBlock, NewSite, NewSiteBlock, NewSiteBlockAttachment, NewSitePage,
     NewWholeSite, SiteBlockAttachmentRow, SiteBlockRow, SiteItemSetRow, SitePageRow,

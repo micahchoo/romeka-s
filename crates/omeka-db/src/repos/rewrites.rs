@@ -16,8 +16,8 @@ use crate::DbError;
 use crate::backend::Backend;
 use crate::ids::{CustomVocabId, PropertyId, TemplateId};
 use crate::rows::{
-    HistoryStamp, MergeWrite, PromoteList, PromoteWrite, PublicationTarget, TextValueRow,
-    resource_type,
+    HistoryStamp, MergeWrite, MoveWrite, PromoteList, PromoteWrite, PublicationTarget,
+    TextValueRow, resource_type,
 };
 
 /// Bulk rewrites over `value`.
@@ -173,30 +173,99 @@ where
             .execute(&mut *tx)
             .await?;
         }
-        // `ResourceTitleHydrator`: the first non-empty text of the title property.
-        let retitle = format!(
-            "UPDATE resource SET title = (
-                 SELECT v.value FROM {table} v
-                 WHERE v.resource_id = resource.id
-                   AND v.property_id = COALESCE(
-                       (SELECT t.title_property_id FROM resource_template t
-                        WHERE t.id = resource.resource_template_id), ?)
-                   AND v.value IS NOT NULL AND v.value <> '' AND v.value_resource_id IS NULL
-                 ORDER BY v.id LIMIT 1)
-             WHERE id = ?"
-        );
-        for resource in &write.resources {
-            sqlx::query(&retitle)
-                .bind(bind_opt_id(write.default_title_property))
-                .bind(bind_id(*resource))
-                .execute(&mut *tx)
-                .await?;
-        }
+        retitle::<DB>(&mut tx, &write.resources, write.default_title_property).await?;
         record_each::<DB>(&mut tx, &before, stamp).await?;
         touch_modified::<DB>(&mut tx, &write.resources).await?;
         tx.commit().await?;
         Ok(())
     }
+
+    /// Write one move. Each item it changes gains a history entry under `stamp`.
+    pub async fn move_values(
+        &self,
+        write: &MoveWrite,
+        stamp: &HistoryStamp,
+    ) -> Result<(), DbError> {
+        let table = DB::quote_identifier("value");
+        let still = "property_id = ? AND type = 'literal' AND value = ?";
+        let mut tx = self.pool.begin_with(DB::begin_write()).await?;
+        let before = images_before::<DB>(&mut tx, &write.resources).await?;
+        let retarget = format!("UPDATE {table} SET property_id = ? WHERE id = ? AND {still}");
+        for value in &write.retarget {
+            sqlx::query(&retarget)
+                .bind(bind_id(write.to))
+                .bind(bind_id(*value))
+                .bind(bind_id(write.from))
+                .bind(&write.text)
+                .execute(&mut *tx)
+                .await?;
+        }
+        let delete = format!("DELETE FROM {table} WHERE id = ? AND {still}");
+        for value in &write.delete {
+            sqlx::query(&delete)
+                .bind(bind_id(*value))
+                .bind(bind_id(write.from))
+                .bind(&write.text)
+                .execute(&mut *tx)
+                .await?;
+        }
+        let copy = format!(
+            "INSERT INTO {table}
+                 (resource_id, property_id, value_resource_id, value_annotation_id, type, lang,
+                  value, uri, is_public)
+             SELECT resource_id, ?, NULL, NULL, type, lang, value, NULL, is_public
+             FROM {table} WHERE id = ? AND {still}"
+        );
+        for value in &write.copy {
+            sqlx::query(&copy)
+                .bind(bind_id(write.to))
+                .bind(bind_id(*value))
+                .bind(bind_id(write.from))
+                .bind(&write.text)
+                .execute(&mut *tx)
+                .await?;
+        }
+        retitle::<DB>(&mut tx, &write.resources, write.default_title_property).await?;
+        record_each::<DB>(&mut tx, &before, stamp).await?;
+        touch_modified::<DB>(&mut tx, &write.resources).await?;
+        tx.commit().await?;
+        Ok(())
+    }
+}
+
+/// `ResourceTitleHydrator`: each resource's title becomes the first non-empty text of its title
+/// property, or of `default_title_property` when its template names none.
+async fn retitle<DB: Backend>(
+    conn: &mut DB::Connection,
+    resources: &[crate::ids::ResourceId],
+    default_title_property: Option<PropertyId>,
+) -> Result<(), DbError>
+where
+    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
+    for<'q> DB::Arguments<'q>: IntoArguments<'q, DB>,
+    for<'x> i64: Encode<'x, DB> + Type<DB>,
+    for<'x> Option<i64>: Encode<'x, DB> + Type<DB>,
+{
+    let table = DB::quote_identifier("value");
+    let sql = format!(
+        "UPDATE resource SET title = (
+             SELECT v.value FROM {table} v
+             WHERE v.resource_id = resource.id
+               AND v.property_id = COALESCE(
+                   (SELECT t.title_property_id FROM resource_template t
+                    WHERE t.id = resource.resource_template_id), ?)
+               AND v.value IS NOT NULL AND v.value <> '' AND v.value_resource_id IS NULL
+             ORDER BY v.id LIMIT 1)
+         WHERE id = ?"
+    );
+    for resource in resources {
+        sqlx::query(&sql)
+            .bind(bind_opt_id(default_title_property))
+            .bind(bind_id(*resource))
+            .execute(&mut *conn)
+            .await?;
+    }
+    Ok(())
 }
 
 /// Lock the list's row and refuse with [`DbError::Conflict`] when its `terms` are not `read`.

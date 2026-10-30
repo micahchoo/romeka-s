@@ -19,6 +19,7 @@ pub mod csv;
 pub mod dead_jobs;
 pub mod derivatives;
 pub mod errors;
+pub mod field_values;
 pub mod fixity;
 pub mod import;
 pub mod jsonld;
